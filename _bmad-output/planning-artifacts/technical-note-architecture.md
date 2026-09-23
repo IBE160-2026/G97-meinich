@@ -18,9 +18,9 @@ Supplements the product brief. Data sources are documented separately in `docs/d
 
 **Bulk download.** Company data and key figures are loaded in bulk per industry. This is free and fast, and covers the first three stages of the funnel.
 
-**Documents are extracted ahead of use, not on demand.** OCR takes seconds to tens of seconds per filing, so it cannot run inside a user request. A batch job pre-warms all three covered industries before they are available in the product, and the result is stored permanently. Lazy on-demand extraction was the original design; it is not viable once extraction means OCR.
+**Documents are extracted ahead of use, not on demand.** OCR takes seconds to tens of seconds per filing, so it cannot run inside a user request. A batch job pre-warms every covered industry before they are available in the product, and the result is stored permanently. Lazy on-demand extraction was the original design; it is not viable once extraction means OCR.
 
-This bounds the cost by the size of the covered industries rather than by the register, which is why v1 covers three industries rather than the whole register.
+This bounds the cost by the size of the covered industries rather than by the register, which is why coverage is added industry by industry, each only once it is measured.
 
 **The subject of the analysis** is always extracted in full detail across several years, since it is a single company.
 
@@ -89,7 +89,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **Invitation** is by email, into a single workspace, as viewer. Share links are out of v1.
 
-**A user's own unfiled figures** are confidential, belong to a workspace, and never enter any group aggregate.
+**A user's own unfiled figures** live in their own table, keyed to a workspace. The owner writes, viewers read, anonymous sessions never read. Aggregate queries read only the tables holding filed accounts, so leaking unfiled figures into a peer median would require changing the query, not forgetting a filter. Removing a member revokes access immediately, since every policy goes through membership. When the filing for the same year arrives, it takes precedence and the user-entered figures are kept only as history.
 
 **Minimum group size** before any aggregate is shown. This is a quality threshold, not a confidentiality control: aggregates are computed only from public filings.
 
@@ -107,7 +107,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **OCR accuracy, measured against a hand-transcribed set.** For a sample of filings, every figure in the generated section is transcribed by hand, and the pipeline's output is compared against it field by field. Reported as the share of figures recovered exactly, and separately as the share of filings passing the internal consistency check, split between recent filings and older scans. This is the measurement that decides which document-derived ratios the product can honestly offer.
 
-**A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline.
+**A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline, and reported per industry: an industry is offered in the product only once its own measurement exists.
 
 **Synthetic cohorts** at and below the minimum group size, to test that no aggregate is shown below it.
 

@@ -60,7 +60,9 @@ These are verified behaviours of the Brønnøysund API, not guesses. Full detail
 
 **Match companies on organisation number only.** Names change over time — the same orgnr can be a different company name in an older filing.
 
-**The field `sumInnskuttEgenkaptial` is misspelled in the API.** Do not "fix" it in the parser.
+**Two field names are misspelled in the API.** `sumInnskuttEgenkaptial`, and the object `regnkapsprinsipper` that holds `smaaForetak` and `regnskapsregler`. Do not "fix" either in the parser.
+
+**Industry codes are SN2025, and the filter matches secondary codes.** Old SN2007 codes return nothing. The search API's `naeringskode` filter also matches `naeringskode2` and `naeringskode3`; filter on `naeringskode1.kode` when the primary industry is what you mean.
 
 **Filter for comparability before comparing.** Currency, accounting framework, `smaaForetak`, `avviklingsregnskap`, financial period and `regnskapstype` must match the subject. All are exposed as fields.
 

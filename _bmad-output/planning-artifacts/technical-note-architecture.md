@@ -52,12 +52,22 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 ---
 
+## Industries covered first
+
+**62.100 Dataprogrammeringstjenester and 69.202 Regnskapsføring og bokføring**, chosen from the screening in `analysis/output/industry-screening.md`.
+
+62.100 is where classification has most to prove. With five or more employees there are about 1 000 companies, and their operating margins run from −46 % to +9 % between the first and third quartile. Loss-making product companies and profitable consultancies share one code. 69.202 is the control. About 800 companies, 93 % describing core bookkeeping, and margins within 12 points. If classification lifts precision substantially in 62.100 and little in 69.202, that is a result about *when* the model earns its place, not only that it does. 69.202 is also the primary user's own industry.
+
+43.210 Elektrisk installasjonsarbeid is the likely third. It is the largest population, and receivables and inventory put the OCR-derived ratios to work.
+
+---
+
 ## Peer group — a four-stage funnel
 
 1. **Coarse filter**, rules. Industry code and size band. Hundreds of thousands → a few hundred.
 2. **Comparability filter**, rules. Currency, accounting rules, `smaaForetak`, `avviklingsregnskap`, accounting period, `regnskapstype`. All exposed as fields in the API.
 3. **Segmentation**, rules. Size, legal form, geography where the industry calls for it. → under a hundred.
-4. **Classification**, model. Reads the statement of purpose and the business description and judges whether the candidate is the same type of business.
+4. **Classification**, model. Reads the statement of purpose and the business description and judges whether the candidate is the same type of business. A company whose description gives nothing to classify on is stored as unclassified, not guessed at. It can still be a peer, matched on stages 1–3 only, and the inclusion reason says so.
 
 Classification runs once per company at ingestion, never at search time. Each company is stored with a structured profile: what it does, B2B or B2C, manufacturing, trade or services, capital intensity. A search then becomes an ordinary database query.
 
@@ -107,7 +117,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **OCR accuracy, measured against a hand-transcribed set.** For a sample of filings, every figure in the generated section is transcribed by hand, and the pipeline's output is compared against it field by field. Reported as the share of figures recovered exactly, and separately as the share of filings passing the internal consistency check, split between recent filings and older scans. This is the measurement that decides which document-derived ratios the product can honestly offer.
 
-**A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline, and reported per industry: an industry is offered in the product only once its own measurement exists.
+**A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline, and reported per industry: an industry is offered in the product only once its own measurement exists. The set is stratified by description quality, so precision and recall can be reported separately for informative and uninformative descriptions.
 
 **Synthetic cohorts** at and below the minimum group size, to test that no aggregate is shown below it.
 

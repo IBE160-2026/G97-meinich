@@ -8,7 +8,7 @@ Technical note for Peerless. Everything below has been tested against actual cal
 
 | Source | Content | Cost | Status |
 |---|---|---|---|
-| Enhetsregisteret (Central Coordinating Register for Legal Entities) | Company data, industry code, employees, roles, statement of purpose | Free, bulk download | Not tested in detail |
+| Enhetsregisteret (Central Coordinating Register for Legal Entities) | Company data, industry code, employees, roles, statement of purpose | Free, bulk download | Tested — search API, counts, descriptions; see `analysis/output/industry-screening.md` |
 | Regnskapsregisteret (Register of Company Accounts) — key figures | Condensed income statement and balance sheet, most recent year | Free, open API | Verified |
 | Regnskapsregisteret — document | Complete annual accounts as PDF, all years | Free, open API | Verified — **raster images only, see below** |
 | Regnskapsregisteret — subscription | All accounting figures as XML, copies of the annual accounts, auditor codes and remarks; delivered by SFTP | NOK 480,000 per year | Investigated — **out of reach for this project**, so document figures come from OCR |
@@ -128,6 +128,12 @@ Note also that the API's *derived* langsiktig gjeld — `sumGjeld` minus `sumKor
 
 **The field name `sumInnskuttEgenkaptial` is misspelled in the API.** Do not correct it in the parser.
 
+**Industry codes are SN2025.** Enhetsregisteret now classifies by SN2025. Codes from the old SN2007 standard, still common in older material and online examples, return zero results: `62.010` finds nothing, `62.100` finds ten thousand. Always look codes up against the register, not against a list from elsewhere.
+
+**The industry filter matches secondary codes too.** `naeringskode=62.100` in the search API also returns companies where the code is only `naeringskode2` or `naeringskode3` — 60 of 1 063 for 62.100 with five or more employees. The industry-code baseline uses the primary code, so filter on `naeringskode1.kode` after fetching.
+
+**The key figures JSON is nested, and has a second misspelling.** The field list above gives flat names; in JSON they sit in nested objects, for example `resultatregnskapResultat.driftsresultat.driftsinntekter.sumDriftsinntekter`. The accounting principles sit in an object named `regnkapsprinsipper` — missing the *s* after *regn* — holding `smaaForetak` and `regnskapsregler`. Like `sumInnskuttEgenkaptial`, do not correct it in the parser.
+
 ---
 
 ## OCR feasibility — first measurement
@@ -141,6 +147,18 @@ Run on the 2025 filing for 979 607 008: the three generated pages rendered at 30
 **Known headroom, none of it exotic:** a Norwegian-capable model, a digit-restricted recognition pass over the numeric columns to eliminate `o`/`0` and `l`/`1` confusion, and column boundaries calibrated on x rather than inferred from gaps — which is where all three remaining failures occurred.
 
 **Not yet measured:** the older paper-form scans. 2011 for this company is visibly far worse than the clean renderings of recent filings, and its accuracy should be expected to differ sharply.
+
+---
+
+## Business descriptions — first measurement
+
+Run on all active AS with five or more employees in 62.100, 69.202 and 43.210 (3 125 companies) by `analysis/industry_screening.py`. Descriptions come from `aktivitet`, falling back to `vedtektsfestetFormaal`.
+
+**Many descriptions say nothing that distinguishes the company.** After removing legal boilerplate and words that merely restate the industry, a word-list proxy found three or more distinguishing words in at most 56 % of descriptions in 62.100, 50 % in 43.210 and 38 % in 69.202. Typical descriptions are "Programvareutvikling." and "Regnskapskontor m.m.". The proxy is generous — Nynorsk words and misspellings pass as distinguishing — so the true share is lower. Only 26–36 % of these companies have a website registered.
+
+**Consequence:** classification from the register's text alone cannot place every company. A large share will have nothing to classify on, and the product must say so rather than guess. Hand scoring of a sample is the measurement; the proxy only sizes the problem.
+
+**The comparability filter removes little.** 94–99 % of a random sample of 100 per industry passed it (NOK, ordinary accounting rules, calendar year, no liquidation accounts). The narrowing is done by size segmentation and classification.
 
 ---
 

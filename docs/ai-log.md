@@ -18,9 +18,9 @@ Routine work that went as expected is not logged.
 |---|---|
 | auth | 3 |
 | money | 0 |
-| parsing | 1 |
+| parsing | 2 |
 | llm-boundary | 1 |
-| scope | 2 |
+| scope | 3 |
 | docs | 1 |
 
 ## Entry template
@@ -93,3 +93,12 @@ Routine work that went as expected is not logged.
 **Problem:** An ambiguous rule becomes an ambiguous RLS policy. What could go wrong with the resolution: an aggregate query picking up user-entered figures, a removed member keeping access, figures leaking through PDF export, and comparing a current unfiled year against peers' last filed year.
 **Caught by:** Reading the brief and the technical note against each other.
 **Outcome:** Unfiled figures belong to the workspace; the owner writes, viewers read, anonymous sessions never read. They live in their own table, and aggregate queries read only filed-accounts tables, so a leak would require changing the query rather than forgetting a filter. Marked as unaudited everywhere, including exports; the period difference is stated. `6498fec`.
+
+### 2026-09-23 — Industry screening script
+**Tags:** parsing · scope
+**Tool:** Claude Code (Opus 5.5)
+**Asked:** A way to choose the first industries from data rather than intuition.
+**Got:** `analysis/industry_screening.py`, which counts the population, scores descriptions with word lists, samples the key figures API for comparability and margin spread, and estimates OCR volume.
+**Problem:** Three things found while building it. The API filter matches secondary industry codes, which would have inflated the baseline population. The accounting principles object is misspelled `regnkapsprinsipper`, so a parser written from the documented flat field names would have read `null` for `smaaForetak` and `regnskapsregler` and silently failed the comparability filter. And the description score is a generous proxy — Nynorsk words and misspellings count as distinguishing — so it overstates the share of informative descriptions.
+**Caught by:** Inspecting a raw API response before writing the parser; reading the examples the report prints for each category.
+**Outcome:** Primary-code filtering, the misspelling handled and documented, the proxy labelled as an upper bound with CSV files for hand scoring. Amounts converted to integers and ratios computed with `Decimal`. First industries: 62.100 and 69.202.

@@ -59,3 +59,6 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Analysis scripts: raw API cache
+analysis/.cache/

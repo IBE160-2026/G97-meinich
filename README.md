@@ -23,3 +23,7 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 ## AI Log
 
 [docs/ai-log.md](docs/ai-log.md)
+
+## Analysis: Industry Screening
+
+[analysis/output/industry-screening.md](analysis/output/industry-screening.md)

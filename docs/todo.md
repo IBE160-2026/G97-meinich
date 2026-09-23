@@ -1,0 +1,25 @@
+# To-do — Peerless
+
+Open work that is decided but not yet done. Tick items off here, and move any decision they produce into the brief, the technical note or `AGENTS.md`.
+
+## Manual work (calendar time, start early)
+
+- [ ] **Score business descriptions by hand.** 50 randomly sampled companies each from 62.100 and 69.202, one question per company: does the description distinguish this company from others with the same code? (yes/no, plus a short business-type label). Sample with a fixed seed and hide the word-list score while scoring, so the proxy does not colour the answers. Turns the 38–56 % estimate in `analysis/output/industry-screening.md` into a measurement. About 30–45 minutes.
+- [ ] **Build the labelled peer set.** For a selection of subject companies, judge which candidates from the same industry and size band are genuine peers. This is the ground truth the project's main result is measured against. Stratify by description quality (from the item above). Needs candidate lists from the engine first; runs alongside the code through week 9.
+- [ ] **Hand-transcribe the OCR reference set.** Every figure in the generated section for a sample of filings, recent and older scans, to measure OCR accuracy against.
+
+## Decisions still open
+
+- [ ] **Define the key figures.** For each of the ten or so measures: formula, source (key figures API or OCR), and what happens when a component is missing. Includes what the valuation multiple applies to — EBIT is available from the API, EBITDA needs depreciation from OCR.
+- [ ] **Confirm the fingerprint features**, including personnel cost share in bands (proposed) or not at all. Check against the labelled set whether the bands blur the benchmark.
+- [ ] **Set the minimum group size.** The screening used 10 as a placeholder.
+- [ ] **Check the course requirements** for fixed user roles, since the access model now uses workspace roles (owner/viewer), and for which BMAD artifacts (PRD, UX, epics and stories) are expected before coding.
+
+## Before the first line of code
+
+- [ ] Choose package manager and test frameworks (e.g. pnpm, Vitest for the engine, Playwright end to end).
+- [ ] Set up Supabase CLI locally with migrations in the repo, so RLS policies are tested as SQL against a real database.
+- [ ] Settle the money type (integer øre, `bigint`) and record it in `AGENTS.md`.
+- [ ] GitHub Actions running typecheck and tests on every push.
+- [ ] Supabase project in an EU region; anonymous sign-in, CAPTCHA and magic link enabled; a short privacy notice.
+- [ ] Extend the OCR spike to the older paper-form scans (week 1 in the schedule).

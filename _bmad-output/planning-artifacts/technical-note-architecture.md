@@ -62,18 +62,23 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 ---
 
-## Peer group — a four-stage funnel
+## Peer group — a five-stage funnel
 
 1. **Coarse filter**, rules. Industry code and size band. Hundreds of thousands → a few hundred.
 2. **Comparability filter**, rules. Currency, accounting rules, `smaaForetak`, `avviklingsregnskap`, accounting period, `regnskapstype`. All exposed as fields in the API.
 3. **Segmentation**, rules. Size, legal form, geography where the industry calls for it. → under a hundred.
-4. **Classification**, model. Reads the statement of purpose and the business description and judges whether the candidate is the same type of business. A company whose description gives nothing to classify on is stored as unclassified, not guessed at. It can still be a peer, matched on stages 1–3 only, and the inclusion reason says so.
+4. **Business-model fingerprint**, rules. Reads what kind of business a company is from its own accounts: cost of goods sold as a share of revenue, whether it carries inventory, capitalised intangible assets such as self-developed software, fixed-asset intensity, and personnel cost share in coarse bands. A reseller, a product company and a consultancy separate here even when all three describe themselves as "Programvareutvikling." Works for every company whose accounts are extracted.
+5. **Classification**, model. Reads the company name, secondary industry codes, the statement of purpose and the business description, and judges whether the candidate is the same type of business. Where the text and the fingerprint disagree, the candidate is flagged rather than resolved by either. A company with nothing to classify on is stored as unclassified, not guessed at, and can still be a peer on stages 1–4.
+
+**Never select on what is being benchmarked.** If peers were chosen for having a similar margin, every margin gap would be close to zero and the analysis would show nothing. The fingerprint therefore uses only features that say *what kind* of business a company is, never *how well* it is run: no margins, returns or productivity. Personnel cost share is both a business-model marker and a benchmarked ratio, so it enters only in coarse bands (under 30 %, 30–55 %, over 55 %). That is a deliberate trade-off, recorded under decision points.
+
+**The subject can be described by the user.** The subject is the one company whose classification matters most, and the user knows what it does. An optional sentence entered by the user takes precedence over the register's description for the subject. It belongs to the workspace, and for anonymous sessions it is used for that analysis and not stored. It is sent to the model only to classify, and the model can answer only with fixed categories, so text written to steer the model cannot change more than the category it lands in.
 
 Classification runs once per company at ingestion, never at search time. Each company is stored with a structured profile: what it does, B2B or B2C, manufacturing, trade or services, capital intensity. A search then becomes an ordinary database query.
 
-Each peer's inclusion reason is generated deterministically from the profile fields it shares with the subject. The model classifies; it does not write the justification.
+Each peer's inclusion reason is generated deterministically from the profile fields it shares with the subject, and states what the match rests on: description and accounts, accounts alone, or industry and size alone. The model classifies; it does not write the justification.
 
-**Embeddings as a measured baseline, not the method.** Business descriptions are embedded once at ingestion and stored with pgvector in the same Supabase Postgres — no separate vector service. This gives the middle level of the three-level comparison: industry code alone, embedding similarity, and model classification, each scored against the labelled set. Embeddings become part of the funnel only if they measurably beat classification.
+**Measured layer by layer.** Each stage is scored against the labelled set on its own and in combination: industry code and size alone; adding the fingerprint; adding text through embeddings (stored with pgvector in the same Supabase Postgres, no separate vector service); adding text through model classification. The report then shows where the improvement comes from, not only that there is one. If the fingerprint alone captures most of it, that is a finding: the model was needed less than expected. Embeddings replace classification only if they measurably beat it.
 
 The user sees how many companies remain after each stage and can loosen a criterion when the group becomes too small.
 
@@ -117,7 +122,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **OCR accuracy, measured against a hand-transcribed set.** For a sample of filings, every figure in the generated section is transcribed by hand, and the pipeline's output is compared against it field by field. Reported as the share of figures recovered exactly, and separately as the share of filings passing the internal consistency check, split between recent filings and older scans. This is the measurement that decides which document-derived ratios the product can honestly offer.
 
-**A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline, and reported per industry: an industry is offered in the product only once its own measurement exists. The set is stratified by description quality, so precision and recall can be reported separately for informative and uninformative descriptions.
+**A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline, and reported per industry: an industry is offered in the product only once its own measurement exists. The set is stratified by description quality, so precision and recall can be reported separately for informative and uninformative descriptions, and reported for each layer of the funnel.
 
 **Synthetic cohorts** at and below the minimum group size, to test that no aggregate is shown below it.
 
@@ -160,9 +165,9 @@ Thirteen weeks.
 | 5 | Number parsing, the two reconciliation rules, data quality flags |
 | 6 | OCR accuracy measurement against the hand-transcribed set; buffer |
 | 7 | Calculation engine with reference cases |
-| 8 | Classification, the funnel, structured company profiles |
+| 8 | Fingerprint and classification, the funnel, structured company profiles |
 | 9 | Labelled set complete, measurement against the industry-code baseline |
-| 10 | Embeddings as an intermediate baseline; three-level comparison |
+| 10 | Embeddings; layer-by-layer comparison |
 | 11 | Invitations, rate limiting, peer group adjustment, saved analyses |
 | 12 | Valuation control, explanation layer, export, responsive interface |
 | 13 | Security report, threat model, AI documentation |
@@ -189,4 +194,4 @@ Kept out of the product brief, which follows the template provided. Collected he
 
 **Data out.** Key figures for the company across the years available. The distribution within the peer group with median and upper quartile. The company's position on the distribution per key figure. Decomposition of return into margin and asset turnover. Each deviation quantified in kroner. Profit uplift, released capital and implied enterprise value at the chosen closable share. A data quality flag per filing. Explanatory text with traceable figures. PDF export. Audit log.
 
-**Decision points.** How much autonomy the model has in accepting or rejecting a peer group candidate. Which comparability criteria are hard exclusions and which are merely flagged. The minimum group size, weighed against coverage in thin industries. Whether the explanation layer is ever allowed to calculate, and how the boundary is enforced rather than merely instructed. Which key figures are included and how each is defined, since differences in definition between subject and group invalidate the comparison. Whether the reference point is the median or the upper quartile. How long fetched public data is cached, against the risk of showing stale figures. Whether a user's unfiled figures may ever enter a group aggregate. What an anonymous session may do, and where the account wall sits.
+**Decision points.** How much autonomy the model has in accepting or rejecting a peer group candidate. Which comparability criteria are hard exclusions and which are merely flagged. The minimum group size, weighed against coverage in thin industries. Whether the explanation layer is ever allowed to calculate, and how the boundary is enforced rather than merely instructed. Which key figures are included and how each is defined, since differences in definition between subject and group invalidate the comparison. Whether the reference point is the median or the upper quartile. How long fetched public data is cached, against the risk of showing stale figures. Whether a user's unfiled figures may ever enter a group aggregate. What an anonymous session may do, and where the account wall sits. Which fingerprint features are used, and whether personnel cost share — also a benchmarked ratio — enters at all, in bands, or not.

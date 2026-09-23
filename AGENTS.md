@@ -40,6 +40,8 @@ Use TypeScript strictly. Types are how we keep financial data from drifting; do 
 
 **Rules before model.** If something can be solved deterministically, solve it deterministically and give the model only what is left over. Both layers are measured separately; that measurement is the project's main result.
 
+**Never select peers on a measure that is benchmarked.** Peer matching may use what kind of business a company is — cost composition, inventory, capitalised intangibles, asset intensity — never how well it performs. Selecting on margin or return makes every gap in that measure close to zero. Personnel cost share is used only in coarse bands, as decided in the technical note.
+
 **Secrets never reach the client.** API keys, service-role credentials and database connection strings stay server-side. `.env` is gitignored from commit one.
 
 **This file must match the code.** When a change makes something here wrong — the stack, a rule, a filename — update this file in the same commit. A stale instruction file is worse than none, because it is trusted.

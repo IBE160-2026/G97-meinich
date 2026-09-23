@@ -19,8 +19,8 @@ Routine work that went as expected is not logged.
 | auth | 3 |
 | money | 0 |
 | parsing | 2 |
-| llm-boundary | 1 |
-| scope | 3 |
+| llm-boundary | 2 |
+| scope | 4 |
 | docs | 1 |
 
 ## Entry template
@@ -102,3 +102,12 @@ Routine work that went as expected is not logged.
 **Problem:** Three things found while building it. The API filter matches secondary industry codes, which would have inflated the baseline population. The accounting principles object is misspelled `regnkapsprinsipper`, so a parser written from the documented flat field names would have read `null` for `smaaForetak` and `regnskapsregler` and silently failed the comparability filter. And the description score is a generous proxy — Nynorsk words and misspellings count as distinguishing — so it overstates the share of informative descriptions.
 **Caught by:** Inspecting a raw API response before writing the parser; reading the examples the report prints for each category.
 **Outcome:** Primary-code filtering, the misspelling handled and documented, the proxy labelled as an upper bound with CSV files for hand scoring. Amounts converted to integers and ratios computed with `Decimal`. First industries: 62.100 and 69.202.
+
+### 2026-09-23 — Peer matching beyond the business description
+**Tags:** scope · llm-boundary
+**Tool:** Claude Code (Opus 5.5)
+**Asked:** How to match peers well when many register descriptions say almost nothing.
+**Got:** A layered approach: a deterministic fingerprint of the business model read from the accounts, text classification only where there is text, the user describing the subject, and each layer measured separately. Websites and the annual report's own narrative considered and deferred.
+**Problem:** What could go wrong: selecting peers on a benchmarked measure makes that gap vanish by construction — the fingerprint must describe the kind of business, not its performance. Personnel cost share is both, so it is limited to coarse bands. User-entered text reaches the model, so a prompt injection is possible; bounded because the model can only answer with fixed categories.
+**Caught by:** Identified in the proposal, before any code.
+**Outcome:** Five-stage funnel with the fingerprint as a rules stage before classification, the selection rule added to `AGENTS.md`, layer-by-layer measurement. Personnel cost bands left as an open decision.

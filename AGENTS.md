@@ -34,7 +34,7 @@ Use TypeScript strictly. Types are how we keep financial data from drifting; do 
 
 **Money is never a float.** Store and compute in integer øre, or use a decimal library. `0.1 + 0.2 !== 0.3` and the error compounds across periods. This applies to every monetary value, including intermediate results.
 
-**Authorisation lives in the database.** Every table with user-scoped data gets row-level security policies. Never rely on the application layer filtering correctly — assume it will eventually fail and make that insufficient to leak data. Do not write an endpoint whose security depends on remembering to add a `where user_id = ...`.
+**Authorisation lives in the database.** Every table with user-scoped data gets row-level security policies. Never rely on the application layer filtering correctly — assume it will eventually fail and make that insufficient to leak data. Do not write an endpoint whose security depends on remembering to add a `where user_id = ...`. Anonymous visitors are Supabase anonymous users and hold the `authenticated` role — a policy that only checks for an authenticated user lets them in. Every policy on saved or user-entered data must also require `is_anonymous` to be false.
 
 **The model never calculates.** The LLM is used for exactly two things: classifying what a company does, and writing explanatory text about figures the engine already computed. Any number appearing in generated text must exist in the calculation output. This is to be enforced by an automated test that rejects generated text containing figures absent from the engine's output — not by instructing the model and hoping. Once that test exists, do not weaken it.
 
@@ -76,7 +76,7 @@ Prefer explicit over clever. This code will be read by a sensor who is checking 
 
 ## Testing
 
-Write the authorisation test suite early, not last. It attempts every forbidden access pattern — reading another user's data, reaching another adviser's client, calling an endpoint unauthenticated — and asserts rejection.
+Write the authorisation test suite early, not last. It attempts every forbidden access pattern — reading another user's data, reaching another workspace, an anonymous session reading or writing saved data, a viewer writing, calling an endpoint unauthenticated — and asserts rejection.
 
 The engine is tested against hand-calculated reference cases built from real filed accounts, including edge cases: negative equity, zero revenue, missing components, non-calendar financial year.
 

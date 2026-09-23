@@ -79,23 +79,29 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 ---
 
-## Access and disclosure control
+## Access control
 
-**Roles:** owner with full access to their own company, adviser with many separate client companies, viewer with read-only access.
+**Anonymous sessions.** A visitor without an account gets a Supabase anonymous sign-in, so every request still carries a real `auth.uid()`. There is one access model, not two: row-level security, the audit log and rate limiting all work unchanged. When the visitor registers, the anonymous user is converted in place and keeps what it did.
 
-**Isolation** is enforced with row-level security. One adviser must never see another adviser's clients.
+**The trap:** anonymous users hold the `authenticated` Postgres role. A policy that only checks for an authenticated user admits them. Every policy on saved or user-entered data must also require `is_anonymous` to be false in the JWT, and the authorisation tests include an anonymous attacker.
 
-**A user's own unfiled figures** are confidential, are shown only to whoever entered them, and never enter any group aggregate.
+**Workspaces.** Saved work belongs to a workspace. Membership carries a role, `owner` or `viewer`. Row-level security keys every user-scoped table to workspace membership. An adviser is a user with many workspaces; there is no adviser role.
 
-**Disclosure control.** A minimum group size before any aggregate is shown. Beyond that, the system must prevent a user from running two nearly identical filters and deriving a single company's figures from the difference. Minimum size alone does not solve this.
+**Invitation** is by email, into a single workspace, as viewer. Share links are out of v1.
 
-**The audit log** is append-only, with actor, timestamp and prior state.
+**A user's own unfiled figures** are confidential, belong to a workspace, and never enter any group aggregate.
+
+**Minimum group size** before any aggregate is shown. This is a quality threshold, not a confidentiality control: aggregates are computed only from public filings.
+
+**The open route** is rate-limited per session and per IP, with a CAPTCHA on anonymous sign-in, to stop register harvesting. The explanation text depends only on public figures and the peer group, so it is cached per company and peer group rather than generated per visit.
+
+**The audit log** is append-only, with actor, timestamp and prior state. Anonymous actors are logged by their anonymous id.
 
 ---
 
 ## Test strategy
 
-**Authorization tests** are written in week two. They attempt every forbidden access pattern and expect rejection, including across clients held by the same adviser.
+**Authorization tests** are written in week two. They attempt every forbidden access pattern and expect rejection: across workspaces, including those held by the same owner; an anonymous session reading or writing saved data; a viewer writing; an invited viewer reaching a workspace they were not invited to.
 
 **Reference cases** for the engine: real filed accounts with hand-calculated expected values, including edge cases — negative equity, zero revenue, missing components.
 
@@ -103,7 +109,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **A labelled classification set:** for a selection of companies, a human judgement of which candidates are genuine comparables. Measured as precision and recall against industry code alone as the baseline.
 
-**Synthetic cohorts** at and below the minimum group size, to test disclosure control.
+**Synthetic cohorts** at and below the minimum group size, to test that no aggregate is shown below it.
 
 **An automated test** that rejects generated text containing figures outside the engine's output.
 
@@ -137,7 +143,7 @@ Thirteen weeks.
 
 | Week | Content |
 |---|---|
-| 1 | Data model, authentication, roles. **Extend the OCR spike to the older scans**, in parallel |
+| 1 | Data model, anonymous and magic-link authentication, workspaces. **Extend the OCR spike to the older scans**, in parallel |
 | 2 | Row-level security, authorization tests |
 | 3 | Bulk download from the registers, key figures ingestion |
 | 4 | OCR pipeline: render, recognise, position-based row and column grouping |
@@ -147,7 +153,7 @@ Thirteen weeks.
 | 8 | Classification, the funnel, structured company profiles |
 | 9 | Labelled set complete, measurement against the industry-code baseline |
 | 10 | Embeddings as an intermediate baseline; three-level comparison |
-| 11 | Disclosure control, peer group adjustment, saved analyses |
+| 11 | Invitations, rate limiting, peer group adjustment, saved analyses |
 | 12 | Valuation control, explanation layer, export, responsive interface |
 | 13 | Security report, threat model, AI documentation |
 
@@ -163,9 +169,9 @@ Thirteen weeks.
 
 Kept out of the product brief, which follows the template provided. Collected here for internal use.
 
-**Difficulty: hard.** Four processing stages with a defined data flow, integration against external public APIs, extraction from documents, a statistics engine computing distributions over dynamically assembled groups, a model-based classification stage whose accuracy determines the result and is measured against a baseline, a disclosure problem requiring protection against inference across searches, three access types with adviser-to-client isolation, and database-enforced multi-tenancy.
+**Difficulty: hard.** Four processing stages with a defined data flow, integration against external public APIs, extraction from documents, a statistics engine computing distributions over dynamically assembled groups, a model-based classification stage whose accuracy determines the result and is measured against a baseline, an open anonymous route that must resist harvesting while sharing one access model with registered users, per-workspace roles with invitation and isolation between workspaces, and database-enforced multi-tenancy.
 
-**Security/login: yes, strictly.** The filed accounting figures are public and are not protected. What is protected is what the solution adds on top of them: the user's unfiled figures, the user's activity and saved analyses — which reveal strategy for an investor and a client list for an adviser — and aggregates that can expose an individual company. Concretely: role-based access, adviser-to-client isolation with row-level security in the database, minimum group size with protection against difference attacks across searches, an audit log, and automated authorization testing.
+**Security/login: yes, strictly.** The filed accounting figures are public and are not protected. What is protected is what the solution adds on top of them: the user's unfiled figures, and the user's activity and saved analyses — which reveal strategy for an investor and a client list for an adviser. Concretely: anonymous sessions separated from registered users within one access model, per-workspace roles with isolation between workspaces enforced by row-level security in the database, invitation by email, rate limiting on the open route, an audit log, and automated authorization testing.
 
 **Online purchase/sale: no.** Not within the scope of this version.
 
@@ -173,4 +179,4 @@ Kept out of the product brief, which follows the template provided. Collected he
 
 **Data out.** Key figures for the company across the years available. The distribution within the peer group with median and upper quartile. The company's position on the distribution per key figure. Decomposition of return into margin and asset turnover. Each deviation quantified in kroner. Profit uplift, released capital and implied enterprise value at the chosen closable share. A data quality flag per filing. Explanatory text with traceable figures. PDF export. Audit log.
 
-**Decision points.** How much autonomy the model has in accepting or rejecting a peer group candidate. Which comparability criteria are hard exclusions and which are merely flagged. The minimum group size, weighed against coverage in thin industries. Whether the explanation layer is ever allowed to calculate, and how the boundary is enforced rather than merely instructed. Which key figures are included and how each is defined, since differences in definition between subject and group invalidate the comparison. Whether the reference point is the median or the upper quartile. How long fetched public data is cached, against the risk of showing stale figures. Whether a user's unfiled figures may ever enter a group aggregate.
+**Decision points.** How much autonomy the model has in accepting or rejecting a peer group candidate. Which comparability criteria are hard exclusions and which are merely flagged. The minimum group size, weighed against coverage in thin industries. Whether the explanation layer is ever allowed to calculate, and how the boundary is enforced rather than merely instructed. Which key figures are included and how each is defined, since differences in definition between subject and group invalidate the comparison. Whether the reference point is the median or the upper quartile. How long fetched public data is cached, against the risk of showing stale figures. Whether a user's unfiled figures may ever enter a group aggregate. What an anonymous session may do, and where the account wall sits.

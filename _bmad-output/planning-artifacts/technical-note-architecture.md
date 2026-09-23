@@ -61,6 +61,10 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 Classification runs once per company at ingestion, never at search time. Each company is stored with a structured profile: what it does, B2B or B2C, manufacturing, trade or services, capital intensity. A search then becomes an ordinary database query.
 
+Each peer's inclusion reason is generated deterministically from the profile fields it shares with the subject. The model classifies; it does not write the justification.
+
+**Embeddings as a measured baseline, not the method.** Business descriptions are embedded once at ingestion and stored with pgvector in the same Supabase Postgres — no separate vector service. This gives the middle level of the three-level comparison: industry code alone, embedding similarity, and model classification, each scored against the labelled set. Embeddings become part of the funnel only if they measurably beat classification.
+
 The user sees how many companies remain after each stage and can loosen a criterion when the group becomes too small.
 
 ---
@@ -107,7 +111,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 ## Stack
 
-**The application:** Next.js and TypeScript. Supabase for PostgreSQL, authentication and row-level security. An LLM API for classification and explanation.
+**The application:** Next.js and TypeScript. Supabase for PostgreSQL, authentication and row-level security, with pgvector for embeddings. An LLM API for classification and explanation.
 
 **The ingestion pipeline:** Python, managed with `uv`. Renders and OCRs the filed documents, and loads company data and key figures in bulk. Tesseract requires a system binary, so the pipeline is containerised; this is also what makes it reproducible outside the machine it was written on.
 

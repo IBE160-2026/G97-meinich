@@ -152,7 +152,7 @@ Document figures require an OCR pipeline: render the page at high resolution, re
 
 Because OCR is slow, extraction cannot run inside a user request. Documents are extracted by a batch job that pre-warms the covered industries, and the result is stored permanently. Lazy on-demand extraction is not viable.
 
-Every extracted figure passes an exact internal consistency check before it is stored, and a tolerance-based reconciliation against the API figures where those exist. A failure blocks the filing rather than degrading the analysis silently. Per-word OCR confidence feeds the data quality flag shown with each filing.
+Every extracted figure passes an internal consistency check within a tight absolute bound of a few kroner before it is stored, and a proportional reconciliation against the API figures where those exist. A failure blocks the filing rather than degrading the analysis silently. The data quality flag shown with each filing is derived from these arithmetic checks, not from OCR confidence.
 
 History is fetched every other year, since each document carries a prior-year column.
 

@@ -2,7 +2,7 @@
 title: Peerless
 status: complete
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-09-23
 ---
 
 # Product Brief: Peerless — Peer Benchmarking from Public Accounts
@@ -11,7 +11,7 @@ updated: 2026-09-17
 
 Peerless answers a question most companies cannot answer about themselves: where are we losing money relative to companies like us, and what would closing that gap be worth. A user enters an organisation number and sees their company positioned against a group of genuinely comparable businesses across margin, cost structure, capital efficiency and productivity. Every deviation is converted into kroner. One control sets how much of each gap the user believes is closable, and the result is expressed as annual profit uplift, working capital released, and what that is worth in enterprise value.
 
-Benchmarking of this kind exists, but as enterprise software sold to companies that already employ someone to operate it. For the small and mid-sized company, the alternative is a consultant engagement that costs weeks and produces a snapshot nobody updates. The comparison itself is not hard. Assembling it is, and that is the only reason it does not happen.
+Comparison tools exist. Proff Forvalt lets a user pick companies and set their key figures side by side, and valuation platforms such as Valutico now recommend comparable companies automatically. What none of them does for the small and mid-sized company is decide who the right peers are from what the company actually does, and turn each deviation into kroner. The comparison itself is not hard. Choosing the group and making the result mean something is, and that is why it rarely happens.
 
 What makes it possible now is that the data is already public and free. Every Norwegian limited company files its accounts, and those filings are available through open interfaces alongside industry classification, size and activity descriptions. The information needed to benchmark any company against its real competitors is sitting in a public register, structured, and used almost exclusively for credit checks.
 
@@ -25,7 +25,7 @@ Absolute figures mean little without a reference point. A wage share of thirty-o
 
 **How it gets answered today.** Rarely, and expensively. A consultant is engaged, spends weeks assembling comparisons by hand, and delivers a deck that is accurate for one quarter and never revisited. Or the company's accountant is asked, offers an impression formed from other clients, and cannot show the working. Or nobody asks at all, and the company carries a structural disadvantage that has never been named.
 
-**What exists commercially** is aimed elsewhere. Credit bureaus sell risk products: will this company pay its bills. That question is asked by a company's counterparties, not by the company itself, and the answer says nothing about where it is losing money. The underlying data is largely the same; the framing is not.
+**What exists commercially** leaves the hard part to the user. Credit bureaus sell risk products, which answer a counterparty's question rather than the company's own. Proff Forvalt offers competitor analysis, but the user chooses the companies, and choosing well is exactly the part that requires knowing the industry. Valutico's peer recommendation, released in 2026, scores and explains comparability, but it serves valuation against listed companies, not operational benchmarking of a Norwegian SME against its actual competitors. The underlying data is largely the same; the question is not.
 
 **For the adviser**, the same analysis is rebuilt from scratch for every client, which means it is offered rarely and priced as a project rather than included as a service.
 
@@ -35,7 +35,7 @@ Absolute figures mean little without a reference point. A wage share of thirty-o
 
 **Enter an organisation number.** That is the entire setup. No upload, no configuration, no template to fill in. Within seconds the company appears with its figures, its peer group, and its position against that group.
 
-**See where the company stands.** Ten or so measures covering margin, cost structure, working capital, capital efficiency and productivity. For each, the company's own value, the peer median, the upper quartile, and a position marker showing where it sits on the distribution. Strengths are shown as clearly as weaknesses — a company that is better capitalised than its peers should know that, because it changes what it can afford to do about everything else.
+**See where the company stands.** Ten or so measures covering margin, cost structure, working capital, capital efficiency and productivity. For each, the company's own value, the peer median, the upper quartile, and a position marker showing where it sits on the distribution, stated as a percentile. Strengths are shown as clearly as weaknesses — a company that is better capitalised than its peers should know that, because it changes what it can afford to do about everything else.
 
 **See what the gap is worth.** Each deviation is expressed in kroner against the company's own revenue and balance sheet. A margin gap becomes an annual amount. A receivable-days gap becomes capital tied up. This is the step that turns an observation into a decision.
 
@@ -43,7 +43,7 @@ Absolute figures mean little without a reference point. A wage share of thirty-o
 
 **Understand where to start.** A written explanation identifies which gaps are largest, which are one-off and which have persisted, and which could be addressed without changing how the business operates. It explains; it does not recommend. Every figure in it links back to the calculation behind it.
 
-**Adjust the comparison.** The peer group is visible, not hidden. The user can see how many companies remain after each filter, widen a criterion when the group is too small, or exclude a company that does not belong. Everything recomputes immediately. A benchmark the user cannot interrogate is a benchmark they will not trust.
+**Adjust the comparison.** The peer group is visible, not hidden. The user can see how many companies remain after each filter, widen a criterion when the group is too small, or exclude a company that does not belong. Each peer carries a short statement of why it was included — the profile attributes it shares with the subject — derived from the stored classification rather than written by the model. Everything recomputes immediately. A benchmark the user cannot interrogate is a benchmark they will not trust.
 
 **Come back to it.** Analyses are saved, so the next visit shows how the company has moved against its peers rather than starting over.
 
@@ -64,7 +64,7 @@ The adviser role is where isolation matters most: one adviser's clients must nev
 
 **It costs a minute, not a project.** The realistic competitor is not another product. It is the analysis never being done. Anything that requires setup, data entry or a purchase order loses to inertia; anything that takes one field and a few seconds does not.
 
-None of this is defensible. The data is public, the ratios are textbook, and a competitor could build the same thing. The advantage is framing and execution, and it holds only as long as it takes someone else to notice.
+None of this is defensible. The data is public, the ratios are textbook, and a competitor could build the same thing. Automated peer recommendation is not new either — Valutico has shown it works for valuation. What is new is applying it to Norwegian SMEs and pointing it at operational benchmarking rather than a valuation multiple. The advantage is framing and execution, and it holds only as long as it takes someone else to notice.
 
 ## Who This Serves
 
@@ -92,7 +92,7 @@ None of this is defensible. The data is public, the ratios are textbook, and a c
 
 **Explicitly out of v1.** Anonymous access. Every route requires a login, including lookup of figures that are themselves public — a deliberate choice rather than an oversight. An open search would fit the product better, since the friction of an account sits in front of data anyone may already read, and the material that actually needs protecting all lives behind the login regardless. But it means maintaining two access models, two sets of authorisation tests, and a defence against harvesting the register through the open route, and that is not a good use of the time available. It is the first thing to add once the closed model is demonstrably correct.
 
-Also out: entities outside the ordinary accounting layout, including banks and insurers. Filings too degraded for reliable recognition — chiefly the oldest paper-form scans — which are reported as unavailable rather than estimated. Group consolidation across several legal entities. Forecasting. Credit scoring or default prediction. Ownership and group structure mapping. Cross-border comparison. Automated monitoring and alerting on peer movements. Custom ratio definitions. Payment and subscription handling. Multi-language support. Native mobile.
+Also out: entities outside the ordinary accounting layout, including banks and insurers. Filings too degraded for reliable recognition — chiefly the oldest paper-form scans — which are reported as unavailable rather than estimated. Group consolidation across several legal entities. Forecasting. Credit scoring or default prediction. Ownership and group structure mapping. Cross-border comparison. Automated monitoring and alerting on peer movements. Custom ratio definitions. A composite performance score, since it would require arbitrary weights across ratios and cannot be traced to the accounts. Screening or searching the register by financial criteria, rankings of companies, and "find companies like this" — a different product for a different user, and exactly the query pattern disclosure control exists to stop. A free-form chat over the data, because it cannot be held to the rule that the model never calculates. Payment and subscription handling. Multi-language support. Native mobile.
 
 Deferred rather than rejected. Open search, monitoring over time and wider industry coverage are the natural first additions.
 

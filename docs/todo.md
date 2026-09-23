@@ -10,8 +10,8 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 
 ## Decisions still open
 
-- [ ] **Define the key figures.** For each of the ten or so measures: formula, source (key figures API or OCR), and what happens when a component is missing. Includes what the valuation multiple applies to — EBIT is available from the API, EBITDA needs depreciation from OCR.
-- [ ] **Confirm the fingerprint features**, including personnel cost share in bands (proposed) or not at all. Check against the labelled set whether the bands blur the benchmark.
+- [x] **Define the key figures.** For each of the ten or so measures: formula, source (key figures API or OCR), and what happens when a component is missing. Includes what the valuation multiple applies to — EBIT is available from the API, EBITDA needs depreciation from OCR. → `docs/key-figures.md`
+- [ ] **Confirm the fingerprint features**, including cost of goods and personnel cost share in bands (proposed) or not at all. Check against the labelled set whether the bands blur the benchmark.
 - [ ] **Set the minimum group size.** The screening used 10 as a placeholder.
 - [ ] **Check the course requirements** for fixed user roles, since the access model now uses workspace roles (owner/viewer), and for which BMAD artifacts (PRD, UX, epics and stories) are expected before coding.
 
@@ -23,3 +23,4 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 - [ ] GitHub Actions running typecheck and tests on every push.
 - [ ] Supabase project in an EU region; anonymous sign-in, CAPTCHA and magic link enabled; a short privacy notice.
 - [ ] Extend the OCR spike to the older paper-form scans (week 1 in the schedule).
+- [ ] Confirm the OCR field names in `docs/key-figures.md` against the Brreg-generated section of a real filing.

@@ -20,6 +20,10 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 
 [docs/data-sources-brreg.md](docs/data-sources-brreg.md)
 
+## Key Figures
+
+[docs/key-figures.md](docs/key-figures.md)
+
 ## AI Log
 
 [docs/ai-log.md](docs/ai-log.md)

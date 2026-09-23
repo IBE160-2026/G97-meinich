@@ -11,8 +11,9 @@ Peerless benchmarks a Norwegian company against genuinely comparable peers using
 - `_bmad-output/planning-artifacts/briefs/brief-Peerless-2026-09-17/brief.md` — what the product is and who it serves
 - `_bmad-output/planning-artifacts/technical-note-architecture.md` — architecture, test strategy, schedule
 - `docs/data-sources-brreg.md` — data sources, verified field sets, API pitfalls
+- `docs/key-figures.md` — every key figure's formula, source, direction and kroner translation
 
-**These three are hand-written and authoritative.** They were not produced by a BMAD workflow, but they sit where BMAD expects its own output, so its skills read and update them instead of creating rivals.
+**These four are hand-written and authoritative.** They were not produced by a BMAD workflow, but they sit where BMAD expects its own output, so its skills read and update them instead of creating rivals.
 
 The brief in particular occupies a canonical run folder — `brief-Peerless-2026-09-17/` holding `brief.md` with frontmatter and a seeded `.memlog.md`, matching `{planning_artifacts}/briefs/brief-{project_name}-{date}`. `bmad-product-brief` in **Update** or **Validate** intent therefore targets it directly. Do not invoke it with **Create** intent: that opens a second run folder and leaves two briefs that do not know about each other. If a workflow does produce a parallel artifact anyway, fold anything worth keeping back into the document above and delete the generated one rather than maintaining both.
 
@@ -40,7 +41,7 @@ Use TypeScript strictly. Types are how we keep financial data from drifting; do 
 
 **Rules before model.** If something can be solved deterministically, solve it deterministically and give the model only what is left over. Both layers are measured separately; that measurement is the project's main result.
 
-**Never select peers on a measure that is benchmarked.** Peer matching may use what kind of business a company is — cost composition, inventory, capitalised intangibles, asset intensity — never how well it performs. Selecting on margin or return makes every gap in that measure close to zero. Personnel cost share is used only in coarse bands, as decided in the technical note.
+**Never select peers on a measure that is benchmarked.** Peer matching may use what kind of business a company is — cost composition, inventory, capitalised intangibles, asset intensity — never how well it performs. Selecting on margin or return makes every gap in that measure close to zero. Any measure used in selection enters only in coarse bands — today cost of goods share and personnel cost share — and is benchmarked within its band.
 
 **Secrets never reach the client.** API keys, service-role credentials and database connection strings stay server-side. `.env` is gitignored from commit one.
 
@@ -71,6 +72,8 @@ These are verified behaviours of the Brønnøysund API, not guesses. Full detail
 ## Code conventions
 
 Keep the calculation engine as pure functions — figures in, figures out, no database or framework imports. It must be testable in isolation and readable by someone checking the accounting.
+
+**Key figures are implemented exactly as defined in `docs/key-figures.md`.** A formula changes in the document and the code in the same commit. Kroner amounts from cost shares explain the operating margin gap and are never summed with it.
 
 Name domain concepts in Norwegian where the register does (`driftsresultat`, `sumEgenkapital`), and everything else in English. Do not translate register field names.
 

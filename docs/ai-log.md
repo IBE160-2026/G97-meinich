@@ -17,10 +17,10 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 3 |
-| money | 0 |
+| money | 1 |
 | parsing | 2 |
 | llm-boundary | 2 |
-| scope | 4 |
+| scope | 5 |
 | docs | 1 |
 
 ## Entry template
@@ -111,3 +111,12 @@ Routine work that went as expected is not logged.
 **Problem:** What could go wrong: selecting peers on a benchmarked measure makes that gap vanish by construction — the fingerprint must describe the kind of business, not its performance. Personnel cost share is both, so it is limited to coarse bands. User-entered text reaches the model, so a prompt injection is possible; bounded because the model can only answer with fixed categories.
 **Caught by:** Identified in the proposal, before any code.
 **Outcome:** Five-stage funnel with the fingerprint as a rules stage before classification, the selection rule added to `AGENTS.md`, layer-by-layer measurement. Personnel cost bands left as an open decision.
+
+### 2026-09-23 — Key figure definitions
+**Tags:** money · scope
+**Tool:** Claude Code (Opus 5.5)
+**Asked:** Which key figures the analysis should use, and how each is defined.
+**Got:** Fourteen definitions with formula, source, direction and translation to kroner, plus revenue growth, personnel cost per FTE and an operating-asset turnover that excludes cash.
+**Problem:** What could go wrong: summing kroner from the cost shares with the operating margin gap counts the same krone twice; receivable days are overstated by VAT; cost lines are classified differently between companies; today's employee count mixed with last year's revenue; a quartile method that cannot be reproduced in a spreadsheet; selecting peers on a ratio that is then benchmarked.
+**Caught by:** Identified in the proposal, before any code.
+**Outcome:** `docs/key-figures.md` as the single definition the engine implements. Kroner from cost shares explain rather than add; inclusive quartiles; FTEs from the notes; EV/EBIT; selection features only in coarse bands.

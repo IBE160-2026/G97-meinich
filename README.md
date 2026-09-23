@@ -19,3 +19,7 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 ## Data Sources: Brønnøysundregistrene
 
 [docs/data-sources-brreg.md](docs/data-sources-brreg.md)
+
+## AI Log
+
+[docs/ai-log.md](docs/ai-log.md)

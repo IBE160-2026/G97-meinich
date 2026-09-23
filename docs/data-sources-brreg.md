@@ -11,7 +11,7 @@ Technical note for Peerless. Everything below has been tested against actual cal
 | Enhetsregisteret (Central Coordinating Register for Legal Entities) | Company data, industry code, employees, roles, statement of purpose | Free, bulk download | Not tested in detail |
 | Regnskapsregisteret (Register of Company Accounts) — key figures | Condensed income statement and balance sheet, most recent year | Free, open API | Verified |
 | Regnskapsregisteret — document | Complete annual accounts as PDF, all years | Free, open API | Verified — **raster images only, see below** |
-| Regnskapsregisteret — restricted section | All accounting figures, history, group accounts | Chargeable / public authorities | Not investigated — **now the highest-value open question** |
+| Regnskapsregisteret — subscription | All accounting figures as XML, copies of the annual accounts, auditor codes and remarks; delivered by SFTP | NOK 480,000 per year | Investigated — **out of reach for this project**, so document figures come from OCR |
 
 ---
 
@@ -164,7 +164,6 @@ The comparability filter runs before classification: currency, accounting rules,
 
 - **OCR accuracy on the older paper-form scans.** Recent filings are measured at 11 of 14 figures exact, untuned — see the section above. The 2011-era scans are a different problem and are not yet measured at all. Their accuracy determines how far back multi-year trend can honestly reach.
 - Whether a digit-restricted recognition pass over the numeric columns materially reduces substitution errors, and whether calibrated column boundaries eliminate the assembly failures.
-- The price of the chargeable subscription to annual accounts data, which provides history, more figures and group accounts. **If it returns structured figures, it removes the need for OCR entirely** — worth establishing before building the pipeline.
 - Does the key figures API expose historical filings by `id`, or only the most recent one? This determines whether older OCR output has an independent total to reconcile against, or only internal consistency.
 - Exact URLs and filter parameters for bulk download from Enhetsregisteret.
 - Terms of use and any rate limits on systematic retrieval at volume.

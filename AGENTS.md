@@ -94,7 +94,7 @@ Do not OCR or fetch documents at query time. OCR takes seconds to tens of second
 
 ## Working style
 
-When you propose a change touching auth, data access or money handling, say what could go wrong with it. That reasoning goes into the project's AI log.
+When you propose a change touching auth, data access or money handling, say what could go wrong with it. That reasoning goes into the project's AI log, `docs/ai-log.md`, following the rules at the top of that file.
 
 If a request conflicts with something in this file, say so rather than following it silently.
 

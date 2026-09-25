@@ -4,7 +4,7 @@ The calculation engine implements exactly these definitions. Change this documen
 
 ## General rules
 
-**Same basis for subject and peers.** A key figure is shown only if it can be computed for the subject and for at least the minimum group size of peers from the same source. A figure the subject has from OCR and the peers do not is not shown.
+**Same basis for subject and peers.** A key figure is shown only if it can be computed for the subject and for at least the minimum group size of peers — 10 — from the same source. The count is taken per key figure, after companies with an undefined value are left out. A figure the subject has from OCR and the peers do not is not shown.
 
 **Same year.** The benchmark year is the subject's latest filed year. Peers use the same year; a peer without it is excluded. Only calendar-year filings pass the comparability filter. User-entered current-year figures are compared against the peers' latest filed year, with the difference in periods stated.
 

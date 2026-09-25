@@ -12,7 +12,7 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 
 - [x] **Define the key figures.** For each of the ten or so measures: formula, source (key figures API or OCR), and what happens when a component is missing. Includes what the valuation multiple applies to — EBIT is available from the API, EBITDA needs depreciation from OCR. → `docs/key-figures.md`
 - [ ] **Confirm the fingerprint features**, including cost of goods and personnel cost share in bands (proposed) or not at all. Check against the labelled set whether the bands blur the benchmark.
-- [ ] **Set the minimum group size.** The screening used 10 as a placeholder.
+- [x] **Set the minimum group size.** The screening used 10 as a placeholder. → 10 peers, per key figure
 - [ ] **Check the course requirements** for fixed user roles, since the access model now uses workspace roles (owner/viewer), and for which BMAD artifacts (PRD, UX, epics and stories) are expected before coding.
 
 ## Before the first line of code

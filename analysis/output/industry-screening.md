@@ -1,8 +1,8 @@
 # Industry screening
 
-Generated 2026-09-23 by `analysis/industry_screening.py` from the open Brreg APIs (Enhetsregisteret and Regnskapsregisteret). Industry codes are SN2025.
+Generated 2026-09-25 by `analysis/industry_screening.py` from the open Brreg APIs (Enhetsregisteret and Regnskapsregisteret). Industry codes are SN2025.
 
-Population: active AS (not bankrupt, not in liquidation) with at least 5 employees and the code as primary industry. Minimum group size 10 is a placeholder until the brief decides it.
+Population: active AS (not bankrupt, not in liquidation) with at least 5 employees and the code as primary industry. Minimum group size 10, as set in the technical note.
 
 **Sections 2 and 3 are word-list proxies, not measurements.** The CSV files in `analysis/output/` carry empty `manual_*` columns; scoring a sample of those by hand is what turns the proxy into a result.
 

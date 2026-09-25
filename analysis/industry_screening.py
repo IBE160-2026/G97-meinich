@@ -50,7 +50,7 @@ INDUSTRIES = {
 MIN_EMPLOYEES = 5
 SAMPLE_SIZE = 100
 SEED = 160  # fixed, so a rerun samples the same companies
-# Placeholder until the brief decides the minimum group size.
+# Minimum group size, as set in the technical note.
 MIN_GROUP_SIZE = 10
 # Years of history the product would show; each filing carries a prior-year
 # column, so this many years needs roughly half as many documents.
@@ -596,8 +596,8 @@ def main() -> None:
         "Brreg APIs (Enhetsregisteret and Regnskapsregisteret). Industry codes are SN2025.",
         "",
         f"Population: active AS (not bankrupt, not in liquidation) with at least {MIN_EMPLOYEES} "
-        f"employees and the code as primary industry. Minimum group size {MIN_GROUP_SIZE} is a "
-        "placeholder until the brief decides it.",
+        f"employees and the code as primary industry. Minimum group size {MIN_GROUP_SIZE}, "
+        "as set in the technical note.",
         "",
         "**Sections 2 and 3 are word-list proxies, not measurements.** The CSV files in "
         "`analysis/output/` carry empty `manual_*` columns; scoring a sample of those by hand is "

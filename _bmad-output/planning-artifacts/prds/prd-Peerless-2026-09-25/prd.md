@@ -673,6 +673,7 @@ The front page describes Peerless, holds the organisation-number field, and show
 - Overviews show aggregates only and never name a company.
 - They are computed by the same engine from the same stored figures as an analysis, and follow the minimum group size (FR-22).
 - They exist only for covered industries.
+- If older filings cannot be read reliably, an overview shows the latest year only — the spread without the trend — rather than a trend built on weak data.
 - Named rankings and league tables are out of scope (§5).
 
 #### FR-62: Analysis tabs
@@ -758,6 +759,8 @@ Everything in §5, plus:
 - **Investor and portfolio use cases**, which depend on screening and portfolio views that are out of scope.
 - **Numeric quality targets.** No source document states a target for peer-selection precision, recall, or OCR accuracy. v1 commits to *measuring and reporting* these, not to hitting a threshold (§9, §11).
 
+**If time runs short, cut in this order.** The portfolio front page (FR-63) first, then the industry overviews (FR-61), then the third industry. Never the labelled set, the authorisation suite or the OCR measurement — they are what the project's results rest on. Epics are cut from this list, in this order.
+
 ## 7. Cross-Cutting Non-Functional Requirements
 
 **Performance.** Peer group assembly under one second; a complete analysis within a few seconds. Achieved because every figure, profile and peer classification is pre-computed at ingestion — nothing is extracted or recognised during a user request, and the only request-time model call is classifying a user-entered subject description, once per text and cached (FR-5). The OCR pipeline has no interactive budget at all; it is a batch job measured on throughput and accuracy, not latency.
@@ -790,7 +793,7 @@ Each metric names what it validates. No source document states a numeric target 
 
 **Primary**
 
-- **SM-1 — Peer selection quality.** Precision and recall against a human-labelled set of genuine comparables, compared against what industry classification alone achieves. Reported **per industry**, split by whether the company's description is informative (with the share of companies in each cohort disclosed), and **per funnel layer** — industry code and size alone, then adding the fingerprint, then embeddings, then model classification. The improvement over the industry-code baseline is the primary result. Validates FR-7 to FR-16.
+- **SM-1 — Peer selection quality.** Precision and recall against a human-labelled set of genuine comparables — labelled without seeing which funnel stage proposed a candidate, since the labeller also designed the method — compared against what industry classification alone achieves. Reported **per industry**, split by whether the company's description is informative (with the share of companies in each cohort disclosed), and **per funnel layer** — industry code and size alone, then adding the fingerprint, then embeddings, then model classification. The improvement over the industry-code baseline is the primary result. Validates FR-7 to FR-16.
 - **SM-2 — Recognition accuracy.** Share of figures recovered exactly, and share of filings passing the internal consistency check, each split between recent filings and older paper-form scans, measured against a hand-transcribed reference set. This measurement decides which document-derived ratios the product can honestly offer and how far back trend can reach. Validates FR-28, FR-57, FR-58.
 - **SM-3 — Authorisation.** Zero successful forbidden accesses across the full suite, including between workspaces held by the same owner and from an anonymous session against saved data. Validates FR-34, FR-45, FR-47.
 - **SM-4 — The model never calculates.** No generated text contains a figure absent from the engine's output, asserted by automated test. Validates FR-53.
@@ -817,7 +820,7 @@ This section exists because Peerless is coursework as well as a product, and the
 
 **What makes that measurable:**
 
-- A human-labelled set of genuine comparables, built by hand and **stratified by description quality**, so precision and recall can be reported separately for companies whose descriptions are informative and those whose are not. The method can only improve on the baseline where there is text to read, and mixing the two cohorts would hide that.
+- A human-labelled set of genuine comparables, built by hand and **stratified by description quality**, so precision and recall can be reported separately for companies whose descriptions are informative and those whose are not. The method can only improve on the baseline where there is text to read, and mixing the two cohorts would hide that. The labeller also designed the method, so candidates are judged without seeing which funnel stage proposed them; any contamination that remains is stated rather than hidden.
 - The industry-code-only baseline, computed on the same labelled set.
 - **Layer-by-layer ablation:** each funnel layer scored standalone and cumulatively, so the result shows where any improvement comes from — rules, or the model.
 

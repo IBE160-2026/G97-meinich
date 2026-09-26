@@ -122,7 +122,7 @@ Note also that the API's *derived* langsiktig gjeld — `sumGjeld` minus `sumKor
 
 **Small companies do not yield fewer fields.** The field set was identical for a small AS and for an ASA. **The key figures list holds for the whole population.**
 
-**Older documents are worse scans, not a different kind of document.** 2011 for 979607008 is an image of a paper form, with skewed pages and handwritten signatures. Recent filings are clean renderings of a generated layout. Both are images; expect OCR accuracy to differ sharply between them.
+**Paper filings are a different kind of document, not just worse scans.** A filing made on paper has no Brreg-generated section at all: a scanned cover form ("VEDLEGG TIL ÅRSREGNSKAP") followed by the company's own accounts in whatever layout its accountant used. There is no fixed layout to calibrate against. Paper filings are rare, though — see the measurement below — and the generated section has the same fixed layout from 2011, the oldest year the register serves, to 2025.
 
 **Companies change name.** The same organisation number was Ekstra Ressurs AS in 2011 and Statement AS in 2025. **Match on organisation number only.**
 
@@ -146,7 +146,30 @@ Run on the 2025 filing for 979 607 008: the three generated pages rendered at 30
 
 **Known headroom, none of it exotic:** a Norwegian-capable model, a digit-restricted recognition pass over the numeric columns to eliminate `o`/`0` and `l`/`1` confusion, and column boundaries calibrated on x rather than inferred from gaps — which is where all three remaining failures occurred.
 
-**Not yet measured:** the older paper-form scans. 2011 for this company is visibly far worse than the clean renderings of recent filings, and its accuracy should be expected to differ sharply.
+## Filing eras and OCR consistency — second measurement
+
+Run on 2026-09-26 by `analysis/ocr/era_screening.py` and `analysis/ocr/ocr_accuracy.py`, with Tesseract 5 and its Norwegian model in Docker (`analysis/ocr/Dockerfile`). Reports in `analysis/output/filing-eras.md` and `analysis/output/ocr-consistency.md`.
+
+**Paper filings are a small remainder.** Across 30 companies from 62.100 and 69.202, one or two filings per year were on paper in 2011–2013, and none from 2014. 979 607 008 itself filed on paper until 2013. The heading of page 1 tells the two apart: "GENERELL INFORMASJON" on a generated section, "VEDLEGG TIL" on a paper cover form. The paper form also contains the word "regnskapsåret", so a looser rule misclassifies it.
+
+**The generated section reads consistently, and the checks catch what does not.** 180 generated filings from 18 companies, 2011–2016 and 2021–2025, two columns each. A column counts as verified when both the income statement and the balance sheet reconcile within a few kroner.
+
+| Years | Verified columns, plain read | Verified columns, combined read |
+|---|---|---|
+| 2011–2013 | 30 % | 62 % |
+| 2014–2016 | 44 % | 61 % |
+| 2021–2025 | 71 % | 88 % |
+
+- **Latest filing against the key figures API: 71 of 71 figures agree.**
+- **Last year's column against the previous year's own filing: 1 142 of 1 217 agree (94 %)** — two readings of the same figure from two documents.
+- When the plain read yields a figure, it is almost always right: 99 % of the columns it could check reconciled.
+- A **digits-only pass** (`tessedit_char_whitelist`) recovers more figures but drops digits in the older font — "622821" for 6 228 521. Used alone it is worse; used only where the plain read gave nothing, and kept only where the result reconciles, it lifts verified columns for 2021–2025 from 71 % to 88 %.
+- The older generated section uses a font where Tesseract reads "s" as "o" ("Driftoreoultat"), so row labels are matched exactly first, then with a strict similarity rule on the row's own label.
+- Most remaining failures are in the income statement check, and several look like row parsing rather than recognition. Headroom, not a v1 blocker.
+
+**This measures consistency, not accuracy.** No hand-transcribed truth exists yet. A filing that reconciles internally and against the API is very unlikely to hold a wrong figure, because recognition errors are wrong by orders of magnitude, but the hand-transcribed set is still owed.
+
+**Consequence:** development over time in v1 covers the last five years, 2021–2025, where about nine in ten columns verify. Paper filings are never read. Older generated filings are used wherever they reconcile, but reach back unevenly — about six in ten verify.
 
 ---
 
@@ -170,7 +193,7 @@ Document figures require an OCR pipeline: render the page at high resolution, re
 
 Because OCR is slow, extraction cannot run inside a user request. Documents are extracted by a batch job that pre-warms the covered industries, and the result is stored permanently. Lazy on-demand extraction is not viable.
 
-Every extracted figure passes an internal consistency check within a tight absolute bound of a few kroner before it is stored, and a proportional reconciliation against the API figures where those exist. A failure blocks the filing rather than degrading the analysis silently. The data quality flag shown with each filing is derived from these arithmetic checks, not from OCR confidence.
+Each page is read twice — a plain pass, and a digits-only pass used only where the plain pass gave nothing — and every extracted figure passes an internal consistency check within a tight absolute bound of a few kroner before it is stored, and a proportional reconciliation against the API figures where those exist. A failure blocks the filing rather than degrading the analysis silently. The data quality flag shown with each filing is derived from these arithmetic checks, not from OCR confidence.
 
 History is fetched every other year, since each document carries a prior-year column.
 
@@ -180,8 +203,8 @@ The comparability filter runs before classification: currency, accounting rules,
 
 ## Open questions
 
-- **OCR accuracy on the older paper-form scans.** Recent filings are measured at 11 of 14 figures exact, untuned — see the section above. The 2011-era scans are a different problem and are not yet measured at all. Their accuracy determines how far back multi-year trend can honestly reach.
-- Whether a digit-restricted recognition pass over the numeric columns materially reduces substitution errors, and whether calibrated column boundaries eliminate the assembly failures.
+- **Accuracy against a hand-transcribed set.** Consistency is measured (above); exact accuracy is not. 15–20 filings spread across the years would do.
+- Whether better row parsing closes most of the remaining income-statement failures, and whether column-cropped recognition helps the older font.
 - Does the key figures API expose historical filings by `id`, or only the most recent one? This determines whether older OCR output has an independent total to reconcile against, or only internal consistency.
 - Exact URLs and filter parameters for bulk download from Enhetsregisteret.
 - Terms of use and any rate limits on systematic retrieval at volume.

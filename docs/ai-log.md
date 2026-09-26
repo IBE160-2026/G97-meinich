@@ -18,7 +18,7 @@ Routine work that went as expected is not logged.
 |---|---|
 | auth | 3 |
 | money | 2 |
-| parsing | 2 |
+| parsing | 3 |
 | llm-boundary | 3 |
 | scope | 6 |
 | docs | 3 |
@@ -147,3 +147,12 @@ Routine work that went as expected is not logged.
 **Problem:** The wage-share example ("two points … two million kroner a year") implied 100 million kroner in revenue, while the screening sample's median is 18 million in 62.100 and 10 million in 69.202. A second example ("four points … three million") had the same error. Both were written earlier in the project and survived several reviews, including mine.
 **Caught by:** The validator checked the example against `analysis/output/`; the second instance was found by searching the brief for the same pattern.
 **Outcome:** Examples recomputed from the screening data (360 000 and 700 000 kroner at 18 million revenue); delivery named as a third risk with the cut order; labelling blind to the funnel stage, in the brief, the technical note and the to-do; the overview degrades to the latest year if history is thin; "distributions, not rankings".
+
+### 2026-09-26 — OCR measurement of older filings
+**Tags:** parsing
+**Tool:** Claude Code (Opus 5.5), Tesseract 5 in Docker
+**Asked:** Measure how well older filings can be read, to decide how far back development over time can reach.
+**Got:** `analysis/ocr/era_screening.py` and `analysis/ocr/ocr_accuracy.py`, with reports in `analysis/output/`. Paper filings turned out to be a different kind of document, but rare; the generated section keeps its layout back to 2011; about 88 % of 2021–2025 columns reconcile, and 71 of 71 figures agree with the API.
+**Problem:** Four errors were made and caught on the way. The first era rule classified paper cover forms as generated, because the form also contains "regnskapsåret". A todo list written with Windows line endings broke every filename inside the Linux container. Fuzzy label matching first matched "Annen driftskostnad" as "Sum driftskostnad" and "Sum innskutt egenkapital" as "Sum egenkapital", which dropped the income-statement check from 100 % to 0 %. And the digits-only pass, assumed to be an improvement, drops digits in the older font. Separately, `docs/data-sources-brreg.md` had stated as fact that older documents are "worse scans, not a different kind of document" — wrong for paper filings.
+**Caught by:** Checking a surprisingly good result against the raw OCR text; a container exit status; a check rate that collapsed after a change; comparing both passes side by side rather than assuming the tuning helped; looking at the documents.
+**Outcome:** Strict era rule on the heading; LF line endings; exact label matches first and fuzzy only on a row's own label of near-equal length; the digits-only pass used only as a fallback and only where the result reconciles. Five years of development over time in v1, recorded in the data-sources document, the technical note, the brief and the PRD. Consistency is measured; exact accuracy against a hand-transcribed set is still owed.

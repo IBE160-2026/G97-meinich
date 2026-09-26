@@ -405,7 +405,7 @@ For each key figure the product shows the subject's value, the peer median, the 
 Where filings allow, the product shows how the subject has moved against its peers over time.
 
 **Consequences (testable):**
-- `[ASSUMPTION]` How many years the trend reaches back is determined by the measured OCR accuracy on older paper-form scans, and no depth is promised before that measurement exists. The brief commits the feature; the note gates its reach.
+- Development over time covers the last five years, 2021–2025. Measured 2026-09-26: about 88 % of columns reconcile in those years. Paper filings are never read; older generated years are used only where they reconcile.
 - Peer history is fetched every other year, since each document carries a prior-year column; every year is still covered.
 - Development over time needs an account (FR-42).
 
@@ -851,7 +851,7 @@ This section exists because Peerless is coursework as well as a product, and the
 
 **Gated on measurement (answers arrive from work already scheduled)**
 
-10. **How many years of trend can honestly be promised** — determined by OCR accuracy on older paper-form scans, scheduled for week 1 precisely so the answer arrives before the promise.
+10. **How many years of trend can honestly be promised** — answered 2026-09-26: five (2021–2025). See `docs/data-sources-brreg.md`.
 11. **Target thresholds for precision, recall and OCR accuracy.** None stated anywhere. Whether v1 should commit to a threshold at all, or only to measuring, is a decision — and committing to one before the baseline exists would be guessing.
 12. **Which fingerprint features are used, and whether personnel cost share enters selection at all, in bands, or not.** Stage 4 describes it as banded; the decision points still list it as open, with a stated risk that bands blur the benchmark.
 13. **How much autonomy the model has in accepting or rejecting a candidate**, and **which comparability criteria are hard exclusions rather than flags.**
@@ -868,7 +868,7 @@ This section exists because Peerless is coursework as well as a product, and the
 Every `[ASSUMPTION]` in this document, for explicit confirmation:
 
 - **§2.3, all four user journeys** — the protagonists, their contexts and every beat are invented, inferred from the brief's user types. The brief names users but narrates no sessions. The FR references are real; the scenes are not yet yours. **Highest-value correction in the document.**
-- **§4.3, FR-28** — trend depth is left unpromised and gated on the week-1 OCR measurement, rather than committed to a number of years. The brief commits the feature; the note gates its reach.
+- **§4.3, FR-28** — resolved 2026-09-26: five years, from measurement.
 - **§4.5, FR-38** — the set of figures an owner may hand-enter as unfiled is inferred (the API-sourced components, with OCR-sourced ones optional). No source document specifies it.
 - **§6.2** — `43.210` is treated as out of MVP because the note calls it "likely" rather than committing to it. If you intend it as committed, §6.1 and §6.2 both change.
 - **§9** — no numeric target is stated for any measured metric, so none is invented here. If the course expects a stated target, SM-1 and SM-2 need one.

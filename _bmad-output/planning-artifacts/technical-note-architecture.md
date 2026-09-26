@@ -48,7 +48,7 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 **A first feasibility measurement exists and the premise holds.** On a recent filing, untuned and with a generic engine, 11 of 14 authoritative figures were recovered exactly, and position-based row grouping reconstructed label-to-value rows correctly across both year columns. All remaining failures were digit assembly rather than recognition, which is code we control. Detail and headroom in `docs/data-sources-brreg.md`.
 
-**What is still unmeasured is the older paper-form scans**, which are visibly far worse than recent filings. Their accuracy determines how far back multi-year trend can honestly reach, and it is measured before that reach is promised.
+**The older filings are measured, and the answer is five years.** Paper filings have no generated section and are never read; they are a small remainder before 2014. The generated section keeps its fixed layout back to 2011. Read twice — plain, then digits-only where the plain read gave nothing — and kept only where it reconciles, about 88 % of columns verify for 2021–2025 and about 60 % for 2011–2016, with 71 of 71 figures agreeing with the key figures API. Development over time in v1 therefore covers 2021–2025. Older generated years are used where they reconcile, not promised. Detail in `docs/data-sources-brreg.md`.
 
 ---
 
@@ -172,7 +172,7 @@ Thirteen weeks.
 
 | Week | Content |
 |---|---|
-| 1 | Data model, anonymous and magic-link authentication, workspaces. **Extend the OCR spike to the older scans**, in parallel |
+| 1 | Data model, anonymous and magic-link authentication, workspaces. ~~Extend the OCR spike to the older scans~~ — done before week 1 |
 | 2 | Row-level security, authorization tests |
 | 3 | Bulk download from the registers, key figures ingestion |
 | 4 | OCR pipeline: render, recognise, position-based row and column grouping |
@@ -186,7 +186,7 @@ Thirteen weeks.
 | 12 | Valuation control, explanation layer, export, front page with industry overviews, analysis tabs, responsive interface |
 | 13 | Security report, threat model, AI documentation |
 
-**The remaining OCR question belongs in week one**, not in week four. Recognition on recent filings is already measured and adequate; the older scans are not, and their result determines how many years of trend v1 can honestly promise. Finding that out in week four would be expensive; finding it out in week one is a scope decision.
+**The OCR question was answered before week one.** Five years of development over time, paper filings never read, older generated years where they reconcile. What remains is exact accuracy against a hand-transcribed set, which runs alongside the code.
 
 **Two pieces of manual work start early and run alongside the code**, because they are calendar work rather than coding work and they are what the project's results rest on: the hand-transcribed OCR reference set, and the labelled classification set. Deferring either to the week it appears in the table above is how they end up too small to report.
 

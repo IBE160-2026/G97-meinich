@@ -35,3 +35,8 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 ## Analysis: Industry Screening
 
 [analysis/output/industry-screening.md](analysis/output/industry-screening.md)
+
+## Analysis: OCR of Filed Accounts
+
+- [analysis/output/filing-eras.md](analysis/output/filing-eras.md) — paper versus generated filings, by year
+- [analysis/output/ocr-consistency.md](analysis/output/ocr-consistency.md) — how consistently the generated section reads, by era

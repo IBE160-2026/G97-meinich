@@ -6,7 +6,7 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 
 - [ ] **Score business descriptions by hand.** 50 randomly sampled companies each from 62.100 and 69.202, one question per company: does the description distinguish this company from others with the same code? (yes/no, plus a short business-type label). Sample with a fixed seed and hide the word-list score while scoring, so the proxy does not colour the answers. Turns the 38–56 % estimate in `analysis/output/industry-screening.md` into a measurement. About 30–45 minutes.
 - [ ] **Build the labelled peer set.** For a selection of subject companies, judge which candidates from the same industry and size band are genuine peers — blind to which funnel stage proposed each candidate, so the labels are not coloured by the method being tested. This is the ground truth the project's main result is measured against. Stratify by description quality (from the item above). Needs candidate lists from the engine first; runs alongside the code through week 9.
-- [ ] **Hand-transcribe the OCR reference set.** Every figure in the generated section for a sample of filings, recent and older scans, to measure OCR accuracy against.
+- [ ] **Hand-transcribe the OCR reference set.** Every figure in the generated section for 15–20 filings spread over 2011–2025, to measure exact accuracy. Consistency is already measured (`analysis/output/ocr-consistency.md`); this is what turns it into accuracy.
 
 ## Decisions still open
 
@@ -22,5 +22,5 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 - [ ] Settle the money type (integer øre, `bigint`) and record it in `AGENTS.md`.
 - [ ] GitHub Actions running typecheck and tests on every push.
 - [ ] Supabase project in an EU region; anonymous sign-in, CAPTCHA and magic link enabled; a short privacy notice.
-- [ ] Extend the OCR spike to the older paper-form scans (week 1 in the schedule).
+- [x] Extend the OCR spike to the older paper-form scans (week 1 in the schedule). → Paper filings are rare and never read; about 88 % of 2021–2025 columns reconcile; five years of development over time in v1.
 - [ ] Confirm the OCR field names in `docs/key-figures.md` against the Brreg-generated section of a real filing.

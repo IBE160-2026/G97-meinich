@@ -15,7 +15,7 @@ Embeddings of the business descriptions are measured as an alternative to AI cla
 
 ## The front page and the analysis pages
 
-**Industry overviews on the front page.** For each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. They use the same engine and the same stored figures as the analysis, so they cost little to build and show what the data can do. They exist only for covered industries — two at the start.
+**Industry overviews on the front page.** For each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. They use the same engine and the same stored figures as the analysis, so they cost little to build and show what the data can do. They exist only for covered industries — two at the start. If older filings cannot be read reliably, the overviews show the latest year only — the spread without the trend — rather than a trend built on weak data.
 
 **Why no named rankings.** Lists such as "fastest-growing companies" or "lowest wage share" were considered and rejected.
 - A top list collects the errors. A recognition error that turns 72 million into 722 million, or growth from one million to ten, lands at the top — and Peerless rests on a wrong figure being worse than a missing one.

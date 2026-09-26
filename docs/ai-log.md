@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 3 |
-| money | 1 |
+| money | 2 |
 | parsing | 2 |
 | llm-boundary | 3 |
 | scope | 6 |
-| docs | 2 |
+| docs | 3 |
 
 ## Entry template
 
@@ -138,3 +138,12 @@ Routine work that went as expected is not logged.
 **Problem:** Named top lists collect exactly the errors the product exists to avoid — a recognition error or a tiny base year lands at the top — and a wage-share ranking systematically favours companies that book subcontractors outside payroll. Adding AI features for visibility (a chat, an AI score) was advised against as ornament. Separately, the front page, tabs and portfolio page grow scope beyond the thirteen-week schedule.
 **Caught by:** Reading the skill's own constraints; checking the widget idea against `docs/key-figures.md` known limitations.
 **Outcome:** Brief condensed to about 1 800 words with `addendum.md` alongside; industry overviews without names, tabs and a portfolio front page in scope; named rankings out; user-arranged widgets deferred. Schedule impact still to be reflected in the technical note.
+
+### 2026-09-26 — Brief validation: illustrative figures and blind labelling
+**Tags:** money · docs
+**Tool:** `bmad-product-brief` Validate (Claude Code, terminal session); fixes applied with Claude Code (Opus 5.5)
+**Asked:** A validation of the condensed brief before submission.
+**Got:** Five findings: delivery scope missing from the known risks; the labelled set not stated as blind although its author designed the method; the front page built on the most fragile data; an illustrative figure that implied a company larger than the ones served; and wording that read as a privacy claim.
+**Problem:** The wage-share example ("two points … two million kroner a year") implied 100 million kroner in revenue, while the screening sample's median is 18 million in 62.100 and 10 million in 69.202. A second example ("four points … three million") had the same error. Both were written earlier in the project and survived several reviews, including mine.
+**Caught by:** The validator checked the example against `analysis/output/`; the second instance was found by searching the brief for the same pattern.
+**Outcome:** Examples recomputed from the screening data (360 000 and 700 000 kroner at 18 million revenue); delivery named as a third risk with the cut order; labelling blind to the funnel stage, in the brief, the technical note and the to-do; the overview degrades to the latest year if history is thin; "distributions, not rankings".

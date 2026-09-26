@@ -5,7 +5,7 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 ## Manual work (calendar time, start early)
 
 - [ ] **Score business descriptions by hand.** 50 randomly sampled companies each from 62.100 and 69.202, one question per company: does the description distinguish this company from others with the same code? (yes/no, plus a short business-type label). Sample with a fixed seed and hide the word-list score while scoring, so the proxy does not colour the answers. Turns the 38–56 % estimate in `analysis/output/industry-screening.md` into a measurement. About 30–45 minutes.
-- [ ] **Build the labelled peer set.** For a selection of subject companies, judge which candidates from the same industry and size band are genuine peers. This is the ground truth the project's main result is measured against. Stratify by description quality (from the item above). Needs candidate lists from the engine first; runs alongside the code through week 9.
+- [ ] **Build the labelled peer set.** For a selection of subject companies, judge which candidates from the same industry and size band are genuine peers — blind to which funnel stage proposed each candidate, so the labels are not coloured by the method being tested. This is the ground truth the project's main result is measured against. Stratify by description quality (from the item above). Needs candidate lists from the engine first; runs alongside the code through week 9.
 - [ ] **Hand-transcribe the OCR reference set.** Every figure in the generated section for a sample of filings, recent and older scans, to measure OCR accuracy against.
 
 ## Decisions still open

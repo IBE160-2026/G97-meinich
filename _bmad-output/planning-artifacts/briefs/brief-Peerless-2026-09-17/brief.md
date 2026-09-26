@@ -19,7 +19,7 @@ The comparison itself is not hard. Choosing the group is. Industry codes are too
 
 A managing director knows their gross margin. They do not know whether it is good.
 
-A wage share of thirty-one per cent sounds neither high nor low until you know that comparable companies run at twenty-nine, and that the difference is two million kroner a year. Without that reference point, attention goes to whichever problem is loudest rather than whichever gap is largest — and the largest gaps are usually quiet, because they have been there for years.
+A wage share of thirty-one per cent sounds neither high nor low until you know that comparable companies run at twenty-nine, and for a typical software company with eighteen million kroner in revenue, that difference is 360 000 kroner a year. Without that reference point, attention goes to whichever problem is loudest rather than whichever gap is largest — and the largest gaps are usually quiet, because they have been there for years.
 
 **Today** the question is answered rarely and expensively: a consultant spends weeks on a deck that is never revisited, or an accountant offers an impression that cannot show its working. Advisers rebuild the same analysis from scratch for every client, so it is offered rarely and priced as a project.
 
@@ -27,7 +27,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 ## The Solution
 
-**Start from an overview.** The front page explains what Peerless does and holds one field: the organisation number. Below it, a picture of each covered industry — how the median margin has moved over time, how widely personnel cost share varies, how many companies are growing. These show industries, never named companies.
+**Start from an overview.** The front page explains what Peerless does and holds one field: the organisation number. Below it, a picture of each covered industry — how the median margin has moved over time, how widely personnel cost share varies, how many companies are growing. They show distributions, not rankings.
 
 **Enter an organisation number.** That is the entire setup — no account, upload or configuration. The user may describe the company in a sentence, which AI then reads in place of the register's description. Within seconds the company appears with its figures, its peer group and its position, organised in tabs: overview, peers, key figures and gaps, development over time, and value. A company outside the covered industries gets its own key figures and a plain statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
 
@@ -45,7 +45,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **The peer group is built from what companies do, not how they are registered.** Peerless reads it in two places. The accounts show what kind of business a company is — a reseller carries stock and cost of goods, a product company capitalises its development, a consultancy is almost all payroll. AI reads the description, where it says anything, for what the numbers cannot show. Where neither separates a company, Peerless falls back to industry and size and says so, rather than presenting a guess as a judgement.
 
-**Every deviation is also expressed in kroner.** A four-point margin deviation is true and not yet actionable; three million a year is. Peerless shows both, and keeps the path from the money back to the ratio and the filed accounts visible, because a figure nobody can trace is a figure nobody acts on.
+**Every deviation is also expressed in kroner.** A four-point margin deviation is true and not yet actionable; seven hundred thousand kroner a year is. Peerless shows both, and keeps the path from the money back to the ratio and the filed accounts visible, because a figure nobody can trace is a figure nobody acts on.
 
 **It costs a minute, not a project.** The realistic competitor is the analysis never being done. Anything needing setup or a purchase order loses to inertia; one field and a few seconds does not.
 
@@ -61,7 +61,7 @@ None of this is defensible. The data is public, the ratios are textbook, and aut
 
 ## Success Criteria
 
-**Credibility — the central result.** Peer selection is scored against a labelled set where a human has judged which candidates are genuine comparables, as precision and recall, and compared with industry classification alone. Results are reported separately for companies with informative and uninformative descriptions, and layer by layer — industry code, then the accounts, then AI reading the description — so the result shows whether the AI earns its place and where any improvement comes from.
+**Credibility — the central result.** Peer selection is scored against a labelled set where a human has judged which candidates are genuine comparables — without seeing which stage of the funnel proposed them, since the same person designed the method — as precision and recall, and compared with industry classification alone. Results are reported separately for companies with informative and uninformative descriptions, and layer by layer — industry code, then the accounts, then AI reading the description — so the result shows whether the AI earns its place and where any improvement comes from.
 
 **Functional.** A complete analysis from an organisation number alone. No aggregate below ten peers. Every kroner figure traces to its ratio and the filed accounts. No AI-written text contains a figure the engine did not compute.
 
@@ -69,7 +69,7 @@ None of this is defensible. The data is public, the ratios are textbook, and aut
 
 **Security.** Confidentiality attaches to use, not to public figures. Zero cross-workspace access in the authorisation suite, including between workspaces held by the same owner; anonymous sessions reach public figures only.
 
-**Known risks.** Two things could limit the result: how well older scanned filings can be read, which bounds how far back development over time can reach, and how little many company descriptions say, which bounds what AI can add. Both are measured early rather than assumed.
+**Known risks.** Two things could limit the result: how well older scanned filings can be read, which bounds how far back development over time can reach, and how little many company descriptions say, which bounds what AI can add. Both are measured early rather than assumed. The third is delivery: the interface — front page, tabs and portfolio — lands late in a thirteen-week solo schedule. If time runs short, the portfolio front page goes first, then the industry overviews; the measurement never does.
 
 ## Scope
 

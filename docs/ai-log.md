@@ -19,9 +19,9 @@ Routine work that went as expected is not logged.
 | auth | 3 |
 | money | 1 |
 | parsing | 2 |
-| llm-boundary | 2 |
-| scope | 5 |
-| docs | 1 |
+| llm-boundary | 3 |
+| scope | 6 |
+| docs | 2 |
 
 ## Entry template
 
@@ -120,3 +120,21 @@ Routine work that went as expected is not logged.
 **Problem:** What could go wrong: summing kroner from the cost shares with the operating margin gap counts the same krone twice; receivable days are overstated by VAT; cost lines are classified differently between companies; today's employee count mixed with last year's revenue; a quartile method that cannot be reproduced in a spreadsheet; selecting peers on a ratio that is then benchmarked.
 **Caught by:** Identified in the proposal, before any code.
 **Outcome:** `docs/key-figures.md` as the single definition the engine implements. Kroner from cost shares explain rather than add; inclusive quartiles; FTEs from the notes; EV/EBIT; selection features only in coarse bands.
+
+### 2026-09-26 — Request-time classification contradiction
+**Tags:** llm-boundary
+**Tool:** Claude Code (Opus 5.5); surfaced while reviewing the `bmad-prd` draft
+**Asked:** A review of the PRD draft produced by `bmad-prd`.
+**Got:** A flagged contradiction: FR-5 lets the user describe the subject and sends that text to the model, while FR-20 and the performance NFR say nothing is classified during a user request. The same contradiction sat in the technical note, introduced on 2026-09-23 when the user-entered description was added without revisiting "never at search time".
+**Problem:** Two requirements that cannot both hold. An implementation following either one would break the other: no user description at all, or an unbounded model call on the open route.
+**Caught by:** Reading the PRD's requirements against each other.
+**Outcome:** An explicit exception: classifying a user-entered subject description is the one request-time model call, once per text, cached against that text and rate-limited with the open route. Peers are classified only at ingestion. Fixed in the technical note and the PRD.
+
+### 2026-09-26 — Condensing the brief, and a request for named rankings
+**Tags:** scope · docs
+**Tool:** Claude Code (Opus 5.5)
+**Asked:** Whether the brief needed more before submission; then how to make AI more visible, and a front page with industry widgets such as "highest revenue growth" and "lowest wage relative to revenue".
+**Got:** A check against the `bmad-product-brief` skill showed the brief at 3 269 words against its "aim for 1-2 pages". A condensed brief with detail moved to an addendum; AI named where it acts rather than a separate section; and, instead of named rankings, industry overviews without company names.
+**Problem:** Named top lists collect exactly the errors the product exists to avoid — a recognition error or a tiny base year lands at the top — and a wage-share ranking systematically favours companies that book subcontractors outside payroll. Adding AI features for visibility (a chat, an AI score) was advised against as ornament. Separately, the front page, tabs and portfolio page grow scope beyond the thirteen-week schedule.
+**Caught by:** Reading the skill's own constraints; checking the widget idea against `docs/key-figures.md` known limitations.
+**Outcome:** Brief condensed to about 1 800 words with `addendum.md` alongside; industry overviews without names, tabs and a portfolio front page in scope; named rankings out; user-arranged widgets deferred. Schedule impact still to be reflected in the technical note.

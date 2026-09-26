@@ -15,7 +15,7 @@ Peerless benchmarks a Norwegian company against genuinely comparable peers using
 
 **These four are hand-written and authoritative.** They were not produced by a BMAD workflow, but they sit where BMAD expects its own output, so its skills read and update them instead of creating rivals.
 
-The brief in particular occupies a canonical run folder — `brief-Peerless-2026-09-17/` holding `brief.md` with frontmatter and a seeded `.memlog.md`, matching `{planning_artifacts}/briefs/brief-{project_name}-{date}`. `bmad-product-brief` in **Update** or **Validate** intent therefore targets it directly. Do not invoke it with **Create** intent: that opens a second run folder and leaves two briefs that do not know about each other. If a workflow does produce a parallel artifact anyway, fold anything worth keeping back into the document above and delete the generated one rather than maintaining both.
+The brief in particular occupies a canonical run folder — `brief-Peerless-2026-09-17/` holding `brief.md` with frontmatter and a seeded `.memlog.md`, matching `{planning_artifacts}/briefs/brief-{project_name}-{date}`. `bmad-product-brief` in **Update** or **Validate** intent therefore targets it directly. The same folder holds `addendum.md`: detail moved out of the brief to keep it short. It is kept, not authoritative — where it disagrees with the brief or the other three documents, they win. Do not invoke it with **Create** intent: that opens a second run folder and leaves two briefs that do not know about each other. If a workflow does produce a parallel artifact anyway, fold anything worth keeping back into the document above and delete the generated one rather than maintaining both.
 
 The same applies to changes: when a finding or decision makes one of these wrong, edit it. Do not append a correction elsewhere and leave the original standing.
 
@@ -74,6 +74,8 @@ These are verified behaviours of the Brønnøysund API, not guesses. Full detail
 Keep the calculation engine as pure functions — figures in, figures out, no database or framework imports. It must be testable in isolation and readable by someone checking the accounting.
 
 **Key figures are implemented exactly as defined in `docs/key-figures.md`.** A formula changes in the document and the code in the same commit. Kroner amounts from cost shares explain the operating margin gap and are never summed with it.
+
+**The interface is Norwegian (bokmål); everything else is English.** All user-facing copy is written in Norwegian. Documentation, code identifiers and comments are in English, except register field names, which keep the register's own Norwegian.
 
 Name domain concepts in Norwegian where the register does (`driftsresultat`, `sumEgenkapital`), and everything else in English. Do not translate register field names.
 

@@ -74,7 +74,7 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 **The subject can be described by the user.** The subject is the one company whose classification matters most, and the user knows what it does. An optional sentence entered by the user takes precedence over the register's description for the subject. It belongs to the workspace, and for anonymous sessions it is used for that analysis and not stored. It is sent to the model only to classify, and the model can answer only with fixed categories, so text written to steer the model cannot change more than the category it lands in.
 
-Classification runs once per company at ingestion, never at search time. Each company is stored with a structured profile: what it does, B2B or B2C, manufacturing, trade or services, capital intensity. A search then becomes an ordinary database query.
+Classification runs once per company at ingestion, never at search time. The one exception is a description the user enters for the subject: it is classified once, when entered, and the result is cached against that text and rate-limited with the open route. No peer is ever classified at search time. Each company is stored with a structured profile: what it does, B2B or B2C, manufacturing, trade or services, capital intensity. A search then becomes an ordinary database query.
 
 Each peer's inclusion reason is generated deterministically from the profile fields it shares with the subject, and states what the match rests on: description and accounts, accounts alone, or industry and size alone. The model classifies; it does not write the justification.
 
@@ -96,6 +96,16 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 ---
 
+## Pages
+
+**Front page.** A short description of Peerless and the organisation-number field. Below it, an overview of each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. Overviews show aggregates only, never named companies, are computed by the same engine from the same stored figures, and follow the minimum group size. Named rankings are out of scope: a top list collects recognition errors and small-base outliers, and a wage-share ranking misleads wherever subcontractors are booked outside payroll.
+
+**Analysis tabs.** Overview, peers, key figures and gaps, development over time, and value.
+
+**Portfolio front page.** A signed-in user's front page lists every company they follow, with its latest position, what has changed since the last filing and the largest gaps. It reads saved analyses only. User-arranged widgets are deferred.
+
+---
+
 ## Access control
 
 **Anonymous sessions.** A visitor without an account gets a Supabase anonymous sign-in, so every request still carries a real `auth.uid()`. There is one access model, not two: row-level security, the audit log and rate limiting all work unchanged. When the visitor registers, the anonymous user is converted in place and keeps what it did.
@@ -105,6 +115,8 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 **Workspaces.** Saved work belongs to a workspace. Membership carries a role, `owner` or `viewer`. Row-level security keys every user-scoped table to workspace membership. An adviser is a user with many workspaces; there is no adviser role.
 
 **Invitation** is by email, into a single workspace, as viewer. Share links are out of v1.
+
+**The account wall.** Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. Needs an account: development over time, the decomposition views, PDF export, saved analyses and history, favourites, unfiled figures, workspaces, invitations and the portfolio front page.
 
 **A user's own unfiled figures** live in their own table, keyed to a workspace. The owner writes, viewers read, anonymous sessions never read. Aggregate queries read only the tables holding filed accounts, so leaking unfiled figures into a peer median would require changing the query, not forgetting a filter. Removing a member revokes access immediately, since every policy goes through membership. When the filing for the same year arrives, it takes precedence and the user-entered figures are kept only as history.
 
@@ -148,7 +160,7 @@ That is the whole rationale. Authorization is what this project is assessed on m
 
 Peer group assembly under one second, since it reads stored key figures and profiles.
 
-A complete analysis under a few seconds, because it reads stored figures for every company involved — the subject included. The subject must be in a covered industry to be analysed at all, and covered industries are fully pre-warmed, so no recognition happens at query time. No documents are fetched or OCR'd during a user request, for the subject or for peers.
+A complete analysis under a few seconds, because it reads stored figures for every company involved — the subject included. The subject must be in a covered industry to be analysed at all, and covered industries are fully pre-warmed, so no recognition happens at query time. No documents are fetched or OCR'd during a user request, for the subject or for peers. The only model call a request can trigger is classifying a user-entered subject description, once per text.
 
 The OCR pipeline has no interactive budget. It runs as a batch job and is measured on throughput and accuracy, not latency.
 
@@ -170,13 +182,15 @@ Thirteen weeks.
 | 8 | Fingerprint and classification, the funnel, structured company profiles |
 | 9 | Labelled set complete, measurement against the industry-code baseline |
 | 10 | Embeddings; layer-by-layer comparison |
-| 11 | Invitations, rate limiting, peer group adjustment, saved analyses |
-| 12 | Valuation control, explanation layer, export, responsive interface |
+| 11 | Invitations, rate limiting, peer group adjustment, saved analyses, portfolio front page |
+| 12 | Valuation control, explanation layer, export, front page with industry overviews, analysis tabs, responsive interface |
 | 13 | Security report, threat model, AI documentation |
 
 **The remaining OCR question belongs in week one**, not in week four. Recognition on recent filings is already measured and adequate; the older scans are not, and their result determines how many years of trend v1 can honestly promise. Finding that out in week four would be expensive; finding it out in week one is a scope decision.
 
 **Two pieces of manual work start early and run alongside the code**, because they are calendar work rather than coding work and they are what the project's results rest on: the hand-transcribed OCR reference set, and the labelled classification set. Deferring either to the week it appears in the table above is how they end up too small to report.
+
+**If time runs short, cut in this order:** the portfolio front page, then the industry overviews, then the third industry. Never the labelled set, the authorisation suite or the OCR measurement — they are what the project's results rest on.
 
 **An AI log** (`docs/ai-log.md`) is kept from week one: what was asked for, what came back, what was wrong, how it was caught. Particular attention to authorization checks proposed in the client rather than on the server, floating point applied to money, and parsers that read an empty element as zero.
 
@@ -194,6 +208,6 @@ Kept out of the product brief, which follows the template provided. Collected he
 
 **Data in.** Key figures from filed annual accounts and company data — industry code, employees, registration date, business description — from public registers. Annual accounts as documents. The user's own unfiled figures. Adjustments to the peer group. The share of the gap to be closed, and the valuation multiple.
 
-**Data out.** Key figures for the company across the years available. The distribution within the peer group with median and favourable quartile (upper or lower, by the direction of the key figure). The company's position on the distribution per key figure. Decomposition of return into margin and asset turnover. Each deviation quantified in kroner. Profit uplift, released capital and implied enterprise value at the chosen closable share. A data quality flag per filing. Explanatory text with traceable figures. PDF export. Audit log.
+**Data out.** Industry overviews for covered industries, without named companies. Key figures for the company across the years available. The distribution within the peer group with median and favourable quartile (upper or lower, by the direction of the key figure). The company's position on the distribution per key figure. Decomposition of return into margin and asset turnover. Each deviation quantified in kroner. Profit uplift, released capital and implied enterprise value at the chosen closable share. A data quality flag per filing. Explanatory text with traceable figures. PDF export. Audit log.
 
-**Decision points.** How much autonomy the model has in accepting or rejecting a peer group candidate. Which comparability criteria are hard exclusions and which are merely flagged. The minimum group size, weighed against coverage in thin industries — set at 10 peers. Whether the explanation layer is ever allowed to calculate, and how the boundary is enforced rather than merely instructed. Which key figures are included and how each is defined — settled in `docs/key-figures.md`, including EV/EBIT as the valuation basis. Whether the reference point is the median or the favourable quartile. How long fetched public data is cached, against the risk of showing stale figures. Whether a user's unfiled figures may ever enter a group aggregate. What an anonymous session may do, and where the account wall sits. Which fingerprint features are used, and whether personnel cost share — also a benchmarked ratio — enters at all, in bands, or not.
+**Decision points.** How much autonomy the model has in accepting or rejecting a peer group candidate. Which comparability criteria are hard exclusions and which are merely flagged. The minimum group size, weighed against coverage in thin industries — set at 10 peers. Whether the explanation layer is ever allowed to calculate, and how the boundary is enforced rather than merely instructed. Which key figures are included and how each is defined — settled in `docs/key-figures.md`, including EV/EBIT as the valuation basis. Whether the reference point is the median or the favourable quartile. How long fetched public data is cached, against the risk of showing stale figures. Whether a user's unfiled figures may ever enter a group aggregate — settled: never, enforced structurally. What an anonymous session may do, and where the account wall sits. Which fingerprint features are used, and whether personnel cost share — also a benchmarked ratio — enters at all, in bands, or not.

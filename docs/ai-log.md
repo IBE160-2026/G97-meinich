@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 3 |
-| money | 2 |
+| money | 3 |
 | parsing | 3 |
 | llm-boundary | 3 |
-| scope | 6 |
-| docs | 3 |
+| scope | 7 |
+| docs | 5 |
 
 ## Entry template
 
@@ -156,3 +156,21 @@ Routine work that went as expected is not logged.
 **Problem:** Four errors were made and caught on the way. The first era rule classified paper cover forms as generated, because the form also contains "regnskapsåret". A todo list written with Windows line endings broke every filename inside the Linux container. Fuzzy label matching first matched "Annen driftskostnad" as "Sum driftskostnad" and "Sum innskutt egenkapital" as "Sum egenkapital", which dropped the income-statement check from 100 % to 0 %. And the digits-only pass, assumed to be an improvement, drops digits in the older font. Separately, `docs/data-sources-brreg.md` had stated as fact that older documents are "worse scans, not a different kind of document" — wrong for paper filings.
 **Caught by:** Checking a surprisingly good result against the raw OCR text; a container exit status; a check rate that collapsed after a change; comparing both passes side by side rather than assuming the tuning helped; looking at the documents.
 **Outcome:** Strict era rule on the heading; LF line endings; exact label matches first and fuzzy only on a row's own label of near-equal length; the digits-only pass used only as a fallback and only where the result reconciles. Five years of development over time in v1, recorded in the data-sources document, the technical note, the brief and the PRD. Consistency is measured; exact accuracy against a hand-transcribed set is still owed.
+
+### 2026-09-26 — Eight open product decisions closed, and a target that meant two things
+**Tags:** money · docs
+**Tool:** Claude Code (Opus 5.5), `bmad-prd` Update
+**Asked:** Work the open product decisions in the PRD's §11 rather than react to a change: the EV/EBIT default, the reference point, the below-floor display, cash share, the third industry, the hand-entered set, and cache lifetime.
+**Got:** Eight decisions taken and carried into the PRD, `docs/key-figures.md` and the technical note. The reference point is now the favourable quartile at every setting of the closable-share control, with the control scaling the gap to it; the EV/EBIT multiple has no default and no enterprise value is shown until the user supplies one; a figure below the ten-peer floor keeps its row and reports its count; cash share stays an unnumbered diagnostic; `43.210` stays out; the hand-entered set is four required components; and freshness is disclosed through a read date rather than promised through a cadence.
+**Problem:** Two money problems, one of them latent in the authoritative document. First, `docs/key-figures.md` defined the target as "peer median, or the favourable quartile at full closure". That admits a reading in which a closable share of zero still produces the entire gap to the median — a control labelled "how much of this is closable" that returns a non-zero number at zero. An engine written from that sentence would have been defensibly wrong, and the error would have shown up as inflated kroner amounts at exactly the setting a sceptical user tries first. Second, applying the cash-share decision exposed FR-27 asserting a favourable quartile and a percentile for *every* key figure, when both are defined in the favourable direction and four figures declare none — personnel cost per FTE, equity ratio, revenue growth and cash share. The requirement asked for something undefined. Against the no-default decision: the cost is that the product's headline valuation number is invisible until the user acts, so the feature may simply go unused; a default would have been reached for more often, at the price of the product implying a valuation nobody chose.
+**Caught by:** Reading the definition in `docs/key-figures.md` against the requirement in the PRD while writing the decision into both; then reading FR-27's promise against the direction column of the key figure table.
+**Outcome:** Target fixed at the favourable quartile in both documents, with the median demoted to context and a marker on the control. The no-direction rule generalised rather than directions invented for equity ratio and pay per FTE, where the direction is genuinely arguable — those figures show against the distribution and are never ranked. Two decision points marked settled in the technical note. Decision trail in the PRD run's `.memlog.md`.
+
+### 2026-09-26 — The register licenses the figures, but not the documents we read
+**Tags:** scope · docs
+**Tool:** Claude Code (Opus 5.5) with a web-research subagent
+**Asked:** Establish the licence and attribution obligations for reusing Brønnøysundregistrene data, an open question no project document had addressed.
+**Got:** The open APIs are NLOD 2.0, verified on three register pages. The licence permits commercial use, modification and redistribution, and requires the source and licence to be named and linked, modification to be declared, and the register not to be presented as endorsing the product. Two obligations were new: a credit in prescribed wording, and that a `410 Gone` entity "bør også anses som en forespørsel om at eventuelle kopier/cacher også fjerner den aktuelle enheten".
+**Problem:** The finding that matters is a gap, not an obligation. On data.norge.no the key-figures distribution carries NLOD while the filed-document distributions read "Lisens: Ikke oppgitt", and no register page states that the filed annual accounts are covered. Twelve of the fifteen key figures are recovered from those documents by OCR, so the unlicensed source sits under most of the product rather than at its edge. Free innsyn is not a reuse licence — åndsverkloven §33 removes copyright as a bar to access and §34 then limits use of what was accessed. Peerless publishes derived ratios and aggregates, never a reproduction of a filing, which is a materially different act; but that is a legal judgement and no register page settles it, so it is recorded as a gap rather than argued away. Separately, against FR-66: a deletion rule driven by an HTTP status will delete stored data, and a transient or misread `410` would remove a company that should stay. Saved analyses keep their own figures, so the blast radius is the peer pool rather than a user's work — but the rule deserves to be narrow and logged when it fires.
+**Caught by:** Reading the dataset's distributions separately instead of taking the dataset's headline licence for the whole of it.
+**Outcome:** Attribution and the withdrawal rule become requirements (FR-65, FR-66) and enter v1 scope. The document-licence question is recorded as blocking before any public or commercial deployment and not blocking the coursework, in the PRD (§8, §11.19) and in `docs/data-sources-brreg.md`, which holds the clause references and URLs. The answer comes from asking the register directly; more searching will not produce it.

@@ -22,7 +22,7 @@ It states **what Peerless does**, not how. Four hand-written documents remain au
 
 Where this PRD and one of those four disagree, **the other document wins and this one is wrong** — fix it here. Technical depth that surfaced during discovery sits in `addendum.md` as pointers into those documents, never as a second copy.
 
-Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-60 so epics can cite stable IDs. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
+Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-66 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
 
 ## 1. Vision
 
@@ -139,8 +139,8 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Filed figures** — figures from the register: the structured key-figures API, or OCR of the filed document, reconciled.
 - **Unfiled figures** — owner-entered current-year figures, before official filing. Always labelled unaudited, never merged with filed figures, never in an aggregate.
 - **API-sourced** / **OCR-sourced** — a key figure is OCR-sourced if *any* component is. Three of the 14 are API-only: operating margin, return on assets, equity ratio.
-- **Median** — the peer median for a key figure.
-- **Favourable quartile** — the upper quartile where higher is better, the lower quartile where lower is better. Direction-aware by definition.
+- **Median** — the peer median for a key figure. Shown for context and as a marker on the closable-share control; never the target of the kroner arithmetic.
+- **Favourable quartile** — the upper quartile where higher is better, the lower quartile where lower is better. Direction-aware by definition, so a figure with no declared direction has none.
 - **Percentile** — the share of peers the subject does better than, ties counted as half: `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
 - **Minimum group size** — 10 peers, counted **per key figure** after companies with an undefined value for that figure are excluded. Below it, no aggregate is shown for that figure. A quality threshold, not a confidentiality control.
 - **Undefined** — a key figure that cannot be computed for a company because a denominator is zero or negative, or a component is missing and cannot be derived from a stated total. **Undefined is not zero.** The company leaves that figure's distribution and the excluded count is shown.
@@ -150,10 +150,10 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 **Money**
 
 - **Closable share** (*s*) — the user-set fraction, 0 to 1, of each gap assumed closable. 1 means full convergence with the favourable quartile.
-- **Target** (*T*) — the reference value a gap is measured to: the peer median, or the favourable quartile at full closure.
+- **Target** (*T*) — the reference value a gap is measured to. **Always the favourable quartile**, at every setting of the closable share; the closable share scales the gap to it rather than moving it.
 - **Annual profit uplift** — the kroner value of the operating margin gap: `(T − r) × sumDriftsinntekter × s`.
 - **Working capital released** — the kroner value of the receivable-days, payable-days and operating-asset-turnover gaps.
-- **EV/EBIT multiple** — a user-set multiple applied to annual profit uplift to give implied enterprise value. EBIT, not EBITDA, because `driftsresultat` is API-sourced for every company and traces directly to the filing.
+- **EV/EBIT multiple** — a user-set multiple applied to annual profit uplift to give implied enterprise value. **No default**: until the user enters one, no implied enterprise value is shown. EBIT, not EBITDA, because `driftsresultat` is API-sourced for every company and traces directly to the filing.
 - **Øre** — the integer unit every monetary value is stored and computed in. Money is never a float.
 
 **Register fields** — the register's own names, never translated. Two are misspelled in the API; do not "fix" either.
@@ -345,6 +345,7 @@ The product computes and displays the key figures defined in `docs/key-figures.m
 - The engine implements every formula exactly as that document states; a formula changes in the document and in the code in the same commit.
 - Two algebraic identities are asserted exactly by tests: return on assets equals operating margin × (`sumDriftsinntekter` / `sumEiendeler`), and personnel cost share equals personnel cost per FTE ÷ revenue per FTE.
 - Total cost share is a reconciliation check against the three cost shares, not a primary benchmarking figure.
+- **Cash share is a diagnostic, not a numbered key figure.** It is shown as context with no declared direction, is never ranked, and produces no kroner amount — the same treatment revenue growth gets (FR-27).
 - Amounts are integers in øre. Ratios use a decimal library and are rounded only for display: percentages to one decimal, days to whole days, kroner to whole kroner.
 
 #### FR-22: Minimum group size, per key figure
@@ -354,7 +355,8 @@ No aggregate is shown for a key figure unless at least 10 peers have a defined v
 **Consequences (testable):**
 - The count is taken **per key figure**, after companies with an undefined value for that figure are excluded.
 - A peer group can clear the floor for one figure and fail it for another; each figure is gated independently.
-- Below the floor, the figure states that there are too few comparable values rather than showing an aggregate over a handful of companies.
+- Below the floor **the row persists and still shows the subject's own value**; where the median, favourable quartile and percentile would be, the figure states how many comparable values exist against the ten required. The user sees which figure specifically is thin, rather than a silently shorter table.
+- A figure below the floor produces no kroner amount, because there is no target to compute a gap against (FR-29).
 - Synthetic cohorts at and below 10 assert that no aggregate escapes.
 - This is a quality threshold, not a confidentiality control: aggregates are computed only from public filings.
 
@@ -398,7 +400,8 @@ For each key figure the product shows the subject's value, the peer median, the 
 **Consequences (testable):**
 - The favourable quartile is the upper quartile where higher is better and the lower quartile where lower is better, by the direction declared for that figure.
 - Percentile is `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
-- Revenue growth is shown without a direction and is never ranked, because fast growth often explains a weak margin.
+- Both the median and the favourable quartile are always shown where both exist. The median is context, and a marker on the closable-share control; it is never the target of the kroner arithmetic (FR-31).
+- **A figure with no declared direction gets no favourable quartile and no percentile**, because both are defined in the favourable direction and there is none. Those figures show the subject's value against the peer distribution and are never ranked: revenue growth, because fast growth often explains a weak margin; personnel cost per FTE and equity ratio, because the direction is genuinely arguable; and cash share, which is a diagnostic (FR-21).
 
 #### FR-28: Multi-year trend where available
 
@@ -435,16 +438,18 @@ A single control sets the closable share from nothing to full convergence with t
 
 **Consequences (testable):**
 - Annual profit uplift, working capital released and implied enterprise value all recompute from the same closable share.
-- At full closure the target is the favourable quartile; the peer median is the alternative reference point.
+- **The target is the favourable quartile at every setting of the control**, and the control scales the gap to it: no kroner at zero, full convergence with the quartile at full closure.
+- The peer median is marked on the control so the user can see where the typical peer sits relative to the target, and is never itself the target. `docs/key-figures.md` states the same.
+- A figure with no favourable quartile (FR-27) has no target and produces no amount here.
 
 #### FR-32: Valuation at a user-set multiple
 
 Implied enterprise value is annual profit uplift × an EV/EBIT multiple set by the user.
 
 **Consequences (testable):**
-- The multiple is a user input. The engine never looks one up or infers one.
+- The multiple is a user input with **no default**. The field starts empty and implied enterprise value is not shown at all until the user enters one.
+- The engine never looks a multiple up, infers one, or offers a range, so the product never implies a valuation it did not receive from the user. Annual profit uplift and working capital released are unaffected and show without it.
 - The calculation uses EBIT (`driftsresultat`), which is API-sourced for every company and traces directly to the filing, so the headline valuation figure carries no OCR dependency.
-- `[NOTE FOR PM]` No default value or range for the multiple is specified in any source document. A default is a product decision still open (§11).
 
 ### 4.5 Unfiled current-year figures
 
@@ -483,7 +488,12 @@ No user-entered figure contributes to any peer median, quartile, distribution or
 
 #### FR-38: Which figures may be entered
 
-`[ASSUMPTION]` An owner may enter the components needed for the API-sourced figures — revenue, operating profit, total assets, total equity — with OCR-sourced components optional. No source document specifies the input set; this is inferred from which figures matter most and which are least dependent on extraction.
+An owner enters four required components — revenue, operating profit, total assets and total equity — and may add the document-sourced components (the cost lines, trade receivables, trade payables, FTEs) where they have them.
+
+**Consequences (testable):**
+- The four required components guarantee a provisional position on operating margin, return on assets and equity ratio — the three figures that depend on no extracted data.
+- Every further key figure appears only once all of its components are present. A partly-entered figure is undefined, never completed from what is there (FR-23).
+- A component left blank is undefined, not zero.
 
 ### 4.6 Accounts, workspaces and access
 
@@ -661,6 +671,39 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
 - Filings too degraded for reliable recognition — chiefly the oldest paper-form scans — are reported as unavailable rather than estimated.
 
+#### FR-64: The age of the data is disclosed, not promised
+
+Every figure, aggregate and industry overview states the filing year behind it and the date the underlying data was read from the register.
+
+**Consequences (testable):**
+- The filing year and the read date survive into PDF export and into a saved analysis, so a saved analysis cannot be mistaken for a current one.
+- A saved analysis shows the read date it was computed from, never today's.
+- The product makes no freshness guarantee. The batch refresh is triggered manually in v1 (§8), so the disclosed read date — not a promised interval — is what tells the user how current the figures are.
+
+#### FR-65: Source credit under the register's licence
+
+The product credits Brønnøysundregistrene and the NLOD 2.0 licence, states that the figures have been processed by Peerless, and does not suggest the register endorses the analysis.
+
+**Consequences (testable):**
+- The credit names the source, names and links the licence, and links the source — the form the licence prescribes where the licensor specifies none: *"Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene"*.
+- It states that Peerless has processed the data, because every displayed figure is recomputed rather than reproduced. The licence requires modification to be declared.
+- It reaches every route out of the product, PDF export included, not only the web interface.
+- It may live on an *Om*-style page rather than beside each figure, but it is reachable from every page and is not hidden.
+- The register's name and marks appear as the source of the data only — never in a way that implies the register stands behind, recommends or markets the analysis.
+- Nothing in the presentation distorts or misrepresents the register's figures. This is the licence restating what FR-58 and FR-60 already enforce.
+
+`docs/data-sources-brreg.md` holds the licence text, the clause references and the URLs.
+
+#### FR-66: A withdrawn company is removed from storage
+
+When the register reports a company as gone, Peerless deletes its stored copy.
+
+**Consequences (testable):**
+- An entity returning `410 Gone` is removed from stored register data, not merely flagged, because the register states that the status should also be treated as a request that copies and caches remove it.
+- A removed company disappears from every peer group and from every aggregate computed after the removal.
+- A saved analysis that included it keeps its own figures — it is a record of what was computed on its stated read date (FR-64) — but the company cannot be looked up or re-entered as a peer.
+- The check belongs to the ingestion job, so removal never depends on a user visiting the company.
+
 ### 4.11 Front page and navigation
 
 **Description.** The product opens on a page that explains itself and shows what the data can do before anyone types a number, and a signed-in adviser lands on their own portfolio rather than an empty search field.
@@ -749,6 +792,8 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 - Minimum group size of 10 peers per key figure; rate limiting on the open route; audit log.
 - Saved analyses with history; PDF export.
 - A front page with industry overviews, analysis in tabs, and a portfolio front page for signed-in users.
+- Source credit under the register's NLOD 2.0 licence, stating that Peerless has processed the figures, on every route out of the product including PDF export.
+- Removal of a withdrawn company from stored register data when the register reports it gone.
 - A responsive, Norwegian-language interface from desktop down to phone width.
 
 ### 6.2 Out of Scope for MVP
@@ -785,7 +830,13 @@ Everything in §5, plus:
 
 **Cost.** Bounded by covering a small number of industries rather than the register. OCR runs once per filing at ingestion and is stored permanently; explanation text is cached per company and peer group rather than generated per visit; the open route is rate-limited and CAPTCHA-protected so anonymous traffic cannot run up model cost or harvest the register.
 
-**Data sourcing.** The free public register interfaces are the only data source. The paid multi-year bulk subscription is out of scope on cost grounds, which is why multi-year history comes from the filed documents rather than an API. `[NOTE FOR PM]` Attribution or terms-of-use obligations for register data are not addressed in any current document — see §11.
+**Data sourcing.** The free public register interfaces are the only data source. The paid multi-year bulk subscription is out of scope on cost grounds, which is why multi-year history comes from the filed documents rather than an API.
+
+**Data freshness.** There is no automatic refresh in v1: the batch job runs when it is triggered. Freshness is therefore disclosed rather than promised — every figure carries its filing year and read date (FR-64). Norwegian annual accounts cluster in a single filing window, so an automatic cadence is a real decision rather than a cron line; it is a blocking item before any public deployment (§11), not a v1 requirement.
+
+**Licence.** The register's open APIs are published under NLOD 2.0, which permits commercial use, modification and redistribution, and requires the source and the licence to be credited and any modification declared (FR-65). It also forbids presenting the data misleadingly or implying the register endorses the product — the same posture §9 and §10 take for other reasons.
+
+**The one licence gap, and it is not small.** The register licences the key-figures API but **not the filed annual-account documents**: on data.norge.no the key-figures distribution carries NLOD while document retrieval reads *"Lisens: Ikke oppgitt"*, and no register page states that the documents are NLOD-covered. Twelve of the fifteen key figures are recovered from those documents by OCR, so the gap sits under most of the figure set rather than at its edge. Peerless publishes derived ratios and aggregates, never a reproduction of a filing, which is a materially different act — but the distinction is a legal judgement, free access is not a reuse licence (åndsverkloven §§33–34), and nothing in the register's own pages settles it. **Not a v1 blocker** — this is coursework against public data — and **a gate before any public or commercial deployment**, where the answer comes from asking Brønnøysundregistrene rather than from reading their website (§11.19). Detail and sources in `docs/data-sources-brreg.md`.
 
 ## 9. Success Metrics
 
@@ -834,45 +885,49 @@ This section exists because Peerless is coursework as well as a product, and the
 
 ## 11. Open Questions
 
-**Answered 2026-09-26**
+Numbers are stable: an answered question keeps its number so the decision trail in `.memlog.md` stays resolvable.
+
+**Answered**
 
 1. **Course requirements.** No fixed user roles are required. Nothing must be delivered before coding, but BMAD requirements must be met. The product brief is due 2026-09-27.
 2. **Interface language.** Norwegian (bokmål). All documentation stays English.
 3. **Team size.** Solo.
+4. **Is `43.210` committed for v1?** No — intended, not committed, and §6.2 stands as written. It remains the last rung of the cut order, and inventory days stay out of the key figure set with it. *(2026-09-26)*
+5. **A default or range for the EV/EBIT multiple.** None. The field starts empty and implied enterprise value is not shown until the user enters a multiple, so the product never implies a valuation it did not receive (FR-32). *(2026-09-26)*
+6. **Median or favourable quartile as the reference point.** The favourable quartile is the target at every setting of the closable-share control, and the control scales the gap to it — no kroner at zero, full convergence at full closure. The median is shown in every distribution and marked on the control so the user can see where the typical peer sits, but never enters the arithmetic (FR-31). `docs/key-figures.md` was corrected in the same change; its previous wording admitted a reading in which zero closable share still produced the whole gap to the median. *(2026-09-26)*
+7. **Which figures a user may hand-enter as unfiled.** Four required components — revenue, operating profit, total assets, total equity — with the document-sourced components optional (FR-38). *(2026-09-26)*
+8. **User-facing behaviour below the minimum group size.** The row persists and still shows the company's own value; the aggregate cells state how many comparable values exist against the ten required, and no kroner amount is produced (FR-22). *(2026-09-26)*
+9. **Cash share** — a diagnostic, not a numbered key figure. Shown as context, never ranked, no kroner translation (FR-21). *(2026-09-26)*
+10. **How many years of trend can honestly be promised** — five (2021–2025), from measurement. See `docs/data-sources-brreg.md`. *(2026-09-26)*
+15. **Cache lifetime for fetched public data.** Resolved as disclosure rather than cadence: every figure carries its filing year and the date the data was read (FR-64), and the batch refresh is triggered manually in v1. An automatic cadence is a pre-deployment gate, below. *(2026-09-26)*
+17. **Whether unfiled figures may ever enter a group aggregate.** Never, enforced structurally (FR-37). Closed in the technical note as well.
 
-**Product decisions still open**
+**Gated on measurement** (answers arrive from work already scheduled)
 
-4. **Is `43.210` committed for v1?** The note says "the likely third". §6.2 currently treats it as out.
-5. **A default or range for the EV/EBIT multiple.** Specified nowhere. The control needs a starting value.
-6. **Median or favourable quartile as the headline reference point.** The direction-aware mechanism is decided; which one leads is still listed as an open decision.
-7. **Which figures a user may hand-enter as unfiled** (FR-38 is an assumption).
-8. **User-facing behaviour below the minimum group size.** "No aggregate is shown" is decided; the wording and whether the row persists are not.
-9. **Cash share** — a numbered key figure or a diagnostic? It is the only figure without a number in `docs/key-figures.md`.
-
-**Gated on measurement (answers arrive from work already scheduled)**
-
-10. **How many years of trend can honestly be promised** — answered 2026-09-26: five (2021–2025). See `docs/data-sources-brreg.md`.
 11. **Target thresholds for precision, recall and OCR accuracy.** None stated anywhere. Whether v1 should commit to a threshold at all, or only to measuring, is a decision — and committing to one before the baseline exists would be guessing.
 12. **Which fingerprint features are used, and whether personnel cost share enters selection at all, in bands, or not.** Stage 4 describes it as banded; the decision points still list it as open, with a stated risk that bands blur the benchmark.
 13. **How much autonomy the model has in accepting or rejecting a candidate**, and **which comparability criteria are hard exclusions rather than flags.**
 14. **OCR field names.** All ten OCR-sourced field names in `docs/key-figures.md` are marked provisional until confirmed against a real filing.
 
-**Unaddressed**
+**Pre-deployment gates** (not v1 requirements; blocking before anything is public)
 
-15. **Cache lifetime for fetched public data**, against the risk of showing stale figures. No TTL decided.
-16. **Attribution or terms-of-use obligations for register data.** Not covered in any current document. Worth confirming before a public deployment, commercial or not.
-17. **Whether unfiled figures may ever enter a group aggregate.** Closed: never, enforced structurally (FR-37). Closed in the technical note as well.
+18. **Automatic refresh cadence.** v1 refreshes manually and discloses the read date (FR-64, §8). A public deployment needs a real cadence, and Norwegian annual accounts cluster in a single filing window rather than arriving evenly, so the answer is a schedule shaped to that window rather than a fixed interval. Revisit when a deployment is actually planned.
+19. **May the filed annual-account documents be reused the way Peerless reuses them?** Researched 2026-09-26, and this is the part that did not resolve. The APIs are NLOD 2.0 and the attribution duty is now a requirement (FR-65), but the documents themselves carry no stated licence, and twelve of fifteen key figures come from them. Deriving ratios is not reproducing a filing, and free innsyn is not a reuse licence (åndsverkloven §§33–34) — the register's pages do not reach the question. **The answer comes from asking Brønnøysundregistrene, not from more searching.** Blocking before any public or commercial deployment; not blocking the coursework. See `docs/data-sources-brreg.md` and §8.
+20. **Whether the paid subscription's framework agreement restricts redistribution.** Unverified — the agreement document was not read, and the tier is out of scope on cost grounds anyway. Matters only if the paid tier is ever revisited.
 
 ## 12. Assumptions Index
 
 Every `[ASSUMPTION]` in this document, for explicit confirmation:
 
-- **§2.3, all four user journeys** — the protagonists, their contexts and every beat are invented, inferred from the brief's user types. The brief names users but narrates no sessions. The FR references are real; the scenes are not yet yours. **Highest-value correction in the document.**
-- **§4.3, FR-28** — resolved 2026-09-26: five years, from measurement.
-- **§4.5, FR-38** — the set of figures an owner may hand-enter as unfiled is inferred (the API-sourced components, with OCR-sourced ones optional). No source document specifies it.
-- **§6.2** — `43.210` is treated as out of MVP because the note calls it "likely" rather than committing to it. If you intend it as committed, §6.1 and §6.2 both change.
-- **§9** — no numeric target is stated for any measured metric, so none is invented here. If the course expects a stated target, SM-1 and SM-2 need one.
-- **Interface language** — resolved 2026-09-26: Norwegian (bokmål). §11.2.
+- **§2.3, all four user journeys** — the protagonists, their contexts and every beat are invented, inferred from the brief's user types. The brief names users but narrates no sessions. The FR references are real; the scenes are not yet yours. **Highest-value correction in the document, and now the only substantive one left.**
+- **§9** — no numeric target is stated for any measured metric, so none is invented here. If the course expects a stated target, SM-1 and SM-2 need one. Open question 11.
+
+**Resolved, kept for the trail:**
+
+- **§4.3, FR-28** — trend depth: five years, from measurement (2026-09-26).
+- **§4.5, FR-38** — the hand-entered set is confirmed, not inferred (2026-09-26).
+- **§6.2** — `43.210` confirmed out of MVP, intended rather than committed (2026-09-26).
+- **Interface language** — Norwegian (bokmål) (2026-09-26).
 
 ---
 

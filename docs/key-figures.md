@@ -81,6 +81,8 @@ Direction: ↑ higher is better, ↓ lower is better, – no direction.
 | 13 | Equity ratio | `sumEgenkapital / sumEiendeler` | API | – | – |
 | – | Cash share | `bankinnskudd / sumEiendeler` | OCR | – | – |
 
+Cash share carries no number because it is a diagnostic rather than a benchmarked figure: it is shown as context, is never ranked, and produces no kroner amount.
+
 ### Context
 
 | # | Key figure | Formula | Source | Dir. | Kroner |
@@ -88,6 +90,8 @@ Direction: ↑ higher is better, ↓ lower is better, – no direction.
 | 14 | Revenue growth | `sumDriftsinntekter / sumDriftsinntekter(prior year) − 1` | OCR | – | – |
 
 Revenue growth has no direction: fast growth often explains a weak margin, and the analysis shows the two side by side rather than ranking growth.
+
+**A figure with no declared direction gets no favourable quartile and no percentile.** Both are defined in the favourable direction, so neither exists where the direction is genuinely arguable — personnel cost per FTE (8), equity ratio (13), revenue growth (14) and cash share. These figures show the subject's value and the peer median and quartiles as a distribution, and are never ranked or converted to kroner.
 
 ## Decompositions
 
@@ -98,14 +102,16 @@ Both hold exactly, and the engine's tests assert them:
 
 ## From gap to kroner
 
-Let *r* be the subject's value, *T* the target (peer median, or the favourable quartile at full closure) and *s* the closable share set by the user, 0–1. Only gaps where the subject is worse than the target produce kroner; where it is better, the figure is shown as a strength with no amount.
+Let *r* be the subject's value, *T* the target — **the favourable quartile** — and *s* the closable share set by the user, 0–1. Only gaps where the subject is worse than the target produce kroner; where it is better, the figure is shown as a strength with no amount.
+
+The target is the favourable quartile at every setting of *s*, and *s* scales the gap to it: *s* = 0 produces no kroner at all, *s* = 1 is full convergence with the quartile. The peer median is shown in every distribution and marked on the control so the user can see where the typical peer sits, but it never enters this arithmetic.
 
 - **Profit (1):** (T − r) × `sumDriftsinntekter` × s. This is the annual profit uplift.
 - **Cost shares (3–5):** (r − T) × `sumDriftsinntekter` × s each. **They explain the operating margin gap and are never added to it or to each other** — doing so counts the same krone twice.
 - **Receivable days (9):** (r − T) / 365 × `salgsinntekt` × s of capital released.
 - **Payable days (10):** (T − r) / 365 × (`varekostnad` + `annenDriftskostnad`) × s.
 - **Operating asset turnover (11):** ((`sumEiendeler` − `bankinnskudd`) − `sumDriftsinntekter` / T) × s of capital released.
-- **Enterprise value:** annual profit uplift × EV/EBIT multiple set by the user. EBIT is used because `driftsresultat` is available from the API for every company and traces directly to the filing.
+- **Enterprise value:** annual profit uplift × EV/EBIT multiple set by the user. **There is no default multiple**, and no enterprise value is computed or shown until the user supplies one. EBIT is used because `driftsresultat` is available from the API for every company and traces directly to the filing.
 
 ## Peer selection and benchmarking
 

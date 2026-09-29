@@ -185,6 +185,42 @@ Run on all active AS with five or more employees in 62.100, 69.202 and 43.210 (3
 
 ---
 
+## Licence and attribution
+
+Established 2026-09-26 by reading the register's own pages and the licence text. Norwegian quotes are verbatim; the one gap is marked as a gap rather than filled with a guess.
+
+**The open APIs are NLOD 2.0.** The Enhetsregisteret API documentation declares `License: Norsk lisens for offentlige data (NLOD)` linking to version 2.0, the data.brreg.no service terms state that "Dataene i tjenesten er lisensiert med Norsk lisens for offentlige data (NLOD)" and that using the service accepts those terms, and brreg.no's open-data page adds that no registration is needed. NLOD 2.0 §2 grants use "til ethvert formål og i enhver sammenheng", non-exclusive and free of charge, including copying, redistribution, modification and combination — so commercial use and republishing derived figures are permitted. The licence cannot be sublicensed or transferred: a downstream user takes their licence from Brønnøysundregistrene, not from us.
+
+- `https://data.brreg.no/enhetsregisteret/api/docs/index.html`
+- `https://wiki.brreg.no/display/DBNPUB/Om+tjenesten`
+- `https://www.brreg.no/bruke-data-fra-bronnoysundregistrene/apne-data/`
+- `https://data.norge.no/nlod/no/2.0`
+
+**Attribution is required, and the licence prescribes the wording.** NLOD 2.0 §5: the licensee shall name the licensor and refer to the licence, and link to both the licence and the source where practically possible. Where the licensor specifies no form, the default is *"Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av [navnet på lisensgiver]"*. And: "Er informasjonen endret skal lisenstaker tydelig angi at endringer er blitt gjort av lisenstaker" — which applies to us, because every figure shown is recomputed. The commentary allows the credit to sit on an *Om* page rather than beside each figure, but it "må likevel ikke være bortgjemt".
+
+§6 adds two prohibitions that bear on how a benchmark is presented: the information must not be used in a way that appears misleading, nor distorted or misrepresented; and neither the licensor's name nor its trademarks may be used to endorse or market the product. So the register's name credits the *data*, and must not be made to look like it stands behind the analysis.
+
+§3 excludes personal data from the grant unless there is a separate lawful basis.
+
+**The filed documents are not covered by any stated licence — this is the finding with product consequence.** On data.norge.no the Regnskapsregisteret dataset's distributions are licensed unevenly: *Nøkkeltall fra Årsregnskapet* carries NLOD, while the free document-retrieval distribution and the fee-based image-copy service both read `Lisens: Ikke oppgitt`. The accounts API's own OpenAPI document declares no licence field at all. No page on brreg.no was found stating that the filed annual accounts are NLOD-covered or public-domain-equivalent.
+
+This matters because free retrieval of a filing is a right of *access*, and access is not a reuse licence: åndsverkloven §33 provides that copyright does not bar innsyn, and §34 then says documents given innsyn under §33 "kan ikke brukes i strid med denne loven". Twelve of the fifteen key figures are recovered from those documents by OCR (`docs/key-figures.md`), so this is not a footnote. What Peerless publishes from them is *derived figures* — ratios and aggregates, never a reproduction of a filing — which is a materially different act from republishing the documents; but that distinction is a legal judgement and no register page settles it. Treated as a gate before any public deployment, not as a v1 blocker.
+
+- `https://data.norge.no/datasets/7c87f169-2520-4e56-ba2a-b7a3cc7de2e9`
+- `https://lovdata.no/dokument/NL/lov/2018-06-15-40/KAPITTEL_2`
+
+**Withdrawn entities must be dropped from stored copies.** From the Enhetsregisteret API documentation: an entity can be removed from the register, for instance for legal reasons, and then returns `410 Gone` — "Dette bør også anses som en forespørsel om at eventuelle kopier/cacher også fjerner den aktuelle enheten." Peerless stores register data permanently, so this is an obligation on the ingestion job rather than a caching detail.
+
+**No contractual rate limit was found**, only a technical one: pagination cannot exceed `(page + 1) × size = 10 000` before the API returns HTTP 400. Nothing prohibits bulk retrieval — bulk download is offered outright.
+
+**Roles are constrained even though Peerless does not use them.** A person's registered role is open public data, but an overview of one person's roles across companies may show only roles tied to business activity (enhetsregisterloven §9-1). Peerless uses accounts and industry data, not role data, so this does not bind v1 — it would bind any later people-centred feature.
+
+**The paid tier is a signed agreement, not just a price.** Subscription to annual accounts data delivers XML figures, auditor codes and TIFF copies for roughly 300 000 filings a year over SFTP, at a fixed annual fee shared between subscribers — currently five subscribers at NOK 480 000 each, falling to NOK 400 000 at six. It requires a signed framework agreement plus a sub-agreement, and whether that agreement restricts redistribution is unverified: the agreement document itself was not read. Out of scope on cost grounds regardless.
+
+- `https://www.brreg.no/en/use-of-data-from-the-bronnoysund-register-centre/subscription/subscription-to-annual-accounts/`
+
+---
+
 ## Design implications
 
 The peer group is built on the key figures API, which is free, structured and fast. Nothing in peer group assembly depends on documents.
@@ -207,7 +243,8 @@ The comparability filter runs before classification: currency, accounting rules,
 - Whether better row parsing closes most of the remaining income-statement failures, and whether column-cropped recognition helps the older font.
 - Does the key figures API expose historical filings by `id`, or only the most recent one? This determines whether older OCR output has an independent total to reconcile against, or only internal consistency.
 - Exact URLs and filter parameters for bulk download from Enhetsregisteret.
-- Terms of use and any rate limits on systematic retrieval at volume.
+- ~~Terms of use and any rate limits on systematic retrieval at volume.~~ Answered 2026-09-26 — see **Licence and attribution** above. NLOD 2.0 on the APIs, no contractual rate limit, and one genuine gap left open:
+- **Whether the filed annual-account documents may be reused as we reuse them.** The register licences the key-figures API but not the documents, and Peerless derives twelve of fifteen key figures from them. A question for Brønnøysundregistrene directly, before any public deployment.
 
 ---
 

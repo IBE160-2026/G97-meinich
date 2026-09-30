@@ -53,7 +53,7 @@ None of this is defensible. The data is public, the ratios are textbook, and aut
 
 ## Who This Serves
 
-**Primary: accountants and advisers.** Dozens of clients ask "are we doing well?", and they answer from impression because the evidence takes hours to build. A repeatable analysis across a portfolio turns an unbillable conversation into an advisory service. They are also best placed to judge whether a peer group is right, and most likely to pay.
+**Primary: accountants and advisers.** Dozens of clients ask "are we doing well?", and they answer from impression because the evidence takes hours to build. A repeatable analysis across a portfolio turns an unbillable conversation into an advisory service. They are also best placed to judge whether a peer group is right, and most likely to pay. They use it before meeting a company they hope to win as well, which is where the open route earns its place: a prospect's accounts are public, so the conversation can open on that company's largest gap rather than on a brochure. That pull has a boundary — one organisation number at a time, because searching the register for weak companies is out of scope.
 
 **Also in v1: managing directors and finance leads**, who own the problem but will not maintain a modelling tool — through the open route or as viewers in their adviser's workspace. **Board members and co-owners** are served as invited viewers.
 

@@ -16,11 +16,11 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 3 |
-| money | 3 |
+| auth | 4 |
+| money | 4 |
 | parsing | 3 |
-| llm-boundary | 3 |
-| scope | 7 |
+| llm-boundary | 4 |
+| scope | 8 |
 | docs | 5 |
 
 ## Entry template
@@ -174,3 +174,21 @@ Routine work that went as expected is not logged.
 **Problem:** The finding that matters is a gap, not an obligation. On data.norge.no the key-figures distribution carries NLOD while the filed-document distributions read "Lisens: Ikke oppgitt", and no register page states that the filed annual accounts are covered. Twelve of the fifteen key figures are recovered from those documents by OCR, so the unlicensed source sits under most of the product rather than at its edge. Free innsyn is not a reuse licence — åndsverkloven §33 removes copyright as a bar to access and §34 then limits use of what was accessed. Peerless publishes derived ratios and aggregates, never a reproduction of a filing, which is a materially different act; but that is a legal judgement and no register page settles it, so it is recorded as a gap rather than argued away. Separately, against FR-66: a deletion rule driven by an HTTP status will delete stored data, and a transient or misread `410` would remove a company that should stay. Saved analyses keep their own figures, so the blast radius is the peer pool rather than a user's work — but the rule deserves to be narrow and logged when it fires.
 **Caught by:** Reading the dataset's distributions separately instead of taking the dataset's headline licence for the whole of it.
 **Outcome:** Attribution and the withdrawal rule become requirements (FR-65, FR-66) and enter v1 scope. The document-licence question is recorded as blocking before any public or commercial deployment and not blocking the coursework, in the PRD (§8, §11.19) and in `docs/data-sources-brreg.md`, which holds the clause references and URLs. The answer comes from asking the register directly; more searching will not produce it.
+
+### 2026-09-30 — Working capital released counted the same receivables twice
+**Tags:** money
+**Tool:** Claude Code (Opus 5.5), `bmad-prd` reviewer gate — five parallel review subagents
+**Asked:** Run a reviewer gate over the whole PRD after the user journeys were captured.
+**Got:** 107 findings across five reviewers. Three of them independently reported the same defect: the PRD's Glossary defined *working capital released* as the sum of the receivable-days, payable-days and operating-asset-turnover kroner amounts.
+**Problem:** The operating asset turnover amount is computed on a capital base of `sumEiendeler − bankinnskudd`, and `kundefordringer` sits inside `sumEiendeler` and is not `bankinnskudd`. Reducing receivables is therefore already part of reducing operating assets, and adding the two amounts counts the same kroner twice. Payable days does not overlap — it is a liability, outside `sumEiendeler`. What made this worse than an ordinary slip: **FR-30's automated test passed.** That test asserted only that no total sums more than one of the profit cluster — operating margin and the three cost shares — so the capital cluster was unguarded by the very requirement written to prevent double counting, one section below it. No success metric covered the kroner arithmetic either. A user would have seen an inflated "capital released" total with no test, metric or reviewer catching it, and the number would have looked plausible.
+**Caught by:** Three reviewers independently; verified by me against the formulas in `docs/key-figures.md` before acting, not taken on the reviewers' word. A fourth reviewer's related claim — that the VAT overstatement in receivable days inflates the kroner amount by about 25 % — was checked and **rejected**: `r/365 × salgsinntekt` is `kundefordringer` by construction, so the conversion back to kroner cancels exactly what the ratio inflated, and the amount is the real reduction in the real VAT-inclusive balance. The valid residue of that finding is that the peer target mixes companies with different export share, which is a comparability problem, not an arithmetic one.
+**Outcome:** Working capital released is now receivable days plus payable days only. Capital released from operating assets is a separate amount, presented beside it and never inside it. FR-30 gained a second assertion for the capital cluster, and states why the clusters are tested separately. Fixed in `prd.md` (Glossary, FR-30, FR-31, §1) and in `docs/key-figures.md` in the same change.
+
+### 2026-09-30 — Anonymous state in the URL, and a second model call admitted
+**Tags:** auth · llm-boundary · scope
+**Tool:** Claude Code (Opus 5.5), `bmad-prd` reviewer gate
+**Asked:** Resolve two blockers the gate raised: an anonymous session's peer adjustments had to survive registration while FR-47 asserts anonymous users cannot write user-entered data; and explanation text cached "per company and peer group" meant any peer adjustment forced a request-time model call, while FR-20 said only one such call exists.
+**Got:** The user's positions. Anonymous state — organisation number, excluded peers, closable share, EV/EBIT multiple — lives in the URL, so no anonymous session writes to any table and the state is written into the workspace at registration. Explanation text is generated and cached for the default peer group only; an adjusted group shows the default group's text labelled *"Forklaringen gjelder standard peer-gruppe"*; a signed-in user may regenerate behind a rate limit, and an anonymous session never triggers generation.
+**Problem:** What could go wrong, on the record. The URL now carries analysis state, so anything ever added to it becomes world-readable by design: every value must stay either public register data or the user's own parameter, and unfiled figures or workspace identifiers must never be allowed in. It is also not tamper-proof — an organisation number or exclusion list in a URL is user input and must be validated on every request, not trusted because it came from a link the product generated. On the model side, the boundary widened from one request-time call to two; the second is gated by an account and a rate limit, but it is a new cost and abuse vector, and FR-6's open-route limiting does not cover it because it is not on the open route. Against the embeddings decision: adding FR-68 puts a scheduled week of work into a document that a thirteen-week solo project may not reach, and it is measurement-only, so it is a candidate for the cut list — but leaving it out of §6.1 would have dropped it from the epics and made SM-1's ablation unreportable, which is worse.
+**Caught by:** The testability reviewer, which traced FR-40 against FR-47 and FR-52 against FR-20 and reported both as story-level contradictions rather than wording problems.
+**Outcome:** New FR-69 (anonymous state in the URL, with the no-database-write consequence tested) and FR-68 (embeddings at ingestion, measurement-only, never user-facing in v1, listed in §6.1). FR-20 now states exactly two reachable model calls; FR-5, FR-52, §7 and §8 updated to match. FR-8's comparability fields recorded as hard exclusions with FR-18's loosening scoped to size and segmentation; size band defined in the Glossary as `sumDriftsinntekter` from the same filing, 0.5–2× by default and 0.25–4× loosened; testable consequences added to FR-9, FR-14, FR-17 and FR-18.

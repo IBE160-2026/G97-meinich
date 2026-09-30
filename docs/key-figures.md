@@ -4,9 +4,11 @@ The calculation engine implements exactly these definitions. Change this documen
 
 ## General rules
 
-**Same basis for subject and peers.** A key figure is shown only if it can be computed for the subject and for at least the minimum group size of peers — 10 — from the same source. The count is taken per key figure, after companies with an undefined value are left out. A figure the subject has from OCR and the peers do not is not shown.
+**Same basis for subject and peers.** A key figure's *comparison* — median, favourable quartile, percentile and any kroner amount — is shown only if the figure can be computed for the subject and for at least the minimum group size of peers, 10, from the same source. The count is taken per key figure, after companies with an undefined value are left out. A figure the subject has from OCR and the peers do not gets no comparison. The subject's own value is still shown, with the count of comparable values and the reason the comparison is absent: withholding a comparison is not the same as withholding the company's own figure.
 
 **Same year.** The benchmark year is the subject's latest filed year. Peers use the same year; a peer without it is excluded. Only calendar-year filings pass the comparability filter. User-entered current-year figures are compared against the peers' latest filed year, with the difference in periods stated.
+
+**Partial periods are never scaled.** Owner-entered year-to-date figures are used for the period they cover and are never annualised, so they yield ratios only and no kroner amount — a kroner translation needs a twelve-month revenue base. The primary comparison is the company's own same period in the previous year, entered by the owner, so that seasonality largely cancels; the company's last filed full year and the peer distribution are context only, labelled as whole years rather than the same period. No adjustment is made for seasonality or any other external factor.
 
 **Closing balances.** Balance sheet items are taken at year end, not averaged. The key figures API gives only the latest year, so an average would not be available for every peer.
 
@@ -112,6 +114,8 @@ The target is the favourable quartile at every setting of *s*, and *s* scales th
 - **Payable days (10):** (T − r) / 365 × (`varekostnad` + `annenDriftskostnad`) × s.
 - **Operating asset turnover (11):** ((`sumEiendeler` − `bankinnskudd`) − `sumDriftsinntekter` / T) × s of capital released.
 - **Enterprise value:** annual profit uplift × EV/EBIT multiple set by the user. **There is no default multiple**, and no enterprise value is computed or shown until the user supplies one. EBIT is used because `driftsresultat` is available from the API for every company and traces directly to the filing.
+
+**Two amounts that must never be added.** *Working capital released* is (9) plus (10) — receivable days and payable days — which are safe to add because one is an asset and the other a liability. The operating asset turnover amount (11) is reported **separately** and is never added to either, because its capital base `sumEiendeler − bankinnskudd` already contains `kundefordringer`: adding it to (9) counts the same receivable reduction twice.
 
 ## Peer selection and benchmarking
 

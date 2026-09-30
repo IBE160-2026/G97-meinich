@@ -39,7 +39,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **Understand where to start.** An AI-written explanation names the largest gaps in kroner, the strengths, and which gaps have persisted. It explains; it does not recommend. The AI never calculates: every figure in the text comes from the engine and links back to its calculation, and text containing any other figure is rejected.
 
-**Keep it and share it.** The overview, peer group and gaps in kroner are open to anyone. An account — by emailed magic link — opens the rest: development over time, the decomposition views, PDF export, saved analyses, this year's unfiled figures, and inviting others. A signed-in user's front page is their portfolio: every company they follow, its latest position, what has changed and where the largest gaps are. Saved work lives in workspaces; an owner invites board members, co-owners or clients as read-only viewers, and an adviser is simply a user with many workspaces. Unfiled figures are marked unaudited everywhere and never enter a peer aggregate.
+**Keep it and share it.** The overview, the peer group and the gaps in kroner are open to anyone; an account by emailed magic link opens what persists. Saved work lives in workspaces with invited read-only viewers, and a signed-in user's front page is their portfolio. The account wall in full, and what is protected and why, are in the addendum.
 
 ## What Makes This Different
 
@@ -49,7 +49,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **It costs a minute, not a project.** The realistic competitor is the analysis never being done. Anything needing setup or a purchase order loses to inertia; one field and a few seconds does not.
 
-None of this is defensible. The data is public, the ratios are textbook, and automated peer recommendation already works for valuation. What is new is pointing it at operational benchmarking for Norwegian SMEs. The advantage is framing and execution.
+None of this is defensible; the addendum says why.
 
 ## Who This Serves
 
@@ -75,7 +75,7 @@ None of this is defensible. The data is public, the ratios are textbook, and aut
 
 **In for v1.** A front page with industry overviews; analysis in tabs; a portfolio front page for signed-in users. Analysis without an account; magic-link sign-in; workspaces with owners and invited viewers. Coverage grows one industry at a time, each offered only once its filings are extracted and its peer selection measured — first programming services and bookkeeping. Visible, adjustable peer groups. About a dozen key figures with two decomposition views. Development over the last five years. Kroner gaps, the closable-share control and EV/EBIT valuation. AI-written explanation. Unfiled current-year figures. Saved analyses, audit log, PDF export. A responsive, Norwegian-language interface down to phone width.
 
-**Out of v1.** Named rankings and league tables; widgets users arrange themselves; share links; a full valuation tool; screening and "find companies like this"; a composite score; a free-form chat over the data; credit scoring; forecasting; group consolidation and ownership mapping; banks, insurers and cross-border comparison; monitoring and alerts; payment. Reasons for each are kept in the addendum.
+**Out of v1.** Named rankings, share links, a full valuation tool, screening, a composite score, free-form chat, credit scoring and forecasting, among others — the complete list, with the reason for each, is in the addendum.
 
 ## Vision
 

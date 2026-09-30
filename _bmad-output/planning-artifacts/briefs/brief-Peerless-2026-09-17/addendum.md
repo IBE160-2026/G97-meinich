@@ -85,4 +85,6 @@ The register serves the full accounts only as page images, so every figure beyon
 - **Enin** generates lists of comparable companies from accounting figures, purpose, geography, industry code and headcount, for banks' credit, fraud and compliance work. Verified against enin.ai, 2026-09-26.
 - **Valutico** released peer recommendation with comparability scores and rationale in its Summer 2026 release, for valuation against listed companies.
 
+**No moat, stated plainly.** None of this is defensible. The data is public, the ratios are textbook, and automated peer recommendation already works for valuation — Valutico ships it. What is new is pointing it at operational benchmarking for Norwegian SMEs, for the company itself rather than for a creditor or a valuer. The advantage is framing and execution, and the brief says so rather than implying a moat that is not there.
+
 Further desk research, with unverified pricing, is in `prds/prd-Peerless-2026-09-25/research-landscape.md`.

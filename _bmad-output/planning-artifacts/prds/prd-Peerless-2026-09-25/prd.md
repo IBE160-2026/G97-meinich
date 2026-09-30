@@ -22,7 +22,7 @@ It states **what Peerless does**, not how. Four hand-written documents remain au
 
 Where this PRD and one of those four disagree, **the other document wins and this one is wrong** — fix it here. Technical depth that surfaced during discovery sits in `addendum.md` as pointers into those documents, never as a second copy.
 
-Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-69 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
+Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-71 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
 
 ## 1. Vision
 
@@ -175,7 +175,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 ## 4. Features
 
-Requirements are numbered globally FR-1 to FR-69. `docs/key-figures.md` is authoritative for every formula; where an FR names one it is citing that document, not restating it.
+Requirements are numbered globally FR-1 to FR-71. `docs/key-figures.md` is authoritative for every formula; where an FR names one it is citing that document, not restating it.
 
 ### 4.1 Company lookup and eligibility
 
@@ -309,6 +309,7 @@ No measure the product benchmarks may be used to select peers at its exact value
 - Cost of goods share and personnel cost share are both business-model markers and benchmarked ratios; where they enter selection they enter **only in coarse bands**, and are benchmarked within their band.
 - **The banding is proposed, not settled.** Whether either share enters selection at all is confirmed or dropped against the labelled set (§11, question 12), and the test below is what decides it rather than a judgement made in advance.
 - A test asserts that for a peer group built with banding, the within-band spread of a banded figure is non-trivial — i.e. the gap has not been driven to zero by construction. If the spread collapses, the banding is dropped rather than explained.
+- **The test runs per industry, and passing in one industry is not passing.** Where a band and a performance measure correlate, banding quietly selects on performance; `43.210` is the case where cost of goods share and margin are expected to move together, so a test aggregated across industries could pass while failing exactly where it matters.
 
 #### FR-14: Disagreement is flagged, not resolved
 
@@ -377,6 +378,19 @@ Peer group assembly returns in under one second.
 - **Exactly two model calls can be triggered by a user request**: classifying a user-entered subject description (FR-5), and a signed-in user regenerating the explanation for an adjusted peer group (FR-52). Both are rate-limited. Regeneration additionally requires an account; description classification is available on the open route under FR-6's limits.
 - Peer group assembly itself triggers neither.
 
+#### FR-70: The labelled set
+
+A hand-labelled set of genuine comparables is built to a stated sampling frame, beginning in week 2, and is what SM-1 is measured against.
+
+**Consequences (testable):**
+- **15 subject companies per covered industry**, and **30 candidates for each**, drawn **at random from the subject's size band** rather than from the funnel's output. About **900 judgements** in total.
+- Drawing candidates from the size band and not from the funnel is what gives recall a denominator: a candidate the funnel never proposed can still be labelled a genuine comparable, and missing it counts against recall.
+- The labelling rubric is written and dated **before** the fingerprint's feature list is fixed, so the criterion cannot be tuned to the method after the fact.
+- A **subsample is labelled from the description and website only, blind to the accounts**, so at least part of the set is not an expression of the fingerprint's own criterion.
+- A **second labeller judges about 50 pairs**, and **Cohen's κ is reported** with the result. `[ASSUMPTION]` Who the second labeller is has still to be confirmed.
+- **Fallback if the set comes in small:** `62.100` only, with the description cohorts pooled rather than reported separately. The fallback is stated in advance so a thin set is a smaller claim rather than a silent one.
+- Every count above is reported as achieved, not as planned, and any shortfall is stated with the result.
+
 #### FR-68: Embeddings, computed for measurement only
 
 A vector representation of each company's description is computed at ingestion and used as one layer in the peer-selection measurement. It is not user-facing in v1.
@@ -386,6 +400,7 @@ A vector representation of each company's description is computed at ingestion a
 - The layer appears in SM-1's ablation as a step of its own, so the measurement can report what it adds over the rules and over model classification.
 - **No peer reaches a user's group by embedding similarity in v1.** The layer changes what is measured, not what is shown.
 - It becomes user-facing only if it measurably beats model classification, and that is a post-v1 decision this PRD does not take.
+- **The layer is optional.** SM-1 reports three layers if embeddings are not built and four if they are, so the measurement stands either way and embeddings can be cut without taking a success metric with them (§6.2).
 
 ### 4.3 Key figures and the benchmark display
 
@@ -702,6 +717,8 @@ No number may appear in generated text that is absent from the engine's calculat
 
 **Consequences (testable):**
 - An automated test rejects generated text containing any figure not present in the engine's output. Once that test exists it is never weakened.
+- The test also rejects a figure that **is** in the engine's output but **attached to the wrong thing** — the right number against the wrong key figure, company, year or direction. Containment alone would pass that, and it is the more likely failure.
+- The test parses **Norwegian number formats**, so `1 234 567,89`, a non-breaking or narrow space as thousands separator, a comma as decimal separator, `kr` before or after the amount, and `%` are all recognised as the figures they are. A figure the test cannot parse is a failure, not a pass.
 - The model's only two jobs are classification into fixed categories (FR-11) and explanatory text (FR-52). It performs no arithmetic.
 - Peer inclusion reasons are rules-generated, not model-generated (FR-16).
 - A free-form chat over the data is out of scope precisely because it cannot be held to this rule (§5).
@@ -763,6 +780,17 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
 - Filings too degraded for reliable recognition — chiefly the oldest paper-form scans — are reported as unavailable rather than estimated.
 
+#### FR-71: When the subject's own filing fails reconciliation
+
+Where the subject's own filed document fails reconciliation, the product shows the figures it can source from the API and says why the others are absent.
+
+**Consequences (testable):**
+- The three API-sourced figures — operating margin, return on assets, equity ratio — are shown, because they do not depend on the document.
+- The twelve document-dependent figures are absent, and the product states that the subject's own filing could not be read reliably rather than showing a gap without a reason.
+- No figure is estimated, substituted from another year, or shown with a caveat (FR-58).
+- The subject is not silently demoted to an uncovered company: its industry **is** covered, its peers are unaffected, and the API-sourced figures still carry a full comparison (FR-24).
+- This is distinct from FR-4, where the industry itself is uncovered and there is no peer group at all.
+
 #### FR-64: The age of the data is disclosed, not promised
 
 Every figure, aggregate and industry overview states the filing year behind it and the date the underlying data was read from the register.
@@ -774,11 +802,13 @@ Every figure, aggregate and industry overview states the filing year behind it a
 
 #### FR-65: Source credit under the register's licence
 
-The product credits Brønnøysundregistrene and the NLOD 2.0 licence, states that the figures have been processed by Peerless, and does not suggest the register endorses the analysis.
+The product credits Brønnøysundregistrene as the source, states that the figures have been processed by Peerless, and does not suggest the register endorses the analysis. **The NLOD credit is claimed for the API-sourced data only.**
 
 **Consequences (testable):**
-- The credit names the source, names and links the licence, and links the source — the form the licence prescribes where the licensor specifies none: *"Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene"*.
-- It states that Peerless has processed the data, because every displayed figure is recomputed rather than reproduced. The licence requires modification to be declared.
+- The NLOD 2.0 credit applies to what the register licences under NLOD: the data from the open APIs. Its prescribed form is used where it applies — *"Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene"*.
+- **Figures derived from the filed documents are credited to Brønnøysundregistrene as their source without asserting a licence**, because the register states none for those documents (§8). The product never claims NLOD coverage for data NLOD does not cover — an earlier version of this requirement did exactly that, and it was wrong.
+- The credit distinguishes the two, so a reader can tell which figures rest on a licence and which rest on a right of access.
+- It states that Peerless has processed the data, because every displayed figure is recomputed rather than reproduced. The licence requires modification to be declared where it applies, and saying so for everything costs nothing.
 - It reaches every route out of the product, PDF export included, not only the web interface.
 - It may live on an *Om*-style page rather than beside each figure, but it is reachable from every page and is not hidden.
 - The register's name and marks appear as the source of the data only — never in a way that implies the register stands behind, recommends or markets the analysis.
@@ -863,7 +893,7 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 
 **Known limitations accepted rather than fixed**, and disclosed rather than silently corrected:
 
-- Receivable days are overstated by VAT by up to 25%. The distortion is similar across a VAT-registered peer group, so the comparison holds while the absolute number is too high. Stated, not adjusted.
+- Receivable days are overstated by VAT by up to 25%: receivables include it, revenue does not. **The distortion is only roughly similar across a peer group, not cancelled by it.** Export sales are zero-rated, so a company selling abroad carries proportionally less VAT in its receivables and shows fewer receivable days for the same real credit terms — and export share varies along precisely the axis the fingerprint separates businesses on. The ratio is therefore comparable only to the extent that peers share a VAT profile, and the comparison is weakest where the peer group is most mixed. Stated, not adjusted. The kroner amount is unaffected by this: `r / 365 × salgsinntekt` is `kundefordringer` by construction, so the conversion returns the real VAT-inclusive balance either way — what the VAT profile distorts is the *target*, not the arithmetic.
 - Cost lines may be classified differently between companies — a consultancy booking subcontractors as cost of goods rather than personnel — distorting the split between the three cost shares. Total cost share is shown as a check against this.
 - Employee count from Enhetsregisteret is deliberately not used for `aarsverk`: it is today's figure, not the accounting year's. FTEs come from the notes instead, accepting OCR dependency to get the right period.
 
@@ -897,7 +927,22 @@ Everything in §5, plus:
 - **Investor and portfolio use cases**, which depend on screening and portfolio views that are out of scope.
 - **Numeric quality targets.** No source document states a target for peer-selection precision, recall, or OCR accuracy. v1 commits to *measuring and reporting* these, not to hitting a threshold (§9, §11).
 
-**If time runs short, cut in this order.** The portfolio front page (FR-63) first, then the industry overviews (FR-61), then the third industry. Never the labelled set, the authorisation suite or the OCR measurement — they are what the project's results rest on. Epics are cut from this list, in this order.
+**If time runs short, cut in this order.** Epics are cut from this list, in this order, and nothing is cut out of order to keep a demo tidy.
+
+1. The **portfolio front page** (FR-63).
+2. The **industry overviews** (FR-61).
+3. **Unfiled and year-to-date figures** (FR-33–FR-38, FR-67).
+4. **PDF export** (FR-51).
+5. **Removal of withdrawn companies** (FR-66) — a licence obligation, so cut only as far as recording that it is owed.
+6. The **development-over-time view** (FR-28). **The data is kept**: multi-year extraction is batch compute, not build time, and once the filings are extracted and reconciled they stay extracted. What is cut is the interface that displays the trend.
+7. The **third industry** (`43.210`), which was never committed.
+8. **Embeddings** (FR-68), which is why SM-1 reports three layers without them and four with (FR-68, SM-1).
+
+**Never cut**, because the project's results rest on them: the **labelled set** (FR-70), the **authorisation suite** (SM-3), and the **OCR measurement** (SM-2).
+
+**Load-bearing for the graded result** — these carry a success metric, and cutting one removes a claim rather than a feature: FR-7 to FR-16 and FR-70 (SM-1, SM-1b), FR-28, FR-57, FR-58 (SM-2), FR-34, FR-45, FR-47 (SM-3), FR-53 (SM-4), FR-21, FR-23, FR-30 (SM-6), FR-1 and FR-42 (SM-8).
+
+**Product, not result** — these make Peerless worth using but no success metric depends on them: FR-49 to FR-51, FR-61 to FR-63, FR-26, FR-33 to FR-38, FR-67, FR-52 and FR-54. The cut order above draws from this group first by design, and the one exception is FR-28, which SM-2 measures and which is therefore cut last among them and only its interface.
 
 ## 7. Cross-Cutting Non-Functional Requirements
 
@@ -937,7 +982,8 @@ Each metric names what it validates. `[ASSUMPTION]` No source document states a 
 
 **Primary**
 
-- **SM-1 — Peer selection quality.** Precision and recall against a human-labelled set of genuine comparables — labelled without seeing which funnel stage proposed a candidate, since the labeller also designed the method — compared against what industry classification alone achieves. Reported **per industry**, split by whether the company's description is informative (with the share of companies in each cohort disclosed), and **per funnel layer** — industry code and size alone, then adding the fingerprint, then embeddings, then model classification. The improvement over the industry-code baseline is the primary result. Validates FR-7 to FR-16.
+- **SM-1 — What each layer adds.** The headline result is the **layer-by-layer ablation**: precision and recall against the labelled set (FR-70) for each funnel layer standalone and cumulatively — industry code and size alone, adding the accounts-based fingerprint, adding model classification, and adding embeddings if they are built. **Three layers reported, four with embeddings.** The question it answers is how much each layer contributes and, specifically, **whether the model adds anything beyond the accounts-based fingerprint.** That question can genuinely come back "no", which is what makes it the headline. Reported **per industry**, split by whether the description is informative, with each cohort's share disclosed. Validates FR-7 to FR-16, FR-70.
+- **SM-1b — Sanity check against industry code alone.** Precision and recall of the full funnel against the industry-code-only baseline on the same labelled set. This is a **check, not a claim**: the labeller judges comparability on criteria the fingerprint encodes, so the baseline is expected to lose, and its losing confirms the labelling is coherent rather than demonstrating the method works. A result where industry code alone *wins* would mean something is wrong with the funnel or the labelling. Validates FR-70.
 - **SM-2 — Recognition accuracy.** Share of figures recovered exactly, and share of filings passing the internal consistency check, each split between recent filings and older paper-form scans, measured against a hand-transcribed reference set. This measurement decides which document-derived ratios the product can honestly offer and how far back trend can reach. Validates FR-28, FR-57, FR-58.
 - **SM-3 — Authorisation.** Zero successful forbidden accesses across the full suite, including between workspaces held by the same owner and from an anonymous session against saved data. Validates FR-34, FR-45, FR-47.
 - **SM-4 — The model never calculates.** No generated text contains a figure absent from the engine's output, asserted by automated test. Validates FR-53.
@@ -960,19 +1006,36 @@ Each metric names what it validates. `[ASSUMPTION]` No source document states a 
 
 This section exists because Peerless is coursework as well as a product, and the thing being graded is not only whether the software runs.
 
-**The claim under test:** that reading what a company actually does — from its accounts and from free text — assembles a better peer group than industry classification alone. The measurement is the result, and it can come back negative.
+**The claim under test:** **how much each layer of the funnel adds, and whether reading free text with a model adds anything beyond what the accounts alone already say.** That is the headline, and it can come back "the model was not needed" — which is a real result and one the rules-before-model principle actively predicts.
 
-**What makes that measurable:**
+**Why the claim is framed that way, and not the other way.** The obvious framing — "reading what a company does beats industry classification alone" — **cannot fail under this protocol, so it is not the headline.** The labelled set is judged by the person who designed the method, on the same criteria the fingerprint encodes: cost composition, inventory, asset intensity, what the business actually is. Industry code demonstrably does not capture those criteria, so it must lose. Blinding the labeller to which funnel stage proposed a candidate removes *provenance* bias; it does not remove the circularity of the criterion itself. That comparison is kept as **SM-1b, a sanity check** — if industry code alone won, something would be wrong — but a check that is expected to pass is not a finding.
 
-- A human-labelled set of genuine comparables, built by hand and **stratified by description quality**, so precision and recall can be reported separately for companies whose descriptions are informative and those whose are not. The method can only improve on the baseline where there is text to read, and mixing the two cohorts would hide that. The labeller also designed the method, so candidates are judged without seeing which funnel stage proposed them; any contamination that remains is stated rather than hidden.
-- The industry-code-only baseline, computed on the same labelled set.
-- **Layer-by-layer ablation:** each funnel layer scored standalone and cumulatively, so the result shows where any improvement comes from — rules, or the model.
+**What makes the headline claim measurable:**
+
+- The labelled set of FR-70, to a stated sampling frame: 15 subjects per industry, 30 candidates each drawn **at random from the subject's size band rather than from the funnel's output**, so a comparable the funnel never proposed still counts against recall. Roughly 900 judgements, from week 2.
+- **Three defences against the circularity**, none of which fully removes it and all of which are reported: the labelling rubric is written and dated **before** the fingerprint's feature list is fixed; a **subsample is labelled from description and website only, blind to the accounts**; and a **second labeller judges about 50 pairs with Cohen's κ reported**.
+- **Layer-by-layer ablation:** each layer scored standalone and cumulatively, so the result shows where any improvement comes from — rules, or the model. Stratified by description quality, because the model can only help where there is text to read, and pooling the cohorts would hide that.
 
 **Anticipated findings that are results, not failures:**
 
 - If the accounts-based fingerprint alone captures most of the improvement, **the model was needed less than expected.** That is a finding worth reporting, and the rules-before-model principle predicts it.
 - If embeddings do not measurably beat model classification, classification stays. Embeddings replace it only on evidence.
 - Description quality is currently a word-list proxy, not a measurement: at most 56% of descriptions in 62.100, 38% in 69.202 and 50% in 43.210 appear specific, and the true share is lower. Hand-scoring converts this estimate into a measurement, and it covers the two committed industries.
+
+**Will there be anything to compare against?** This had been asserted rather than computed: the PRD set a floor of 10 peers per key figure without knowing how often it would be cleared once comparability, the size band and the reconciliation rate had all taken their cut. Computed by `analysis/peer_group_yield.py` from the screening samples, reported in `analysis/output/peer-group-yield.md`:
+
+| Industry | Stage reached (default 0.5–2× band) | Median peers | Q1 | Share clearing 10 |
+|---|---|---|---|---|
+| `62.100` | comparability + size band, API figures | 253 | 101 | 99 % |
+| `62.100` | × 88 % reconciliation, document figures | 223 | 89 | 97 % |
+| `62.100` | ÷ 3 for classification, document figures | 74 | 30 | 88 % |
+| `69.202` | comparability + size band, API figures | 422 | 251 | 99 % |
+| `69.202` | × 88 % reconciliation, document figures | 372 | 221 | 99 % |
+| `69.202` | ÷ 2 for classification, document figures | 186 | 110 | 99 % |
+
+**The funnel is not the binding constraint, and that was worth checking rather than assuming.** Even after reconciliation and a divide-by-three for classification, the typical `62.100` subject has around 74 qualifying peers and 88 % of subjects clear the floor. These are upper bounds — the computation applies stages 1 and 2 plus the size band, and stands in for stages 3 to 5 with a crude division — so the real figures are lower, but not by the order of magnitude that would make below-floor rows the normal case.
+
+**What does fail is narrower and sharper: a subject that is not `smaaForetak`.** `smaaForetak` is a comparability field and therefore a hard exclusion (FR-8), so such a company can only be compared against others like it — and there are very few. In `62.100` they are 8 of 93 comparable companies (about 9 %, or 81 in the population), and they still find a median of 25 peers among themselves. In `69.202` there is **1 in a sample of 99** — about 8 companies in the entire industry — so **a large accounting firm gets no peer group at all**, and FR-22 will withhold every aggregate for it. That is correct behaviour and a real coverage limit, and it is stated here rather than discovered by the first such user. `[ASSUMPTION]` The share is per industry and not a single figure: 9 % in `62.100` after comparability, 1 % in `69.202`.
 
 **Honest framing of the market claim.** No Norwegian product found assembles a matched peer group *and* converts deviations to kroner self-serve for the company itself; incumbents lead with credit-risk framing. But the gap sits between two well-funded adjacent categories rather than in an empty market, and the brief is candid that there is no moat: the data is public, the ratios are textbook, and the advantage is framing and execution only.
 

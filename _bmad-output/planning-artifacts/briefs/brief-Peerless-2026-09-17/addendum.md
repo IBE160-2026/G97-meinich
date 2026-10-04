@@ -28,10 +28,11 @@ Embeddings of the business descriptions are measured as an alternative to AI cla
 
 | Open to anyone | Needs an account |
 |---|---|
-| Front page and industry overviews | Development over time |
+| Front page and industry overviews | Development over time (full view) |
 | Lookup, peer group and adjustment | Decomposition views |
 | Key figures, percentiles and gaps in kroner | PDF export |
 | Closable-share control and valuation | Saved analyses and history |
+| Sparkline preview per key figure, with the peer median | |
 | | Unfiled current-year figures |
 | | Workspaces, invitations and the portfolio front page |
 

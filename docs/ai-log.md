@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 5 |
+| auth | 6 |
 | money | 5 |
 | parsing | 3 |
 | llm-boundary | 4 |
 | scope | 10 |
-| docs | 10 |
+| docs | 11 |
 
 ## Entry template
 
@@ -237,3 +237,12 @@ Routine work that went as expected is not logged.
 **Problem:** Precedence rules decide which document wins, not which is right; following them mechanically would have printed the weaker claim in the interface. A correction made in one document and not its siblings is the failure AGENTS.md's edit-in-place rule exists to prevent.
 **Caught by:** Contradiction between sources, surfaced by the extraction; the label problem by reasoning about the population.
 **Outcome:** `docs/key-figures.md` VAT bullet rewritten to match the PRD. The label *Egne tall – ikke levert* now replaces "unaudited" in the brief addendum, the PRD and its addendum, with the reason stated once in the PRD glossary.
+
+### 2026-10-04 — Sparklines opened past the account wall, and a source line that claimed too much
+**Tags:** auth · docs
+**Tool:** Claude Code (Opus 5.5), `bmad-ux`
+**Asked:** The user proposed opening a five-year sparkline per key figure to anonymous visitors as a preview, keeping the full development-over-time view walled, and supplied a landing-page source line, "Data fra Brønnøysundregistrene (NLOD), bearbeidet av Peerless".
+**Got:** The account-wall change was put back to the user as a decision rather than applied, with its consequences. Recommended yes with one condition, which the user accepted: every sparkline draws the peer median as a faint reference line. The source line was flagged as conflicting with FR-65 and replaced by "Data fra Brønnøysundregistrene, bearbeidet av Peerless · Kilder og lisens", with the licence distinction on the new "Slik fungerer Peerless" page (FR-72).
+**Problem:** What could go wrong, on the record. Multi-year figures now reach anonymous sessions, so the open route serves more data per request and the rate limit (FR-6) covers a larger surface. The figures are public filings, but extracted and reconciled by us, so this widens what can be scraped cheaply. A sparkline of the company alone would invite a wrong reading — a margin rising from 1 % to 2 % looks good while peers rose further — which is why the median line is a requirement, not a style. The wall must be enforced by what the server returns, not by what the page hides: the open endpoint returns the five yearly values and the yearly medians only, never the band, placement history or user-entered figures, and the authorisation suite should assert that. The source line would have reprinted the NLOD overclaim corrected on 2026-09-30, this time in the most visible place in the product.
+**Caught by:** Checking the proposal against FR-42 and FR-65 before rendering it.
+**Outcome:** FR-42, FR-28, the technical note's account wall and the brief addendum's table updated. FR-72 added for the "Slik fungerer Peerless" page, and FR-65 points to it.

@@ -22,7 +22,7 @@ It states **what Peerless does**, not how. Four hand-written documents remain au
 
 Where this PRD and one of those four disagree, **the other document wins and this one is wrong** — fix it here. Technical depth that surfaced during discovery sits in `addendum.md` as pointers into those documents, never as a second copy.
 
-Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-71 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
+Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-72 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
 
 ## 1. Vision
 
@@ -175,7 +175,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 ## 4. Features
 
-Requirements are numbered globally FR-1 to FR-71. `docs/key-figures.md` is authoritative for every formula; where an FR names one it is citing that document, not restating it.
+Requirements are numbered globally FR-1 to FR-72. `docs/key-figures.md` is authoritative for every formula; where an FR names one it is citing that document, not restating it.
 
 ### 4.1 Company lookup and eligibility
 
@@ -484,7 +484,7 @@ Where filings allow, the product shows how the subject has moved against its pee
 **Consequences (testable):**
 - Development over time covers the last five years, 2021–2025. Measured 2026-09-26: about 88 % of columns reconcile in those years. Paper filings are never read; older generated years are used only where they reconcile.
 - Peer history is fetched every other year, since each document carries a prior-year column; every year is still covered.
-- Development over time needs an account (FR-42).
+- The full development-over-time view needs an account; a sparkline preview with the peer median is open to anyone (FR-42).
 
 ### 4.4 Gap quantification in kroner and the closable-share control
 
@@ -617,10 +617,11 @@ Sign-in is by emailed magic link.
 
 #### FR-42: The account wall
 
-Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. An account is required for development over time, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page. Realises UJ-1, UJ-2.
+Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation, and a five-year sparkline per key figure as a preview of development over time. An account is required for the full development-over-time view, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
 - The core — peers and the gap in kroner — never requires an account.
+- The open sparkline preview always draws the peer median as a faint reference line, so a rising figure is never read without the peers' movement beside it. It carries no band, no placement over time and no user-entered figures; those stay in the full view.
 
 #### FR-43: Workspaces
 
@@ -814,7 +815,7 @@ The product credits Brønnøysundregistrene as the source, states that the figur
 - The credit distinguishes the two, so a reader can tell which figures rest on a licence and which rest on a right of access.
 - It states that Peerless has processed the data, because every displayed figure is recomputed rather than reproduced. The licence requires modification to be declared where it applies, and saying so for everything costs nothing.
 - It reaches every route out of the product, PDF export included, not only the web interface.
-- It may live on an *Om*-style page rather than beside each figure, but it is reachable from every page and is not hidden.
+- It may live on an *Om*-style page rather than beside each figure — "Slik fungerer Peerless" (FR-72) — but it is reachable from every page and is not hidden.
 - The register's name and marks appear as the source of the data only — never in a way that implies the register stands behind, recommends or markets the analysis.
 - Nothing in the presentation distorts or misrepresents the register's figures. This is the licence restating what FR-58 and FR-60 already enforce.
 
@@ -860,6 +861,18 @@ A signed-in user's front page lists every company they follow, with its latest p
 - It reads saved analyses only; nothing is computed for companies the user does not follow.
 - It shows only workspaces the user is a member of (FR-45).
 - User-arranged widgets are out of v1.
+
+#### FR-72: "Slik fungerer Peerless" — how the product works
+
+A public page explains, in plain Norwegian, how peers are chosen, where AI is used and where it is not, what has been measured, where the data comes from, and what the product cannot do.
+
+**Consequences (testable):**
+- It describes the five funnel stages (FR-7 to FR-11) in plain language, without formulas.
+- It names the two places a model is used — classifying what a company does (FR-11) and writing the explanation (FR-52) — and states that the model never calculates a figure, and that this is enforced by an automated test (FR-53), not by instruction.
+- It reports what has been measured, layer by layer (SM-1, SM-2), **only once the measurement exists**. Until then it says the measurement is pending; it never shows a placeholder or expected figure.
+- It carries the data sources and the licence distinction of FR-65, including the prescribed NLOD credit, and is the *Om*-style page FR-65 allows.
+- It states the known limitations from `docs/key-figures.md` and §5, including the VAT effect on receivable days and the `smaaForetak` coverage limit (§10).
+- It is reachable from the footer of every page and from the front page, without an account.
 
 ## 5. Non-Goals (Explicit)
 
@@ -918,7 +931,7 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 - Manual entry of unfiled current-year figures, labelled *Egne tall – ikke levert* and excluded from all aggregates, including year-to-date figures compared against the same period of the previous year, as ratios and never annualised.
 - Minimum group size of 10 peers per key figure; rate limiting on the open route; audit log.
 - Saved analyses with history; PDF export.
-- A front page with industry overviews, analysis in tabs, and a portfolio front page for signed-in users.
+- A front page with industry overviews, analysis in tabs, a portfolio front page for signed-in users, and a public "Slik fungerer Peerless" page (FR-72).
 - Source credit under the register's NLOD 2.0 licence, stating that Peerless has processed the figures, on every route out of the product including PDF export.
 - Removal of a withdrawn company from stored register data and from saved analyses when the register reports it gone.
 - A responsive, Norwegian-language interface from desktop down to phone width.

@@ -120,7 +120,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **Invitation** is by email, into a single workspace, as viewer. Share links are out of v1.
 
-**The account wall.** Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. Needs an account: development over time, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page.
+**The account wall.** Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation, and a five-year sparkline per key figure, always drawn with the peer median as a faint reference line, as a preview. Needs an account: the full development-over-time view, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page.
 
 **A user's own unfiled figures** live in their own table, keyed to a workspace. The owner writes, viewers read, anonymous sessions never read. Aggregate queries read only the tables holding filed accounts, so leaking unfiled figures into a peer median would require changing the query, not forgetting a filter. Removing a member revokes access immediately, since every policy goes through membership. When the filing for the same year arrives, it takes precedence and the user-entered figures are kept only as history.
 

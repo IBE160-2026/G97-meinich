@@ -31,13 +31,13 @@ Embeddings of the business descriptions are measured as an alternative to AI cla
 | Front page and industry overviews | Development over time |
 | Lookup, peer group and adjustment | Decomposition views |
 | Key figures, percentiles and gaps in kroner | PDF export |
-| Closable-share control and valuation | Saved analyses and history, favourites |
+| Closable-share control and valuation | Saved analyses and history |
 | | Unfiled current-year figures |
 | | Workspaces, invitations and the portfolio front page |
 
 The core — peers and the gap in kroner — stays open, because "one field and a minute" is what separates Peerless from the alternatives. The deeper pages give a reason to create an account without breaking that promise.
 
-**The portfolio front page.** A signed-in user sees every company they follow: latest position, what has changed since the last filing, and the largest gaps. It is built on saved analyses and serves the primary user, the adviser with many clients.
+**The portfolio front page.** A signed-in user sees every company they follow — that is, every company with a saved analysis in one of their workspaces — with its latest position, what has changed since the last filing, and the largest gaps. It is built on saved analyses and serves the primary user, the adviser with many clients.
 
 **Deferred.** Widgets users choose and arrange themselves. Useful, but a large amount of interface work for a solo project, with little added over a well-chosen fixed layout.
 
@@ -49,7 +49,7 @@ The core — peers and the gap in kroner — stays open, because "one field and 
 
 **Workspaces.** Saved work belongs to a workspace, typically one per company, with an owner and invited read-only viewers. Isolation between workspaces is where it matters most: one adviser's clients must never be reachable from another's account, and a viewer invited to one workspace must never reach another held by the same owner.
 
-**Unfiled figures.** They belong to the workspace they were entered in and are visible to its members only. They are marked unaudited and user-entered wherever they appear, including exports, are never merged with filed figures, are compared against the peers' latest filed year with the period difference stated, and are replaced when the filing arrives. They never enter an aggregate.
+**Unfiled figures.** They belong to the workspace they were entered in and are visible to its members only. They carry the label *Egne tall – ikke levert* ("own figures, not filed") wherever they appear, including exports, are never merged with filed figures, are compared against the peers' latest filed year with the period difference stated, and are replaced when the filing arrives. They never enter an aggregate.
 
 **Minimum group size.** Ten peers, counted per key figure. A quality threshold, not a confidentiality control: aggregates are computed only from public filings, so a peer median discloses nothing the filings do not.
 

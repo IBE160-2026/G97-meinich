@@ -24,7 +24,7 @@ Design problems the PRD states as requirements but does not solve:
 - **Subordinating cost shares to operating margin.** FR-30 forbids summing them. The layout has to make that visually obvious enough that nobody reaches for a calculator and adds them anyway.
 - **Funnel counts at phone width.** Five stage counts plus a peer list plus a four-column ratio table plus a distribution plot, at 375px (FR-55, FR-56).
 - **Three match-basis tiers** (FR-16) need a visual hierarchy that reads as confidence without implying a score.
-- **Unaudited labelling** (FR-33) has to survive PDF export and stay legible without dominating.
+- **The *Egne tall – ikke levert* label** (FR-33) has to survive PDF export and stay legible without dominating.
 - **The closable-share control** drives three outputs at once (FR-31). What updates, and how visibly, is a design decision.
 
 ## Rejected alternatives worth remembering

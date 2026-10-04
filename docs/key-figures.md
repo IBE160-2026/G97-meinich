@@ -123,7 +123,7 @@ Any measure used to select peers enters selection only in coarse bands, and is b
 
 ## Known limitations
 
-- **Receivable days are overstated by VAT.** Receivables include VAT; revenue does not. The overstatement is up to 25 % and similar across a VAT-registered peer group, so the comparison holds while the absolute number is too high. Not adjusted silently; stated here.
+- **Receivable days are overstated by VAT.** Receivables include VAT; revenue does not. The overstatement is up to 25 %, and it is only roughly similar across a peer group, not cancelled by it: export sales are zero-rated, so a company selling abroad carries less VAT in its receivables and shows fewer receivable days for the same credit terms, and export share varies between peers. The comparison holds only to the extent that peers share a VAT profile, and is weakest where the group is most mixed. Not adjusted silently; stated here.
 - **Cost lines are classified differently.** A consultancy using subcontractors may book them as cost of goods or other operating cost rather than personnel, lowering its personnel share and raising the others. Total cost share (6) is shown as a check.
 - **Employee count from Enhetsregisteret is not used.** It is today's figure, not the accounting year's. FTEs come from the notes.
 - **Excluded on purpose:** cash flow (small companies are exempt from the statement), gearing, interest cover and return on equity (financing and credit risk, not operations), ROIC (needs interest-bearing debt separated; operating asset turnover covers most of it), inventory days (added with 43.210).

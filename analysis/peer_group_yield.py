@@ -49,7 +49,8 @@ OUT = Path(__file__).parent / "output"
 POPULATION = {"62100": 942, "69202": 789}
 RECONCILE = 0.88
 FLOOR = 10
-BANDS = {"default": (0.5, 2.0), "loosened": (0.25, 4.0)}
+# The three fixed steps a user can take, one at a time (PRD FR-7, FR-18).
+BANDS = {"default": (0.5, 2.0), "intermediate": (0.33, 3.0), "loosened": (0.25, 4.0)}
 # Plausible number of distinct business types sharing one code, for the
 # classification-split bound. 62.100 is the heterogeneous case; 69.202 is the
 # control, where 93 % describe core bookkeeping.

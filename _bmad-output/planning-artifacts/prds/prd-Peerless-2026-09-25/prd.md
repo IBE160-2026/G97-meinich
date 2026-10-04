@@ -105,7 +105,7 @@ The order below is narrative, not priority. Who matters most is stated in §2.1:
 - **UJ-4. An owner asks whether this year is going better, before anything is filed.**
   - **Persona + context:** Tore owns the bookkeeping firm from UJ-2 and UJ-3 — the `69.202` company Anders won and Solveig chairs — and closes his books monthly. Anders's work started after a filed year at 2.5 % operating margin. Seven months in, Tore wants to know whether the business has moved in a positive direction, long before the filing exists.
   - **Entry state:** Signed in, owner of his own workspace.
-  - **Path:** Enters year-to-date figures and states that they cover **seven months** → enters the same seven months of last year, which is what makes the comparison honest → sees ratios only, every one labelled unaudited and user-entered (FR-33, FR-67).
+  - **Path:** Enters year-to-date figures and states that they cover **seven months** → enters the same seven months of last year, which is what makes the comparison honest → sees ratios only, every one labelled *Egne tall – ikke levert* (FR-33, FR-67).
   - **Climax:** Operating margin 6.4 % over seven months against **4.8 % for the same seven months last year** — genuinely up, and up on a like-for-like period. His own last filed full year, 2.5 %, and the peers' latest full year median of 9.7 % sit alongside as context, labelled *"hele år, ikke samme periode"*: he is improving and still short of the typical peer, and both facts are legible at once.
   - **Resolution:** He has a direction, not a projection. Nothing is annualised, so nothing is forecast — and when the filing arrives it takes precedence and his entries are kept as history (FR-36).
   - **Edge case:** He has no figures for the same period last year. The year-to-date ratios are shown with no primary comparison, rather than being measured against a full year as though the periods matched (FR-67).
@@ -121,7 +121,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Subject** — the company being analysed. Exactly one per analysis. Must be in a covered industry to receive a peer group (FR-3); outside one it gets its own key figures only (FR-4).
 - **Front page** — the entry page: a description, the organisation-number field, and industry overviews (FR-61).
 - **Industry overview** — an aggregate picture of one covered industry. Never names a company.
-- **Portfolio** — a signed-in user's front page, listing every company they follow (FR-63).
+- **Portfolio** — a signed-in user's front page, listing every company they follow — that is, every company with a saved analysis in one of their workspaces (FR-63).
 - **Peer** — a company included in the subject's peer group. Named and visible, never anonymised.
 - **Peer group** — the set of peers assembled for a subject by the funnel (§4.2). Visible, adjustable, and never used for an aggregate below the minimum group size.
 - **Covered industry** — an industry Peerless offers peer analysis for. An industry becomes covered only once its filings are extracted and reconciled **and** its peer selection has been measured against a labelled set. Unmeasured industries are not offered.
@@ -148,12 +148,12 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 - **Key figure** — one of the 14 numbered measures defined in `docs/key-figures.md`, plus the unnumbered cash share. That document is authoritative for every formula.
 - **Filed figures** — figures from the register: the structured key-figures API, or OCR of the filed document, reconciled.
-- **Unfiled figures** — owner-entered current-year figures, before official filing. Always labelled unaudited, never merged with filed figures, never in an aggregate.
+- **Unfiled figures** — owner-entered current-year figures, before official filing. Always labelled *Egne tall – ikke levert* ("own figures, not filed"), never merged with filed figures, never in an aggregate. Never labelled "unaudited": many small AS have no auditor, so their filed accounts are unaudited too, and the word would wrongly suggest that filed figures are audited.
 - **API-sourced** / **OCR-sourced** — a key figure is OCR-sourced if *any* component is. Three of the 14 are API-only: operating margin, return on assets, equity ratio.
 - **Median** — the peer median for a key figure. Shown for context and as a marker on the closable-share control; never the target of the kroner arithmetic.
 - **Favourable quartile** — the upper quartile where higher is better, the lower quartile where lower is better. Direction-aware by definition, so a figure with no declared direction has none.
 - **Percentile** — the share of peers the subject does better than, ties counted as half: `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
-- **Size band** — the range of company size a candidate must fall within to be eligible as a peer: `sumDriftsinntekter` **from the same filing as the figures being compared**, by default 0.5 to 2 times the subject's, loosenable to 0.25 to 4 times (FR-18). Revenue, not assets and not employees; and the filing's own figure, never today's register.
+- **Size band** — the range of company size a candidate must fall within to be eligible as a peer: `sumDriftsinntekter` **from the same filing as the figures being compared**, by default 0.5 to 2 times the subject's, loosenable one fixed step at a time to 0.33 to 3 times and then 0.25 to 4 times (FR-18). Revenue, not assets and not employees; and the filing's own figure, never today's register.
 - **Minimum group size** — 10 peers, counted **per key figure** after companies with an undefined value for that figure are excluded. Below it, no aggregate is shown for that figure. A quality threshold, not a confidentiality control.
 - **Undefined** — a key figure that cannot be computed for a company because a denominator is zero or negative, or a component is missing and cannot be derived from a stated total. **Undefined is not zero.** The company leaves that figure's distribution and the excluded count is shown.
 - **Data quality flag** — a per-filing flag derived **only** from the two reconciliation checks, never from OCR confidence. A generic engine reported mean confidence 0.974 while misreading several figures; confidence is not a signal.
@@ -253,7 +253,7 @@ Candidates are reduced by industry code and size band.
 
 **Consequences (testable):**
 - Filtering uses `naeringskode1.kode`. The register's `naeringskode` filter also matches secondary and tertiary codes and is never used where the primary industry is meant.
-- The size band is `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's.
+- The size band is `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, widened only in FR-18's fixed steps.
 - Size is revenue, never `sumEiendeler` and never the register's employee count — that count is today's figure, not the accounting year's (§5).
 
 #### FR-8: Stage 2 — comparability filter (rules)
@@ -355,7 +355,7 @@ The user can widen the size band or a segmentation criterion when the group is t
 
 **Consequences (testable):**
 - Loosening reaches the size band (FR-7, FR-9) and segmentation by legal form or geography (FR-9). It never reaches the six comparability fields (FR-8).
-- The size band widens from its default 0.5–2× the subject's `sumDriftsinntekter` to at most 0.25–4×.
+- The size band widens in fixed steps, one at a time, each a separate user action: 0.5–2× the subject's `sumDriftsinntekter` (default), then 0.33–3×, then 0.25–4×. Nothing wider is offered.
 - No loosening can admit a candidate that failed comparability, and a test asserts that.
 - A loosened criterion is shown as loosened, with the funnel counts updated (FR-15), so a larger group never looks like the default one.
 - Loosening recomputes everything immediately (FR-19), and a figure can cross the minimum group size in either direction as a result (FR-22).
@@ -533,9 +533,9 @@ Implied enterprise value is annual profit uplift × an EV/EBIT multiple set by t
 
 **Description.** A company knows its current year long before it files it. An owner can enter those figures by hand and see a provisional position — but the product never lets them be mistaken for filed accounts, and never lets them touch anyone else's comparison. Realises UJ-4.
 
-#### FR-33: Unaudited labelling everywhere
+#### FR-33: "Egne tall – ikke levert" labelling everywhere
 
-Every figure derived from unfiled input is labelled unaudited and user-entered wherever it appears. Realises UJ-4.
+Every figure derived from unfiled input carries the label *Egne tall – ikke levert* wherever it appears. Realises UJ-4.
 
 **Consequences (testable):**
 - The label survives into PDF export.
@@ -552,6 +552,9 @@ Unfiled figures belong to the workspace: the owner writes them, viewers read the
 #### FR-35: Period difference stated
 
 Unfiled current-year figures are compared against the peers' latest filed year, with the difference in periods stated. Realises UJ-4.
+
+**Consequences (testable):**
+- No kroner amount is computed from user-entered figures, whether full-year or year-to-date. They yield ratios and percentiles against the peers' latest filed year only.
 
 #### FR-36: Filed figures take precedence
 
@@ -584,7 +587,7 @@ An owner may enter year-to-date figures, stating how many months they cover, and
 - The primary comparison is the company against its own same period last year, entered by the owner. Seasonality largely cancels because both sides cover the same months.
 - Where the prior-year same-period figures are absent, the year-to-date ratios are shown **without a primary comparison** — never measured against a full year as though the periods matched.
 - The company's own last filed full year and the peers' latest full year are shown as context only, labelled *"hele år, ikke samme periode"*.
-- Every derived figure is labelled unaudited and user-entered (FR-33), and none enters any aggregate (FR-37).
+- Every derived figure carries the label *Egne tall – ikke levert* (FR-33), and none enters any aggregate (FR-37).
 - No adjustment is made for seasonality or any other external factor, and the product says so. It is disclosed, not corrected.
 
 ### 4.6 Accounts, workspaces and access
@@ -614,7 +617,7 @@ Sign-in is by emailed magic link.
 
 #### FR-42: The account wall
 
-Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. An account is required for development over time, the decomposition views, PDF export, saved analyses and history, favourites, unfiled figures, workspaces, invitations and the portfolio front page. Realises UJ-1, UJ-2.
+Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. An account is required for development over time, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
 - The core — peers and the gap in kroner — never requires an account.
@@ -691,7 +694,7 @@ A saved analysis accumulates history, so a later visit shows movement against th
 A signed-in user can export an analysis as PDF. Realises UJ-1.
 
 **Consequences (testable):**
-- Unaudited labelling on user-entered figures is carried through into the export (FR-33).
+- The *Egne tall – ikke levert* label on user-entered figures is carried through into the export (FR-33).
 - Export is unavailable to anonymous sessions.
 
 ### 4.8 Explanatory text
@@ -798,6 +801,7 @@ Every figure, aggregate and industry overview states the filing year behind it a
 **Consequences (testable):**
 - The filing year and the read date survive into PDF export and into a saved analysis, so a saved analysis cannot be mistaken for a current one.
 - A saved analysis shows the read date it was computed from, never today's.
+- A saved analysis is a record of what was computed on that date, with one exception: a company the register later withdraws is removed from it, as subject or as peer (FR-66).
 - The product makes no freshness guarantee. The batch refresh is triggered manually in v1 (§8), so the disclosed read date — not a promised interval — is what tells the user how current the figures are.
 
 #### FR-65: Source credit under the register's licence
@@ -823,7 +827,7 @@ When the register reports a company as gone, Peerless deletes its stored copy.
 **Consequences (testable):**
 - An entity returning `410 Gone` is removed from stored register data, not merely flagged, because the register states that the status should also be treated as a request that copies and caches remove it.
 - A removed company disappears from every peer group and from every aggregate computed after the removal.
-- A saved analysis that included it keeps its own figures — it is a record of what was computed on its stated read date (FR-64) — but the company cannot be looked up or re-entered as a peer.
+- Removal reaches saved analyses too, because the register frames it as possibly made for legal reasons and asks every copy to delete the entity; this is the one exception to the record promise in FR-64. **As subject**, the company's figures are removed from every saved analysis; the workspace keeps the entry with the notice *"Selskapet er slettet fra Enhetsregisteret 12.03.2027, og tallene er fjernet"*. **As a peer** in other saved analyses, its row and name are removed, while aggregates already computed are kept with the note *"Én sammenlignbar er fjernet fra registeret"*. No data about the removed entity is stored anywhere afterwards, and it cannot be looked up or re-entered as a peer.
 - The check belongs to the ingestion job, so removal never depends on a user visiting the company.
 
 ### 4.11 Front page and navigation
@@ -911,12 +915,12 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 - Multi-year trend where filings allow, with reach determined by measurement rather than promised in advance.
 - Gap quantification in kroner, the closable-share control, and valuation at a user-set EV/EBIT multiple.
 - Written explanation grounded in calculated figures, with the no-calculation rule enforced by test.
-- Manual entry of unfiled current-year figures, labelled unaudited and excluded from all aggregates, including year-to-date figures compared against the same period of the previous year, as ratios and never annualised.
+- Manual entry of unfiled current-year figures, labelled *Egne tall – ikke levert* and excluded from all aggregates, including year-to-date figures compared against the same period of the previous year, as ratios and never annualised.
 - Minimum group size of 10 peers per key figure; rate limiting on the open route; audit log.
 - Saved analyses with history; PDF export.
 - A front page with industry overviews, analysis in tabs, and a portfolio front page for signed-in users.
 - Source credit under the register's NLOD 2.0 licence, stating that Peerless has processed the figures, on every route out of the product including PDF export.
-- Removal of a withdrawn company from stored register data when the register reports it gone.
+- Removal of a withdrawn company from stored register data and from saved analyses when the register reports it gone.
 - A responsive, Norwegian-language interface from desktop down to phone width.
 
 ### 6.2 Out of Scope for MVP

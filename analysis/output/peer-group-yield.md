@@ -21,6 +21,14 @@ Size band on `sumDriftsinntekter`. Minimum group size 10 peers per key figure. R
 | …× 88% reconciliation (document figures) | 89 | 223 | 330 | 0 | 97 % |
 | …÷ 3 for classification (document figures) | 30 | 74 | 110 | 0 | 88 % |
 
+### Intermediate band 0.33–3×
+
+| Stage reached | Q1 | Median | Q3 | Worst subject | Share clearing 10 |
+|---|---|---|---|---|---|
+| Comparability + size band (API figures) | 162 | 436 | 517 | 0 | 99 % |
+| …× 88% reconciliation (document figures) | 143 | 383 | 455 | 0 | 99 % |
+| …÷ 3 for classification (document figures) | 48 | 128 | 152 | 0 | 94 % |
+
 ### Loosened band 0.25–4×
 
 | Stage reached | Q1 | Median | Q3 | Worst subject | Share clearing 10 |
@@ -48,6 +56,14 @@ Subjects that are **not** `smaaForetak` (n = 8 in sample, about 81 in the popula
 | Comparability + size band (API figures) | 251 | 422 | 494 | 0 | 99 % |
 | …× 88% reconciliation (document figures) | 221 | 372 | 435 | 0 | 99 % |
 | …÷ 2 for classification (document figures) | 110 | 186 | 217 | 0 | 99 % |
+
+### Intermediate band 0.33–3×
+
+| Stage reached | Q1 | Median | Q3 | Worst subject | Share clearing 10 |
+|---|---|---|---|---|---|
+| Comparability + size band (API figures) | 458 | 574 | 630 | 0 | 99 % |
+| …× 88% reconciliation (document figures) | 403 | 505 | 554 | 0 | 99 % |
+| …÷ 2 for classification (document figures) | 202 | 252 | 277 | 0 | 99 % |
 
 ### Loosened band 0.25–4×
 

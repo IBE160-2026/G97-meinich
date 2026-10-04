@@ -26,7 +26,7 @@ This bounds the cost by the size of the covered industries rather than by the re
 
 **History is fetched every other year**, because each document carries a prior-year column.
 
-**Licence obligations sit on the ingestion job and on the interface.** The open APIs are NLOD 2.0, which permits commercial use, modification and redistribution, and requires the source and licence to be credited and any modification declared — every figure shown is recomputed, so that declaration applies. The register also states that an entity returning `410 Gone` should be treated as a request that copies and caches remove it, so the batch job deletes a withdrawn company rather than flagging it; saved analyses keep their own figures as a record of what was computed on their stated read date. One gap is open and is a gate before any public deployment, not a v1 blocker: the register licences the key-figures API but not the filed documents, and twelve of the fifteen key figures come from those documents. Clause references and URLs are in `docs/data-sources-brreg.md`.
+**Licence obligations sit on the ingestion job and on the interface.** The open APIs are NLOD 2.0, which permits commercial use, modification and redistribution, and requires the source and licence to be credited and any modification declared — every figure shown is recomputed, so that declaration applies. The register also states that an entity returning `410 Gone` should be treated as a request that copies and caches remove it, so the batch job deletes a withdrawn company rather than flagging it. Saved analyses are a record of what was computed on their stated read date, with this one exception: as subject, the withdrawn company's figures are removed and the workspace keeps only a notice; as peer, its row and name are removed while already-computed aggregates are kept with a note that one peer was removed. No data about the entity survives anywhere (PRD FR-66). One gap is open and is a gate before any public deployment, not a v1 blocker: the register licences the key-figures API but not the filed documents, and twelve of the fifteen key figures come from those documents. Clause references and URLs are in `docs/data-sources-brreg.md`.
 
 ---
 
@@ -66,7 +66,7 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 ## Peer group — a five-stage funnel
 
-1. **Coarse filter**, rules. Industry code and size band — `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, loosenable to 0.25 to 4 times. Revenue, never `sumEiendeler` and never the register's employee count, which is today's figure rather than the accounting year's. Hundreds of thousands → a few hundred.
+1. **Coarse filter**, rules. Industry code and size band — `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, loosenable one fixed step at a time to 0.33 to 3 times and then 0.25 to 4 times. Revenue, never `sumEiendeler` and never the register's employee count, which is today's figure rather than the accounting year's. Hundreds of thousands → a few hundred.
 2. **Comparability filter**, rules. Currency, accounting rules, `smaaForetak`, `avviklingsregnskap`, accounting period, `regnskapstype`. All exposed as fields in the API.
 3. **Segmentation**, rules. Size, legal form, geography where the industry calls for it. → under a hundred.
 4. **Business-model fingerprint**, rules. Reads what kind of business a company is from its own accounts: cost of goods sold as a share of revenue, whether it carries inventory, capitalised intangible assets such as self-developed software, fixed-asset intensity, with cost of goods share and personnel cost share in coarse bands. A reseller, a product company and a consultancy separate here even when all three describe themselves as "Programvareutvikling." Works for every company whose accounts are extracted.
@@ -104,7 +104,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **Analysis tabs.** Overview, peers, key figures and gaps, development over time, and value.
 
-**Portfolio front page.** A signed-in user's front page lists every company they follow, with its latest position, what has changed since the last filing and the largest gaps. It reads saved analyses only. User-arranged widgets are deferred.
+**Portfolio front page.** A signed-in user's front page lists every company they follow — that is, every company with a saved analysis in one of their workspaces — with its latest position, what has changed since the last filing and the largest gaps. It reads saved analyses only. User-arranged widgets are deferred.
 
 ---
 
@@ -120,7 +120,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **Invitation** is by email, into a single workspace, as viewer. Share links are out of v1.
 
-**The account wall.** Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. Needs an account: development over time, the decomposition views, PDF export, saved analyses and history, favourites, unfiled figures, workspaces, invitations and the portfolio front page.
+**The account wall.** Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation. Needs an account: development over time, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page.
 
 **A user's own unfiled figures** live in their own table, keyed to a workspace. The owner writes, viewers read, anonymous sessions never read. Aggregate queries read only the tables holding filed accounts, so leaking unfiled figures into a peer median would require changing the query, not forgetting a filter. Removing a member revokes access immediately, since every policy goes through membership. When the filing for the same year arrives, it takes precedence and the user-entered figures are kept only as history.
 

@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 4 |
+| auth | 5 |
 | money | 5 |
 | parsing | 3 |
 | llm-boundary | 4 |
 | scope | 10 |
-| docs | 8 |
+| docs | 10 |
 
 ## Entry template
 
@@ -219,3 +219,21 @@ Routine work that went as expected is not logged.
 **Problem:** The NLOD error is the worse of the two: a licence claim printed in the interface, in a graded document, contradicted two sections away. On VAT — export sales are zero-rated, so a company selling abroad carries proportionally less VAT in its receivables and shows fewer receivable days for identical real credit terms, and export share varies along the very axis the fingerprint separates businesses on. So the distortion does not cancel; it is roughly similar only where peers share a VAT profile, and it is worst where the group is most mixed. A reviewer additionally claimed the kroner amount was inflated ~25 % by this, which I checked and **rejected**: `r / 365 × salgsinntekt` is `kundefordringer` by construction, so the conversion returns the real VAT-inclusive balance and the money is right. What the VAT profile distorts is the target, not the arithmetic.
 **Caught by:** The adversarial reviewer for both; the arithmetic half of the VAT finding was disproved by working the algebra rather than accepting it.
 **Outcome:** FR-65 now claims NLOD for API-sourced data only and credits document-derived figures to the source **without asserting a licence**, with the distinction visible to the reader. §5's VAT limitation rewritten to say the distortion is roughly similar rather than cancelled, to name export share as the reason, and to state that the kroner amount is unaffected. Also in this round: FR-13's banding test now runs per industry, because a test aggregated across industries could pass while failing in `43.210` where band and margin move together; FR-53's containment test now also rejects a figure attached to the wrong key figure, company, year or direction, and parses Norwegian number formats; and new FR-71 covers a subject whose own filing fails reconciliation — API-sourced figures shown, the rest absent with the reason given.
+
+### 2026-10-04 — Withdrawn companies leave saved analyses too, and the premise was checked first
+**Tags:** auth · docs
+**Tool:** Claude Code (Opus 5.5), `bmad-ux`
+**Asked:** Design the state for a saved analysis whose company the register later withdraws. My first proposal kept the analysis read-only with its figures; the user overruled it citing FR-66.
+**Got:** Before acting on the overrule, the documents were checked: FR-66 bullet 3 and the technical note's licence paragraph said the *opposite* of the cited premise — a saved analysis keeps its figures as a record of its read date (FR-64). Shown to the user with both readings. The user chose removal, by role: as subject, the figures are removed and the workspace keeps only the notice *"Selskapet er slettet fra Enhetsregisteret 12.03.2027, og tallene er fjernet"*; as peer, its row and name are removed and already-computed aggregates kept with *"Én sammenlignbar er fjernet fra registeret"*.
+**Problem:** What could go wrong, on the record. Deletion now reaches user-owned rows, not only register copies, so the batch job must find every saved analysis naming the entity across all workspaces — a job that runs with service-role rights and bypasses row-level security, which makes it the one place a bug could touch other users' data. It must delete only rows about the withdrawn organisation number, and the authorisation suite should assert that no user path can trigger it. A missed copy (a cached explanation text, a PDF already generated, a URL carrying the orgnr) would keep data the register asked to be deleted; exported PDFs are outside our reach and the documents should not imply otherwise. Keeping aggregates computed with the removed peer is a judgement: they contain no data identifying it, but the count shown no longer matches the visible rows, which is why the note is required. FR-64's record promise now has an exception, and saying so is better than an untrue promise.
+**Caught by:** Verification against source — reading FR-66 before editing it, rather than taking the cited requirement on trust.
+**Outcome:** FR-66 bullet 3, FR-64, §6.1 and the technical note's licence paragraph updated to state the exception. Also in this round: favourites removed (to follow = to have a saved analysis), the size band loosens in three fixed steps with 0.33–3× added to `analysis/peer_group_yield.py` and its report, and user-entered figures are labelled *Egne tall – ikke levert* and never yield kroner.
+
+### 2026-10-04 — The VAT correction never reached key-figures.md, and "unaudited" was the wrong word
+**Tags:** docs
+**Tool:** Claude Code (Opus 5.5), `bmad-ux` source extraction
+**Asked:** Extract UX-relevant facts from the authoritative documents.
+**Got:** Two inconsistencies. `docs/key-figures.md` still said the VAT overstatement is similar across peers "so the comparison holds" — the claim the 2026-09-30 entry corrected in the PRD, but which survived in the document AGENTS.md ranks above the PRD. I first proposed writing UX copy from key-figures.md on that ranking; the user overruled it, because the PRD's wording was the accurate one. Separately, user-entered figures were labelled "unaudited" everywhere, while many small AS companies have no auditor, so their *filed* accounts are unaudited too and the label implied a distinction that does not exist.
+**Problem:** Precedence rules decide which document wins, not which is right; following them mechanically would have printed the weaker claim in the interface. A correction made in one document and not its siblings is the failure AGENTS.md's edit-in-place rule exists to prevent.
+**Caught by:** Contradiction between sources, surfaced by the extraction; the label problem by reasoning about the population.
+**Outcome:** `docs/key-figures.md` VAT bullet rewritten to match the PRD. The label *Egne tall – ikke levert* now replaces "unaudited" in the brief addendum, the PRD and its addendum, with the reason stated once in the PRD glossary.

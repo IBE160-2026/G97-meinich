@@ -5,8 +5,9 @@
 // Connects as the CLI's local `postgres` role (SUPABASE_DB_URL). Objects the
 // tests create live in a transaction that is always rolled back.
 //
-// Every later migration that adds a table to `register` is covered by the
-// pg_catalog.pg_tables loop below without editing this file.
+// Every later migration that adds a table, view, materialized view or foreign
+// table to `register` is covered by the pg_catalog.pg_class loop below
+// without editing this file.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
@@ -135,6 +136,21 @@ describe('roles', () => {
       where member = 'reader'::regrole
     `;
     expect(rows).toEqual([]);
+  });
+
+  it('grants reader to postgres with SET only: no INHERIT, no ADMIN from the migration', async () => {
+    const rows = await sql<
+      { grantor: string; admin_option: boolean; inherit_option: boolean; set_option: boolean }[]
+    >`
+      select grantor::regrole::text as grantor, admin_option, inherit_option, set_option
+      from pg_catalog.pg_auth_members
+      where roleid = 'reader'::regrole and member = 'postgres'::regrole
+    `;
+    expect(rows.filter((r) => r.grantor === migrationRole)).toEqual([
+      { grantor: migrationRole, admin_option: false, inherit_option: false, set_option: true },
+    ]);
+    // No grant of reader to postgres, from any grantor, inherits.
+    expect(rows.filter((r) => r.inherit_option)).toEqual([]);
   });
 
   // Verified in Story 1.2: on Supabase's Postgres the CLI's `postgres` role is
@@ -300,14 +316,16 @@ describe('a table added to register later', () => {
     });
   });
 
-  // Every table in register, including those later migrations add: reader
-  // reads and never writes; the API roles have nothing.
-  it('is covered, with every other register table, by the pg_tables loop', async () => {
+  // Every table, partitioned table, view, materialized view and foreign
+  // table in register, including those later migrations add: reader reads
+  // and never writes; the API roles have nothing.
+  it('is covered, with every other register relation, by the pg_class loop', async () => {
     await withLaterTable(async (tx) => {
       const tables = await tx<{ name: string }[]>`
-        select format('%I.%I', schemaname, tablename) as name
-        from pg_catalog.pg_tables
-        where schemaname = 'register'
+        select format('%I.%I', n.nspname, c.relname) as name
+        from pg_catalog.pg_class c
+        join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'register' and c.relkind in ('r', 'p', 'v', 'm', 'f')
       `;
       expect(tables.map((t) => t.name)).toContain(table);
       for (const { name } of tables) {

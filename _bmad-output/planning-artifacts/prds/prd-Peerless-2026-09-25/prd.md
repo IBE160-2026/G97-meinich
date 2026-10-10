@@ -285,12 +285,12 @@ A candidate must match the subject on currency (`valuta`), accounting framework 
 
 #### FR-9: Stage 3 — segmentation (rules) · v1
 
-Candidates are segmented by size, legal form, and geography where the industry calls for it.
+Candidates are segmented by legal form, and by geography where the industry calls for it. Size is settled by the coarse filter alone.
 
 **Consequences (testable):**
-- Size segmentation uses `sumDriftsinntekter` from the same filing, the same basis as the coarse filter's size band (FR-7), so the two stages cannot disagree about what size means.
-- Legal form is the register's `organisasjonsform`. v1 covers `AS` only, so this stage excludes every other form.
-- Geography is applied only where the industry calls for it, and where it is applied the criterion is named to the user so it can be seen and loosened (FR-15, FR-18).
+- The coarse filter's size band (FR-7) is the only size step; this stage does not segment by size again, so the two stages cannot disagree about what size means.
+- Legal form is the register's `organisasjonsform`. v1 covers `AS` only, so this stage excludes every other form. A subject that is not an AS gets its own state, *"Peerless sammenligner foreløpig bare aksjeselskaper"*, with its own API figures and no peer group.
+- Geography is not used for `62.100`. It is applied only where a later industry calls for it, and where it is applied the criterion is named to the user so it can be seen and loosened (FR-15, FR-18).
 - Each criterion this stage applies is reported in the funnel counts separately, so a group that collapsed here is distinguishable from one that collapsed at comparability.
 
 #### FR-10: Stage 4 — business-model fingerprint (rules) · v1
@@ -934,8 +934,8 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
 - **Two seed levels, built in from the start.** The register states no licence for the filed documents and the repository is public, so:
   - **demo** — committed, loaded with `pnpm seed`:
     - register data, API key figures and stored AI classifications for all of `62.100`;
-    - **fingerprint results for every `62.100` candidate** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so the funnel runs through stage 4 for any `62.100` subject. **Only if the licence gate below opens**; if it stays closed, these categories are not committed and the demo seed follows the fallback in Story 5.4 (stages 1–3 plus classification for companies outside the demo set);
-    - **full document-derived figures for the three demo companies and for every peer of A and B at all three size-band steps** (0,5–2×, 0,33–3× and 0,25–4×), so widening the band on A or B still yields a complete analysis, waterfall included. The README states the count.
+    - **fingerprint results for every `62.100` candidate** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so the funnel runs through stage 4 for any `62.100` subject. **Only if the licence gate below opens**; if it stays closed, they are committed for the declared set below only (which is its own accepted sample, so B still shows fingerprint separation) and the demo seed follows the fallback in Story 5.4 (stages 1–3 plus classification for companies outside the demo set);
+    - **full document-derived figures for demo companies A and B and for every peer of A and B at all three size-band steps** (0,5–2×, 0,33–3× and 0,25–4×), so widening the band on A or B still yields a complete analysis, waterfall included, and for the 15–20 OCR reference filings (a seeded draw from all of `62.100`, SM-2). C needs API figures only. The README states the count.
     - A check asserts that the committed seed holds document-derived figures for no company outside that declared set, and holds nothing for other companies beyond the fingerprint categories.
     - **Gate:** before the demo seed is first published, a short licence assessment is recorded in the repository, assessing whether committing derived categories carries low risk compared with reproducing document figures. The gate opens only if the assessment concludes that it does; otherwise the fingerprint categories are not committed.
   - **full** — generated locally by the pipeline in Docker with `pnpm seed:full`, taking hours, and never committed while the filed documents' licence is unresolved. Its output path is gitignored.

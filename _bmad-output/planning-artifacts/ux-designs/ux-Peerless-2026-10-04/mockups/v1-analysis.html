@@ -955,11 +955,11 @@ function peers(P){
     body=`<ul class="pcards">${shown.map(p=>`<li class="${p.ex?'ex':''}"><div class="r1"><span class="nm">${esc(p.name)}</span><span>${esc(mill(p.rev))}</span></div><div class="why">${esc(why(p))}</div><div class="r3"><span><span class="basis">${esc(t(basisK(p.basis)))}</span>${p.flag?' · '+flagT:''}${p.ex?` <span class="tag soft">${esc(t('pe.excluded'))}</span>`:''}</span><button class="linkbtn">${esc(t(p.ex?'pe.include':'pe.exclude'))}</button></div></li>`).join('')}</ul><p style="margin:10px 0 0"><a href="#">${esc(t('pe.showAll',{n:25}))}</a></p>`;
   }
   return `<div class="grid"><section class="card c12"><h3>${esc(t('pe.title'))}</h3><p class="muted" style="margin:2px 0 0">${esc(t('pe.summary',{n:21,d:23,x:2}))} · <a href="#">${esc(t('pe.reset'))}</a></p>
-  <h3 style="font-size:14px;margin:20px 0 0">${esc(t('pe.funnel.title'))}</h3>${funnel([214,131,88,31,23],2)}<div class="fsum"><span>${esc(t('pe.excludedSum',{x:2,n:21}))}</span></div>${band(0)}</section>
+  <h3 style="font-size:14px;margin:20px 0 0">${esc(t('pe.funnel.title'))}</h3>${funnel([214,131,127,31,23],2)}<div class="fsum"><span>${esc(t('pe.excludedSum',{x:2,n:21}))}</span></div>${band(0)}</section>
   <section class="card c12"><h3>${esc(t('pe.list.title'))}</h3>${body}</section></div>`;
 }
 function peersWidened(P){
-  return `<div class="grid"><section class="card c12"><h3>${esc(t('pe.title'))} <span class="tag">${esc(t('pe.band.sub'))}</span></h3><div class="banner">${esc(t('pe.widened.banner',{b:t('pe.band.s2')}))} <a href="#">${esc(t('pe.widened.back'))}</a></div><h3 style="font-size:14px;margin:14px 0 0">${esc(t('pe.funnel.title'))}</h3>${funnel([341,208,139,48,34],3)}${band(1)}</section></div>`;
+  return `<div class="grid"><section class="card c12"><h3>${esc(t('pe.title'))} <span class="tag">${esc(t('pe.band.sub'))}</span></h3><div class="banner">${esc(t('pe.widened.banner',{b:t('pe.band.s2')}))} <a href="#">${esc(t('pe.widened.back'))}</a></div><h3 style="font-size:14px;margin:14px 0 0">${esc(t('pe.funnel.title'))}</h3>${funnel([341,208,202,48,34],3)}${band(1)}</section></div>`;
 }
 
 /* ---------------- tab: Nøkkeltall og gap ---------------- */

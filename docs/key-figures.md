@@ -58,7 +58,7 @@ Direction: ↑ higher is better, ↓ lower is better, – no direction.
 | 3 | Cost of goods share | `varekostnad / sumDriftsinntekter` | OCR | ↓ | None of its own; a bar in the margin decomposition |
 | 4 | Personnel cost share | `lonnskostnad / sumDriftsinntekter` | OCR | ↓ | None of its own; a bar in the margin decomposition |
 | 5 | Other operating cost share | `annenDriftskostnad / sumDriftsinntekter` | OCR | ↓ | None of its own; a bar in the margin decomposition |
-| 6 | Total cost share *(check)* | `(varekostnad + lonnskostnad + annenDriftskostnad) / sumDriftsinntekter` | OCR | ↓ | – |
+| 6 | Total cost share *(check)* | `(varekostnad + lonnskostnad + annenDriftskostnad) / sumDriftsinntekter` | OCR | – | – |
 
 ### Productivity
 
@@ -93,7 +93,7 @@ Cash share carries no number because it is a diagnostic rather than a benchmarke
 
 Revenue growth has no direction: fast growth often explains a weak margin, and the analysis shows the two side by side rather than ranking growth.
 
-**A figure with no declared direction gets no favourable quartile and no percentile.** Both are defined in the favourable direction, so neither exists where the direction is genuinely arguable — personnel cost per FTE (8), equity ratio (13), revenue growth (14) and cash share. These figures show the subject's value and the peer median and quartiles as a distribution, and are never ranked or converted to kroner.
+**A figure with no declared direction gets no favourable quartile and no percentile.** Both are defined in the favourable direction, so neither exists where the direction is genuinely arguable — personnel cost per FTE (8), equity ratio (13), revenue growth (14) and cash share. These figures show the subject's value and the peer median and quartiles as a distribution, and are never ranked or converted to kroner. Total cost share (6) has no direction either: it is a check row showing that the three cost shares add up, with no beste fjerdedel, no Plassering and no kroner.
 
 ## Decompositions
 

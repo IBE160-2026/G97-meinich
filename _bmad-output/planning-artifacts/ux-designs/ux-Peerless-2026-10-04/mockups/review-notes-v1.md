@@ -97,7 +97,7 @@ The waterfall starts at the samlet margin × revenue, which is 83 571,43 and dis
 - Fjordkode AS (912 345 678) and every figure listed above.
 - 23 peers plus 2 excluded, carried over from analysis-2 with the same names, margins and revenues. The names have not been checked against the register.
 - Peer-gruppen samlet sums.
-- Funnel counts: 214 / 131 / 88 / 31 / 23, and 341 / 208 / 139 / 48 / 34 in the widened state.
+- Funnel counts: 214 / 131 / 127 / 31 / 23, and 341 / 208 / 202 / 48 / 34 in the widened state. Stage 3 is legal form only (AS), so it removes few (corrected 2026-10-10 from 88 and 139, which implied a size step stage 3 does not have).
 - Lindeberg Regnskap AS (923 456 789, 69.202) and its figures.
 - The not-found number 912 345 670.
 - The turnover distribution.

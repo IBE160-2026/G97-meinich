@@ -31,7 +31,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-6: The open route is rate-limited per IP with an in-memory counter in the single local server process, storing no IP; exceeding the limit returns a refusal, never a partial analysis. Stage split: per-IP limit is v1; per-session limit and CAPTCHA are stage 2.
 - FR-7: Funnel stage 1 (rules) filters on `naeringskode1.kode` and a size band of `sumDriftsinntekter` from the same filing, default 0.5–2× the subject's; never `sumEiendeler` or the register's employee count.
 - FR-8: Funnel stage 2 (rules) hard-excludes any candidate not matching the subject on `valuta`, `regnskapsregler`, `smaaForetak`, `avviklingsregnskap`, financial period and `regnskapstype`; none loosenable; only calendar-year filings pass; `smaaForetak`/`regnskapsregler` read from the misspelled `regnkapsprinsipper`.
-- FR-9: Funnel stage 3 (rules) segments by size (same `sumDriftsinntekter` basis as FR-7), legal form (`organisasjonsform`, v1 `AS` only) and geography only where the industry calls for it (named to the user); each criterion reported separately in the funnel counts.
+- FR-9: Funnel stage 3 (rules) is segmentation. Stage 1's size band (FR-7) is the only size step; stage 3 does not segment by size again. In v1 stage 3 is legal form only (`organisasjonsform`, `AS` only); geography is not used for `62.100` and is applied only for a later industry that calls for it (named to the user). A subject that is not an AS gets its own state, "Peerless sammenligner foreløpig bare aksjeselskaper", with no peer group. Each criterion is reported separately in the funnel counts.
 - FR-10: Funnel stage 4 (rules) groups candidates by business-model fingerprint from their own accounts (cost-of-goods share, inventory, capitalised intangibles, fixed-asset intensity), separating reseller/product/consultancy; applies to every extracted company.
 - FR-11: Funnel stage 5 (model) judges same-type-of-business from name, secondary industry codes, statement of purpose and description; answers only in fixed categories, never free text, never arithmetic.
 - FR-12: A company with nothing to classify on is stored as unclassified, never inferred, and stays eligible through stages 1–4 with match basis *accounts alone* or *industry and size alone*.
@@ -73,7 +73,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-61: The front page holds a description, the name-or-orgnr search field, "Slik fungerer det" in three steps and a link to FR-72. Stage split: front page is v1; industry overviews are stage 3.
 - FR-62: An analysis is organised in tabs. Stage split: v1 has four open tabs — overview, peers, key figures and gaps, value; *Utvikling* is stage 2.
 - FR-72: Public page "Slik fungerer Peerless" in plain Norwegian: the five funnel stages without formulas; the two model uses and that the model never calculates (enforced by FR-53 test); measured results (SM-1, SM-2) only once they exist, otherwise "pending" with no placeholder figures; sources and FR-65 licence distinction incl. NLOD credit; known limitations (VAT on receivable days, `smaaForetak` coverage limit); reachable from every footer and the front page.
-- FR-73: Runs from a fresh clone on local Supabase (Docker) with every table/policy/function as a migration; one-command idempotent seed (`pnpm seed`, demo, committed) with register data, API figures, stored classifications for all `62.100`, fingerprint categories for every `62.100` candidate, full document figures for demo companies A, B, C and A's/B's peers at all three band steps (check asserts no others), stored explanations for every `62.100` default group; `pnpm seed:full` local-only and gitignored; licence gate before the demo seed is published; AI test mode on stored output with FR-53 and digest checks at load; no runtime call to register/model (test asserts); no email; demo A (typical consultancy), B (loss-making product company), C (`69.202` uncovered); other `62.100` companies show "Ikke i demodataene" for document figures; README of ~five commands listing the three demo orgnrs; no secret needed.
+- FR-73: Runs from a fresh clone on local Supabase (Docker) with every table/policy/function as a migration; one-command idempotent seed (`pnpm seed`, demo, committed) with register data, API figures, stored classifications for all `62.100`, fingerprint categories for every `62.100` candidate only if the licence gate opens (allow-listed companies keep theirs either way), full document figures for demo companies A and B, A's/B's peers at all three band steps and the OCR reference filings (check asserts no others; C needs API figures only), stored explanations for every `62.100` default group; `pnpm seed:full` local-only and gitignored; licence gate before the demo seed is published; AI test mode on stored output with FR-53 and digest checks at load; no runtime call to register/model (test asserts); no email; demo A (typical consultancy), B (loss-making product company), C (`69.202` uncovered); other `62.100` companies show "Ikke i demodataene" for document figures; README of ~five commands listing the three demo orgnrs; no secret needed.
 
 **Stage 2 / Stage 3 (backlog only, not for v1 stories)**
 
@@ -163,14 +163,14 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - AD-6: Server computes peer group, distributions, full-convergence amounts and exact s_med; exclude/restore/widen/reset are `router.push` soft navigations rendered on the server, previous figures dimmed while pending, last good state kept on failure; share and EV scaled in-browser by the same engine function and written via `window.history.replaceState` through one hook; `src/engine/wire.ts` codec with branded `WireDecimal` (decimal strings, never `number`); test asserts identical server/browser output in Node and a real browser engine.
 - AD-7: Model called only from batch step 2 with pinned model id; rows store model id + prompt hash; every `62.100` company has a stored default-group explanation; FR-53 at generation and seed load; FR-54 phrase list (e.g. `src/explanation/recommending-phrases.ts`) at generation (regenerate) and load (withhold+report); explanation shown only beside its default group with matching digest; test asserts no network request to register or model host during an analysis.
 - AD-8: Filed amounts `bigint` øre; derived values in decimal.js 10.6.0 pinned exactly via one configured `Decimal.clone` exported from `src/engine`; postgres.js `int8`/`numeric` strings parsed to `bigint`/`Decimal`, never `Number()`; rounding only in the one formatter, per key-figures.md incl. whole-percent percentile and largest-remainder waterfall.
-- AD-9: One dataset per database; `pnpm seed`/`seed:full` truncate and replace; document rows, fingerprints and explanations carry a provenance dataset tag; CI allow-list test reads every committed seed file regardless of tag against `seed/allow-list.json` (A, B, C + A's/B's peers at all band steps); peer-group-subset test; idempotence test; fingerprint commit waits for the licence gate.
+- AD-9: One dataset per database; `pnpm seed`/`seed:full` truncate and replace; document rows, fingerprints and explanations carry a provenance dataset tag; CI allow-list test reads every committed seed file regardless of tag against `seed/allow-list.json` (A, B, C + A's/B's peers at all band steps + the OCR reference filings), and the committed OCR reference set; peer-group-subset test; idempotence test; committing fingerprints outside the allow-list waits for the licence gate.
 - AD-10: In-memory per-IP counters on `globalThis` in one process; applied at the Next.js proxy for every AD-12 surface incl. RSC payloads and soft navigations; separate budgets for search and analysis in one config module; refusal renders the refusal state; no IP written anywhere; README runs `pnpm start`, not `next dev`.
 - AD-11: Stage-2 user data read/written only with the user's JWT under RLS, never via `reader` or service role; authorisation suite exists before the first feature storing user data.
 - AD-12: v1 surfaces are exactly `GET /`, `/slik-fungerer-peerless`, `/analyse/{orgnr}`, `/analyse/{orgnr}/{fane}` (with RSC payloads) and `GET /api/sok?q=` (identification fields only, max 8, `pg_trgm` over IMMUTABLE `unaccent` wrapper, exact orgnr index, rate-limited); server actions banned; a route-manifest test fails on any unlisted surface.
 - AD-13: Stored explanations store a digest of the wire-encoded default analysis and are shown only when the current engine yields the same digest (else hidden as missing); fingerprints store an input digest, rebuilt every run, CI recomputes them for allow-listed companies; classifications store a description-text digest; one digest function in `src/engine`.
 - AD-14: Every `register` amount column is `bigint` øre named `<field>_ore` with a unit comment; step 1 resolves the reporting unit (kr/thousands/millions), converts to øre and stores the unit per filing; contract test runs step 1's writer on fixture 979607008/2025 against a fresh migrated DB with hand-checked øre values.
 - AD-15: Step 1 stores figures as filed (øre, NULL for empty element) with stated totals, never a derived value; per filing: filing year, read date, reporting unit, status (`reconciled`/`failed_reconciliation`/`not_extracted`/`paper`), each check's result; engine types name absence reasons (not in dataset, failed reconciliation, undefined, below floor), each mapped to exactly one EXPERIENCE state.
-- AD-16: Postgres is the only hand-off between batch steps; seed files written only by deterministic `pnpm seed:export`, read only by the loader; manifest records seed-format version, latest migration id, dataset, industry codes fetched (from `seed/coverage.json`), orgnrs with document figures, read-date range, files+checksums; loader refuses mismatches/unlisted/bad checksum, stores manifest in `register.dataset`, checks explanations by FR-53 and digest; `seed/coverage.json` is the one hand-edited seed file (data, not code: adding an industry is one line), the loader writes `register.covered_industry` from it and refuses a code the manifest did not fetch; `measured: true` accepted only with a `report` path in `analysis/output/` and matching `sha256`, else the loader fails loudly and loads nothing; Supabase CLI auto-seed disabled; CI migrates fresh and loads the demo seed on every PR from Story 1.3b (the TN says "Story 1.3", which was split into 1.3a and 1.3b).
+- AD-16: Postgres is the only hand-off between batch steps; seed files written only by deterministic `pnpm seed:export`, read only by the loader; manifest records seed-format version, latest migration id, dataset, industry codes fetched (from `seed/coverage.json`), orgnrs with document figures, read-date range, files+checksums; loader refuses mismatches/unlisted/bad checksum, stores manifest in `register.dataset`, checks explanations by FR-53 and digest; `seed/coverage.json` is the one hand-edited seed file (data, not code: adding an industry is one line), the loader writes `register.covered_industry` from it and refuses a code the manifest did not fetch; `measured: true` accepted only with a `report` path in `analysis/output/` and matching `sha256`, else the loader fails loudly and loads nothing; Supabase CLI auto-seed disabled; CI migrates fresh and loads the demo seed on every PR from Story 1.3b.
 - AD-17: (Stage 2) `app.purge_withdrawn(orgnr)` SECURITY DEFINER is the only batch path into `app`, executable only by step 1's role, audit-logged; other system writes only through named SECURITY DEFINER functions; tests assert `anon`/`authenticated` cannot call it or insert into `app`.
 - AD-18: Step 1 stamps `read_at timestamptz` per filing, preserved through export/load; filing year from returned `regnskapsperiode`; no clock in the engine (benchmark year from latest filing); dates formatted on the server only, in `Europe/Oslo`; refresh is a manual batch run.
 - AD-19: All env vars server-only; no `NEXT_PUBLIC_` variable in v1 (CI grep fails on any; stage 2 allows exactly the two Supabase URL/anon key); `.env.example` mirrors this; `READER_DATABASE_URL` read only in `src/server/db.ts` (`import 'server-only'`, one postgres.js client); model key only in step 2; ESLint `no-restricted-imports` bans `src/server/**` and `postgres` in `'use client'` modules and `src/engine/**`; role passwords from `.env`, never committed; one structured server logger with no IP/personal data/headers; request-path errors render the lookup-error state, no partial figures.
@@ -429,8 +429,8 @@ Every stage-2 and stage-3 FR, and the stage-2/3 parts of split FRs, as listed un
 
 For sprint planning. Story numbers stay as they are; three stories are split into halves numbered a and b (1.3a/1.3b, 1.6a/1.6b, 3.1a/3.1b), each half its own issue, branch and PR, built in that order. This section sets the sequence in which they are built.
 
-- **Week 1, in parallel, calendar work:** Story 5.1 (the labelled set) and the hand-transcribed OCR reference set (the input to Story 2.3) start in week 1 and run alongside Epic 1. Both are labelling and transcription, not coding, and both must be complete before the story that consumes them starts.
-- **The OCR reference set has its own issue from week 1.** It is not a story with a branch and PR of its own, but it is tracked as its own GitHub issue, opened in week 1, so its progress is visible before Story 2.3 starts; Story 2.3 links that issue.
+- **Week 1, in parallel, calendar work:** Story 5.1 (the labelled set) and the hand-transcribed OCR reference set (the input to Story 2.3) start in week 1 and run alongside Epic 1. Both are labelling and transcription, not coding, and both must be complete before the story that consumes them starts. The reference set is a seeded random draw from all of 62.100's generated filings (Story 2.3), not from the demo set, so it does not wait for demo companies A and B, which are chosen in Story 5.4.
+- **The OCR reference set has its own issue from week 1** ([#14](https://github.com/IBE160-2026/G97-meinich/issues/14)). It is not a story with a branch and PR of its own, but it is tracked as its own GitHub issue, opened in week 1, so its progress is visible before Story 2.3 starts; Story 2.3 links that issue.
 - **Sequence:**
   1. Epic 1 (1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5 → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10)
   2. Epic 2 (2.1 → 2.9)
@@ -574,7 +574,8 @@ So that the seed rests on figures whose year, unit and missing values are handle
 
 **Given** the 69.202 companies in the register
 **When** demo company C is chosen
-**Then** a real `69.202` company with a filing in the key-figures API is chosen, and its orgnr is recorded, with the reason it was chosen, in step 1's committed configuration file, which this story names (for example `ingest/config.toml`) and which step 1 reads
+**Then** a real `69.202` company is chosen that meets every one of these criteria: an active AS (`organisasjonsform` `AS`, not bankrupt and not under liquidation or forced dissolution in Enhetsregisteret); a filing in the key-figures API for the latest filing year; `smaaForetak` true and `regnskapsregler` `regnskapslovenAlminneligRegler`; an unremarkable company, with positive `sumDriftsinntekter` and `sumEiendeler` so all three API figures are defined, and nothing in its name or figures that draws attention away from the uncovered state; and not the developer's own employer — Statement AS (979 607 008) is in `69.202` and is excluded, to keep the demo neutral
+**And** its orgnr is recorded, with how it meets each criterion, in step 1's committed configuration file, which this story names (for example `ingest/config.toml`) and which step 1 reads
 **And** C needs only API figures: step 1 fetches no filed document for it
 **And** Story 5.4 confirms C and does not choose it again
 
@@ -672,6 +673,7 @@ Run records are not printed by `pnpm seed` in this story: the loader exists here
 **Given** CI on every pull request, from this story on
 **When** the seed job runs
 **Then** it starts a fresh local database, applies every migration, and loads the committed demo seed with `pnpm seed`, failing the PR if any step fails, so runnability from a fresh database is known throughout development (AD-16); Story 5.7 is then the final confirmation on a clean machine
+**And** `seed:export` writes `seed/allow-list.json` from this story on, each entry an orgnr with its reason; it is an empty list until Story 2.3 adds the OCR reference filings and Story 5.4 adds A, B, C and A's and B's peers
 **And** the allow-list test reads every committed seed file against `seed/allow-list.json` and fails on a document figure for any unlisted orgnr; it passes now (no document figures) and a fixture with an unlisted document figure makes it fail
 
 **Given** the PR
@@ -684,7 +686,7 @@ As a sensor checking the arithmetic,
 I want a pure engine that computes the three API key figures and their distributions exactly, and one formatter that renders them identically everywhere,
 So that every figure on screen can be traced to a hand calculation and no float or locale difference creeps in.
 
-**Implements:** FR-21 (API figures), FR-22, FR-24, FR-27 (API rows) · **Invariants:** AD-1, AD-8 · **UX:** UX-DR78 · **Issue / branch / PR:** one issue, branch `story/1.4-engine-format`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-21 (API figures), FR-22, FR-24, FR-27 (API rows), NFR28 (SM-6: the reference cases for the API figures) · **Invariants:** AD-1, AD-8 · **UX:** UX-DR78 · **Issue / branch / PR:** one issue, branch `story/1.4-engine-format`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -744,7 +746,7 @@ As Kari or Anders,
 I want one search field that finds a company by name or organisation number,
 So that I can reach a company's analysis without knowing anything but its name or number.
 
-**Implements:** FR-1, FR-61 · **Invariants:** AD-4, AD-5, AD-12, AD-19 · **UX:** UX-DR8, UX-DR9, UX-DR34, UX-DR36, UX-DR42, UX-DR43, UX-DR44, UX-DR45, UX-DR60, UX-DR61, UX-DR63, UX-DR65, UX-DR67, UX-DR69, UX-DR71 · **Issue / branch / PR:** one issue, branch `story/1.5-search`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-1, FR-61, NFR30 (SM-8: an organisation number is all a complete analysis needs) · **Invariants:** AD-4, AD-5, AD-12, AD-19 · **UX:** UX-DR8, UX-DR9, UX-DR34, UX-DR36, UX-DR42, UX-DR43, UX-DR44, UX-DR45, UX-DR60, UX-DR61, UX-DR63, UX-DR65, UX-DR67, UX-DR69, UX-DR71 · **Issue / branch / PR:** one issue, branch `story/1.5-search`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -864,7 +866,7 @@ This story builds on the URL module from Story 1.6a.
 **When** the URL is requested
 **Then** the front page shows the search field with "Organisasjonsnummeret må ha 9 siffer" or "Ugyldig organisasjonsnummer" respectively
 
-**Given** a covered company (its `naeringskode1.kode` has a row in `register.covered_industry`, which the loader writes from the manifest; the literal `62.100` appears in no application code)
+**Given** a covered company (its `naeringskode1.kode` has a row in `register.covered_industry`, which the loader writes from `seed/coverage.json`; the literal `62.100` appears in no application code)
 **When** `/analyse/{orgnr}` is requested
 **Then** it redirects to `/analyse/{orgnr}/oversikt`
 **And** the company header shows the name (`h1`, `company-name`), orgnr grouped 3-3-3, primary industry, "Omsetning x mill. kr", and "Regnskapsår YYYY · hentet D. mon. YYYY"
@@ -929,7 +931,7 @@ As Kari or Anders,
 I want Peerless to assemble a peer group of genuinely comparable companies from stored data,
 So that every comparison is against companies of the same industry, size and accounting basis.
 
-**Implements:** FR-7, FR-8, FR-9, FR-20, FR-25, FR-56, FR-59 · **Invariants:** AD-1, AD-4, AD-5, AD-6, AD-7 · **UX:** UX-DR37, UX-DR68, UX-DR78 · **Issue / branch / PR:** one issue, branch `story/1.7-funnel-stages-1-3`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-7, FR-8, FR-9, FR-20, FR-25, FR-56, FR-59, NFR1, NFR27 (SM-5: assembly under 1 s) · **Invariants:** AD-1, AD-4, AD-5, AD-6, AD-7 · **UX:** UX-DR37, UX-DR68, UX-DR78 · **Issue / branch / PR:** one issue, branch `story/1.7-funnel-stages-1-3`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -950,8 +952,13 @@ So that every comparison is against companies of the same industry, size and acc
 
 **Given** funnel stage 3
 **When** it runs
-**Then** it segments by size on the same `sumDriftsinntekter` basis as stage 1 and by legal form, admitting `AS` only; geography is applied only where the industry calls for it and is then named to the user
-**And** the engine returns the count surviving each stage-3 criterion separately (the user-facing "AS only" wording is shown with the funnel in Story 2.7)
+**Then** it applies legal form only, admitting `AS` only; it does not segment by size again (stage 1's band is the only size step) and applies no geography, since `62.100` does not call for it (FR-9)
+**And** the engine returns the count surviving each stage-3 criterion separately — in v1 one criterion, legal form — so a later industry that adds geography adds a count, not a code path (the user-facing "AS only" wording is shown with the funnel in Story 2.7)
+
+**Given** a subject in a covered industry whose `organisasjonsform` is not `AS`
+**When** `/analyse/{orgnr}` is requested
+**Then** it shows the company header with no tabs, a State block with kicker "Peerless sammenligner foreløpig bare aksjeselskaper" and "Her er selskapets egne nøkkeltall fra Brønnøysundregistrene.", the three API figures from its latest filing with filing year and read date (or, with no filing, the no-filing state from Story 1.6b), "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner." and the link "Søk på et annet selskap"
+**And** no peer group, median, beste fjerdedel, Plassering or kroner is computed or shown, and `/analyse/{orgnr}/{fane}` redirects to `/analyse/{orgnr}` (tests, and at 375 px and 320 px the body does not scroll horizontally)
 
 **Given** `ekskl` in the URL
 **When** the peer group is assembled
@@ -1252,7 +1259,7 @@ So that the claim about which document figures Peerless can offer rests on a mea
 
 **Calendar dependency:** this story depends on the hand-transcribed OCR reference set — 15–20 filings across 2021–2025, every figure of the generated section transcribed by hand. Like the labelled set (FR-70), that is calendar work, not coding: it **starts in week 1, in parallel with Epic 1**, so that it is complete when this story starts.
 
-**Implements:** FR-28 (batch part: the SM-2 measurement of 2021–2025), NFR25 (SM-2) · **Invariants:** AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.3-ocr-accuracy-sm2`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-28 (batch part: the SM-2 measurement of 2021–2025), NFR25 (SM-2), NFR15 (the reference filings as part of the declared sample) · **Invariants:** AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.3-ocr-accuracy-sm2`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -1261,8 +1268,15 @@ So that the claim about which document figures Peerless can offer rests on a mea
 **Then** it has been tracked as its own GitHub issue since week 1 (Delivery order), separate from this story's issue, and this story's PR links that issue
 
 **Given** the reference set
+**When** it is drawn (week 1)
+**Then** it is a seeded random draw of 15–20 filings from 62.100's generated filings, paper filings excluded, stratified across the filing years 2021–2025 and across size bands of `sumDriftsinntekter`, with the strata written down before the draw
+**And** the draw script, the random seed and the drawn orgnrs and years are committed, so the draw can be reproduced
+**And** the report states that the sample is the whole industry, not the demo companies and their peers
+
+**Given** the reference set
 **When** it is committed
-**Then** it holds 15–20 filings across 2021–2025, each with orgnr, filing year, both columns and the date and transcriber of each transcription, and the selection rule written before the comparison was run
+**Then** it holds the drawn filings, each with orgnr, filing year, both columns and the date and transcriber of each transcription
+**And** each reference orgnr is on `seed/allow-list.json` with the reason "OCR-referansesett" — `seed:export` reads the committed draw and writes those entries — and the allow-list test reads the committed reference set as well as the seed files, so its document figures are part of the declared sample (NFR15)
 
 **Given** step 1's output for the reference filings
 **When** the measurement runs
@@ -1343,9 +1357,10 @@ So that a reseller, a product company and a consultancy are not compared as if t
 
 **Given** funnel stage 4
 **When** it runs in the request path
-**Then** it reads stored fingerprints only and keeps candidates whose fingerprint group matches the subject's under one grouping rule in `src/engine`
-**And** the story defines that grouping rule and records it in the technical note's "Peer group — a five-stage funnel" section ("Rules fixed by the stories") in the same PR
-**And** fixtures of a reseller, a product company and a consultancy with the same industry code land in different groups
+**Then** it reads stored fingerprints only, and each fingerprint derives one business type from the shared set of business types defined once in `src/engine` and used by Story 2.6's classification as well (proposed: produkt, konsulent, forhandler, annet)
+**And** the story fixes that set, what each type means, and the rule deriving a type from the five fingerprint categories, and records them in the technical note's "Peer group — a five-stage funnel" section ("Rules fixed by the stories") in the same PR
+**And** fixtures of a reseller, a product company and a consultancy with the same industry code derive three different types
+**And** stage 4 removes a candidate whose fingerprint type differs from the subject's; until Story 2.6 stores classifications every text signal is absent, so the fingerprint decides alone, and Story 2.6 completes the combination rule recorded in the technical note ("Combining the fingerprint and the text")
 **And** a candidate with no reconciled filing has no fingerprint and is not excluded at stage 4; a subject with no fingerprint leaves stage 4's count equal to stage 3's (tests)
 
 **Given** the rule never to select on a benchmarked measure
@@ -1355,8 +1370,9 @@ So that a reseller, a product company and a consultancy are not compared as if t
 
 **Given** the licence-gate file `docs/licence-gate.json` (written by Story 5.4)
 **When** `pnpm seed:export` runs for the demo seed
-**Then** it reads that file to decide whether fingerprint categories are exported: they are written into the committed demo seed only when the file records the gate as open
-**And** when the file is absent, unreadable or records the gate as closed, the demo seed carries no fingerprint categories; until Story 5.4 writes the file it is absent (tests for absent, closed and open)
+**Then** it reads that file to decide whether fingerprint categories for companies outside `seed/allow-list.json` are exported: they are written into the committed demo seed only when the file records the gate as open
+**And** allow-listed companies keep their fingerprint categories whatever the gate says: the allow-list is its own accepted sample, and the gate covers only the categories for every other candidate — so B shows fingerprint separation with the gate closed
+**And** when the file is absent, unreadable or records the gate as closed, the demo seed carries fingerprint categories for allow-listed companies only; until Story 5.4 writes the file it is absent (tests for absent, closed and open, each asserting that an allow-listed company keeps its categories)
 
 **Given** the PR
 **When** it is opened
@@ -1375,7 +1391,7 @@ So that companies that describe the same work are matched, without any model cal
 **Given** batch step 2
 **When** it classifies a company
 **Then** it sends the model only the company name, secondary industry codes, statement of purpose and business description, and accepts an answer only in the fixed category set defined once in code; the response schema has no free-text field
-**And** the story defines the category set and records it, with what each category means, in the technical note ("Rules fixed by the stories") in the same PR
+**And** the category set is the shared set of business types fixed in Story 2.5 and defined once in `src/engine`; the model's response schema is generated from it, so the fingerprint and the text cannot drift apart
 **And** an answer outside the category set is never coerced: the row is `failed` and the failure is written to step 2's run record
 **And** the model id is pinned in configuration, and each row stores the model id, a prompt hash and a digest of the description text (AD-7, AD-13)
 **And** the model key is read only by step 2 and appears in no other module or env var the app reads (AD-19)
@@ -1403,8 +1419,10 @@ So that companies that describe the same work are matched, without any model cal
 
 **Given** funnel stage 5
 **When** it runs in the request path
-**Then** it reads stored classifications only; a candidate whose category differs from the subject's leaves at stage 5, and an unclassified candidate stays
-**And** a candidate whose text category and fingerprint disagree is flagged, stays in the group, and is resolved by neither (the model never adjudicates); the flag is stored and the flagged count is available to the funnel
+**Then** it reads stored classifications only and, together with stage 4, applies the combination rule recorded in the technical note ("Combining the fingerprint and the text"): both signals present and agreeing on whether the candidate is the subject's type decide; both present and disagreeing keep the candidate and flag it "Usikker klassifisering", resolved by neither (the model never adjudicates); only one present decides alone
+**And** in the funnel counts, stage 4 removes a candidate whose fingerprint gives another type unless its text gives the subject's type, and stage 5 removes a candidate whose text gives another type and that has no fingerprint; an unclassified candidate stays at stage 5
+**And** a subject with no classification leaves stage 5's count equal to stage 4's, and the fingerprint alone decides at stage 4
+**And** a test per case — both agree (subject's type; another type, including two different other types), both disagree (each way round), fingerprint only, text only, neither, and a subject missing each signal — asserts kept, removed or flagged; the flag is stored and the flagged count is available to the funnel
 
 **Given** no model key
 **When** the test suite and an analysis run
@@ -1433,7 +1451,7 @@ This story builds on the simple Peers list from Story 1.7.
 **Given** a covered subject
 **When** the Peers tab renders
 **Then** the funnel shows the five stages "Bransje og størrelse → Sammenlignbart regnskap → Segment → Forretningsmodell → Klassifisering", each with its surviving count in tabular figures and an 8px navy-700 bar proportional to stage 1
-**And** the Segment stage shows the count for each criterion separately (size, legal form, and geography where applied, then named)
+**And** the Segment stage shows the count for each criterion it applies separately — in v1 legal form only (FR-9); a later industry's geography would be shown and named the same way
 **And** the copy for the Segment stage says that v1 admits AS only, worded consistently with PRD FR-9 (deferred reconcile item 4)
 **And** "✦ {n} med usikker klassifisering" shows the flagged count
 **And** the funnel and its counts are shown whether or not the group clears the 10-peer floor (test with a group of 7)
@@ -1468,7 +1486,7 @@ So that the comparison is against a group I accept, with every figure recomputed
 
 The adjusted-group state of the explanation ("Forklaringen gjelder standard peer-gruppe. Tilbakestill for å se den.") is not in this story: the explanation card first exists in Epic 4, which carries that criterion.
 
-**Implements:** FR-17 (v1: in the URL), FR-18 (v1: the size band), FR-19, FR-55, FR-56 · **Invariants:** AD-5, AD-6, AD-10, AD-12 · **UX:** UX-DR24, UX-DR25, UX-DR30, UX-DR37, UX-DR46, UX-DR49, UX-DR53, UX-DR54, UX-DR65, UX-DR66, UX-DR67, UX-DR68, UX-DR71, UX-DR80 · **Issue / branch / PR:** one issue, branch `story/2.8-adjust-peer-group`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-17 (v1: in the URL), FR-18 (v1: the size band), FR-19, FR-55, FR-56, NFR1, NFR2, NFR27 (SM-5: recompute and render times) · **Invariants:** AD-5, AD-6, AD-10, AD-12 · **UX:** UX-DR24, UX-DR25, UX-DR30, UX-DR37, UX-DR46, UX-DR49, UX-DR53, UX-DR54, UX-DR65, UX-DR66, UX-DR67, UX-DR68, UX-DR71, UX-DR80 · **Issue / branch / PR:** one issue, branch `story/2.8-adjust-peer-group`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -1588,7 +1606,7 @@ As a sensor checking the arithmetic,
 I want the engine to compute every key figure in `docs/key-figures.md`, the document figures included, with their kroner, exactly and against hand-calculated reference cases,
 So that every figure the table will show can be traced to a formula and a hand calculation before any of it is rendered.
 
-**Implements:** FR-21, FR-23 (document figures), FR-24 (document figures), FR-29 (document figures: kroner for (9), (10), (11)) · **Invariants:** AD-1, AD-8, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/3.1a-engine-key-figures`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-21, NFR28 (SM-6: every reference case and both identities), FR-23 (document figures), FR-24 (document figures), FR-29 (document figures: kroner for (9), (10), (11)) · **Invariants:** AD-1, AD-8, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/3.1a-engine-key-figures`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -2166,7 +2184,7 @@ So that the report shows where the improvement comes from, and whether the model
 **Given** the two banded measures in the fingerprint — the cost-of-goods share band and the personnel-cost share band (FR-13)
 **When** the measurement runs
 **Then** it reports precision and recall with and without each band, and the report records for each band whether it is kept or dropped, with the reason
-**And** if a band is dropped, this story's PR updates Story 2.5's rule — the fingerprint type in `src/engine/fingerprint.ts`, its migration check and the grouping rule — and the technical note's "Rules fixed by the stories" in the same PR, and step 2 rebuilds the fingerprints (their input digests change, AD-13)
+**And** if a band is dropped, this story's PR updates Story 2.5's rule — the fingerprint type in `src/engine/fingerprint.ts`, its migration check and the rule deriving a business type from the fingerprint — and the technical note's "Rules fixed by the stories" in the same PR, and step 2 rebuilds the fingerprints (their input digests change, AD-13)
 
 **Given** the report
 **When** it is written
@@ -2243,13 +2261,13 @@ So that the full analysis runs locally without any key, within what the licence 
 
 **Given** the gate stays closed (deferred reconcile item 1)
 **When** the demo seed is exported
-**Then** it contains no committed fingerprint categories, so a 62.100 company outside the allow-list gets funnel stages 1–3 plus classification, with match basis "Kun beskrivelse" or "Kun bransje og størrelse"
+**Then** it contains fingerprint categories for allow-listed companies only — A, B, their peers and the OCR reference filings keep theirs, so B still shows fingerprint separation — and a 62.100 company outside the allow-list gets funnel stages 1–3 plus classification, with match basis "Kun beskrivelse" or "Kun bransje og størrelse"
 **And** EXPERIENCE's outside-the-demo-seed state is edited in this PR to say what is shown then: stage 4 "Forretningsmodell" reads "Ikke kjørt – regnskapstall ikke i demodataene" with its count equal to stage 3's, and the about page's document-figure paragraph drops "for resten av bransjen bare avledede kategorier"
 **And** with the gate open, fingerprint categories for every 62.100 candidate are committed and stage 4 runs as in Story 2.5
 
 **Given** `seed/allow-list.json`
 **When** it is written by `pnpm seed:export`
-**Then** it lists A, B, C and A's and B's peers at all three band steps, and a reviewer approves it in the PR
+**Then** it lists A, B, C, A's and B's peers at all three band steps, and the OCR reference filings from Story 2.3 (reason "OCR-referansesett"), each entry with its reason, and a reviewer approves it in the PR
 **And** the allow-list test reads every committed seed file regardless of its tag and fails on document figures for any unlisted orgnr, and the peer-group test asserts A's and B's groups at every step are subsets of the list
 
 **Given** the committed demo seed

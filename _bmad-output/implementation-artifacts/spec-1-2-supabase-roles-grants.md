@@ -2,7 +2,7 @@
 title: 'Story 1.2: Local Supabase with roles and grants — the read boundary'
 type: 'feature'
 created: '2026-10-10'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: 'a3e8af7e4c72a95278451db2d970380eb13e7794'
@@ -77,32 +77,32 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `scripts/check-no-public-env.ts`, `test/checks.test.ts`, fixtures -- fail on an `env` property in `next.config.{ts,js,mjs,cjs}` via the TS AST. Tests: property, shorthand, clean config, CLI exit code. **Own commit, first.**
-- [ ] `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` -- pins and scripts.
-- [ ] `supabase/config.toml` -- from `supabase init`; `project_id = "peerless"`, `api.schemas` without `register`, `[db.seed] enabled = false`.
-- [ ] `supabase/roles.sql` -- `CREATE ROLE reader|ingest|derive|loader LOGIN` with no password. Verify that CLI 2.120 runs it on start and reset; cite the source in Implementation Notes.
-- [ ] `supabase/migrations/<timestamp>_register_and_app_schemas.sql`:
+- [x] `scripts/check-no-public-env.ts`, `test/checks.test.ts`, fixtures -- fail on an `env` property in `next.config.{ts,js,mjs,cjs}` via the TS AST. Tests: property, shorthand, clean config, CLI exit code. **Own commit, first.**
+- [x] `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` -- pins and scripts.
+- [x] `supabase/config.toml` -- from `supabase init`; `project_id = "peerless"`, `api.schemas` without `register`, `[db.seed] enabled = false`.
+- [x] `supabase/roles.sql` -- `CREATE ROLE reader|ingest|derive|loader LOGIN` with no password. Verify that CLI 2.120 runs it on start and reset; cite the source in Implementation Notes.
+- [x] `supabase/migrations/<timestamp>_register_and_app_schemas.sql`:
   - create `register` and `app`;
   - revoke all on both from `public`, `anon`, `authenticated` and `service_role`;
   - grant `USAGE` on `register` to the four roles;
   - grant `SELECT` on all tables in `register` to `reader`, plus `ALTER DEFAULT PRIVILEGES FOR ROLE <migration role> IN SCHEMA register GRANT SELECT ON TABLES TO reader`;
   - give no role `CREATE`;
   - `ALTER DEFAULT PRIVILEGES FOR ROLE <migration role> REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC`.
-- [ ] `scripts/set-role-passwords.ts` (`pnpm db:roles`) -- per the decision. Fixed list of four roles; statements built with `format('ALTER ROLE %I PASSWORD %L', …)`; output names roles only.
-- [ ] **First, before any DB test:** verify `SET ROLE` from the test connection role to `reader`, `anon`, `authenticated` and `service_role`; record the outcome in Implementation Notes.
-- [ ] `test/db/grants.test.ts` -- uses `SUPABASE_DB_URL` (CLI default when unset). Covers:
+- [x] `scripts/set-role-passwords.ts` (`pnpm db:roles`) -- per the decision. Fixed list of four roles; statements built with `format('ALTER ROLE %I PASSWORD %L', …)`; output names roles only.
+- [x] **First, before any DB test:** verify `SET ROLE` from the test connection role to `reader`, `anon`, `authenticated` and `service_role`; record the outcome in Implementation Notes.
+- [x] `test/db/grants.test.ts` -- uses `SUPABASE_DB_URL` (CLI default when unset). Covers:
   - every grants row of the matrix, inside a rolled-back transaction, with the table and the function created via `SET ROLE <migration role>`;
   - `api.schemas` parsed from `config.toml`, and seeding disabled;
   - a loop over `pg_catalog.pg_tables` in `register`, so tables added later are covered;
   - the `reader` login through `READER_DATABASE_URL`.
-- [ ] `test/db/set-role-passwords.test.ts` -- the db:roles matrix rows, run in a temp git repo with a copy of `.env.example`:
+- [x] `test/db/set-role-passwords.test.ts` -- the db:roles matrix rows, run in a temp git repo with a copy of `.env.example`:
   - first run fills and applies passwords;
   - second run leaves `.env` byte-identical, and logins still work;
   - stdout and stderr contain none of the passwords;
   - a non-ignored `.env` makes it refuse;
   - a non-local host in `SUPABASE_DB_URL` (e.g. `db.example.supabase.co`) makes it refuse, with `.env` untouched.
-- [ ] `test/no-ddl-outside-migrations.test.ts` -- DDL keywords (CREATE/ALTER/DROP of TABLE/SCHEMA/…) appear in `.sql` files only under `supabase/migrations/`; `roles.sql` holds only `CREATE ROLE`; no `PASSWORD` in either.
-- [ ] CI; README "Local database" commands; AGENTS.md Toolchain line; `docs/ai-log.md` entry on what could go wrong with these grants; `docs/ai-sessions/2026-10-10-story-1-2-supabase-roles-grants.md`; sprint-status `review`.
+- [x] `test/no-ddl-outside-migrations.test.ts` -- DDL keywords (CREATE/ALTER/DROP of TABLE/SCHEMA/…) appear in `.sql` files only under `supabase/migrations/`; `roles.sql` holds only `CREATE ROLE`; no `PASSWORD` in either.
+- [x] CI; README "Local database" commands; AGENTS.md Toolchain line; `docs/ai-log.md` entry on what could go wrong with these grants; `docs/ai-sessions/2026-10-10-story-1-2-supabase-roles-grants.md`; sprint-status `review`.
 
 **Acceptance Criteria:**
 - Given a fresh clone with Docker, when `pnpm install`, `pnpm db:start`, `pnpm db:roles` and `pnpm test:db` run, then all pass with no API key, account or hand-written password.
@@ -121,14 +121,40 @@ DB tests run as the local superuser and use `SET ROLE` inside a transaction, so 
 
 ## Implementation Notes
 
-- **roles.sql is applied by the CLI.** Observed with CLI 2.120.0: `supabase db start` and `supabase db reset` both print "Seeding globals from roles.sql..." before "Applying migration …". The Go binary bundled in `@supabase/cli-*` also contains the path `roles.sql`. A fresh volume (`supabase stop --no-backup`, then `db start`) creates the four roles with `rolpassword` NULL; `db reset` keeps existing passwords.
+- **roles.sql is applied by the CLI.** Observed with CLI 2.120.0: `supabase db start` and `supabase db reset` both print "Seeding globals from roles.sql..." before "Applying migration …". The Go binary bundled in `@supabase/cli-*` also contains the path `roles.sql`. A fresh volume (`supabase stop --no-backup`, then `db start`) creates the four roles with `rolpassword` NULL. `db reset` also leaves all four with `rolpassword` NULL (verified in review: corrected from an earlier note saying it kept them), so `pnpm db:roles` must run again after a reset; it re-applies the passwords already in `.env`.
 - **Migration role = `postgres`.** `SELECT nspowner::regrole FROM pg_namespace WHERE nspname = 'register'` returns `postgres`; the CLI's `SUPABASE_DB_URL` connects as `postgres`. The default-privilege statements name `FOR ROLE postgres`; the test reads the owner from the catalog and asserts that `pg_default_acl` names it.
 - **SET ROLE, verified before the tests.** Connected as `postgres` (not a superuser on Supabase's image; `rolsuper = f`): `SET ROLE anon`, `authenticated` and `service_role` succeed (membership with SET, granted by `supabase_admin`). `SET ROLE reader` fails: "permission denied to set role" — `postgres` holds ADMIN on the roles from `roles.sql` but `set_option = f`, `inherit_option = f`. Chosen: the migration runs `GRANT reader TO postgres WITH INHERIT FALSE, SET TRUE`. Trade-off: anyone who can log in as `postgres` can become `reader`, which grants nothing new (reader's privileges are a subset, and INHERIT FALSE leaves `postgres`'s own privileges unchanged); the alternative, connecting the tests as `supabase_admin`, would have needed a second, CLI-internal superuser URL and would bypass every permission check except the ones under `SET ROLE`. `ingest`, `derive` and `loader` are not granted; their tests arrive with their tables.
 - **No allowBuilds entry.** The `supabase` npm package ships its binaries as optional per-platform dependencies (`@supabase/cli-linux-x64` etc. are in the lockfile); no install script runs, so `pnpm-workspace.yaml` is unchanged.
-- **db:roles details.** A missing variable in an existing `.env` is appended from `.env.example`. `SUPABASE_DB_URL` is taken from the process environment, then `.env`, then `.env.example`, then the CLI default; its host is checked before `.env` is written or the database is touched. The `ALTER ROLE` statement is built by `format('ALTER ROLE %I PASSWORD %L', …)` with a SCRAM-SHA-256 verifier computed in Node as the literal, so the password never reaches the server as text.
+- **db:roles details.** A missing role URL in an existing `.env` (one of the four) is appended from `.env.example`; `SUPABASE_DB_URL` is never appended. A rerun leaves `.env` byte-identical and the effective passwords unchanged; the stored SCRAM verifier gets a fresh salt each run. `SUPABASE_DB_URL` is taken from the process environment, then `.env`, then `.env.example`, then the CLI default; its host is checked before `.env` is written or the database is touched. The `ALTER ROLE` statement is built by `format('ALTER ROLE %I PASSWORD %L', …)` with a SCRAM-SHA-256 verifier computed in Node as the literal, so the password never reaches the server as text.
 - **Order inside test:db.** Vitest orders files by previous duration, so `set-role-passwords.test.ts` may run first; its `afterAll` re-runs `db:roles` in the repository root to restore the root `.env` passwords. The grants test's reader login needs `pnpm db:roles` to have run (CI does).
 - **Verification run (local, Docker 29.7.2, Windows 11):** `check:pins`, `check:env`, `lint`, `typecheck`, `test` (68 tests) pass; `db:start` → `db:roles` → `test:db` (28 tests) pass; `db:reset` → `db:roles` → `test:db` pass; `supabase stop --no-backup` → `db:start` → `db:roles` → `test:db` pass. Regression check: granting USAGE on `register` to `anon`, default INSERT to `reader`, EXECUTE on functions to PUBLIC and CREATE on `app` to `reader` by hand made nine grants tests fail; revoked afterwards. CI not run (nothing pushed).
 
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1 (blind-hunter BH, edge-case-hunter EC, verification-gap VG):
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---------|---------|----------|-------|
+| 1 | VG: db:roles on an existing `.env` with blank `VAR=` lines or missing role lines never tested on a success path | medium | All success tests start from no `.env`; the user's own pre-1.2 `.env` took exactly this path | patch |
+| 2 | EC/BH/VG: `findLine` takes the first `VAR=` line, `parseEnv` the last; `export`, spaces, inline `#` comments parsed differently | medium | A duplicate or commented line makes db:roles apply a password the app does not read, or writes a percent-encoded comment into the URL | patch (refuse duplicates and non-plain role lines) |
+| 3 | EC/BH: `register` loop uses `pg_tables`, so views, matviews, foreign tables escape | low | `pg_tables` = relkind r/p only; direct query change | patch |
+| 4 | BH: no test pins `INHERIT FALSE` on `GRANT reader TO postgres` | low | The safety argument rests on it; one catalog assertion | patch |
+| 5 | EC/BH: `check:env` misses `config.env = …` / `config['env'] = …` | low | Object-literal scan only; direct AST case | patch |
+| 6 | EC: computed key from a const (`[k]`) | low | Contrived; needs type checker | reject |
+| 7 | BH: docs claim function EXECUTE closed "in any schema" | low | Verified `pg_default_acl`: `postgres` grants EXECUTE (and table rights) to anon/authenticated/service_role in `public` and `storage`; claim true for `register`/`app` only | patch (migration comment, ai-log) |
+| 8 | BH: Implementation Notes say `db reset` keeps passwords | low | Verified: after `db:reset` all four `rolpassword` are NULL; README is right | patch (notes) |
+| 9 | BH: Notes say any missing variable is appended | low | Only the four role URLs are appended | patch (notes) |
+| 10 | BH/EC: "running it again changes nothing" | low | Each run re-sends a verifier with a fresh salt; `.env` and the effective passwords are unchanged | patch (wording) |
+| 11 | BH: `src/server/db.ts` with `server-only` missing | false | Spec Never excludes it; epics put it in Story 1.5 (`epics.md:813`). The Story 1.1 ai-log entry named 1.2 wrongly | patch (ai-log correction) |
+| 12 | BH: `postgres` in `dependencies` unused at runtime | low | Becomes the request-path client in Story 1.5; spec placed it there | reject |
+| 13 | BH: `auto_expose_new_tables` default true | low | Concerns `public`, outside this story's boundary (`register`); v1 creates nothing in `public` | reject (noted) |
+| 14 | BH: migration fails on hosted Supabase (roles.sql is local-only) | low | `db push` does not apply roles.sql; stage 2 | patch (ai-log known gap) |
+| 15 | BH: DDL test misses GRANT/REVOKE and DDL in code; AGENTS.md says "every other DDL is a migration" | low | Fix edits AGENTS.md wording | defer |
+| 16 | BH: missing `git` reported as "not gitignored" | low | Rare; adds a branch | reject |
+| 17 | BH/EC: `afterEach` `rmSync(repo)` masks a `beforeEach` failure | low | Direct guard | patch |
+| 18 | BH: test `afterAll` may generate passwords in the developer's `.env` | low | Same effect as the README's own `db:roles` step | reject |
+| 19 | EC claim: refuses "before reading or writing anything" but reads `.env` first | low | Reading `.env` is needed to find `SUPABASE_DB_URL`; nothing is written or altered before the check. Fix would edit the spec | reject (reported to human) |
+| 20 | BH: spec `in-review` vs sprint `review` | false | Separate vocabularies | reject |
+| 21 | BH: session file omits a commit and a "rejected" line | low | Docs | patch (orchestrator) |

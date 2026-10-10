@@ -2,7 +2,7 @@
 title: Peerless
 status: complete
 created: 2026-09-17
-updated: 2026-09-26
+updated: 2026-10-10
 ---
 
 # Product Brief: Peerless — Peer Benchmarking from Public Accounts
@@ -27,9 +27,9 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 ## The Solution
 
-**Start from an overview.** The front page explains what Peerless does and holds one field: the organisation number. Below it, a picture of each covered industry — how the median margin has moved over time, how widely personnel cost share varies, how many companies are growing. They show distributions, not rankings.
+**Start from an overview.** The front page explains in a sentence what Peerless does, holds one field — the organisation number — and links to "Slik fungerer Peerless", which explains how peers are chosen, where AI is used, and where the figures come from.
 
-**Enter an organisation number.** That is the entire setup — no account, upload or configuration. The user may describe the company in a sentence, which AI then reads in place of the register's description. Within seconds the company appears with its figures, its peer group and its position, organised in tabs: overview, peers, key figures and gaps, development over time, and value. A company outside the covered industries gets its own key figures and a plain statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
+**Enter an organisation number.** That is the entire setup — no account, upload or configuration. Within seconds the company appears with its figures, its peer group and its position, organised in tabs: overview, peers, key figures and gaps, and value — development over time follows in stage 2. A company outside the covered industries gets its own key figures and a plain statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
 
 **See where it stands.** About a dozen measures, with revenue growth alongside for context. For each: the company's value, the peer median, the favourable quartile, and its percentile. Strengths are shown as clearly as weaknesses.
 
@@ -39,7 +39,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **Understand where to start.** An AI-written explanation names the largest gaps in kroner, the strengths, and which gaps have persisted. It explains; it does not recommend. The AI never calculates: every figure in the text comes from the engine and links back to its calculation, and text containing any other figure is rejected.
 
-**Keep it and share it.** The overview, the peer group and the gaps in kroner are open to anyone; an account by emailed magic link opens what persists. Saved work lives in workspaces with invited read-only viewers, and a signed-in user's front page is their portfolio. The account wall in full, and what is protected and why, are in the addendum.
+**Keep it and share it — stage 2.** In v1 every analysis is open and nothing is stored about who looked. Accounts by emailed magic link, workspaces with invited read-only viewers and a portfolio front page come in stage 2; the account wall and what it protects are in the addendum.
 
 ## What Makes This Different
 
@@ -55,7 +55,7 @@ None of this is defensible; the addendum says why.
 
 **Primary: accountants and advisers.** Dozens of clients ask "are we doing well?", and they answer from impression because the evidence takes hours to build. A repeatable analysis across a portfolio turns an unbillable conversation into an advisory service. They are also best placed to judge whether a peer group is right, and most likely to pay. They use it before meeting a company they hope to win as well, which is where the open route earns its place: a prospect's accounts are public, so the conversation can open on that company's largest gap rather than on a brochure. That pull has a boundary — one organisation number at a time, because searching the register for weak companies is out of scope.
 
-**Also in v1: managing directors and finance leads**, who own the problem but will not maintain a modelling tool — through the open route or as viewers in their adviser's workspace. **Board members and co-owners** are served as invited viewers.
+**Also in v1: managing directors and finance leads**, who own the problem but will not maintain a modelling tool, through the open route. **Board members and co-owners** follow in stage 2, as invited viewers in their adviser's workspace.
 
 **Later: investors**, whose screening and portfolio needs depend on views outside v1.
 
@@ -67,13 +67,21 @@ None of this is defensible; the addendum says why.
 
 **Technical.** Peer group in under a second, full analysis within a few. Recognition accuracy measured against a hand-transcribed sample; a figure that fails reconciliation is withheld, never shown. Calculations tested against hand-calculated cases from real filings.
 
-**Security.** Confidentiality attaches to use, not to public figures. Zero cross-workspace access in the authorisation suite, including between workspaces held by the same owner; anonymous sessions reach public figures only.
+**Security.** Confidentiality attaches to use, not to public figures. v1 stores no user data: every lookup is anonymous and read-only. The authorisation criteria — zero cross-workspace access, including between workspaces held by the same owner — apply from stage 2, when accounts and workspaces arrive.
 
-**Known risks.** Two things could limit the result: how reliably the scanned accounts can be read, and how little many company descriptions say, which bounds what AI can add. Both are measured early rather than assumed — the first already: about nine in ten recent filings reconcile, which sets development over time at five years. The third is delivery: the interface — front page, tabs and portfolio — lands late in a thirteen-week solo schedule. If time runs short, the portfolio front page goes first, then the industry overviews; the measurement never does.
+**Runnable.** A fresh clone runs from the README on a local database with seed data — no API key, paid account, email or hosted service.
+
+**Known risks.** Three things could limit the result: how reliably the scanned accounts can be read — measured already, about nine in ten recent filings reconcile; how little many company descriptions say, which bounds what AI can add; and delivery, which v1 meets by being the core flow only, with everything else in named later stages. A fourth is unresolved: the register states no licence for the filed documents, so the seed data in the public repository carries register data and key figures in full but document-derived figures for a small sample only.
 
 ## Scope
 
-**In for v1.** A front page with industry overviews; analysis in tabs; a portfolio front page for signed-in users. Analysis without an account; magic-link sign-in; workspaces with owners and invited viewers. Coverage grows one industry at a time, each offered only once its filings are extracted and its peer selection measured — first programming services and bookkeeping. Visible, adjustable peer groups. About a dozen key figures with two decomposition views. Development over the last five years. Kroner gaps, the closable-share control and EV/EBIT valuation. AI-written explanation. Unfiled current-year figures. Saved analyses, audit log, PDF export. A responsive, Norwegian-language interface down to phone width.
+**In for v1 — the core flow, built to run on a sensor's machine.** Three industries: programming services (62.100), bookkeeping (69.202) and electrical installation (43.210), each offered only once its peer selection is measured. A front page that explains Peerless and holds the organisation-number field, and an About page, "Slik fungerer Peerless". Analysis without an account: the peer group, visible and adjustable, with the reason for each peer and what its match rests on; about a dozen key figures with percentiles and the two decomposition views; kroner gaps with the closable-share control and EV/EBIT valuation; the AI-written explanation. The measurement of peer selection against a labelled set. Runs locally from the README without our keys, on a local database with seed data. A responsive, Norwegian-language interface down to phone width.
+
+**Why three industries rather than one.** The teacher's feedback of 2026-10-06 recommended one. Three are kept because the measurement needs them, not for breadth: the three differ exactly where it matters — programming services vary widely under one code, bookkeeping hardly at all, electrical installation carries inventory — so the result can say *when* AI earns its place, not only whether. The labelling effort is unchanged: ten subjects per industry instead of fifteen across two, about 900 judgements either way. If time runs short, 43.210 is the first thing cut.
+
+**Stage 2, if time allows.** Accounts by magic link, workspaces with invited viewers, the portfolio front page, saved analyses and audit log, development over time and sparklines, own unfiled and year-to-date figures, PDF export, a user-written company description.
+
+**Stage 3.** The industry overviews on the front page.
 
 **Out of v1.** Named rankings, share links, a full valuation tool, screening, a composite score, free-form chat, credit scoring and forecasting, among others — the complete list, with the reason for each, is in the addendum.
 

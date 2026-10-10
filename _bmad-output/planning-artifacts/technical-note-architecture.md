@@ -56,11 +56,11 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 ## Industries covered first
 
-**62.100 Dataprogrammeringstjenester and 69.202 Regnskapsføring og bokføring**, chosen from the screening in `analysis/output/industry-screening.md`.
+**62.100 Dataprogrammeringstjenester, 69.202 Regnskapsføring og bokføring and 43.210 Elektrisk installasjonsarbeid**, chosen from the screening in `analysis/output/industry-screening.md` and all three in v1. The teacher's feedback of 2026-10-06 recommended one; three are kept because the measurement needs the contrast between them, at the same labelling effort (ten subjects each). 43.210 is the first thing cut if time runs short.
 
 62.100 is where classification has most to prove. With five or more employees there are about 1 000 companies, and their operating margins run from −46 % to +9 % between the first and third quartile. Loss-making product companies and profitable consultancies share one code. 69.202 is the control. About 800 companies, 93 % describing core bookkeeping, and margins within 12 points. If classification lifts precision substantially in 62.100 and little in 69.202, that is a result about *when* the model earns its place, not only that it does. 69.202 is also the primary user's own industry.
 
-43.210 Elektrisk installasjonsarbeid is the likely third. It is the largest population, and receivables and inventory put the OCR-derived ratios to work.
+43.210 is the third: the largest population, and the only one where receivables and inventory put the OCR-derived ratios to work.
 
 ---
 
@@ -100,11 +100,13 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 ## Pages
 
-**Front page.** A short description of Peerless and the organisation-number field. Below it, an overview of each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. Overviews show aggregates only, never named companies, are computed by the same engine from the same stored figures, and follow the minimum group size. Named rankings are out of scope: a top list collects recognition errors and small-base outliers, and a wage-share ranking misleads wherever subcontractors are booked outside payroll.
+**Front page.** A short description of Peerless, the organisation-number field, "Slik fungerer det" in three steps and a link to the About page. From stage 3, below it, an overview of each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. Overviews show aggregates only, never named companies, are computed by the same engine from the same stored figures, and follow the minimum group size. Named rankings are out of scope: a top list collects recognition errors and small-base outliers, and a wage-share ranking misleads wherever subcontractors are booked outside payroll.
 
 **Analysis tabs.** Overview, peers, key figures and gaps, development over time, and value.
 
-**Portfolio front page.** A signed-in user's front page lists every company they follow — that is, every company with a saved analysis in one of their workspaces — with its latest position, what has changed since the last filing and the largest gaps. It reads saved analyses only. User-arranged widgets are deferred.
+**About page**, "Slik fungerer Peerless" (v1): how peers are chosen, where AI is used and that it never calculates, what has been measured, the data sources and licence, and the limitations.
+
+**Portfolio front page (stage 2).** A signed-in user's front page lists every company they follow — that is, every company with a saved analysis in one of their workspaces — with its latest position, what has changed since the last filing and the largest gaps. It reads saved analyses only. User-arranged widgets are deferred.
 
 ---
 
@@ -120,7 +122,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **Invitation** is by email, into a single workspace, as viewer. Share links are out of v1.
 
-**The account wall.** Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation, and a five-year sparkline per key figure, always drawn with the peer median as a faint reference line, as a preview. Needs an account: the full development-over-time view, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page.
+**The account wall applies from stage 2.** v1 has no accounts and stores no user data; every analysis is open and read-only. From stage 2: open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation, and a five-year sparkline per key figure, always drawn with the peer median as a faint reference line, as a preview. Needs an account: the full development-over-time view, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page.
 
 **A user's own unfiled figures** live in their own table, keyed to a workspace. The owner writes, viewers read, anonymous sessions never read. Aggregate queries read only the tables holding filed accounts, so leaking unfiled figures into a peer median would require changing the query, not forgetting a filter. Removing a member revokes access immediately, since every policy goes through membership. When the filing for the same year arrives, it takes precedence and the user-entered figures are kept only as history.
 
@@ -134,6 +136,22 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 ---
 
+## Running Peerless locally
+
+A sensor must be able to run Peerless from a fresh clone without our keys.
+
+**Database.** The Supabase CLI runs Postgres and auth locally in Docker (`supabase start`). Every table and policy is a migration in the repository.
+
+**Seed data.** The ingestion pipeline writes its output — register data, key figures, document-derived figures that reconcile, fingerprints and AI classifications — to seed files that load with one command. Running the app never needs OCR, the register API or a model. Because the register states no licence for the filed documents and the repository is public, the seed carries register data and API key figures for the three industries in full, and document-derived figures for a small sample of 20–30 companies; the pipeline regenerates the rest locally.
+
+**AI in test mode.** Without an API key, the explanation text comes from stored output generated for the seed companies' default peer groups, and the figure-validation test runs against those fixtures.
+
+**No email in v1**, since there are no accounts.
+
+**README.** Clone, `supabase start`, install, seed, run — five commands.
+
+---
+
 ## Test strategy
 
 **Authorization tests** are written in week two. They attempt every forbidden access pattern and expect rejection: across workspaces, including those held by the same owner; an anonymous session reading or writing saved data; a viewer writing; an invited viewer reaching a workspace they were not invited to.
@@ -142,7 +160,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 **OCR accuracy, measured against a hand-transcribed set.** For a sample of filings, every figure in the generated section is transcribed by hand, and the pipeline's output is compared against it field by field. Reported as the share of figures recovered exactly, and separately as the share of filings passing the internal consistency check, split between recent filings and older scans. This is the measurement that decides which document-derived ratios the product can honestly offer.
 
-**A labelled classification set**, to a stated sampling frame and started in week 2: **15 subject companies per covered industry, 30 candidates each, drawn at random from the subject's size band rather than from the funnel's output** — about 900 judgements. Drawing from the band and not from the funnel is what gives recall a denominator, since a genuine comparable the funnel never proposed then counts against it. Stratified by description quality, so precision and recall are reported separately for informative and uninformative descriptions, and reported per layer of the funnel. An industry is offered in the product only once its own measurement exists. Fallback if the set comes in small: `62.100` only, cohorts pooled, stated as a smaller claim rather than a quiet one.
+**A labelled classification set**, to a stated sampling frame and started in week 1: **10 subject companies per covered industry, 30 candidates each, drawn at random from the subject's size band rather than from the funnel's output** — about 900 judgements. Drawing from the band and not from the funnel is what gives recall a denominator, since a genuine comparable the funnel never proposed then counts against it. Stratified by description quality, so precision and recall are reported separately for informative and uninformative descriptions, and reported per layer of the funnel. An industry is offered in the product only once its own measurement exists. Fallback if the set comes in small: drop `43.210` first, then pool cohorts, stated as a smaller claim rather than a quiet one.
 
 **What the measurement claims, and what it cannot.** The headline is the **layer-by-layer ablation** — how much each layer adds, and whether the model adds anything beyond the accounts-based fingerprint. That can come back "no". The comparison against industry code alone is a **sanity check, not the claim**: the labeller judges comparability on the criteria the fingerprint encodes, so industry code is expected to lose, and blinding to funnel stage removes provenance bias rather than that circularity. Three partial defences, all reported: the rubric is written and dated before the fingerprint's feature list is fixed; a subsample is labelled from description and website only, blind to the accounts; and a second labeller judges about 50 pairs with Cohen's κ reported.
 
@@ -180,27 +198,28 @@ Thirteen weeks.
 
 | Week | Content |
 |---|---|
-| 1 | Data model, anonymous and magic-link authentication, workspaces. ~~Extend the OCR spike to the older scans~~ — done before week 1 |
-| 2 | Row-level security, authorization tests |
-| 3 | Bulk download from the registers, key figures ingestion |
-| 4 | OCR pipeline: render, recognise, position-based row and column grouping |
-| 5 | Number parsing, the two reconciliation rules, data quality flags |
-| 6 | OCR accuracy measurement against the hand-transcribed set; buffer |
-| 7 | Calculation engine with reference cases |
-| 8 | Fingerprint and classification, the funnel, structured company profiles |
-| 9 | Labelled set complete, measurement against the industry-code baseline |
-| 10 | Embeddings; layer-by-layer comparison |
-| 11 | Invitations, rate limiting, peer group adjustment, saved analyses, portfolio front page |
-| 12 | Valuation control, explanation layer, export, front page with industry overviews, analysis tabs, responsive interface |
-| 13 | Security report, threat model, AI documentation |
+| 1 | Project setup: Next.js, local Supabase, migrations, seed loader, CI. Labelled set and hand-transcription start |
+| 2 | **First working analysis page:** organisation number → API figures → peer group (funnel stages 1–3) → table |
+| 3 | Calculation engine per `docs/key-figures.md` with reference cases; kroner gaps and the closable-share control |
+| 4–5 | OCR pipeline into the seed data, the two reconciliation rules, data quality flags |
+| 6 | Fingerprint and classification for the three industries, stored; "Hvorfor med" and match basis |
+| 7 | Explanation layer with AI test mode and the figure-validation test |
+| 8 | Layer-by-layer measurement against the labelled set |
+| 9 | Responsive pass, About page, README, a run from a fresh clone |
+| 10–12 | Stage 2: accounts, workspaces, row-level security and the authorisation suite, development over time, own figures, PDF |
+| 13 | Report and documentation |
 
 **The OCR question was answered before week one.** Five years of development over time, paper filings never read, older generated years where they reconcile. What remains is exact accuracy against a hand-transcribed set, which runs alongside the code.
 
 **Two pieces of manual work start early and run alongside the code**, because they are calendar work rather than coding work and they are what the project's results rest on: the hand-transcribed OCR reference set, and the labelled classification set. Deferring either to the week it appears in the table above is how they end up too small to report.
 
-**If time runs short, cut in this order:** the portfolio front page; the industry overviews; unfiled and year-to-date figures; PDF export; removal of withdrawn companies (a licence obligation, so cut only as far as recording that it is owed); the development-over-time **view** — keeping the data, because multi-year extraction is batch compute rather than build time and an extracted filing stays extracted; the third industry, which was never committed; and embeddings, which is why the measurement reports three layers without them and four with. Never the labelled set, the authorisation suite or the OCR measurement — they are what the project's results rest on.
+**If time runs short:** stage 3, then stage 2 from the end of its list, then 43.210, then embeddings — which is why the measurement reports three layers without them and four with. v1 is not cut. Never the labelled set, the OCR measurement, or — once stage 2 stores user data — the authorisation suite.
 
 Requirements that carry a success metric are load-bearing for the graded result; the rest are product. The cut order draws from the product group first by design, and the single exception is development over time, which the OCR measurement covers and where only the interface is cut.
+
+**Workflow from the first line of code.** Planning documents may be committed straight to `main`; code goes through one GitHub issue, one branch (`story/<id>-<slug>`) and one pull request per story, with the PR linking the issue, the FRs, the test evidence and the AI session file, and recording what review found in AI-generated code. The grading guide looks for branches, pull requests, issues and traces of code review, and this is where they come from. Detail in `AGENTS.md`, "Git workflow".
+
+**AI sessions** are saved in `docs/ai-sessions/`, one file per working session, linked from the PR or commit it produced.
 
 **An AI log** (`docs/ai-log.md`) is kept from week one: what was asked for, what came back, what was wrong, how it was caught. Particular attention to authorization checks proposed in the client rather than on the server, floating point applied to money, and parsers that read an empty element as zero.
 

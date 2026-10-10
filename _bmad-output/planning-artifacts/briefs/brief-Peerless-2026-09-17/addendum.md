@@ -24,7 +24,7 @@ Embeddings of the business descriptions are measured as an alternative to AI cla
 
 **Tabs.** An analysis is organised as overview, peers, key figures and gaps, development over time, and value.
 
-**The account wall.**
+**The account wall (stage 2).** In v1 there are no accounts and every analysis is open; the wall below applies once accounts arrive.
 
 | Open to anyone | Needs an account |
 |---|---|

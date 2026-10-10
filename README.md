@@ -28,6 +28,10 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 
 [docs/ai-log.md](docs/ai-log.md)
 
+## AI Sessions
+
+[docs/ai-sessions/](docs/ai-sessions/) — one file per working session with an AI tool, linked from the pull request or commit it produced
+
 ## To-do
 
 [docs/todo.md](docs/todo.md)

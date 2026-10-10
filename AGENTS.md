@@ -43,6 +43,8 @@ Use TypeScript strictly. Types are how we keep financial data from drifting; do 
 
 **Never select peers on a measure that is benchmarked.** Peer matching may use what kind of business a company is — cost composition, inventory, capitalised intangibles, asset intensity — never how well it performs. Selecting on margin or return makes every gap in that measure close to zero. Any measure used in selection enters only in coarse bands — today cost of goods share and personnel cost share — and is benchmarked within its band.
 
+**Peerless runs without our keys.** A fresh clone must run from the README on a local database with seed data — no API key, paid account, email or hosted service. Anything that calls a model or the register at runtime needs a test mode backed by stored output.
+
 **Secrets never reach the client.** API keys, service-role credentials and database connection strings stay server-side. `.env` is gitignored from commit one.
 
 **This file must match the code.** When a change makes something here wrong — the stack, a rule, a filename — update this file in the same commit. A stale instruction file is worse than none, because it is trusted.
@@ -85,7 +87,7 @@ Prefer explicit over clever. This code will be read by a sensor who is checking 
 
 ## Testing
 
-Write the authorisation test suite early, not last. It attempts every forbidden access pattern — reading another user's data, reaching another workspace, an anonymous session reading or writing saved data, a viewer writing, calling an endpoint unauthenticated — and asserts rejection.
+Write the authorisation test suite as soon as user-scoped data exists (stage 2), before any feature that stores it. It attempts every forbidden access pattern — reading another user's data, reaching another workspace, an anonymous session reading or writing saved data, a viewer writing, calling an endpoint unauthenticated — and asserts rejection.
 
 The engine is tested against hand-calculated reference cases built from real filed accounts, including edge cases: negative equity, zero revenue, missing components, non-calendar financial year.
 
@@ -93,13 +95,26 @@ Peer classification is measured as precision and recall against a labelled set, 
 
 ## Things not to do
 
-Do not add features that are listed as out of scope in the brief. Scope discipline is part of what is being graded.
+Do not add features that are listed as out of scope in the brief. Scope discipline is part of what is being graded. Do not start stage 2 or stage 3 until v1 runs from a fresh clone.
 
 Do not introduce a second request-serving service, a message queue, or an ORM abstraction layer. The Python ingestion pipeline is the one exception and it is a batch job, not a service — keep it that way.
 
 Do not use browser storage for anything that matters. State that must survive belongs in Postgres.
 
 Do not OCR or fetch documents at query time. OCR takes seconds to tens of seconds per filing; extraction is pre-warmed by the batch job and stored — see the technical note.
+
+## Git workflow
+
+**Planning and documentation may go straight to `main`.** The brief, PRD, technical note, `docs/`, analysis reports and memlogs are committed on `main` with descriptive messages.
+
+**Code goes through issue → branch → pull request, one story at a time.**
+- Every story has a GitHub issue that names the story and the FRs it implements.
+- Work happens on a branch named `story/<story-id>-<short-slug>`, never directly on `main`.
+- The pull request links the issue (`Closes #n`), lists the FRs, says how it was tested, and links the AI session file in `docs/ai-sessions/`.
+- Review before merging: read the diff, run the tests, and record in the PR what was found and corrected in AI-generated code. The review comments are part of what is graded.
+- Small, scoped commits with messages that say what and why.
+
+**AI sessions are saved.** Each working session that produces or changes code or a planning decision gets a file in `docs/ai-sessions/`, following the README there: the goal, the prompts that mattered, what was accepted, rejected or corrected, and links to the issue, PR or commits. `docs/ai-log.md` records the lessons; `docs/ai-sessions/` records the sessions themselves.
 
 ## Working style
 

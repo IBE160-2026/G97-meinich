@@ -125,7 +125,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 - **Organisation number** (`organisasjonsnummer`) — the nine-digit register key. The sole lookup input and the **only** basis for matching a company across filings and years; names change while the number does not.
 - **Subject** — the company being analysed. Exactly one per analysis. Must be in a covered industry to receive a peer group (FR-3); outside one it gets its own key figures only (FR-4).
-- **Front page** — the entry page: a description, the organisation-number field, and from stage 3 industry overviews (FR-61).
+- **Front page** — the entry page: a description, the search field (name or organisation number), and from stage 3 industry overviews (FR-61).
 - **Industry overview** — an aggregate picture of one covered industry. Never names a company. Stage 3.
 - **Portfolio** — a signed-in user's front page, listing every company they follow — that is, every company with a saved analysis in one of their workspaces (FR-63). Stage 2.
 - **Peer** — a company included in the subject's peer group. Named and visible, never anonymised.
@@ -136,7 +136,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Viewer** — invited read-only member of a workspace: a board member, co-owner, or an adviser's client.
 - **Adviser** — *not a role.* A user with many workspaces. There is no adviser role in the system.
 - **Anonymous session** — a visitor without an account. Holds a real `auth.uid()` via Supabase anonymous sign-in, so one access model covers everyone. May read public figures and nothing else. Stage 2; in v1 a visitor has no identity at all and nothing is stored.
-- **Open route** — the no-account path: lookup, peer group, adjustment, kroner gaps. In v1 it is the only route; rate-limited from stage 2 (FR-6).
+- **Open route** — the no-account path: lookup, peer group, adjustment, kroner gaps. In v1 it is the only route; rate-limited per IP from v1, and per session with a CAPTCHA from stage 2 (FR-6).
 
 **The funnel**
 
@@ -191,14 +191,17 @@ Requirements are numbered globally FR-1 to FR-73. `docs/key-figures.md` is autho
 
 Honesty at this boundary is load-bearing: a company outside a covered industry gets its own filed figures and a statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
 
-#### FR-1: Lookup by organisation number · v1
+#### FR-1: Lookup by name or organisation number · v1
 
-A visitor, with or without an account, can enter a nine-digit organisation number and reach an analysis. Realises UJ-1, UJ-2.
+A visitor, with or without an account, can search by company name or organisation number in one field and reach an analysis. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
+- One field accepts either. A nine-digit number is matched exactly; anything else is a fuzzy match on company name.
+- The search runs against the companies in Peerless's own database (the seed, FR-73), never against the register live.
+- Each result shows name, organisation number, primary industry and municipality, so two companies with similar names can be told apart. One company at a time: the search returns companies matching a name, never companies matching financial criteria (§5, screening).
+- Choosing a result resolves on organisation number. Companies are matched across filings and years on organisation number only; a name match never identifies a company.
 - A valid organisation number for a company in a covered industry returns a complete analysis.
-- Companies are matched across filings and years on organisation number only; a name match never identifies a company.
-- A malformed or non-existent number returns a clear message, not an empty analysis.
+- A malformed number, or a search with no match, returns a clear message, not an empty analysis.
 
 #### FR-2: Company identification · v1
 
@@ -228,6 +231,7 @@ A company outside a covered industry is shown the key figures the register's own
 - The twelve figures that need a component from the filed document are **not** shown, because extraction never runs during a user request (FR-59) and nothing has been pre-warmed for an uncovered industry.
 - No peer group, no median, no quartile, no percentile and no kroner amount is shown for an uncovered subject. Nothing here is a comparison, so FR-24's same-basis rule is not engaged.
 - The statement names the industry and says coverage is not yet available — it does not imply the company is ineligible or unavailable.
+- **In v1 this rests on stored data**, because nothing calls the register at runtime (FR-73). It is demonstrated by demo company C, a `69.202` bookkeeping firm whose register data is in the seed. An organisation number that is not in Peerless's database gets *"Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)."* followed by links to demo companies A and B — never an empty analysis and never a live register call. A live register lookup for such numbers may be considered in stage 2.
 
 #### FR-5: User-entered subject description · Stage 2
 
@@ -866,10 +870,10 @@ When the register reports a company as gone, Peerless deletes its stored copy.
 
 #### FR-61: Front page with industry overviews · v1
 
-The front page describes Peerless, holds the organisation-number field, and shows an overview of each covered industry: the median margin over time, the spread in personnel cost share, and the share of companies growing.
+The front page describes Peerless, holds the search field (name or organisation number), and shows an overview of each covered industry: the median margin over time, the spread in personnel cost share, and the share of companies growing.
 
 **Consequences (testable):**
-- **Stage split:** the front page — the description, the organisation-number field, "Slik fungerer det" in three steps and the link to FR-72 — is v1. The industry overviews are stage 3, and every consequence below concerns them.
+- **Stage split:** the front page — the description, the search field (name or organisation number), "Slik fungerer det" in three steps and the link to FR-72 — is v1. The industry overviews are stage 3, and every consequence below concerns them.
 - Overviews show aggregates only and never name a company.
 - They are computed by the same engine from the same stored figures as an analysis, and follow the minimum group size (FR-22).
 - They exist only for covered industries.
@@ -986,7 +990,7 @@ Scope comes in three stages, as the brief sets them after the teacher's feedback
 - Gap quantification in kroner, the margin decomposition against the peer group as a whole, the closable-share control, and valuation at a user-set EV/EBIT multiple (FR-29 to FR-32).
 - The written explanation from stored output, with the no-calculation rule enforced by test and running against the stored fixtures (FR-52 to FR-54).
 - Data quality and provenance: the per-filing flag, withheld figures, traceability, disclosed data age, source credit under the register's licence, removal of withdrawn companies from stored data (FR-57 to FR-60, FR-64 to FR-66, FR-71).
-- A front page with the organisation-number field, analysis in four open tabs, and the public "Slik fungerer Peerless" page (FR-61's front page, FR-62 without *Utvikling*, FR-72).
+- A front page with the search field (name or organisation number), analysis in four open tabs, and the public "Slik fungerer Peerless" page (FR-61's front page, FR-62 without *Utvikling*, FR-72).
 - Running locally from a fresh clone: local Supabase, the committed demo seed in one command with three named demo companies, the locally generated full seed, AI test mode, no email, and a README of about five commands (FR-73).
 - Security for a version without accounts: input validation, server-side secrets, a per-IP rate limit on the open route, and no stored user data (FR-1, FR-6).
 - A responsive, Norwegian-language interface from desktop down to phone width (FR-55, FR-56).

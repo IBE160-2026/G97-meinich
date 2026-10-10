@@ -100,7 +100,7 @@ Deviating or changed financial years are excluded or adjusted explicitly.
 
 ## Pages
 
-**Front page.** A short description of Peerless, the organisation-number field, "Slik fungerer det" in three steps and a link to the About page. From stage 3, below it, an overview of each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. Overviews show aggregates only, never named companies, are computed by the same engine from the same stored figures, and follow the minimum group size. Named rankings are out of scope: a top list collects recognition errors and small-base outliers, and a wage-share ranking misleads wherever subcontractors are booked outside payroll.
+**Front page.** A short description of Peerless, the search field (company name or organisation number, searched in the seed database and never the register live), "Slik fungerer det" in three steps and a link to the About page. From stage 3, below it, an overview of each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. Overviews show aggregates only, never named companies, are computed by the same engine from the same stored figures, and follow the minimum group size. Named rankings are out of scope: a top list collects recognition errors and small-base outliers, and a wage-share ranking misleads wherever subcontractors are booked outside payroll.
 
 **Analysis tabs.** Overview, peers, key figures and gaps, and value in v1; development over time joins them in stage 2.
 

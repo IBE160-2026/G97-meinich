@@ -185,6 +185,30 @@ Run on all active AS with five or more employees in 62.100, 69.202 and 43.210 (3
 
 ---
 
+## Statistics Norway (SSB) — candidate source for stage 3
+
+Not used in v1. Recorded here because it is the natural source for the market picture in stage 3: how an industry grows, how many companies it has, and how its profitability moves over time. Brønnøysundregistrene describes individual companies; SSB describes industries in aggregate. They complement each other and must not be mixed.
+
+**APIs.** Statistikkbanken through PxWeb API v2 (`https://data.ssb.no/api/pxwebapi/v2/`), and Klass for classifications and the correspondence between them. Both open, no registration.
+
+**Tables confirmed on 2026-10-10** by reading their metadata from the API:
+
+| Table | SSB's own title | Period |
+|---|---|---|
+| 12910 | Hovedtall for alle foretak og bedrifter, etter næring (SN2007 hovedområde, 2-, 3-, 4- og 5-siffernivå) | 2017–2024 |
+| 14000 | Føretak, etter næring (SN2007) og storleik | 2008–2024 |
+| 07371 | Alle næringer. Nøkkeltall for ikke-finansielle aksjeselskaper (avslutta serie) | 2007–2025 |
+
+07371 is a discontinued series and its title says "alle næringer"; whether it carries key figures per industry at a useful level is not confirmed.
+
+**Pitfalls known before any code:**
+
+- **Industry codes do not match.** The register classifies by SN2025 (see Pitfalls above); these SSB tables are in SN2007, and SSB moves to SN2025 gradually. Some industries are split or redefined, so a mapping through SSB's Klass correspondence tables is required, and an industry that does not map cleanly must say so rather than be compared against the wrong aggregate.
+- **A different population.** SSB counts all enterprises — sole proprietorships and companies without employees included — while a peer group is limited companies with comparable accounts. SSB figures are context only: they never enter a median, quartile, percentile or kroner amount.
+- **AI text.** Any SSB figure the explanation mentions must be part of the engine's output, or the figure-validation test rejects it.
+
+**Not yet checked:** SSB's licence and attribution terms, and any limit on requests. Claims seen elsewhere (for example 30 requests per minute) are unverified until read on ssb.no.
+
 ## Licence and attribution
 
 Established 2026-09-26 by reading the register's own pages and the licence text. Norwegian quotes are verbatim; the one gap is marked as a gap rather than filled with a guess.

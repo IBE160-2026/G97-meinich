@@ -15,6 +15,10 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 - [x] **Set the minimum group size.** The screening used 10 as a placeholder. → 10 peers, per key figure
 - [x] **Check the course requirements** for fixed user roles, since the access model now uses workspace roles (owner/viewer), and for which BMAD artifacts (PRD, UX, epics and stories) are expected before coding. → No fixed roles required. Nothing must be delivered before coding, but the BMAD requirements must be met. The product brief is due 2026-09-27. Solo project.
 
+## Later (stage 3)
+
+- [ ] **SSB as industry context.** Confirm SSB's licence, attribution and request limits on ssb.no; check whether table 07371 has key figures per industry; work out the SN2007 → SN2025 mapping for 62.100 through Klass. See the SSB section in `docs/data-sources-brreg.md`.
+
 ## Before the first line of code
 
 - [ ] Choose package manager and test frameworks (e.g. pnpm, Vitest for the engine, Playwright end to end).

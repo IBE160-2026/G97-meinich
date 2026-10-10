@@ -79,7 +79,7 @@ None of this is defensible; the addendum says why.
 
 **Stage 2, if time allows.** Accounts by magic link, workspaces with invited viewers, the portfolio front page, saved analyses and audit log, development over time and sparklines, own unfiled and year-to-date figures, PDF export, a user-written company description.
 
-**Stage 3.** More industries — bookkeeping (69.202) and electrical installation (43.210) are screened and ready — each offered only once its own peer selection is measured; comparing them will show *when* AI earns its place, not only whether. And the industry overviews on the front page.
+**Stage 3.** More industries — bookkeeping (69.202) and electrical installation (43.210) are screened and ready — each offered only once its own peer selection is measured; comparing them will show *when* AI earns its place, not only whether. And a picture of the market around the company: the industry overviews on the front page, with industry context from Statistics Norway (SSB) — market size, growth and profitability over time — shown as context and never mixed into the peer benchmark.
 
 **Out of v1.** Named rankings, share links, a full valuation tool, screening, a composite score, free-form chat, credit scoring and forecasting, among others — the complete list, with the reason for each, is in the addendum.
 

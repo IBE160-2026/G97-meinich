@@ -8,7 +8,16 @@ import { describe, expect, it } from 'vitest';
 // screen reader or the browser shows to the user.
 const root = path.resolve(import.meta.dirname, '..');
 const SCANNED_DIRS = ['src/app', 'src/components'];
-const COPY_ATTRIBUTES = new Set(['aria-label', 'title', 'alt', 'placeholder']);
+const COPY_ATTRIBUTES = new Set([
+  'aria-label',
+  'aria-description',
+  'aria-roledescription',
+  'aria-valuetext',
+  'title',
+  'alt',
+  'placeholder',
+  'label',
+]);
 
 interface CopyFinding {
   file: string;
@@ -32,7 +41,11 @@ function findHardcodedCopy(file: string, source: string): CopyFinding[] {
     if (ts.isJsxText(node) && hasLetters(node.text)) {
       report(node, node.text);
     }
-    if (ts.isJsxExpression(node) && node.expression && ts.isJsxElement(node.parent)) {
+    if (
+      ts.isJsxExpression(node) &&
+      node.expression &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent))
+    ) {
       const expr = node.expression;
       if (
         (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) &&
@@ -80,6 +93,8 @@ describe('no hard-coded copy', () => {
       `${file}:9 Søk`,
       `${file}:10 Mer informasjon`,
       `${file}:11 Uttrykk i JSX`,
+      `${file}:12 Tekst i fragment`,
+      `${file}:13 Velg bransje`,
     ]);
   });
 

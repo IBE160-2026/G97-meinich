@@ -9,6 +9,8 @@ export function Bad() {
       <input placeholder={'Søk'} />
       <span title={`Mer informasjon`} />
       {'Uttrykk i JSX'}
+      <>{'Tekst i fragment'}</>
+      <option label="Velg bransje" />
       <p>{t('shell.brand')}</p>
       <span className="figure" aria-hidden="true" />
     </div>

@@ -1,0 +1,101 @@
+@import 'tailwindcss';
+
+/*
+ * Brand layer from DESIGN.md (ux-Peerless-2026-10-04). Light mode only in v1:
+ * no dark tokens, no prefers-color-scheme, no .dark variant.
+ * Font files come from @fontsource-variable (imported in layout.tsx), so a
+ * build never fetches from Google.
+ */
+
+@theme {
+  /* Only the DESIGN.md palette exists: Tailwind's default colours (with their
+     reds and greens) are removed. */
+  --color-*: initial;
+  --color-navy-900: #0b2340;
+  --color-navy-700: #1f3a5f;
+  --color-primary-foreground: #ffffff;
+  --color-link: #2f5d8c;
+  --color-signature: #7399c6;
+  --color-background: #ffffff;
+  --color-surface: #f5f7fa;
+  --color-surface-foldout: #fbfcfd;
+  --color-divider: #d9e0e8;
+  --color-band: #6c7f95;
+  --color-input-border: #7b8ba0;
+  --color-slate: #5b6b7f;
+  --color-favourable: #1f6f8b;
+  --color-unfavourable: #b45309;
+  --color-median: #6b7c91;
+  --color-peer-dot: #7b8ba0;
+  --color-gridline: #e6ebf1;
+  --color-connector: #b9c3cf;
+  --color-disabled-text: #6f7e90;
+
+  /* Inter for body, labels and every figure; Source Serif 4 for headings only. */
+  --font-*: initial;
+  --font-sans: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Source Serif 4 Variable', 'Source Serif 4', ui-serif, Georgia, serif;
+
+  /* Named spacing tokens; Tailwind's 4-based scale is kept alongside. */
+  --spacing-gutter-desktop: 32px;
+  --spacing-gutter-phone: 16px;
+  --spacing-card-padding: 24px;
+  --spacing-card-padding-phone: 16px;
+  --spacing-grid-gap: 24px;
+  --spacing-grid-gap-phone: 16px;
+  --spacing-front-hero-top: 112px;
+  --spacing-front-hero-top-phone: 40px;
+  --spacing-indent-group: 30px;
+  --spacing-target-min: 24px;
+  --spacing-target-phone: 44px;
+
+  --radius-*: initial;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+}
+
+/* Figures: Inter with tabular numerals wherever numbers sit in columns. */
+@utility figure {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-background);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-navy-900);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+  }
+
+  table,
+  input {
+    font-variant-numeric: tabular-nums;
+  }
+
+  a {
+    color: var(--color-link);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-navy-700);
+    outline-offset: 2px;
+  }
+}

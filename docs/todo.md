@@ -25,6 +25,6 @@ Open work that is decided but not yet done. Tick items off here, and move any de
 - [ ] Set up Supabase CLI locally with migrations in the repo, so RLS policies are tested as SQL against a real database.
 - [ ] Settle the money type (integer øre, `bigint`) and record it in `AGENTS.md`.
 - [ ] GitHub Actions running typecheck and tests on every push.
-- [ ] Supabase project in an EU region; anonymous sign-in, CAPTCHA and magic link enabled; a short privacy notice.
-- [x] Extend the OCR spike to the older paper-form scans (week 1 in the schedule). → Paper filings are rare and never read; about 88 % of 2021–2025 columns reconcile; five years of development over time in v1.
+- [ ] Local Supabase via the CLI for v1. Stage 2: a hosted Supabase project in an EU region with anonymous sign-in, CAPTCHA and magic link, and a short privacy notice.
+- [x] Extend the OCR spike to the older paper-form scans (week 1 in the schedule). → Paper filings are rare and never read; about 88 % of 2021–2025 columns reconcile; five years of development over time, which is now stage 2.
 - [ ] Confirm the OCR field names in `docs/key-figures.md` against the Brreg-generated section of a real filing.

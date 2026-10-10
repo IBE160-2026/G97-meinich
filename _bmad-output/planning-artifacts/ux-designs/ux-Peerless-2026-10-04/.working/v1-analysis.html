@@ -1,0 +1,1089 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Peerless v1 analyse</title>
+<style>
+/* Governs: EXPERIENCE.md analysis page (Oversikt, Peers, Nøkkeltall og gap, Verdi), docs/key-figures.md
+   "Decompositions" and "From gap to kroner", .memlog.md decisions of 2026-10-10 (v1 scope, waterfall,
+   factor-vs-own-median, beeswarm, no sparklines, no account wall). */
+/* Fixed tokens (light only):
+   text #0B2340 · primary #1F3A5F · link #2F5D8C · signature #7399C6 (markers only, never text)
+   surface #F5F7FA · divider #D9E0E8 · input border #7B8BA0 · slate #5B6B7F
+   favourable #1F6F8B · unfavourable #B45309 · median tick #6B7C91
+   Peer dots #7B8BA0. Chart gridlines #E6EBF1. No red or green; direction is always an arrow or a word. */
+:root{--text:#0B2340;--primary:#1F3A5F;--link:#2F5D8C;--sig:#7399C6;--surface:#F5F7FA;--divider:#D9E0E8;--input:#7B8BA0;--slate:#5B6B7F;--fav:#1F6F8B;--unf:#B45309;--median:#6B7C91;--grid:#E6EBF1;--bg:#E9EDF2}
+*{box-sizing:border-box}
+html,body{margin:0;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;line-height:1.45}
+a{color:var(--link);text-underline-offset:2px}
+button{font:inherit;color:inherit}
+/* review chrome */
+.page{max-width:1700px;margin:0 auto;padding:24px 16px 64px}
+.page>h1{font-size:22px;margin:0 0 6px}
+.rvtext{max-width:900px;color:var(--slate);margin:4px 0}
+.jump{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.jump a{border:1px solid var(--input);border-radius:4px;padding:4px 10px;background:#fff;text-decoration:none;color:var(--text)}
+.tabsec{margin-top:44px;border-top:2px solid var(--primary);padding-top:14px}
+.tabsec>h2{margin:0 0 4px;font-size:19px}
+.tabsec>h3{margin:28px 0 0;font-size:16px}
+.frames{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;margin-top:14px}
+.fcol{max-width:100%;min-width:0}
+.fwrap{max-width:100%;overflow-x:auto}
+.flabel{font-size:12px;color:var(--slate);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.desk{width:1202px;background:#fff;border:1px solid #C9D2DC;border-radius:6px;box-shadow:0 1px 2px rgba(11,35,64,.06)}
+.phone{width:395px;background:#fff;border:10px solid #1B2533;border-radius:28px;overflow:hidden}
+.chrome{height:30px;background:#EEF1F5;border-bottom:1px solid var(--divider);border-radius:6px 6px 0 0;display:flex;align-items:center;padding:0 12px;gap:6px;font-size:12px;color:var(--slate)}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#C9D2DC;display:inline-block}
+.chrome .url{margin-left:12px;background:#fff;border:1px solid var(--divider);border-radius:4px;padding:2px 10px}
+.phurl{background:#EEF1F5;font-size:11.5px;color:var(--slate);text-align:center;padding:6px 0 5px;border-bottom:1px solid var(--divider)}
+.rv{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);border:1px solid var(--divider);background:#fff;border-radius:3px;padding:1px 6px;margin:0 0 6px}
+.states{display:flex;flex-wrap:wrap;gap:24px;margin-top:14px;align-items:flex-start}
+.state{width:375px;max-width:100%;background:#fff;border:1px solid #C9D2DC;border-radius:6px;padding:20px 16px;min-width:0}
+.state .cap{font-size:12px;color:var(--slate);margin:12px 0 0;border-top:1px dashed var(--divider);padding-top:8px}
+
+/* ---------- app ---------- */
+.app{background:#fff;color:var(--text);width:100%;overflow:hidden}
+.tnum{font-variant-numeric:tabular-nums}
+.muted{color:var(--slate)} .small{font-size:12px}
+.top{display:flex;align-items:center;gap:20px;padding:12px 32px;border-bottom:1px solid var(--divider)}
+.ph .top{gap:12px;padding:10px 16px}
+.brand{font-weight:700;font-size:17px;letter-spacing:.01em;color:var(--primary);text-decoration:none;white-space:nowrap}
+.org{display:flex;align-items:center;gap:6px}
+.org input{font:inherit;font-size:13px;font-variant-numeric:tabular-nums;border:1px solid var(--input);border-radius:4px;padding:5px 8px;width:160px;color:var(--text);background:#fff}
+.ph .org{flex:1;min-width:0}.ph .org input{width:100%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sp{flex:1}
+.top a.how{white-space:nowrap;font-size:13.5px}
+.ph .top a.how{font-size:12.5px;white-space:normal;line-height:1.2;text-align:right;max-width:92px}
+.co{padding:22px 32px 0}
+.ph .co{padding:16px 16px 0}
+.co h1{font-size:24px;margin:0 0 4px;line-height:1.2}
+.ph .co h1{font-size:21px}
+.meta{display:flex;flex-wrap:wrap;gap:2px 0;color:var(--slate);font-size:13px}
+.meta span:not(:last-child)::after{content:"·";margin:0 7px;color:var(--input)}
+.tabs{display:flex;gap:2px;padding:0 32px;border-bottom:1px solid var(--divider);margin-top:16px}
+.ph .tabs{padding:0 8px;gap:0}
+.tab{background:none;border:0;color:var(--slate);padding:11px 12px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.ph .tab{white-space:normal;font-size:13px;padding:9px 7px;line-height:1.2;text-align:left;flex:1 1 auto}
+.tab.on{color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--primary)}
+.main{padding:32px 32px 8px}
+.ph .main{padding:20px 16px 4px}
+.foot{font-size:12.5px;color:var(--slate);border-top:1px solid var(--divider);margin:40px 32px 0;padding:16px 0 22px}
+.ph .foot{margin:28px 16px 0}
+.foot p{margin:0}
+.scroll{overflow-x:auto;max-width:100%}
+
+/* cards & grid */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px}
+.ph .grid{grid-template-columns:minmax(0,1fr);gap:16px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c12{grid-column:span 12}
+.ph .grid>*{grid-column:auto}
+.card{border:1px solid var(--divider);border-radius:6px;padding:24px;background:#fff;min-width:0}
+.ph .card{padding:16px}
+.card h3{margin:0 0 2px;font-size:15px}
+.kick{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);font-weight:600;margin:0 0 6px}
+.hero .fig{font-size:15px;font-weight:600;margin:0 0 10px}
+.hero .big{font-size:52px;font-weight:600;line-height:1.05;letter-spacing:-.01em}
+.ph .hero .big{font-size:40px}
+.hero .per{font-size:14px;color:var(--slate);margin:4px 0 18px}
+.hero .vs{font-size:18px;margin:0}
+.hero .ctx{color:var(--slate);margin:6px 0 18px}
+.links{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+.sc .val{font-size:22px;font-weight:600;margin:8px 0 4px}
+.sc .val .vl{font-size:13px;font-weight:500;color:var(--slate);display:block;margin-bottom:1px}
+.sc .val .vu{font-size:13px;font-weight:500;color:var(--text)}
+.sc .line{margin:0 0 2px;color:var(--slate);font-size:13px}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;border:1px solid var(--input);border-radius:3px;padding:1px 6px;color:var(--text);white-space:nowrap}
+.tag.soft{border-color:var(--divider);color:var(--slate)}
+.dir-up{color:var(--fav);font-weight:600}
+.dir-dn{color:var(--unf);font-weight:600}
+.expl p.txt{margin:6px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:110ch}
+.expl.open p.txt{display:block}
+.expl .src{font-size:12px;color:var(--slate);margin:8px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--slate);margin:8px 0 6px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend b{color:var(--text);font-weight:600}
+.plotwrap{position:relative}
+.plotwrap svg{display:block}
+svg text{font-family:inherit}
+.ax{font-size:11px;fill:var(--slate);font-variant-numeric:tabular-nums}
+.axl{font-size:11px;fill:var(--slate)}
+svg[data-chart]{outline:none}
+svg[data-chart]:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+table.lst{border-collapse:collapse;width:100%;font-size:13px}
+.lst th,.lst td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--divider);vertical-align:top}
+.lst thead th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600;border-bottom:1px solid var(--input)}
+.lst td.r,.lst th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lst tr.ex td{color:#6F7E90}
+.lst tr.ex td.nm{text-decoration:line-through;text-decoration-color:#B5C0CC}
+.flag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--unf);font-weight:600;white-space:nowrap}
+.basis{white-space:nowrap}
+.linkbtn{background:none;border:0;padding:0;color:var(--link);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:13px;white-space:nowrap}
+
+/* funnel */
+.funnel{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin:10px 0 6px;list-style:none;padding:0}
+.funnel li{padding:0 14px 0 0;position:relative}
+.funnel li+li{padding-left:14px;border-left:1px solid var(--divider)}
+.funnel .st{font-size:12.5px;color:var(--slate);min-height:34px}
+.funnel .n{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.funnel .bar{height:8px;background:var(--surface);border-radius:2px;margin-top:6px;position:relative}
+.funnel .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--primary);border-radius:0 4px 4px 0}
+.ph .funnel{grid-template-columns:minmax(0,1fr)}
+.ph .funnel li{display:grid;grid-template-columns:1fr auto;align-items:center;padding:8px 0;border-left:0;border-bottom:1px solid var(--divider)}
+.ph .funnel li+li{padding-left:0}
+.ph .funnel .st{min-height:0;font-size:13px;color:var(--text)}
+.ph .funnel .n{font-size:17px}
+.ph .funnel .bar{grid-column:1/-1;height:6px;margin-top:4px}
+.fsum{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;margin-top:8px}
+.seg{display:inline-flex;border:1px solid var(--input);border-radius:5px;overflow:hidden;max-width:100%}
+.seg button{background:#fff;border:0;padding:7px 12px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+.seg button+button{border-left:1px solid var(--input)}
+.seg button.on{background:var(--primary);color:#fff;font-weight:600}
+.seg button[disabled]{color:#6F7E90;background:var(--surface);cursor:not-allowed}
+.seg button small{display:block;font-size:10.5px;font-weight:400;opacity:.85}
+.ph .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:1px;background:var(--input)}
+.ph .seg button{padding:7px 4px;white-space:normal}
+.ph .seg button+button{border-left:0}
+.banner{border:1px solid var(--input);border-left:4px solid var(--primary);background:var(--surface);padding:10px 12px;border-radius:4px;font-size:13px;margin:10px 0}
+.pcards{list-style:none;padding:0;margin:0}
+.pcards li{border-bottom:1px solid var(--divider);padding:10px 0;font-size:13px}
+.pcards .r1{display:flex;justify-content:space-between;gap:10px}
+.pcards .r1 span{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pcards .r1 .nm{font-weight:600;white-space:normal}
+.pcards .why{color:var(--slate);margin:2px 0 4px}
+.pcards .r3{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.pcards li.ex{color:#6F7E90}
+.pcards li.ex .nm{text-decoration:line-through;text-decoration-color:#B5C0CC}
+
+/* key figure table */
+.topnote{font-size:13px;color:var(--slate);margin:0 0 10px}
+table.kt{border-collapse:collapse;width:100%;font-size:13px}
+.kt th,.kt td{padding:10px 8px;border-bottom:1px solid var(--divider);vertical-align:middle}
+.kt thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600;border-bottom:1px solid var(--input);text-align:right;white-space:nowrap}
+.kt thead th.l{text-align:left}
+.kt td{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kt td.l,.kt th.nmc{text-align:left}
+.kt th.nmc{font-weight:600;white-space:normal;min-width:200px}
+.kt .sub2{display:block;font-size:11.5px;font-weight:400;color:var(--slate)}
+.kt tr.grp td{background:var(--surface);font-size:11.5px;color:var(--slate);text-align:left;padding:5px 8px 5px 30px;white-space:normal}
+.kt tr.sub th.nmc{padding-left:30px;font-weight:500;position:relative}
+.kt tr.sub th.nmc::before{content:"";position:absolute;left:14px;top:0;bottom:0;border-left:2px solid var(--divider)}
+.kt tr.check th.nmc,.kt tr.check td{color:var(--slate);font-size:12.5px}
+.kt .kr{font-weight:600}
+.kt .kr small{display:block;font-weight:400;color:var(--slate);font-size:11px}
+.kt .see{font-size:12.5px;white-space:normal;display:inline-block;max-width:130px;text-align:right}
+.kt td.floor{text-align:left;font-style:italic;white-space:normal}
+.kt tr.fold>td{background:#FBFCFD;text-align:left;white-space:normal;padding:0 12px 0 30px}
+.fold-h{display:flex;align-items:center;gap:8px;padding:10px 0;font-weight:600;font-size:13.5px}
+.fold-h .car{display:inline-block;width:10px;color:var(--slate)}
+.fold-b{padding:0 0 18px 18px}
+.ph .fold-b{padding:0 0 12px 0}
+.refline{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:0 0 8px;font-size:13px}
+.refline .tag{font-weight:600}
+.fnote{font-size:12.5px;color:var(--slate);margin:4px 0 0;max-width:100ch}
+.fnote.strong{color:var(--text)}
+details.tv{margin-top:10px;font-size:12.5px}
+details.tv summary{cursor:pointer;color:var(--link)}
+table.dec{border-collapse:collapse;font-size:13px;margin:6px 0 4px}
+.dec th,.dec td{padding:5px 14px 5px 0;border-bottom:1px solid var(--divider);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dec th:first-child,.dec td:first-child{text-align:left}
+.dec thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600}
+.dec tr.res td{font-weight:600;border-bottom:0}
+.factors{display:grid;grid-template-columns:repeat(2,minmax(0,360px));gap:24px;margin:8px 0}
+.ph .factors{grid-template-columns:minmax(0,1fr);gap:12px}
+.factor{border:1px solid var(--divider);border-radius:6px;padding:12px 14px;background:#fff;min-width:0}
+.factor h4{margin:0;font-size:13px}
+.factor .fv{font-size:13px;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+/* phone rows */
+.prow{border-bottom:1px solid var(--divider)}
+.prow .ph3{display:grid;grid-template-columns:minmax(0,1fr) 64px 104px;gap:8px;align-items:center;padding:10px 0;font-size:13px}
+.prow .ph3 .n1{font-weight:600}
+.prow .ph3 .n1 .car{color:var(--slate);display:inline-block;width:12px}
+.prow .ph3 .v{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.prow .ph3 .k{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:normal;font-size:12.5px}
+.prow.sub .ph3{padding-left:14px}
+.prow.sub .ph3 .n1{font-weight:500}
+.prow .k .seeL{font-weight:400;color:var(--link);text-decoration:underline;text-underline-offset:2px}
+.pgrp{font-size:11.5px;color:var(--slate);background:var(--surface);padding:5px 8px;margin-top:4px}
+.phhead{display:grid;grid-template-columns:minmax(0,1fr) 64px 104px;gap:8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600;border-bottom:1px solid var(--input);padding-bottom:6px}
+.phhead span+span{text-align:right}
+.pexp{padding:2px 0 14px 12px;font-size:13px}
+.pexp dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:8px 0 10px}
+.pexp dt{color:var(--slate)}.pexp dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.pexp .wfbox{border-top:1px solid var(--divider);margin-top:6px}
+/* waterfall rows (phone) */
+.wfrows{list-style:none;margin:6px 0 0;padding:0}
+.wfrows li{padding:7px 0;border-bottom:1px solid var(--divider)}
+.wfrows .wl{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.wfrows .wl b{font-weight:600}
+.wfrows .wl .wv{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.wfrows .ws{font-size:11.5px;color:var(--slate)}
+.wfrows svg{display:block;margin-top:4px}
+.wfrows li.tot{border-bottom:0}
+/* verdi */
+.ctl{border:1px solid var(--divider);border-radius:6px;padding:20px 24px}
+.ph .ctl{padding:14px}
+.ctl .seg{margin-top:10px}
+.ctl .seg button{min-width:72px}
+.ph .ctl .seg button{min-width:0}
+.medline{font-size:12.5px;color:var(--slate);margin:8px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mtick{display:inline-block;width:2px;height:12px;background:var(--median)}
+.amts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:24px}
+.ph .amts{grid-template-columns:minmax(0,1fr);gap:14px}
+.amt .val{font-size:30px;font-weight:600;line-height:1.1;margin:6px 0 2px}
+.ph .amt .val{font-size:26px}
+.amt .val.na{font-size:15px;font-weight:500;line-height:1.35}
+.amt .per{font-size:12.5px;color:var(--slate)}
+.amt .mt{font-size:12px;color:var(--slate);margin-top:8px;display:flex;align-items:center;gap:6px}
+.amt .sep{font-size:12px;color:var(--slate);margin-top:6px}
+.trace{margin-top:12px;border-top:1px solid var(--divider);padding-top:10px;font-size:13px}
+.trace ol{margin:6px 0 0;padding-left:20px}
+.trace li{margin:0 0 8px}
+.trace .calc{font-variant-numeric:tabular-nums;background:var(--surface);padding:6px 8px;border-radius:4px;display:inline-block;margin-top:3px;white-space:normal}
+.trace code{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--slate)}
+.evrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:24px}
+.ph .evrow{grid-template-columns:minmax(0,1fr);gap:14px}
+.evf{display:flex;align-items:center;gap:8px;margin:8px 0}
+.evf input{width:90px;font:inherit;border:1px solid var(--input);border-radius:4px;padding:6px 8px;font-variant-numeric:tabular-nums}
+.below{margin-top:24px}
+/* tooltip */
+.tip{position:fixed;z-index:50;pointer-events:none;background:#fff;border:1px solid var(--divider);box-shadow:0 2px 8px rgba(11,35,64,.14);border-radius:5px;padding:7px 9px;font-size:12px;line-height:1.35;min-width:120px;display:none;color:var(--text)}
+.tip.static{position:absolute;display:block}
+.tip .tv{font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.tip .ts{color:var(--slate)}
+.tip.static::after{content:"";position:absolute;left:var(--ax,50%);bottom:-6px;width:10px;height:10px;background:#fff;border-right:1px solid var(--divider);border-bottom:1px solid var(--divider);transform:translateX(-50%) rotate(45deg)}
+.fwrap,.app,.state{position:relative}
+.ph table.dec{font-size:12px;width:100%}
+.ph .dec th,.ph .dec td{padding:5px 6px 5px 0}
+.ph .dec td:first-child{white-space:normal}
+
+</style>
+</head>
+<body>
+<div class="page" id="root"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+<script>
+/*MSG-START*/
+const messages = {
+  "shell.brand": "Peerless",
+  "shell.how": "Slik fungerer Peerless",
+  "shell.orgnr.label": "Organisasjonsnummer",
+  "shell.orgnr.placeholder": "Org.nr.",
+  "shell.tabsLabel": "Faner i analysen",
+  "footer.source": "Data fra Brønnøysundregistrene, bearbeidet av Peerless",
+  "footer.sourcesLink": "Kilder og lisens",
+  "industry.62100": "62.100 Dataprogrammeringstjenester",
+  "industry.69202": "69.202 Regnskapsføring og bokføring",
+  "front.title": "Sammenlign selskapet ditt med selskaper som faktisk ligner",
+  "front.lead": "Peerless finner sammenlignbare selskaper i offentlige regnskaper, sammenligner nøkkeltallene og viser hva hvert avvik er verdt i kroner.",
+  "front.search.label": "Organisasjonsnummer",
+  "front.search.placeholder": "Organisasjonsnummer, f.eks. 912 345 678",
+  "front.search.submit": "Sammenlign",
+  "front.coverage": "Foreløpig dekker Peerless én bransje: {industry}.",
+  "front.error.format": "Organisasjonsnummeret må ha 9 siffer",
+  "front.loading": "Henter regnskap …",
+  "front.notFound.title": "Fant ikke {orgnr}",
+  "front.notFound.body": "Organisasjonsnummeret finnes ikke i Enhetsregisteret. Sjekk at du har skrevet det riktig.",
+  "front.steps.title": "Slik fungerer det",
+  "front.steps.1.title": "Skriv inn organisasjonsnummer",
+  "front.steps.1.body": "Vi henter selskapets regnskap fra Brønnøysundregistrene.",
+  "front.steps.2.title": "Se hvem du sammenlignes med og hvorfor",
+  "front.steps.2.body": "Hvert sammenlignbart selskap vises med begrunnelse. Du kan ta ut selskaper som ikke passer.",
+  "front.steps.3.title": "Se hva hvert gap er verdt i kroner",
+  "front.steps.3.body": "Avviket i hvert nøkkeltall regnes om til kroner, og hvert beløp kan følges tilbake til regnskapet.",
+  "front.howLink": "Les hvordan Peerless velger sammenlignbare selskaper og regner ut tallene",
+  "uncov.kick": "Bransjen er ikke dekket ennå",
+  "uncov.statement": "{name} er registrert i bransjen {industry}. Peerless dekker foreløpig bare {covered}, så vi kan ikke sammenligne selskapet med andre ennå.",
+  "uncov.figsTitle": "Tre nøkkeltall fra regnskapet",
+  "uncov.figsNote": "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner.",
+  "uncov.source": "Fra Regnskapsregisterets API.",
+  "uncov.again": "Søk på et annet selskap",
+  "company.revenue": "Omsetning {v}",
+  "company.year": "Regnskapsår {y}",
+  "company.read": "hentet {d}",
+  "tabs.oversikt": "Oversikt",
+  "tabs.peers": "Peers",
+  "tabs.gap": "Nøkkeltall og gap",
+  "tabs.verdi": "Verdi",
+  "unit.pct": "{v} %",
+  "unit.kr": "{v} kr",
+  "unit.mill": "{v} mill. kr",
+  "unit.pp": "{v} pp",
+  "unit.days": "{v} dager",
+  "unit.x": "{v} ganger",
+  "dir.up": "↑ Høyere er bedre",
+  "dir.down": "↓ Lavere er bedre",
+  "dir.none": "Ingen retning",
+  "better": "Bedre →",
+  "placement": "bedre enn {v} %",
+  "floor": "For få sammenlignbare ({n} av 10)",
+  "count.all": "{n} sammenlignbare",
+  "count.left": "{n} sammenlignbare ({m} utelatt)",
+  "strength": "▲ Styrke",
+  "under": "▼ {v} under",
+  "noKr": "ingen kronebeløp",
+  "how": "Hvordan er dette regnet?",
+  "readMore": "Les mer",
+  "showNumbers": "Vis tallene",
+  "legend.own": "Fjordkode",
+  "legend.median": "Median",
+  "legend.best": "Beste fjerdedel",
+  "legend.peers": "Sammenlignbare ({n})",
+  "legend.mid": "Midtre halvdel",
+  "fig.driftsmargin": "Driftsmargin",
+  "fig.lonn": "Lønnskostnadsandel",
+  "fig.andre": "Andel andre driftskostnader",
+  "fig.vare": "Varekostnadsandel",
+  "fig.total": "Total kostnadsandel",
+  "fig.tkr": "Totalkapitalrentabilitet",
+  "fig.oml": "Omløpshastighet driftseiendeler",
+  "fig.ek": "Egenkapitalandel",
+  "fig.vekst": "Omsetningsvekst",
+  "fig.kfd": "Kundefordringsdager",
+  "ov.hero.kick": "Største gap i kroner",
+  "ov.hero.fig": "Driftsmargin",
+  "ov.hero.per": "per år ved full tilnærming til beste fjerdedel",
+  "ov.hero.vs": "{own} mot {best} i beste fjerdedel",
+  "ov.hero.ctx": "Over medianen på {med} · {plc} · {pp} under beste fjerdedel",
+  "ov.hero.toTable": "Se alle nøkkeltall",
+  "ov.expl.kick": "Forklaring",
+  "ov.expl.text": "Driftsmarginen på {own} er over medianen ({med}), men {pp} under beste fjerdedel ({best}): {kr} per år ved full tilnærming. Mot peer-gruppen samlet ({m}) trekker lønnskostnadsandelen ({l1} mot {l2}) og andre driftskostnader ({a1} mot {a2}) ned, mens en lav varekostnadsandel ({v1} mot {v2}) trekker opp.",
+  "ov.expl.src": "Skrevet av KI ut fra tall Peerless har regnet ut. Hvert tall finnes i analysen.",
+  "ov.expl.adjusted": "Forklaringen gjelder standard peer-gruppe",
+  "ov.expl.adjustedHint": "Du har ekskludert {x} sammenlignbare. Tallene i analysen er oppdatert, teksten er ikke.",
+  "ov.c1.kick": "Nest største gap",
+  "ov.c1.fig": "Omløpshastighet driftseiendeler",
+  "ov.c1.valLabel": "Frigjort kapital:",
+  "ov.c1.valUnit": "(engangsbeløp)",
+  "ov.c1.vs": "{own} mot {best} i beste fjerdedel",
+  "ov.c1.per": "Kapital som frigjøres én gang. Ikke per år, og legges ikke til resultatet.",
+  "ov.c2.kick": "Største styrke",
+  "ov.c2.fig": "Varekostnadsandel",
+  "ov.c2.vs": "{own} mot {best} i beste fjerdedel",
+  "ov.c2.per": "Styrke – gir ikke kronebeløp",
+  "ov.c3.kick": "Mangler grunnlag",
+  "ov.c3.fig": "Kundefordringsdager",
+  "ov.c3.per": "Egen verdi vises. Ingen median, plassering eller kroner.",
+  "ov.plot.title": "Driftsmargin i peer-gruppen",
+  "ov.plot.sub": "Hver prikk er ett selskap. Pek eller trykk for navn.",
+  "ov.list.title": "Peer-gruppe · {n}",
+  "ov.list.name": "Selskap",
+  "ov.list.rev": "Omsetning",
+  "ov.list.basis": "Grunnlag for treff",
+  "ov.list.all": "Se alle {n}",
+  "pe.title": "Peer-gruppe",
+  "pe.summary": "{n} sammenlignbare i analysen · {d} i standard peer-gruppe · {x} ekskludert av deg",
+  "pe.reset": "Tilbakestill til standard",
+  "pe.funnel.title": "Slik ble peer-gruppen valgt",
+  "pe.stage.1": "Bransje og størrelse",
+  "pe.stage.2": "Sammenlignbart regnskap",
+  "pe.stage.3": "Segment",
+  "pe.stage.4": "Forretningsmodell",
+  "pe.stage.5": "Klassifisering",
+  "pe.flagged": "{n} med usikker klassifisering",
+  "pe.excludedSum": "{x} ekskludert av deg → {n} i analysen",
+  "pe.band.title": "Størrelsesintervall (omsetning)",
+  "pe.band.s1": "0,5–2×",
+  "pe.band.s1sub": "Standard",
+  "pe.band.s2": "0,33–3×",
+  "pe.band.s3": "0,25–4×",
+  "pe.band.sub": "Utvidet",
+  "pe.band.range": "Fjordkode {own} → sammenlignbare med {lo}–{hi}",
+  "pe.band.help": "Utvid størrelsesintervallet hvis peer-gruppen er for liten. Intervallet kan bare utvides i disse trinnene.",
+  "pe.comp": "Sammenlignbart regnskap er alltid et krav og kan ikke lempes: samme valuta, regnskapsregler, små foretak, ikke avviklingsregnskap, samme regnskapsperiode og regnskapstype.",
+  "pe.list.title": "Alle sammenlignbare",
+  "pe.col.name": "Selskap",
+  "pe.col.rev": "Omsetning",
+  "pe.col.why": "Hvorfor med",
+  "pe.col.basis": "Grunnlag for treff",
+  "pe.col.act": "Handling",
+  "pe.basis.both": "Beskrivelse og regnskap",
+  "pe.basis.acc": "Kun regnskap",
+  "pe.basis.ind": "Kun bransje og størrelse",
+  "pe.flag": "Usikker klassifisering",
+  "pe.exclude": "Ekskluder",
+  "pe.include": "Ta med igjen",
+  "pe.excluded": "Ekskludert",
+  "pe.why": "Samme bransje, omsetning {r}× din, {trait}",
+  "pe.whyBare": "Samme bransje, omsetning {r}× din",
+  "pe.trait.capdev": "egenutviklet programvare balanseført",
+  "pe.trait.consult": "konsulentbasert, ingen varelager",
+  "pe.trait.saas": "abonnementsinntekter, varekostnadsandel under 10 %",
+  "pe.trait.staff": "lønnskostnadsandel i samme bånd som din",
+  "pe.trait.lowasset": "lite kapital bundet i driftsmidler",
+  "pe.showAll": "Vis alle {n}",
+  "pe.widened.banner": "Utvidet størrelsesintervall ({b}). Dette er ikke standard peer-gruppe, og forklaringen gjelder standard peer-gruppe.",
+  "pe.widened.back": "Tilbake til standard (0,5–2×)",
+  "gap.topnote": "Viser gap ved full tilnærming · ",
+  "gap.topnoteLink": "Endre i Verdi",
+  "gap.col.fig": "Nøkkeltall",
+  "gap.col.own": "Fjordkode",
+  "gap.col.med": "Median",
+  "gap.col.best": "Beste fjerdedel",
+  "gap.col.plc": "Plassering",
+  "gap.col.dist": "Fordeling · bedre →",
+  "gap.col.kr": "Gap i kroner",
+  "gap.group": "Forklarer marginavviket – summeres ikke",
+  "gap.check": "Kontroll av de tre andelene",
+  "gap.checkRow": "Kontrollrad",
+  "gap.mid": "Midtre halvdel {lo}–{hi}",
+  "gap.krYear": "{v} kr per år",
+  "gap.krCapital": "frigjort kapital, engangsbeløp",
+  "gap.krSee": "Se forklaring av marginen",
+  "gap.wf.title": "Hva forklarer marginavviket?",
+  "gap.wf.ref": "Mot peer-gruppen samlet: {m}, ikke beste fjerdedel",
+  "gap.wf.lead": "Fjordkode har driftsmargin {own}, peer-gruppen samlet {m}. Forskjellen på {pp} er {kr} med Fjordkodes omsetning. Søylene viser hvor den kommer fra.",
+  "gap.wf.set": "Peer-gruppen samlet er sum driftsresultat og sum av hver kostnad delt på sum driftsinntekter, for de {n} sammenlignbare som har alle kostnadslinjene fra samme avstemte regnskap. Store selskaper teller mer enn små.",
+  "gap.wf.never": "Dette forklarer avviket. Det er ikke et gap som skal lukkes, og det legges aldri til økt driftsresultat.",
+  "gap.wf.start": "Peer-gruppen samlet",
+  "gap.wf.end": "Fjordkode",
+  "gap.wf.c.vare": "Varekostnad",
+  "gap.wf.c.lonn": "Lønn",
+  "gap.wf.c.andre": "Andre driftskostnader",
+  "gap.wf.c.rest": "Avskrivninger og øvrige poster",
+  "gap.wf.lower": "lavere enn samlet",
+  "gap.wf.higher": "høyere enn samlet",
+  "gap.wf.shares": "{own} mot {all}",
+  "gap.wf.marginAt": "margin {m}",
+  "gap.wf.diff": "Forskjell",
+  "gap.wf.axis": "Kroner med Fjordkodes omsetning, målt fra peer-gruppen samlet",
+  "gap.wf.col.part": "Kostnad",
+  "gap.wf.col.own": "Fjordkode",
+  "gap.wf.col.all": "Samlet",
+  "gap.wf.col.kr": "Kroner",
+  "gap.wf.sum": "Sum",
+  "gap.decA": "Margin eller kapitalbruk?",
+  "gap.decB": "Lønnsnivå eller produktivitet?",
+  "gap.dec.lead": "Totalkapitalrentabilitet er driftsmargin ganger totalkapitalens omløpshastighet. Hver faktor sammenlignes med sin egen median.",
+  "gap.dec.margin": "Driftsmargin",
+  "gap.dec.turn": "Totalkapitalens omløpshastighet",
+  "gap.dec.ownMed": "Fjordkode {own} · median {med}",
+  "gap.dec.text": "Fjordkode ligger over medianen på begge: margin {m1} mot {m2}, omløpshastighet {t1} mot {t2}.",
+  "gap.dec.noMult": "Medianene ganges ikke sammen. Median margin ganger median omløpshastighet er ikke medianen for totalkapitalrentabilitet, fordi medianene kommer fra ulike selskaper.",
+  "gap.dec.turnNote": "Totalkapitalens omløpshastighet = omsetning ÷ sum eiendeler. Ikke det samme som omløpshastighet driftseiendeler.",
+  "gap.phone.head1": "Nøkkeltall",
+  "gap.phone.head2": "Fjordkode",
+  "gap.phone.head3": "Gap i kroner",
+  "gap.phone.tap": "Trykk på en rad for median, beste fjerdedel og plassering.",
+  "gap.phone.floorShort": "For få (7 av 10)",
+  "gap.phone.seeShort": "Se forklaring",
+  "gap.phone.dir": "Retning",
+  "gap.phone.count": "Antall",
+  "ve.ctl.title": "Hvor mye av gapet som lukkes",
+  "ve.ctl.sub": "Målet er alltid beste fjerdedel. 100 % er full tilnærming.",
+  "ve.toMedian": "Til medianen",
+  "ve.toMedianShare": "Til medianen ({v} %)",
+  "ve.aboveMedian": "Fjordkode ligger allerede over medianen",
+  "ve.medianBasis": "Medianen gjelder driftsmargin.",
+  "ve.belowName": "Eksempel: selskap med driftsmargin {own}, median {med}, beste fjerdedel {best}",
+  "ve.belowMed": "Median nås ved {v} % av gapet",
+  "ve.amt.profit": "Økt driftsresultat per år",
+  "ve.amt.wc": "Frigjort arbeidskapital",
+  "ve.amt.op": "Frigjort kapital i driftseiendeler",
+  "ve.amt.at": "per år, ved {v} % av gapet",
+  "ve.amt.atOnce": "engangsbeløp, ved {v} % av gapet",
+  "ve.amt.wcNa": "Ikke beregnet – for få sammenlignbare på kundefordringsdager",
+  "ve.amt.sep": "Vises ved siden av arbeidskapitalen, legges aldri sammen med den.",
+  "ve.amt.med": "Median: allerede over",
+  "ve.ev.title": "EV/EBIT-multippel",
+  "ve.ev.label": "EV/EBIT-multippel",
+  "ve.ev.empty": "Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel.",
+  "ve.ev.result": "Økt selskapsverdi",
+  "ve.ev.calc": "{p} × {m} = {v}",
+  "ve.ev.note": "Økt driftsresultat per år ganger multippelen du har lagt inn.",
+  "ve.trace.title": "Slik er {v} regnet ut",
+  "ve.trace.s1": "Beløp = (beste fjerdedel − Fjordkode) × omsetning × andel som lukkes",
+  "ve.trace.s2": "Nøkkeltall: driftsmargin {own} (= driftsresultat ÷ sumDriftsinntekter). Beste fjerdedel {best} blant {n} sammenlignbare, regnskapsår 2025.",
+  "ve.trace.s3": "Innsendte tall for 2025:",
+  "ve.trace.dr": "Driftsresultat",
+  "ve.trace.si": "Sum driftsinntekter",
+  "ve.trace.s4": "Kilde: Regnskapsregisteret (API), regnskapsår 2025, hentet 3. okt. 2026. Datakvalitet: avstemt mot innsendt årsregnskap.",
+  "ve.trace.close": "Lukk",
+  "about.title": "Slik fungerer Peerless",
+  "about.lead": "Peerless sammenligner et selskap med selskaper som driver på samme måte, ut fra offentlige regnskaper, og regner om hvert avvik til kroner. Her står hvordan sammenlignbare selskaper velges, hvor KI brukes, hva som er målt, hvor tallene kommer fra og hva analysen ikke kan si.",
+  "about.toc": "Innhold",
+  "about.s.peers": "Slik velges sammenlignbare selskaper",
+  "about.s.ai": "Hvor KI brukes",
+  "about.s.measured": "Hva som er målt",
+  "about.s.sources": "Datakilder og lisens",
+  "about.s.limits": "Begrensninger",
+  "about.s.date": "Hvor gamle tallene er",
+  "about.peers.intro": "Peer-gruppen velges i fem trinn. Hvert trinn tar bort selskaper som ikke passer, og analysen viser hvor mange som er igjen etter hvert trinn.",
+  "about.peers.1.title": "Bransje og størrelse",
+  "about.peers.1.body": "Vi starter med selskaper i samme bransje som har omsetning mellom halvparten og det dobbelte av ditt selskap. Blir gruppen for liten, kan du utvide intervallet i faste trinn.",
+  "about.peers.2.title": "Sammenlignbart regnskap",
+  "about.peers.2.body": "Vi beholder bare regnskap som kan sammenlignes direkte: samme valuta, samme regnskapsregler, samme regnskapsår og samme type regnskap, og ikke regnskap for selskaper som avvikles. Små foretak sammenlignes med små foretak. Dette kravet kan ikke lempes.",
+  "about.peers.3.title": "Segment",
+  "about.peers.3.body": "Innenfor bransjen deler vi videre inn der bransjen krever det, for eksempel etter selskapsform.",
+  "about.peers.4.title": "Forretningsmodell",
+  "about.peers.4.body": "Vi leser hva slags virksomhet selskapet er ut fra dets eget regnskap: hvor mye av kostnadene som er varekjøp og lønn, om det har varelager, og om det har balanseført egenutviklet programvare. Slik skilles en forhandler, et produktselskap og et konsulentselskap selv om alle kaller seg programvareutvikling. Vi velger aldri sammenlignbare ut fra hvor godt de går, bare ut fra hva slags virksomhet de er.",
+  "about.peers.5.title": "Klassifisering",
+  "about.peers.5.body": "Til slutt leser KI selskapets navn, formål og beskrivelse og vurderer om det driver samme type virksomhet. Er beskrivelsen og regnskapet uenige, merkes selskapet med «Usikker klassifisering» i stedet for å bli tatt ut i stillhet.",
+  "about.peers.after": "Du ser hvert sammenlignbart selskap med begrunnelse og kan ta ut selskaper du mener ikke passer.",
+  "about.ai.p1": "KI brukes til to ting: å klassifisere hva et selskap driver med, og å skrive den forklarende teksten i analysen.",
+  "about.ai.p2": "KI regner aldri ut et tall. Alle nøkkeltall, medianer og kronebeløp regnes ut av Peerless på forhånd. KI får tallene og skriver bare om dem.",
+  "about.ai.p3": "En automatisk test stopper enhver tekst som inneholder et tall Peerless ikke har regnet ut. Teksten vises da ikke.",
+  "about.ai.p4": "Alt som kan løses med faste regler, løses med faste regler. KI får bare det som er igjen.",
+  "about.measured.status": "Målingen pågår. Resultatene publiseres her når de foreligger.",
+  "about.measured.p1": "Vi måler hvor godt Peerless finner selskaper som faktisk er sammenlignbare. Et utvalg selskapspar i 62.100 vurderes for hånd, og hvert trinn i utvelgelsen måles mot denne vurderingen.",
+  "about.measured.p2": "For hvert lag måler vi presisjon (hvor mange av de valgte som faktisk er sammenlignbare) og treffsikkerhet (hvor mange av de sammenlignbare som blir funnet):",
+  "about.measured.l1": "bare bransjekode og størrelse",
+  "about.measured.l2": "med forretningsmodell lest fra regnskapet",
+  "about.measured.l3": "med KI-klassifisering av beskrivelsen",
+  "about.measured.p3": "Resultatet kan vise at KI tilfører lite utover regnskapet. Det publiseres i så fall like tydelig.",
+  "about.sources.p1": "Nøkkeltall fra Regnskapsregisterets API:",
+  "about.sources.nlod": "Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene",
+  "about.sources.p2": "Tall lest fra innsendte årsregnskap, for eksempel lønnskostnad, kundefordringer og årsverk, har Brønnøysundregistrene som kilde.",
+  "about.sources.p3": "Peerless har bearbeidet tallene: regnet ut nøkkeltall, satt sammen peer-grupper og regnet om avvik til kroner. Brønnøysundregistrene står ikke bak analysen.",
+  "about.limits.vat.title": "Merverdiavgift i kundefordringsdager",
+  "about.limits.vat.body": "Kundefordringene inkluderer merverdiavgift, men omsetningen gjør det ikke. Derfor blir kundefordringsdagene for høye, med opptil 25 %. Avviket er ikke likt for alle: et selskap som selger til utlandet, har mindre avgift i fordringene og får færre dager for de samme betalingsvilkårene. Sammenligningen holder bare så langt selskapene i peer-gruppen ligner i dette, og er svakest der gruppen er mest blandet.",
+  "about.limits.cost.title": "Kostnader føres ulikt",
+  "about.limits.cost.body": "Et konsulentselskap som bruker underleverandører, kan føre dem som varekostnad eller andre driftskostnader i stedet for lønn. Da blir lønnsandelen lavere og de andre andelene høyere. Total kostnadsandel vises derfor som kontroll.",
+  "about.limits.fte.title": "Årsverk fra notene",
+  "about.limits.fte.body": "Årsverk leses fra notene i årsregnskapet. Antall ansatte i Enhetsregisteret brukes ikke, fordi det gjelder i dag og ikke regnskapsåret. Der notene mangler tallet, mangler også nøkkeltallene som bygger på det.",
+  "about.limits.small.title": "Små foretak sammenlignes med små foretak",
+  "about.limits.small.body": "Små foretak følger egne regnskapsregler og sammenlignes bare med andre små foretak. Et større selskap sammenlignes bare med andre større selskaper i bransjen, og kan derfor få få eller ingen sammenlignbare.",
+  "about.limits.floor.title": "Minst 10 sammenlignbare",
+  "about.limits.floor.body": "Et nøkkeltall sammenlignes bare når minst 10 sammenlignbare har det. Ellers vises selskapets egen verdi uten median, plassering eller kroner.",
+  "about.limits.industry.title": "Én bransje",
+  "about.limits.industry.body": "Peerless dekker foreløpig bare {industry}. For selskaper i andre bransjer viser vi noen nøkkeltall fra regnskapet, men ingen sammenligning.",
+  "about.date.p1": "Hvert tall viser hvilket regnskapsår det gjelder og når det ble hentet, for eksempel «Regnskapsår 2025 · hentet 3. okt. 2026».",
+  "about.date.p2": "Regnskapene hentes inn på forhånd, ikke mens du venter. Et regnskap som nettopp er sendt inn, kan derfor mangle en tid. Selskaper og sammenlignbare sammenlignes alltid på samme regnskapsår."
+};
+/*MSG-END*/
+/* Review chrome only (English, not product copy). */
+const R = {
+  "title": "Analysis page, v1",
+  "intro": "v1 scope: no accounts, no Utvikling tab, no sparklines, only 62.100. Every tab at desktop (1200 px) and phone (375 px). Fjordkode AS and all peers are invented. Every kroner amount is computed in this file from exact integer inputs (revenue 16 714 286 kr); see review-notes-v1.md for the check table. Hover or focus any dot or bar for a tooltip.",
+  "jump": "Jump to",
+  "desk": "Desktop · 1200 px",
+  "phone": "Phone · 375 px",
+  "ov.note": "Hero (largest kroner gap, per year), beeswarm of driftsmargin with a compact peer list under it, three small cards, explanation cut to two lines. The phone beeswarm shows one tooltip drawn open.",
+  "ov.adjusted": "State: peer group adjusted (explanation card on Oversikt, desktop column width and phone width)",
+  "pe.note": "Default size band, two peers excluded by the user (greyed, can be put back). Comparability cannot be loosened. The widened state follows below.",
+  "pe.widened": "State: size band widened to 0,33–3×",
+  "gap.note": "Desktop: both 'Hva forklarer marginavviket?' and 'Margin eller kapitalbruk?' open, 'Lønnsnivå eller produktivitet?' closed. Phone: three-column rows, Driftsmargin expanded with the waterfall laid out as rows.",
+  "ve.note": "Rendered at 50 %. The step buttons and the multiple field are live and recompute from exact values. 'Til medianen' is disabled for Fjordkode; the below-median state follows.",
+  "ve.below": "State: company below the median (another invented company)",
+  "ve.evEmpty": "State: empty (default)",
+  "ve.evFilled": "State: multiple entered"
+};
+/* ---------------- helpers shared by all v1 pages ---------------- */
+const MISSING = new Set();
+function t(k,v){let s=messages[k];if(s===undefined){MISSING.add(k);console.warn('missing',k);return k;}if(v)for(const p in v)s=s.split('{'+p+'}').join(v[p]);return s;}
+function r(k){let s=R[k];if(s===undefined){MISSING.add('R:'+k);return k;}return s;} /* review chrome, English, not product copy */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const nf = d => new Intl.NumberFormat('nb-NO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const N0=nf(0),N1=nf(1),N2=nf(2);
+const NB=' ';
+const pct=(v,d=1)=>t('unit.pct',{v:nf(d).format(v)}).replace(' ',NB);
+const kr=v=>t('unit.kr',{v:N0.format(v)}).replace(/ kr$/,NB+'kr');
+const krSigned=v=>(v>0?'+':v<0?'−':'')+kr(Math.abs(v));
+const mill=v=>t('unit.mill',{v:N1.format(v)});
+const pp=v=>t('unit.pp',{v:N1.format(v)}).replace(' ',NB);
+const days=v=>t('unit.days',{v:N0.format(v)}).replace(' ',NB);
+const REG={}; let UID=0; const uid=p=>p+(++UID);
+
+/* Company marker: signature fill, navy-900 outline, 2px surface ring. Median: vertical tick. Beste fjerdedel: hollow slate triangle. */
+function ownDot(x,y,r=6){return `<circle cx="${x}" cy="${y}" r="${r+2}" fill="#fff"/><circle cx="${x}" cy="${y}" r="${r}" fill="#7399C6" stroke="#0B2340" stroke-width="2"/>`;}
+function medTick(x,y1,y2){return `<line x1="${x}" x2="${x}" y1="${y1}" y2="${y2}" stroke="#6B7C91" stroke-width="2"/>`;}
+function bestTri(x,y){return `<path d="M${x-5} ${y-8}h10l-5 8z" fill="#fff" stroke="#5B6B7F" stroke-width="1.5" stroke-linejoin="round"/>`;}
+
+/* ---------------- shell ---------------- */
+function header(P,o={}){
+  const field=o.noField?'':`<form class="org" onsubmit="return false" role="search"><input inputmode="numeric" placeholder="${esc(t('shell.orgnr.placeholder'))}" aria-label="${esc(t('shell.orgnr.label'))}"></form>`;
+  return `<header class="top"><a class="brand" href="v1-front.html">${esc(t('shell.brand'))}</a>${field}<span class="sp"></span><a class="how" href="v1-about.html"${o.onAbout?' aria-current="page"':''}>${esc(t('shell.how'))}</a></header>`;
+}
+function footer(){
+  return `<footer class="foot"><p>${esc(t('footer.source'))} · <a href="v1-about.html#kilder">${esc(t('footer.sourcesLink'))}</a></p></footer>`;
+}
+function frameBox(P,url,inner,label){
+  return `<div class="fcol"><div class="flabel">${esc(label||r(P?'phone':'desk'))}</div><div class="fwrap"><div class="${P?'phone':'desk'}">${P?`<div class="phurl">${esc(url)}</div>`:`<div class="chrome"><i></i><i></i><i></i><span class="url">${esc(url)}</span></div>`}<div class="app ${P?'ph':'dk'}">${inner}</div></div></div></div>`;
+}
+
+/* ---------------- tooltip: nearest point, keyboard focus shows the same ---------------- */
+const tip=document.getElementById('tip');
+function showTip(reg,idx,cx,cy){
+  tip.replaceChildren();const p=reg.pts[idx];
+  const a=document.createElement('div');a.className='tv';a.textContent=p.v;tip.append(a);
+  const b=document.createElement('div');b.textContent=p.n;tip.append(b);
+  if(p.e){const c=document.createElement('div');c.className='ts';c.textContent=p.e;tip.append(c);}
+  tip.style.display='block';
+  const w=tip.offsetWidth,h=tip.offsetHeight;let L=cx+14,T=cy-h-10;if(L+w>innerWidth-8)L=cx-w-14;if(L<8)L=8;if(T<8)T=cy+16;tip.style.left=L+'px';tip.style.top=T+'px';
+}
+function hideTip(){tip.style.display='none';}
+function nearest(reg,sx,sy){let best=-1,bd=1e9;reg.pts.forEach((p,i)=>{const d=p.w?Math.max(0,Math.abs(p.x-sx)-p.w/2)+Math.max(0,Math.abs(p.y-sy)-p.h/2):Math.hypot(p.x-sx,p.y-sy);if(d<bd){bd=d;best=i;}});return bd<=24?best:-1;}
+document.addEventListener('pointermove',e=>{
+  const svg=e.target.closest&&e.target.closest('svg[data-chart]');
+  if(!svg){hideTip();return;}
+  const reg=REG[svg.dataset.chart];if(!reg)return;
+  const rc=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const sx=(e.clientX-rc.left)*vb.width/rc.width,sy=(e.clientY-rc.top)*vb.height/rc.height;
+  const i=nearest(reg,sx,sy);if(i<0){hideTip();return;}
+  showTip(reg,i,e.clientX,e.clientY);
+});
+const kIdx=new WeakMap();
+function focusShow(svg,i){const reg=REG[svg.dataset.chart];const n=reg.pts.length;i=(i+n)%n;kIdx.set(svg,i);const rc=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const p=reg.pts[i];showTip(reg,i,rc.left+p.x*rc.width/vb.width,rc.top+p.y*rc.height/vb.height);}
+document.addEventListener('focusin',e=>{const s=e.target.closest&&e.target.closest('svg[data-chart]');if(s&&REG[s.dataset.chart])focusShow(s,0);});
+document.addEventListener('focusout',e=>{if(e.target.closest&&e.target.closest('svg[data-chart]'))hideTip();});
+document.addEventListener('keydown',e=>{const s=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('svg[data-chart]');if(!s)return;if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();focusShow(s,(kIdx.get(s)||0)+(e.key==='ArrowRight'?1:-1));}if(e.key==='Escape')hideTip();});
+window.addEventListener('scroll',hideTip,{passive:true});
+document.addEventListener('click',e=>{if(e.target.closest('a[href="#"]'))e.preventDefault();});
+
+/* ---------------- QA (only with ?qa): missing keys, frame overflow, body scroll ---------------- */
+function runQA(){document.querySelectorAll("details").forEach(d=>d.open=true);
+  const out={missing:[...MISSING],bodyScrollW:document.documentElement.scrollWidth,innerW:innerWidth,overflow:[]};
+  document.querySelectorAll('.app,.state').forEach((app,ai)=>{
+    const ar=app.getBoundingClientRect();
+    app.querySelectorAll('*').forEach(el=>{
+      if(el.closest('.scroll')&&el.closest('.scroll')!==el)return;
+      if(el.closest('.sr')||el.matches('.sr'))return;
+      const rc=el.getBoundingClientRect();if(!rc.width&&!rc.height)return;
+      if(rc.right>ar.right+0.5||rc.left<ar.left-0.5){out.overflow.push({frame:ai,cls:app.className,el:el.tagName+'.'+(el.getAttribute('class')||''),txt:(el.textContent||'').slice(0,40),over:Math.round(rc.right-ar.right)});}
+    });
+    /* scroll containers that actually scroll */
+    app.querySelectorAll('.scroll').forEach(s=>{if(s.scrollWidth>s.clientWidth+1)out.overflow.push({frame:ai,cls:app.className,scrolls:true,txt:(s.textContent||'').slice(0,30),sw:s.scrollWidth,cw:s.clientWidth});});
+  });
+  out.overflow=out.overflow.slice(0,40);
+  out.wide=[];document.querySelectorAll("body *").forEach(el=>{if(el.closest(".fwrap")||el.closest(".scroll"))return;const rc=el.getBoundingClientRect();if(rc.right>innerWidth+0.5)out.wide.push(el.tagName+"."+(el.getAttribute("class")||"")+" r="+Math.round(rc.right));});out.wide=out.wide.slice(0,15);
+  const pre=document.createElement('pre');pre.id='qa';pre.textContent='QA'+JSON.stringify(out)+'QA';document.body.append(pre);if(location.search.includes("post"))parent.postMessage(JSON.stringify(out),"*");
+}
+/* review aid: ?only=<section id> shows one section (used for screenshots) */
+function onlySection(){const o=new URLSearchParams(location.search).get('only');if(!o)return;document.querySelectorAll('.tabsec').forEach(s=>{if(s.id!==o)s.style.display='none';});document.querySelectorAll('.page>h1,.page>.rvtext,.page>.jump,.page>.frames').forEach(e=>e.style.display='none');}
+
+
+/* ---------------- data (numbers are data, not messages). Integer kroner. ---------------- */
+const D = {
+  orgnr:"912345678", orgnrFmt:"912 345 678", name:"Fjordkode AS", industryKey:"industry.62100",
+  revenue:16714286,          /* sumDriftsinntekter 2025 */
+  driftsresultat:351000,
+  varekostnad:852429, lonnskostnad:11181857, annenDriftskostnad:4078286,
+  /* residual: avskrivninger og øvrige poster = revenue − driftsresultat − the three = 250 714 */
+  sumEiendeler:7312500, bankinnskudd:1456107,
+  year:2025, readDate:"3. okt. 2026"
+};
+D.rest = D.revenue - D.driftsresultat - D.varekostnad - D.lonnskostnad - D.annenDriftskostnad;
+/* Targets (beste fjerdedel), exact: driftsmargin 9,1 % = 91/1000; omløpshastighet driftseiendeler 3,07 = 307/100. */
+const T_DM_PERMILLE = 91n, T_OML_HUNDREDTHS = 307n;
+/* Peer group as a whole (peer-gruppen samlet): common set P of 22 peers, sums in kroner (invented). */
+const P_SUM = {n:22, revenue:393800000, driftsresultat:1969000, varekostnad:44105600, lonnskostnad:251638200, annenDriftskostnad:82698000, rest:13389200};
+
+/* ---------------- exact arithmetic (BigInt, round half away from zero) ---------------- */
+function divRound(num,den){ /* den > 0 */ const neg=num<0n; const a=neg?-num:num; const q=a/den, rm=a%den; const r=(rm*2n>=den)?q+1n:q; return Number(neg?-r:r); }
+function divFloor(num,den){ const q=num/den; return (num%den!==0n && (num<0n)!==(den<0n))?q-1n:q; }
+/* Profit uplift: (T − r) × revenue × s, with T = 91/1000 and r = driftsresultat/revenue  ⇒ (91·rev − 1000·dr)/1000 × s/100 */
+function profitAt(s){ return divRound((T_DM_PERMILLE*BigInt(D.revenue) - 1000n*BigInt(D.driftsresultat))*BigInt(s), 100000n); }
+/* Capital released, operating assets: ((sumEiendeler − bank) − revenue/T) × s, T = 307/100 */
+function opAssetAt(s){ const opA=BigInt(D.sumEiendeler-D.bankinnskudd); return divRound((T_OML_HUNDREDTHS*opA - 100n*BigInt(D.revenue))*BigInt(s), 307n*100n); }
+/* EV = exact profit uplift × multiple (multiple in tenths) */
+function evAt(s,m10){ return divRound((T_DM_PERMILLE*BigInt(D.revenue) - 1000n*BigInt(D.driftsresultat))*BigInt(s)*BigInt(m10), 100000n*10n); }
+/* Margin decomposition against peer-gruppen samlet. Bar_x = (A_x − c_x) × rev = (Σx·rev − x·ΣR)/ΣR.
+   Sign: positive = Fjordkode spends less than samlet. Largest-remainder rounding to whole kroner. */
+const WF_KEYS=['vare','lonn','andre','rest'];
+const WF_FIELD={vare:'varekostnad',lonn:'lonnskostnad',andre:'annenDriftskostnad',rest:'rest'};
+function waterfall(){
+  const rev=BigInt(D.revenue), SR=BigInt(P_SUM.revenue);
+  const nums=WF_KEYS.map(k=>BigInt(P_SUM[WF_FIELD[k]])*rev - BigInt(D[WF_FIELD[k]])*SR);
+  const totNum=BigInt(D.driftsresultat)*SR - BigInt(P_SUM.driftsresultat)*rev;
+  const exactSum=nums.reduce((a,b)=>a+b,0n);
+  if(exactSum!==totNum) throw new Error('decomposition does not sum');
+  const total=divRound(totNum,SR);
+  const floors=nums.map(n=>divFloor(n,SR)); const rems=nums.map((n,i)=>n-floors[i]*SR);
+  let short=BigInt(total)-floors.reduce((a,b)=>a+b,0n);
+  const order=rems.map((r,i)=>[r,i]).sort((a,b)=>(b[0]>a[0]?1:b[0]<a[0]?-1:0));
+  const bars=floors.slice(); for(let j=0;j<Number(short);j++)bars[order[j][1]]+=1n;
+  const out={total, bars:Object.fromEntries(WF_KEYS.map((k,i)=>[k,Number(bars[i])])), exact:Object.fromEntries(WF_KEYS.map((k,i)=>[k,Number(nums[i])/Number(SR)]))};
+  out.end=D.driftsresultat; out.start=D.driftsresultat-total; /* = samlet margin × revenue, rounded */
+  if(out.start!==divRound(BigInt(P_SUM.driftsresultat)*rev,SR)) throw new Error('start mismatch');
+  if(WF_KEYS.reduce((a,k)=>a+out.bars[k],0)!==total) throw new Error('bars do not sum');
+  return out;
+}
+const WF=waterfall();
+const share=(x,base)=>x/base*100;  /* display only */
+const OWN={dm:share(D.driftsresultat,D.revenue), vare:share(D.varekostnad,D.revenue), lonn:share(D.lonnskostnad,D.revenue), andre:share(D.annenDriftskostnad,D.revenue), rest:share(D.rest,D.revenue),
+  tkr:share(D.driftsresultat,D.sumEiendeler), turn:D.revenue/D.sumEiendeler, oml:D.revenue/(D.sumEiendeler-D.bankinnskudd)};
+OWN.total=OWN.vare+OWN.lonn+OWN.andre;
+const ALL={dm:share(P_SUM.driftsresultat,P_SUM.revenue), vare:share(P_SUM.varekostnad,P_SUM.revenue), lonn:share(P_SUM.lonnskostnad,P_SUM.revenue), andre:share(P_SUM.annenDriftskostnad,P_SUM.revenue), rest:share(P_SUM.rest,P_SUM.revenue)};
+const REV_MILL=16.7; /* company header only: rounded revenue */
+
+/* peers sorted by driftsmargin 2025 (invented). Median = −3,2; PERCENTILE.INC Q3 = 9,1; 14 below 2,1 → bedre enn 61 %. */
+const PEERS = [
+ ["Skarvhamn Systemer AS",-18.4,9.1,"ind",null],
+ ["Tindeverk Programvare AS",-14.2,11.8,"acc","staff"],
+ ["Moholt Kodeverksted AS",-11.0,24.6,"both","consult"],
+ ["Bjørkåsen Utvikling AS",-9.3,13.2,"both","capdev"],
+ ["Elvetangen Data AS",-7.8,19.5,"acc","lowasset"],
+ ["Kvitfjell Applikasjon AS",-6.6,15.0,"both","saas"],
+ ["Havbris Programvare AS",-5.9,28.9,"both","capdev",1],
+ ["Sølvberg IT-utvikling AS",-5.1,10.4,"acc","staff"],
+ ["Granli Systemhus AS",-4.4,17.3,"both","consult"],
+ ["Rognlia Kode AS",-3.9,21.7,"both","capdev"],
+ ["Furustad Digitalverk AS",-3.5,12.6,"ind",null],
+ ["Nordlia Programmering AS",-3.2,16.1,"both","consult"],
+ ["Vardholmen Software AS",-1.4,31.2,"both","saas"],
+ ["Løvstad Systemutvikling AS",0.6,14.4,"acc","lowasset",1],
+ ["Fjellsiden Kode AS",3.4,11.7,"both","capdev"],
+ ["Strandheim Applikasjoner AS",5.8,22.8,"both","saas"],
+ ["Steinvika Data AS",8.6,18.0,"acc","staff"],
+ ["Brattli Programvare AS",9.6,26.3,"both","capdev"],
+ ["Kråkenes Utvikling AS",11.2,9.8,"both","consult"],
+ ["Ospelia Teknologi AS",13.5,20.4,"acc","lowasset"],
+ ["Bakkeby Kodehus AS",15.9,13.9,"both","saas"],
+ ["Sjøbris Systemer AS",19.7,25.1,"both","consult"],
+ ["Myrvoll Digital AS",24.3,8.9,"ind",null]
+].map(a=>({name:a[0],dm:a[1],rev:a[2],basis:a[3],trait:a[4],flag:!!a[5]}));
+const EXCLUDED = [{name:"Holmengrå Data AS",rev:15.6,basis:"both",trait:"consult"},{name:"Tverrdal Programvare AS",rev:19.9,basis:"acc",trait:"staff"}];
+
+/* key-figure rows, 2025 */
+const F = {
+ dm:   {k:"fig.driftsmargin",u:"%",dir:"up",  own:OWN.dm},
+ lonn: {k:"fig.lonn",u:"%",dir:"down",       own:OWN.lonn},
+ andre:{k:"fig.andre",u:"%",dir:"down",      own:OWN.andre},
+ vare: {k:"fig.vare",u:"%",dir:"down",       own:OWN.vare},
+ total:{k:"fig.total",u:"%",dir:"check",     own:OWN.total},
+ tkr:  {k:"fig.tkr",u:"%",dir:"up",          own:OWN.tkr},
+ oml:  {k:"fig.oml",u:"x",dir:"up",          own:OWN.oml},
+ ek:   {k:"fig.ek",u:"%",dir:"none",         own:38.2},
+ vekst:{k:"fig.vekst",u:"%",dir:"none",      own:9.6},
+ kfd:  {k:"fig.kfd",u:"d",dir:"down",        own:48}
+};
+const DIST = {
+ dm:{q1:-6.25,med:-3.2,best:9.1,q3:9.1,dom:[-20,26],plc:61,n:23},
+ lonn:{q1:60.8,med:68.3,best:60.8,q3:74.9,dom:[50,85],plc:54,n:22,left:1},
+ andre:{q1:18.9,med:21.0,best:18.9,q3:25.6,dom:[10,35],plc:34,n:22,left:1},
+ vare:{q1:6.0,med:11.4,best:6.0,q3:17.8,dom:[0,30],plc:81,n:22,left:1},
+ total:{med:101.6,n:22,left:1},
+ tkr:{q1:-8.4,med:-2.6,best:11.6,q3:11.6,dom:[-25,30],plc:60,n:23},
+ oml:{q1:1.71,med:2.40,best:3.07,q3:3.07,dom:[0,5],plc:65,n:23},
+ ek:{q1:18.4,med:31.5,q3:49.0,dom:[0,80],n:23},
+ vekst:{q1:1.8,med:7.0,q3:14.5,dom:[-20,40],n:23},
+ kfd:{n:7},
+ turn:{q1:1.21,med:1.86,q3:2.64,dom:[0,4]} /* totalkapitalens omløpshastighet, revenue / total assets */
+};
+function fv(v,u){if(v===null||v===undefined)return '–';return u==='%'?pct(v):u==='d'?days(v):N2.format(v);}
+
+/* ---------------- charts ---------------- */
+/* Beeswarm of driftsmargin: every peer a dot, Fjordkode the highlighted marker. */
+function beeswarm(W,staticTipIdx){
+  const id=uid('bs'); const dom=[-20,26]; const L=14,Rr=14;
+  const x=v=>L+(v-dom[0])/(dom[1]-dom[0])*(W-L-Rr);
+  const r=4.5, ownV=OWN.dm;
+  const pts=PEERS.map(p=>({p,x:x(p.dm),dy:0}));
+  const placed=[{x:x(ownV),dy:0,r:6}];
+  const order=[...pts].sort((a,b)=>Math.abs(a.x-x(ownV))-Math.abs(b.x-x(ownV)));
+  for(const q of order){for(let k=0;k<40;k++){const dy=(k===0?0:(k%2?1:-1)*Math.ceil(k/2)*5.5);if(placed.every(o=>Math.hypot(o.x-q.x,o.dy-dy)>=(o.r||r)+r+2)){q.dy=dy;placed.push({x:q.x,dy,r});break;}}}
+  const span=Math.max(...pts.map(q=>Math.abs(q.dy)))+12;
+  const cy=24+span, H=cy+span+34, axY=H-26;
+  let s=`<svg data-chart="${id}" tabindex="0" role="img" aria-label="${esc(t('ov.plot.title'))}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  for(const tv of [-20,-10,0,10,20]){s+=`<line x1="${x(tv)}" x2="${x(tv)}" y1="14" y2="${axY}" stroke="#E6EBF1"/><text class="ax" x="${x(tv)}" y="${axY+16}" text-anchor="middle">${esc(pct(tv,0))}</text>`;}
+  s+=`<line x1="${L}" x2="${W-Rr}" y1="${axY}" y2="${axY}" stroke="#D9E0E8"/>`;
+  s+=`<text class="axl" x="${W-Rr}" y="10" text-anchor="end">${esc(t('better'))}</text>`;
+  s+=medTick(x(DIST.dm.med),16,axY);
+  s+=bestTri(x(DIST.dm.best),axY);
+  for(const q of pts){s+=`<circle cx="${q.x.toFixed(1)}" cy="${(cy+q.dy).toFixed(1)}" r="${r}" fill="#7B8BA0" stroke="#fff" stroke-width="2"/>`;}
+  s+=ownDot(x(ownV),cy);
+  s+=`<text x="${x(ownV)}" y="${cy-12}" text-anchor="middle" style="font-size:11.5px;font-weight:600;fill:#0B2340;paint-order:stroke;stroke:#fff;stroke-width:3px">${esc(t('legend.own'))}</text>`;
+  s+='</svg>';
+  REG[id]={pts:[...pts.map(q=>({x:q.x,y:cy+q.dy,v:pct(q.p.dm),n:q.p.name,e:t('ov.list.rev')+' '+mill(q.p.rev)})),{x:x(ownV),y:cy,v:pct(ownV),n:D.name,e:t('ov.list.rev')+' '+kr(D.revenue)},{x:x(DIST.dm.med),y:axY-6,v:pct(DIST.dm.med),n:t('legend.median')},{x:x(DIST.dm.best),y:axY-4,v:pct(DIST.dm.best),n:t('legend.best')}]};
+  let tipH='';
+  if(staticTipIdx!=null){
+    const q=pts[staticTipIdx]; const tw=176; const ty=cy+q.dy; s=s.replace("</svg>",`<line x1="${q.x}" x2="${q.x}" y1="0" y2="${ty-7}" stroke="#5B6B7F" stroke-width="1"/></svg>`);
+    const left=Math.min(Math.max(q.x-tw/2,0),W-tw);
+    tipH=`<div class="tip static" style="left:${left}px;bottom:${H+6}px;width:${tw}px;--ax:${q.x-left}px"><div class="tv">${esc(pct(q.p.dm))}</div><div>${esc(q.p.name)}</div><div class="ts">${esc(t('ov.list.rev'))} ${esc(mill(q.p.rev))}</div></div>`;
+  }
+  const leg=`<div class="legend"><span><svg width="16" height="16" aria-hidden="true">${ownDot(8,8,5)}</svg>${esc(t('legend.own'))} <b>${esc(pct(ownV))}</b></span><span><svg width="6" height="14" aria-hidden="true"><line x1="3" x2="3" y1="0" y2="14" stroke="#6B7C91" stroke-width="2"/></svg>${esc(t('legend.median'))} <b>${esc(pct(DIST.dm.med))}</b></span><span><svg width="12" height="10" aria-hidden="true">${bestTri(6,9)}</svg>${esc(t('legend.best'))} <b>${esc(pct(DIST.dm.best))}</b></span><span><svg width="10" height="10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="#7B8BA0"/></svg>${esc(t('legend.peers',{n:23}))}</span></div>`;
+  return `${leg}<div class="scroll"><div class="plotwrap" style="width:${W}px;${tipH?'padding-top:72px':''}">${s}${tipH}</div></div>`;
+}
+
+/* Distribution strip for the table. Lower-is-better is mirrored so better is right. */
+function distStrip(key,W=180,dd,ownV,u,dir){
+  const d=dd||DIST[key], f=F[key]||{}, id=uid('ds'); const H=30,L=8,Rr=8,y=17;
+  dir=dir||f.dir; u=u||f.u; ownV=ownV!=null?ownV:f.own;
+  const mir=dir==='down';
+  const x=v=>L+((mir?d.dom[1]-v:v-d.dom[0])/(d.dom[1]-d.dom[0]))*(W-L-Rr);
+  let s=`<svg data-chart="${id}" tabindex="0" role="img" aria-label="${esc(f.k?t(f.k):key)}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s+=`<line x1="${L}" x2="${W-Rr}" y1="${y}" y2="${y}" stroke="#D9E0E8"/>`;
+  const a=x(d.q1),b=x(d.q3); s+=`<rect x="${Math.min(a,b)}" y="${y-3}" width="${Math.abs(b-a)}" height="6" rx="2" fill="#D9E0E8"/>`;
+  s+=medTick(x(d.med),y-8,y+8);
+  const pts=[{x:x(ownV),y,v:fv(ownV,u),n:D.name},{x:x(d.med),y,v:fv(d.med,u),n:t('legend.median')},{x:Math.min(a,b),y,v:fv(mir?d.q3:d.q1,u)+' – '+fv(mir?d.q1:d.q3,u),n:t('legend.mid')}];
+  if(d.best!=null){s+=bestTri(x(d.best),y-6);pts.push({x:x(d.best),y:y-8,v:fv(d.best,u),n:t('legend.best')});}
+  s+=ownDot(x(ownV),y,5);
+  s+='</svg>';
+  REG[id]={pts};
+  return s;
+}
+
+/* Waterfall, desktop: columns from peer-gruppen samlet's margin (in kroner on Fjordkode's revenue) to Fjordkode's driftsresultat. */
+function wfSteps(){
+  let run=WF.start; const steps=[{kind:'start',from:0,to:WF.start}];
+  for(const k of WF_KEYS){const v=WF.bars[k];steps.push({kind:k,from:run,to:run+v,v});run+=v;}
+  steps.push({kind:'end',from:0,to:run});
+  if(run!==WF.end) throw new Error('waterfall end mismatch');
+  return steps;
+}
+function wfWord(v){return v>=0?t('gap.wf.lower'):t('gap.wf.higher');}
+function wfName(k){return k==='start'?t('gap.wf.start'):k==='end'?t('gap.wf.end'):t('gap.wf.c.'+k);}
+function wfTipPoint(st,x,y,w,h){
+  if(st.kind==='start')return {x,y,w,h,v:kr(WF.start),n:t('gap.wf.start'),e:t('gap.wf.marginAt',{m:pct(ALL.dm)})};
+  if(st.kind==='end')return {x,y,w,h,v:kr(WF.end),n:t('gap.wf.end'),e:t('gap.wf.marginAt',{m:pct(OWN.dm)})};
+  return {x,y,w,h,v:krSigned(st.v)+' · '+wfWord(st.v),n:t('gap.wf.c.'+st.kind),e:t('gap.wf.shares',{own:pct(OWN[st.kind]),all:pct(ALL[st.kind])})};
+}
+function wrapWords(s,max){const w=s.split(' ');const lines=[];let cur='';for(const x of w){if((cur+' '+x).trim().length>max&&cur){lines.push(cur);cur=x;}else cur=(cur+' '+x).trim();}if(cur)lines.push(cur);return lines;}
+function waterfallDesk(W=860){
+  const id=uid('wf'); const steps=wfSteps();
+  const L=86,Rr=10,T=26,plotH=210,B=64,H=T+plotH+B;
+  const max=1200000;
+  const y=v=>T+(1-v/max)*plotH;
+  const slot=(W-L-Rr)/steps.length, bw=24;
+  let s=`<svg data-chart="${id}" tabindex="0" role="img" aria-label="${esc(t('gap.wf.title'))}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  for(const tv of [0,400000,800000,1200000]){s+=`<line x1="${L}" x2="${W-Rr}" y1="${y(tv)}" y2="${y(tv)}" stroke="${tv===0?'#B9C3CF':'#E6EBF1'}"/><text class="ax" x="${L-8}" y="${y(tv)+4}" text-anchor="end">${esc(kr(tv))}</text>`;}
+  const pts=[];
+  steps.forEach((st,i)=>{
+    const cx=L+slot*i+slot/2, x0=cx-bw/2;
+    const top=Math.min(y(st.from),y(st.to)), bot=Math.max(y(st.from),y(st.to)), h=Math.max(bot-top,1.5);
+    const col=st.kind==='start'?'#6B7C91':st.kind==='end'?'#1F3A5F':(st.v>=0?'#1F6F8B':'#B45309');
+    /* rounded data end (4px), square where the step starts */
+    const up=st.to>=st.from;
+    const r=Math.min(4,h/2);
+    const path=up?`M${x0} ${bot}V${top+r}a${r} ${r} 0 0 1 ${r} ${-r}h${bw-2*r}a${r} ${r} 0 0 1 ${r} ${r}V${bot}Z`:`M${x0} ${top}V${bot-r}a${r} ${r} 0 0 0 ${r} ${r}h${bw-2*r}a${r} ${r} 0 0 0 ${r} ${-r}V${top}Z`;
+    s+=`<path d="${path}" fill="${col}"/>`;
+    if(i<steps.length-1){const nx=L+slot*(i+1)+slot/2-bw/2;s+=`<line x1="${x0+bw}" x2="${nx}" y1="${y(st.to)}" y2="${y(st.to)}" stroke="#B9C3CF"/>`;}
+    const lab=st.kind==='start'?kr(WF.start):st.kind==='end'?kr(WF.end):krSigned(st.v);
+    const ly=top-7;
+    s+=`<text x="${cx}" y="${ly}" text-anchor="middle" style="font-size:12px;font-weight:600;fill:#0B2340;font-variant-numeric:tabular-nums;paint-order:stroke;stroke:#fff;stroke-width:3px">${esc(lab)}</text>`;
+    const nm=wrapWords(wfName(st.kind),18);
+    let ty=T+plotH+16;
+    nm.forEach(line=>{s+=`<text x="${cx}" y="${ty}" text-anchor="middle" style="font-size:11.5px;font-weight:600;fill:#0B2340">${esc(line)}</text>`;ty+=14;});
+    const sub=st.kind==='start'?t('gap.wf.marginAt',{m:pct(ALL.dm)}):st.kind==='end'?t('gap.wf.marginAt',{m:pct(OWN.dm)}):(st.v>=0?'▲ ':'▼ ')+wfWord(st.v);
+    s+=`<text class="axl" x="${cx}" y="${ty}" text-anchor="middle">${esc(sub)}</text>`;ty+=13;
+    if(st.kind!=='start'&&st.kind!=='end')s+=`<text class="ax" x="${cx}" y="${ty}" text-anchor="middle">${esc(t('gap.wf.shares',{own:pct(OWN[st.kind]),all:pct(ALL[st.kind])}))}</text>`;
+    pts.push(wfTipPoint(st,cx,(top+bot)/2,bw+8,h+8));
+  });
+  s+='</svg>';
+  REG[id]={pts};
+  return s;
+}
+function wfLegend(){
+  const sw=c=>`<svg width="12" height="12" aria-hidden="true"><rect width="12" height="12" rx="2" fill="${c}"/></svg>`;
+  return `<div class="legend"><span>${sw('#6B7C91')}${esc(t('gap.wf.start'))}</span><span>${sw('#1F6F8B')}▲ ${esc(t('gap.wf.lower'))}</span><span>${sw('#B45309')}▼ ${esc(t('gap.wf.higher'))}</span><span>${sw('#1F3A5F')}${esc(t('gap.wf.end'))}</span></div>`;
+}
+/* Waterfall, phone: one row per step, floating bar on a shared kroner scale. */
+function waterfallPhone(W=300){
+  const steps=wfSteps(); const max=1200000; const x=v=>4+v/max*(W-8);
+  return `<ol class="wfrows">${steps.map(st=>{
+    const id=uid('wr'); const a=x(Math.min(st.from,st.to)), b=x(Math.max(st.from,st.to)); const w=Math.max(b-a,1.5);
+    const col=st.kind==='start'?'#6B7C91':st.kind==='end'?'#1F3A5F':(st.v>=0?'#1F6F8B':'#B45309');
+    const val=st.kind==='start'?kr(WF.start):st.kind==='end'?kr(WF.end):krSigned(st.v);
+    const sub=st.kind==='start'?t('gap.wf.marginAt',{m:pct(ALL.dm)}):st.kind==='end'?t('gap.wf.marginAt',{m:pct(OWN.dm)}):(st.v>=0?'▲ ':'▼ ')+wfWord(st.v)+' · '+t('gap.wf.shares',{own:pct(OWN[st.kind]),all:pct(ALL[st.kind])});
+    REG[id]={pts:[wfTipPoint(st,a+w/2,7,w+8,22)]};
+    return `<li class="${st.kind==='end'?'tot':''}"><div class="wl"><b>${esc(wfName(st.kind))}</b><span class="wv">${esc(val)}</span></div><div class="ws">${esc(sub)}</div><svg data-chart="${id}" tabindex="0" role="img" aria-label="${esc(wfName(st.kind))}" width="${W}" height="14" viewBox="0 0 ${W} 14"><line x1="4" x2="${W-4}" y1="7" y2="7" stroke="#E6EBF1"/><rect x="${a}" y="2" width="${w}" height="10" rx="2" fill="${col}"/></svg></li>`;}).join('')}</ol>`;
+}
+function wfTable(){
+  return `<details class="tv"><summary>${esc(t('showNumbers'))}</summary><div class="scroll"><table class="dec"><thead><tr><th>${esc(t('gap.wf.col.part'))}</th><th>${esc(t('gap.wf.col.own'))}</th><th>${esc(t('gap.wf.col.all'))}</th><th>${esc(t('gap.wf.col.kr'))}</th></tr></thead><tbody>${WF_KEYS.map(k=>`<tr><td>${esc(t('gap.wf.c.'+k))}</td><td>${esc(pct(OWN[k]))}</td><td>${esc(pct(ALL[k]))}</td><td>${esc(krSigned(WF.bars[k]))}</td></tr>`).join('')}<tr class="res"><td>${esc(t('fig.driftsmargin'))}</td><td>${esc(pct(OWN.dm))}</td><td>${esc(pct(ALL.dm))}</td><td>${esc(krSigned(WF.total))}</td></tr></tbody></table></div></details>`;
+}
+function wfBlock(P){
+  return `<div class="refline"><span class="tag">${esc(t('gap.wf.ref',{m:pct(ALL.dm)}))}</span><span class="muted">${esc(t('count.all',{n:P_SUM.n}))}</span></div>
+  <p style="margin:0 0 6px;max-width:100ch">${esc(t('gap.wf.lead',{own:pct(OWN.dm),m:pct(ALL.dm),pp:pp(OWN.dm-ALL.dm),kr:kr(WF.total)}))}</p>
+  ${wfLegend()}
+  ${P?waterfallPhone(300):`<div class="scroll">${waterfallDesk(860)}</div><p class="fnote">${esc(t('gap.wf.axis'))}</p>`}
+  ${wfTable()}
+  <p class="fnote strong" style="margin-top:10px">${esc(t('gap.wf.never'))}</p>
+  <p class="fnote">${esc(t('gap.wf.set',{n:P_SUM.n}))}</p>`;
+}
+
+/* ---------------- shell ---------------- */
+function company(){
+  return `<div class="co"><h1>${esc(D.name)}</h1><div class="meta"><span class="tnum">${esc(D.orgnrFmt)}</span><span>${esc(t(D.industryKey))}</span><span>${esc(t('company.revenue',{v:mill(REV_MILL)}))}</span><span>${esc(t('company.year',{y:D.year}))} · ${esc(t('company.read',{d:D.readDate}))}</span></div></div>`;
+}
+const TABS=[['ov','tabs.oversikt'],['pe','tabs.peers'],['gap','tabs.gap'],['ve','tabs.verdi']];
+function tabs(cur){return `<nav class="tabs" aria-label="${esc(t('shell.tabsLabel'))}">${TABS.map(([k,m])=>`<a href="#" class="tab${k===cur?' on':''}"${k===cur?' aria-current="page"':''}>${esc(t(m))}</a>`).join('')}</nav>`;}
+function frame(P,cur,inner){return frameBox(P,'/analyse/'+D.orgnr,`${header(P)}${company()}${tabs(cur)}<main class="main">${inner}</main>${footer()}`);}
+function pair(cur,fn){return `<div class="frames">${frame(false,cur,fn(false))}${frame(true,cur,fn(true))}</div>`;}
+
+/* ---------------- tab: Oversikt ---------------- */
+const basisK=b=>b==='both'?'pe.basis.both':b==='acc'?'pe.basis.acc':'pe.basis.ind';
+const PROFIT_FULL=profitAt(100), OP_FULL=opAssetAt(100);
+function explText(){return t('ov.expl.text',{own:pct(OWN.dm),med:pct(DIST.dm.med),pp:pp(DIST.dm.best-OWN.dm),best:pct(DIST.dm.best),kr:kr(PROFIT_FULL),m:pct(ALL.dm),l1:pct(OWN.lonn),l2:pct(ALL.lonn),a1:pct(OWN.andre),a2:pct(ALL.andre),v1:pct(OWN.vare),v2:pct(ALL.vare)});}
+function explCard(cls,adjusted){
+  return `<section class="card ${cls} expl"><p class="kick">${esc(t('ov.expl.kick'))}</p>${adjusted?`<div style="margin:4px 0 2px"><span class="tag">${esc(t('ov.expl.adjusted'))}</span></div>`:''}<p class="txt">${esc(explText())}</p><button class="linkbtn" onclick="this.closest('.expl').classList.toggle('open')">${esc(t('readMore'))}</button><p class="src">${esc(t('ov.expl.src'))}</p>${adjusted?`<p class="src">${esc(t('ov.expl.adjustedHint',{x:2}))}</p>`:''}</section>`;
+}
+function oversikt(P){
+  const W=P?309:600;
+  const near=[11,9,8,15,5].map(i=>PEERS[i]);
+  const list=P?`<ul class="pcards">${near.map(p=>`<li><div class="r1"><span class="nm">${esc(p.name)}</span><span>${esc(mill(p.rev))}</span></div><div class="why">${esc(t('ov.list.basis'))}: ${esc(t(basisK(p.basis)))}${p.flag?` · <span class="flag">? ${esc(t('pe.flag'))}</span>`:''}</div></li>`).join('')}</ul>`
+    :`<div class="scroll"><table class="lst"><thead><tr><th>${esc(t('ov.list.name'))}</th><th class="r">${esc(t('ov.list.rev'))}</th><th>${esc(t('ov.list.basis'))}</th></tr></thead><tbody>${near.map(p=>`<tr><td>${esc(p.name)}</td><td class="r">${esc(mill(p.rev))}</td><td><span class="basis">${esc(t(basisK(p.basis)))}</span>${p.flag?` <span class="flag">? ${esc(t('pe.flag'))}</span>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="grid" style="align-items:start">
+  <section class="card hero c5">
+    <p class="kick">${esc(t('ov.hero.kick'))}</p>
+    <p class="fig">${esc(t('ov.hero.fig'))} <span class="tag soft">${esc(t('dir.up'))}</span></p>
+    <div class="big">${esc(kr(PROFIT_FULL))}</div>
+    <p class="per">${esc(t('ov.hero.per'))}</p>
+    <p class="vs">${esc(t('ov.hero.vs',{own:pct(OWN.dm),best:pct(DIST.dm.best)}))}</p>
+    <p class="ctx">${esc(t('ov.hero.ctx',{med:pct(DIST.dm.med),plc:t('placement',{v:DIST.dm.plc}),pp:pp(DIST.dm.best-OWN.dm)}))}</p>
+    <div class="links"><a href="#">${esc(t('how'))}</a><a href="#">${esc(t('ov.hero.toTable'))}</a></div>
+  </section>
+  <section class="card c7"><h3>${esc(t('ov.plot.title'))}</h3><p class="small muted" style="margin:0">${esc(t('ov.plot.sub'))}</p>${beeswarm(W,P?0:null)}
+    <h3 style="margin:22px 0 4px">${esc(t('ov.list.title',{n:t('count.all',{n:23})}))}</h3>${list}
+    <p style="margin:10px 0 0"><a href="#">${esc(t('ov.list.all',{n:23}))}</a></p></section>
+  <section class="card c4 sc"><p class="kick">${esc(t('ov.c1.kick'))}</p><h3>${esc(t('ov.c1.fig'))}</h3><div class="val"><span class="vl">${esc(t('ov.c1.valLabel'))}</span>${esc(kr(OP_FULL))} <span class="vu">${esc(t('ov.c1.valUnit'))}</span></div><p class="line">${esc(t('ov.c1.vs',{own:N2.format(OWN.oml),best:N2.format(DIST.oml.best)}))}</p><p class="line">${esc(t('ov.c1.per'))}</p></section>
+  <section class="card c4 sc"><p class="kick">${esc(t('ov.c2.kick'))}</p><h3>${esc(t('ov.c2.fig'))}</h3><div class="val">${esc(pct(OWN.vare))} <span class="tag soft">${esc(t('dir.down'))}</span></div><p class="line">${esc(t('ov.c2.vs',{own:pct(OWN.vare),best:pct(DIST.vare.best)}))} · ${esc(t('placement',{v:DIST.vare.plc}))}</p><p class="line"><span class="dir-up">${esc(t('strength'))}</span> · ${esc(t('ov.c2.per'))}</p></section>
+  <section class="card c4 sc"><p class="kick">${esc(t('ov.c3.kick'))}</p><h3>${esc(t('ov.c3.fig'))}</h3><div class="val">${esc(days(F.kfd.own))}</div><p class="line"><b style="color:var(--text);font-weight:500">${esc(t('floor',{n:7}))}</b></p><p class="line">${esc(t('ov.c3.per'))}</p></section>
+  ${explCard('c12',false)}
+  </div>`;
+}
+
+/* ---------------- tab: Peers ---------------- */
+function why(p){const ratio=N1.format(p.rev*1e6/D.revenue);return p.trait?t('pe.why',{r:ratio,trait:t('pe.trait.'+p.trait)}):t('pe.whyBare',{r:ratio});}
+function funnel(counts,flagged){
+  return `<ol class="funnel">${[1,2,3,4,5].map((s,i)=>`<li><div class="st">${esc(t('pe.stage.'+s))}</div><div class="n">${N0.format(counts[i])}</div><div class="bar"><i style="width:${(counts[i]/counts[0]*100).toFixed(1)}%"></i></div></li>`).join('')}</ol><div class="fsum"><span class="flag">? ${esc(t('pe.flagged',{n:flagged}))}</span></div>`;
+}
+function band(step){
+  const lo=[0.5,1/3,0.25][step], hi=[2,3,4][step];
+  return `<div style="margin-top:22px"><h3 style="font-size:14px;margin:0 0 6px">${esc(t('pe.band.title'))}${step>0?` <span class="tag">${esc(t('pe.band.sub'))}</span>`:''}</h3><div class="seg" role="radiogroup" aria-label="${esc(t('pe.band.title'))}">${[1,2,3].map(i=>`<button role="radio" aria-checked="${i-1===step}" class="${i-1===step?'on':''}">${esc(t('pe.band.s'+i))}<small>${esc(t(i===1?'pe.band.s1sub':'pe.band.sub'))}</small></button>`).join('')}</div><p class="small muted" style="margin:6px 0 0">${esc(t('pe.band.range',{own:kr(D.revenue),lo:N1.format(D.revenue*lo/1e6),hi:mill(D.revenue*hi/1e6)}))}</p><p class="small muted" style="margin:2px 0 0">${esc(t('pe.band.help'))}</p><p class="small" style="margin:8px 0 0">${esc(t('pe.comp'))}</p></div>`;
+}
+function peers(P){
+  const all=[...PEERS].sort((a,b)=>b.rev-a.rev);
+  const ex=e=>({...e,ex:true});
+  const list=[...all.slice(0,6),ex(EXCLUDED[0]),...all.slice(6,14),ex(EXCLUDED[1]),...all.slice(14)];
+  const flagT=`<span class="flag">? ${esc(t('pe.flag'))}</span>`;
+  let body;
+  if(!P){
+    body=`<div class="scroll"><table class="lst"><thead><tr><th>${esc(t('pe.col.name'))}</th><th class="r">${esc(t('pe.col.rev'))}</th><th>${esc(t('pe.col.why'))}</th><th>${esc(t('pe.col.basis'))}</th><th class="r"><span class="sr">${esc(t('pe.col.act'))}</span></th></tr></thead><tbody>${list.map(p=>`<tr class="${p.ex?'ex':''}"><td class="nm">${esc(p.name)}${p.ex?` <span class="tag soft">${esc(t('pe.excluded'))}</span>`:''}</td><td class="r">${esc(mill(p.rev))}</td><td>${esc(why(p))}</td><td><span class="basis">${esc(t(basisK(p.basis)))}</span>${p.flag?'<br>'+flagT:''}</td><td class="r"><button class="linkbtn">${esc(t(p.ex?'pe.include':'pe.exclude'))}</button></td></tr>`).join('')}</tbody></table></div>`;
+  } else {
+    const shown=[...list.slice(0,7),list.find((p,i)=>p.ex&&i>7)];
+    body=`<ul class="pcards">${shown.map(p=>`<li class="${p.ex?'ex':''}"><div class="r1"><span class="nm">${esc(p.name)}</span><span>${esc(mill(p.rev))}</span></div><div class="why">${esc(why(p))}</div><div class="r3"><span><span class="basis">${esc(t(basisK(p.basis)))}</span>${p.flag?' · '+flagT:''}${p.ex?` <span class="tag soft">${esc(t('pe.excluded'))}</span>`:''}</span><button class="linkbtn">${esc(t(p.ex?'pe.include':'pe.exclude'))}</button></div></li>`).join('')}</ul><p style="margin:10px 0 0"><a href="#">${esc(t('pe.showAll',{n:25}))}</a></p>`;
+  }
+  return `<div class="grid"><section class="card c12"><h3>${esc(t('pe.title'))}</h3><p class="muted" style="margin:2px 0 0">${esc(t('pe.summary',{n:21,d:23,x:2}))} · <a href="#">${esc(t('pe.reset'))}</a></p>
+  <h3 style="font-size:14px;margin:20px 0 0">${esc(t('pe.funnel.title'))}</h3>${funnel([214,131,88,31,23],2)}<div class="fsum"><span>${esc(t('pe.excludedSum',{x:2,n:21}))}</span></div>${band(0)}</section>
+  <section class="card c12"><h3>${esc(t('pe.list.title'))}</h3>${body}</section></div>`;
+}
+function peersWidened(P){
+  return `<div class="grid"><section class="card c12"><h3>${esc(t('pe.title'))} <span class="tag">${esc(t('pe.band.sub'))}</span></h3><div class="banner">${esc(t('pe.widened.banner',{b:t('pe.band.s2')}))} <a href="#">${esc(t('pe.widened.back'))}</a></div><h3 style="font-size:14px;margin:14px 0 0">${esc(t('pe.funnel.title'))}</h3>${funnel([341,208,139,48,34],3)}${band(1)}</section></div>`;
+}
+
+/* ---------------- tab: Nøkkeltall og gap ---------------- */
+const ROWS=[
+ {k:'dm',kind:'main',fold:'WF'},
+ {grp:true},
+ {k:'lonn',kind:'sub',fold:'B'},
+ {k:'andre',kind:'sub'},
+ {k:'vare',kind:'sub',strength:true},
+ {k:'total',kind:'check'},
+ {k:'tkr',kind:'main',fold:'A'},
+ {k:'oml',kind:'main',krCap:true},
+ {k:'ek',kind:'none'},
+ {k:'vekst',kind:'none'},
+ {k:'kfd',kind:'floor'}
+];
+function dirLabel(f){return f.dir==='up'?t('dir.up'):f.dir==='down'?t('dir.down'):f.dir==='check'?t('gap.check'):t('dir.none');}
+function countLabel(d){return d.left?t('count.left',{n:d.n,m:d.left}):t('count.all',{n:d.n});}
+function krCell(r){
+  if(r.kind==='floor')return '—';
+  if(r.kind==='none')return esc(t('dir.none'));
+  if(r.kind==='check')return esc(t('gap.checkRow'));
+  if(r.kind==='sub')return `<a href="#wf" class="see">${esc(t('gap.krSee'))}</a>${r.strength?`<span class="sub2 dir-up" style="text-align:right">${esc(t('strength'))}</span>`:''}`;
+  if(r.k==='dm')return `<span class="kr">${esc(t('gap.krYear',{v:N0.format(PROFIT_FULL)}))}<small class="dir-dn">${esc(t('under',{v:pp(DIST.dm.best-OWN.dm)}))}</small></span>`;
+  if(r.krCap)return `<span class="kr">${esc(kr(OP_FULL))}<small>${esc(t('gap.krCapital'))}</small></span>`;
+  if(r.k==='tkr')return `<span class="muted">${esc(pp(DIST.tkr.best-OWN.tkr))} · ${esc(t('noKr'))}</span>`;
+  return '';
+}
+function factorStrip(key,ownV,u,W){return distStrip(key,W,DIST[key==='turnF'?'turn':key],ownV,u,'up');}
+function foldA(P){
+  const W=P?290:330;
+  return `<p style="margin:0 0 8px;max-width:100ch">${esc(t('gap.dec.lead'))}</p>
+  <div class="factors">
+   <div class="factor"><h4>${esc(t('gap.dec.margin'))}</h4><div class="fv">${esc(t('gap.dec.ownMed',{own:pct(OWN.dm),med:pct(DIST.dm.med)}))}</div><div class="scroll">${distStrip('dm',W)}</div></div>
+   <div class="factor"><h4>${esc(t('gap.dec.turn'))}</h4><div class="fv">${esc(t('gap.dec.ownMed',{own:N2.format(OWN.turn),med:N2.format(DIST.turn.med)}))}</div><div class="scroll">${distStrip('turn',W,DIST.turn,OWN.turn,'x','up')}</div></div>
+  </div>
+  <p style="margin:6px 0 4px">${esc(t('gap.dec.text',{m1:pct(OWN.dm),m2:pct(DIST.dm.med),t1:N2.format(OWN.turn),t2:N2.format(DIST.turn.med)}))}</p>
+  <p class="fnote strong">${esc(t('gap.dec.noMult'))}</p>
+  <p class="fnote">${esc(t('gap.dec.turnNote'))}</p>`;
+}
+function gapLegend(){return `<div class="legend"><span><svg width="16" height="16" aria-hidden="true">${ownDot(8,8,5)}</svg>${esc(t('legend.own'))}</span><span><svg width="6" height="14" aria-hidden="true"><line x1="3" x2="3" y1="0" y2="14" stroke="#6B7C91" stroke-width="2"/></svg>${esc(t('legend.median'))}</span><span><svg width="12" height="10" aria-hidden="true">${bestTri(6,9)}</svg>${esc(t('legend.best'))}</span><span><svg width="18" height="8" aria-hidden="true"><rect y="1" width="18" height="6" rx="2" fill="#D9E0E8"/></svg>${esc(t('legend.mid'))}</span><span>${esc(t('better'))}</span></div>`;}
+function gapDesk(){
+  let rows='';
+  for(const r of ROWS){
+    if(r.grp){rows+=`<tr class="grp"><td colspan="7">${esc(t('gap.group'))}</td></tr>`;continue;}
+    const f=F[r.k],d=DIST[r.k];
+    const cls=r.kind==='check'?'sub check':r.kind==='sub'?'sub':'';
+    let mid;
+    if(r.kind==='floor')mid=`<td colspan="4" class="floor">${esc(t('floor',{n:7}))}</td>`;
+    else if(r.kind==='none')mid=`<td>${esc(fv(d.med,f.u))}</td><td colspan="2" class="l muted">${esc(t('gap.mid',{lo:fv(d.q1,f.u),hi:fv(d.q3,f.u)}))}</td><td class="l">${distStrip(r.k)}</td>`;
+    else if(r.kind==='check')mid=`<td>${esc(fv(d.med,f.u))}</td><td>—</td><td>—</td><td></td>`;
+    else mid=`<td>${esc(fv(d.med,f.u))}</td><td>${esc(fv(d.best,f.u))}</td><td>${esc(t('placement',{v:d.plc}))}</td><td class="l">${distStrip(r.k)}</td>`;
+    rows+=`<tr class="${cls}"><th class="nmc" scope="row">${esc(t(f.k))}<span class="sub2">${esc(dirLabel(f))} · ${esc(r.kind==='floor'?t('count.all',{n:7}):countLabel(d))}</span></th><td>${esc(fv(f.own,f.u))}</td>${mid}<td>${krCell(r)}</td></tr>`;
+    if(r.fold==='WF')rows+=`<tr class="fold" id="wf"><td colspan="7"><div class="fold-h"><span class="car">▾</span>${esc(t('gap.wf.title'))}</div><div class="fold-b">${wfBlock(false)}</div></td></tr>`;
+    if(r.fold==='A')rows+=`<tr class="fold"><td colspan="7"><div class="fold-h"><span class="car">▾</span>${esc(t('gap.decA'))}</div><div class="fold-b">${foldA(false)}</div></td></tr>`;
+    if(r.fold==='B')rows+=`<tr class="fold"><td colspan="7"><div class="fold-h"><span class="car">▸</span>${esc(t('gap.decB'))}</div></td></tr>`;
+  }
+  return `<p class="topnote">${esc(t('gap.topnote'))}<a href="#">${esc(t('gap.topnoteLink'))}</a></p>${gapLegend()}
+  <div class="scroll"><table class="kt"><thead><tr><th class="l">${esc(t('gap.col.fig'))}</th><th>${esc(t('gap.col.own'))}</th><th>${esc(t('gap.col.med'))}</th><th>${esc(t('gap.col.best'))}</th><th>${esc(t('gap.col.plc'))}</th><th class="l">${esc(t('gap.col.dist'))}</th><th>${esc(t('gap.col.kr'))}</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function gapPhone(){
+  const krShort=r=>{if(r.kind==='floor')return esc(t('gap.phone.floorShort'));if(r.kind==='none')return esc(t('dir.none'));if(r.kind==='check')return esc(t('gap.checkRow'));if(r.kind==='sub')return `<span class="seeL">${esc(t('gap.phone.seeShort'))}</span>`;if(r.k==='dm')return esc(t('gap.krYear',{v:N0.format(PROFIT_FULL)}));if(r.krCap)return esc(kr(OP_FULL));if(r.k==='tkr')return `<span class="muted" style="font-weight:400">${esc(t('noKr'))}</span>`;return '';};
+  let out=`<p class="topnote">${esc(t('gap.topnote'))}<a href="#">${esc(t('gap.topnoteLink'))}</a></p><div class="phhead"><span>${esc(t('gap.phone.head1'))}</span><span>${esc(t('gap.phone.head2'))}</span><span>${esc(t('gap.phone.head3'))}</span></div>`;
+  for(const r of ROWS){
+    if(r.grp){out+=`<div class="pgrp">${esc(t('gap.group'))}</div>`;continue;}
+    const f=F[r.k],d=DIST[r.k],open=r.k==='dm';
+    out+=`<div class="prow ${r.kind==='sub'||r.kind==='check'?'sub':''}"><div class="ph3"><span class="n1"><span class="car">${open?'▾':'▸'}</span>${esc(t(f.k))}</span><span class="v">${esc(fv(f.own,f.u))}</span><span class="k">${krShort(r)}</span></div>`;
+    if(open){
+      out+=`<div class="pexp">${gapLegend()}<div class="scroll">${distStrip('dm',300)}</div><dl><dt>${esc(t('gap.col.med'))}</dt><dd>${esc(pct(d.med))}</dd><dt>${esc(t('gap.col.best'))}</dt><dd>${esc(pct(d.best))}</dd><dt>${esc(t('gap.col.plc'))}</dt><dd>${esc(t('placement',{v:d.plc}))}</dd><dt>${esc(t('gap.phone.dir'))}</dt><dd>${esc(t('dir.up'))}</dd><dt>${esc(t('gap.phone.count'))}</dt><dd>${esc(t('count.all',{n:d.n}))}</dd><dt>${esc(t('gap.col.kr'))}</dt><dd>${esc(t('gap.krYear',{v:N0.format(PROFIT_FULL)}))}</dd></dl><div class="wfbox"><div class="fold-h"><span class="car">▾</span>${esc(t('gap.wf.title'))}</div><div class="fold-b">${wfBlock(true)}</div></div></div>`;
+    }
+    out+='</div>';
+  }
+  out+=`<p class="small muted" style="margin:10px 0 0">${esc(t('gap.phone.tap'))}</p>`;
+  return out;
+}
+
+/* ---------------- tab: Verdi ---------------- */
+function stepSeg(sel,medShare,medDisabled){
+  let items=[0,25,50,75,100].map(s=>({s,label:s+NB+'%'}));
+  const med={s:medShare,med:true,label:medDisabled?t('ve.toMedian'):t('ve.toMedianShare',{v:medShare})};
+  if(medDisabled)items.unshift(med); else{const i=items.findIndex(x=>x.s>medShare);items.splice(i,0,med);}
+  return `<div class="seg" role="radiogroup" aria-label="${esc(t('ve.ctl.title'))}">${items.map(it=>`<button role="radio" data-share="${it.s}" ${it.med?'data-med="1"':''} ${it.med&&medDisabled?'disabled aria-disabled="true" title="'+esc(t('ve.aboveMedian'))+'"':''} aria-checked="${(it.med&&medDisabled)?false:it.s===sel}" class="${it.s===sel&&!(it.med&&medDisabled)?'on':''}">${esc(it.label)}</button>`).join('')}</div>`;
+}
+function evOut(s,m10){const v=evAt(s,m10);return `<div class="amt"><div class="val">${esc(kr(v))}</div><div class="per">${esc(t('ve.ev.result'))}: ${esc(t('ve.ev.calc',{p:kr(profitAt(s)),m:N1.format(m10/10).replace(/,0$/,''),v:kr(v)}))}</div><div class="per">${esc(t('ve.ev.note'))}</div></div>`;}
+function verdi(P){
+  const s=50, pr=profitAt(s), op=opAssetAt(s);
+  const trace=`<div class="trace"><b data-a="traceTitle">${esc(t('ve.trace.title',{v:kr(pr)}))}</b><ol>
+   <li>${esc(t('ve.trace.s1'))}<br><span class="calc" data-a="traceCalc">(${esc(pct(DIST.dm.best))} − ${esc(pct(OWN.dm))}) × ${esc(kr(D.revenue))} × ${s}${NB}% = ${esc(kr(pr))}</span></li>
+   <li>${esc(t('ve.trace.s2',{own:pct(OWN.dm),best:pct(DIST.dm.best),n:23}))}<br><span class="calc">${esc(kr(D.driftsresultat))} ÷ ${esc(kr(D.revenue))} = ${esc(pct(OWN.dm))}</span></li>
+   <li>${esc(t('ve.trace.s3'))}<br>${esc(t('ve.trace.dr'))} <code>driftsresultat</code>: <b class="tnum">${esc(kr(D.driftsresultat))}</b><br>${esc(t('ve.trace.si'))} <code>sumDriftsinntekter</code>: <b class="tnum">${esc(kr(D.revenue))}</b></li>
+   <li>${esc(t('ve.trace.s4'))}</li></ol><button class="linkbtn">${esc(t('ve.trace.close'))}</button></div>`;
+  const amt=`<div class="amts">
+   <div class="card amt"><p class="kick">${esc(t('ve.amt.profit'))}</p><div class="val" data-a="profit">${esc(kr(pr))}</div><div class="per" data-a="profitPer">${esc(t('ve.amt.at',{v:s}))}</div><div class="mt"><span class="mtick"></span>${esc(t('ve.amt.med'))}</div><p style="margin:10px 0 0;font-size:13px"><a href="#">${esc(t('how'))}</a></p>${trace}</div>
+   <div class="card amt"><p class="kick">${esc(t('ve.amt.wc'))}</p><div class="val na">${esc(t('ve.amt.wcNa'))}</div></div>
+   <div class="card amt"><p class="kick">${esc(t('ve.amt.op'))}</p><div class="val" data-a="op">${esc(kr(op))}</div><div class="per" data-a="opPer">${esc(t('ve.amt.atOnce',{v:s}))}</div><div class="mt"><span class="mtick"></span>${esc(t('ve.amt.med'))}</div><div class="sep">${esc(t('ve.amt.sep'))}</div><p style="margin:10px 0 0;font-size:13px"><a href="#">${esc(t('how'))}</a></p></div>
+  </div>`;
+  const ev=filled=>`<div class="card"><span class="rv">${esc(r(filled?'ve.evFilled':'ve.evEmpty'))}</span><p class="kick">${esc(t('ve.ev.title'))}</p><div class="evf"><input data-ev inputmode="decimal" aria-label="${esc(t('ve.ev.label'))}" value="${filled?'6':''}"></div><div data-evout>${filled?evOut(s,60):`<p class="small muted" style="margin:0">${esc(t('ve.ev.empty'))}</p>`}</div></div>`;
+  const below=`<div class="card below"><span class="rv">${esc(r('ve.below'))}</span><p class="small muted" style="margin:0 0 4px">${esc(t('ve.belowName',{own:pct(1.0),med:pct(4.0),best:pct(8.1)}))}</p><h3 style="font-size:14px;margin:6px 0 0">${esc(t('ve.ctl.title'))}</h3><div class="scroll" style="padding-top:10px">${stepSeg(42,42,false)}</div><p class="medline"><span class="mtick"></span>${esc(t('ve.belowMed',{v:42}))} · ${esc(t('ve.medianBasis'))}</p></div>`;
+  return `<div data-ve data-share="${s}"><div class="ctl"><h3 style="margin:0 0 2px">${esc(t('ve.ctl.title'))}</h3><p class="small muted" style="margin:0">${esc(t('ve.ctl.sub'))}</p><div class="scroll">${stepSeg(s,0,true)}</div><p class="medline"><span class="mtick"></span>${esc(t('ve.aboveMedian'))} · ${esc(t('ve.medianBasis'))}</p></div>${amt}<div class="evrow">${ev(false)}${ev(true)}</div>${below}</div>`;
+}
+
+/* ---------------- page ---------------- */
+function sec(id,titleKey,note,content){return `<section class="tabsec" id="${id}"><h2>${esc(t(titleKey))}</h2><p class="rvtext">${esc(note)}</p>${content}</section>`;}
+const root=document.getElementById('root');
+root.innerHTML=`<h1>${esc(r('title'))}</h1><p class="rvtext">${esc(r('intro'))}</p><nav class="jump"><span class="muted" style="align-self:center">${esc(r('jump'))}</span>${TABS.map(([k,m])=>`<a href="#s-${k}">${esc(t(m))}</a>`).join('')}</nav>`
+ + sec('s-ov','tabs.oversikt',r('ov.note'),pair('ov',oversikt)
+     +`<h3>${esc(r('ov.adjusted'))}</h3><div class="states"><div class="state" style="width:760px">${explCard('',true).replace('class="card  expl"','class="card expl"')}</div><div class="state ph" style="width:375px">${explCard('',true)}</div></div>`)
+ + sec('s-pe','tabs.peers',r('pe.note'),pair('pe',peers)+`<h3>${esc(r('pe.widened'))}</h3>`+pair('pe',peersWidened))
+ + sec('s-gap','tabs.gap',r('gap.note'),`<div class="frames">${frame(false,'gap',gapDesk())}${frame(true,'gap',gapPhone())}</div>`)
+ + sec('s-ve','tabs.verdi',r('ve.note'),pair('ve',verdi));
+
+/* ---------------- interactivity ---------------- */
+document.addEventListener('click',e=>{
+  const sb=e.target.closest('[data-ve] .ctl [data-share]');
+  if(sb&&!sb.disabled){const ve=sb.closest('[data-ve]');const s=+sb.dataset.share;sb.parentNode.querySelectorAll('button').forEach(b=>{if(b.disabled)return;const on=b===sb;b.classList.toggle('on',on);b.setAttribute('aria-checked',on);});
+    const pr=profitAt(s),op=opAssetAt(s);ve.dataset.share=s;
+    ve.querySelector('[data-a=profit]').textContent=kr(pr);ve.querySelector('[data-a=profitPer]').textContent=t('ve.amt.at',{v:s});
+    ve.querySelector('[data-a=op]').textContent=kr(op);ve.querySelector('[data-a=opPer]').textContent=t('ve.amt.atOnce',{v:s});
+    ve.querySelector('[data-a=traceTitle]').textContent=t('ve.trace.title',{v:kr(pr)});
+    ve.querySelector('[data-a=traceCalc]').textContent=`(${pct(DIST.dm.best)} − ${pct(OWN.dm)}) × ${kr(D.revenue)} × ${s}${NB}% = ${kr(pr)}`;
+    ve.querySelectorAll('[data-ev]').forEach(i=>i.dispatchEvent(new Event('input',{bubbles:true})));}
+});
+document.addEventListener('input',e=>{const i=e.target.closest('[data-ev]');if(!i)return;const ve=i.closest('[data-ve]');const s=+(ve.dataset.share||50);const m=parseFloat(i.value.replace(',','.'));const out=i.closest('.card').querySelector('[data-evout]');out.innerHTML=(m>0&&isFinite(m))?evOut(s,Math.round(m*10)):`<p class="small muted" style="margin:0">${esc(t('ve.ev.empty'))}</p>`;});
+onlySection();if(location.search.includes("qa"))runQA();
+</script>
+</body>
+</html>

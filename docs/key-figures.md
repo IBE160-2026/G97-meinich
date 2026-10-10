@@ -55,9 +55,9 @@ Direction: ↑ higher is better, ↓ lower is better, – no direction.
 
 | # | Key figure | Formula | Source | Dir. | Kroner |
 |---|---|---|---|---|---|
-| 3 | Cost of goods share | `varekostnad / sumDriftsinntekter` | OCR | ↓ | Profit, explains 1 |
-| 4 | Personnel cost share | `lonnskostnad / sumDriftsinntekter` | OCR | ↓ | Profit, explains 1 |
-| 5 | Other operating cost share | `annenDriftskostnad / sumDriftsinntekter` | OCR | ↓ | Profit, explains 1 |
+| 3 | Cost of goods share | `varekostnad / sumDriftsinntekter` | OCR | ↓ | None of its own; a bar in the margin decomposition |
+| 4 | Personnel cost share | `lonnskostnad / sumDriftsinntekter` | OCR | ↓ | None of its own; a bar in the margin decomposition |
+| 5 | Other operating cost share | `annenDriftskostnad / sumDriftsinntekter` | OCR | ↓ | None of its own; a bar in the margin decomposition |
 | 6 | Total cost share *(check)* | `(varekostnad + lonnskostnad + annenDriftskostnad) / sumDriftsinntekter` | OCR | ↓ | – |
 
 ### Productivity
@@ -102,6 +102,19 @@ Both hold exactly, and the engine's tests assert them:
 - **Return on assets** = operating margin × (`sumDriftsinntekter / sumEiendeler`). Defined without financial income for this reason.
 - **Personnel cost share** = personnel cost per FTE ÷ revenue per FTE. Separates paying more per person from producing less per person.
 
+**Each factor is compared with its own median, and the factors are never multiplied together.** The median margin times the median asset turnover is not the median return on assets, so the decomposition shows the subject's two factors side by side with the peers' median of each, and no single peer is presented as the benchmark. Asset turnover here is `sumDriftsinntekter / sumEiendeler` — total assets, not key figure 11's operating assets.
+
+### Margin decomposition against the peer group as a whole
+
+The cost shares explain the operating margin. They are not compared with the favourable quartile in kroner, because quartiles are not additive: each cost share's quartile comes from different companies, so their kroner amounts could sum to more than the margin gap they explain. Instead the margin difference is decomposed against **the peer group as a whole** (*peer-gruppen samlet*), which is additive by construction.
+
+- **Common peer set *P*.** Peers whose `driftsresultat`, `varekostnad`, `lonnskostnad` and `annenDriftskostnad` all come from the same reconciled filing for the benchmark year, with `sumDriftsinntekter` > 0. Every bar uses the same set. If *P* has fewer than 10 peers, or the subject lacks any component, no decomposition is shown and the count is stated.
+- **Components**, each as a share of `sumDriftsinntekter`: cost of goods (3), personnel (4), other operating (5), and **depreciation and other items**, defined as the residual (`sumDriftsinntekter` − `driftsresultat` − `varekostnad` − `lonnskostnad` − `annenDriftskostnad`) / `sumDriftsinntekter`. Defining the fourth as the residual makes operating margin = 1 − the four shares hold exactly for every company.
+- **The peer group as a whole**, per component *x*: *A*ₓ = Σ*P* numeratorₓ / Σ*P* `sumDriftsinntekter`, and the margin *M* = Σ*P* `driftsresultat` / Σ*P* `sumDriftsinntekter`. A revenue-weighted aggregate, not a mean of ratios: a mean is dominated by peers with very little revenue (in the `62.100` screening sample the mean margin is −660 % against a median of −3.2 %), while within the default size band no peer weighs more than four times another (sixteen at the widest step).
+- **Bars.** For each component, (*A*ₓ − *c*ₓ) × the subject's `sumDriftsinntekter`, where *c*ₓ is the subject's share. Positive means the subject spends less than the peer group as a whole. The four bars sum exactly to (subject margin − *M*) × `sumDriftsinntekter`.
+- **Rounding.** Bars are computed exactly and rounded to whole kroner by largest remainder, so the displayed bars sum to the displayed total.
+- **It explains; it is not a gap to close.** The decomposition shows the actual difference against the peer group as a whole. It is not scaled by *s*, is never added to the profit uplift, and states its reference so it is not read against the favourable quartile.
+
 ## From gap to kroner
 
 Let *r* be the subject's value, *T* the target — **the favourable quartile** — and *s* the closable share set by the user, 0–1. Only gaps where the subject is worse than the target produce kroner; where it is better, the figure is shown as a strength with no amount.
@@ -109,7 +122,7 @@ Let *r* be the subject's value, *T* the target — **the favourable quartile** �
 The target is the favourable quartile at every setting of *s*, and *s* scales the gap to it: *s* = 0 produces no kroner at all, *s* = 1 is full convergence with the quartile. The peer median is shown in every distribution and marked on the control so the user can see where the typical peer sits, but it never enters this arithmetic.
 
 - **Profit (1):** (T − r) × `sumDriftsinntekter` × s. This is the annual profit uplift.
-- **Cost shares (3–5):** (r − T) × `sumDriftsinntekter` × s each. **They explain the operating margin gap and are never added to it or to each other** — doing so counts the same krone twice.
+- **Cost shares (3–5):** no kroner amount of their own. Their median, favourable quartile and percentile are shown as for any figure; what they mean in kroner is shown by the margin decomposition against the peer group as a whole (see *Decompositions*), which sums exactly and is never added to the profit uplift.
 - **Receivable days (9):** (r − T) / 365 × `salgsinntekt` × s of capital released.
 - **Payable days (10):** (T − r) / 365 × (`varekostnad` + `annenDriftskostnad`) × s.
 - **Operating asset turnover (11):** ((`sumEiendeler` − `bankinnskudd`) − `sumDriftsinntekter` / T) × s of capital released.

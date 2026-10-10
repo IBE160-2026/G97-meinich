@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 6 |
-| money | 5 |
+| money | 6 |
 | parsing | 3 |
 | llm-boundary | 4 |
 | scope | 10 |
-| docs | 11 |
+| docs | 12 |
 
 ## Entry template
 
@@ -246,3 +246,12 @@ Routine work that went as expected is not logged.
 **Problem:** What could go wrong, on the record. Multi-year figures now reach anonymous sessions, so the open route serves more data per request and the rate limit (FR-6) covers a larger surface. The figures are public filings, but extracted and reconciled by us, so this widens what can be scraped cheaply. A sparkline of the company alone would invite a wrong reading — a margin rising from 1 % to 2 % looks good while peers rose further — which is why the median line is a requirement, not a style. The wall must be enforced by what the server returns, not by what the page hides: the open endpoint returns the five yearly values and the yearly medians only, never the band, placement history or user-entered figures, and the authorisation suite should assert that. The source line would have reprinted the NLOD overclaim corrected on 2026-09-30, this time in the most visible place in the product.
 **Caught by:** Checking the proposal against FR-42 and FR-65 before rendering it.
 **Outcome:** FR-42, FR-28, the technical note's account wall and the brief addendum's table updated. FR-72 added for the "Slik fungerer Peerless" page, and FR-65 points to it.
+
+### 2026-10-10 — Cost-share kroner replaced by a decomposition that adds up
+**Tags:** money · docs
+**Tool:** Claude Code (Opus 5.5), `bmad-ux`
+**Asked:** In a mock of the key-figure table, the cost shares' kroner amounts (each share's gap to its own favourable quartile × revenue) summed to 1.94 million kr under a margin gap of 1.17 million kr they were said to explain. The user proposed decomposing the margin against the peer average instead, so the bars sum exactly and can be drawn as a waterfall, and asked whether a second reference point was worth it.
+**Got:** Yes, but not against a plain average. Checked on the screening samples: in `62.100` the mean operating margin is −660 % against a median of −3.2 % (10 % trimmed −20.5 %), because a few companies with almost no revenue dominate a mean of ratios. Recommended, and accepted, a revenue-weighted aggregate — the peer group as a whole, Σ numerator / Σ revenue — over one common peer set, with a fourth bar defined as the residual so margin = 1 − the four shares holds exactly for every company.
+**Problem:** What could go wrong, on the record. The arithmetic was right before; the presentation invited the wrong reading, because quartiles are not additive and each cost share's quartile comes from different companies. The new decomposition introduces a second reference point next to the favourable quartile, and a reader who adds the waterfall to the profit uplift counts the same krone twice — so it is never scaled by the closable share, never added to the uplift, and states its reference on screen. The residual bar absorbs anything mis-classified between cost lines, so a large residual is a data-quality signal, not a cost category. The common peer set can fall below 10 when cost lines fail reconciliation; then the decomposition is withheld, not computed on fewer. Revenue weighting lets the largest peers dominate — bounded at four times within the default size band, sixteen at the widest step. Rounding bars independently would show bars not summing to their total; largest-remainder rounding is specified. A second, smaller correction: the decomposition "margin or capital efficiency" had been mocked against one named peer whose return sat at the median, because medians do not multiply; each factor is now compared with its own median and no peer is presented as the benchmark.
+**Caught by:** Reading the mock's figures against each other rather than row by row; the averages by computing them on the samples.
+**Outcome:** `docs/key-figures.md` — cost shares have no kroner of their own; new "Margin decomposition against the peer group as a whole"; decomposition factors compared with their own medians. AGENTS.md's code-convention line, PRD FR-29, FR-30 and the glossary aligned. No engine code exists yet, so the same-commit rule is met by the documents alone.

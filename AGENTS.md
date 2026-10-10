@@ -75,7 +75,7 @@ These are verified behaviours of the Brønnøysund API, not guesses. Full detail
 
 Keep the calculation engine as pure functions — figures in, figures out, no database or framework imports. It must be testable in isolation and readable by someone checking the accounting.
 
-**Key figures are implemented exactly as defined in `docs/key-figures.md`.** A formula changes in the document and the code in the same commit. Kroner amounts from cost shares explain the operating margin gap and are never summed with it.
+**Key figures are implemented exactly as defined in `docs/key-figures.md`.** A formula changes in the document and the code in the same commit. Cost shares have no kroner amount of their own: they are explained through the margin decomposition against the peer group as a whole, which is never scaled by the closable share or added to the profit uplift.
 
 **The interface is Norwegian (bokmål); everything else is English.** All user-facing copy is written in Norwegian. Documentation, code identifiers and comments are in English, except register field names, which keep the register's own Norwegian.
 

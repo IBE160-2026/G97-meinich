@@ -2,7 +2,7 @@
 title: Peerless
 status: draft
 created: 2026-09-25
-updated: 2026-09-26
+updated: 2026-10-10
 ---
 
 # PRD: Peerless
@@ -22,7 +22,7 @@ It states **what Peerless does**, not how. Four hand-written documents remain au
 
 Where this PRD and one of those four disagree, **the other document wins and this one is wrong** — fix it here. Technical depth that surfaced during discovery sits in `addendum.md` as pointers into those documents, never as a second copy.
 
-Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-72 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
+Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-73 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Every FR carries its stage on its heading line — `v1`, `Stage 2` or `Stage 3`, as the brief defines them — and an FR that spans stages states the split in its first bullet; §6 groups them. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
 
 ## 1. Vision
 
@@ -53,14 +53,14 @@ The near-term goal: any company can see itself in context in under a minute, for
 - Get that without maintaining a modelling tool — they will not.
 - Change what they work on next, having seen where the largest quiet gap is.
 
-**Board members and co-owners — served as invited viewers.**
+**Board members and co-owners — served as invited viewers, from stage 2.**
 
 - Read management's figures against an external reference, often for the first time.
 
 ### 2.2 Non-Users (v1)
 
 - **Investors and fund professionals.** Screening targets and benchmarking a portfolio start with the same question, but depend on screening and portfolio views that are out of scope (§5). Explicitly deferred, not served badly.
-- **Anyone analysing a company outside a covered industry.** They see that company's own filed key figures and a plain statement that the industry is not yet covered — no peer comparison is offered (FR-4).
+- **Anyone analysing a company outside a covered industry** — in v1, every industry but `62.100`. They see that company's own filed key figures and a plain statement that the industry is not yet covered — no peer comparison is offered (FR-4).
 - **Credit and risk analysts.** Peerless answers "where are we losing money", not "will they pay". The incumbents serve the second question well and this product does not compete there.
 - **Banks, insurers and entities outside the ordinary accounting layout.** Their filings do not fit the layout extraction depends on.
 
@@ -74,42 +74,48 @@ The order below is narrative, not priority. Who matters most is stated in §2.1:
 
 `[ASSUMPTION]` The protagonists' names and each subject company's own operating margin are invented — no real subject company exists yet. The peer statistics around them are real. Indexed in §12.
 
+**Stages.** A step that needs stage 2 or stage 3 is marked inline, and each journey ends with a line saying what of it runs in v1. UJ-1 and UJ-2 run in v1 up to their resolution; UJ-3 and UJ-4 are stage 2.
+
 - **UJ-1. A company finds out that beating its industry is not the same as being good.**
   - **Persona + context:** Kari, finance lead at a twelve-person software company under `62.100`. She knows the margin — she produces it — and has never had anything to compare it against but last year's own.
   - **Entry state:** No account, laptop, arrived from a search. Twelve employees at the industry's median revenue per employee of 1 390 898 kr puts the company near 16.7 million in revenue.
   - **Path:** Enters her own organisation number → the company is identified with its filed key figures and a peer group → she reads the funnel counts and the per-peer inclusion reasons, and adjusts the group: two companies are resellers rather than product businesses, and she excludes them (FR-16, FR-17, FR-19) → walks the key figures looking for the largest gaps in kroner → reads the written explanation of them (FR-52).
   - **Climax:** Her 2.1 % operating margin is *above* the industry median of −3.2 %, which is the number she would have quoted. Against the favourable quartile of 9.1 % it is a gap of seven points — about **1.17 million kroner a year** at full convergence (7.0 % × 16.7 m). Beating a loss-making industry average told her nothing.
-  - **Resolution:** She wants it as a PDF for the board. Export needs an account, so she signs in with a magic link and keeps the analysis she already built (FR-40, FR-42, FR-49).
+  - **Resolution (stage 2):** She wants it as a PDF for the board. Export needs an account, so she signs in with a magic link and keeps the analysis she already built (FR-40, FR-42, FR-49).
   - **Edge case:** Receivable days shows no peer aggregate — fewer than ten peers had a usable value — so the row keeps her own figure and says how many comparable values exist instead of comparing against a handful (FR-22).
-  - **Weak ending, on purpose:** she intends to come back when the next filing is in, and **nothing will tell her it arrived.** Monitoring and alerting are deferred (§5), so the return trip rests on her remembering; the portfolio front page (FR-63) only rewards her once she is already back. This is the clearest gap between what the journey wants and what v1 does.
+  - **Weak ending, on purpose:** she intends to come back when the next filing is in, and **nothing will tell her it arrived.** Monitoring and alerting are deferred (§5), so the return trip rests on her remembering; the portfolio front page (FR-63, stage 2) only rewards her once she is already back. This is the clearest gap between what the journey wants and what v1 does.
+  - **In v1:** everything up to and including the explanation, and the edge case. The resolution is stage 2: in v1 there is no account and no PDF, and what she built survives as its address (FR-69).
 
 - **UJ-2. An adviser walks into a first meeting already knowing where the company is weakest.**
   - **Persona + context:** Anders, a consultant who sells improvement work to small companies. The company he is meeting on Thursday is a **prospect, not a client** — he has no engagement, no figures from them, and no relationship. Today he would prepare by reading their website.
-  - **Entry state:** Not signed in, and he has no reason to be. The prospect is a nine-person bookkeeping firm under `69.202`; at that industry's median revenue per employee of 1 159 406 kr, around 10.4 million in revenue.
+  - **Entry state:** Not signed in, and he has no reason to be. The prospect is a nine-person software consultancy under `62.100`; at that industry's median revenue per employee of 1 390 898 kr, around 12.5 million in revenue.
   - **Path:** Enters the prospect's organisation number cold → reads the peer group and judges it himself, which is the thing he is uniquely able to do (§2.1) → goes straight to the largest kroner gaps → notes one or two numbers.
-  - **Climax:** Operating margin 2.5 % against a peer median of 9.7 % and a favourable quartile of 15.3 % — a gap of 12.8 points, about **1.34 million kroner a year** at full convergence. He opens the meeting with the prospect's own largest gap instead of a brochure.
-  - **Resolution:** He wins the work. Now he signs in, saves the analysis into a workspace for that client, and invites their managing director (FR-40, FR-43, FR-44).
-  - **Edge case:** The prospect's industry is not covered. They get their own filed key figures and a plain statement that the industry is not yet analysed — no peer group, no median, no kroner amount (FR-4).
-  - **Scope boundary, recorded because the pull is real:** his next wish is "show me every firm in `69.202` with a weak margin". That is the screening feature §5 excludes, and on an open route it is the most direct way to harvest the register. Peerless stays at one organisation number at a time.
+  - **Climax:** Operating margin −4.9 % against a peer median of −3.2 % and a favourable quartile of 9.1 % — a gap of 14.0 points, about **1.75 million kroner a year** at full convergence (14.0 % × 12.5 m). He opens the meeting with the prospect's own largest gap instead of a brochure.
+  - **Resolution (stage 2):** He wins the work. Now he signs in, saves the analysis into a workspace for that client, and invites their managing director (FR-40, FR-43, FR-44).
+  - **Edge case:** His next prospect is a bookkeeping firm under `69.202`, an industry not yet covered (stage 3). He gets its own filed key figures and a plain statement that the industry is not yet analysed — no peer group, no median, no kroner amount (FR-4).
+  - **Scope boundary, recorded because the pull is real:** his next wish is "show me every firm in `62.100` with a weak margin". That is the screening feature §5 excludes, and on an open route it is the most direct way to harvest the register. Peerless stays at one organisation number at a time.
+  - **In v1:** everything up to the resolution, and the edge case as written. Saving and inviting are stage 2; until then his preparation survives as the analysis's address (FR-69).
 
-- **UJ-3. Someone else reads the analysis without being able to reach anything else.**
+- **UJ-3. Someone else reads the analysis without being able to reach anything else.** *(stage 2)*
   - **Persona + context:** Solveig chairs the board of the company in UJ-2. She has never seen management's figures against an outside reference.
   - **Entry state:** An email invitation. No account yet, and no prior relationship with the product.
   - **Path:** Anders invites her by email into that one workspace, as a viewer (FR-44) → she signs in with a magic link → reads the saved analysis, the peer group and the kroner gaps, read-only.
   - **Climax:** She sees the same figures management sees, sourced from public filings rather than from management, and can trace any kroner amount back to the filed accounts (FR-60).
   - **Resolution:** She holds a viewer role in one workspace. Anders's other clients are unreachable to her, enforced in the database rather than by the interface remembering to filter (FR-45, FR-47).
   - **Edge case:** Anders mistypes her address. The invitation grants nothing until it is accepted from that mailbox, and it reaches exactly one workspace, as a viewer (FR-44).
-  - **Deliberately not this:** a link anyone holding it can open. A link is a bearer token — forwarded, pasted into chat, leaked through logs — and it would carry unfiled figures with it unless deliberately excluded. Invitation by email covers v1 (§5).
+  - **Deliberately not this:** a link anyone holding it can open. A link is a bearer token — forwarded, pasted into chat, leaked through logs — and it would carry unfiled figures with it unless deliberately excluded. Invitation by email covers the need (§5).
   - **Later, not now:** users who want a **valuation basis** — investors, M&A and transaction advisers — are a v2 audience. v1 values a gap at a user-set EV/EBIT multiple and stops; a full valuation tool is out of scope (§5, §2.2).
+  - **In v1:** none of it. Invitation, magic link, workspaces and roles are all stage 2; v1 has no accounts.
 
-- **UJ-4. An owner asks whether this year is going better, before anything is filed.**
-  - **Persona + context:** Tore owns the bookkeeping firm from UJ-2 and UJ-3 — the `69.202` company Anders won and Solveig chairs — and closes his books monthly. Anders's work started after a filed year at 2.5 % operating margin. Seven months in, Tore wants to know whether the business has moved in a positive direction, long before the filing exists.
+- **UJ-4. An owner asks whether this year is going better, before anything is filed.** *(stage 2; peer context stage 3)*
+  - **Persona + context:** Tore owns a bookkeeping firm under `69.202` — another of Anders's clients — and closes his books monthly. Anders's work started after a filed year at 2.5 % operating margin. Seven months in, Tore wants to know whether the business has moved in a positive direction, long before the filing exists.
   - **Entry state:** Signed in, owner of his own workspace.
   - **Path:** Enters year-to-date figures and states that they cover **seven months** → enters the same seven months of last year, which is what makes the comparison honest → sees ratios only, every one labelled *Egne tall – ikke levert* (FR-33, FR-67).
   - **Climax:** Operating margin 6.4 % over seven months against **4.8 % for the same seven months last year** — genuinely up, and up on a like-for-like period. His own last filed full year, 2.5 %, and the peers' latest full year median of 9.7 % sit alongside as context, labelled *"hele år, ikke samme periode"*: he is improving and still short of the typical peer, and both facts are legible at once.
   - **Resolution:** He has a direction, not a projection. Nothing is annualised, so nothing is forecast — and when the filing arrives it takes precedence and his entries are kept as history (FR-36).
   - **Edge case:** He has no figures for the same period last year. The year-to-date ratios are shown with no primary comparison, rather than being measured against a full year as though the periods matched (FR-67).
   - **What it deliberately will not do:** no kroner amount is produced from a partial period, because a kroner translation needs a twelve-month revenue base; and no adjustment is made for seasonality or anything else external. In `69.202` that plausibly matters: an accounting firm's work clusters around the annual-accounts and tax deadlines, so a January-to-May margin is unlikely to be its year. The project has not measured this — it is an argument for the like-for-like comparison, not a finding. Comparing against the owner's own same months is what contains the problem; the product states the limit rather than correcting it.
+  - **In v1:** none of it. Signing in and own figures are stage 2, and the peer context needs `69.202`, which is stage 3. Stage 2 alone gives Tore the like-for-like comparison against his own months, without the peer median.
 
 ## 3. Glossary
 
@@ -119,18 +125,18 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 - **Organisation number** (`organisasjonsnummer`) — the nine-digit register key. The sole lookup input and the **only** basis for matching a company across filings and years; names change while the number does not.
 - **Subject** — the company being analysed. Exactly one per analysis. Must be in a covered industry to receive a peer group (FR-3); outside one it gets its own key figures only (FR-4).
-- **Front page** — the entry page: a description, the organisation-number field, and industry overviews (FR-61).
-- **Industry overview** — an aggregate picture of one covered industry. Never names a company.
-- **Portfolio** — a signed-in user's front page, listing every company they follow — that is, every company with a saved analysis in one of their workspaces (FR-63).
+- **Front page** — the entry page: a description, the organisation-number field, and from stage 3 industry overviews (FR-61).
+- **Industry overview** — an aggregate picture of one covered industry. Never names a company. Stage 3.
+- **Portfolio** — a signed-in user's front page, listing every company they follow — that is, every company with a saved analysis in one of their workspaces (FR-63). Stage 2.
 - **Peer** — a company included in the subject's peer group. Named and visible, never anonymised.
 - **Peer group** — the set of peers assembled for a subject by the funnel (§4.2). Visible, adjustable, and never used for an aggregate below the minimum group size.
 - **Covered industry** — an industry Peerless offers peer analysis for. An industry becomes covered only once its filings are extracted and reconciled **and** its peer selection has been measured against a labelled set. Unmeasured industries are not offered.
-- **Workspace** — the unit of saved work, typically one per company. Has one **owner** and any number of invited **viewers**.
+- **Workspace** — the unit of saved work, typically one per company. Has one **owner** and any number of invited **viewers**. Workspaces, owners and viewers arrive in stage 2.
 - **Owner** — creates a workspace, owns it, writes unfiled figures, invites viewers.
 - **Viewer** — invited read-only member of a workspace: a board member, co-owner, or an adviser's client.
 - **Adviser** — *not a role.* A user with many workspaces. There is no adviser role in the system.
-- **Anonymous session** — a visitor without an account. Holds a real `auth.uid()` via Supabase anonymous sign-in, so one access model covers everyone. May read public figures and nothing else.
-- **Open route** — the no-account path: lookup, peer group, adjustment, kroner gaps. Rate-limited.
+- **Anonymous session** — a visitor without an account. Holds a real `auth.uid()` via Supabase anonymous sign-in, so one access model covers everyone. May read public figures and nothing else. Stage 2; in v1 a visitor has no identity at all and nothing is stored.
+- **Open route** — the no-account path: lookup, peer group, adjustment, kroner gaps. In v1 it is the only route; rate-limited from stage 2 (FR-6).
 
 **The funnel**
 
@@ -148,8 +154,9 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 - **Key figure** — one of the 14 numbered measures defined in `docs/key-figures.md`, plus the unnumbered cash share. That document is authoritative for every formula.
 - **Filed figures** — figures from the register: the structured key-figures API, or OCR of the filed document, reconciled.
-- **Unfiled figures** — owner-entered current-year figures, before official filing. Always labelled *Egne tall – ikke levert* ("own figures, not filed"), never merged with filed figures, never in an aggregate. Never labelled "unaudited": many small AS have no auditor, so their filed accounts are unaudited too, and the word would wrongly suggest that filed figures are audited.
+- **Unfiled figures** — owner-entered current-year figures, before official filing. Stage 2. Always labelled *Egne tall – ikke levert* ("own figures, not filed"), never merged with filed figures, never in an aggregate. Never labelled "unaudited": many small AS have no auditor, so their filed accounts are unaudited too, and the word would wrongly suggest that filed figures are audited.
 - **API-sourced** / **OCR-sourced** — a key figure is OCR-sourced if *any* component is. Three of the 14 are API-only: operating margin, return on assets, equity ratio.
+- **Peer group as a whole** (*peer-gruppen samlet*) — the revenue-weighted aggregate of a common peer set, the reference the margin decomposition is measured against. Defined in `docs/key-figures.md`; distinct from the median and the favourable quartile, and never a target.
 - **Median** — the peer median for a key figure. Shown for context and as a marker on the closable-share control; never the target of the kroner arithmetic.
 - **Favourable quartile** — the upper quartile where higher is better, the lower quartile where lower is better. Direction-aware by definition, so a figure with no declared direction has none.
 - **Percentile** — the share of peers the subject does better than, ties counted as half: `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
@@ -166,6 +173,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Annual profit uplift** — the kroner value of the operating margin gap: `(T − r) × sumDriftsinntekter × s`.
 - **Working capital released** — the kroner value of the receivable-days and payable-days gaps, and **only those two**. They do not overlap: one is an asset, the other a liability.
 - **Capital released from operating assets** — the kroner value of the operating-asset-turnover gap, reported as its own amount and **never added to working capital released**. Its capital base, `sumEiendeler − bankinnskudd`, already contains `kundefordringer`, so summing the two would count the same receivable reduction twice (FR-30).
+- **Margin decomposition** — the subject's operating margin difference against the peer group as a whole, in kroner, split into four bars: cost of goods, personnel, other operating, and depreciation and other items as the residual. The bars sum exactly to the difference. It is how the cost shares are expressed in kroner — they have no kroner amount of their own — and it is **never scaled by the closable share and never added to annual profit uplift** (FR-30). Defined in `docs/key-figures.md`.
 - **EV/EBIT multiple** — a user-set multiple applied to annual profit uplift to give implied enterprise value. **No default**: until the user enters one, no implied enterprise value is shown. EBIT, not EBITDA, because `driftsresultat` is API-sourced for every company and traces directly to the filing.
 - **Øre** — the integer unit every monetary value is stored and computed in. Money is never a float.
 
@@ -175,7 +183,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 
 ## 4. Features
 
-Requirements are numbered globally FR-1 to FR-72. `docs/key-figures.md` is authoritative for every formula; where an FR names one it is citing that document, not restating it.
+Requirements are numbered globally FR-1 to FR-73. `docs/key-figures.md` is authoritative for every formula; where an FR names one it is citing that document, not restating it.
 
 ### 4.1 Company lookup and eligibility
 
@@ -183,7 +191,7 @@ Requirements are numbered globally FR-1 to FR-72. `docs/key-figures.md` is autho
 
 Honesty at this boundary is load-bearing: a company outside a covered industry gets its own filed figures and a statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
 
-#### FR-1: Lookup by organisation number
+#### FR-1: Lookup by organisation number · v1
 
 A visitor, with or without an account, can enter a nine-digit organisation number and reach an analysis. Realises UJ-1, UJ-2.
 
@@ -192,7 +200,7 @@ A visitor, with or without an account, can enter a nine-digit organisation numbe
 - Companies are matched across filings and years on organisation number only; a name match never identifies a company.
 - A malformed or non-existent number returns a clear message, not an empty analysis.
 
-#### FR-2: Company identification
+#### FR-2: Company identification · v1
 
 The subject is shown with its registered name, organisation number, primary industry code and the accounting year being analysed.
 
@@ -200,43 +208,47 @@ The subject is shown with its registered name, organisation number, primary indu
 - The displayed year is the year of the returned filing, verified against `regnskapsperiode` or the filing `id` — never the year that was requested. The `år` request parameter is silently ignored by the register and is never trusted.
 - A company whose registered name has changed since an older filing still resolves to one company.
 
-#### FR-3: Covered-industry gate
+#### FR-3: Covered-industry gate · v1
 
 The subject must be in a covered industry to receive a peer analysis.
 
 **Consequences (testable):**
+- **Stage split:** v1 covers `62.100` only. `69.202` and `43.210` are stage 3, each added only once its own measurement exists.
 - An industry is offered only once its filings are extracted and reconciled **and** its peer selection has been measured against a labelled set for that industry.
 - A subject whose `naeringskode1.kode` is outside the covered set never receives a peer group.
 - Industry codes are SN2025. An SN2007 code returns nothing rather than a wrong match.
 
-#### FR-4: Uncovered industry behaviour
+#### FR-4: Uncovered industry behaviour · v1
 
 A company outside a covered industry is shown the key figures the register's own latest-year summary supports, and a plain statement that its industry is not yet covered. Realises UJ-2 (edge).
 
 **Consequences (testable):**
+- In v1 this is every company outside `62.100`, including `69.202` and `43.210` until stage 3 covers them.
 - Only the **API-sourced** figures are shown — operating margin, return on assets and equity ratio — computed from the key figures API's latest year.
 - The twelve figures that need a component from the filed document are **not** shown, because extraction never runs during a user request (FR-59) and nothing has been pre-warmed for an uncovered industry.
 - No peer group, no median, no quartile, no percentile and no kroner amount is shown for an uncovered subject. Nothing here is a comparison, so FR-24's same-basis rule is not engaged.
 - The statement names the industry and says coverage is not yet available — it does not imply the company is ineligible or unavailable.
 
-#### FR-5: User-entered subject description
+#### FR-5: User-entered subject description · Stage 2
 
 A user can optionally describe the subject in free text, and that description takes precedence over the register's own for classification of the subject.
 
 **Consequences (testable):**
+- **Stage 2, because it needs a live model call at request time** — v1 has no model call reachable from a request (FR-73). In v1 the subject is classified from the register's description, like every other company.
 - The text is sent to the model only to classify, and the model can answer only with a fixed category, so text written to steer the model cannot change more than which category it lands in.
 - For an anonymous session the description is used for that analysis and not stored.
 - For a signed-in user the description belongs to the workspace.
 - The description never affects any peer's classification, only the subject's.
 - This is one of exactly two model calls a user request can trigger, the other being explanation regeneration by a signed-in user (FR-52). It runs once per entered text, the result is cached against that text, and it is rate-limited with the open route (FR-6). Every other classification happens at ingestion (FR-20).
 
-#### FR-6: Open-route rate limiting
+#### FR-6: Open-route rate limiting · v1
 
 The no-account route is rate-limited so it cannot be used to harvest the register.
 
 **Consequences (testable):**
-- Requests are limited per session and per IP.
-- Anonymous sign-in is protected by CAPTCHA.
+- **Stage split:** the per-IP limit is v1, and part of v1's security together with input validation, server-side secrets and storing no user data. The per-session limit and the CAPTCHA arrive in stage 2 with anonymous sign-in, since v1 has no sessions to limit and no sign-in to guard.
+- Requests are limited per IP (v1) and per session (stage 2).
+- Anonymous sign-in is protected by CAPTCHA (stage 2).
 - Exceeding the limit returns a refusal, not a degraded or partial analysis.
 
 **Notes.** `[NOTE FOR PM]` The brief promises "under a minute" to first insight. That is a product promise no FR currently measures. Consider whether it belongs in §7 as a metric.
@@ -247,7 +259,7 @@ The no-account route is rate-limited so it cannot be used to harvest the registe
 
 This is the feature the product lives or dies on. A benchmark the user cannot interrogate is a benchmark they will not trust, so the group is visible rather than hidden, and its quality is measured rather than asserted (§8).
 
-#### FR-7: Stage 1 — coarse filter (rules)
+#### FR-7: Stage 1 — coarse filter (rules) · v1
 
 Candidates are reduced by industry code and size band.
 
@@ -256,7 +268,7 @@ Candidates are reduced by industry code and size band.
 - The size band is `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, widened only in FR-18's fixed steps.
 - Size is revenue, never `sumEiendeler` and never the register's employee count — that count is today's figure, not the accounting year's (§5).
 
-#### FR-8: Stage 2 — comparability filter (rules)
+#### FR-8: Stage 2 — comparability filter (rules) · v1
 
 A candidate must match the subject on currency (`valuta`), accounting framework (`regnskapsregler`), `smaaForetak`, `avviklingsregnskap`, financial period and `regnskapstype`.
 
@@ -266,7 +278,7 @@ A candidate must match the subject on currency (`valuta`), accounting framework 
 - Only calendar-year filings pass.
 - `smaaForetak` and `regnskapsregler` are read from the object the API misspells as `regnkapsprinsipper`.
 
-#### FR-9: Stage 3 — segmentation (rules)
+#### FR-9: Stage 3 — segmentation (rules) · v1
 
 Candidates are segmented by size, legal form, and geography where the industry calls for it.
 
@@ -276,7 +288,7 @@ Candidates are segmented by size, legal form, and geography where the industry c
 - Geography is applied only where the industry calls for it, and where it is applied the criterion is named to the user so it can be seen and loosened (FR-15, FR-18).
 - Each criterion this stage applies is reported in the funnel counts separately, so a group that collapsed here is distinguishable from one that collapsed at comparability.
 
-#### FR-10: Stage 4 — business-model fingerprint (rules)
+#### FR-10: Stage 4 — business-model fingerprint (rules) · v1
 
 Candidates are grouped by what kind of business their own accounts say they are: cost of goods share, whether they carry inventory, capitalised intangibles, fixed-asset intensity.
 
@@ -284,7 +296,7 @@ Candidates are grouped by what kind of business their own accounts say they are:
 - A reseller, a product company and a consultancy separate here even when all three describe themselves as "Programvareutvikling".
 - Applies to every company whose accounts are extracted.
 
-#### FR-11: Stage 5 — classification (model)
+#### FR-11: Stage 5 — classification (model) · v1
 
 The model judges whether a candidate is the same type of business, reading company name, secondary industry codes, statement of purpose and business description.
 
@@ -292,7 +304,7 @@ The model judges whether a candidate is the same type of business, reading compa
 - The model answers only with a fixed category. It never returns free text at this stage.
 - The model performs no arithmetic here or anywhere (FR-53).
 
-#### FR-12: Unclassified companies remain eligible
+#### FR-12: Unclassified companies remain eligible · v1
 
 A company with nothing useful to classify on is stored as unclassified — never guessed at — and remains eligible as a peer through stages 1 to 4.
 
@@ -300,7 +312,7 @@ A company with nothing useful to classify on is stored as unclassified — never
 - An unclassified company is never assigned a category by inference.
 - A peer that reached the group without stage-5 confirmation carries the match basis *accounts alone* or *industry and size alone* (FR-16).
 
-#### FR-13: Never select on a measure that is benchmarked
+#### FR-13: Never select on a measure that is benchmarked · v1
 
 No measure the product benchmarks may be used to select peers at its exact value.
 
@@ -309,9 +321,9 @@ No measure the product benchmarks may be used to select peers at its exact value
 - Cost of goods share and personnel cost share are both business-model markers and benchmarked ratios; where they enter selection they enter **only in coarse bands**, and are benchmarked within their band.
 - **The banding is proposed, not settled.** Whether either share enters selection at all is confirmed or dropped against the labelled set (§11, question 12), and the test below is what decides it rather than a judgement made in advance.
 - A test asserts that for a peer group built with banding, the within-band spread of a banded figure is non-trivial — i.e. the gap has not been driven to zero by construction. If the spread collapses, the banding is dropped rather than explained.
-- **The test runs per industry, and passing in one industry is not passing.** Where a band and a performance measure correlate, banding quietly selects on performance; `43.210` is the case where cost of goods share and margin are expected to move together, so a test aggregated across industries could pass while failing exactly where it matters.
+- **The test runs per industry, and passing in one industry is not passing.** Where a band and a performance measure correlate, banding quietly selects on performance; `43.210` (stage 3) is the case where cost of goods share and margin are expected to move together, so a test aggregated across industries could pass while failing exactly where it matters. In v1 it runs for `62.100`, and it runs again for each industry stage 3 adds.
 
-#### FR-14: Disagreement is flagged, not resolved
+#### FR-14: Disagreement is flagged, not resolved · v1
 
 Where the text and the fingerprint disagree about a candidate, the candidate is flagged rather than resolved by either signal.
 
@@ -321,7 +333,7 @@ Where the text and the fingerprint disagree about a candidate, the candidate is 
 - The number of flagged candidates is reported with the funnel counts (FR-15).
 - Flagged candidates are identifiable in the labelled-set measurement, so their precision can be reported apart from the rest (SM-1).
 
-#### FR-15: Visible funnel counts
+#### FR-15: Visible funnel counts · v1
 
 The user sees how many companies remain after each stage. Realises UJ-1, UJ-2.
 
@@ -329,7 +341,7 @@ The user sees how many companies remain after each stage. Realises UJ-1, UJ-2.
 - Each of the five stages reports its surviving count.
 - The counts are shown whether or not the group is large enough to produce aggregates.
 
-#### FR-16: Per-peer inclusion reason and match basis
+#### FR-16: Per-peer inclusion reason and match basis · v1
 
 Each peer carries a short statement of why it was included, and a flag for what its match rests on.
 
@@ -339,17 +351,17 @@ Each peer carries a short statement of why it was included, and a flag for what 
 - Where the match rests on industry and size alone, the product says so rather than presenting a guess as a judgement.
 - Peers are shown by name.
 
-#### FR-17: Exclude a peer
+#### FR-17: Exclude a peer · v1
 
 The user can exclude a company from the peer group. Realises UJ-1.
 
 **Consequences (testable):**
 - An exclusion applies to that analysis only and never changes stored register data.
-- For an anonymous session the exclusion lives in the URL (FR-69); for a signed-in user it is saved with the analysis.
+- **Stage split:** in v1 the exclusion lives in the URL (FR-69); saving it with the analysis for a signed-in user is stage 2.
 - Every aggregate, percentile and kroner amount recomputes (FR-19), and a figure can fall below the minimum group size as a result (FR-22).
 - An excluded peer is shown as excluded rather than vanishing, so the user can put it back.
 
-#### FR-18: Loosen a criterion
+#### FR-18: Loosen a criterion · v1
 
 The user can widen the size band or a segmentation criterion when the group is too small. Comparability is never loosenable.
 
@@ -360,7 +372,7 @@ The user can widen the size band or a segmentation criterion when the group is t
 - A loosened criterion is shown as loosened, with the funnel counts updated (FR-15), so a larger group never looks like the default one.
 - Loosening recomputes everything immediately (FR-19), and a figure can cross the minimum group size in either direction as a result (FR-22).
 
-#### FR-19: Immediate recompute
+#### FR-19: Immediate recompute · v1
 
 Any change to the peer group recomputes every key figure, aggregate, percentile and kroner amount immediately. Realises UJ-1.
 
@@ -368,39 +380,40 @@ Any change to the peer group recomputes every key figure, aggregate, percentile 
 - After an exclusion, aggregates reflect the reduced group with no stale value anywhere on screen.
 - A change that drops a figure below the minimum group size causes that figure to stop showing an aggregate (FR-22).
 
-#### FR-20: Peer group assembly latency
+#### FR-20: Peer group assembly latency · v1
 
 Peer group assembly returns in under one second.
 
 **Consequences (testable):**
 - Assembly reads stored key figures and profiles only.
 - No document is fetched or OCR'd during a user request, for the subject or for any peer (FR-59), and no peer is classified.
-- **Exactly two model calls can be triggered by a user request**: classifying a user-entered subject description (FR-5), and a signed-in user regenerating the explanation for an adjusted peer group (FR-52). Both are rate-limited. Regeneration additionally requires an account; description classification is available on the open route under FR-6's limits.
+- **In v1 no model call can be triggered by a user request** (FR-73). Stage 2 adds exactly two: classifying a user-entered subject description (FR-5), and a signed-in user regenerating the explanation for an adjusted peer group (FR-52). Both are rate-limited. Regeneration additionally requires an account; description classification is available on the open route under FR-6's limits.
 - Peer group assembly itself triggers neither.
 
-#### FR-70: The labelled set
+#### FR-70: The labelled set · v1
 
-A hand-labelled set of genuine comparables is built to a stated sampling frame, beginning in week 2, and is what SM-1 is measured against.
+A hand-labelled set of genuine comparables is built to a stated sampling frame, beginning in week 1, and is what SM-1 is measured against.
 
 **Consequences (testable):**
-- **15 subject companies per covered industry**, and **30 candidates for each**, drawn **at random from the subject's size band** rather than from the funnel's output. About **900 judgements** in total.
+- **30 subject companies in `62.100`**, and **30 candidates for each**, drawn **at random from the subject's size band** rather than from the funnel's output. About **900 judgements** in total — the effort budgeted when three industries were planned, now spent on the one v1 covers. Each industry stage 3 adds needs its own set before it is offered (FR-3).
 - Drawing candidates from the size band and not from the funnel is what gives recall a denominator: a candidate the funnel never proposed can still be labelled a genuine comparable, and missing it counts against recall.
 - The labelling rubric is written and dated **before** the fingerprint's feature list is fixed, so the criterion cannot be tuned to the method after the fact.
 - A **subsample is labelled from the description and website only, blind to the accounts**, so at least part of the set is not an expression of the fingerprint's own criterion.
 - A **second labeller judges about 50 pairs**, and **Cohen's κ is reported** with the result. `[ASSUMPTION]` Who the second labeller is has still to be confirmed.
-- **Fallback if the set comes in small:** `62.100` only, with the description cohorts pooled rather than reported separately. The fallback is stated in advance so a thin set is a smaller claim rather than a silent one.
+- **Fallback if the set comes in small:** the description cohorts pooled rather than reported separately. The fallback is stated in advance so a thin set is a smaller claim rather than a silent one.
 - Every count above is reported as achieved, not as planned, and any shortfall is stated with the result.
 
-#### FR-68: Embeddings, computed for measurement only
+#### FR-68: Embeddings, computed for measurement only · v1
 
 A vector representation of each company's description is computed at ingestion and used as one layer in the peer-selection measurement. It is not user-facing in v1.
 
 **Consequences (testable):**
+- **v1, and the one v1 item that may be cut** — last, after stage 3 and stage 2 (§6). It is measurement work, not product, and SM-1 stands without it.
 - Embeddings are computed in the batch job. Nothing embeds during a user request.
 - The layer appears in SM-1's ablation as a step of its own, so the measurement can report what it adds over the rules and over model classification.
 - **No peer reaches a user's group by embedding similarity in v1.** The layer changes what is measured, not what is shown.
 - It becomes user-facing only if it measurably beats model classification, and that is a post-v1 decision this PRD does not take.
-- **The layer is optional.** SM-1 reports three layers if embeddings are not built and four if they are, so the measurement stands either way and embeddings can be cut without taking a success metric with them (§6.2).
+- **The layer is optional.** SM-1 reports three layers if embeddings are not built and four if they are, so the measurement stands either way and embeddings can be cut without taking a success metric with them (§6).
 
 ### 4.3 Key figures and the benchmark display
 
@@ -408,7 +421,7 @@ A vector representation of each company's description is computed at ingestion a
 
 **Formulas are not restated here.** `docs/key-figures.md` defines all 14 numbered figures plus cash share, and the engine implements exactly those definitions.
 
-#### FR-21: The key figure set
+#### FR-21: The key figure set · v1
 
 The product computes and displays the key figures defined in `docs/key-figures.md`.
 
@@ -419,7 +432,7 @@ The product computes and displays the key figures defined in `docs/key-figures.m
 - **Cash share is a diagnostic, not a numbered key figure.** It is shown as context with no declared direction, is never ranked, and produces no kroner amount — the same treatment revenue growth gets (FR-27).
 - Amounts are integers in øre. Ratios use a decimal library and are rounded only for display: percentages to one decimal, days to whole days, kroner to whole kroner.
 
-#### FR-22: Minimum group size, per key figure
+#### FR-22: Minimum group size, per key figure · v1
 
 No aggregate is shown for a key figure unless at least 10 peers have a defined value for that figure. Realises UJ-1 (edge).
 
@@ -431,7 +444,7 @@ No aggregate is shown for a key figure unless at least 10 peers have a defined v
 - Synthetic cohorts at and below 10 assert that no aggregate escapes.
 - This is a quality threshold, not a confidentiality control: aggregates are computed only from public filings.
 
-#### FR-23: Undefined is not zero
+#### FR-23: Undefined is not zero · v1
 
 A key figure that cannot be computed for a company is undefined for that company, never defaulted to zero.
 
@@ -442,7 +455,7 @@ A key figure that cannot be computed for a company is undefined for that company
 - The number of companies left out of each figure's distribution is shown to the user.
 - No figure is ever estimated or imputed.
 
-#### FR-24: Same basis for subject and peers
+#### FR-24: Same basis for subject and peers · v1
 
 A key figure's **comparison** — median, favourable quartile, percentile and any kroner amount — is shown only if the figure can be computed for the subject and for at least the minimum group size of peers **from the same source**. The subject's own value is governed by FR-22, not by this requirement.
 
@@ -452,22 +465,22 @@ A key figure's **comparison** — median, favourable quartile, percentile and an
 - Where the subject's own value cannot be computed either, the row states that instead (FR-23).
 - **This requirement withholds a comparison; it never withholds the company's own figure.** An earlier wording said the figure itself was not shown, which contradicted FR-22.
 
-#### FR-25: Same year
+#### FR-25: Same year · v1
 
 The benchmark year is the subject's latest filed year, and peers use the same year.
 
 **Consequences (testable):**
 - A peer without a filing for that year is excluded.
 
-#### FR-26: Decomposition views
+#### FR-26: Decomposition views · v1
 
 The product separates margin from capital efficiency, and pay level from productivity.
 
 **Consequences (testable):**
 - The pay-level-versus-productivity view distinguishes paying more per person from producing less per person, using the identity in FR-21.
-- Both decomposition views need an account (FR-42).
+- **Stage split:** both views are open in v1; from stage 2 they sit behind the account wall (FR-42).
 
-#### FR-27: Distribution display
+#### FR-27: Distribution display · v1
 
 For each key figure the product shows the subject's value, the peer median, the favourable quartile, and the subject's percentile.
 
@@ -477,11 +490,12 @@ For each key figure the product shows the subject's value, the peer median, the 
 - Both the median and the favourable quartile are always shown where both exist. The median is context, and a marker on the closable-share control; it is never the target of the kroner arithmetic (FR-31).
 - **A figure with no declared direction gets no favourable quartile and no percentile**, because both are defined in the favourable direction and there is none. Those figures show the subject's value against the peer distribution and are never ranked: revenue growth, because fast growth often explains a weak margin; personnel cost per FTE and equity ratio, because the direction is genuinely arguable; and cash share, which is a diagnostic (FR-21).
 
-#### FR-28: Multi-year trend where available
+#### FR-28: Multi-year trend where available · Stage 2
 
 Where filings allow, the product shows how the subject has moved against its peers over time.
 
 **Consequences (testable):**
+- **Stage split:** the view, its tab and the sparklines are stage 2. Extracting and reconciling the earlier years is batch work that SM-2 measures, and is not held back with the view.
 - Development over time covers the last five years, 2021–2025. Measured 2026-09-26: about 88 % of columns reconcile in those years. Paper filings are never read; older generated years are used only where they reconcile.
 - Peer history is fetched every other year, since each document carries a prior-year column; every year is still covered.
 - The full development-over-time view needs an account; a sparkline preview with the peer median is open to anyone (FR-42).
@@ -490,27 +504,30 @@ Where filings allow, the product shows how the subject has moved against its pee
 
 **Description.** The feature that turns a ratio into a decision. Every unfavourable deviation becomes a kroner amount; one control sets how much of each gap the user believes is closable; the totals move live. This is where a double-counting error would be most damaging and least visible, so the rule against it is a requirement with a test, not a convention.
 
-#### FR-29: Deviation to kroner
+#### FR-29: Deviation to kroner · v1
 
 Each key figure with a kroner translation converts its gap to money exactly as `docs/key-figures.md` specifies. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
 - Only gaps where the subject is worse than the target produce a kroner amount; where it is better, the figure is shown as a strength with no amount.
 - Figures with no kroner translation in that document produce none here.
+- **The cost shares (3–5) have no kroner amount of their own.** Their median, favourable quartile and percentile are shown as for any figure; what they mean in kroner is shown only by the margin decomposition (FR-30).
 
-#### FR-30: No double counting
+#### FR-30: No double counting · v1
 
-Cost-share kroner amounts explain the operating margin gap and are never added to it **or to each other**.
+The cost shares are expressed in kroner only through the margin decomposition against the peer group as a whole, defined in `docs/key-figures.md`, and that decomposition is never added to annual profit uplift. Quartiles are not additive — each cost share's favourable quartile comes from different companies — so cost-share amounts measured to their quartiles could sum to more than the margin gap they explain.
 
 **Consequences (testable):**
-- **Profit cluster.** An automated test asserts that no total presented to the user, or contained in an export, sums more than one of {operating margin, cost of goods share, personnel cost share, other operating cost share}.
+- **Profit cluster.** An automated test asserts that no cost share produces a kroner amount of its own, and that no total presented to the user, or contained in an export, adds a margin decomposition bar to annual profit uplift.
+- **The decomposition sums exactly.** Over the common peer set that `docs/key-figures.md` defines, the four bars — cost of goods, personnel, other operating, and depreciation and other items as the residual — sum exactly to the subject's margin difference against the peer group as a whole, times its `sumDriftsinntekter`; after rounding by largest remainder, the displayed bars sum to the displayed total. A test asserts both.
+- Where the common peer set has fewer than 10 peers, or the subject lacks a component, no decomposition is shown and the count is stated (FR-22).
+- **It explains; it is not a gap to close.** The decomposition is never scaled by the closable share, and it names its reference — *peer-gruppen samlet* — so it is not read against the favourable quartile or the median.
 - **Capital cluster.** A second assertion covers the capital amounts: no total sums the receivable-days amount together with the operating-asset-turnover amount. The operating asset base `sumEiendeler − bankinnskudd` already contains `kundefordringer`, so adding them counts the receivable reduction twice.
 - Working capital released is receivable days **plus payable days only**. Those two are safe to add — one is an asset, the other a liability — and the test asserts that nothing else enters that total.
 - Capital released from operating assets is presented as its own amount beside working capital released, never inside it.
-- Cost-share amounts are presented as a subordinate breakdown of the operating margin amount, never as independent opportunities that could be added up.
-- The two clusters are tested separately because they fail separately: an earlier version of this requirement guarded only the profit cluster, and the receivables double-count passed it.
+- The two clusters are tested separately because they fail separately: an earlier version of this requirement guarded only the profit cluster, and the receivables double-count passed it. An earlier version still gave each cost share its own amount to its quartile, which the decomposition replaced (2026-10-10).
 
-#### FR-31: The closable-share control
+#### FR-31: The closable-share control · v1
 
 A single control sets the closable share from nothing to full convergence with the favourable quartile, and the results update live. Realises UJ-1, UJ-2.
 
@@ -520,7 +537,7 @@ A single control sets the closable share from nothing to full convergence with t
 - The peer median is marked on the control so the user can see where the typical peer sits relative to the target, and is never itself the target. `docs/key-figures.md` states the same.
 - A figure with no favourable quartile (FR-27) has no target and produces no amount here.
 
-#### FR-32: Valuation at a user-set multiple
+#### FR-32: Valuation at a user-set multiple · v1
 
 Implied enterprise value is annual profit uplift × an EV/EBIT multiple set by the user.
 
@@ -533,7 +550,9 @@ Implied enterprise value is annual profit uplift × an EV/EBIT multiple set by t
 
 **Description.** A company knows its current year long before it files it. An owner can enter those figures by hand and see a provisional position — but the product never lets them be mistaken for filed accounts, and never lets them touch anyone else's comparison. Realises UJ-4.
 
-#### FR-33: "Egne tall – ikke levert" labelling everywhere
+**Stage 2, the whole section.** Unfiled figures belong to a workspace, and v1 has none.
+
+#### FR-33: "Egne tall – ikke levert" labelling everywhere · Stage 2
 
 Every figure derived from unfiled input carries the label *Egne tall – ikke levert* wherever it appears. Realises UJ-4.
 
@@ -541,7 +560,7 @@ Every figure derived from unfiled input carries the label *Egne tall – ikke le
 - The label survives into PDF export.
 - Filed and unfiled figures are never merged into a single displayed value.
 
-#### FR-34: Visibility of unfiled figures
+#### FR-34: Visibility of unfiled figures · Stage 2
 
 Unfiled figures belong to the workspace: the owner writes them, viewers read them, anonymous sessions never read them. Realises UJ-4 (owner writes) and UJ-3 (viewer reads).
 
@@ -549,25 +568,25 @@ Unfiled figures belong to the workspace: the owner writes them, viewers read the
 - An anonymous session cannot read an unfiled figure by any route, including export.
 - A viewer cannot write one.
 
-#### FR-35: Period difference stated
+#### FR-35: Period difference stated · Stage 2
 
 Unfiled current-year figures are compared against the peers' latest filed year, with the difference in periods stated. Realises UJ-4.
 
 **Consequences (testable):**
 - No kroner amount is computed from user-entered figures, whether full-year or year-to-date. They yield ratios and percentiles against the peers' latest filed year only.
 
-#### FR-36: Filed figures take precedence
+#### FR-36: Filed figures take precedence · Stage 2
 
 When the filing for the same year arrives it takes precedence, and the user-entered figures are kept only as history. Realises UJ-4.
 
-#### FR-37: Unfiled figures never enter an aggregate
+#### FR-37: Unfiled figures never enter an aggregate · Stage 2
 
 No user-entered figure contributes to any peer median, quartile, distribution or percentile.
 
 **Consequences (testable):**
 - Aggregate queries read only tables holding filed accounts, so leaking an unfiled figure into a peer median would require changing the query rather than forgetting a filter.
 
-#### FR-38: Which figures may be entered
+#### FR-38: Which figures may be entered · Stage 2
 
 An owner enters four required components — revenue, operating profit, total assets and total equity — and may add the document-sourced components (the cost lines, trade receivables, trade payables, FTEs) where they have them.
 
@@ -576,7 +595,7 @@ An owner enters four required components — revenue, operating profit, total as
 - Every further key figure appears only once all of its components are present. A partly-entered figure is undefined, never completed from what is there (FR-23).
 - A component left blank is undefined, not zero.
 
-#### FR-67: Year-to-date figures against the same period last year
+#### FR-67: Year-to-date figures against the same period last year · Stage 2
 
 An owner may enter year-to-date figures, stating how many months they cover, and the primary comparison is the company's own figures for the same months of the previous year. Realises UJ-4.
 
@@ -594,13 +613,15 @@ An owner may enter year-to-date figures, stating how many months they cover, and
 
 **Description.** One access model covers everyone. A visitor without an account gets a real authenticated identity, so row-level security, the audit log and rate limiting all work unchanged — and registering converts that identity in place rather than starting over. An account is needed only for what persists. Realises UJ-1, UJ-2, UJ-3.
 
+**Stage 2, except FR-69.** v1 has no accounts, no anonymous sign-in and no user-scoped table; every analysis is open and nothing is stored about who looked. FR-69 is v1 because every visitor's adjustments live in the URL from the start.
+
 The security-relevant subtlety: anonymous users hold the `authenticated` Postgres role, so a policy that merely checks for an authenticated user admits them.
 
-#### FR-39: Anonymous session on arrival
+#### FR-39: Anonymous session on arrival · Stage 2
 
 A visitor without an account receives a Supabase anonymous sign-in, so every request carries a real `auth.uid()`.
 
-#### FR-40: Conversion in place
+#### FR-40: Conversion in place · Stage 2
 
 When a visitor registers, the anonymous user is converted in place and keeps what it did. Realises UJ-1, UJ-2.
 
@@ -608,29 +629,30 @@ When a visitor registers, the anonymous user is converted in place and keeps wha
 - An analysis built anonymously is still reachable after registration, without being rebuilt.
 - What carries across is the URL state of FR-69 — organisation number, exclusions, closable share, multiple — written into the new workspace at registration. Nothing was in the database before, so nothing had to be migrated out of an anonymous row.
 
-#### FR-41: Magic-link sign-in
+#### FR-41: Magic-link sign-in · Stage 2
 
 Sign-in is by emailed magic link.
 
 **Consequences (testable):**
 - No password is stored anywhere, so none can be leaked.
 
-#### FR-42: The account wall
+#### FR-42: The account wall · Stage 2
 
 Open to anyone: the front page and industry overviews, lookup, the peer group and its adjustment, key figures, percentiles, gaps in kroner, the closable-share control and valuation, and a five-year sparkline per key figure as a preview of development over time. An account is required for the full development-over-time view, the decomposition views, PDF export, saved analyses and history, unfiled figures, workspaces, invitations and the portfolio front page. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
+- **v1 has no wall: every tab is open** and there is no account to require. The wall below is how the product divides once accounts arrive in stage 2.
 - The core — peers and the gap in kroner — never requires an account.
 - The open sparkline preview always draws the peer median as a faint reference line, so a rising figure is never read without the peers' movement beside it. It carries no band, no placement over time and no user-entered figures; those stay in the full view.
 
-#### FR-43: Workspaces
+#### FR-43: Workspaces · Stage 2
 
 Saved work belongs to a workspace, typically one per company, with membership carrying the role `owner` or `viewer`.
 
 **Consequences (testable):**
 - An adviser holding many client companies is a user with many workspaces; no adviser role exists.
 
-#### FR-44: Invitation
+#### FR-44: Invitation · Stage 2
 
 An owner invites a viewer by email, into a single workspace, as a viewer. Realises UJ-3.
 
@@ -639,7 +661,7 @@ An owner invites a viewer by email, into a single workspace, as a viewer. Realis
 - An invitation confers read-only access only.
 - Share links that grant access to anyone holding them are out of v1 (§5).
 
-#### FR-45: Cross-workspace isolation
+#### FR-45: Cross-workspace isolation · Stage 2
 
 No user can reach a workspace they are not a member of. Realises UJ-3.
 
@@ -648,18 +670,18 @@ No user can reach a workspace they are not a member of. Realises UJ-3.
 - An invited viewer cannot reach a workspace they were not invited to.
 - Row-level security keys every user-scoped table to workspace membership; no endpoint's safety depends on remembering a `where` clause.
 
-#### FR-46: Immediate revocation
+#### FR-46: Immediate revocation · Stage 2
 
 Removing a member revokes access immediately, because every policy goes through membership.
 
-#### FR-47: The anonymous boundary in policy
+#### FR-47: The anonymous boundary in policy · Stage 2
 
 Every policy on saved or user-entered data requires `is_anonymous` to be false in the JWT, not merely that a user is authenticated.
 
 **Consequences (testable):**
 - The authorisation suite includes an anonymous attacker attempting to read and to write saved data, and asserts rejection.
 
-#### FR-48: Audit log
+#### FR-48: Audit log · Stage 2
 
 Every analysis, anonymous or not, resolves to an actor in an append-only audit log.
 
@@ -667,11 +689,12 @@ Every analysis, anonymous or not, resolves to an actor in an append-only audit l
 - Entries carry actor, timestamp and prior state.
 - Anonymous actors are logged by their anonymous id.
 
-#### FR-69: An anonymous session's state lives in the URL
+#### FR-69: An anonymous session's state lives in the URL · v1
 
 Everything an anonymous visitor changes — the organisation number, excluded peers, the closable share and the EV/EBIT multiple — is carried in the URL rather than written to the database.
 
 **Consequences (testable):**
+- **Stage split:** in v1 this holds for every visitor, since nobody has an account. The anonymous-session wording and the write into a workspace at registration (FR-40) apply from stage 2.
 - **No anonymous session writes to any table.** FR-47's requirement that every policy on saved or user-entered data demand `is_anonymous` false therefore holds without exception, and the authorisation suite's anonymous-write attack stays a real attack.
 - Every value carried this way is either public register data or the user's own choice of parameter. None of it is anyone's saved work.
 - Refreshing, bookmarking or passing on the address reproduces the same analysis, because the state is in the address.
@@ -682,15 +705,17 @@ Everything an anonymous visitor changes — the organisation number, excluded pe
 
 **Description.** The second visit should show how the company has moved against its peers rather than starting over.
 
-#### FR-49: Save an analysis
+**Stage 2, the whole section.** Saving needs an account, and PDF export sits behind the account wall.
+
+#### FR-49: Save an analysis · Stage 2
 
 A signed-in owner can save an analysis into a workspace.
 
-#### FR-50: History
+#### FR-50: History · Stage 2
 
 A saved analysis accumulates history, so a later visit shows movement against the peer group rather than a fresh start.
 
-#### FR-51: PDF export
+#### FR-51: PDF export · Stage 2
 
 A signed-in user can export an analysis as PDF. Realises UJ-1.
 
@@ -702,7 +727,7 @@ A signed-in user can export an analysis as PDF. Realises UJ-1.
 
 **Description.** Written text naming the largest gaps in kroner, the measures where the company is strong, and — where multi-year data exists — which gaps have persisted. It explains; it does not recommend. This is one of exactly two jobs the model has.
 
-#### FR-52: Generated explanation
+#### FR-52: Generated explanation · v1
 
 The product presents written explanation of the computed analysis.
 
@@ -710,24 +735,26 @@ The product presents written explanation of the computed analysis.
 - It names the largest gaps in kroner and the measures where the subject is strong.
 - Whether a gap has persisted across years is decided by the engine from the figures, never by the model.
 - Every figure in the text links back to its calculation.
+- **Stage split:** v1 shows stored text — generated in the batch job, or in test mode read from the stored output for the seed companies' default peer groups (FR-73). Regeneration for an adjusted group needs a live model call and an account, so it is stage 2.
 - Text is generated and cached for the **default** peer group only, so an ordinary visit never triggers a model call.
-- An adjusted peer group shows the default group's explanation, labelled *"Forklaringen gjelder standard peer-gruppe"*, rather than silently describing a group it was not written for.
-- A signed-in user can regenerate the explanation for an adjusted group through a rate-limited action. This is the second of exactly two model calls a user request may trigger (FR-20).
+- An adjusted peer group shows the default group's explanation, labelled *"Forklaringen gjelder standard peer-gruppe"*, rather than silently describing a group it was not written for. In v1 that is the only behaviour for an adjusted group.
+- From stage 2, a signed-in user can regenerate the explanation for an adjusted group through a rate-limited action. This is the second of exactly two model calls a user request may trigger (FR-20).
 - An anonymous session never triggers generation of explanatory text by any route, adjusted group or not.
 
-#### FR-53: The model never calculates
+#### FR-53: The model never calculates · v1
 
 No number may appear in generated text that is absent from the engine's calculation output.
 
 **Consequences (testable):**
 - An automated test rejects generated text containing any figure not present in the engine's output. Once that test exists it is never weakened.
+- In v1 the test runs against the stored explanation fixtures of FR-73, so it runs in CI and on a sensor's machine without a model key.
 - The test also rejects a figure that **is** in the engine's output but **attached to the wrong thing** — the right number against the wrong key figure, company, year or direction. Containment alone would pass that, and it is the more likely failure.
 - The test parses **Norwegian number formats**, so `1 234 567,89`, a non-breaking or narrow space as thousands separator, a comma as decimal separator, `kr` before or after the amount, and `%` are all recognised as the figures they are. A figure the test cannot parse is a failure, not a pass.
 - The model's only two jobs are classification into fixed categories (FR-11) and explanatory text (FR-52). It performs no arithmetic.
 - Peer inclusion reasons are rules-generated, not model-generated (FR-16).
 - A free-form chat over the data is out of scope precisely because it cannot be held to this rule (§5).
 
-#### FR-54: Explains, does not recommend
+#### FR-54: Explains, does not recommend · v1
 
 Generated text describes what the figures show and does not prescribe action.
 
@@ -735,7 +762,7 @@ Generated text describes what the figures show and does not prescribe action.
 
 **Description.** A data-dense product — four-column ratio tables, distribution plots, a peer list — that has to work from desktop down to phone width. This is a course requirement, not a preference, and retrofitting it is far more work than designing for it.
 
-#### FR-55: Reflow to phone width
+#### FR-55: Reflow to phone width · v1
 
 The interface works down to approximately 375px, reflowing and stacking to one column when narrow.
 
@@ -743,7 +770,7 @@ The interface works down to approximately 375px, reflowing and stacking to one c
 - The page body never scrolls horizontally at any width from 375px upwards.
 - Checked at phone width during development, not at the end.
 
-#### FR-56: Wide content scrolls within its own container
+#### FR-56: Wide content scrolls within its own container · v1
 
 Ratio tables, distribution plots and the peer list each scroll horizontally inside their own container when wider than the viewport.
 
@@ -751,14 +778,14 @@ Ratio tables, distribution plots and the peer list each scroll horizontally insi
 
 **Description.** The register serves filed accounts only as page images, so most figures depend on optical recognition. The product's posture is that a figure nobody can trace is a figure nobody acts on — and that a wrong figure is worse than a missing one.
 
-#### FR-57: Data quality flag per filing
+#### FR-57: Data quality flag per filing · v1
 
 Each filing carries a data quality flag derived from the two reconciliation checks.
 
 **Consequences (testable):**
 - The flag is derived from arithmetic checks only, never from recognition confidence. Confidence is not a signal: a generic engine reported mean confidence 0.974 while misreading several figures.
 
-#### FR-58: A figure that fails reconciliation is withheld
+#### FR-58: A figure that fails reconciliation is withheld · v1
 
 A figure is accepted only where it reconciles, and a failure blocks the filing rather than degrading the analysis silently.
 
@@ -768,7 +795,7 @@ A figure is accepted only where it reconciles, and a failure blocks the filing r
 - Neither check is exact equality, and the two are never collapsed into one: the filing's own rounding is a krone or two, while recognition errors are wrong by orders of magnitude.
 - A failing figure is not shown with a caveat and not substituted.
 
-#### FR-59: Nothing is extracted at query time
+#### FR-59: Nothing is extracted at query time · v1
 
 No document is fetched or OCR'd during a user request, for the subject or for any peer.
 
@@ -776,7 +803,7 @@ No document is fetched or OCR'd during a user request, for the subject or for an
 - Every document-derived figure served to a user comes from pre-warmed storage.
 - A covered industry is fully pre-warmed before it is offered.
 
-#### FR-60: Traceability
+#### FR-60: Traceability · v1
 
 Every kroner amount traces to the ratio that produced it and on to the filed accounts behind it.
 
@@ -784,7 +811,7 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
 - Filings too degraded for reliable recognition — chiefly the oldest paper-form scans — are reported as unavailable rather than estimated.
 
-#### FR-71: When the subject's own filing fails reconciliation
+#### FR-71: When the subject's own filing fails reconciliation · v1
 
 Where the subject's own filed document fails reconciliation, the product shows the figures it can source from the API and says why the others are absent.
 
@@ -795,17 +822,18 @@ Where the subject's own filed document fails reconciliation, the product shows t
 - The subject is not silently demoted to an uncovered company: its industry **is** covered, its peers are unaffected, and the API-sourced figures still carry a full comparison (FR-24).
 - This is distinct from FR-4, where the industry itself is uncovered and there is no peer group at all.
 
-#### FR-64: The age of the data is disclosed, not promised
+#### FR-64: The age of the data is disclosed, not promised · v1
 
 Every figure, aggregate and industry overview states the filing year behind it and the date the underlying data was read from the register.
 
 **Consequences (testable):**
+- **Stage split:** disclosure on screen is v1; what follows about PDF export and saved analyses applies from stage 2, when they exist.
 - The filing year and the read date survive into PDF export and into a saved analysis, so a saved analysis cannot be mistaken for a current one.
 - A saved analysis shows the read date it was computed from, never today's.
 - A saved analysis is a record of what was computed on that date, with one exception: a company the register later withdraws is removed from it, as subject or as peer (FR-66).
 - The product makes no freshness guarantee. The batch refresh is triggered manually in v1 (§8), so the disclosed read date — not a promised interval — is what tells the user how current the figures are.
 
-#### FR-65: Source credit under the register's licence
+#### FR-65: Source credit under the register's licence · v1
 
 The product credits Brønnøysundregistrene as the source, states that the figures have been processed by Peerless, and does not suggest the register endorses the analysis. **The NLOD credit is claimed for the API-sourced data only.**
 
@@ -814,18 +842,19 @@ The product credits Brønnøysundregistrene as the source, states that the figur
 - **Figures derived from the filed documents are credited to Brønnøysundregistrene as their source without asserting a licence**, because the register states none for those documents (§8). The product never claims NLOD coverage for data NLOD does not cover — an earlier version of this requirement did exactly that, and it was wrong.
 - The credit distinguishes the two, so a reader can tell which figures rest on a licence and which rest on a right of access.
 - It states that Peerless has processed the data, because every displayed figure is recomputed rather than reproduced. The licence requires modification to be declared where it applies, and saying so for everything costs nothing.
-- It reaches every route out of the product, PDF export included, not only the web interface.
+- It reaches every route out of the product, PDF export included from stage 2, not only the web interface.
 - It may live on an *Om*-style page rather than beside each figure — "Slik fungerer Peerless" (FR-72) — but it is reachable from every page and is not hidden.
 - The register's name and marks appear as the source of the data only — never in a way that implies the register stands behind, recommends or markets the analysis.
 - Nothing in the presentation distorts or misrepresents the register's figures. This is the licence restating what FR-58 and FR-60 already enforce.
 
 `docs/data-sources-brreg.md` holds the licence text, the clause references and the URLs.
 
-#### FR-66: A withdrawn company is removed from storage
+#### FR-66: A withdrawn company is removed from storage · v1
 
 When the register reports a company as gone, Peerless deletes its stored copy.
 
 **Consequences (testable):**
+- **Stage split:** removal from stored register data and from the seed data is v1; removal from saved analyses is stage 2, when they exist.
 - An entity returning `410 Gone` is removed from stored register data, not merely flagged, because the register states that the status should also be treated as a request that copies and caches remove it.
 - A removed company disappears from every peer group and from every aggregate computed after the removal.
 - Removal reaches saved analyses too, because the register frames it as possibly made for legal reasons and asks every copy to delete the entity; this is the one exception to the record promise in FR-64. **As subject**, the company's figures are removed from every saved analysis; the workspace keeps the entry with the notice *"Selskapet er slettet fra Enhetsregisteret 12.03.2027, og tallene er fjernet"*. **As a peer** in other saved analyses, its row and name are removed, while aggregates already computed are kept with the note *"Én sammenlignbar er fjernet fra registeret"*. No data about the removed entity is stored anywhere afterwards, and it cannot be looked up or re-entered as a peer.
@@ -833,27 +862,29 @@ When the register reports a company as gone, Peerless deletes its stored copy.
 
 ### 4.11 Front page and navigation
 
-**Description.** The product opens on a page that explains itself and shows what the data can do before anyone types a number, and a signed-in adviser lands on their own portfolio rather than an empty search field.
+**Description.** The product opens on a page that explains itself and, from stage 3, shows what the data can do before anyone types a number; from stage 2 a signed-in adviser lands on their own portfolio rather than an empty search field.
 
-#### FR-61: Front page with industry overviews
+#### FR-61: Front page with industry overviews · v1
 
 The front page describes Peerless, holds the organisation-number field, and shows an overview of each covered industry: the median margin over time, the spread in personnel cost share, and the share of companies growing.
 
 **Consequences (testable):**
+- **Stage split:** the front page — the description, the organisation-number field, "Slik fungerer det" in three steps and the link to FR-72 — is v1. The industry overviews are stage 3, and every consequence below concerns them.
 - Overviews show aggregates only and never name a company.
 - They are computed by the same engine from the same stored figures as an analysis, and follow the minimum group size (FR-22).
 - They exist only for covered industries.
 - If older filings cannot be read reliably, an overview shows the latest year only — the spread without the trend — rather than a trend built on weak data.
 - Named rankings and league tables are out of scope (§5).
 
-#### FR-62: Analysis tabs
+#### FR-62: Analysis tabs · v1
 
 An analysis is organised in tabs: overview, peers, key figures and gaps, development over time, and value.
 
 **Consequences (testable):**
-- Tabs that need an account are visible to anonymous sessions but say that an account opens them (FR-42).
+- **Stage split:** v1 has four tabs — overview, peers, key figures and gaps, and value — all open. Development over time (*Utvikling*) arrives with FR-28 in stage 2.
+- From stage 2, tabs that need an account are visible to anonymous sessions but say that an account opens them (FR-42).
 
-#### FR-63: Portfolio front page
+#### FR-63: Portfolio front page · Stage 2
 
 A signed-in user's front page lists every company they follow, with its latest position, what has changed since the last filing, and the largest gaps.
 
@@ -862,7 +893,7 @@ A signed-in user's front page lists every company they follow, with its latest p
 - It shows only workspaces the user is a member of (FR-45).
 - User-arranged widgets are out of v1.
 
-#### FR-72: "Slik fungerer Peerless" — how the product works
+#### FR-72: "Slik fungerer Peerless" — how the product works · v1
 
 A public page explains, in plain Norwegian, how peers are chosen, where AI is used and where it is not, what has been measured, where the data comes from, and what the product cannot do.
 
@@ -873,6 +904,32 @@ A public page explains, in plain Norwegian, how peers are chosen, where AI is us
 - It carries the data sources and the licence distinction of FR-65, including the prescribed NLOD credit, and is the *Om*-style page FR-65 allows.
 - It states the known limitations from `docs/key-figures.md` and §5, including the VAT effect on receivable days and the `smaaForetak` coverage limit (§10).
 - It is reachable from the footer of every page and from the front page, without an account.
+
+### 4.12 Running locally
+
+**Description.** A sensor must be able to run Peerless from a fresh clone, from the README, without our keys, a paid account, email or a hosted service. That is a course criterion and an AGENTS.md rule, and it shapes v1: everything the app reads at runtime is already in the database, and anything that would call a model or the register at runtime has a test mode backed by stored output. The technical note's "Running Peerless locally" is authoritative for how.
+
+#### FR-73: Running locally · v1
+
+Peerless runs from a fresh clone on a local database loaded with seed data, and nothing it does at runtime needs OCR, the register API, a model or email.
+
+**Consequences (testable):**
+- **Local database.** The Supabase CLI runs Postgres and auth locally in Docker. Every table, policy and function is a migration in the repository, and a fresh database reaches the full schema from the migrations alone.
+- **Seed data, one command.** The seed holds register data, API key figures, document-derived figures that reconcile, business-model fingerprints and the stored AI classifications for `62.100`, and the stored explanation text for the seed companies' default peer groups. It loads with one command, and loading it twice leaves the same state.
+- **No runtime dependency on the pipeline or the network.** With the register API and every model host unreachable and no model key set, a lookup of a seeded company produces the complete analysis. A test asserts that no request to the register or to a model leaves the app during an analysis.
+- **AI test mode.** Without a model key, the explanation comes from the stored output for the seed companies' default peer groups (FR-52), and the figure-validation test (FR-53) runs against those fixtures. A subject with no stored explanation shows none and says so; nothing is generated.
+- **No email in v1.** Nothing in v1 sends email, so no mail service or credential is needed to run it.
+- **Two seed levels, built in from the start.** The register states no licence for the filed documents and the repository is public, so:
+  - **demo** — committed, loaded with `pnpm seed`: register data and API key figures for all of `62.100`, and document-derived figures for the three demo companies and the peer groups of A and B only, roughly 40–50 companies. A check asserts that the committed seed holds document-derived figures for no company outside that declared set.
+  - **full** — generated locally by the pipeline in Docker with `pnpm seed:full`, taking hours, and never committed while the filed documents' licence is unresolved. Its output path is gitignored.
+- **Three named demo companies, each showing a different state:**
+  - **A** — a typical `62.100` consultancy with its full peer group: the whole analysis.
+  - **B** — a loss-making `62.100` product company with its peer group: the fingerprint separating a product company from consultancies, and a large gap.
+  - **C** — a `69.202` bookkeeping firm: the uncovered-industry state (FR-4), from API figures alone, with no document figures needed.
+- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets its API key figures with full comparison; its document-based figures are withheld exactly as FR-22 and FR-24 require — "For få sammenlignbare" — never filled from elsewhere. The README says that `pnpm seed:full` restores the full set.
+- **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application or the schema.
+- **README.** About five commands take a fresh clone to a running app — clone, start the local database, install, `pnpm seed`, run — and a run from a fresh clone on a clean machine is part of v1's acceptance (SM-9). The README lists the three demo organisation numbers and what each demonstrates.
+- No secret is needed to run v1: every value the app needs locally is either a local default the Supabase CLI prints or optional.
 
 ## 5. Non-Goals (Explicit)
 
@@ -903,7 +960,7 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 
 **Not in v1 mechanically:**
 
-- **Share links that grant access to anyone holding them.** A link is a bearer token: it gets forwarded, pasted into chat and leaked through logs, and it would carry unfiled figures with it unless deliberately excluded. Invitation by email covers the need in v1.
+- **Share links that grant access to anyone holding them.** A link is a bearer token: it gets forwarded, pasted into chat and leaked through logs, and it would carry unfiled figures with it unless deliberately excluded. Invitation by email covers the need from stage 2.
 - **Payment and subscription handling.**
 - **Multi-language support.**
 - **Native mobile.** The responsive web interface covers phone width (FR-55).
@@ -916,60 +973,69 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 
 ## 6. MVP Scope
 
-### 6.1 In Scope
+Scope comes in three stages, as the brief sets them after the teacher's feedback of 2026-10-06: **v1** is the core flow, built to run on a sensor's machine; **stage 2** and **stage 3** follow if time allows. Every FR carries its stage on its heading line (§0). No stage 2 or stage 3 work starts until v1 runs from a fresh clone (AGENTS.md).
 
-- Analysis without an account; magic-link sign-in; workspaces with an owner and invited read-only viewers.
-- Company lookup by organisation number, and analysis of any company in a covered industry.
-- **Two committed industries: `62.100 Dataprogrammeringstjenester` (about 1 000 companies with five or more employees) and `69.202 Regnskapsføring og bokføring` (about 800).** `43.210 Elektrisk installasjonsarbeid` is the likely third, **not a commitment**. Coverage grows one industry at a time, as many as time allows — and an industry is offered only once its filings are extracted and reconciled and its peer selection has been measured for that industry.
-- Peer group construction across all five stages, with visible filter counts, per-peer inclusion reasons, match-basis flags and user adjustment.
-- Embeddings computed at ingestion **for the SM-1 ablation only**, not user-facing in v1 (FR-68). Listed here because it is scheduled work that carries a primary success metric; omitting it from scope would drop it from the epics and make SM-1 unreportable.
-- The key figure set in `docs/key-figures.md`, across margin, cost structure, working capital, capital efficiency and productivity, with revenue growth for context.
-- Decomposition views: margin versus capital efficiency, and pay level versus productivity.
-- Multi-year trend where filings allow, with reach determined by measurement rather than promised in advance.
-- Gap quantification in kroner, the closable-share control, and valuation at a user-set EV/EBIT multiple.
-- Written explanation grounded in calculated figures, with the no-calculation rule enforced by test.
-- Manual entry of unfiled current-year figures, labelled *Egne tall – ikke levert* and excluded from all aggregates, including year-to-date figures compared against the same period of the previous year, as ratios and never annualised.
-- Minimum group size of 10 peers per key figure; rate limiting on the open route; audit log.
-- Saved analyses with history; PDF export.
-- A front page with industry overviews, analysis in tabs, a portfolio front page for signed-in users, and a public "Slik fungerer Peerless" page (FR-72).
-- Source credit under the register's NLOD 2.0 licence, stating that Peerless has processed the figures, on every route out of the product including PDF export.
-- Removal of a withdrawn company from stored register data and from saved analyses when the register reports it gone.
-- A responsive, Norwegian-language interface from desktop down to phone width.
+### 6.1 v1
 
-### 6.2 Out of Scope for MVP
+- **One industry: `62.100 Dataprogrammeringstjenester`** (about 1 000 companies with five or more employees), offered only once its filings are extracted and reconciled and its peer selection has been measured. It is where classification has most to prove, since product companies, consultancies and resellers share one code. Every other industry gets its own API-sourced figures and the uncovered-industry statement (FR-3, FR-4).
+- Company lookup by organisation number and analysis **without an account**. v1 has no accounts, no account wall and no anonymous sign-in, stores nothing about users, and every tab is open (FR-1, FR-2, FR-42's v1 line).
+- Peer group construction across all five stages, with visible filter counts, per-peer inclusion reasons, match-basis flags and user adjustment, carried in the URL (FR-7 to FR-19, FR-69).
+- The labelled set and the layer-by-layer measurement against it (FR-70, SM-1, SM-1b).
+- Embeddings computed at ingestion **for the SM-1 ablation only**, not user-facing (FR-68). Listed because it is scheduled work that carries a primary success metric; omitting it would drop it from the epics. It is the one v1 item that may be cut, and only last.
+- The key figure set in `docs/key-figures.md` with medians, favourable quartiles and percentiles, the minimum group size of 10 peers per key figure, and the two decomposition views (FR-21 to FR-27).
+- Gap quantification in kroner, the margin decomposition against the peer group as a whole, the closable-share control, and valuation at a user-set EV/EBIT multiple (FR-29 to FR-32).
+- The written explanation from stored output, with the no-calculation rule enforced by test and running against the stored fixtures (FR-52 to FR-54).
+- Data quality and provenance: the per-filing flag, withheld figures, traceability, disclosed data age, source credit under the register's licence, removal of withdrawn companies from stored data (FR-57 to FR-60, FR-64 to FR-66, FR-71).
+- A front page with the organisation-number field, analysis in four open tabs, and the public "Slik fungerer Peerless" page (FR-61's front page, FR-62 without *Utvikling*, FR-72).
+- Running locally from a fresh clone: local Supabase, the committed demo seed in one command with three named demo companies, the locally generated full seed, AI test mode, no email, and a README of about five commands (FR-73).
+- Security for a version without accounts: input validation, server-side secrets, a per-IP rate limit on the open route, and no stored user data (FR-1, FR-6).
+- A responsive, Norwegian-language interface from desktop down to phone width (FR-55, FR-56).
+
+### 6.2 Stage 2
+
+In the brief's order; the cut rule below draws from the end of this list.
+
+- **First:** accounts by emailed magic link, with anonymous sign-in, conversion in place, the `is_anonymous` policy boundary, the per-session limit and CAPTCHA (FR-39 to FR-41, FR-47, FR-6's stage-2 part), and workspaces with an owner and invited read-only viewers, isolation and immediate revocation (FR-43 to FR-46) — and with them, row-level security and the authorisation suite (SM-3).
+- The account wall (FR-42), including the open sparkline preview with the peer median.
+- The portfolio front page (FR-63).
+- Saved analyses with history, and the audit log (FR-48 to FR-50), with the saved-analysis parts of FR-64 and FR-66.
+- Development over time and sparklines, and the *Utvikling* tab (FR-28, FR-62). **The data is not held back**: multi-year extraction is batch compute that SM-2 measures, not build time; what waits is the interface.
+- Own unfiled and year-to-date figures, labelled *Egne tall – ikke levert* and excluded from all aggregates (FR-33 to FR-38, FR-67).
+- PDF export, carrying labels, read dates and source credit (FR-51).
+- The user-written company description and explanation regeneration for an adjusted group — the two model calls a request can trigger (FR-5, FR-52's stage-2 part).
+
+### 6.3 Stage 3
+
+- **`69.202 Regnskapsføring og bokføring`** (about 800 companies), with its own labelled set and measurement before it is offered. It is the natural control for `62.100`, and the primary user's own industry.
+- **`43.210 Elektrisk installasjonsarbeid`**, likewise measured first, and with it inventory days, which `docs/key-figures.md` adds only where inventory exists.
+- The industry overviews on the front page (FR-61).
+
+### 6.4 Out of scope
 
 Everything in §5, plus:
 
-- **A third industry.** `43.210` is intended, not committed — it arrives only if time allows and only after its own measurement. `[NOTE FOR PM]` This is the most likely place for scope to quietly expand. Two measured industries beat three unmeasured ones, and the measurement is what the project is graded on.
 - **Investor and portfolio use cases**, which depend on screening and portfolio views that are out of scope.
 - **Numeric quality targets.** No source document states a target for peer-selection precision, recall, or OCR accuracy. v1 commits to *measuring and reporting* these, not to hitting a threshold (§9, §11).
 
-**If time runs short, cut in this order.** Epics are cut from this list, in this order, and nothing is cut out of order to keep a demo tidy.
+**If time runs short:** cut stage 3, then stage 2 from the end of its list, then embeddings (FR-68) — which is why SM-1 reports three layers without them and four with. **v1 is not cut**, and nothing is cut out of order to keep a demo tidy.
 
-1. The **portfolio front page** (FR-63).
-2. The **industry overviews** (FR-61).
-3. **Unfiled and year-to-date figures** (FR-33–FR-38, FR-67).
-4. **PDF export** (FR-51).
-5. **Removal of withdrawn companies** (FR-66) — a licence obligation, so cut only as far as recording that it is owed.
-6. The **development-over-time view** (FR-28). **The data is kept**: multi-year extraction is batch compute, not build time, and once the filings are extracted and reconciled they stay extracted. What is cut is the interface that displays the trend.
-7. The **third industry** (`43.210`), which was never committed.
-8. **Embeddings** (FR-68), which is why SM-1 reports three layers without them and four with (FR-68, SM-1).
+**Never cut**, because the project's results rest on them: the **labelled set** (FR-70), the **OCR measurement** (SM-2), and — once stage 2 stores user data — the **authorisation suite** (SM-3).
 
-**Never cut**, because the project's results rest on them: the **labelled set** (FR-70), the **authorisation suite** (SM-3), and the **OCR measurement** (SM-2).
+**Load-bearing for the graded result** — these carry a success metric, and cutting one removes a claim rather than a feature. In v1: FR-7 to FR-16 and FR-70 (SM-1, SM-1b), FR-57 and FR-58 (SM-2), FR-53 (SM-4), FR-21, FR-23 and FR-30 (SM-6), FR-1 (SM-8), FR-73 (SM-9). In stage 2: FR-34, FR-45 and FR-47 (SM-3), which become load-bearing the moment user data is stored, and FR-28, whose view is stage 2 while the extraction behind it is measured by SM-2 in v1.
 
-**Load-bearing for the graded result** — these carry a success metric, and cutting one removes a claim rather than a feature: FR-7 to FR-16 and FR-70 (SM-1, SM-1b), FR-28, FR-57, FR-58 (SM-2), FR-34, FR-45, FR-47 (SM-3), FR-53 (SM-4), FR-21, FR-23, FR-30 (SM-6), FR-1 and FR-42 (SM-8).
-
-**Product, not result** — these make Peerless worth using but no success metric depends on them: FR-49 to FR-51, FR-61 to FR-63, FR-26, FR-33 to FR-38, FR-67, FR-52 and FR-54. The cut order above draws from this group first by design, and the one exception is FR-28, which SM-2 measures and which is therefore cut last among them and only its interface.
+**Product, not result** — these make Peerless worth using but no success metric depends on them: FR-49 to FR-51, FR-61 to FR-63, FR-26, FR-33 to FR-38, FR-67, FR-52 and FR-54. Most of them are stage 2 or 3, which is why the cut rule reaches them first. The v1 ones — FR-26, FR-52, FR-54, and the front page and tabs of FR-61 and FR-62 — are kept anyway, because they are the core flow a sensor uses and v1 is not cut.
 
 ## 7. Cross-Cutting Non-Functional Requirements
 
-**Performance.** Peer group assembly under one second; a complete analysis within a few seconds. Achieved because every figure, profile and peer classification is pre-computed at ingestion — nothing is extracted or recognised during a user request, and only two model calls are reachable from a request at all — classifying a user-entered subject description, once per text and cached (FR-5), and explanation regeneration by a signed-in user for an adjusted peer group (FR-52). The OCR pipeline has no interactive budget at all; it is a batch job measured on throughput and accuracy, not latency.
+**Performance.** Peer group assembly under one second; a complete analysis within a few seconds. Achieved because every figure, profile and peer classification is pre-computed at ingestion — nothing is extracted or recognised during a user request, and in v1 no model call is reachable from a request at all (FR-73). Stage 2 adds exactly two — classifying a user-entered subject description, once per text and cached (FR-5), and explanation regeneration by a signed-in user for an adjusted peer group (FR-52). The OCR pipeline has no interactive budget at all; it is a batch job measured on throughput and accuracy, not latency.
 
 **Correctness of money.** Every monetary value is stored and computed in integer øre, or with a decimal library. No monetary value is ever a float, including intermediate results, because the error compounds across periods. Rounding happens only for display.
 
 **Calculation integrity.** The calculation engine is pure functions — figures in, figures out, no database or framework imports — so it is testable in isolation and readable by someone checking the accounting. It is tested against hand-calculated reference cases from real filed accounts, including negative equity, zero revenue, missing components, and non-calendar financial years.
 
-**Authorisation.** Enforced in the database by row-level security on every user-scoped table, keyed to workspace membership. The application layer filtering correctly is never sufficient: assume it will eventually fail and make that insufficient to leak data. The authorisation test suite is written early, not last, and attempts every forbidden pattern — reading another user's data, reaching another workspace including one held by the same owner, an anonymous session reading or writing saved data, a viewer writing, an invited viewer reaching a workspace they were not invited to, and calling an endpoint unauthenticated — asserting rejection in each case.
+**Authorisation.** Enforced in the database by row-level security on every user-scoped table, keyed to workspace membership. The application layer filtering correctly is never sufficient: assume it will eventually fail and make that insufficient to leak data. v1 stores no user-scoped data, so this applies from stage 2. The authorisation test suite is written as soon as user-scoped data exists, before any feature that stores it, and attempts every forbidden pattern — reading another user's data, reaching another workspace including one held by the same owner, an anonymous session reading or writing saved data, a viewer writing, an invited viewer reaching a workspace they were not invited to, and calling an endpoint unauthenticated — asserting rejection in each case.
+
+**Runnability.** A fresh clone runs from the README on a local database with seed data, with no API key, paid account, email or hosted service (FR-73). Anything that would call a model or the register at runtime has a test mode backed by stored output.
 
 **Secrets.** API keys, service-role credentials and database connection strings stay server-side. `.env` is gitignored from the first commit.
 
@@ -979,11 +1045,11 @@ Everything in §5, plus:
 
 ## 8. Constraints and Guardrails
 
-**Privacy.** The source figures are public filings, so confidentiality attaches to *use*, not to the figures. What is actually private is: which companies a user looked at, their saved analyses, their workspace membership, and their unfiled figures. Security effort goes there rather than to protecting public data. Aggregates are computed only from public filings, so a peer median discloses nothing the filings do not — which is why the minimum group size is a quality threshold and not a disclosure control. Unfiled figures never enter an aggregate, enforced structurally (FR-37).
+**Privacy.** The source figures are public filings, so confidentiality attaches to *use*, not to the figures. What is actually private is: which companies a user looked at, their saved analyses, their workspace membership, and their unfiled figures. Security effort goes there rather than to protecting public data. v1 holds none of it — no accounts, no stored lookups, no user-entered figures — so this applies from stage 2. Aggregates are computed only from public filings, so a peer median discloses nothing the filings do not — which is why the minimum group size is a quality threshold and not a disclosure control. Unfiled figures never enter an aggregate, enforced structurally (FR-37).
 
-**Safety of generated text.** The model's two jobs are bounded by construction: classification answers only in fixed categories, and explanatory text is rejected by test if it contains a figure the engine did not compute. User-supplied description text reaches the model only for classification, so text written to steer it cannot change more than the category it lands in.
+**Safety of generated text.** The model's two jobs are bounded by construction: classification answers only in fixed categories, and explanatory text is rejected by test if it contains a figure the engine did not compute. User-supplied description text (stage 2) reaches the model only for classification, so text written to steer it cannot change more than the category it lands in.
 
-**Cost.** Bounded by covering a small number of industries rather than the register. OCR runs once per filing at ingestion and is stored permanently; explanation text is generated once for the default peer group and cached, with regeneration for an adjusted group behind an account and a rate limit (FR-52); the open route is rate-limited and CAPTCHA-protected so anonymous traffic cannot run up model cost or harvest the register.
+**Cost.** Bounded by covering one industry in v1 rather than the register. OCR runs once per filing at ingestion and is stored permanently; explanation text is generated once for the default peer group and cached, and v1 makes no model call at request time. From stage 2, regeneration for an adjusted group sits behind an account and a rate limit (FR-52), and the open route is rate-limited and CAPTCHA-protected so anonymous traffic cannot run up model cost or harvest the register (FR-6).
 
 **Data sourcing.** The free public register interfaces are the only data source. The paid multi-year bulk subscription is out of scope on cost grounds, which is why multi-year history comes from the filed documents rather than an API.
 
@@ -991,7 +1057,7 @@ Everything in §5, plus:
 
 **Licence.** The register's open APIs are published under NLOD 2.0, which permits commercial use, modification and redistribution, and requires the source and the licence to be credited and any modification declared (FR-65). It also forbids presenting the data misleadingly or implying the register endorses the product — the same posture §9 and §10 take for other reasons.
 
-**The one licence gap, and it is not small.** The register licences the key-figures API but **not the filed annual-account documents**: on data.norge.no the key-figures distribution carries NLOD while document retrieval reads *"Lisens: Ikke oppgitt"*, and no register page states that the documents are NLOD-covered. Twelve of the fifteen key figures are recovered from those documents by OCR, so the gap sits under most of the figure set rather than at its edge. Peerless publishes derived ratios and aggregates, never a reproduction of a filing, which is a materially different act — but the distinction is a legal judgement, free access is not a reuse licence (åndsverkloven §§33–34), and nothing in the register's own pages settles it. **Not a v1 blocker** — this is coursework against public data — and **a gate before any public or commercial deployment**, where the answer comes from asking Brønnøysundregistrene rather than from reading their website (§11.19). Detail and sources in `docs/data-sources-brreg.md`.
+**The one licence gap, and it is not small.** The register licences the key-figures API but **not the filed annual-account documents**: on data.norge.no the key-figures distribution carries NLOD while document retrieval reads *"Lisens: Ikke oppgitt"*, and no register page states that the documents are NLOD-covered. Twelve of the fifteen key figures are recovered from those documents by OCR, so the gap sits under most of the figure set rather than at its edge. Peerless publishes derived ratios and aggregates, never a reproduction of a filing, which is a materially different act — but the distinction is a legal judgement, free access is not a reuse licence (åndsverkloven §§33–34), and nothing in the register's own pages settles it. **Not a v1 blocker** — this is coursework against public data, and the public repository carries document-derived figures for a small sample only (FR-73) — and **a gate before any public or commercial deployment**, where the answer comes from asking Brønnøysundregistrene rather than from reading their website (§11.19). Detail and sources in `docs/data-sources-brreg.md`.
 
 ## 9. Success Metrics
 
@@ -999,10 +1065,10 @@ Each metric names what it validates. `[ASSUMPTION]` No source document states a 
 
 **Primary**
 
-- **SM-1 — What each layer adds.** The headline result is the **layer-by-layer ablation**: precision and recall against the labelled set (FR-70) for each funnel layer standalone and cumulatively — industry code and size alone, adding the accounts-based fingerprint, adding model classification, and adding embeddings if they are built. **Three layers reported, four with embeddings.** The question it answers is how much each layer contributes and, specifically, **whether the model adds anything beyond the accounts-based fingerprint.** That question can genuinely come back "no", which is what makes it the headline. Reported **per industry**, split by whether the description is informative, with each cohort's share disclosed. Validates FR-7 to FR-16, FR-70.
+- **SM-1 — What each layer adds.** The headline result is the **layer-by-layer ablation**: precision and recall against the labelled set (FR-70) for each funnel layer standalone and cumulatively — industry code and size alone, adding the accounts-based fingerprint, adding model classification, and adding embeddings if they are built. **Three layers reported, four with embeddings.** The question it answers is how much each layer contributes and, specifically, **whether the model adds anything beyond the accounts-based fingerprint.** That question can genuinely come back "no", which is what makes it the headline. Reported for **`62.100`**, the one industry v1 covers, split by whether the description is informative, with each cohort's share disclosed (§10 states what one industry cannot show). Validates FR-7 to FR-16, FR-70.
 - **SM-1b — Sanity check against industry code alone.** Precision and recall of the full funnel against the industry-code-only baseline on the same labelled set. This is a **check, not a claim**: the labeller judges comparability on criteria the fingerprint encodes, so the baseline is expected to lose, and its losing confirms the labelling is coherent rather than demonstrating the method works. A result where industry code alone *wins* would mean something is wrong with the funnel or the labelling. Validates FR-70.
 - **SM-2 — Recognition accuracy.** Share of figures recovered exactly, and share of filings passing the internal consistency check, each split between recent filings and older paper-form scans, measured against a hand-transcribed reference set. This measurement decides which document-derived ratios the product can honestly offer and how far back trend can reach. Validates FR-28, FR-57, FR-58.
-- **SM-3 — Authorisation.** Zero successful forbidden accesses across the full suite, including between workspaces held by the same owner and from an anonymous session against saved data. Validates FR-34, FR-45, FR-47.
+- **SM-3 — Authorisation.** From stage 2, when user data is first stored. Zero successful forbidden accesses across the full suite, including between workspaces held by the same owner and from an anonymous session against saved data. Validates FR-34, FR-45, FR-47.
 - **SM-4 — The model never calculates.** No generated text contains a figure absent from the engine's output, asserted by automated test. Validates FR-53.
 
 **Secondary**
@@ -1010,14 +1076,15 @@ Each metric names what it validates. `[ASSUMPTION]` No source document states a 
 - **SM-5 — Latency.** Peer group assembly under one second; complete analysis within a few seconds. Validates FR-20.
 - **SM-6 — Engine correctness.** All hand-calculated reference cases pass, including negative equity, zero revenue, missing components and non-calendar financial year; both algebraic identities hold exactly. Validates FR-21, FR-23.
 - **SM-7 — Responsiveness.** No horizontal page scrolling at any width from 375px upwards. Validates FR-55, FR-56.
-- **SM-8 — A complete analysis needs nothing but an organisation number** — no account, no upload, no configuration. Validates FR-1, FR-42.
+- **SM-8 — A complete analysis needs nothing but an organisation number** — no account, no upload, no configuration. Validates FR-1, and from stage 2 FR-42.
+- **SM-9 — Runs from a fresh clone.** Following the README alone, on a clean machine with no keys, a fresh clone reaches a complete analysis of a seeded company, and the test suite passes, AI test mode included. Validates FR-73.
 
 **Counter-metrics (do not optimise)**
 
 - **SM-C1 — Peer group size.** Do not optimise upward. A larger group containing companies that are not genuine comparables is worse than a smaller correct one, because the product's whole claim is that the group is right. Counterbalances SM-1 and coverage pressure.
 - **SM-C2 — Number of figures displayed.** Do not optimise upward. Showing a figure computed over a barely-qualifying set of peers, to avoid an empty row, is a regression — an empty row that says why is the correct output. Counterbalances SM-2.
 - **SM-C3 — Share of companies classified.** Do not optimise upward. "Unclassified" is a correct answer, and a classifier pushed to label everything produces confident nonsense on exactly the companies whose descriptions say nothing. Counterbalances SM-1.
-- **SM-C4 — Industries covered.** Do not optimise upward. Each industry needs its own measurement before it is offered; a third industry added without one would trade the project's central result for apparent breadth. Counterbalances coverage in §6.1.
+- **SM-C4 — Industries covered.** Do not optimise upward. Each industry needs its own measurement before it is offered; an industry added in stage 3 without one would trade the project's central result for apparent breadth. Counterbalances coverage in §6.1.
 
 ## 10. Measured Results — the project's central claim
 
@@ -1029,7 +1096,8 @@ This section exists because Peerless is coursework as well as a product, and the
 
 **What makes the headline claim measurable:**
 
-- The labelled set of FR-70, to a stated sampling frame: 15 subjects per industry, 30 candidates each drawn **at random from the subject's size band rather than from the funnel's output**, so a comparable the funnel never proposed still counts against recall. Roughly 900 judgements, from week 2.
+- The labelled set of FR-70, to a stated sampling frame: 30 subjects in `62.100`, 30 candidates each drawn **at random from the subject's size band rather than from the funnel's output**, so a comparable the funnel never proposed still counts against recall. Roughly 900 judgements, from week 1.
+- **What one industry can and cannot say.** With v1 covering `62.100` only, the result says whether the model adds anything within that industry, where codes are most heterogeneous. It can no longer contrast an industry like that against a homogeneous one such as `69.202`, and so cannot say *when* the model earns its place; that contrast comes with stage 3, each industry with its own set.
 - **Three defences against the circularity**, none of which fully removes it and all of which are reported: the labelling rubric is written and dated **before** the fingerprint's feature list is fixed; a **subsample is labelled from description and website only, blind to the accounts**; and a **second labeller judges about 50 pairs with Cohen's κ reported**.
 - **Layer-by-layer ablation:** each layer scored standalone and cumulatively, so the result shows where any improvement comes from — rules, or the model. Stratified by description quality, because the model can only help where there is text to read, and pooling the cohorts would hide that.
 
@@ -1037,9 +1105,9 @@ This section exists because Peerless is coursework as well as a product, and the
 
 - If the accounts-based fingerprint alone captures most of the improvement, **the model was needed less than expected.** That is a finding worth reporting, and the rules-before-model principle predicts it.
 - If embeddings do not measurably beat model classification, classification stays. Embeddings replace it only on evidence.
-- Description quality is currently a word-list proxy, not a measurement: at most 56% of descriptions in 62.100, 38% in 69.202 and 50% in 43.210 appear specific, and the true share is lower. Hand-scoring converts this estimate into a measurement, and it covers the two committed industries.
+- Description quality is currently a word-list proxy, not a measurement: at most 56% of descriptions in 62.100, 38% in 69.202 and 50% in 43.210 appear specific, and the true share is lower. Hand-scoring converts this estimate into a measurement; in v1 it covers `62.100`, and `69.202` and `43.210` when stage 3 adds them.
 
-**Will there be anything to compare against?** This had been asserted rather than computed: the PRD set a floor of 10 peers per key figure without knowing how often it would be cleared once comparability, the size band and the reconciliation rate had all taken their cut. Computed by `analysis/peer_group_yield.py` from the screening samples, reported in `analysis/output/peer-group-yield.md`:
+**Will there be anything to compare against?** This had been asserted rather than computed: the PRD set a floor of 10 peers per key figure without knowing how often it would be cleared once comparability, the size band and the reconciliation rate had all taken their cut. Computed by `analysis/peer_group_yield.py` from the screening samples, reported in `analysis/output/peer-group-yield.md`. `69.202` is stage 3; its rows stay as the evidence it was screened on:
 
 | Industry | Stage reached (default 0.5–2× band) | Median peers | Q1 | Share clearing 10 |
 |---|---|---|---|---|
@@ -1052,7 +1120,7 @@ This section exists because Peerless is coursework as well as a product, and the
 
 **The funnel is not the binding constraint, and that was worth checking rather than assuming.** Even after reconciliation and a divide-by-three for classification, the typical `62.100` subject has around 74 qualifying peers and 88 % of subjects clear the floor. These are upper bounds — the computation applies stages 1 and 2 plus the size band, and stands in for stages 3 to 5 with a crude division — so the real figures are lower, but not by the order of magnitude that would make below-floor rows the normal case.
 
-**What does fail is narrower and sharper: a subject that is not `smaaForetak`.** `smaaForetak` is a comparability field and therefore a hard exclusion (FR-8), so such a company can only be compared against others like it — and there are very few. In `62.100` they are 8 of 93 comparable companies (about 9 %, or 81 in the population), and they still find a median of 25 peers among themselves. In `69.202` there is **1 in a sample of 99** — about 8 companies in the entire industry — so **a large accounting firm gets no peer group at all**, and FR-22 will withhold every aggregate for it. That is correct behaviour and a real coverage limit, and it is stated here rather than discovered by the first such user. `[ASSUMPTION]` The share is per industry and not a single figure: 9 % in `62.100` after comparability, 1 % in `69.202`.
+**What does fail is narrower and sharper: a subject that is not `smaaForetak`.** `smaaForetak` is a comparability field and therefore a hard exclusion (FR-8), so such a company can only be compared against others like it — and there are very few. In `62.100` they are 8 of 93 comparable companies (about 9 %, or 81 in the population), and they still find a median of 25 peers among themselves. In `69.202` (stage 3) there is **1 in a sample of 99** — about 8 companies in the entire industry — so **a large accounting firm gets no peer group at all**, and FR-22 will withhold every aggregate for it. That is correct behaviour and a real coverage limit, and it is stated here rather than discovered by the first such user. `[ASSUMPTION]` The share is per industry and not a single figure: 9 % in `62.100` after comparability, 1 % in `69.202`.
 
 **Honest framing of the market claim.** No Norwegian product found assembles a matched peer group *and* converts deviations to kroner self-serve for the company itself; incumbents lead with credit-risk framing. But the gap sits between two well-funded adjacent categories rather than in an empty market, and the brief is candid that there is no moat: the data is public, the ratios are textbook, and the advantage is framing and execution only.
 
@@ -1065,7 +1133,7 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 1. **Course requirements.** No fixed user roles are required. Nothing must be delivered before coding, but BMAD requirements must be met. The product brief is due 2026-09-27.
 2. **Interface language.** Norwegian (bokmål). All documentation stays English.
 3. **Team size.** Solo.
-4. **Is `43.210` committed for v1?** No — intended, not committed, and §6.2 stands as written. It remains the last rung of the cut order, and inventory days stay out of the key figure set with it. *(2026-09-26)*
+4. **Is `43.210` committed for v1?** No *(2026-09-26)*. Superseded 2026-10-10 by the teacher's feedback of 2026-10-06 and the user's decision: v1 covers `62.100` only, and `69.202` and `43.210` are stage 3 (§6.3), each measured before it is offered. Inventory days stay out of the key figure set until `43.210` arrives.
 5. **A default or range for the EV/EBIT multiple.** None. The field starts empty and implied enterprise value is not shown until the user enters a multiple, so the product never implies a valuation it did not receive (FR-32). *(2026-09-26)*
 6. **Median or favourable quartile as the reference point.** The favourable quartile is the target at every setting of the closable-share control, and the control scales the gap to it — no kroner at zero, full convergence at full closure. The median is shown in every distribution and marked on the control so the user can see where the typical peer sits, but never enters the arithmetic (FR-31). `docs/key-figures.md` was corrected in the same change; its previous wording admitted a reading in which zero closable share still produced the whole gap to the median. *(2026-09-26)*
 7. **Which figures a user may hand-enter as unfiled.** Four required components — revenue, operating profit, total assets, total equity — with the document-sourced components optional (FR-38). *(2026-09-26)*
@@ -1100,7 +1168,7 @@ Every `[ASSUMPTION]` in this document, for explicit confirmation:
 
 - **§4.3, FR-28** — trend depth: five years, from measurement (2026-09-26).
 - **§4.5, FR-38** — the hand-entered set is confirmed, not inferred (2026-09-26).
-- **§6.2** — `43.210` confirmed out of MVP, intended rather than committed (2026-09-26).
+- **§6** — `43.210` confirmed out of MVP (2026-09-26); since 2026-10-10 v1 covers `62.100` only, with `69.202` and `43.210` in stage 3 (§6.3).
 - **Interface language** — Norwegian (bokmål) (2026-09-26).
 
 ---

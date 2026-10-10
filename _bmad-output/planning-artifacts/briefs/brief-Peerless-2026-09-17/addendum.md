@@ -6,7 +6,7 @@ Detail that was decided while the brief was written but belongs downstream rathe
 
 AI has exactly two jobs in Peerless.
 
-- **Classifying what a company does.** AI reads the company name, secondary industry codes, statement of purpose and business description, and answers only with a fixed category. It runs once per company when data is loaded, never while a user waits. The one exception is a description the user enters for the company being analysed: it is classified once, cached against that text and rate-limited. A company with nothing to classify on is left unclassified rather than guessed at.
+- **Classifying what a company does.** AI reads the company name, secondary industry codes, statement of purpose and business description, and answers only with a fixed category. It runs once per company when data is loaded, never while a user waits. The one exception, from stage 2, is a description the user enters for the company being analysed: it is classified once, cached against that text and rate-limited. A company with nothing to classify on is left unclassified rather than guessed at.
 - **Writing the explanation.** AI describes figures the engine has already computed. It never calculates. An automated test rejects generated text containing any figure absent from the engine's output.
 
 Everything else is rules: the comparability filter, size segmentation, the business-model fingerprint read from the accounts, every ratio and every kroner amount, and the statement of why each peer was included. Rules come first, and AI gets only what the rules cannot settle.
@@ -15,14 +15,14 @@ Embeddings of the business descriptions are measured as an alternative to AI cla
 
 ## The front page and the analysis pages
 
-**Industry overviews on the front page.** For each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. They use the same engine and the same stored figures as the analysis, so they cost little to build and show what the data can do. They exist only for covered industries — two at the start. If older filings cannot be read reliably, the overviews show the latest year only — the spread without the trend — rather than a trend built on weak data.
+**Industry overviews on the front page (stage 3).** For each covered industry: the median margin over time, the spread in personnel cost share, the share of companies growing. They use the same engine and the same stored figures as the analysis, so they cost little to build and show what the data can do. They exist only for covered industries. If older filings cannot be read reliably, the overviews show the latest year only — the spread without the trend — rather than a trend built on weak data.
 
 **Why no named rankings.** Lists such as "fastest-growing companies" or "lowest wage share" were considered and rejected.
 - A top list collects the errors. A recognition error that turns 72 million into 722 million, or growth from one million to ten, lands at the top — and Peerless rests on a wrong figure being worse than a missing one.
 - A wage-share ranking is systematically misleading: a company that books subcontractors as other operating costs rather than payroll looks like the lowest payer.
 - It would amount to a public list of who pays worst, built on figures that do not mean that.
 
-**Tabs.** An analysis is organised as overview, peers, key figures and gaps, development over time, and value.
+**Tabs.** An analysis is organised as overview, peers, key figures and gaps, and value; development over time joins them in stage 2.
 
 **The account wall (stage 2).** In v1 there are no accounts and every analysis is open; the wall below applies once accounts arrive.
 
@@ -38,11 +38,13 @@ Embeddings of the business descriptions are measured as an alternative to AI cla
 
 The core — peers and the gap in kroner — stays open, because "one field and a minute" is what separates Peerless from the alternatives. The deeper pages give a reason to create an account without breaking that promise.
 
-**The portfolio front page.** A signed-in user sees every company they follow — that is, every company with a saved analysis in one of their workspaces — with its latest position, what has changed since the last filing, and the largest gaps. It is built on saved analyses and serves the primary user, the adviser with many clients.
+**The portfolio front page (stage 2).** A signed-in user sees every company they follow — that is, every company with a saved analysis in one of their workspaces — with its latest position, what has changed since the last filing, and the largest gaps. It is built on saved analyses and serves the primary user, the adviser with many clients.
 
 **Deferred.** Widgets users choose and arrange themselves. Useful, but a large amount of interface work for a solo project, with little added over a well-chosen fixed layout.
 
 ## Access and confidentiality
+
+v1 has no accounts and stores nothing about users, so this section applies from stage 2.
 
 **What is protected.** The filed figures are public — anyone may look up any company, and that is the point. What is protected is what the product adds: unfiled figures, and a user's activity. Each lookup is harmless on its own, but an investor's searches reveal their acquisition strategy and an adviser's workspaces reveal their client list.
 
@@ -58,7 +60,7 @@ The core — peers and the gap in kroner — stays open, because "one field and 
 
 ## Data quality
 
-The register serves the full accounts only as page images, so every figure beyond the latest-year summary depends on optical recognition. Every recognised figure is checked twice: within its own filing, where subtotals must agree within a few kroner because the register prints whole kroner rounded from øre; and against the register's summary figures, with a proportional tolerance because reporting in thousands or millions makes exactness wrong. A figure that fails is withheld, and a failing filing blocks the analysis rather than degrading it silently. Filings made on paper have no fixed layout to read and are reported as unavailable, never estimated; they are a small remainder before 2014. Measured on 180 filings: about 88 % of columns reconcile for 2021–2025, about 60 % for 2011–2016, and 71 of 71 figures agree with the register's summary figures. Development over time therefore covers five years in v1. Detail in the technical note and `docs/data-sources-brreg.md`.
+The register serves the full accounts only as page images, so every figure beyond the latest-year summary depends on optical recognition. Every recognised figure is checked twice: within its own filing, where subtotals must agree within a few kroner because the register prints whole kroner rounded from øre; and against the register's summary figures, with a proportional tolerance because reporting in thousands or millions makes exactness wrong. A figure that fails is withheld, and a failing filing blocks the analysis rather than degrading it silently. Filings made on paper have no fixed layout to read and are reported as unavailable, never estimated; they are a small remainder before 2014. Measured on 180 filings: about 88 % of columns reconcile for 2021–2025, about 60 % for 2011–2016, and 71 of 71 figures agree with the register's summary figures. Development over time, from stage 2, therefore covers five years. Detail in the technical note and `docs/data-sources-brreg.md`.
 
 ## The benchmark in detail
 
@@ -77,7 +79,7 @@ The register serves the full accounts only as page images, so every figure beyon
 - **A free-form chat over the data.** It cannot be held to the rule that AI never calculates.
 - **Credit scoring, forecasting, group consolidation, ownership mapping, cross-border comparison, custom ratio definitions, payment, multi-language support, native mobile.** Outside the question Peerless answers, or not needed for v1.
 - **Banks, insurers and other entities outside the ordinary accounting layout.** Their filings do not fit the layout recognition depends on.
-- **Deferred rather than rejected:** share links, user-arranged widgets, monitoring over time, and wider industry coverage are the natural first additions.
+- **Deferred rather than rejected:** share links, user-arranged widgets, monitoring over time, and industry coverage beyond stage 3 are the natural first additions.
 
 ## Competitors in more detail
 

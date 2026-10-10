@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Peerless v1 om</title>
+<style>
+/* Governs: PRD FR-72 "Slik fungerer Peerless", FR-65 attribution; .memlog.md decisions on the About page,
+   source line and v1 scope; docs/key-figures.md "Known limitations". */
+/* Fixed tokens (light only):
+   text #0B2340 · primary #1F3A5F · link #2F5D8C · signature #7399C6 (markers only, never text)
+   surface #F5F7FA · divider #D9E0E8 · input border #7B8BA0 · slate #5B6B7F
+   favourable #1F6F8B · unfavourable #B45309 · median tick #6B7C91
+   Peer dots #7B8BA0. Chart gridlines #E6EBF1. No red or green; direction is always an arrow or a word. */
+:root{--text:#0B2340;--primary:#1F3A5F;--link:#2F5D8C;--sig:#7399C6;--surface:#F5F7FA;--divider:#D9E0E8;--input:#7B8BA0;--slate:#5B6B7F;--fav:#1F6F8B;--unf:#B45309;--median:#6B7C91;--grid:#E6EBF1;--bg:#E9EDF2}
+*{box-sizing:border-box}
+html,body{margin:0;overflow-x:hidden}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:14px;line-height:1.45}
+a{color:var(--link);text-underline-offset:2px}
+button{font:inherit;color:inherit}
+/* review chrome */
+.page{max-width:1700px;margin:0 auto;padding:24px 16px 64px}
+.page>h1{font-size:22px;margin:0 0 6px}
+.rvtext{max-width:900px;color:var(--slate);margin:4px 0}
+.jump{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.jump a{border:1px solid var(--input);border-radius:4px;padding:4px 10px;background:#fff;text-decoration:none;color:var(--text)}
+.tabsec{margin-top:44px;border-top:2px solid var(--primary);padding-top:14px}
+.tabsec>h2{margin:0 0 4px;font-size:19px}
+.tabsec>h3{margin:28px 0 0;font-size:16px}
+.frames{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;margin-top:14px}
+.fcol{max-width:100%;min-width:0}
+.fwrap{max-width:100%;overflow-x:auto}
+.flabel{font-size:12px;color:var(--slate);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.desk{width:1202px;background:#fff;border:1px solid #C9D2DC;border-radius:6px;box-shadow:0 1px 2px rgba(11,35,64,.06)}
+.phone{width:395px;background:#fff;border:10px solid #1B2533;border-radius:28px;overflow:hidden}
+.chrome{height:30px;background:#EEF1F5;border-bottom:1px solid var(--divider);border-radius:6px 6px 0 0;display:flex;align-items:center;padding:0 12px;gap:6px;font-size:12px;color:var(--slate)}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#C9D2DC;display:inline-block}
+.chrome .url{margin-left:12px;background:#fff;border:1px solid var(--divider);border-radius:4px;padding:2px 10px}
+.phurl{background:#EEF1F5;font-size:11.5px;color:var(--slate);text-align:center;padding:6px 0 5px;border-bottom:1px solid var(--divider)}
+.rv{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);border:1px solid var(--divider);background:#fff;border-radius:3px;padding:1px 6px;margin:0 0 6px}
+.states{display:flex;flex-wrap:wrap;gap:24px;margin-top:14px;align-items:flex-start}
+.state{width:375px;max-width:100%;background:#fff;border:1px solid #C9D2DC;border-radius:6px;padding:20px 16px;min-width:0}
+.state .cap{font-size:12px;color:var(--slate);margin:12px 0 0;border-top:1px dashed var(--divider);padding-top:8px}
+
+/* ---------- app ---------- */
+.app{background:#fff;color:var(--text);width:100%;overflow:hidden}
+.tnum{font-variant-numeric:tabular-nums}
+.muted{color:var(--slate)} .small{font-size:12px}
+.top{display:flex;align-items:center;gap:20px;padding:12px 32px;border-bottom:1px solid var(--divider)}
+.ph .top{gap:12px;padding:10px 16px}
+.brand{font-weight:700;font-size:17px;letter-spacing:.01em;color:var(--primary);text-decoration:none;white-space:nowrap}
+.org{display:flex;align-items:center;gap:6px}
+.org input{font:inherit;font-size:13px;font-variant-numeric:tabular-nums;border:1px solid var(--input);border-radius:4px;padding:5px 8px;width:160px;color:var(--text);background:#fff}
+.ph .org{flex:1;min-width:0}.ph .org input{width:100%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sp{flex:1}
+.top a.how{white-space:nowrap;font-size:13.5px}
+.ph .top a.how{font-size:12.5px;white-space:normal;line-height:1.2;text-align:right;max-width:92px}
+.co{padding:22px 32px 0}
+.ph .co{padding:16px 16px 0}
+.co h1{font-size:24px;margin:0 0 4px;line-height:1.2}
+.ph .co h1{font-size:21px}
+.meta{display:flex;flex-wrap:wrap;gap:2px 0;color:var(--slate);font-size:13px}
+.meta span:not(:last-child)::after{content:"·";margin:0 7px;color:var(--input)}
+.tabs{display:flex;gap:2px;padding:0 32px;border-bottom:1px solid var(--divider);margin-top:16px}
+.ph .tabs{padding:0 8px;gap:0}
+.tab{background:none;border:0;color:var(--slate);padding:11px 12px;white-space:nowrap;cursor:pointer;text-decoration:none}
+.ph .tab{white-space:normal;font-size:13px;padding:9px 7px;line-height:1.2;text-align:left;flex:1 1 auto}
+.tab.on{color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--primary)}
+.main{padding:32px 32px 8px}
+.ph .main{padding:20px 16px 4px}
+.foot{font-size:12.5px;color:var(--slate);border-top:1px solid var(--divider);margin:40px 32px 0;padding:16px 0 22px}
+.ph .foot{margin:28px 16px 0}
+.foot p{margin:0}
+.scroll{overflow-x:auto;max-width:100%}
+
+/* cards & grid */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:24px}
+.ph .grid{grid-template-columns:minmax(0,1fr);gap:16px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c12{grid-column:span 12}
+.ph .grid>*{grid-column:auto}
+.card{border:1px solid var(--divider);border-radius:6px;padding:24px;background:#fff;min-width:0}
+.ph .card{padding:16px}
+.card h3{margin:0 0 2px;font-size:15px}
+.kick{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);font-weight:600;margin:0 0 6px}
+.hero .fig{font-size:15px;font-weight:600;margin:0 0 10px}
+.hero .big{font-size:52px;font-weight:600;line-height:1.05;letter-spacing:-.01em}
+.ph .hero .big{font-size:40px}
+.hero .per{font-size:14px;color:var(--slate);margin:4px 0 18px}
+.hero .vs{font-size:18px;margin:0}
+.hero .ctx{color:var(--slate);margin:6px 0 18px}
+.links{display:flex;gap:16px;flex-wrap:wrap;font-size:13px}
+.sc .val{font-size:22px;font-weight:600;margin:8px 0 4px}
+.sc .val .vl{font-size:13px;font-weight:500;color:var(--slate);display:block;margin-bottom:1px}
+.sc .val .vu{font-size:13px;font-weight:500;color:var(--text)}
+.sc .line{margin:0 0 2px;color:var(--slate);font-size:13px}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;border:1px solid var(--input);border-radius:3px;padding:1px 6px;color:var(--text);white-space:nowrap}
+.tag.soft{border-color:var(--divider);color:var(--slate)}
+.dir-up{color:var(--fav);font-weight:600}
+.dir-dn{color:var(--unf);font-weight:600}
+.expl p.txt{margin:6px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;max-width:110ch}
+.expl.open p.txt{display:block}
+.expl .src{font-size:12px;color:var(--slate);margin:8px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--slate);margin:8px 0 6px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend b{color:var(--text);font-weight:600}
+.plotwrap{position:relative}
+.plotwrap svg{display:block}
+svg text{font-family:inherit}
+.ax{font-size:11px;fill:var(--slate);font-variant-numeric:tabular-nums}
+.axl{font-size:11px;fill:var(--slate)}
+svg[data-chart]{outline:none}
+svg[data-chart]:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+table.lst{border-collapse:collapse;width:100%;font-size:13px}
+.lst th,.lst td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--divider);vertical-align:top}
+.lst thead th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600;border-bottom:1px solid var(--input)}
+.lst td.r,.lst th.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lst tr.ex td{color:#6F7E90}
+.lst tr.ex td.nm{text-decoration:line-through;text-decoration-color:#B5C0CC}
+.flag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--unf);font-weight:600;white-space:nowrap}
+.basis{white-space:nowrap}
+.linkbtn{background:none;border:0;padding:0;color:var(--link);text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:13px;white-space:nowrap}
+
+/* funnel */
+.funnel{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;margin:10px 0 6px;list-style:none;padding:0}
+.funnel li{padding:0 14px 0 0;position:relative}
+.funnel li+li{padding-left:14px;border-left:1px solid var(--divider)}
+.funnel .st{font-size:12.5px;color:var(--slate);min-height:34px}
+.funnel .n{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.funnel .bar{height:8px;background:var(--surface);border-radius:2px;margin-top:6px;position:relative}
+.funnel .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--primary);border-radius:0 4px 4px 0}
+.ph .funnel{grid-template-columns:minmax(0,1fr)}
+.ph .funnel li{display:grid;grid-template-columns:1fr auto;align-items:center;padding:8px 0;border-left:0;border-bottom:1px solid var(--divider)}
+.ph .funnel li+li{padding-left:0}
+.ph .funnel .st{min-height:0;font-size:13px;color:var(--text)}
+.ph .funnel .n{font-size:17px}
+.ph .funnel .bar{grid-column:1/-1;height:6px;margin-top:4px}
+.fsum{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;margin-top:8px}
+.seg{display:inline-flex;border:1px solid var(--input);border-radius:5px;overflow:hidden;max-width:100%}
+.seg button{background:#fff;border:0;padding:7px 12px;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+.seg button+button{border-left:1px solid var(--input)}
+.seg button.on{background:var(--primary);color:#fff;font-weight:600}
+.seg button[disabled]{color:#6F7E90;background:var(--surface);cursor:not-allowed}
+.seg button small{display:block;font-size:10.5px;font-weight:400;opacity:.85}
+.ph .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:1px;background:var(--input)}
+.ph .seg button{padding:7px 4px;white-space:normal}
+.ph .seg button+button{border-left:0}
+.banner{border:1px solid var(--input);border-left:4px solid var(--primary);background:var(--surface);padding:10px 12px;border-radius:4px;font-size:13px;margin:10px 0}
+.pcards{list-style:none;padding:0;margin:0}
+.pcards li{border-bottom:1px solid var(--divider);padding:10px 0;font-size:13px}
+.pcards .r1{display:flex;justify-content:space-between;gap:10px}
+.pcards .r1 span{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pcards .r1 .nm{font-weight:600;white-space:normal}
+.pcards .why{color:var(--slate);margin:2px 0 4px}
+.pcards .r3{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.pcards li.ex{color:#6F7E90}
+.pcards li.ex .nm{text-decoration:line-through;text-decoration-color:#B5C0CC}
+
+/* key figure table */
+.topnote{font-size:13px;color:var(--slate);margin:0 0 10px}
+table.kt{border-collapse:collapse;width:100%;font-size:13px}
+.kt th,.kt td{padding:10px 8px;border-bottom:1px solid var(--divider);vertical-align:middle}
+.kt thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600;border-bottom:1px solid var(--input);text-align:right;white-space:nowrap}
+.kt thead th.l{text-align:left}
+.kt td{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kt td.l,.kt th.nmc{text-align:left}
+.kt th.nmc{font-weight:600;white-space:normal;min-width:200px}
+.kt .sub2{display:block;font-size:11.5px;font-weight:400;color:var(--slate)}
+.kt tr.grp td{background:var(--surface);font-size:11.5px;color:var(--slate);text-align:left;padding:5px 8px 5px 30px;white-space:normal}
+.kt tr.sub th.nmc{padding-left:30px;font-weight:500;position:relative}
+.kt tr.sub th.nmc::before{content:"";position:absolute;left:14px;top:0;bottom:0;border-left:2px solid var(--divider)}
+.kt tr.check th.nmc,.kt tr.check td{color:var(--slate);font-size:12.5px}
+.kt .kr{font-weight:600}
+.kt .kr small{display:block;font-weight:400;color:var(--slate);font-size:11px}
+.kt .see{font-size:12.5px;white-space:normal;display:inline-block;max-width:130px;text-align:right}
+.kt td.floor{text-align:left;font-style:italic;white-space:normal}
+.kt tr.fold>td{background:#FBFCFD;text-align:left;white-space:normal;padding:0 12px 0 30px}
+.fold-h{display:flex;align-items:center;gap:8px;padding:10px 0;font-weight:600;font-size:13.5px}
+.fold-h .car{display:inline-block;width:10px;color:var(--slate)}
+.fold-b{padding:0 0 18px 18px}
+.ph .fold-b{padding:0 0 12px 0}
+.refline{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:0 0 8px;font-size:13px}
+.refline .tag{font-weight:600}
+.fnote{font-size:12.5px;color:var(--slate);margin:4px 0 0;max-width:100ch}
+.fnote.strong{color:var(--text)}
+details.tv{margin-top:10px;font-size:12.5px}
+details.tv summary{cursor:pointer;color:var(--link)}
+table.dec{border-collapse:collapse;font-size:13px;margin:6px 0 4px}
+.dec th,.dec td{padding:5px 14px 5px 0;border-bottom:1px solid var(--divider);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dec th:first-child,.dec td:first-child{text-align:left}
+.dec thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600}
+.dec tr.res td{font-weight:600;border-bottom:0}
+.factors{display:grid;grid-template-columns:repeat(2,minmax(0,360px));gap:24px;margin:8px 0}
+.ph .factors{grid-template-columns:minmax(0,1fr);gap:12px}
+.factor{border:1px solid var(--divider);border-radius:6px;padding:12px 14px;background:#fff;min-width:0}
+.factor h4{margin:0;font-size:13px}
+.factor .fv{font-size:13px;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+/* phone rows */
+.prow{border-bottom:1px solid var(--divider)}
+.prow .ph3{display:grid;grid-template-columns:minmax(0,1fr) 64px 104px;gap:8px;align-items:center;padding:10px 0;font-size:13px}
+.prow .ph3 .n1{font-weight:600}
+.prow .ph3 .n1 .car{color:var(--slate);display:inline-block;width:12px}
+.prow .ph3 .v{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.prow .ph3 .k{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:normal;font-size:12.5px}
+.prow.sub .ph3{padding-left:14px}
+.prow.sub .ph3 .n1{font-weight:500}
+.prow .k .seeL{font-weight:400;color:var(--link);text-decoration:underline;text-underline-offset:2px}
+.pgrp{font-size:11.5px;color:var(--slate);background:var(--surface);padding:5px 8px;margin-top:4px}
+.phhead{display:grid;grid-template-columns:minmax(0,1fr) 64px 104px;gap:8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--slate);font-weight:600;border-bottom:1px solid var(--input);padding-bottom:6px}
+.phhead span+span{text-align:right}
+.pexp{padding:2px 0 14px 12px;font-size:13px}
+.pexp dl{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:8px 0 10px}
+.pexp dt{color:var(--slate)}.pexp dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.pexp .wfbox{border-top:1px solid var(--divider);margin-top:6px}
+/* waterfall rows (phone) */
+.wfrows{list-style:none;margin:6px 0 0;padding:0}
+.wfrows li{padding:7px 0;border-bottom:1px solid var(--divider)}
+.wfrows .wl{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.wfrows .wl b{font-weight:600}
+.wfrows .wl .wv{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.wfrows .ws{font-size:11.5px;color:var(--slate)}
+.wfrows svg{display:block;margin-top:4px}
+.wfrows li.tot{border-bottom:0}
+/* verdi */
+.ctl{border:1px solid var(--divider);border-radius:6px;padding:20px 24px}
+.ph .ctl{padding:14px}
+.ctl .seg{margin-top:10px}
+.ctl .seg button{min-width:72px}
+.ph .ctl .seg button{min-width:0}
+.medline{font-size:12.5px;color:var(--slate);margin:8px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mtick{display:inline-block;width:2px;height:12px;background:var(--median)}
+.amts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:24px}
+.ph .amts{grid-template-columns:minmax(0,1fr);gap:14px}
+.amt .val{font-size:30px;font-weight:600;line-height:1.1;margin:6px 0 2px}
+.ph .amt .val{font-size:26px}
+.amt .val.na{font-size:15px;font-weight:500;line-height:1.35}
+.amt .per{font-size:12.5px;color:var(--slate)}
+.amt .mt{font-size:12px;color:var(--slate);margin-top:8px;display:flex;align-items:center;gap:6px}
+.amt .sep{font-size:12px;color:var(--slate);margin-top:6px}
+.trace{margin-top:12px;border-top:1px solid var(--divider);padding-top:10px;font-size:13px}
+.trace ol{margin:6px 0 0;padding-left:20px}
+.trace li{margin:0 0 8px}
+.trace .calc{font-variant-numeric:tabular-nums;background:var(--surface);padding:6px 8px;border-radius:4px;display:inline-block;margin-top:3px;white-space:normal}
+.trace code{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--slate)}
+.evrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:24px}
+.ph .evrow{grid-template-columns:minmax(0,1fr);gap:14px}
+.evf{display:flex;align-items:center;gap:8px;margin:8px 0}
+.evf input{width:90px;font:inherit;border:1px solid var(--input);border-radius:4px;padding:6px 8px;font-variant-numeric:tabular-nums}
+.below{margin-top:24px}
+/* tooltip */
+.tip{position:fixed;z-index:50;pointer-events:none;background:#fff;border:1px solid var(--divider);box-shadow:0 2px 8px rgba(11,35,64,.14);border-radius:5px;padding:7px 9px;font-size:12px;line-height:1.35;min-width:120px;display:none;color:var(--text)}
+.tip.static{position:absolute;display:block}
+.tip .tv{font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.tip .ts{color:var(--slate)}
+.tip.static::after{content:"";position:absolute;left:var(--ax,50%);bottom:-6px;width:10px;height:10px;background:#fff;border-right:1px solid var(--divider);border-bottom:1px solid var(--divider);transform:translateX(-50%) rotate(45deg)}
+.fwrap,.app,.state{position:relative}
+.ph table.dec{font-size:12px;width:100%}
+.ph .dec th,.ph .dec td{padding:5px 6px 5px 0}
+.ph .dec td:first-child{white-space:normal}
+
+.ab{display:grid;grid-template-columns:220px minmax(0,680px);gap:64px;padding:48px 40px 24px;justify-content:center}
+.ph .ab{grid-template-columns:minmax(0,1fr);gap:0;padding:28px 16px 8px}
+.toc{position:sticky;top:20px;align-self:start;font-size:13.5px}
+.ph .toc{position:static;border:1px solid var(--divider);border-radius:6px;padding:12px 14px;margin:0 0 28px;background:var(--surface)}
+.toc p{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);font-weight:600}
+.toc ol{margin:0;padding:0 0 0 18px}
+.toc li{margin:0 0 6px}
+.art h1{font-size:34px;line-height:1.15;margin:0 0 12px;letter-spacing:-.01em}
+.ph .art h1{font-size:27px}
+.art .lead{font-size:17px;color:var(--slate);margin:0 0 8px}
+.art h2{font-size:21px;margin:48px 0 12px;padding-top:20px;border-top:1px solid var(--divider)}
+.ph .art h2{font-size:19px;margin-top:36px}
+.art h3{font-size:15px;margin:20px 0 4px}
+.art p,.art li{font-size:15px;line-height:1.6}
+.art p{margin:0 0 12px}
+.stages{list-style:none;margin:16px 0 8px;padding:0;counter-reset:s}
+.stages li{position:relative;padding:0 0 18px 44px;counter-increment:s}
+.stages li::before{content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;border:1px solid var(--primary);color:var(--primary);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.stages li:not(:last-child)::after{content:"";position:absolute;left:14px;top:32px;bottom:4px;border-left:1px solid var(--divider)}
+.stages h3{margin:3px 0 2px}
+.stages p{margin:0}
+.pending{border:1px solid var(--input);border-left:4px solid var(--primary);background:var(--surface);border-radius:4px;padding:12px 14px;margin:4px 0 16px;font-weight:600;font-size:15px}
+.layers{margin:4px 0 14px;padding-left:22px}
+.quote{border-left:2px solid var(--primary);padding:6px 0 6px 14px;margin:8px 0 14px;font-size:15px}
+.lim h3{margin-top:22px}
+</style>
+</head>
+<body>
+<div class="page" id="root"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+<script>
+/*MSG-START*/
+const messages = {
+  "shell.brand": "Peerless",
+  "shell.how": "Slik fungerer Peerless",
+  "shell.orgnr.label": "Organisasjonsnummer",
+  "shell.orgnr.placeholder": "Org.nr.",
+  "shell.tabsLabel": "Faner i analysen",
+  "footer.source": "Data fra Brønnøysundregistrene, bearbeidet av Peerless",
+  "footer.sourcesLink": "Kilder og lisens",
+  "industry.62100": "62.100 Dataprogrammeringstjenester",
+  "industry.69202": "69.202 Regnskapsføring og bokføring",
+  "front.title": "Sammenlign selskapet ditt med selskaper som faktisk ligner",
+  "front.lead": "Peerless finner sammenlignbare selskaper i offentlige regnskaper, sammenligner nøkkeltallene og viser hva hvert avvik er verdt i kroner.",
+  "front.search.label": "Organisasjonsnummer",
+  "front.search.placeholder": "Organisasjonsnummer, f.eks. 912 345 678",
+  "front.search.submit": "Sammenlign",
+  "front.coverage": "Foreløpig dekker Peerless én bransje: {industry}.",
+  "front.error.format": "Organisasjonsnummeret må ha 9 siffer",
+  "front.loading": "Henter regnskap …",
+  "front.notFound.title": "Fant ikke {orgnr}",
+  "front.notFound.body": "Organisasjonsnummeret finnes ikke i Enhetsregisteret. Sjekk at du har skrevet det riktig.",
+  "front.steps.title": "Slik fungerer det",
+  "front.steps.1.title": "Skriv inn organisasjonsnummer",
+  "front.steps.1.body": "Vi henter selskapets regnskap fra Brønnøysundregistrene.",
+  "front.steps.2.title": "Se hvem du sammenlignes med og hvorfor",
+  "front.steps.2.body": "Hvert sammenlignbart selskap vises med begrunnelse. Du kan ta ut selskaper som ikke passer.",
+  "front.steps.3.title": "Se hva hvert gap er verdt i kroner",
+  "front.steps.3.body": "Avviket i hvert nøkkeltall regnes om til kroner, og hvert beløp kan følges tilbake til regnskapet.",
+  "front.howLink": "Les hvordan Peerless velger sammenlignbare selskaper og regner ut tallene",
+  "uncov.kick": "Bransjen er ikke dekket ennå",
+  "uncov.statement": "{name} er registrert i bransjen {industry}. Peerless dekker foreløpig bare {covered}, så vi kan ikke sammenligne selskapet med andre ennå.",
+  "uncov.figsTitle": "Tre nøkkeltall fra regnskapet",
+  "uncov.figsNote": "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner.",
+  "uncov.source": "Fra Regnskapsregisterets API.",
+  "uncov.again": "Søk på et annet selskap",
+  "company.revenue": "Omsetning {v}",
+  "company.year": "Regnskapsår {y}",
+  "company.read": "hentet {d}",
+  "tabs.oversikt": "Oversikt",
+  "tabs.peers": "Peers",
+  "tabs.gap": "Nøkkeltall og gap",
+  "tabs.verdi": "Verdi",
+  "unit.pct": "{v} %",
+  "unit.kr": "{v} kr",
+  "unit.mill": "{v} mill. kr",
+  "unit.pp": "{v} pp",
+  "unit.days": "{v} dager",
+  "unit.x": "{v} ganger",
+  "dir.up": "↑ Høyere er bedre",
+  "dir.down": "↓ Lavere er bedre",
+  "dir.none": "Ingen retning",
+  "better": "Bedre →",
+  "placement": "bedre enn {v} %",
+  "floor": "For få sammenlignbare ({n} av 10)",
+  "count.all": "{n} sammenlignbare",
+  "count.left": "{n} sammenlignbare ({m} utelatt)",
+  "strength": "▲ Styrke",
+  "under": "▼ {v} under",
+  "noKr": "ingen kronebeløp",
+  "how": "Hvordan er dette regnet?",
+  "readMore": "Les mer",
+  "showNumbers": "Vis tallene",
+  "legend.own": "Fjordkode",
+  "legend.median": "Median",
+  "legend.best": "Beste fjerdedel",
+  "legend.peers": "Sammenlignbare ({n})",
+  "legend.mid": "Midtre halvdel",
+  "fig.driftsmargin": "Driftsmargin",
+  "fig.lonn": "Lønnskostnadsandel",
+  "fig.andre": "Andel andre driftskostnader",
+  "fig.vare": "Varekostnadsandel",
+  "fig.total": "Total kostnadsandel",
+  "fig.tkr": "Totalkapitalrentabilitet",
+  "fig.oml": "Omløpshastighet driftseiendeler",
+  "fig.ek": "Egenkapitalandel",
+  "fig.vekst": "Omsetningsvekst",
+  "fig.kfd": "Kundefordringsdager",
+  "ov.hero.kick": "Største gap i kroner",
+  "ov.hero.fig": "Driftsmargin",
+  "ov.hero.per": "per år ved full tilnærming til beste fjerdedel",
+  "ov.hero.vs": "{own} mot {best} i beste fjerdedel",
+  "ov.hero.ctx": "Over medianen på {med} · {plc} · {pp} under beste fjerdedel",
+  "ov.hero.toTable": "Se alle nøkkeltall",
+  "ov.expl.kick": "Forklaring",
+  "ov.expl.text": "Driftsmarginen på {own} er over medianen ({med}), men {pp} under beste fjerdedel ({best}): {kr} per år ved full tilnærming. Mot peer-gruppen samlet ({m}) trekker lønnskostnadsandelen ({l1} mot {l2}) og andre driftskostnader ({a1} mot {a2}) ned, mens en lav varekostnadsandel ({v1} mot {v2}) trekker opp.",
+  "ov.expl.src": "Skrevet av KI ut fra tall Peerless har regnet ut. Hvert tall finnes i analysen.",
+  "ov.expl.adjusted": "Forklaringen gjelder standard peer-gruppe",
+  "ov.expl.adjustedHint": "Du har ekskludert {x} sammenlignbare. Tallene i analysen er oppdatert, teksten er ikke.",
+  "ov.c1.kick": "Nest største gap",
+  "ov.c1.fig": "Omløpshastighet driftseiendeler",
+  "ov.c1.valLabel": "Frigjort kapital:",
+  "ov.c1.valUnit": "(engangsbeløp)",
+  "ov.c1.vs": "{own} mot {best} i beste fjerdedel",
+  "ov.c1.per": "Kapital som frigjøres én gang. Ikke per år, og legges ikke til resultatet.",
+  "ov.c2.kick": "Største styrke",
+  "ov.c2.fig": "Varekostnadsandel",
+  "ov.c2.vs": "{own} mot {best} i beste fjerdedel",
+  "ov.c2.per": "Styrke – gir ikke kronebeløp",
+  "ov.c3.kick": "Mangler grunnlag",
+  "ov.c3.fig": "Kundefordringsdager",
+  "ov.c3.per": "Egen verdi vises. Ingen median, plassering eller kroner.",
+  "ov.plot.title": "Driftsmargin i peer-gruppen",
+  "ov.plot.sub": "Hver prikk er ett selskap. Pek eller trykk for navn.",
+  "ov.list.title": "Peer-gruppe · {n}",
+  "ov.list.name": "Selskap",
+  "ov.list.rev": "Omsetning",
+  "ov.list.basis": "Grunnlag for treff",
+  "ov.list.all": "Se alle {n}",
+  "pe.title": "Peer-gruppe",
+  "pe.summary": "{n} sammenlignbare i analysen · {d} i standard peer-gruppe · {x} ekskludert av deg",
+  "pe.reset": "Tilbakestill til standard",
+  "pe.funnel.title": "Slik ble peer-gruppen valgt",
+  "pe.stage.1": "Bransje og størrelse",
+  "pe.stage.2": "Sammenlignbart regnskap",
+  "pe.stage.3": "Segment",
+  "pe.stage.4": "Forretningsmodell",
+  "pe.stage.5": "Klassifisering",
+  "pe.flagged": "{n} med usikker klassifisering",
+  "pe.excludedSum": "{x} ekskludert av deg → {n} i analysen",
+  "pe.band.title": "Størrelsesintervall (omsetning)",
+  "pe.band.s1": "0,5–2×",
+  "pe.band.s1sub": "Standard",
+  "pe.band.s2": "0,33–3×",
+  "pe.band.s3": "0,25–4×",
+  "pe.band.sub": "Utvidet",
+  "pe.band.range": "Fjordkode {own} → sammenlignbare med {lo}–{hi}",
+  "pe.band.help": "Utvid størrelsesintervallet hvis peer-gruppen er for liten. Intervallet kan bare utvides i disse trinnene.",
+  "pe.comp": "Sammenlignbart regnskap er alltid et krav og kan ikke lempes: samme valuta, regnskapsregler, små foretak, ikke avviklingsregnskap, samme regnskapsperiode og regnskapstype.",
+  "pe.list.title": "Alle sammenlignbare",
+  "pe.col.name": "Selskap",
+  "pe.col.rev": "Omsetning",
+  "pe.col.why": "Hvorfor med",
+  "pe.col.basis": "Grunnlag for treff",
+  "pe.col.act": "Handling",
+  "pe.basis.both": "Beskrivelse og regnskap",
+  "pe.basis.acc": "Kun regnskap",
+  "pe.basis.ind": "Kun bransje og størrelse",
+  "pe.flag": "Usikker klassifisering",
+  "pe.exclude": "Ekskluder",
+  "pe.include": "Ta med igjen",
+  "pe.excluded": "Ekskludert",
+  "pe.why": "Samme bransje, omsetning {r}× din, {trait}",
+  "pe.whyBare": "Samme bransje, omsetning {r}× din",
+  "pe.trait.capdev": "egenutviklet programvare balanseført",
+  "pe.trait.consult": "konsulentbasert, ingen varelager",
+  "pe.trait.saas": "abonnementsinntekter, varekostnadsandel under 10 %",
+  "pe.trait.staff": "lønnskostnadsandel i samme bånd som din",
+  "pe.trait.lowasset": "lite kapital bundet i driftsmidler",
+  "pe.showAll": "Vis alle {n}",
+  "pe.widened.banner": "Utvidet størrelsesintervall ({b}). Dette er ikke standard peer-gruppe, og forklaringen gjelder standard peer-gruppe.",
+  "pe.widened.back": "Tilbake til standard (0,5–2×)",
+  "gap.topnote": "Viser gap ved full tilnærming · ",
+  "gap.topnoteLink": "Endre i Verdi",
+  "gap.col.fig": "Nøkkeltall",
+  "gap.col.own": "Fjordkode",
+  "gap.col.med": "Median",
+  "gap.col.best": "Beste fjerdedel",
+  "gap.col.plc": "Plassering",
+  "gap.col.dist": "Fordeling · bedre →",
+  "gap.col.kr": "Gap i kroner",
+  "gap.group": "Forklarer marginavviket – summeres ikke",
+  "gap.check": "Kontroll av de tre andelene",
+  "gap.checkRow": "Kontrollrad",
+  "gap.mid": "Midtre halvdel {lo}–{hi}",
+  "gap.krYear": "{v} kr per år",
+  "gap.krCapital": "frigjort kapital, engangsbeløp",
+  "gap.krSee": "Se forklaring av marginen",
+  "gap.wf.title": "Hva forklarer marginavviket?",
+  "gap.wf.ref": "Mot peer-gruppen samlet: {m}, ikke beste fjerdedel",
+  "gap.wf.lead": "Fjordkode har driftsmargin {own}, peer-gruppen samlet {m}. Forskjellen på {pp} er {kr} med Fjordkodes omsetning. Søylene viser hvor den kommer fra.",
+  "gap.wf.set": "Peer-gruppen samlet er sum driftsresultat og sum av hver kostnad delt på sum driftsinntekter, for de {n} sammenlignbare som har alle kostnadslinjene fra samme avstemte regnskap. Store selskaper teller mer enn små.",
+  "gap.wf.never": "Dette forklarer avviket. Det er ikke et gap som skal lukkes, og det legges aldri til økt driftsresultat.",
+  "gap.wf.start": "Peer-gruppen samlet",
+  "gap.wf.end": "Fjordkode",
+  "gap.wf.c.vare": "Varekostnad",
+  "gap.wf.c.lonn": "Lønn",
+  "gap.wf.c.andre": "Andre driftskostnader",
+  "gap.wf.c.rest": "Avskrivninger og øvrige poster",
+  "gap.wf.lower": "lavere enn samlet",
+  "gap.wf.higher": "høyere enn samlet",
+  "gap.wf.shares": "{own} mot {all}",
+  "gap.wf.marginAt": "margin {m}",
+  "gap.wf.diff": "Forskjell",
+  "gap.wf.axis": "Kroner med Fjordkodes omsetning, målt fra peer-gruppen samlet",
+  "gap.wf.col.part": "Kostnad",
+  "gap.wf.col.own": "Fjordkode",
+  "gap.wf.col.all": "Samlet",
+  "gap.wf.col.kr": "Kroner",
+  "gap.wf.sum": "Sum",
+  "gap.decA": "Margin eller kapitalbruk?",
+  "gap.decB": "Lønnsnivå eller produktivitet?",
+  "gap.dec.lead": "Totalkapitalrentabilitet er driftsmargin ganger totalkapitalens omløpshastighet. Hver faktor sammenlignes med sin egen median.",
+  "gap.dec.margin": "Driftsmargin",
+  "gap.dec.turn": "Totalkapitalens omløpshastighet",
+  "gap.dec.ownMed": "Fjordkode {own} · median {med}",
+  "gap.dec.text": "Fjordkode ligger over medianen på begge: margin {m1} mot {m2}, omløpshastighet {t1} mot {t2}.",
+  "gap.dec.noMult": "Medianene ganges ikke sammen. Median margin ganger median omløpshastighet er ikke medianen for totalkapitalrentabilitet, fordi medianene kommer fra ulike selskaper.",
+  "gap.dec.turnNote": "Totalkapitalens omløpshastighet = omsetning ÷ sum eiendeler. Ikke det samme som omløpshastighet driftseiendeler.",
+  "gap.phone.head1": "Nøkkeltall",
+  "gap.phone.head2": "Fjordkode",
+  "gap.phone.head3": "Gap i kroner",
+  "gap.phone.tap": "Trykk på en rad for median, beste fjerdedel og plassering.",
+  "gap.phone.floorShort": "For få (7 av 10)",
+  "gap.phone.seeShort": "Se forklaring",
+  "gap.phone.dir": "Retning",
+  "gap.phone.count": "Antall",
+  "ve.ctl.title": "Hvor mye av gapet som lukkes",
+  "ve.ctl.sub": "Målet er alltid beste fjerdedel. 100 % er full tilnærming.",
+  "ve.toMedian": "Til medianen",
+  "ve.toMedianShare": "Til medianen ({v} %)",
+  "ve.aboveMedian": "Fjordkode ligger allerede over medianen",
+  "ve.medianBasis": "Medianen gjelder driftsmargin.",
+  "ve.belowName": "Eksempel: selskap med driftsmargin {own}, median {med}, beste fjerdedel {best}",
+  "ve.belowMed": "Median nås ved {v} % av gapet",
+  "ve.amt.profit": "Økt driftsresultat per år",
+  "ve.amt.wc": "Frigjort arbeidskapital",
+  "ve.amt.op": "Frigjort kapital i driftseiendeler",
+  "ve.amt.at": "per år, ved {v} % av gapet",
+  "ve.amt.atOnce": "engangsbeløp, ved {v} % av gapet",
+  "ve.amt.wcNa": "Ikke beregnet – for få sammenlignbare på kundefordringsdager",
+  "ve.amt.sep": "Vises ved siden av arbeidskapitalen, legges aldri sammen med den.",
+  "ve.amt.med": "Median: allerede over",
+  "ve.ev.title": "EV/EBIT-multippel",
+  "ve.ev.label": "EV/EBIT-multippel",
+  "ve.ev.empty": "Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel.",
+  "ve.ev.result": "Økt selskapsverdi",
+  "ve.ev.calc": "{p} × {m} = {v}",
+  "ve.ev.note": "Økt driftsresultat per år ganger multippelen du har lagt inn.",
+  "ve.trace.title": "Slik er {v} regnet ut",
+  "ve.trace.s1": "Beløp = (beste fjerdedel − Fjordkode) × omsetning × andel som lukkes",
+  "ve.trace.s2": "Nøkkeltall: driftsmargin {own} (= driftsresultat ÷ sumDriftsinntekter). Beste fjerdedel {best} blant {n} sammenlignbare, regnskapsår 2025.",
+  "ve.trace.s3": "Innsendte tall for 2025:",
+  "ve.trace.dr": "Driftsresultat",
+  "ve.trace.si": "Sum driftsinntekter",
+  "ve.trace.s4": "Kilde: Regnskapsregisteret (API), regnskapsår 2025, hentet 3. okt. 2026. Datakvalitet: avstemt mot innsendt årsregnskap.",
+  "ve.trace.close": "Lukk",
+  "about.title": "Slik fungerer Peerless",
+  "about.lead": "Peerless sammenligner et selskap med selskaper som driver på samme måte, ut fra offentlige regnskaper, og regner om hvert avvik til kroner. Her står hvordan sammenlignbare selskaper velges, hvor KI brukes, hva som er målt, hvor tallene kommer fra og hva analysen ikke kan si.",
+  "about.toc": "Innhold",
+  "about.s.peers": "Slik velges sammenlignbare selskaper",
+  "about.s.ai": "Hvor KI brukes",
+  "about.s.measured": "Hva som er målt",
+  "about.s.sources": "Datakilder og lisens",
+  "about.s.limits": "Begrensninger",
+  "about.s.date": "Hvor gamle tallene er",
+  "about.peers.intro": "Peer-gruppen velges i fem trinn. Hvert trinn tar bort selskaper som ikke passer, og analysen viser hvor mange som er igjen etter hvert trinn.",
+  "about.peers.1.title": "Bransje og størrelse",
+  "about.peers.1.body": "Vi starter med selskaper i samme bransje som har omsetning mellom halvparten og det dobbelte av ditt selskap. Blir gruppen for liten, kan du utvide intervallet i faste trinn.",
+  "about.peers.2.title": "Sammenlignbart regnskap",
+  "about.peers.2.body": "Vi beholder bare regnskap som kan sammenlignes direkte: samme valuta, samme regnskapsregler, samme regnskapsår og samme type regnskap, og ikke regnskap for selskaper som avvikles. Små foretak sammenlignes med små foretak. Dette kravet kan ikke lempes.",
+  "about.peers.3.title": "Segment",
+  "about.peers.3.body": "Innenfor bransjen deler vi videre inn der bransjen krever det, for eksempel etter selskapsform.",
+  "about.peers.4.title": "Forretningsmodell",
+  "about.peers.4.body": "Vi leser hva slags virksomhet selskapet er ut fra dets eget regnskap: hvor mye av kostnadene som er varekjøp og lønn, om det har varelager, og om det har balanseført egenutviklet programvare. Slik skilles en forhandler, et produktselskap og et konsulentselskap selv om alle kaller seg programvareutvikling. Vi velger aldri sammenlignbare ut fra hvor godt de går, bare ut fra hva slags virksomhet de er.",
+  "about.peers.5.title": "Klassifisering",
+  "about.peers.5.body": "Til slutt leser KI selskapets navn, formål og beskrivelse og vurderer om det driver samme type virksomhet. Er beskrivelsen og regnskapet uenige, merkes selskapet med «Usikker klassifisering» i stedet for å bli tatt ut i stillhet.",
+  "about.peers.after": "Du ser hvert sammenlignbart selskap med begrunnelse og kan ta ut selskaper du mener ikke passer.",
+  "about.ai.p1": "KI brukes til to ting: å klassifisere hva et selskap driver med, og å skrive den forklarende teksten i analysen.",
+  "about.ai.p2": "KI regner aldri ut et tall. Alle nøkkeltall, medianer og kronebeløp regnes ut av Peerless på forhånd. KI får tallene og skriver bare om dem.",
+  "about.ai.p3": "En automatisk test stopper enhver tekst som inneholder et tall Peerless ikke har regnet ut. Teksten vises da ikke.",
+  "about.ai.p4": "Alt som kan løses med faste regler, løses med faste regler. KI får bare det som er igjen.",
+  "about.measured.status": "Målingen pågår. Resultatene publiseres her når de foreligger.",
+  "about.measured.p1": "Vi måler hvor godt Peerless finner selskaper som faktisk er sammenlignbare. Et utvalg selskapspar i 62.100 vurderes for hånd, og hvert trinn i utvelgelsen måles mot denne vurderingen.",
+  "about.measured.p2": "For hvert lag måler vi presisjon (hvor mange av de valgte som faktisk er sammenlignbare) og treffsikkerhet (hvor mange av de sammenlignbare som blir funnet):",
+  "about.measured.l1": "bare bransjekode og størrelse",
+  "about.measured.l2": "med forretningsmodell lest fra regnskapet",
+  "about.measured.l3": "med KI-klassifisering av beskrivelsen",
+  "about.measured.p3": "Resultatet kan vise at KI tilfører lite utover regnskapet. Det publiseres i så fall like tydelig.",
+  "about.sources.p1": "Nøkkeltall fra Regnskapsregisterets API:",
+  "about.sources.nlod": "Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene",
+  "about.sources.p2": "Tall lest fra innsendte årsregnskap, for eksempel lønnskostnad, kundefordringer og årsverk, har Brønnøysundregistrene som kilde.",
+  "about.sources.p3": "Peerless har bearbeidet tallene: regnet ut nøkkeltall, satt sammen peer-grupper og regnet om avvik til kroner. Brønnøysundregistrene står ikke bak analysen.",
+  "about.limits.vat.title": "Merverdiavgift i kundefordringsdager",
+  "about.limits.vat.body": "Kundefordringene inkluderer merverdiavgift, men omsetningen gjør det ikke. Derfor blir kundefordringsdagene for høye, med opptil 25 %. Avviket er ikke likt for alle: et selskap som selger til utlandet, har mindre avgift i fordringene og får færre dager for de samme betalingsvilkårene. Sammenligningen holder bare så langt selskapene i peer-gruppen ligner i dette, og er svakest der gruppen er mest blandet.",
+  "about.limits.cost.title": "Kostnader føres ulikt",
+  "about.limits.cost.body": "Et konsulentselskap som bruker underleverandører, kan føre dem som varekostnad eller andre driftskostnader i stedet for lønn. Da blir lønnsandelen lavere og de andre andelene høyere. Total kostnadsandel vises derfor som kontroll.",
+  "about.limits.fte.title": "Årsverk fra notene",
+  "about.limits.fte.body": "Årsverk leses fra notene i årsregnskapet. Antall ansatte i Enhetsregisteret brukes ikke, fordi det gjelder i dag og ikke regnskapsåret. Der notene mangler tallet, mangler også nøkkeltallene som bygger på det.",
+  "about.limits.small.title": "Små foretak sammenlignes med små foretak",
+  "about.limits.small.body": "Små foretak følger egne regnskapsregler og sammenlignes bare med andre små foretak. Et større selskap sammenlignes bare med andre større selskaper i bransjen, og kan derfor få få eller ingen sammenlignbare.",
+  "about.limits.floor.title": "Minst 10 sammenlignbare",
+  "about.limits.floor.body": "Et nøkkeltall sammenlignes bare når minst 10 sammenlignbare har det. Ellers vises selskapets egen verdi uten median, plassering eller kroner.",
+  "about.limits.industry.title": "Én bransje",
+  "about.limits.industry.body": "Peerless dekker foreløpig bare {industry}. For selskaper i andre bransjer viser vi noen nøkkeltall fra regnskapet, men ingen sammenligning.",
+  "about.date.p1": "Hvert tall viser hvilket regnskapsår det gjelder og når det ble hentet, for eksempel «Regnskapsår 2025 · hentet 3. okt. 2026».",
+  "about.date.p2": "Regnskapene hentes inn på forhånd, ikke mens du venter. Et regnskap som nettopp er sendt inn, kan derfor mangle en tid. Selskaper og sammenlignbare sammenlignes alltid på samme regnskapsår."
+};
+/*MSG-END*/
+const R = {
+  "title": "About page (Slik fungerer Peerless), v1",
+  "intro": "Readable long page with a short in-page table of contents (sticky beside the text on desktop, a box at the top on the phone). The measurement section shows the honest pending state; no figures exist yet, so none are shown. The NLOD string is the prescribed one and applies to the API figures only.",
+  "desk": "Desktop · 1200 px",
+  "phone": "Phone · 375 px"
+};
+/* ---------------- helpers shared by all v1 pages ---------------- */
+const MISSING = new Set();
+function t(k,v){let s=messages[k];if(s===undefined){MISSING.add(k);console.warn('missing',k);return k;}if(v)for(const p in v)s=s.split('{'+p+'}').join(v[p]);return s;}
+function r(k){let s=R[k];if(s===undefined){MISSING.add('R:'+k);return k;}return s;} /* review chrome, English, not product copy */
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const nf = d => new Intl.NumberFormat('nb-NO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const N0=nf(0),N1=nf(1),N2=nf(2);
+const NB=' ';
+const pct=(v,d=1)=>t('unit.pct',{v:nf(d).format(v)}).replace(' ',NB);
+const kr=v=>t('unit.kr',{v:N0.format(v)}).replace(/ kr$/,NB+'kr');
+const krSigned=v=>(v>0?'+':v<0?'−':'')+kr(Math.abs(v));
+const mill=v=>t('unit.mill',{v:N1.format(v)});
+const pp=v=>t('unit.pp',{v:N1.format(v)}).replace(' ',NB);
+const days=v=>t('unit.days',{v:N0.format(v)}).replace(' ',NB);
+const REG={}; let UID=0; const uid=p=>p+(++UID);
+
+/* Company marker: signature fill, navy-900 outline, 2px surface ring. Median: vertical tick. Beste fjerdedel: hollow slate triangle. */
+function ownDot(x,y,r=6){return `<circle cx="${x}" cy="${y}" r="${r+2}" fill="#fff"/><circle cx="${x}" cy="${y}" r="${r}" fill="#7399C6" stroke="#0B2340" stroke-width="2"/>`;}
+function medTick(x,y1,y2){return `<line x1="${x}" x2="${x}" y1="${y1}" y2="${y2}" stroke="#6B7C91" stroke-width="2"/>`;}
+function bestTri(x,y){return `<path d="M${x-5} ${y-8}h10l-5 8z" fill="#fff" stroke="#5B6B7F" stroke-width="1.5" stroke-linejoin="round"/>`;}
+
+/* ---------------- shell ---------------- */
+function header(P,o={}){
+  const field=o.noField?'':`<form class="org" onsubmit="return false" role="search"><input inputmode="numeric" placeholder="${esc(t('shell.orgnr.placeholder'))}" aria-label="${esc(t('shell.orgnr.label'))}"></form>`;
+  return `<header class="top"><a class="brand" href="v1-front.html">${esc(t('shell.brand'))}</a>${field}<span class="sp"></span><a class="how" href="v1-about.html"${o.onAbout?' aria-current="page"':''}>${esc(t('shell.how'))}</a></header>`;
+}
+function footer(){
+  return `<footer class="foot"><p>${esc(t('footer.source'))} · <a href="v1-about.html#kilder">${esc(t('footer.sourcesLink'))}</a></p></footer>`;
+}
+function frameBox(P,url,inner,label){
+  return `<div class="fcol"><div class="flabel">${esc(label||r(P?'phone':'desk'))}</div><div class="fwrap"><div class="${P?'phone':'desk'}">${P?`<div class="phurl">${esc(url)}</div>`:`<div class="chrome"><i></i><i></i><i></i><span class="url">${esc(url)}</span></div>`}<div class="app ${P?'ph':'dk'}">${inner}</div></div></div></div>`;
+}
+
+/* ---------------- tooltip: nearest point, keyboard focus shows the same ---------------- */
+const tip=document.getElementById('tip');
+function showTip(reg,idx,cx,cy){
+  tip.replaceChildren();const p=reg.pts[idx];
+  const a=document.createElement('div');a.className='tv';a.textContent=p.v;tip.append(a);
+  const b=document.createElement('div');b.textContent=p.n;tip.append(b);
+  if(p.e){const c=document.createElement('div');c.className='ts';c.textContent=p.e;tip.append(c);}
+  tip.style.display='block';
+  const w=tip.offsetWidth,h=tip.offsetHeight;let L=cx+14,T=cy-h-10;if(L+w>innerWidth-8)L=cx-w-14;if(L<8)L=8;if(T<8)T=cy+16;tip.style.left=L+'px';tip.style.top=T+'px';
+}
+function hideTip(){tip.style.display='none';}
+function nearest(reg,sx,sy){let best=-1,bd=1e9;reg.pts.forEach((p,i)=>{const d=p.w?Math.max(0,Math.abs(p.x-sx)-p.w/2)+Math.max(0,Math.abs(p.y-sy)-p.h/2):Math.hypot(p.x-sx,p.y-sy);if(d<bd){bd=d;best=i;}});return bd<=24?best:-1;}
+document.addEventListener('pointermove',e=>{
+  const svg=e.target.closest&&e.target.closest('svg[data-chart]');
+  if(!svg){hideTip();return;}
+  const reg=REG[svg.dataset.chart];if(!reg)return;
+  const rc=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const sx=(e.clientX-rc.left)*vb.width/rc.width,sy=(e.clientY-rc.top)*vb.height/rc.height;
+  const i=nearest(reg,sx,sy);if(i<0){hideTip();return;}
+  showTip(reg,i,e.clientX,e.clientY);
+});
+const kIdx=new WeakMap();
+function focusShow(svg,i){const reg=REG[svg.dataset.chart];const n=reg.pts.length;i=(i+n)%n;kIdx.set(svg,i);const rc=svg.getBoundingClientRect();const vb=svg.viewBox.baseVal;const p=reg.pts[i];showTip(reg,i,rc.left+p.x*rc.width/vb.width,rc.top+p.y*rc.height/vb.height);}
+document.addEventListener('focusin',e=>{const s=e.target.closest&&e.target.closest('svg[data-chart]');if(s&&REG[s.dataset.chart])focusShow(s,0);});
+document.addEventListener('focusout',e=>{if(e.target.closest&&e.target.closest('svg[data-chart]'))hideTip();});
+document.addEventListener('keydown',e=>{const s=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('svg[data-chart]');if(!s)return;if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();focusShow(s,(kIdx.get(s)||0)+(e.key==='ArrowRight'?1:-1));}if(e.key==='Escape')hideTip();});
+window.addEventListener('scroll',hideTip,{passive:true});
+document.addEventListener('click',e=>{if(e.target.closest('a[href="#"]'))e.preventDefault();});
+
+/* ---------------- QA (only with ?qa): missing keys, frame overflow, body scroll ---------------- */
+function runQA(){document.querySelectorAll("details").forEach(d=>d.open=true);
+  const out={missing:[...MISSING],bodyScrollW:document.documentElement.scrollWidth,innerW:innerWidth,overflow:[]};
+  document.querySelectorAll('.app,.state').forEach((app,ai)=>{
+    const ar=app.getBoundingClientRect();
+    app.querySelectorAll('*').forEach(el=>{
+      if(el.closest('.scroll')&&el.closest('.scroll')!==el)return;
+      if(el.closest('.sr')||el.matches('.sr'))return;
+      const rc=el.getBoundingClientRect();if(!rc.width&&!rc.height)return;
+      if(rc.right>ar.right+0.5||rc.left<ar.left-0.5){out.overflow.push({frame:ai,cls:app.className,el:el.tagName+'.'+(el.getAttribute('class')||''),txt:(el.textContent||'').slice(0,40),over:Math.round(rc.right-ar.right)});}
+    });
+    /* scroll containers that actually scroll */
+    app.querySelectorAll('.scroll').forEach(s=>{if(s.scrollWidth>s.clientWidth+1)out.overflow.push({frame:ai,cls:app.className,scrolls:true,txt:(s.textContent||'').slice(0,30),sw:s.scrollWidth,cw:s.clientWidth});});
+  });
+  out.overflow=out.overflow.slice(0,40);
+  out.wide=[];document.querySelectorAll("body *").forEach(el=>{if(el.closest(".fwrap")||el.closest(".scroll"))return;const rc=el.getBoundingClientRect();if(rc.right>innerWidth+0.5)out.wide.push(el.tagName+"."+(el.getAttribute("class")||"")+" r="+Math.round(rc.right));});out.wide=out.wide.slice(0,15);
+  const pre=document.createElement('pre');pre.id='qa';pre.textContent='QA'+JSON.stringify(out)+'QA';document.body.append(pre);if(location.search.includes("post"))parent.postMessage(JSON.stringify(out),"*");
+}
+/* review aid: ?only=<section id> shows one section (used for screenshots) */
+function onlySection(){const o=new URLSearchParams(location.search).get('only');if(!o)return;document.querySelectorAll('.tabsec').forEach(s=>{if(s.id!==o)s.style.display='none';});document.querySelectorAll('.page>h1,.page>.rvtext,.page>.jump,.page>.frames').forEach(e=>e.style.display='none');}
+
+
+const SECS=[['utvalg','about.s.peers'],['ki','about.s.ai'],['maling','about.s.measured'],['kilder','about.s.sources'],['begrensninger','about.s.limits'],['dato','about.s.date']];
+function about(P){
+  const toc=`<nav class="toc" aria-label="${esc(t('about.toc'))}"><p>${esc(t('about.toc'))}</p><ol>${SECS.map(([id,k])=>`<li><a href="#${id}">${esc(t(k))}</a></li>`).join('')}</ol></nav>`;
+  const h2=(id,k)=>`<h2 id="${P?'p-':''}${id}">${esc(t(k))}</h2>`;
+  const lim=['vat','cost','fte','small','floor','industry'].map(k=>`<h3>${esc(t('about.limits.'+k+'.title'))}</h3><p>${esc(t('about.limits.'+k+'.body',{industry:t('industry.62100')}))}</p>`).join('');
+  return `${header(P,{onAbout:true})}<main class="ab">${toc}<article class="art">
+   <h1>${esc(t('about.title'))}</h1><p class="lead">${esc(t('about.lead'))}</p>
+   ${h2('utvalg','about.s.peers')}<p>${esc(t('about.peers.intro'))}</p>
+   <ol class="stages">${[1,2,3,4,5].map(i=>`<li><h3>${esc(t('about.peers.'+i+'.title'))}</h3><p>${esc(t('about.peers.'+i+'.body'))}</p></li>`).join('')}</ol>
+   <p>${esc(t('about.peers.after'))}</p>
+   ${h2('ki','about.s.ai')}<p>${esc(t('about.ai.p1'))}</p><p>${esc(t('about.ai.p2'))}</p><p>${esc(t('about.ai.p3'))}</p><p>${esc(t('about.ai.p4'))}</p>
+   ${h2('maling','about.s.measured')}<p class="pending" role="status">${esc(t('about.measured.status'))}</p><p>${esc(t('about.measured.p1'))}</p><p>${esc(t('about.measured.p2'))}</p>
+   <ol class="layers">${[1,2,3].map(i=>`<li>${esc(t('about.measured.l'+i))}</li>`).join('')}</ol><p>${esc(t('about.measured.p3'))}</p>
+   ${h2('kilder','about.s.sources')}<p>${esc(t('about.sources.p1'))}</p><p class="quote">${esc(t('about.sources.nlod'))}</p><p>${esc(t('about.sources.p2'))}</p><p>${esc(t('about.sources.p3'))}</p>
+   ${h2('begrensninger','about.s.limits')}<div class="lim">${lim}</div>
+   ${h2('dato','about.s.date')}<p>${esc(t('about.date.p1'))}</p><p>${esc(t('about.date.p2'))}</p>
+  </article></main>${footer()}`;
+}
+document.getElementById('root').innerHTML=`<h1>${esc(r('title'))}</h1><p class="rvtext">${esc(r('intro'))}</p><div class="frames">${frameBox(false,'/slik-fungerer-peerless',about(false))}${frameBox(true,'/slik-fungerer-peerless',about(true))}</div>`;
+onlySection();if(location.search.includes("qa"))runQA();
+</script>
+</body>
+</html>

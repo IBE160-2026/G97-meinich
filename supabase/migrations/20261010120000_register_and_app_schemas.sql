@@ -30,10 +30,13 @@ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA register
   GRANT SELECT ON TABLES TO reader;
 
 -- Postgres grants EXECUTE on every new function to PUBLIC. A schema-scoped
--- default cannot revoke a global default, so this is the global form: no
--- function created by postgres is executable by PUBLIC (and so by anon or
--- reader) unless a later migration grants EXECUTE explicitly. v1 has no
--- postgres-owned functions outside register and app that rely on PUBLIC.
+-- default cannot revoke a global default, so this is the global form: it
+-- removes PUBLIC's EXECUTE on functions postgres creates. Functions in
+-- register and app are therefore callable by anon, reader or anyone else
+-- only when a later migration grants EXECUTE explicitly. It does not close
+-- public or storage: Supabase's image keeps its own schema-scoped default
+-- privileges for postgres there, which still grant EXECUTE (and table
+-- privileges) to anon, authenticated and service_role.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres
   REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 

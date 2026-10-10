@@ -37,7 +37,7 @@ Thin slices, each shippable on its own, matching the technical note's schedule (
 3. Verdi: closable-share control, amount cards, multiple field.
 4. Decompositions: "Margin eller kapitalbruk?", "Lønnsnivå eller produktivitet?", then the margin waterfall.
 
-Document-derived rows join the table as the seed's document figures land (TN weeks 4–6).
+Document-derived rows join the table as the seed's document figures land (TN weeks 4–6). The Verdi tab appears only when its slice is built; until then the analysis has three tabs and no placeholder for Verdi.
 
 ## Information Architecture
 
@@ -94,7 +94,7 @@ Decided once; used verbatim everywhere. This table is the source the message fil
 | Favourable quartile | beste fjerdedel | The target of every kroner amount |
 | Percentile | Plassering — "bedre enn 61 %" | **Plassering vises i hele prosent** (`docs/key-figures.md`, Arithmetic) |
 | Interquartile range | midtre halvdel — "midtre halvdel 18,4–49,0 %"; "midtre halvdel −6,3 til 9,1 %" when a bound is negative | Shown as text in every row that draws the band |
-| Match basis | Grunnlag for treff: **Beskrivelse og regnskap** / **Kun regnskap** / **Kun bransje og størrelse** | ✦ per [AI marking](#ai-marking-) |
+| Match basis | Grunnlag for treff, exactly one of four in this order: **Beskrivelse og regnskap** / **Kun regnskap** / **Kun beskrivelse** / **Kun bransje og størrelse** (FR-16) | ✦ per [AI marking](#ai-marking-) |
 | Inclusion reason | Hvorfor med | Rules-written (FR-16); see [AI marking](#ai-marking-) |
 | Flagged by FR-14 | Usikker klassifisering | See [AI marking](#ai-marking-) |
 | Kroner gap | gap i kroner | |
@@ -111,6 +111,7 @@ Decided once; used verbatim everywhere. This table is the source the message fil
 | No declared direction | Ingen retning | |
 | Direction | ↑ Høyere er bedre / ↓ Lavere er bedre; "Bedre →" on axes | Glyphs `aria-hidden`; screen readers get the words ("bedre mot høyre") |
 | Strength | ▲ Styrke | No kroner |
+| Figure with no kroner translation | Ingen kronebeløp | The kroner cell of Totalkapitalrentabilitet (`docs/key-figures.md`: none) |
 | Adjusted group, explanation | Forklaringen gjelder standard peer-gruppe. Tilbakestill for å se den. | Replaces the explanation; "Tilbakestill" is the reset action |
 | Capital amount | Frigjort kapital i driftseiendeler: 412 000 kr (engangsbeløp, ved full tilnærming) | Profit amounts say "per år"; capital amounts always "engangsbeløp" plus the share |
 | Capital never summed | Ikke per år, og legges ikke til resultatet. | Mandatory under every capital amount on Oversikt |
@@ -152,7 +153,7 @@ Decided once; used verbatim everywhere. This table is the source the message fil
 
 ### Number formatting
 
-`Intl.NumberFormat('nb-NO')` for every displayed number; non-breaking space before units.
+`src/engine/format.ts` for every displayed number — never `Intl.NumberFormat`, whose output differs between Node and browsers (AD-6). Characters are fixed: thousands separator U+00A0 no-break space, decimal comma, minus U+2212 `−`, and U+00A0 before "kr" and "%".
 
 | Kind | Format | Example |
 |---|---|---|
@@ -213,13 +214,14 @@ Behavioural. Visual specs are in `DESIGN.md` Components.
 |---|---|---|
 | Below the 10-peer floor (FR-22) | Benchmark row, cards | Row stays with own value; comparison cells replaced by "For få sammenlignbare (n av 10)"; no kroner. Funnel still shows counts. |
 | **Own value undefined** (FR-23, FR-24) | Benchmark row | Own cell "Kan ikke beregnes" with the reason; no median, beste fjerdedel, Plassering or kroner, because a comparison needs the subject's value (FR-24); the subline keeps the peer count. |
+| **62.100 company with no filing in the seed** (FR-73) | Analysis | The company is in the register but has no filed accounts in the loaded data, so there is no benchmark year (FR-25): the company header shows identification only (name, orgnr, industry, municipality), no figures and no tabs, with "Vi har ikke et levert regnskap for dette selskapet ennå." `/analyse/{orgnr}` is the result; a tab in the URL redirects to it, as for an uncovered company. |
 | **62.100 company outside the demo seed** (FR-73) | Analysis | **Peers:** full funnel and peer group — stage 4 runs on the committed fingerprint categories, stage 5 on stored classifications. **Nøkkeltall og gap:** API rows (driftsmargin, totalkapitalrentabilitet, egenkapitalandel) compared as normal, with kroner for driftsmargin; every document-based row keeps its label and reads "Ikke i demodataene" in place of own value and comparison, with an info button carrying the popover text. A State block above the table says once: "Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen." Every "Ikke i demodataene" cell points to it with `aria-describedby`. A figure that needs peers' document figures is withheld the same way. **"Margin eller kapitalbruk?"** shown (both factors are API). **"Hva forklarer marginavviket?"** and **"Lønnsnivå eller produktivitet?"** not shown: "Ikke i demodataene". **Oversikt:** hero and beeswarm as normal (driftsmargin is API); "Største kapitalgap" reads "Ikke i demodataene"; the stored explanation is shown as normal, built from the API figures present (FR-73). **Verdi:** profit uplift and EV as normal; both capital cards read "Ikke i demodataene". Provenance data-quality line: "Ikke avstemt – årsregnskapet er ikke i demodataene". |
-| Uncovered industry (FR-4) — demo company C | `/analyse/{orgnr}`, no tabs | Company header; state block "Bransjen er ikke dekket ennå" + "{name} er registrert i bransjen {industry}. Peerless dekker foreløpig bare 62.100 …"; three API figures with filing year and read date; "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner."; link "Søk på et annet selskap". |
+| Uncovered industry (FR-4) — demo company C | `/analyse/{orgnr}`, no tabs | Company header; state block "Bransjen er ikke dekket ennå" + "{Bransjenavn} ({kode}) er ikke dekket ennå. Foreløpig sammenligner Peerless bare selskaper innen programmeringstjenester (62.100). Her er selskapets egne nøkkeltall fra Brønnøysundregistrene."; three API figures with filing year and read date; "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner."; link "Søk på et annet selskap". |
 | **Orgnr not in the database** | Front page / header search | "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)." followed by links to demo companies A and B. Never a live register call, never an empty analysis. |
 | Search, no match | Search results | "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i programmeringstjenester (62.100)." with the same demo links. |
 | Empty search submitted | Search field | "Skriv inn et navn eller et organisasjonsnummer"; no request. |
-| Malformed number | Search field | Input of digits only (spaces ignored) with a count other than nine: "Organisasjonsnummeret må ha 9 siffer"; error border and glyph, `aria-invalid`, message in the field's live region. The digits-only rule is what separates a malformed number from a name search. |
-| **Invalid URL state** | Analysis | Every URL value is validated on each request. An orgnr that is not nine digits, or fails the modulus-11 check → the malformed-number message on the front page with the search field. A tab on an uncovered company → `/analyse/{orgnr}`. Any other invalid value falls back to its default: an unknown tab → Oversikt; an excluded orgnr outside the candidate pool (funnel stages 1–3 at the current band step), or beyond the cap of 20 → dropped; "Til medianen" where no median step exists → 50 %; a size step, share or multiple that is not one of the allowed values → Standard / 50 % / empty. One slate notice under the company header says so: "Noen innstillinger i lenken var ugyldige og er satt tilbake til standard." A URL made before a seed refresh reproduces the current data, dated in the header; nothing in the URL names a year. |
+| Malformed number | Search field | Input of digits only (spaces ignored) with a count other than nine: "Organisasjonsnummeret må ha 9 siffer". Nine digits that fail the modulus-11 check digit: "Ugyldig organisasjonsnummer". Both: error border and glyph, `aria-invalid`, message in the field's live region. The digits-only rule is what separates a malformed number from a name search. |
+| **Invalid URL state** | Analysis | Every URL value is validated on each request. An orgnr that is not nine digits → "Organisasjonsnummeret må ha 9 siffer"; nine digits failing the modulus-11 check → "Ugyldig organisasjonsnummer"; either on the front page with the search field. A tab on an uncovered company, or on a company with no filing in the loaded data → `/analyse/{orgnr}`. Any other invalid value falls back to its default: an unknown tab → Oversikt; an excluded orgnr outside the candidate pool (funnel stages 1–3 at the current band step), or beyond the cap of 20 → dropped; "Til medianen" where no median step exists → 50 %; a size step, share or multiple that is not one of the allowed values → Standard / 50 % / empty. One slate notice under the company header says so: "Noen innstillinger i lenken var ugyldige og er satt tilbake til standard." A URL made before a seed refresh reproduces the current data, dated in the header; nothing in the URL names a year. |
 | **Hero, no profit gap** | Oversikt hero | Driftsmargin at or beyond beste fjerdedel: kicker unchanged, "▲ Styrke", own vs beste fjerdedel, context line, "Driftsmarginen er på eller over beste fjerdedel. Det er ikke noe gap å regne om til kroner."; no amount. Driftsmargin below the floor: own value and "For få sammenlignbare (n av 10)"; no amount. |
 | **Small cards, nothing to show** | Oversikt | No capital gap: "Største kapitalgap" reads "Ingen kapitalgap: ingen av kapitalnøkkeltallene ligger under beste fjerdedel." No strength: "Største styrke" reads "Ingen nøkkeltall ligger på eller over beste fjerdedel." Every figure has a comparison: "Mangler grunnlag" reads "Alle nøkkeltall har grunnlag for sammenligning." Cards keep their place. |
 | **Peer group too small** | Peers (above the funnel) | Fewer than 10 after stage 5 at Standard: State block "Peer-gruppen har bare {n} sammenlignbare. Med under 10 viser vi ingen median eller kroner." with the action "Utvid størrelsesintervallet". Still too few at 0,25–4×: same block without the action, "… også med det videste intervallet". Zero: "Fant ingen sammenlignbare selskaper." Funnel counts always shown. |
@@ -308,7 +310,7 @@ The switch point is Tailwind `md`, 768px; widths per [Foundation](#foundation).
 
 **This section is the one place the ✦ rule lives**; every other mention links here.
 
-- ✦ marks AI-produced content, and exactly three things carry it: **the explanation as a whole**, the match basis **"Beskrivelse og regnskap"**, and the flag **"Usikker klassifisering"**.
+- ✦ marks AI-produced content, and exactly three things carry it: **the explanation as a whole**; **a match basis that rests on a classification**, which is "Beskrivelse og regnskap" and "Kun beskrivelse"; and the flag **"Usikker klassifisering"**. "Kun regnskap" and "Kun bransje og størrelse" rest on rules alone and carry no ✦.
 - ✦ is **not** on "Hvorfor med": the inclusion reason is rules-written (FR-16).
 - ✦ is **never** on an individual number, and engine figures never carry it — including the numbers inside the explanation, which link to their calculations instead (FR-52).
 - Screen readers hear "KI-generert", once per cell; where a basis and a flag share a cell, once for both. The glyph is `aria-hidden`.

@@ -80,8 +80,9 @@ flowchart LR
 - **Prevents:** two writers of one entity, and Python logic leaking into derived data.
 - **Rule:**
   - Step 1 (Python, containerised) writes register data, API key figures, and document figures as filed with a per-filing status (AD-14, AD-15). It also deletes a company the register answers with `410 Gone` (FR-66); every step-2 table references the company `ON DELETE CASCADE`.
-  - Step 2 (Node scripts in this repository, not a service) reads those and writes fingerprints, classifications, stored explanations and the covered-industry table. Default analyses are computed in step 2's memory, as inputs to explanations and the measurement; they are not stored, and the request path computes every analysis itself.
+  - Step 2 (Node scripts in this repository, not a service) reads those and writes fingerprints, classifications and stored explanations. Default analyses are computed in step 2's memory, as inputs to explanations and the measurement; they are not stored, and the request path computes every analysis itself.
   - In a batch build each table has exactly one writing step. The seed loader (AD-16) is the one other declared writer: it writes only rows from manifest-listed files, runs FR-53 and the digest check (AD-13) at load, and is the only writer of a seeded database.
+  - **`register.covered_industry` is declared in `seed/coverage.json` and written only by the loader.** Neither batch step writes it. The loader writes one row per entry in that committed declaration file, each code with its FR-3 measurement status (`{"code": "62.100", "measured": false}`). The status is set to true only once the industry's measurement report exists and is referenced by path and checksum (AD-16, Epic 5); the row, not the status, is what makes a company covered in the app. Step 1 reads the same file to decide which industries to fetch (AD-16).
   - Neither step nor the loader runs in a request, and nothing a user reaches depends on any of them being up.
 
 ### AD-3 — Schema and grants `[ADOPTED]`
@@ -101,8 +102,8 @@ flowchart LR
 - **Binds:** `/analyse/{orgnr}` and `/analyse/{orgnr}/{fane}` and their parameters: excluded peers, size-band step, closable share, EV/EBIT multiple (FR-69).
 - **Prevents:** unvalidated input reaching the engine, and two parsers or writers disagreeing about the same address.
 - **Rule:** one module, `src/url/analysis-state.ts`, exports `parse` and `serialize`. The server, client components and every link use it, and nothing else builds or reads an analysis URL. Its canonical grammar:
-  - **Path:** `/analyse/{orgnr}/{fane}`, with `fane` one of `oversikt`, `peers`, `nokkeltall`, `verdi`. For a covered company `/analyse/{orgnr}` redirects to `oversikt`. For an uncovered company `/analyse/{orgnr}` is the result, and any `{fane}` redirects to it.
-  - **Orgnr:** nine digits passing modulus 11. Anything else shows EXPERIENCE.md's malformed-number message.
+  - **Path:** `/analyse/{orgnr}/{fane}`, with `fane` one of `oversikt`, `peers`, `nokkeltall`, `verdi`. For a covered company `/analyse/{orgnr}` redirects to `oversikt`. For an uncovered company, and for a covered-industry company with no filing in the loaded data, `/analyse/{orgnr}` is the result, and any `{fane}` redirects to it.
+  - **Orgnr:** spaces stripped, nine digits passing modulus 11. A wrong length shows "Organisasjonsnummeret må ha 9 siffer"; nine digits with a wrong check digit show "Ugyldig organisasjonsnummer" (EXPERIENCE.md).
   - **`ekskl`:** comma-separated orgnrs, sorted, de-duplicated, at most 20, each in the **candidate pool**: the companies left after funnel stages 1–3 at the current band step.
   - **`band`:** `0`, `1` or `2`.
   - **`andel`:** `0`, `25`, `50`, `75`, `100` or `median` ("Til medianen"). The server resolves `median` to the exact s_med; where none exists (r ≥ median) the token is invalid.
@@ -227,12 +228,15 @@ flowchart LR
     - the manifest (seed-format) version;
     - the latest migration id;
     - the dataset, `demo` or `full`;
+    - the industry codes step 1 fetched for this dataset, taken from `seed/coverage.json` at the run;
     - the orgnrs with document figures;
     - the read-date range;
     - each file with its checksum.
+  - **Coverage declaration:** `seed/coverage.json` is the one hand-edited file under `seed/`, a committed list of entries such as `{"code": "62.100", "measured": false}`. It is data, not code: adding an industry is one line there, and no application code names an industry. Step 1 reads it to decide which industries to fetch; the loader reads it and writes `register.covered_industry` from it (AD-2). The loader refuses a declared code that the manifest's fetched codes do not include, so an industry is never offered before its data is pre-warmed (FR-59). Flipping `measured` needs no re-export.
+  - **`measured: true` must cite its report:** the loader accepts `measured: true` only when the entry references the measurement report in `analysis/output/` by path and checksum — `{"code": "62.100", "measured": true, "report": "analysis/output/<file>.md", "sha256": "…"}` — and that file exists with a matching SHA-256. A `measured: true` entry with no reference, a missing file or a checksum mismatch makes the loader fail loudly and load nothing. "Measured" therefore means a referenced report exists, not that someone set a flag.
   - **Load checks:** the loader refuses a manifest whose version or migration id does not match, and any file that is unlisted or fails its checksum. The loaded manifest is stored as one row in `register.dataset`.
   - **Explanations at load:** the loader checks each explanation against the loaded dataset, by FR-53 and by digest (AD-13). It writes only those that pass and reports the rest.
-  - **CLI and CI:** Supabase CLI auto-seeding is disabled in `supabase/config.toml`. CI migrates a fresh database and loads the committed demo seed.
+  - **CLI and CI:** Supabase CLI auto-seeding is disabled in `supabase/config.toml`. From the story that introduces the seed (Story 1.3b), CI migrates a fresh database and loads the committed demo seed on every pull request, so runnability is known throughout development rather than only at the end.
 
 ### AD-17 — One path from batch into `app` (stage 2) `[ADOPTED]`
 
@@ -271,8 +275,8 @@ flowchart LR
 
 | Concern | Convention |
 |---|---|
-| Display formatting | `src/engine/format.ts` is the only formatter. It takes decimal strings and pins its separators and minus sign explicitly rather than trusting the ICU. The server render, the browser, step 2's prompt builder and the FR-53 checker all use it. |
-| Covered industries | `register.covered_industry` is written by step 2. Code and copy read it, and the literal `62.100` appears in no application code. |
+| Display formatting | `src/engine/format.ts` is the only formatter. It takes decimal strings and pins its characters explicitly rather than trusting the ICU: U+00A0 as thousands separator and before "kr" and "%", a decimal comma, and U+2212 as minus. Unit tests pin the exact output bytes. The server render, the browser, step 2's prompt builder and the FR-53 checker all use it. |
+| Covered industries | `register.covered_industry` is written only by the loader, from the committed declaration `seed/coverage.json` (AD-2, AD-16). Code and copy read it, and the literal `62.100` appears in no application code. |
 | Fingerprint shape | One type, in `src/engine/fingerprint.ts`, with the five FR-73 categories (inventory, cost-of-goods band, capitalised intangibles, asset-intensity band, personnel-cost band). A migration check mirrors it. |
 | Batch status | Classification status is one of `classified`, `no_text`, `failed` or `pending`. `seed:export` refuses to run while a covered-industry row is `failed` or `pending`. Each batch run writes a run record: start, end, counts per status, model id and prompt hash. `pnpm seed` prints it. |
 | Model provenance | Each classification and explanation row stores the model id and a prompt hash (AD-7). |
@@ -351,7 +355,7 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 ## Peer group — a five-stage funnel
 
-1. **Coarse filter**, rules. Industry code and size band — `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, loosenable one fixed step at a time to 0.33 to 3 times and then 0.25 to 4 times. Revenue, never `sumEiendeler` and never the register's employee count, which is today's figure rather than the accounting year's. Hundreds of thousands → a few hundred.
+1. **Coarse filter**, rules. Industry code and size band — `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, loosenable one fixed step at a time to 0.33 to 3 times and then 0.25 to 4 times. Every band includes both bounds: [0.5×, 2×], [0.33×, 3×], [0.25×, 4×]. Revenue, never `sumEiendeler` and never the register's employee count, which is today's figure rather than the accounting year's. Hundreds of thousands → a few hundred.
 2. **Comparability filter**, rules. Currency, accounting rules, `smaaForetak`, `avviklingsregnskap`, accounting period, `regnskapstype`. All exposed as fields in the API.
 3. **Segmentation**, rules. Size, legal form, geography where the industry calls for it. → under a hundred.
 4. **Business-model fingerprint**, rules. Reads what kind of business a company is from its own accounts: cost of goods sold as a share of revenue, whether it carries inventory, capitalised intangible assets such as self-developed software, fixed-asset intensity, with cost of goods share and personnel cost share in coarse bands. A reseller, a product company and a consultancy separate here even when all three describe themselves as "Programvareutvikling." Works for every company whose accounts are extracted.
@@ -363,11 +367,13 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 Classification runs once per company at ingestion, in batch step 2 (AD-7), never at search time. The one exception is a description the user enters for the subject: it is classified once, when entered, and the result is cached against that text and rate-limited with the open route. No peer is ever classified at search time. Each company is stored with a structured profile: what it does, B2B or B2C, manufacturing, trade or services, capital intensity. A search then becomes an ordinary database query.
 
-Each peer's inclusion reason is generated deterministically from the profile fields it shares with the subject, and states what the match rests on: description and accounts, accounts alone, or industry and size alone. The model classifies; it does not write the justification.
+Each peer's inclusion reason is generated deterministically from the profile fields it shares with the subject, and states what the match rests on, one of four tiers: description and accounts, accounts alone, description alone (classified, but no fingerprint because the company has no reconciled accounts), or industry and size alone. The model classifies; it does not write the justification.
+
+**Rules fixed by the stories.** Three rules are defined when the story that needs them starts, and recorded here in that story's PR: the stage-4 grouping rule (when two fingerprints count as the same group) and the within-band spread measure with its threshold (Story 2.5), and the classification category set (Story 2.6). Until then this paragraph names them as open.
 
 **Measured layer by layer.** Each stage is scored against the labelled set on its own and in combination: industry code and size alone; adding the fingerprint; adding text through embeddings (stored with pgvector in the same Supabase Postgres, no separate vector service); adding text through model classification. The report then shows where the improvement comes from, not only that there is one. If the fingerprint alone captures most of it, that is a finding: the model was needed less than expected. Embeddings replace classification only if they measurably beat it.
 
-The user sees how many companies remain after each stage and can loosen a criterion when the group becomes too small.
+The user sees how many companies remain after each stage and can widen the size band when the group becomes too small. In v1 the size band is the only loosenable criterion; loosening legal form or geography is stage 3 (FR-18), and comparability is never offered.
 
 ---
 

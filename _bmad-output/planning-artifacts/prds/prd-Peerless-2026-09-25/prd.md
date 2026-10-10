@@ -146,7 +146,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Business-model fingerprint** — stage 4, rules. Reads *what kind* of business a company is from its own accounts: cost of goods share, whether it carries inventory, capitalised intangibles, fixed-asset intensity. Separates a reseller from a product company from a consultancy even when all three call themselves "Programvareutvikling".
 - **Classification** — stage 5, model. Judges whether a candidate is the same type of business, from company name, secondary industry codes, statement of purpose and business description. Answers only in fixed categories.
 - **Unclassified** — a company with nothing useful to classify on. Stored as unclassified, **never guessed at**, and still eligible as a peer through stages 1–4.
-- **Match basis** — what a peer's inclusion rests on, one of three tiers: *description and accounts* / *accounts alone* / *industry and size alone*.
+- **Match basis** — what a peer's inclusion rests on, one of four tiers: *description and accounts* / *accounts alone* / *description alone* / *industry and size alone* (FR-16).
 - **Inclusion reason** — the short statement of why a peer was included. Generated deterministically from shared profile fields. **Rules-written, never model-written.**
 - **Coarse band** — the banded form in which a measure that is *also* benchmarked may enter selection. Today: cost of goods share and personnel cost share. Selecting on exact values would drive that gap to zero by construction.
 
@@ -218,6 +218,7 @@ The subject must be in a covered industry to receive a peer analysis.
 **Consequences (testable):**
 - **Stage split:** v1 covers `62.100` only. `69.202` and `43.210` are stage 3, each added only once its own measurement exists.
 - An industry is offered only once its filings are extracted and reconciled **and** its peer selection has been measured against a labelled set for that industry.
+- **"Measured" means a referenced report exists.** Coverage is declared in the committed file `seed/coverage.json`; an entry is marked measured only by referencing its measurement report in `analysis/output/` by path and checksum, and the seed loader refuses a measured entry whose report is missing or does not match. A flag alone never counts. During v1 development `62.100` is declared with measured false so the app can be built against it; v1 is not complete until it is measured.
 - A subject whose `naeringskode1.kode` is outside the covered set never receives a peer group.
 - Industry codes are SN2025. An SN2007 code returns nothing rather than a wrong match.
 
@@ -351,7 +352,7 @@ Each peer carries a short statement of why it was included, and a flag for what 
 
 **Consequences (testable):**
 - The inclusion reason is generated deterministically from the profile fields the peer shares with the subject. **The model classifies; it does not write the justification.**
-- The match basis is exactly one of: *description and accounts*, *accounts alone*, *industry and size alone*.
+- The match basis is exactly one of four, in this order: *description and accounts* (classified and fingerprinted), *accounts alone* (fingerprinted, unclassified), *description alone* (classified from its description with no fingerprint, because the company has no reconciled accounts), *industry and size alone* (neither). The two that rest on a classification carry the AI marking in the interface.
 - Where the match rests on industry and size alone, the product says so rather than presenting a guess as a judgement.
 - Peers are shown by name.
 
@@ -373,6 +374,7 @@ The user can widen the size band or a segmentation criterion when the group is t
 - Loosening reaches the size band (FR-7, FR-9) and segmentation by legal form or geography (FR-9). It never reaches the six comparability fields (FR-8).
 - The size band widens in fixed steps, one at a time, each a separate user action: 0.5–2× the subject's `sumDriftsinntekter` (default), then 0.33–3×, then 0.25–4×. Nothing wider is offered.
 - No loosening can admit a candidate that failed comparability, and a test asserts that.
+- **Stage split:** v1 loosens the size band only. Loosening segmentation by legal form or geography is stage 3, when an industry that applies geography or admits more than `AS` is covered. Comparability is never offered in any stage.
 - A loosened criterion is shown as loosened, with the funnel counts updated (FR-15), so a larger group never looks like the default one.
 - Loosening recomputes everything immediately (FR-19), and a figure can cross the minimum group size in either direction as a result (FR-22).
 
@@ -932,7 +934,7 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
 - **Two seed levels, built in from the start.** The register states no licence for the filed documents and the repository is public, so:
   - **demo** — committed, loaded with `pnpm seed`:
     - register data, API key figures and stored AI classifications for all of `62.100`;
-    - **fingerprint results for every `62.100` candidate** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so the funnel runs through stage 4 for any `62.100` subject;
+    - **fingerprint results for every `62.100` candidate** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so the funnel runs through stage 4 for any `62.100` subject. **Only if the licence gate below opens**; if it stays closed, these categories are not committed and the demo seed follows the fallback in Story 5.4 (stages 1–3 plus classification for companies outside the demo set);
     - **full document-derived figures for the three demo companies and for every peer of A and B at all three size-band steps** (0,5–2×, 0,33–3× and 0,25–4×), so widening the band on A or B still yields a complete analysis, waterfall included. The README states the count.
     - A check asserts that the committed seed holds document-derived figures for no company outside that declared set, and holds nothing for other companies beyond the fingerprint categories.
     - **Gate:** before the demo seed is first published, a short licence assessment is recorded in the repository, assessing whether committing derived categories carries low risk compared with reproducing document figures. The gate opens only if the assessment concludes that it does; otherwise the fingerprint categories are not committed.
@@ -941,7 +943,7 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
   - **A** — a typical `62.100` consultancy with its full peer group: the whole analysis.
   - **B** — a loss-making `62.100` product company with its peer group: the fingerprint separating a product company from consultancies, and a large gap.
   - **C** — a `69.202` bookkeeping firm: the uncovered-industry state (FR-4), from API figures alone, with no document figures needed.
-- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full."*; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown, and so is the stored explanation, built from the API figures present; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene". *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. The README says that `pnpm seed:full` restores the full set.
+- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full."*; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown, and so is the stored explanation, built from the API figures present; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene". *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. A `62.100` company in the register with no filed accounts in the loaded data has no benchmark year (FR-25) and is shown with identification only and *"Vi har ikke et levert regnskap for dette selskapet ennå."* The README says that `pnpm seed:full` restores the full set.
 - **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application or the schema.
 - **README.** About five commands take a fresh clone to a running app — clone, start the local database, install, `pnpm seed`, run — and a run from a fresh clone on a clean machine is part of v1's acceptance (SM-9). The README lists the three demo organisation numbers and what each demonstrates.
 - No secret is needed to run v1: every value the app needs locally is either a local default the Supabase CLI prints or optional.

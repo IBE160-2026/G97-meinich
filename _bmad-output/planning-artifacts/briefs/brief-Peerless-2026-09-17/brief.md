@@ -35,7 +35,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **See what the gap is worth, and decide how much is closable.** Each deviation becomes kroner — a margin gap an annual amount, a receivable-days gap capital tied up. One control runs from nothing to full convergence with the favourable quartile and updates profit uplift, working capital released and enterprise value at an EV/EBIT multiple the user sets.
 
-**Interrogate the peer group.** It is visible, not hidden. The user sees how many companies remain after each filter, can widen a criterion or exclude a company, and everything recomputes. Each peer states why it was included and what the match rests on — the accounts and an AI reading of its description, the accounts alone, or industry and size alone. A benchmark the user cannot interrogate is one they will not trust.
+**Interrogate the peer group.** It is visible, not hidden. The user sees how many companies remain after each filter, can widen a criterion or exclude a company, and everything recomputes. Each peer states why it was included and what the match rests on — the accounts and an AI reading of its description, the accounts alone, an AI reading of its description alone, or industry and size alone. A benchmark the user cannot interrogate is one they will not trust.
 
 **Understand where to start.** An AI-written explanation names the largest gaps in kroner and the strengths; which gaps have persisted follows in stage 2, with multi-year data. It explains; it does not recommend. The AI never calculates: every figure in the text comes from the engine and links back to its calculation, and text containing any other figure is rejected.
 

@@ -12,8 +12,15 @@ const serverImportRestriction = {
   ],
   patterns: [
     {
-      group: ['@/server', '@/server/*', '**/server', '**/server/*', 'src/server', 'src/server/*'],
+      // The project's own server code only: @/server, src/server, or a
+      // relative path ending in or passing through a `server` segment.
+      // Package subpaths such as react-dom/server and next/server stay allowed.
+      regex: /^(?:@\/server|src\/server|(?:\.{1,2}\/)+(?:[^/]+\/)*server)(?:\/.*)?$/.source,
       message: 'src/server is server-only; the engine and client modules may not import it.',
+    },
+    {
+      regex: '^postgres/',
+      message: 'The database client is server-only (src/server).',
     },
   ],
 };
@@ -27,17 +34,6 @@ const roundingRestriction = {
     { object: 'Math', property: 'round', message: 'Use the engine decimal rounding (AD-8).' },
     { property: 'toFixed', message: 'Use the engine decimal formatter (AD-8).' },
   ],
-  'no-restricted-syntax': [
-    'error',
-    {
-      selector: "MemberExpression[computed=true][property.value='toFixed']",
-      message: 'Use the engine decimal formatter (AD-8).',
-    },
-    {
-      selector: "MemberExpression[object.name='Math'][computed=true][property.value='round']",
-      message: 'Use the engine decimal rounding (AD-8).',
-    },
-  ],
 };
 
 export default defineConfig([
@@ -49,7 +45,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/engine/**/*.{ts,tsx}', '**/*format*.{ts,tsx}'],
+    files: ['src/engine/**/*.{ts,tsx}', '**/*[fF]ormat*.{ts,tsx}'],
     rules: roundingRestriction,
   },
   {

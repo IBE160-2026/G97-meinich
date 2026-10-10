@@ -15,6 +15,12 @@ async function ruleIds(fixture: string, virtualPath: string): Promise<string[]> 
   return result.messages.filter((m) => m.severity === 2).map((m) => m.ruleId ?? 'parse-error');
 }
 
+async function inlineRuleIds(code: string, virtualPath: string): Promise<string[]> {
+  const [result] = await eslint.lintText(code, { filePath: path.join(root, virtualPath) });
+  if (!result) throw new Error(`no lint result for ${virtualPath}`);
+  return result.messages.filter((m) => m.severity === 2).map((m) => m.ruleId ?? 'parse-error');
+}
+
 describe('rounding ban (AD-8)', () => {
   it('rejects Math.round in src/engine', async () => {
     expect(await ruleIds('engine-math-round.ts', 'src/engine/fixture.ts')).toContain(
@@ -24,6 +30,17 @@ describe('rounding ban (AD-8)', () => {
 
   it('rejects toFixed in a formatting file', async () => {
     expect(await ruleIds('format-to-fixed.ts', 'src/lib/format-fixture.ts')).toContain(
+      'no-restricted-properties',
+    );
+  });
+
+  it("rejects Math['round'] in src/engine", async () => {
+    const code = "export const r = (x: number): number => Math['round'](x);\n";
+    expect(await inlineRuleIds(code, 'src/engine/fixture.ts')).toContain('no-restricted-properties');
+  });
+
+  it('rejects toFixed in a camel-case formatting file', async () => {
+    expect(await ruleIds('format-to-fixed.ts', 'src/lib/kronerFormat.ts')).toContain(
       'no-restricted-properties',
     );
   });
@@ -56,6 +73,22 @@ describe('restricted imports (AD-8, AD-19)', () => {
     expect(await ruleIds('client-imports-postgres.tsx', 'src/components/fixture.tsx')).toContain(
       'local/client-restricted-imports',
     );
+  });
+
+  it('rejects a nested src/server path in the engine', async () => {
+    const code = "import { db } from '@/server/db/client';\nexport const handle = db;\n";
+    expect(await inlineRuleIds(code, 'src/engine/fixture.ts')).toContain('no-restricted-imports');
+  });
+
+  it('rejects a postgres subpath in the engine', async () => {
+    const code = "import postgres from 'postgres/cjs/src/index.js';\nexport const client = postgres;\n";
+    expect(await inlineRuleIds(code, 'src/engine/fixture.ts')).toContain('no-restricted-imports');
+  });
+
+  it("allows react-dom/server in a 'use client' module", async () => {
+    const code =
+      "'use client';\nimport { renderToString } from 'react-dom/server';\nexport const render = renderToString;\n";
+    expect(await inlineRuleIds(code, 'src/components/fixture.tsx')).toEqual([]);
   });
 
   it('allows a server component to import src/server', async () => {

@@ -29,6 +29,8 @@ for (const width of [375, 320]) {
       expect(scroll.bodyScrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
 
       // The link wraps to exactly two lines and stays inside the viewport.
+      // Measure with the webfont in place, not the fallback.
+      await page.evaluate(() => document.fonts.ready);
       const how = page.getByTestId('header-how');
       const lines = await how.evaluate((el) => {
         const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
@@ -48,6 +50,7 @@ for (const width of [375, 320]) {
 test('the header link stays on one line on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/');
+  await page.evaluate(() => document.fonts.ready);
   const lines = await page.getByTestId('header-how').evaluate((el) => {
     const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
     return Math.round(el.getBoundingClientRect().height / lineHeight);

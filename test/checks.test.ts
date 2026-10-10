@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { findUnpinnedDependencies } from '../scripts/check-pinned-deps.ts';
@@ -108,5 +110,46 @@ describe('check:env', () => {
         return findPublicEnv(file, content);
       });
     expect(violations).toEqual([]);
+  });
+});
+
+// The CLI entry points, run the way CI runs them: plain node, native type
+// stripping, exit status and stderr.
+describe('CLI entry points', () => {
+  it('check:pins exits 1 and names the package with a caret range', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(root, 'scripts/check-pinned-deps.ts'),
+        path.join(root, 'test/fixtures/pins/caret.package.json'),
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('"left-pad"');
+  });
+
+  it('check:env exits 1 and reports file:line in a git repository', () => {
+    const repo = mkdtempSync(path.join(os.tmpdir(), 'check-env-'));
+    try {
+      execFileSync('git', ['init', '--quiet'], { cwd: repo });
+      // Built at runtime so this test file holds no public-prefixed name itself.
+      const variable = ['NEXT', 'PUBLIC', 'FOO'].join('_');
+      writeFileSync(
+        path.join(repo, 'config.ts'),
+        `export const a = 1;\nexport const b = process.env.${variable};\n`,
+      );
+      execFileSync('git', ['add', 'config.ts'], { cwd: repo });
+
+      const result = spawnSync(
+        process.execPath,
+        [path.join(root, 'scripts/check-no-public-env.ts')],
+        { cwd: repo, encoding: 'utf8' },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('config.ts:2');
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });

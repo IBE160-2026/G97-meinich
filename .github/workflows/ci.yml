@@ -45,6 +45,20 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      # Postgres only (no API, auth or storage containers). The CLI applies
+      # supabase/roles.sql ("Seeding globals from roles.sql") and then every
+      # migration in supabase/migrations.
+      - name: Start local Supabase Postgres
+        run: pnpm db:start
+
+      # Generates role passwords into a fresh .env (gitignored) and applies
+      # them; nothing is printed.
+      - name: Role passwords
+        run: pnpm db:roles
+
+      - name: Database tests (grants, db:roles)
+        run: pnpm test:db
+
       - name: Build
         run: pnpm build
 

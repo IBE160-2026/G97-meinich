@@ -51,6 +51,13 @@ describe('check:pins', () => {
     ]);
   });
 
+  it('accepts the hash suffix that corepack use writes', () => {
+    expect(
+      findUnpinnedDependencies({ packageManager: 'pnpm@12.11.2+sha512.0123456789abcdef' }),
+    ).toEqual([]);
+    expect(findUnpinnedDependencies({ packageManager: 'pnpm@12+sha512.0123abcd' })).toHaveLength(1);
+  });
+
   it("passes on the repository's own package.json", () => {
     const pkg: unknown = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
     expect(findUnpinnedDependencies(pkg)).toEqual([]);

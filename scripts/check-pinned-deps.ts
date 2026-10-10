@@ -43,7 +43,11 @@ export function findUnpinnedDependencies(packageJson: unknown): PinViolation[] {
   }
 
   const packageManager = record['packageManager'];
-  if (typeof packageManager !== 'string' || !/^pnpm@\d+\.\d+\.\d+$/.test(packageManager)) {
+  // `corepack use` appends `+sha512.<hex>`; the version itself must be exact.
+  if (
+    typeof packageManager !== 'string' ||
+    !/^pnpm@\d+\.\d+\.\d+(?:\+sha\d+\.[0-9a-f]+)?$/.test(packageManager)
+  ) {
     violations.push({ section: 'packageManager', name: 'pnpm', spec: String(packageManager) });
   }
 

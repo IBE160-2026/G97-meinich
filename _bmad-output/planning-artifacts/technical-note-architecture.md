@@ -56,11 +56,11 @@ A failure blocks the filing rather than degrading the analysis silently.
 
 ## Industries covered first
 
-**62.100 Dataprogrammeringstjenester, 69.202 Regnskapsføring og bokføring and 43.210 Elektrisk installasjonsarbeid**, chosen from the screening in `analysis/output/industry-screening.md` and all three in v1. The teacher's feedback of 2026-10-06 recommended one; three are kept because the measurement needs the contrast between them, at the same labelling effort (ten subjects each). 43.210 is the first thing cut if time runs short.
+**v1 covers 62.100 Dataprogrammeringstjenester only**, as the teacher's feedback of 2026-10-06 recommended: start with one industry, get the core flow working and measured there, and add industries later. 69.202 Regnskapsføring og bokføring and 43.210 Elektrisk installasjonsarbeid are screened (`analysis/output/industry-screening.md`) and come in stage 3, each offered only once its own measurement exists.
 
-62.100 is where classification has most to prove. With five or more employees there are about 1 000 companies, and their operating margins run from −46 % to +9 % between the first and third quartile. Loss-making product companies and profitable consultancies share one code. 69.202 is the control. About 800 companies, 93 % describing core bookkeeping, and margins within 12 points. If classification lifts precision substantially in 62.100 and little in 69.202, that is a result about *when* the model earns its place, not only that it does. 69.202 is also the primary user's own industry.
+62.100 is where classification has most to prove. With five or more employees there are about 1 000 companies, and their operating margins run from −46 % to +9 % between the first and third quartile. Loss-making product companies and profitable consultancies share one code. In stage 3, 69.202 is the natural control — about 800 companies, 93 % describing core bookkeeping, margins within 12 points — and comparing the two shows *when* the model earns its place, not only that it does. 69.202 is also the primary user's own industry.
 
-43.210 is the third: the largest population, and the only one where receivables and inventory put the OCR-derived ratios to work.
+43.210 would follow: the largest population, and the only one where receivables and inventory put the OCR-derived ratios to work.
 
 ---
 
@@ -142,7 +142,7 @@ A sensor must be able to run Peerless from a fresh clone without our keys.
 
 **Database.** The Supabase CLI runs Postgres and auth locally in Docker (`supabase start`). Every table and policy is a migration in the repository.
 
-**Seed data.** The ingestion pipeline writes its output — register data, key figures, document-derived figures that reconcile, fingerprints and AI classifications — to seed files that load with one command. Running the app never needs OCR, the register API or a model. Because the register states no licence for the filed documents and the repository is public, the seed carries register data and API key figures for the three industries in full, and document-derived figures for a small sample of 20–30 companies; the pipeline regenerates the rest locally.
+**Seed data.** The ingestion pipeline writes its output — register data, key figures, document-derived figures that reconcile, fingerprints and AI classifications — to seed files that load with one command. Running the app never needs OCR, the register API or a model. Because the register states no licence for the filed documents and the repository is public, the seed carries register data and API key figures for 62.100 in full, and document-derived figures for a small sample of 20–30 companies; the pipeline regenerates the rest locally.
 
 **AI in test mode.** Without an API key, the explanation text comes from stored output generated for the seed companies' default peer groups, and the figure-validation test runs against those fixtures.
 
@@ -160,7 +160,7 @@ A sensor must be able to run Peerless from a fresh clone without our keys.
 
 **OCR accuracy, measured against a hand-transcribed set.** For a sample of filings, every figure in the generated section is transcribed by hand, and the pipeline's output is compared against it field by field. Reported as the share of figures recovered exactly, and separately as the share of filings passing the internal consistency check, split between recent filings and older scans. This is the measurement that decides which document-derived ratios the product can honestly offer.
 
-**A labelled classification set**, to a stated sampling frame and started in week 1: **10 subject companies per covered industry, 30 candidates each, drawn at random from the subject's size band rather than from the funnel's output** — about 900 judgements. Drawing from the band and not from the funnel is what gives recall a denominator, since a genuine comparable the funnel never proposed then counts against it. Stratified by description quality, so precision and recall are reported separately for informative and uninformative descriptions, and reported per layer of the funnel. An industry is offered in the product only once its own measurement exists. Fallback if the set comes in small: drop `43.210` first, then pool cohorts, stated as a smaller claim rather than a quiet one.
+**A labelled classification set**, to a stated sampling frame and started in week 1: **20 subject companies in 62.100, 30 candidates each, drawn at random from the subject's size band rather than from the funnel's output** — about 600 judgements. Drawing from the band and not from the funnel is what gives recall a denominator, since a genuine comparable the funnel never proposed then counts against it. Stratified by description quality, so precision and recall are reported separately for informative and uninformative descriptions, and reported per layer of the funnel. An industry is offered in the product only once its own measurement exists. Fallback if the set comes in small: pool the description cohorts, stated as a smaller claim rather than a quiet one.
 
 **What the measurement claims, and what it cannot.** The headline is the **layer-by-layer ablation** — how much each layer adds, and whether the model adds anything beyond the accounts-based fingerprint. That can come back "no". The comparison against industry code alone is a **sanity check, not the claim**: the labeller judges comparability on the criteria the fingerprint encodes, so industry code is expected to lose, and blinding to funnel stage removes provenance bias rather than that circularity. Three partial defences, all reported: the rubric is written and dated before the fingerprint's feature list is fixed; a subsample is labelled from description and website only, blind to the accounts; and a second labeller judges about 50 pairs with Cohen's κ reported.
 
@@ -202,7 +202,7 @@ Thirteen weeks.
 | 2 | **First working analysis page:** organisation number → API figures → peer group (funnel stages 1–3) → table |
 | 3 | Calculation engine per `docs/key-figures.md` with reference cases; kroner gaps and the closable-share control |
 | 4–5 | OCR pipeline into the seed data, the two reconciliation rules, data quality flags |
-| 6 | Fingerprint and classification for the three industries, stored; "Hvorfor med" and match basis |
+| 6 | Fingerprint and classification for 62.100, stored; "Hvorfor med" and match basis |
 | 7 | Explanation layer with AI test mode and the figure-validation test |
 | 8 | Layer-by-layer measurement against the labelled set |
 | 9 | Responsive pass, About page, README, a run from a fresh clone |
@@ -213,7 +213,7 @@ Thirteen weeks.
 
 **Two pieces of manual work start early and run alongside the code**, because they are calendar work rather than coding work and they are what the project's results rest on: the hand-transcribed OCR reference set, and the labelled classification set. Deferring either to the week it appears in the table above is how they end up too small to report.
 
-**If time runs short:** stage 3, then stage 2 from the end of its list, then 43.210, then embeddings — which is why the measurement reports three layers without them and four with. v1 is not cut. Never the labelled set, the OCR measurement, or — once stage 2 stores user data — the authorisation suite.
+**If time runs short:** stage 3, then stage 2 from the end of its list, then embeddings — which is why the measurement reports three layers without them and four with. v1 is not cut. Never the labelled set, the OCR measurement, or — once stage 2 stores user data — the authorisation suite.
 
 Requirements that carry a success metric are load-bearing for the graded result; the rest are product. The cut order draws from the product group first by design, and the single exception is development over time, which the OCR measurement covers and where only the interface is cut.
 

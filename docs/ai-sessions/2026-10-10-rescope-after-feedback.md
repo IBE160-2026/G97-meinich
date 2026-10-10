@@ -28,3 +28,9 @@ Pull the teacher's written feedback on the product brief from GitHub, decide wha
 - Feedback: `_bmad-output/planning-artifacts/briefs/brief-Peerless-2026-09-17/tilbakemelding-product-brief.md`
 - Brief memlog entry of 2026-10-10
 - Still to do: PRD update with `bmad-prd` (tag FRs by stage), and the UX session told to pause the industry overviews and portfolio.
+
+## Later the same day: one industry after all
+
+**Prompt:** "Ja stemmer er 62.100. Grunnen er fordi jeg tenker vi kan starte der og utvikle senere i løpet."
+
+While answering the UX session's questions, the decision on industries was reversed: v1 covers 62.100 only, as the teacher recommended. The reason is to start narrow, get the core flow working and measured in one industry, and add 69.202 and 43.210 in stage 3. The brief and technical note were corrected the same day so the plan and the design describe the same app; the labelled set is now 20 subjects in 62.100, about 600 judgements.

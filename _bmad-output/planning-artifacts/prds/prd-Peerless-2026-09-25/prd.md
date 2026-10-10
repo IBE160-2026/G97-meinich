@@ -251,7 +251,7 @@ The no-account route is rate-limited so it cannot be used to harvest the registe
 
 **Consequences (testable):**
 - **Stage split:** the per-IP limit is v1, and part of v1's security together with input validation, server-side secrets and storing no user data. The per-session limit and the CAPTCHA arrive in stage 2 with anonymous sign-in, since v1 has no sessions to limit and no sign-in to guard.
-- Requests are limited per IP (v1) and per session (stage 2).
+- Requests are limited per IP (v1) and per session (stage 2). In v1 the per-IP counter is held in memory in the single local server process and no IP is stored; persistent rate limiting is a gate before any public deployment.
 - Anonymous sign-in is protected by CAPTCHA (stage 2).
 - Exceeding the limit returns a refusal, not a degraded or partial analysis.
 
@@ -762,6 +762,12 @@ No number may appear in generated text that is absent from the engine's calculat
 
 Generated text describes what the figures show and does not prescribe action.
 
+**Consequences (testable):**
+- A list of recommending and imperative phrases (for example "bør", "anbefaler", "må redusere") lives in one reviewable file in the repository.
+- It is checked at generation: a hit means the explanation is regenerated.
+- It is checked again at seed load: a hit means the explanation is withheld and reported, never shown.
+- Before the demo seed is published, 30 random stored explanations are read by a person and the result is recorded in `docs/ai-sessions/`; any recommending phrasing the list missed is added to it.
+
 ### 4.9 Responsive interface
 
 **Description.** A data-dense product — four-column ratio tables, distribution plots, a peer list — that has to work from desktop down to phone width. This is a course requirement, not a preference, and retrofitting it is far more work than designing for it.
@@ -919,9 +925,9 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
 
 **Consequences (testable):**
 - **Local database.** The Supabase CLI runs Postgres and auth locally in Docker. Every table, policy and function is a migration in the repository, and a fresh database reaches the full schema from the migrations alone.
-- **Seed data, one command.** The seed holds register data, API key figures, document-derived figures that reconcile, business-model fingerprint results and the stored AI classifications for `62.100`, and the stored explanation text for the seed companies' default peer groups. It loads with one command, and loading it twice leaves the same state.
+- **Seed data, one command.** The seed holds register data, API key figures, document-derived figures that reconcile, business-model fingerprint results and the stored AI classifications for `62.100`, and a stored explanation for every `62.100` company's default peer group, generated against the dataset it ships in — outside the demo set it cites only the API figures present there. It loads with one command, and loading it twice leaves the same state.
 - **No runtime dependency on the pipeline or the network.** With the register API and every model host unreachable and no model key set, a lookup of a seeded company produces the complete analysis. A test asserts that no request to the register or to a model leaves the app during an analysis.
-- **AI test mode.** Without a model key, the explanation comes from the stored output for the seed companies' default peer groups (FR-52), and the figure-validation test (FR-53) runs against those fixtures. A subject with no stored explanation shows none and says so; nothing is generated.
+- **AI test mode.** Without a model key, the explanation comes from the stored output for the seed companies' default peer groups (FR-52), and the figure-validation test (FR-53) runs against those fixtures at generation and again when a seed is loaded, against the engine output for the loaded dataset; an explanation that fails is not shown, and nor is one whose stored digest no longer matches the current engine output (technical note, AD-13). A subject with no stored explanation, or none that passes, shows none and says so; nothing is generated.
 - **No email in v1.** Nothing in v1 sends email, so no mail service or credential is needed to run it.
 - **Two seed levels, built in from the start.** The register states no licence for the filed documents and the repository is public, so:
   - **demo** — committed, loaded with `pnpm seed`:
@@ -929,13 +935,13 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
     - **fingerprint results for every `62.100` candidate** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so the funnel runs through stage 4 for any `62.100` subject;
     - **full document-derived figures for the three demo companies and for every peer of A and B at all three size-band steps** (0,5–2×, 0,33–3× and 0,25–4×), so widening the band on A or B still yields a complete analysis, waterfall included. The README states the count.
     - A check asserts that the committed seed holds document-derived figures for no company outside that declared set, and holds nothing for other companies beyond the fingerprint categories.
-    - **Gate:** before the demo seed is first published, a short licence assessment is recorded in the repository concluding that committing derived categories carries low risk compared with reproducing document figures. Without it, the fingerprint categories are not committed.
+    - **Gate:** before the demo seed is first published, a short licence assessment is recorded in the repository, assessing whether committing derived categories carries low risk compared with reproducing document figures. The gate opens only if the assessment concludes that it does; otherwise the fingerprint categories are not committed.
   - **full** — generated locally by the pipeline in Docker with `pnpm seed:full`, taking hours, and never committed while the filed documents' licence is unresolved. Its output path is gitignored.
 - **Three named demo companies, each showing a different state:**
   - **A** — a typical `62.100` consultancy with its full peer group: the whole analysis.
   - **B** — a loss-making `62.100` product company with its peer group: the fingerprint separating a product company from consultancies, and a large gap.
   - **C** — a `69.202` bookkeeping firm: the uncovered-industry state (FR-4), from API figures alone, with no document figures needed.
-- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full."*; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene"; no stored explanation exists, and the page says so. *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. The README says that `pnpm seed:full` restores the full set.
+- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full."*; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown, and so is the stored explanation, built from the API figures present; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene". *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. The README says that `pnpm seed:full` restores the full set.
 - **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application or the schema.
 - **README.** About five commands take a fresh clone to a running app — clone, start the local database, install, `pnpm seed`, run — and a run from a fresh clone on a clean machine is part of v1's acceptance (SM-9). The README lists the three demo organisation numbers and what each demonstrates.
 - No secret is needed to run v1: every value the app needs locally is either a local default the Supabase CLI prints or optional.
@@ -1060,7 +1066,7 @@ Everything in §5, plus:
 
 **Cost.** Bounded by covering one industry in v1 rather than the register. OCR runs once per filing at ingestion and is stored permanently; explanation text is generated once for the default peer group and cached, and v1 makes no model call at request time. From stage 2, regeneration for an adjusted group sits behind an account and a rate limit (FR-52), and the open route is rate-limited and CAPTCHA-protected so anonymous traffic cannot run up model cost or harvest the register (FR-6).
 
-**Data sourcing.** The free public register interfaces are the only data source. The paid multi-year bulk subscription is out of scope on cost grounds, which is why multi-year history comes from the filed documents rather than an API.
+**Data sourcing.** The free public register interfaces are the only data source in v1 and stage 2. From stage 3, Statistics Norway (SSB) may supply industry context, used only after its licence has been checked and recorded, in the same way as the licence gate for the filed documents (FR-73). The paid multi-year bulk subscription is out of scope on cost grounds, which is why multi-year history comes from the filed documents rather than an API.
 
 **Data freshness.** There is no automatic refresh in v1: the batch job runs when it is triggered. Freshness is therefore disclosed rather than promised — every figure carries its filing year and read date (FR-64). Norwegian annual accounts cluster in a single filing window, so an automatic cadence is a real decision rather than a cron line; it is a blocking item before any public deployment (§11), not a v1 requirement.
 

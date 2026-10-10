@@ -21,11 +21,11 @@ The same applies to changes: when a finding or decision makes one of these wrong
 
 ## Stack
 
-**The application:** Next.js (App Router) + TypeScript. Supabase for Postgres, auth and row-level security. Vercel for deploy. No request-serving backend service — all server-side code a user can reach lives in the Next.js app.
+**The application:** Next.js (App Router) + TypeScript. Supabase for Postgres, auth and row-level security. v1 runs locally from the README; Vercel and hosted Supabase come with stage 2. No request-serving backend service — all server-side code a user can reach lives in the Next.js app.
 
-**The ingestion pipeline:** Python, managed with `uv`, containerised because Tesseract needs a system binary. It OCRs the filed documents and bulk-loads register data. It runs as a batch job and writes to Postgres directly. It is never in a user's request path, and nothing a user can reach may depend on it being up.
+**The ingestion pipeline, in two batch steps.** Step 1 is Python, managed with `uv`, containerised because Tesseract needs a system binary: it bulk-loads register data, OCRs and reconciles the filed documents, and writes raw figures. Step 2 is Node scripts in this repository: it uses `src/engine` to compute fingerprints and default analyses, calls the model for classification and explanation, and runs the figure-validation test against the same engine. Both write to Postgres directly, are never in a user's request path, and nothing a user can reach may depend on either being up.
 
-Keep that boundary. Python earns its place on OCR and document processing only; authorization stays with row-level security in the database, reached through Next.js with the user's own token.
+Keep that boundary. Python earns its place on OCR and document processing only and never computes a ratio — there is one engine, `src/engine`. Next.js reads public data server-side as a SELECT-only role; from stage 2, user data is reached through Next.js with the user's own token under row-level security. The binding decisions are AD-1 to AD-19 in the technical note's "Architecture invariants".
 
 Use TypeScript strictly. Types are how we keep financial data from drifting; do not reach for `any`.
 
@@ -55,7 +55,7 @@ These are verified behaviours of the Brønnøysund API, not guesses. Full detail
 
 **The `år` parameter is silently ignored.** Requesting an earlier year returns the current filing with status 200 and no error. Never trust the requested year — always match on the returned `id` or `regnskapsperiode`.
 
-**An empty XML element is not zero.** `<langsiktigGjeld/>` can come back empty while the real amount is recoverable from the difference against its stated sum. Derive missing components; do not default to zero.
+**An empty XML element is not zero.** `<langsiktigGjeld/>` can come back empty while the real amount is recoverable from the difference against its stated sum. Derive missing components — in `src/engine` only; step 1 stores figures as filed (AD-15) — and do not default to zero.
 
 **The filed documents contain no text layer — every page is an image.** Verified on 264 pages across all 15 available years for the test company. There is no rule-based parsing path; document figures require OCR. And note: a Chromium browser will show you selectable, searchable text anyway, because it runs its own OCR as an accessibility feature. That text is not in the file. Never verify a text layer in a browser.
 
@@ -97,7 +97,7 @@ Peer classification is measured as precision and recall against a labelled set, 
 
 Do not add features that are listed as out of scope in the brief. Scope discipline is part of what is being graded. Do not start stage 2 or stage 3 until v1 runs from a fresh clone.
 
-Do not introduce a second request-serving service, a message queue, or an ORM abstraction layer. The Python ingestion pipeline is the one exception and it is a batch job, not a service — keep it that way.
+Do not introduce a second request-serving service, a message queue, or an ORM abstraction layer. The ingestion pipeline is the exception: two batch steps, Python step 1 and Node step 2 (AD-2), and neither is a service — keep it that way.
 
 Do not use browser storage for anything that matters. State that must survive belongs in Postgres.
 

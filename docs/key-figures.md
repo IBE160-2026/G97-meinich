@@ -14,7 +14,7 @@ The calculation engine implements exactly these definitions. Change this documen
 
 **Undefined is not zero.** If a denominator is zero or negative, or a component is missing and cannot be derived from its stated total, the key figure is undefined for that company. The company is left out of that figure's distribution, and the number left out is shown.
 
-**Arithmetic.** Amounts are integers in øre. Ratios are computed with a decimal library and rounded only for display: percentages to one decimal, days to whole days, kroner to whole kroner. **Exception: the percentile is shown in whole percent** ("bedre enn 61 %"), because with a peer group of around twenty a decimal is false precision; it is computed exactly and rounded only for display.
+**Arithmetic.** Amounts are integers in øre. Ratios are computed with a decimal library and rounded only for display — to the nearest value, ties away from zero — percentages to one decimal, days to whole days, kroner to whole kroner. **Exception: the percentile is shown in whole percent** ("bedre enn 61 %"), because with a peer group of around twenty a decimal is false precision; it is computed exactly and rounded only for display.
 
 **Distribution.** Median and quartiles use linear interpolation between order statistics (the inclusive method, as `PERCENTILE.INC` in Excel), so every figure can be checked in a spreadsheet. The *favourable quartile* is the upper quartile where higher is better and the lower quartile where lower is better.
 

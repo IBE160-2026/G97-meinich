@@ -27,9 +27,9 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 ## The Solution
 
-**Start from an overview.** The front page explains in a sentence what Peerless does, holds one field — the organisation number — and links to "Slik fungerer Peerless", which explains how peers are chosen, where AI is used, and where the figures come from.
+**Start from an overview.** The front page explains in a sentence what Peerless does, holds one field — a company name or organisation number — and links to "Slik fungerer Peerless", which explains how peers are chosen, where AI is used, and where the figures come from.
 
-**Enter an organisation number.** That is the entire setup — no account, upload or configuration. Within seconds the company appears with its figures, its peer group and its position, organised in tabs: overview, peers, key figures and gaps, and value — development over time follows in stage 2. A company outside the covered industries gets its own key figures and a plain statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
+**Enter a company name or organisation number.** That is the entire setup — no account, upload or configuration. Within seconds the company appears with its figures, its peer group and its position, organised in tabs: overview, peers, key figures and gaps, and value — development over time follows in stage 2. A company outside the covered industries gets its own key figures and a plain statement that its industry is not yet covered, rather than a comparison against a group nobody has checked.
 
 **See where it stands.** About a dozen measures, with revenue growth alongside for context. For each: the company's value, the peer median, the favourable quartile, and its percentile. Strengths are shown as clearly as weaknesses.
 
@@ -37,7 +37,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **Interrogate the peer group.** It is visible, not hidden. The user sees how many companies remain after each filter, can widen a criterion or exclude a company, and everything recomputes. Each peer states why it was included and what the match rests on — the accounts and an AI reading of its description, the accounts alone, or industry and size alone. A benchmark the user cannot interrogate is one they will not trust.
 
-**Understand where to start.** An AI-written explanation names the largest gaps in kroner, the strengths, and which gaps have persisted. It explains; it does not recommend. The AI never calculates: every figure in the text comes from the engine and links back to its calculation, and text containing any other figure is rejected.
+**Understand where to start.** An AI-written explanation names the largest gaps in kroner and the strengths; which gaps have persisted follows in stage 2, with multi-year data. It explains; it does not recommend. The AI never calculates: every figure in the text comes from the engine and links back to its calculation, and text containing any other figure is rejected.
 
 **Keep it and share it — stage 2.** In v1 every analysis is open and nothing is stored about who looked. Accounts by emailed magic link, workspaces with invited read-only viewers and a portfolio front page come in stage 2; the account wall and what it protects are in the addendum.
 
@@ -75,7 +75,7 @@ None of this is defensible; the addendum says why.
 
 ## Scope
 
-**In for v1 — the core flow, built to run on a sensor's machine.** One industry, programming services (62.100), offered once its peer selection is measured — the industry where classification has most to prove, since product companies, consultancies and resellers share one code. A front page that explains Peerless and holds the organisation-number field, and an About page, "Slik fungerer Peerless". Analysis without an account: the peer group, visible and adjustable, with the reason for each peer and what its match rests on; about a dozen key figures with percentiles and the two decomposition views; kroner gaps with the closable-share control and EV/EBIT valuation; the AI-written explanation. The measurement of peer selection against a labelled set. Runs locally from the README without our keys, on a local database with seed data. A responsive, Norwegian-language interface down to phone width.
+**In for v1 — the core flow, built to run on a sensor's machine.** One industry, programming services (62.100), offered once its peer selection is measured — the industry where classification has most to prove, since product companies, consultancies and resellers share one code. A front page that explains Peerless and holds the search field for a name or organisation number, and an About page, "Slik fungerer Peerless". Analysis without an account: the peer group, visible and adjustable, with the reason for each peer and what its match rests on; about a dozen key figures with percentiles and the two decomposition views; kroner gaps with the closable-share control and EV/EBIT valuation; the AI-written explanation. The measurement of peer selection against a labelled set. Runs locally from the README without our keys, on a local database with seed data. A responsive, Norwegian-language interface down to phone width.
 
 **Stage 2, if time allows.** Accounts by magic link, workspaces with invited viewers, the portfolio front page, saved analyses and audit log, development over time and sparklines, own unfiled and year-to-date figures, PDF export, a user-written company description.
 

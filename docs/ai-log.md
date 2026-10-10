@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 6 |
-| money | 7 |
+| auth | 7 |
+| money | 8 |
 | parsing | 3 |
-| llm-boundary | 4 |
+| llm-boundary | 5 |
 | scope | 11 |
-| docs | 13 |
+| docs | 14 |
 
 ## Entry template
 
@@ -264,3 +264,12 @@ Routine work that went as expected is not logged.
 **Problem:** What could go wrong, on the record. The seed fix commits the fingerprint's *results* — derived categories such as inventory yes/no and cost-of-goods band — for every 62.100 candidate, and full document figures only for the demo companies' peers at all three band steps. That keeps document figures out of the public repository for all but a sample, but derived categories are still derived from documents the register states no licence for, so committing them is gated on a short licence assessment, recorded before the seed is published. The "to the median" step lets the median set the closable share; if an implementation applied the rounded share shown on screen rather than the exact one, every amount at that step would be off (210 304 kr against 212 807 kr in UJ-2), so `key-figures.md` now says the exact share is used and the rounded one only displayed. Working capital with only one of its two parts above the floor would, if summed, present half a figure as the whole; it is now shown as separate lines with no total. The waterfall's rounding is now specified as signed largest remainder, checked against the mock's exact amounts.
 **Caught by:** The adversarial and figures reviewers, independently, for the seed and "Til medianen"; the accessibility reviewer for the contrast of excluded rows and an invisible middle-half band (1.00:1).
 **Outcome:** PRD FR-52, FR-69, FR-73, UJ-1 and UJ-2 and the technical note updated; `docs/key-figures.md` gains the median-step exception, whole-percent display of the percentile (with ~23 peers a decimal is false precision — the user's veto of the reviewer's 60,9 %), total asset turnover as a derived factor, the partial working-capital rule and the rounding rule. The explanation is hidden for an adjusted peer group in v1; dark mode moves to stage 2.
+
+### 2026-10-10 — Architecture invariants: one engine, a closed read path, and the seams the first draft left open
+**Tags:** auth · money · llm-boundary · docs
+**Tool:** Claude Code (Opus 5.5), `bmad-architecture`, with reviewer subagents (input reconciliation, version check, adversarial)
+**Asked:** Fix the invariants that keep independently built parts consistent, folded into the technical note rather than a separate spine, from the user's starting positions on recalculation, URL state, schemas, AI and seed levels.
+**Got:** Eleven decisions in the first draft. The user's explanation-at-ingestion position meant computing figures in batch; done in Python it would have been a second implementation of `docs/key-figures.md`, so the batch was split — Python extracts raw figures only, a TypeScript step uses the one engine. Reviewers then found what the draft left open: Python could store kroner where TypeScript reads øre; stored explanations had no tie to the engine output they described; a search typeahead needed an endpoint the draft forbade; no wire format for the exact values sent to the browser. Eight more decisions closed those (AD-12 to AD-19).
+**Problem:** What could go wrong, on the record. Exposing the public-data schema through Supabase's REST interface would let anyone with the public anon key harvest the dataset around the rate limit, so it is not exposed and Next.js reads it as a SELECT-only role over a direct connection; the risk moves to that connection string, which must stay server-only (AD-4, AD-19). The one JSON endpoint left, search, returns identification fields only and is rate-limited, but name-prefix enumeration of register identities remains possible — the same data the register itself publishes. The v1 rate limit is in memory and holds only for one local process; a public deployment without persistent limiting would be open, which is why it is a gate. A per-IP counter in Postgres would have stored personal data in a version that promises to store none. Money: postgres.js returns numeric columns as strings, and parsing them with `Number()` would silently reintroduce floats; decimal.js is the one library on server, browser and batch, and the browser scales only from full-precision strings, never display figures. Model boundary: a stored explanation can stay arithmetically valid while becoming false after an engine change, so it is shown only when a digest of the engine output it was written from still matches; recommending language is caught by a phrase-list test, not only by prompt.
+**Caught by:** The adversarial reviewer (seams between units obeying every rule), the reconciliation reviewer (search against "no JSON endpoints", explanations outside the demo set), the version reviewer (string-typed numerics, Cache Components on by default).
+**Outcome:** "Architecture invariants" in `technical-note-architecture.md`, AD-1 to AD-19, all adopted, with a Mermaid data-flow diagram. AGENTS.md Stack and "Things not to do", PRD FR-6, FR-54, FR-73 and §8, EXPERIENCE.md, the brief, `docs/key-figures.md` (display rounding), `.env.example` and `.nvmrc` updated.

@@ -2,9 +2,10 @@
 title: 'Story 1.2: Local Supabase with roles and grants — the read boundary'
 type: 'feature'
 created: '2026-10-10'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: 'a3e8af7e4c72a95278451db2d970380eb13e7794'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
 ---
@@ -119,6 +120,14 @@ DB tests run as the local superuser and use `SET ROLE` inside a transaction, so 
 - `git ls-remote origin story/1.2-supabase-roles-grants` -- empty
 
 ## Implementation Notes
+
+- **roles.sql is applied by the CLI.** Observed with CLI 2.120.0: `supabase db start` and `supabase db reset` both print "Seeding globals from roles.sql..." before "Applying migration …". The Go binary bundled in `@supabase/cli-*` also contains the path `roles.sql`. A fresh volume (`supabase stop --no-backup`, then `db start`) creates the four roles with `rolpassword` NULL; `db reset` keeps existing passwords.
+- **Migration role = `postgres`.** `SELECT nspowner::regrole FROM pg_namespace WHERE nspname = 'register'` returns `postgres`; the CLI's `SUPABASE_DB_URL` connects as `postgres`. The default-privilege statements name `FOR ROLE postgres`; the test reads the owner from the catalog and asserts that `pg_default_acl` names it.
+- **SET ROLE, verified before the tests.** Connected as `postgres` (not a superuser on Supabase's image; `rolsuper = f`): `SET ROLE anon`, `authenticated` and `service_role` succeed (membership with SET, granted by `supabase_admin`). `SET ROLE reader` fails: "permission denied to set role" — `postgres` holds ADMIN on the roles from `roles.sql` but `set_option = f`, `inherit_option = f`. Chosen: the migration runs `GRANT reader TO postgres WITH INHERIT FALSE, SET TRUE`. Trade-off: anyone who can log in as `postgres` can become `reader`, which grants nothing new (reader's privileges are a subset, and INHERIT FALSE leaves `postgres`'s own privileges unchanged); the alternative, connecting the tests as `supabase_admin`, would have needed a second, CLI-internal superuser URL and would bypass every permission check except the ones under `SET ROLE`. `ingest`, `derive` and `loader` are not granted; their tests arrive with their tables.
+- **No allowBuilds entry.** The `supabase` npm package ships its binaries as optional per-platform dependencies (`@supabase/cli-linux-x64` etc. are in the lockfile); no install script runs, so `pnpm-workspace.yaml` is unchanged.
+- **db:roles details.** A missing variable in an existing `.env` is appended from `.env.example`. `SUPABASE_DB_URL` is taken from the process environment, then `.env`, then `.env.example`, then the CLI default; its host is checked before `.env` is written or the database is touched. The `ALTER ROLE` statement is built by `format('ALTER ROLE %I PASSWORD %L', …)` with a SCRAM-SHA-256 verifier computed in Node as the literal, so the password never reaches the server as text.
+- **Order inside test:db.** Vitest orders files by previous duration, so `set-role-passwords.test.ts` may run first; its `afterAll` re-runs `db:roles` in the repository root to restore the root `.env` passwords. The grants test's reader login needs `pnpm db:roles` to have run (CI does).
+- **Verification run (local, Docker 29.7.2, Windows 11):** `check:pins`, `check:env`, `lint`, `typecheck`, `test` (68 tests) pass; `db:start` → `db:roles` → `test:db` (28 tests) pass; `db:reset` → `db:roles` → `test:db` pass; `supabase stop --no-backup` → `db:start` → `db:roles` → `test:db` pass. Regression check: granting USAGE on `register` to `anon`, default INSERT to `reader`, EXECUTE on functions to PUBLIC and CREATE on `app` to `reader` by hand made nine grants tests fail; revoked afterwards. CI not run (nothing pushed).
 
 ## Spec Change Log
 

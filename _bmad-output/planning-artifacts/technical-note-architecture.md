@@ -288,6 +288,7 @@ flowchart LR
 - **Framework:** Next.js 16.4 (App Router; pin the patched 16.4.x due 2026-10-14), with Cache Components off. React 19.3. TypeScript 6.x, strict.
 - **UI:** Tailwind 4.3, shadcn 4.21 and Recharts 3.10.
 - **Package manager:** pnpm 12, pinned through `packageManager`.
+- **Tests and CI (chosen in Story 1.1):** Vitest 5 for unit tests; its Browser Mode with Playwright runs AD-6's identity test in a real browser engine when that test is written. Playwright Test renders the built app for page-level checks such as phone width. CI is GitHub Actions (`.github/workflows/ci.yml`): exact-pin check, `NEXT_PUBLIC_` check, lint, typecheck, unit tests, build and Playwright on every pull request.
 - **Database:** Supabase CLI 2.120, pinned exactly. Local Postgres 17 with `pg_trgm` and `unaccent` for name search.
 - **Reader connection:** postgres.js 3.4.9, no ORM, in a `server-only` module. It returns `int8` and `numeric` as strings, never passed through `Number()`.
 - **Decimal library:** decimal.js 10.6.0, pinned exactly (AD-8).
@@ -298,7 +299,6 @@ flowchart LR
 - **Hosted deployment** (Vercel, hosted Supabase): v1 runs locally from the README. It arrives with stage 2, behind three gates: the licence assessment, persistent rate limiting, and a refresh cadence.
 - **Render caching:** Cache Components is off in v1, and every analysis renders dynamically from the URL. It is revisited with the stage-2 deployment. Any cache then keys on the canonical parsed URL state (AD-5) and the loaded manifest (AD-16), and every seed load invalidates it.
 - **Automatic refresh cadence:** v1 refreshes manually and shows the read date (AD-18). A cadence shaped to the filing window is a gate before any public deployment.
-- **Test runner and CI provider:** chosen in the first setup story. The ADs and "Test strategy" name the tests that must exist, not the tool, and AD-6's identity test needs a real browser engine.
 - **Embeddings** (pgvector): computed in batch step 2 for the measurement only, never user-facing, and the first v1 item cut if time runs short.
 
 ---

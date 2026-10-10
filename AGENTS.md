@@ -29,6 +29,8 @@ Keep that boundary. Python earns its place on OCR and document processing only a
 
 Use TypeScript strictly. Types are how we keep financial data from drifting; do not reach for `any`.
 
+**Toolchain.** Node from `.nvmrc`, pnpm from `packageManager` (via corepack), every dependency pinned exactly — `pnpm check:pins` fails on `^` or `~`. Unit tests run in Vitest (`test/**/*.test.ts`), rendered-page tests in Playwright (`e2e/`, against `pnpm build && pnpm start`). CI is GitHub Actions (`.github/workflows/ci.yml`): pins, `pnpm check:env` (no `NEXT_PUBLIC_` variable; AD-19), lint, typecheck, unit tests, build, e2e. ESLint bans `Math.round`/`toFixed` in `src/engine/**` and `*format*` files, and imports of `src/server` or `postgres` from the engine and from `'use client'` modules. User-facing copy lives in `src/messages/nb.json`, read through `t()` by dotted id; a test fails on hard-coded strings in `src/app` and `src/components`.
+
 *The stack may change as the course progresses. If it does, update this file.*
 
 ## Non-negotiable rules

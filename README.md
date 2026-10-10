@@ -8,6 +8,33 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 
 - Christian Meinich
 
+## Running Peerless locally
+
+Requires Node 24.21.0 (see `.nvmrc`). pnpm 12.11.2 comes from `packageManager` in `package.json` through corepack; no API key, account or hosted service is needed.
+
+```sh
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+pnpm start            # http://localhost:3000
+```
+
+In v1 the app is an empty shell (header and footer); the database, seed data and analysis arrive in later stories.
+
+Checks, as CI runs them on every pull request:
+
+```sh
+pnpm check:pins       # every dependency pinned exactly, no ^ or ~
+pnpm check:env        # no NEXT_PUBLIC_ variable in source or config (AD-19)
+pnpm lint
+pnpm typecheck
+pnpm test             # Vitest unit tests
+pnpm exec playwright install chromium   # once
+pnpm build && pnpm test:e2e             # Playwright against the built app, at 375 and 320 px
+```
+
+If your Node install blocks the `pnpm` shim that `corepack enable` writes, prefix each command with `corepack` instead (`corepack pnpm install …`).
+
 ## Product Brief
 
 [_bmad-output/planning-artifacts/briefs/brief-Peerless-2026-09-17/brief.md](_bmad-output/planning-artifacts/briefs/brief-Peerless-2026-09-17/brief.md)

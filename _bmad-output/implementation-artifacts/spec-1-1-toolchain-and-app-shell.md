@@ -2,9 +2,10 @@
 title: 'Story 1.1: Toolchain and app shell from a fresh clone'
 type: 'feature'
 created: '2026-10-10'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: '0c32889d6a1ae176e758b79a6805fbdb8b71405f'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
   - '{project-root}/_bmad-output/planning-artifacts/ux-designs/ux-Peerless-2026-10-04/DESIGN.md'
@@ -80,6 +81,14 @@ Test runner: **Vitest** (unit; its Browser Mode with Playwright covers AD-6's re
 - `pnpm build && pnpm test:e2e` -- both widths pass
 
 ## Implementation Notes
+
+- ESLint pinned at 9.39.5, not 10.x: eslint-config-next 16.4.0's react/import/jsx-a11y plugins cap their peer range at ESLint 9. typescript-eslint 8.71.1 accepts TS <6.1.0.
+- `vite` 8.3.4 pinned explicitly (required peer of Vitest 5).
+- `pnpm-workspace.yaml` denies the `unrs-resolver` install script (`allowBuilds`); pnpm 12 fails install on unapproved builds.
+- `next.config.ts` also sets `agentRules: false` so `next dev` does not write a managed block into AGENTS.md.
+- `typecheck` runs `next typegen && tsc --noEmit` so `next-env.d.ts` (gitignored) exists on a fresh clone.
+- Env check also scans untracked, non-ignored files; it excludes itself and `test/fixtures/env/`.
+- Tailwind default colours, fonts and radii are reset (`--color-*: initial` etc.), so only DESIGN.md tokens exist; a `figure` utility gives Inter + tabular-nums.
 
 ## Spec Change Log
 

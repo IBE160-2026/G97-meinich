@@ -128,6 +128,20 @@ describe('check:env, env key in next.config', () => {
     ).toEqual([{ file: 'next.config.js', line: 5, text: 'env,' }]);
   });
 
+  it('reports an assignment to x.env or x[\'env\']', () => {
+    expect(
+      findNextConfigEnvKey('next.config.ts', envFixture('next-config-env-assignment.txt')),
+    ).toEqual([
+      { file: 'next.config.ts', line: 5, text: expect.stringContaining('nextConfig.env =') },
+      { file: 'next.config.ts', line: 6, text: "nextConfig['env'] = {};" },
+    ]);
+  });
+
+  it('does not report reading x.env or assigning to process.env.X', () => {
+    const content = 'const a = config.env;\nprocess.env.X = "1";\n';
+    expect(findNextConfigEnvKey('next.config.mjs', content)).toEqual([]);
+  });
+
   it('reports quoted, computed and method forms', () => {
     const content = [
       'export default {',

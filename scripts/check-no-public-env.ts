@@ -67,10 +67,16 @@ function propertyNameText(name: ts.PropertyName): string | undefined {
 
 // Every property named `env` in any object literal of a Next.js config file:
 // `env: {…}`, `'env': …`, `['env']: …`, shorthand `env` and a method `env()`.
+// Also an assignment to `x.env` or `x['env']` (`nextConfig.env = {…}`).
 // Parsed with the TypeScript compiler, so comments and strings do not match.
 export function findNextConfigEnvKey(file: string, content: string): EnvViolation[] {
   const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
   const violations: EnvViolation[] = [];
+  const report = (node: ts.Node): void => {
+    const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
+    const text = content.split(/\r?\n/)[line] ?? '';
+    violations.push({ file, line: line + 1, text: text.trim() });
+  };
   const visit = (node: ts.Node): void => {
     if (ts.isObjectLiteralExpression(node)) {
       for (const property of node.properties) {
@@ -80,13 +86,17 @@ export function findNextConfigEnvKey(file: string, content: string): EnvViolatio
           propertyNameText(property.name) === 'env';
         const isShorthandEnv =
           ts.isShorthandPropertyAssignment(property) && property.name.text === 'env';
-        if (isEnv || isShorthandEnv) {
-          const start = property.getStart(source);
-          const { line } = source.getLineAndCharacterOfPosition(start);
-          const text = content.split(/\r?\n/)[line] ?? '';
-          violations.push({ file, line: line + 1, text: text.trim() });
-        }
+        if (isEnv || isShorthandEnv) report(property);
       }
+    }
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      const left = node.left;
+      const isEnvTarget =
+        (ts.isPropertyAccessExpression(left) && left.name.text === 'env') ||
+        (ts.isElementAccessExpression(left) &&
+          ts.isStringLiteralLike(left.argumentExpression) &&
+          left.argumentExpression.text === 'env');
+      if (isEnvTarget) report(node);
     }
     ts.forEachChild(node, visit);
   };

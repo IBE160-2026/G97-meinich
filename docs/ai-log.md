@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 6 |
-| money | 6 |
+| money | 7 |
 | parsing | 3 |
 | llm-boundary | 4 |
-| scope | 10 |
-| docs | 12 |
+| scope | 11 |
+| docs | 13 |
 
 ## Entry template
 
@@ -255,3 +255,12 @@ Routine work that went as expected is not logged.
 **Problem:** What could go wrong, on the record. The arithmetic was right before; the presentation invited the wrong reading, because quartiles are not additive and each cost share's quartile comes from different companies. The new decomposition introduces a second reference point next to the favourable quartile, and a reader who adds the waterfall to the profit uplift counts the same krone twice — so it is never scaled by the closable share, never added to the uplift, and states its reference on screen. The residual bar absorbs anything mis-classified between cost lines, so a large residual is a data-quality signal, not a cost category. The common peer set can fall below 10 when cost lines fail reconciliation; then the decomposition is withheld, not computed on fewer. Revenue weighting lets the largest peers dominate — bounded at four times within the default size band, sixteen at the widest step. Rounding bars independently would show bars not summing to their total; largest-remainder rounding is specified. A second, smaller correction: the decomposition "margin or capital efficiency" had been mocked against one named peer whose return sat at the median, because medians do not multiply; each factor is now compared with its own median and no peer is presented as the benchmark.
 **Caught by:** Reading the mock's figures against each other rather than row by row; the averages by computing them on the samples.
 **Outcome:** `docs/key-figures.md` — cost shares have no kroner of their own; new "Margin decomposition against the peer group as a whole"; decomposition factors compared with their own medians. AGENTS.md's code-convention line, PRD FR-29, FR-30 and the glossary aligned. No engine code exists yet, so the same-commit rule is met by the documents alone.
+
+### 2026-10-10 — Four reviewers on the UX spines: the arithmetic held, the seed did not
+**Tags:** money · scope · docs
+**Tool:** Claude Code (Opus 5.5), `bmad-ux` reviewer gate — rubric, accessibility, figures and adversarial lenses as parallel subagents
+**Asked:** Review DESIGN.md and EXPERIENCE.md before they are finalised.
+**Got:** 94 distinct findings (4 critical, 20 high). Every kroner amount recomputed exactly from stated inputs. The serious findings were elsewhere. The demo seed could not deliver what the specs promised: the business-model fingerprint (funnel stage 4) needs document figures for every *candidate* — about 250 at the default size band, about 540 at the widest — not only for the ~23 that become peers, so "document figures for 40–50 companies" could not even assemble demo A's default peer group, and any other 62.100 company had no defined analysis. "Til medianen" was used but not defined, while `key-figures.md` said the median never enters the arithmetic. A stored explanation shown beside an adjusted peer group carried figures no longer on screen, making its own "every figure is in the analysis" line false.
+**Problem:** What could go wrong, on the record. The seed fix commits the fingerprint's *results* — derived categories such as inventory yes/no and cost-of-goods band — for every 62.100 candidate, and full document figures only for the demo companies' peers at all three band steps. That keeps document figures out of the public repository for all but a sample, but derived categories are still derived from documents the register states no licence for, so committing them is gated on a short licence assessment, recorded before the seed is published. The "to the median" step lets the median set the closable share; if an implementation applied the rounded share shown on screen rather than the exact one, every amount at that step would be off (210 304 kr against 212 807 kr in UJ-2), so `key-figures.md` now says the exact share is used and the rounded one only displayed. Working capital with only one of its two parts above the floor would, if summed, present half a figure as the whole; it is now shown as separate lines with no total. The waterfall's rounding is now specified as signed largest remainder, checked against the mock's exact amounts.
+**Caught by:** The adversarial and figures reviewers, independently, for the seed and "Til medianen"; the accessibility reviewer for the contrast of excluded rows and an invisible middle-half band (1.00:1).
+**Outcome:** PRD FR-52, FR-69, FR-73, UJ-1 and UJ-2 and the technical note updated; `docs/key-figures.md` gains the median-step exception, whole-percent display of the percentile (with ~23 peers a decimal is false precision — the user's veto of the reviewer's 60,9 %), total asset turnover as a derived factor, the partial working-capital rule and the rounding rule. The explanation is hidden for an adjusted peer group in v1; dark mode moves to stage 2.

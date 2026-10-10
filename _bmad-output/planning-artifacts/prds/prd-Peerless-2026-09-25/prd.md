@@ -80,7 +80,7 @@ The order below is narrative, not priority. Who matters most is stated in §2.1:
   - **Persona + context:** Kari, finance lead at a twelve-person software company under `62.100`. She knows the margin — she produces it — and has never had anything to compare it against but last year's own.
   - **Entry state:** No account, laptop, arrived from a search. Twelve employees at the industry's median revenue per employee of 1 390 898 kr puts the company near 16.7 million in revenue.
   - **Path:** Enters her own organisation number → the company is identified with its filed key figures and a peer group → she reads the funnel counts and the per-peer inclusion reasons, and adjusts the group: two companies are resellers rather than product businesses, and she excludes them (FR-16, FR-17, FR-19) → walks the key figures looking for the largest gaps in kroner → reads the written explanation of them (FR-52).
-  - **Climax:** Her 2.1 % operating margin is *above* the industry median of −3.2 %, which is the number she would have quoted. Against the favourable quartile of 9.1 % it is a gap of seven points — about **1.17 million kroner a year** at full convergence (7.0 % × 16.7 m). Beating a loss-making industry average told her nothing.
+  - **Climax:** Her 2.1 % operating margin is *above* the industry median of −3.2 %, which is the number she would have quoted. Against the favourable quartile of 9.1 % it is a gap of seven points — about **1.17 million kroner a year** at full convergence (7.0 pp × 16 714 286 kr = 1 170 000 kr, computed on the exact revenue). Beating a loss-making industry average told her nothing.
   - **Resolution (stage 2):** She wants it as a PDF for the board. Export needs an account, so she signs in with a magic link and keeps the analysis she already built (FR-40, FR-42, FR-49).
   - **Edge case:** Receivable days shows no peer aggregate — fewer than ten peers had a usable value — so the row keeps her own figure and says how many comparable values exist instead of comparing against a handful (FR-22).
   - **Weak ending, on purpose:** she intends to come back when the next filing is in, and **nothing will tell her it arrived.** Monitoring and alerting are deferred (§5), so the return trip rests on her remembering; the portfolio front page (FR-63, stage 2) only rewards her once she is already back. This is the clearest gap between what the journey wants and what v1 does.
@@ -90,7 +90,7 @@ The order below is narrative, not priority. Who matters most is stated in §2.1:
   - **Persona + context:** Anders, a consultant who sells improvement work to small companies. The company he is meeting on Thursday is a **prospect, not a client** — he has no engagement, no figures from them, and no relationship. Today he would prepare by reading their website.
   - **Entry state:** Not signed in, and he has no reason to be. The prospect is a nine-person software consultancy under `62.100`; at that industry's median revenue per employee of 1 390 898 kr, around 12.5 million in revenue.
   - **Path:** Enters the prospect's organisation number cold → reads the peer group and judges it himself, which is the thing he is uniquely able to do (§2.1) → goes straight to the largest kroner gaps → notes one or two numbers.
-  - **Climax:** Operating margin −4.9 % against a peer median of −3.2 % and a favourable quartile of 9.1 % — a gap of 14.0 points, about **1.75 million kroner a year** at full convergence (14.0 % × 12.5 m). He opens the meeting with the prospect's own largest gap instead of a brochure.
+  - **Climax:** Operating margin −4.9 % against a peer median of −3.2 % and a favourable quartile of 9.1 % — a gap of 14.0 points, about **1.75 million kroner a year** at full convergence (14.0 pp × 12 518 082 kr = 1 752 531 kr, computed on the exact revenue). He opens the meeting with the prospect's own largest gap instead of a brochure.
   - **Resolution (stage 2):** He wins the work. Now he signs in, saves the analysis into a workspace for that client, and invites their managing director (FR-40, FR-43, FR-44).
   - **Edge case:** His next prospect is a bookkeeping firm under `69.202`, an industry not yet covered (stage 3). He gets its own filed key figures and a plain statement that the industry is not yet analysed — no peer group, no median, no kroner amount (FR-4).
   - **Scope boundary, recorded because the pull is real:** his next wish is "show me every firm in `62.100` with a weak margin". That is the screening feature §5 excludes, and on an open route it is the most direct way to harvest the register. Peerless stays at one organisation number at a time.
@@ -631,7 +631,7 @@ When a visitor registers, the anonymous user is converted in place and keeps wha
 
 **Consequences (testable):**
 - An analysis built anonymously is still reachable after registration, without being rebuilt.
-- What carries across is the URL state of FR-69 — organisation number, exclusions, closable share, multiple — written into the new workspace at registration. Nothing was in the database before, so nothing had to be migrated out of an anonymous row.
+- What carries across is the URL state of FR-69 — organisation number, exclusions, size-band step, closable share, multiple — written into the new workspace at registration. Nothing was in the database before, so nothing had to be migrated out of an anonymous row.
 
 #### FR-41: Magic-link sign-in · Stage 2
 
@@ -695,7 +695,7 @@ Every analysis, anonymous or not, resolves to an actor in an append-only audit l
 
 #### FR-69: An anonymous session's state lives in the URL · v1
 
-Everything an anonymous visitor changes — the organisation number, excluded peers, the closable share and the EV/EBIT multiple — is carried in the URL rather than written to the database.
+Everything an anonymous visitor changes — the organisation number, the active tab, excluded peers, the size-band step, the closable share and the EV/EBIT multiple — is carried in the URL rather than written to the database.
 
 **Consequences (testable):**
 - **Stage split:** in v1 this holds for every visitor, since nobody has an account. The anonymous-session wording and the write into a workspace at registration (FR-40) apply from stage 2.
@@ -741,7 +741,7 @@ The product presents written explanation of the computed analysis.
 - Every figure in the text links back to its calculation.
 - **Stage split:** v1 shows stored text — generated in the batch job, or in test mode read from the stored output for the seed companies' default peer groups (FR-73). Regeneration for an adjusted group needs a live model call and an account, so it is stage 2.
 - Text is generated and cached for the **default** peer group only, so an ordinary visit never triggers a model call.
-- An adjusted peer group shows the default group's explanation, labelled *"Forklaringen gjelder standard peer-gruppe"*, rather than silently describing a group it was not written for. In v1 that is the only behaviour for an adjusted group.
+- **In v1 an adjusted peer group hides the explanation** and shows *"Forklaringen gjelder standard peer-gruppe. Tilbakestill for å se den."* with an action that restores the default group, rather than showing text written for a group that is not on screen. The explanation is therefore only ever shown beside the figures it describes, which keeps "every figure in the text links back to its calculation" true. In v1 that is the only behaviour for an adjusted group.
 - From stage 2, a signed-in user can regenerate the explanation for an adjusted group through a rate-limited action. This is the second of exactly two model calls a user request may trigger (FR-20).
 - An anonymous session never triggers generation of explanatory text by any route, adjusted group or not.
 
@@ -919,18 +919,23 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
 
 **Consequences (testable):**
 - **Local database.** The Supabase CLI runs Postgres and auth locally in Docker. Every table, policy and function is a migration in the repository, and a fresh database reaches the full schema from the migrations alone.
-- **Seed data, one command.** The seed holds register data, API key figures, document-derived figures that reconcile, business-model fingerprints and the stored AI classifications for `62.100`, and the stored explanation text for the seed companies' default peer groups. It loads with one command, and loading it twice leaves the same state.
+- **Seed data, one command.** The seed holds register data, API key figures, document-derived figures that reconcile, business-model fingerprint results and the stored AI classifications for `62.100`, and the stored explanation text for the seed companies' default peer groups. It loads with one command, and loading it twice leaves the same state.
 - **No runtime dependency on the pipeline or the network.** With the register API and every model host unreachable and no model key set, a lookup of a seeded company produces the complete analysis. A test asserts that no request to the register or to a model leaves the app during an analysis.
 - **AI test mode.** Without a model key, the explanation comes from the stored output for the seed companies' default peer groups (FR-52), and the figure-validation test (FR-53) runs against those fixtures. A subject with no stored explanation shows none and says so; nothing is generated.
 - **No email in v1.** Nothing in v1 sends email, so no mail service or credential is needed to run it.
 - **Two seed levels, built in from the start.** The register states no licence for the filed documents and the repository is public, so:
-  - **demo** — committed, loaded with `pnpm seed`: register data and API key figures for all of `62.100`, and document-derived figures for the three demo companies and the peer groups of A and B only, roughly 40–50 companies. A check asserts that the committed seed holds document-derived figures for no company outside that declared set.
+  - **demo** — committed, loaded with `pnpm seed`:
+    - register data, API key figures and stored AI classifications for all of `62.100`;
+    - **fingerprint results for every `62.100` candidate** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so the funnel runs through stage 4 for any `62.100` subject;
+    - **full document-derived figures for the three demo companies and for every peer of A and B at all three size-band steps** (0,5–2×, 0,33–3× and 0,25–4×), so widening the band on A or B still yields a complete analysis, waterfall included. The README states the count.
+    - A check asserts that the committed seed holds document-derived figures for no company outside that declared set, and holds nothing for other companies beyond the fingerprint categories.
+    - **Gate:** before the demo seed is first published, a short licence assessment is recorded in the repository concluding that committing derived categories carries low risk compared with reproducing document figures. Without it, the fingerprint categories are not committed.
   - **full** — generated locally by the pipeline in Docker with `pnpm seed:full`, taking hours, and never committed while the filed documents' licence is unresolved. Its output path is gitignored.
 - **Three named demo companies, each showing a different state:**
   - **A** — a typical `62.100` consultancy with its full peer group: the whole analysis.
   - **B** — a loss-making `62.100` product company with its peer group: the fingerprint separating a product company from consultancies, and a large gap.
   - **C** — a `69.202` bookkeeping firm: the uncovered-industry state (FR-4), from API figures alone, with no document figures needed.
-- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets its API key figures with full comparison; its document-based figures are withheld exactly as FR-22 and FR-24 require — "For få sammenlignbare" — never filled from elsewhere. The README says that `pnpm seed:full` restores the full set.
+- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full."*; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene"; no stored explanation exists, and the page says so. *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. The README says that `pnpm seed:full` restores the full set.
 - **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application or the schema.
 - **README.** About five commands take a fresh clone to a running app — clone, start the local database, install, `pnpm seed`, run — and a run from a fresh clone on a clean machine is part of v1's acceptance (SM-9). The README lists the three demo organisation numbers and what each demonstrates.
 - No secret is needed to run v1: every value the app needs locally is either a local default the Supabase CLI prints or optional.

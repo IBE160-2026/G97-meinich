@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UX Design Validation: Peerless</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+
+    --verdict-strong: #16a34a;
+    --verdict-adequate: #65a30d;
+    --verdict-thin: #d97706;
+    --verdict-broken: #dc2626;
+
+    --sev-low: #64748b;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .title .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .synthesis {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    font-size: 15.5px;
+  }
+  .synthesis p { margin: 0 0 10px; }
+  .synthesis p:last-child { margin-bottom: 0; }
+
+  .dimension-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .dim-card .dim-name { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dim-card .dim-verdict { font-size: 14px; font-weight: 600; }
+
+  section.dimension, section.reviewer-section { margin-bottom: 14px; }
+  section.dimension details, section.reviewer-section details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section summary::-webkit-details-marker { display: none; }
+  section summary::before {
+    content: "▸";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  section details[open] summary::before { transform: rotate(90deg); }
+  section summary h2 {
+    display: inline;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .verdict-pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .verdict-strong { background: var(--verdict-strong); }
+  .verdict-adequate { background: var(--verdict-adequate); }
+  .verdict-thin { background: var(--verdict-thin); }
+  .verdict-broken { background: var(--verdict-broken); }
+
+  .dim-body { padding: 4px 20px 18px; }
+  .dim-judgment { color: var(--text); font-size: 14.5px; }
+  .dim-judgment p { margin: 0 0 10px; }
+
+  .findings-list { padding: 0 20px 4px; }
+  article.finding {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  article.finding:first-child { border-top: none; }
+  article.finding header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .badge-sev-low { background: rgba(100, 116, 139, 0.12); color: var(--sev-low); }
+  .badge-sev-medium { background: rgba(202, 138, 4, 0.14); color: var(--sev-medium); }
+  .badge-sev-high { background: rgba(234, 88, 12, 0.14); color: var(--sev-high); }
+  .badge-sev-critical { background: rgba(220, 38, 38, 0.14); color: var(--sev-critical); }
+  .finding-title { margin: 0; font-size: 15px; font-weight: 500; flex: 1; min-width: 200px; }
+  .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
+  .finding-fix strong { color: var(--muted); font-weight: 500; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; background: #f5f5f4; padding: 1px 4px; border-radius: 3px; }
+  .counts { font-size: 13px; color: var(--muted); margin: -12px 0 24px; }
+
+  .reviewer-source {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .mechanical {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .mechanical h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mechanical ul { margin: 0; padding-left: 20px; }
+  .mechanical li { margin-bottom: 4px; color: var(--text); }
+
+  footer.report-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  footer .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header class="report-header">
+      <div class="title">
+        <h1>Peerless — UX Design Validation Report</h1>
+        <div class="subtitle">C:\Dev\ibe160\_bmad-output\planning-artifacts\ux-designs\ux-Peerless-2026-10-04\DESIGN.md · EXPERIENCE.md</div>
+      </div>
+    </header>
+    <div class="synthesis">
+      <p>The pair is a rigorous contract. Every <code>{path.to.token}</code> reference resolves, the DESIGN.md sections follow the canonical order, the vocabulary is decided, and the flow arithmetic was re-checked and is exact (1 170 000; 1 752 531; 212 807; waterfall 267 429 = 83 571 → 351 000). A consumer still cannot extract it cleanly. Dark mode is half-specified: tokens exist, pairs are missing, and nothing says whether it ships. Two states on the primary surface and the URL-validation contract are missing. The declared copy source (<code>messages-v1.nb.json</code>) holds superseded strings, and PRD FR-73 contradicts the spine's outside-seed state. Fix these, and index the scattered load-bearing <code>[ASSUMPTION]</code>s, before story-dev starts.</p>
+      <p>The three extra reviewers shift the picture. The figures review recomputed 39 figures and confirms the arithmetic is exact, as the adversarial review also found; the weaknesses are elsewhere. First, demo-seed coverage: the state a sensor is most likely to reach — a real 62.100 orgnr outside the seed, or demo A with a widened size band — is undefined, and no flow uses demo A, B or C, so there are no runnable acceptance figures. Second, scope: v1 still carries four tabs, three chart grammars, three fold-outs, two segmented controls, name search and dark mode, with no first buildable slice named. Third, the rules around the numbers: "Til medianen" is not defined in <code>key-figures.md</code> and its rounded label does not multiply to its amount, the stored explanation's figures go stale after an adjustment while its source line still claims they are in the analysis, and several amounts with different references or closable shares sit side by side. Fourth, accessibility: the colour system is sound, but the beeswarm and midtre halvdel band lack text or contrast, dark mode has no component mapping (the focus ring disappears), a key caveat lives only in a tooltip, and status messages and focus management are unspecified.</p>
+    </div>
+    <p class="counts">Findings across all four reviewers: 4 critical · 26 high · 47 medium · 36 low as raised; 4 · 20 · 41 · 29 after merging duplicates (see <code>validation-report.md</code>).</p>
+    <div class="dimension-summary">
+      <div class="dim-card">
+        <div class="dim-name">Flow coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Token completeness</div>
+        <div class="dim-verdict" style="color: var(--verdict-thin)">Thin</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Component coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">State coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Visual reference coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Bloat & overspecification</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Inheritance discipline</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">Shape fit</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">Adequate</div>
+      </div>
+    </div>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Flow coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Checked against <code>sources</code> → PRD §2.3. UJ-1 and UJ-2 (v1) each have a Key Flow with a verbatim title, a named protagonist, numbered steps, a bold climax and a failure or edge path. Flow 3 (phone) and Flow 4 (decomposition) fill the two gaps the memlog asked for. UJ-3 and UJ-4 are stage 2 and correctly have no flow. The climax figures were recomputed and match.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">UJ-1 exclusion contradicts the default-group climax figures</h3>
+              <span class="finding-location">EXPERIENCE Key Flows intro; UJ-1 steps 3–5</span>
+            </header>
+            <div class="finding-note">UJ-1 step 3 excludes two peers, which per FR-19 recomputes every aggregate and tags the explanation as written for the standard group. Yet the Key Flows intro says "Figures are for the default peer group", and the step-5 climax quotes default-group median, beste fjerdedel and kroner. A consumer turning the flow into an e2e fixture gets contradictory state.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Move the exclusion after the climax, or state the post-exclusion figures and the explanation's tagged state.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Surface closure table credits flows that do not exercise the surface</h3>
+              <span class="finding-location">EXPERIENCE IA → Surface closure</span>
+            </header>
+            <div class="finding-note">"How it works, can I trust it" points to UJ-1, but no flow visits Slik fungerer Peerless. "Trace any kroner amount" points to Flow 4 and UJ-2, but only Flow 3 opens the provenance drill-down.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Correct the journey column, or add a step to UJ-1 that opens Slik fungerer Peerless.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">UJ-3 and UJ-4 never named as deliberately absent</h3>
+              <span class="finding-location">EXPERIENCE Later stages</span>
+            </header>
+            <div class="finding-note">Later stages lists their features but not their ids.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add one line: "UJ-3 and UJ-4 are stage 2; no v1 flow."</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details open>
+        <summary>
+          <h2>Token completeness</h2>
+          <span class="verdict-pill verdict-thin">thin</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>30 colour, 13 typography, 4 rounded, 7 spacing and 15 component tokens were extracted, along with every prose reference in both files. All references are defined, every colour has a hex value, and contrast is stated for the marker, the input border, the median and every text pair the memlog verified. What is missing is dark-mode completeness, one failing text colour, raw values outside the token set, and a buildable typography ramp.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Light/dark pairs missing although dark tokens are defined</h3>
+              <span class="finding-location">DESIGN frontmatter <code>colors</code>; Colors → Gaps</span>
+            </header>
+            <div class="finding-note"><code>surface</code> has no dark value, and it carries group rows, banners, state blocks, calculation chips, the disabled step, the search loading fill and the highlighted search result. <code>peer-dot</code>, <code>gridline</code> and <code>disabled-text</code> have no dark values either. DESIGN Colors "Gaps" admits this.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define <code>surface-dark</code>, <code>peer-dot-dark</code>, <code>gridline-dark</code> and <code>disabled-text-dark</code> with verified contrast, or declare dark mode out of v1 and move the dark tokens to Later stages.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Accessibility, Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Dark mode scope and mechanism uncommitted</h3>
+              <span class="finding-location">DESIGN frontmatter; EXPERIENCE Foundation</span>
+            </header>
+            <div class="finding-note">No spine says whether v1 ships dark, or whether it follows <code>prefers-color-scheme</code> or a toggle. Only <code>marker-company</code> and <code>marker-median</code> have dark component mappings. Pair naming is irregular (<code>navy-900</code>↔<code>text-dark</code>, <code>navy-700</code>↔<code>primary-dark</code>, <code>slate</code>↔<code>muted-dark</code>), so a resolver cannot pair them mechanically.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Make the call in EXPERIENCE Foundation. If dark ships, name pairs <code>x</code> / <code>x-dark</code> and add <code>-dark</code> keys to every component.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title"><code>disabled-text</code> fails AA on excluded peer rows</h3>
+              <span class="finding-location">DESIGN Colors → Verified contrast; Components → Peer list</span>
+            </header>
+            <div class="finding-note"><code>#6F7E90</code> measures 4.15:1 on white and 3.86:1 on <code>surface</code>. It is the text colour of excluded peer rows, which are content still actionable through "Ta med igjen", so the disabled-control exemption does not apply. DESIGN claims "all light and dark text pairs pass AA".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use <code>slate</code> (5.08:1 on <code>surface</code>) for excluded rows and carry exclusion by strikethrough plus the "Ekskludert" tag. Keep <code>disabled-text</code> for the disabled step only, and verify it.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Accessibility</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Raw values sit outside the token set</h3>
+              <span class="finding-location">DESIGN Elevation; Components → Fold-out; Shapes</span>
+            </header>
+            <div class="finding-note">Hex <code>#FBFCFD</code> (fold-out body) and <code>#B9C3CF</code> (waterfall connectors); off-scale tooltip radius <code>5px</code>, <code>waterfall-bar.data-end-radius: 4px</code>, tooltip shadow <code>rgba(11,35,64,.14)</code>. The peer dot's fixed white stroke fails in dark mode.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add <code>surface-foldout</code>, <code>connector</code> and their dark pairs, and map the radii and shadow to tokens.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Typography ramp incomplete for build</h3>
+              <span class="finding-location">DESIGN frontmatter <code>typography</code>; Typography; Components</span>
+            </header>
+            <div class="finding-note">Source Serif 4 is decided for page and section headings, but no token exists for either. Phone sizes live in YAML comments no resolver reads. Components carry raw sizes (search 20/16px, fold-out header 13.5px, 18px, 12.5px, 11.5px, 24px, 22px). "Heading sizes may need retuning" leaves the ramp open.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add <code>heading-page</code>, <code>heading-section</code> and <code>-phone</code> variants as tokens, and replace raw px values in Components with token references.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Component coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>27 components are named in DESIGN Components. 26 of them have a behavioural row in EXPERIENCE Component Patterns with real rules, including state handling, FR citations and keyboard behaviour. shadcn primitives are declared as used as-is.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">"Banner" used but specified nowhere</h3>
+              <span class="finding-location">DESIGN Components → State block; EXPERIENCE State Patterns → Widened size band</span>
+            </header>
+            <div class="finding-note">The widened-band state shows a "banner" with an action, and Colors and <code>rounded.md</code> style "banners", while State block claims "widened group" and allows at most one link. A developer cannot tell whether the widened notice is a State block.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define Banner in both spines, or state that the widened notice is a State block and its action is that block's one link.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Header has no Component Patterns row</h3>
+              <span class="finding-location">EXPERIENCE Component Patterns</span>
+            </header>
+            <div class="finding-note">Header behaviour (search hidden on the front page, link target) lives only in IA bullets.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a Header row.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Several sub-parts mentioned but never specified</h3>
+              <span class="finding-location">DESIGN Components; EXPERIENCE Component Patterns</span>
+            </header>
+            <div class="finding-note">Compact peer list under the beeswarm, beeswarm legend, "Vis tallene" table, waterfall reference tag, data-quality flag inside provenance, "Slik fungerer det" steps, About table of contents.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Give each one line inside its parent's row.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>State coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Seven surfaces walked: Forside, Oversikt, Peers, Nøkkeltall og gap, Verdi, Uncovered result, Slik fungerer Peerless. Covered: below floor, outside seed, uncovered, not in database, no match, malformed, FR-71, non-small subject, adjusted group, widened band, above and below median, empty multiple, strength, rate limit, loading, lookup error, measurement pending, focus, reduced motion. Offline is reasonably left to the browser.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">No treatment for invalid or stale URL state</h3>
+              <span class="finding-location">EXPERIENCE Interaction Primitives → URL is state; State Patterns</span>
+            </header>
+            <div class="finding-note">The technical note requires every URL value to be validated on each request. Uncovered: an excluded orgnr not in the group, a closable share that is not a step, a multiple ≤ 0 or non-numeric, an out-of-range size step, an unknown tab. FR-69's "reproduces the same analysis" has no rule for a URL created before a batch refresh.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a state row: invalid parameters fall back to their default and a tag says so; a newer filing year than the URL implies is shown with the header's data date.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Oversikt hero and small cards have no empty treatment</h3>
+              <span class="finding-location">EXPERIENCE Component Patterns → Hero card, Small card</span>
+            </header>
+            <div class="finding-note">Unhandled: subject at or above beste fjerdedel on every kroner figure (no largest gap); only one gap (no "Nest største gap"); nothing lacks a basis. These are the primary surface's first elements.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify copy and layout for each, e.g. the hero turns to the largest strength with "▲ Styrke" and no kroner.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial, Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Undefined own value has no row treatment</h3>
+              <span class="finding-location">EXPERIENCE State Patterns; DESIGN Components → Benchmark row</span>
+            </header>
+            <div class="finding-note">FR-23/FR-24 (zero or negative denominator, underivable component) have no row treatment. The per-figure count of companies left out (FR-23) is ambiguous: the subline reads "direction · count".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add an "own value undefined" row with copy, and define the subline count as peers used and peers left out.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Verdi page misses two states</h3>
+              <span class="finding-location">EXPERIENCE Component Patterns → Amount card, Multiple field</span>
+            </header>
+            <div class="finding-note">When driftsmargin is a strength, the profit amount card has no treatment. Invalid multiple input (0, negative, text, comma decimal) is untreated.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add both.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Recompute has no in-progress or failure state</h3>
+              <span class="finding-location">EXPERIENCE Interaction Primitives → Immediate recompute</span>
+            </header>
+            <div class="finding-note">Exclude, restore, widen and step changes (FR-19) have no pending or failed treatment. Whether recompute is a server round trip is unstated.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Commit to client-side or server-side recompute, and give the pending and failed treatment.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Peers surface has no whole-group-thin state</h3>
+              <span class="finding-location">EXPERIENCE State Patterns; Component Patterns → Funnel, Size-band control</span>
+            </header>
+            <div class="finding-note">No treatment when fewer than 10 peers remain after stage 5, still too few at 0,25–4×, or zero peers. Only row-level handling exists.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a surface-level State block above the funnel with the widen action.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Seven state copies still <code>[ASSUMPTION]</code>; empty submit untreated</h3>
+              <span class="finding-location">EXPERIENCE State Patterns</span>
+            </header>
+            <div class="finding-note">No match, lookup error, rate limit, loading, FR-71 string, tap targets, beeswarm arrow keys. Submitting an empty search field is untreated.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Confirm the copies, and add the empty-submit case.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Visual reference coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p><code>mockups/</code>: <code>v1-front.html</code>, <code>v1-analysis.html</code>, <code>v1-about.html</code>, <code>messages-v1.nb.json</code> and <code>review-notes-v1.md</code> are all linked; there are no orphans. <code>imports/</code> is empty and <code>wireframes/</code> does not exist. The <code>.working/</code> history links resolve.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title"><code>messages-v1.nb.json</code> holds superseded strings</h3>
+              <span class="finding-location">EXPERIENCE Foundation → Language; Mock discrepancies 1, 2, 5, 6, 9</span>
+            </header>
+            <div class="finding-note">Declared the starting point for all copy, but <code>front.title</code>, <code>front.search.*</code>, <code>shell.orgnr.label</code> and <code>front.steps.1.title</code> are orgnr-only; <code>front.steps.1.body</code> and <code>front.loading</code> imply a live fetch; <code>front.notFound.body</code> and <code>about.limits.small.body</code> are superseded; about six key-figure names are missing. Seeding message files from it ships superseded copy.</div>
+            <div class="finding-fix"><strong>Fix:</strong> List the keys to replace with their new strings in Mock discrepancies, or correct the JSON and say it is current.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks linked as a block, not where they apply</h3>
+              <span class="finding-location">DESIGN Brand &amp; Style; EXPERIENCE Foundation</span>
+            </header>
+            <div class="finding-note">No Components, IA, state row or Key Flow points to the frame that draws it, though <code>review-notes-v1.md</code> lists which states each file holds.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add "→ <code>v1-analysis.html</code> (Peers, widened)" style pointers at the relevant rows.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">"Spine wins on conflict" stated three times</h3>
+              <span class="finding-location">DESIGN Brand &amp; Style; EXPERIENCE Foundation; Mock discrepancies</span>
+            </header>
+            <div class="finding-note">The same precedence rule is repeated in three places.</div>
+            <div class="finding-fix"><strong>Fix:</strong> State it once, in EXPERIENCE Foundation, and refer to it elsewhere.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Bloat & overspecification</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Both files are dense but mostly load-bearing. Tables are used where a table works, and the vocabulary, number-format and context tables are exactly what story-dev needs. DESIGN prose keeps a restrained editorial voice.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The ✦ placement rule is restated in about nine places</h3>
+              <span class="finding-location">DESIGN Components, Do's; EXPERIENCE Vocabulary, Component Patterns, AI marking</span>
+            </header>
+            <div class="finding-note">The rule has already changed once ("Hvorfor med" withdrawn), and the next change will drift.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep the rule in EXPERIENCE AI marking only, and make the other places link to it.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">"Numbers and their context" repeats State Patterns rows</h3>
+              <span class="finding-location">EXPERIENCE</span>
+            </header>
+            <div class="finding-note">Below floor, outside seed and uncovered are restated in different words, making two places to keep in step.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep it as an index that links to the state rows.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Process provenance mixed into the contract</h3>
+              <span class="finding-location">DESIGN Colors → Gaps</span>
+            </header>
+            <div class="finding-note">"(decided)", "(memlog)", "Accepted by the user" and validator history. Consumers need the rule, not its history.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Leave history to <code>.memlog.md</code>, and keep only <code>[ASSUMPTION]</code> markers.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Inheritance discipline</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>All seven <code>sources</code> paths resolve. The UJ-1 and UJ-2 titles are verbatim. The Vocabulary maps cleanly onto the PRD §3 glossary and matches <code>docs/key-figures.md</code> and AGENTS.md as they stand on disk. EXPERIENCE token references resolve to DESIGN tokens by name.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Outside-seed state contradicts PRD FR-73</h3>
+              <span class="finding-location">EXPERIENCE State Patterns → 62.100 company outside the demo seed; Vocabulary</span>
+            </header>
+            <div class="finding-note">FR-73 says document figures for other 62.100 companies read "For få sammenlignbare". The spine uses "Ikke i demodataene" with a tooltip, the later memlog decision of 2026-10-10. The PRD was not updated, so architecture or story-dev reading FR-73 will build the other state.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Edit FR-73 in place; AGENTS.md says to edit, not to append elsewhere.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial, Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">URL contents diverge from the sources</h3>
+              <span class="finding-location">EXPERIENCE Foundation → State; IA</span>
+            </header>
+            <div class="finding-note">EXPERIENCE puts the size-band step and the active tab in the URL. FR-69 and the technical note list only orgnr, excluded peers, closable share and multiple.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Update FR-69 and the technical note so the URL schema has one source.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">No vocabulary entry for the 15 key-figure UI names</h3>
+              <span class="finding-location">EXPERIENCE Vocabulary; Mock discrepancies 6</span>
+            </header>
+            <div class="finding-note">The glossary bans synonyms, yet names are used ad hoc (Driftsmargin, Totalkapitalrentabilitet, Kundefordringsdager, "omløpshastighet driftseiendeler", lower-case "EBITDA-margin"). The messages file holds only nine.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a table of key-figure number → UI label → message key.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Component names vary between frontmatter and prose</h3>
+              <span class="finding-location">DESIGN frontmatter, Shapes, Components</span>
+            </header>
+            <div class="finding-note"><code>ai-marker</code> vs "AI marker (✦)", <code>segmented-control</code> vs Size-band and Closable-share control, <code>marker-best-quartile</code> vs "Beste fjerdedel", <code>band-middle-half</code> vs "Middle half" vs "Midtre halvdel".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use one name per component everywhere, and note which product components use the <code>segmented-control</code> tokens.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>Shape fit</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md runs in canonical order. EXPERIENCE.md has all eight required defaults, plus Responsive &amp; Platform (triggered by the 375px requirement) and Inspiration &amp; Anti-patterns (triggered by the rejected directions). The invented sections earn their place: AI marking, Numbers and their context, Later stages (fenced), Mock discrepancies, Open questions.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Load-bearing <code>[ASSUMPTION]</code>s scattered, not indexed</h3>
+              <span class="finding-location">EXPERIENCE Open questions; Responsive &amp; Platform; IA; Interaction Primitives</span>
+            </header>
+            <div class="finding-note">Open questions lists only the demo company names. Unindexed: breakpoint (<code>md</code> 768px), tab addressing in the URL, history push vs replace, search debounce and result cap, Slik fungerer Peerless route, fold-out default, beeswarm keyboard model, tap-target size, middle-half band, Uncertain flag colour, ✦ size. The first three shape routing and architecture.</div>
+            <div class="finding-fix"><strong>Fix:</strong> List every <code>[ASSUMPTION]</code> in Open questions with an owner. Decide breakpoint, tab addressing and push vs replace before architecture.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="reviewer-section">
+      <details>
+        <summary>
+          <h2>Accessibility review (WCAG 2.2 AA)</h2>
+          <span class="reviewer-source">review-accessibility.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p><strong>Not yet AA-ready, but close on the hard parts.</strong> The colour system is sound. Every contrast ratio the specs state is correct to rounding, and direction, company, median and beste fjerdedel are all carried by shape or by a word, not by colour alone. The gaps are in what the specs leave out: the beeswarm has no text alternative; dark mode has no component mapping, so read literally the focus ring and the waterfall end bar become invisible; the midtre halvdel band is drawn in the same colour as its track; a key caveat lives only in a tooltip that does not open on touch; and status messages and focus management are under-specified. The mocks additionally fail on keyboard operation of fold-outs, live regions, and the contrast of excluded-row text.</p>
+            <p>Counts: 0 critical · 8 high · 17 medium · 13 low (specs: 6 high, 11 medium, 8 low; mocks: 2 high, 6 medium, 5 low). Positive notes: all three mocks set <code>lang="nb"</code>; tabs are links with <code>aria-current="page"</code>; decorative legend SVGs are <code>aria-hidden</code>; the front-page error uses <code>aria-invalid</code> plus glyph plus text; at phone width the body never scrolls sideways.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">The beeswarm's peer values exist only in tooltips</h3>
+              <span class="finding-location">EXPERIENCE Beeswarm; DESIGN Peer list; SC 1.1.1, 1.3.1</span>
+            </header>
+            <div class="finding-note">The Accessibility Floor promises "every charted value also exists as text", but no surface lists the 23 peers' driftsmargin. The compact list shows Selskap · Omsetning · Grunnlag; the Peers table has no margin column.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add "Vis tallene" under the beeswarm (Selskap · Driftsmargin · Omsetning, sorted, company row marked in text), or a Driftsmargin column on Peers. Give the chart a full <code>aria-label</code> summary.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Dark mode has no per-component colour mapping</h3>
+              <span class="finding-location">DESIGN frontmatter <code>components</code>, Colors › Gaps; EXPERIENCE Accessibility Floor; SC 2.4.7, 1.4.11, 1.4.3</span>
+            </header>
+            <div class="finding-note">Taken literally in dark mode the focus ring is 1.58:1 on background and 1.38:1 on cards; the waterfall end bar is 1.38:1; the beste fjerdedel triangle stroke is 2.90:1 with an undefined fill; peer-dot, gridline, surface, disabled-text, tooltip, fold-out background, connectors and band have no dark value.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a <code>-dark</code> value to every component token: focus ring and end bar → primary-dark; triangle → muted-dark stroke on card-dark fill. Verify every new pair.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial, Rubric · Token completeness</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">The midtre halvdel band cannot be seen</h3>
+              <span class="finding-location">DESIGN <code>band-middle-half</code>, Distribution strip; SC 1.4.11, 1.1.1</span>
+            </header>
+            <div class="finding-note">Drawn in <code>divider</code> on a <code>divider</code> track (1.00:1), 1.33:1 against white. <code>divider</code> is "decorative only", yet the band carries information — for no-direction rows it is the only distribution context, and Q1–Q3 appears nowhere as text.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Give the band its own token at ≥ 3:1 against the card and distinct from the track. Put "Midtre halvdel lo–hi" in text for every row.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Chart semantics conflict with the keyboard model</h3>
+              <span class="finding-location">EXPERIENCE Beeswarm, Distribution strip, Accessibility Floor; SC 4.1.2, 1.3.1, 2.4.3</span>
+            </header>
+            <div class="finding-note">Each chart is "one focusable element with an <code>aria-label</code>" stepped with arrow keys. With <code>role="img"</code> screen readers ignore children, swallow arrow keys in browse mode and never announce the tooltip; strips add a tab stop per row repeating cell values.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Full-summary <code>aria-label</code>; arrow keys in value order starting at the company, Home/End; mirror focused text to a polite live region; strips in the table <code>aria-hidden</code> and out of the tab order.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">"Ikke i demodataene" explanation exists only in a tooltip</h3>
+              <span class="finding-location">EXPERIENCE Vocabulary, State Patterns; SC 2.1.1, 1.4.13, 1.3.1</span>
+            </header>
+            <div class="finding-note">Radix Tooltip does not open on touch, its trigger is a non-interactive cell, and the content is an essential caveat. DESIGN's own Brand &amp; Style says a caveat is "never hidden in a tooltip".</div>
+            <div class="finding-fix"><strong>Fix:</strong> State the sentence once above the table; each cell uses <code>aria-describedby</code> to it. If a popup is kept, use <code>Popover</code> on a real button.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">The excluded-row text colour fails contrast</h3>
+              <span class="finding-location">DESIGN Colors › Verified contrast, Components › Peer list; SC 1.4.3</span>
+            </header>
+            <div class="finding-note"><code>disabled-text</code> <code>#6F7E90</code> is 4.15:1 on white and 3.86:1 on surface; the row is still content the user reads to decide on "Ta med igjen". The spec's "lowest is unfavourable on surface, 4.68" is wrong.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Set excluded rows in slate with strikethrough and "Ekskludert". Reserve <code>disabled-text</code> for disabled controls; add it and <code>median</code>-as-text to the "Never" column.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Rubric · Token completeness</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Mocks: no live regions where content changes</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 1075–1085; <code>v1-front.html</code> 717–719; SC 4.1.3</span>
+            </header>
+            <div class="finding-note">Verdi step changes and the EV result update silently; front-page regions are injected already populated.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Render persistent empty regions and write text into them.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Mocks: fold-outs cannot be operated by keyboard</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 1016–1018, 1029, 1031; SC 2.1.1, 4.1.2</span>
+            </header>
+            <div class="finding-note">Fold-out headers are <code>div.fold-h</code>; phone benchmark rows are non-interactive <code>div</code>s; none has <code>aria-expanded</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use <code>Collapsible</code> triggers (<code>button</code>) as the spec says.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Search results have no combobox pattern</h3>
+              <span class="finding-location">EXPERIENCE Search field, Search results; SC 4.1.2, 4.1.3, 3.2.2</span>
+            </header>
+            <div class="finding-note">"Arrow keys move, Enter opens, Esc closes" names no roles, and never says results open only on submit.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify the ARIA 1.2 combobox pattern with a listbox, a polite count ("5 treff") and no-match in the same region; navigate only on Enter/submit.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Search fields have no visible label</h3>
+              <span class="finding-location">DESIGN/EXPERIENCE Search field; SC 3.3.2, 2.5.3</span>
+            </header>
+            <div class="finding-note">Placeholder only; the header placeholder "Org.nr." will be wrong once name search lands.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a visible label or persistent hint ("Navn eller organisasjonsnummer") contained in the accessible name; tie errors with <code>aria-describedby</code> + <code>aria-invalid</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Status messages are incomplete</h3>
+              <span class="finding-location">EXPERIENCE Accessibility Floor, State Patterns; SC 4.1.3</span>
+            </header>
+            <div class="finding-note">Live regions cover only search errors, loading and recomputed totals. Omitted: no-match, rate limit, lookup error, not found, exclude/restore, reset, widen/narrow, adjusted tag, multiple result. Nothing says what is announced or that regions must exist empty first.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add an announcement table; rate limit and lookup error use <code>role="alert"</code> or move focus; loading sets <code>aria-busy</code>; debounce to one announcement per action.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Focus management is unspecified</h3>
+              <span class="finding-location">EXPERIENCE Interaction Primitives; SC 2.4.3, 2.4.2</span>
+            </header>
+            <div class="finding-note">No rule for exclude/restore, reset, search → analysis route change, tab switch, provenance open/close, or the "Se forklaring av marginen" jump.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a focus rule to each (e.g. route change → <code>h1</code> plus per-route <code>&lt;title&gt;</code>; close → return to trigger).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The 375 benchmark rows lack disclosure semantics</h3>
+              <span class="finding-location">EXPERIENCE/DESIGN Benchmark row; SC 4.1.2, 1.3.1</span>
+            </header>
+            <div class="finding-note">"Tap expands the row" names no control or <code>aria-expanded</code>; the three-column phone layout loses header relationships.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Make the row name a <code>button</code> with <code>aria-expanded</code>; build phone rows as a real table or a labelled <code>dl</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Benchmark-table header associations are not defined</h3>
+              <span class="finding-location">DESIGN/EXPERIENCE Benchmark row; SC 1.3.1</span>
+            </header>
+            <div class="finding-note">The group row is not tied to its indented rows; "midtre halvdel" spans the wrong headers; the below-floor merged cell is announced as "Median"; the check row's "—" has no meaning.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Cost-share rows in their own <code>tbody</code> with <code>th scope="rowgroup"</code>; sr-only labels for inapplicable cells; <code>headers</code> on the merged floor cell.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Horizontal scroll containers not keyboard-operable or labelled</h3>
+              <span class="finding-location">DESIGN Layout; EXPERIENCE Accessibility Floor › Reflow; SC 2.1.1, 1.3.1</span>
+            </header>
+            <div class="finding-note"><code>overflow-x: auto</code> is required, but not <code>tabindex="0"</code>, <code>role="region"</code>, an <code>aria-label</code> or a focus style. Safari does not make scrollers focusable.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify these for every scroll container that can overflow.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Reflow target is 375px; WCAG requires 320 CSS px</h3>
+              <span class="finding-location">EXPERIENCE Foundation, Responsive; SC 1.4.10</span>
+            </header>
+            <div class="finding-note">1280px at 400% zoom is 320px. The fixed 64px + 104px phone columns and the 92px header link are the likely breakers.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Design and test down to 320.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Segmented controls: disabled step and focus ring unspecified</h3>
+              <span class="finding-location">EXPERIENCE Closable-share control; DESIGN segmented-control; SC 4.1.2, 2.4.7</span>
+            </header>
+            <div class="finding-note">"Til medianen" disabled: <code>disabled</code> or <code>aria-disabled</code> is undecided. Nothing says the focus ring must be inset or unclipped.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use a <code>radiogroup</code> with roving tabindex; disabled step gets <code>aria-disabled</code> + <code>aria-describedby</code>; inset ring or <code>overflow: visible</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">✦ has no visible key, and the announcement policy is open</h3>
+              <span class="finding-location">DESIGN AI marker; EXPERIENCE AI marking; SC 1.3.1, 1.1.1</span>
+            </header>
+            <div class="finding-note">Sighted users are never told what ✦ means; screen readers may hear "KI-generert" ~15 times in the Peers table; the glyph size is unset.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a visible key "✦ KI-generert"; announce once per cell; fix the glyph size; verify Inter renders U+2726 or use an inline SVG.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The waterfall's text alternative is incomplete</h3>
+              <span class="finding-location">EXPERIENCE Margin waterfall; SC 1.1.1, 1.3.1</span>
+            </header>
+            <div class="finding-note">"Vis tallene" content is unspecified; start (83 571 kr), end (351 000 kr) and ▲/▼ words need rows; the chart label is only the title.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Caption, row <code>th</code>s, start → four parts → end; label summarises "Fra 83 571 kr … til 351 000 kr, fire poster, sum +267 429 kr".</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks: tooltip fails hover, announcement and ordering</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 252, 618–620, 788; SC 1.4.13, 4.1.2, 2.4.3</span>
+            </header>
+            <div class="finding-note"><code>pointer-events: none</code>; <code>role="tooltip"</code> never referenced; arrow order starts at the worst peer with company, median and best quartile last.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Follow the chart-semantics fix above.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks: segmented controls are not proper radio groups</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 140, 943, 1044; SC 2.1.1, 4.1.2, 2.4.7</span>
+            </header>
+            <div class="finding-note">No roving tabindex or arrow keys; disabled "Til medianen" uses <code>disabled</code> + unreachable <code>title</code>; <code>.seg { overflow: hidden }</code> clips focus outlines.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Implement the radiogroup pattern from the spec fix.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks: excluded rows fail contrast; action buttons lack context</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 119–120, 157–158, 952, 955; SC 1.4.3, 2.4.6</span>
+            </header>
+            <div class="finding-note"><code>#6F7E90</code> (4.15:1) with <code>#B5C0CC</code> strikethrough; "Ekskluder" / "Ta med igjen" repeat with no peer name.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Slate text; <code>aria-label="Ekskluder Holmengrå Data AS"</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks: focus styles do not match the spec</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 114; <code>v1-front.html</code> 268–270; SC 2.4.7</span>
+            </header>
+            <div class="finding-note">Chart ring in <code>--link</code>, not navy-700; front field uses <code>outline: none</code> + box-shadow; <code>.app</code>/<code>.scroll</code> clip outline offsets.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Match the spec ring and use <code>outline</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks: key table markup breaks header associations</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 805, 1007–1015, 1025; SC 1.3.1</span>
+            </header>
+            <div class="finding-note">Group row <code>td colspan=7</code>; midtre halvdel <code>colspan=2</code>; floor row <code>colspan=4</code>; bare "—"; strip label is only the figure name; phone table is a <code>div</code> grid.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Follow the header-association fix above.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mocks: waterfall residual drawn in the wrong colour</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 845, 869, 883; SC 1.1.1, 1.3.1</span>
+            </header>
+            <div class="finding-note">Residual filled petrol because positive, where the spec says neutral slate; not in Mock discrepancies. Legend has no residual entry; "Vis tallene" omits start/end, row <code>th</code> and caption.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add this to the Mock discrepancies list.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Uncertain flag borrows the unfavourable colour</h3>
+              <span class="finding-location">DESIGN Uncertain flag; SC 1.4.1</span>
+            </header>
+            <div class="finding-note">Amber gives a direction colour a non-direction meaning (already <code>[ASSUMPTION]</code>). Contrast passes.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use text colour or slate, carried by ✦ plus the word.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">The mirrored "Bedre →" axis is hard to read</h3>
+              <span class="finding-location">DESIGN Distribution strip; SC 1.3.3, 1.4.1</span>
+            </header>
+            <div class="finding-note">On lower-is-better strips values decrease left to right and only the column head says so; a screen reader reads "Bedre høyrepil".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Label end values in the phone expansion and tooltip; arrows <code>aria-hidden</code> with sr-only text.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">English "peer" in Norwegian copy</h3>
+              <span class="finding-location">EXPERIENCE Vocabulary; SC 3.1.2</span>
+            </header>
+            <div class="finding-note">Acceptable loanword under the vernacular exception.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Optionally <code>lang="en"</code> on the standalone tab label "Peers".</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Reduced motion only partly specified</h3>
+              <span class="finding-location">EXPERIENCE Accessibility Floor › Reduced motion; SC 2.3.3</span>
+            </header>
+            <div class="finding-note">Recharts animates by default; the spinner rotates.</div>
+            <div class="finding-fix"><strong>Fix:</strong> <code>isAnimationActive={false}</code> under <code>prefers-reduced-motion</code>; static "Henter analysen …" instead of a spinner.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Screen readers may misread space-grouped numbers</h3>
+              <span class="finding-location">EXPERIENCE Number formatting; SC 1.3.1</span>
+            </header>
+            <div class="finding-note"><code>1 170 000</code> can be read as separate numbers by NVDA and VoiceOver in nb.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Test; if split, give hero and table amounts an sr-only ungrouped form.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Page titles, headings and tab semantics unspecified</h3>
+              <span class="finding-location">EXPERIENCE IA; SC 2.4.2, 1.3.1, 2.4.6</span>
+            </header>
+            <div class="finding-note">No <code>&lt;title&gt;</code> pattern, no heading hierarchy, nothing saying tabs are links with <code>aria-current</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> "{Selskap} – {Fane} – Peerless"; <code>h1</code> company, <code>h2</code> panel, <code>h3</code> cards; state the link-tab pattern.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Target-size rule cites the wrong bar</h3>
+              <span class="finding-location">EXPERIENCE Accessibility Floor; SC 2.5.8</span>
+            </header>
+            <div class="finding-note">"≥ 44px" is <code>[ASSUMPTION]</code>; AA requires 24×24. Inline text buttons are about 19px tall.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Give text buttons ≥ 24px hit area via padding; keep 44px as the phone goal.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Forced colours not considered</h3>
+              <span class="finding-location">DESIGN Elevation › focus; SC 2.4.7</span>
+            </header>
+            <div class="finding-note">A box-shadow focus ring disappears; SVG fills may be overridden.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Draw focus with <code>outline</code> and test markers under <code>forced-colors: active</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Mocks: placeholder as only visible label</h3>
+              <span class="finding-location">front 720; header 596; SC 3.3.2</span>
+            </header>
+            <div class="finding-note">Search fields rely on placeholder text.</div>
+            <div class="finding-fix"><strong>Fix:</strong> See the spec fix for visible labels.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Mocks: the "?" glyph is read aloud</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 914, 939, 949; SC 1.3.1</span>
+            </header>
+            <div class="finding-note">"? Usikker klassifisering" with the "?" not <code>aria-hidden</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Hide the glyph.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Mocks: direction glyphs not hidden from screen readers</h3>
+              <span class="finding-location">messages <code>dir.*</code>, <code>better</code>, <code>strength</code>, <code>under</code>; SC 1.3.1</span>
+            </header>
+            <div class="finding-note">▲ ▼ ↑ ↓ → sit inside text with no <code>aria-hidden</code> or sr-only wording.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Hide glyphs and add sr-only words.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Mocks: about page announces static text</h3>
+              <span class="finding-location"><code>v1-about.html</code> 680; SC 4.1.3</span>
+            </header>
+            <div class="finding-note"><code>role="status"</code> on the static "Målingen pågår" paragraph.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use a plain paragraph.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Mocks: analysis heading levels skip a step</h3>
+              <span class="finding-location"><code>v1-analysis.html</code> 897, 926; SC 1.3.1</span>
+            </header>
+            <div class="finding-note">Card titles are <code>h3</code> directly under the <code>h1</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add an <code>h2</code> for the tab panel.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="reviewer-section">
+      <details>
+        <summary>
+          <h2>Money and figures review</h2>
+          <span class="reviewer-source">review-figures.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p><strong>The arithmetic holds; the rules around it have gaps.</strong> Every kroner amount, share, pp gap, multiple and count in the two spines recomputes to the stated value from the exact inputs (39 figures in the arithmetic table). The waterfall sums exactly, largest-remainder rounding is applied correctly, and nothing is computed on 16,7 mill. kr. The mock's BigInt engine reproduces the same values. Two things are not right. First, the "Til medianen" step is not defined in <code>key-figures.md</code>, and the amount the spine quotes for it (212 807 kr) is reached only if the step uses the exact share; with the displayed 12 % it is 210 304 kr. Second, after the user adjusts the peer group, the stored explanation can carry figures that no longer appear on screen. Several journey figures also assume the default group in steps that come after the user has excluded peers.</p>
+            <p>Counts: critical 0 · high 2 · medium 7 · low 11.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">"Til medianen" undefined in key-figures.md; its arithmetic depends on an undocumented choice</h3>
+              <span class="finding-location">EXPERIENCE Closable-share control, Vocabulary, State Patterns, UJ-2.4; DESIGN Components; mock 676, 1039–1043</span>
+            </header>
+            <div class="finding-note"><code>key-figures.md</code> says the median "never enters this arithmetic"; the spine makes it a step with s = (median − r)/(T − r), so the median enters through s. 212 807 kr is right only with exact s (0,12142857); at the displayed 12 % it is 210 304 kr. The step's s comes from driftsmargin but is applied to every amount card; below-floor and at-median cases are undefined.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add the step to <code>key-figures.md</code> in the same commit: exact decimal s, never rounded; T stays beste fjerdedel; applies to every card, label refers to driftsmargin only; disabled when r ≥ median or below floor. Make the mock take a rational s, and add an engine test that uplift at s_median = (median − r) × revenue.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">After an adjustment the explanation carries figures not on screen, and its source line becomes false</h3>
+              <span class="finding-location">EXPERIENCE Explanation card, State "Adjusted peer group", AI marking; UJ-1.3; mock 909</span>
+            </header>
+            <div class="finding-note">After two peers are excluded, −3,2 %, 9,1 %, 7,0 pp, 1 170 000 kr, 0,5 % and the samlet shares are no longer shown. FR-52's "every figure links back to its calculation" points to a calculation no longer rendered, and "Hvert tall finnes i analysen" is untrue.</div>
+            <div class="finding-fix"><strong>Fix:</strong> In the adjusted state, linked figures open the default group's calculation labelled "standard peer-gruppe", or are unlinked and marked; swap the source line ("Tallene i teksten gjelder standard peer-gruppe."); add a test that fails if an adjusted-state explanation links to a recomputed value.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Journey figures assume the default group after peers are excluded</h3>
+              <span class="finding-location">EXPERIENCE Key Flows intro, UJ-1.3→1.5, Flow 4; Mock discrepancy 7</span>
+            </header>
+            <div class="finding-note">Step 5 quotes default-group (23) values after step 3 excluded two; Flow 4 quotes the waterfall over P = 22. The mock shows the opposite (its 23 rows remain after exclusion). A sensor cannot tell which group produced which number.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Move the exclusion after the climax and start Flow 4 from "Tilbakestill til standard", or recompute for the 21-peer group. Fix the mock so the default 23 includes the 2 excluded.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Rubric · Flow coverage</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">"Nest største gap" ranks one-off capital against per-year profit; hero undefined with no profit gap</h3>
+              <span class="finding-location">EXPERIENCE Hero card, Small card; DESIGN Hero card, <code>hero-amount</code></span>
+            </header>
+            <div class="finding-note">Only (1) yields an amount per year, so the hero can only ever be driftsmargin; if it is a strength or below floor, nothing is specified. "Nest største" compares 412 000 kr (one-off) with 1 170 000 kr per year, inviting a 1,58 mill. kr "total gap".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Make the hero explicitly "Økt driftsresultat per år" with a no-amount state; rename the small card "Største kapitalgap" ranked only against capital; keep "Ikke per år, og legges ikke til resultatet" mandatory.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial, Rubric · State coverage</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Working capital released undefined when only one of (9)/(10) has a target</h3>
+              <span class="finding-location">EXPERIENCE Amount card; mock 1056</span>
+            </header>
+            <div class="finding-note">The mock withholds the whole card when receivable days are below floor, hiding a valid payable-days amount; showing (10) alone as the total presents a partial sum.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Decide in <code>key-figures.md</code>: show parts as separate lines, total only when both exist, name the missing part.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">412 000 kr capital amount does not say its closable share; label ambiguous</h3>
+              <span class="finding-location">EXPERIENCE Vocabulary, Small card, Numbers and their context</span>
+            </header>
+            <div class="finding-note">Oversikt shows 412 000 at full convergence without saying so, while Verdi shows 206 000 at 50 %. "Frigjort kapital" also fits "Frigjort arbeidskapital", a different amount that must never be added.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Label "Frigjort kapital i driftseiendeler … ved full tilnærming"; extend the "Viser gap ved full tilnærming" note to the small cards.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The two-bar subtotal 1 069 714 kr has no source on screen</h3>
+              <span class="finding-location">EXPERIENCE Flow 4.4</span>
+            </header>
+            <div class="finding-note">Lønn plus andre is not a bar, not the total and not in "Vis tallene". If any copy states it, FR-53's containment test fails or must be loosened.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Remove the number from the flow, or make it an engine output shown in "Vis tallene".</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Decomposition factors have no stated floor or count</h3>
+              <span class="finding-location">EXPERIENCE Factor pair, Flow 4.5–4.6; mock <code>DIST.turn</code></span>
+            </header>
+            <div class="finding-note">Totalkapitalens omløpshastighet is not a numbered key figure; the FTE pair depends on OCR <code>aarsverk</code>. Nothing gates each factor by FR-22 or shows its count.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Gate each factor on its own, show its count and "For få sammenlignbare (n av 10)"; add <code>sumDriftsinntekter / sumEiendeler</code> to <code>key-figures.md</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Waterfall reference and margin kroner cell show two different margin gaps side by side</h3>
+              <span class="finding-location">EXPERIENCE Benchmark row, Fold-out, Flow 4.2; mock 1031</span>
+            </header>
+            <div class="finding-note">The 1 170 000 kr gap (against beste fjerdedel) sits directly above "Forskjellen på 1,6 pp er 267 429 kr" (against samlet). Only the reference tag separates them; nothing stops a reader adding them.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep the tag and make the "legges aldri til økt driftsresultat" sentence a required spine element above the waterfall at both widths.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L1 Percentile rounded to whole percent against the one-decimal rule</h3>
+              <span class="finding-location">EXPERIENCE Vocabulary, UJ-1.5; <code>key-figures.md</code> Arithmetic</span>
+            </header>
+            <div class="finding-note">"bedre enn 61 %" is exactly 60,87 %.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Show "60,9 %" or add an explicit exception for Plassering.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L2 "42 %" appears unqualified</h3>
+              <span class="finding-location">EXPERIENCE Vocabulary, State Patterns</span>
+            </header>
+            <div class="finding-note">Inputs (1,0 / 4,0 / 8,1 %) belong to a separate example that matches no flow subject, while UJ-2 gives 12 % for the same concept. The rubric's mechanical notes raised the same point.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use UJ-2's 12 % throughout, or state the example inputs wherever 42 % appears.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Rubric mechanical notes</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L3 Amounts phrased as computed on rounded inputs</h3>
+              <span class="finding-location">UJ-2.3, UJ-2.4, Flow 4.3</span>
+            </header>
+            <div class="finding-note">Values match only because the invented inputs sit on round shares; UJ-2 never gives a <code>driftsresultat</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Give UJ-2's <code>driftsresultat</code> (−613 386 kr) and phrase checks as (T − driftsresultat/revenue) × revenue.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L4 Peer counts disagree (23 vs 25)</h3>
+              <span class="finding-location">EXPERIENCE Responsive table, Peer list</span>
+            </header>
+            <div class="finding-note">Oversikt says "Se alle 23"; the 375 list says "Vis alle 25".</div>
+            <div class="finding-fix"><strong>Fix:</strong> "Vis alle 23", or define the count as active plus user-excluded.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial, Rubric mechanical notes</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L5 Samlet margin does not reconcile with listed peer rows</h3>
+              <span class="finding-location">review-notes</span>
+            </header>
+            <div class="finding-note">Revenue-weighting the 22 displayed margins gives 0,471 %, which would make the start bar 78 741 kr rather than 83 571.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Make the invented sums consistent, or state in "Vis tallene" that the aggregate comes from unrounded filings.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L6 Waterfall start bar and signed rounding not defined</h3>
+              <span class="finding-location">EXPERIENCE Number formatting; <code>key-figures.md</code> Rounding</span>
+            </header>
+            <div class="finding-note">The mock sets start = driftsresultat − displayed total; with half-away ties it can differ by 1 kr. Largest remainder is undefined for negative bars.</div>
+            <div class="finding-fix"><strong>Fix:</strong> In <code>key-figures.md</code>, define start := <code>driftsresultat</code> − displayed total, and floor toward −∞ before distributing remainders.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L7 Visible EV product may not multiply out</h3>
+              <span class="finding-location">EXPERIENCE Multiple field; mock <code>ve.ev.calc</code></span>
+            </header>
+            <div class="finding-note">EV is rounded from the exact uplift but the product shows the rounded uplift; at 6,5 it can be a few kroner off. Decimal input is unspecified.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify which is shown ("≈" or product from exact uplift) and the accepted precision of the multiple.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L8 The context rule does not cover every number</h3>
+              <span class="finding-location">EXPERIENCE Numbers and their context</span>
+            </header>
+            <div class="finding-note">Funnel counts, peer revenues, size-band range, EV, multiple, "Til medianen" share, waterfall start and end bars are missing.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add rows for each.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L9 "48 dager" cannot be checked</h3>
+              <span class="finding-location">UJ-1.6; review-notes</span>
+            </header>
+            <div class="finding-note"><code>kundefordringer</code> and <code>salgsinntekt</code> are not given.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add them to the inputs table.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L10 PRD and spine disagree on the outside-seed cell</h3>
+              <span class="finding-location">PRD FR-73; EXPERIENCE State Patterns</span>
+            </header>
+            <div class="finding-note">FR-73 says "For få sammenlignbare"; the spine says "Ikke i demodataene" (decided).</div>
+            <div class="finding-fix"><strong>Fix:</strong> Update FR-73 to match the decision.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Adversarial, Rubric · Inheritance discipline</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">L11 PRD journeys put the gap in % rather than pp</h3>
+              <span class="finding-location">PRD UJ-1, UJ-2</span>
+            </header>
+            <div class="finding-note">"7.0 % × 16.7 m" and "14.0 % × 12.5 m" use % and rounded revenue; the spine correctly uses pp and exact revenue.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Change the PRD to "7,0 pp × 16 714 286 kr" and "14,0 pp × 12 518 082 kr".</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="reviewer-section">
+      <details>
+        <summary>
+          <h2>Adversarial review (sceptical sensor)</h2>
+          <span class="reviewer-source">review-adversarial.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>The visual system is disciplined. The arithmetic in the flows checks out to the krone. The ✦ rule is sharper than in most student work. <strong>That is not where this spec fails. It fails where it meets the demo seed and the teacher's call for a minimal v1.</strong></p>
+            <p>The happy path is specified in detail for a fictional company, Fjordkode, that a sensor will never see. The path a sensor is most likely to take is to type a real 62.100 orgnr into a fresh clone. That path rests on peer-selection stages that need OCR figures the seed does not hold, and the PRD and this spine disagree about what it says. The analysis page is still four tabs, three chart types, three fold-outs, two segmented controls and fuzzy name search. Nothing tells a story developer which thin slice to build first. Several numbers sit side by side with different references. Copy guards these, but the layout does not.</p>
+            <p><strong>Grade risk today: good on process, exposed on functionality, scope and runnability.</strong> Counts: 3 critical · 9 high · 10 medium · 4 low.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Analysis of any 62.100 company outside the demo seed is undefined, and the specs contradict each other</h3>
+              <span class="finding-location">EXPERIENCE State Patterns "62.100 company outside the demo seed"; PRD FR-73</span>
+            </header>
+            <div class="finding-note">The PRD says "For få sammenlignbare"; the spine says "Ikke i demodataene". Worse, neither says what the Peers tab shows. Stage 4, the fingerprint, runs on OCR fields the subject and nearly every candidate lack in the seed — so funnel counts, "Forretningsmodell", "Grunnlag for treff" and "Hvorfor med" have no defined behaviour. This is the state shown for roughly 95 % of what the search box can reach.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify an explicit "API-only peer group" mode: stages 1–3 run, stages 4–5 shown as "Ikke kjørt – regnskapstall ikke i demodataene", every peer basis "Kun bransje og størrelse". Pick one string, make PRD and spine agree, and mock the state.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures, Rubric · Inheritance discipline</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Widening the size band and excluding peers break in the demo seed</h3>
+              <span class="finding-location">EXPERIENCE Size-band control, Peer list; FR-73 demo seed</span>
+            </header>
+            <div class="finding-note">Document figures are committed only for the peer groups of A and B. The 0,33–3× and 0,25–4× steps pull in candidates with none; every OCR row loses peers, the waterfall's common set can fall below 10, and the fingerprint cannot run on newcomers. A sensor who clicks "Utvidet" on demo A — the one control the brief calls "interrogate the peer group" — gets a degraded analysis nobody specified.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define the declared document set as the 0,25–4× candidate pool for A and B after stages 1–3; make the FR-73 seed check assert it; add an acceptance case that A widened to 0,25–4× still yields a waterfall.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Scope has crept back against the teacher's "enkel, fungerende analyseside … tidlig"</h3>
+              <span class="finding-location">EXPERIENCE IA, Component Patterns; DESIGN Components</span>
+            </header>
+            <div class="finding-note">v1 still carries four tabs, three chart grammars (with separate desktop and phone waterfalls), three fold-outs where FR-26 names two, two segmented controls with sub-states, fuzzy name search where the brief's front page "holds one field", and a partly specified dark mode. Neither spine names a first buildable slice, so the epics will inherit everything at equal priority.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a "Slice 0": one page at <code>/analyse/{orgnr}</code> for demo A — header, benchmark table with strips, kroner at full convergence, peer list with Hvorfor med, stored explanation. Slice 1 adds exclude/restore and URL state; slice 2 adds Verdi. Move the beeswarm, the "Lønnsnivå eller produktivitet?" fold-out, dark mode and fuzzy search to "if time allows".</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">The same driftsmargin gap appears as two different "per år" amounts on adjacent tabs</h3>
+              <span class="finding-location">EXPERIENCE Hero card vs Closable-share control</span>
+            </header>
+            <div class="finding-note">Oversikt shows 1 170 000 kr per år; Verdi opens at 50 % and shows 585 000 kr as "Økt driftsresultat per år". Toggle tabs and the headline number halves; the small "Viser gap ved full tilnærming" note will not prevent it.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Start Verdi at 100 %, or make the hero show both figures. Specify which, and add it to the vocabulary.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">One cost share is judged against two peer references on the same screen</h3>
+              <span class="finding-location">Benchmark row cost-share rows vs Margin waterfall</span>
+            </header>
+            <div class="finding-note">Lønnskostnadsandel 66,9 % against the peer median may read "▲ Styrke", while the fold-out beneath shows "Lønn −501 428" in amber against samlet 63,9 %. Add the margin's three references and Kari sees "above median, above samlet, 7 pp gap" plus a positive waterfall total under a 1 170 000 kr gap.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Repeat the samlet value in the row subline when the fold-out is open; spell out the median-vs-samlet disagreement with copy; add Flow 4 figures that make the reader reconcile them.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">The "Største gap i kroner" hero is not a ranking, and its empty case is unspecified</h3>
+              <span class="finding-location">EXPERIENCE Hero card, Small card; key-figures.md</span>
+            </header>
+            <div class="finding-note">Only key figure 1 carries a profit translation, so the "largest" is always driftsmargin by construction. At or above beste fjerdedel the hero is undefined; one-off capital in <code>hero-amount</code> with "per år" would be wrong; so would an empty card. "Nest største" and "Største styrke" have no ranking rule.</div>
+            <div class="finding-fix"><strong>Fix:</strong> State that the hero is always driftsmargin; write the "no profit gap" state with copy; define a testable ranking rule for the small cards.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures, Rubric · State coverage</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">"Til medianen (n %)" applies driftsmargin's n to every amount</h3>
+              <span class="finding-location">EXPERIENCE Closable-share control; Vocabulary</span>
+            </header>
+            <div class="finding-note">At "Til medianen", working capital and operating assets do not reach their medians, yet the label says they do. "Medianen gjelder driftsmargin" appears only in the above-median state.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Label the step "Driftsmargin til medianen (12 %)", or drop it; show the note in both states.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">The explanation's own source line becomes false after any adjustment</h3>
+              <span class="finding-location">EXPERIENCE Explanation card, State "Adjusted peer group", AI marking</span>
+            </header>
+            <div class="finding-note">The text is stored for the default group and every figure "links to its calculation". After an exclusion the analysis recomputes, the text does not, and "Hvert tall finnes i analysen" stays. Which calculation does a stale figure link to?</div>
+            <div class="finding-fix"><strong>Fix:</strong> After an adjustment, collapse to the tag plus "Vis forklaringen for standard peer-gruppe"; drop the links or label them as default-group values; change the source line.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">AI claims without digits escape both ✦ granularity and the FR-53 test</h3>
+              <span class="finding-location">AI marking; DESIGN AI marker; mock <code>about.ai.p3</code></span>
+            </header>
+            <div class="finding-note">"Den største svakheten", "over medianen", "har vedvart" carry no digit, so a wrong direction or rank passes. "Persisted" gaps need multi-year data that is stage 2. The mock's "Teksten vises da ikke" promises a runtime guard, but in v1 the test runs in CI.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Restrict the template to engine-provided slots for direction and rank and test direction words too; reword <code>about.ai.p3</code>; state that v1 explanations make no persistence claims.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">"Trace any kroner amount" stops at half the formula</h3>
+              <span class="finding-location">EXPERIENCE Provenance drill-down; mock <code>ve.trace.*</code></span>
+            </header>
+            <div class="finding-note">The trace shows the subject's operands only; beste fjerdedel — the other operand of every amount — is not traced. For OCR figures "filed values" ends at a field name. "Datakvalitet: avstemt mot innsendt årsregnskap" is false for an outside-seed company. The hero trace includes "× andel som lukkes" though it is always 100 %.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a target step ("Beste fjerdedel 9,1 % = øvre kvartil av 23 verdier, Vis verdiene"); make the data-quality line conditional with a "ikke avstemt" variant; fix the share to the opening context.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">No acceptance figures exist for anything a sensor can run</h3>
+              <span class="finding-location">Key Flows; Open questions "Demo companies A and B"</span>
+            </header>
+            <div class="finding-note">Every flow figure belongs to fictional Fjordkode or Anders's prospect. Demo A, B and C are unnamed, so the funnel, 1 170 000 kr and 267 429 kr cannot be checked against the seed, and the not-found links cannot be written.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Pick A, B and C now; re-run UJ-1 and Flow 4 on A with real filed figures as the hand-calculated reference case; keep Fjordkode only as marked illustration.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">URL-state decisions that block stories are still open</h3>
+              <span class="finding-location">IA "[ASSUMPTION] How the active tab is addressed"; Interaction Primitives</span>
+            </header>
+            <div class="finding-note">FR-69 is testable only once the schema is fixed: tab path or query, excluded-peer encoding (9 × n characters), band step, share, multiple, history behaviour.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Write the schema in the spine, e.g. <code>/analyse/{orgnr}/{tab}?ex=…&amp;band=1&amp;andel=50&amp;mult=</code>, with replace for share and multiple and push for exclusions and tab.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Rubric · Inheritance discipline</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">FR-4 uncovered state reachable for one company only; not-found copy contradicts coverage</h3>
+              <span class="finding-location">State "Orgnr not in the database"; FR-73 seed</span>
+            </header>
+            <div class="finding-note">Any other 69.202 or 43.210 orgnr gets "not in database"; so does a 62.100 company under five employees, which is then told Peerless covers its own industry. Demo links omit C.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Split the copy ("Ikke i Peerless' datasett …") and link A, B and C.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Mirrored strips have no value axis</h3>
+              <span class="finding-location">DESIGN Distribution strip; mock <code>gap.col.dist</code></span>
+            </header>
+            <div class="finding-note">On lower-is-better rows the company dot sits right of the median while the adjacent cell is higher (66,9 % vs 63,9 %). "Bedre →" is in the column head only; no-direction and check-row orientation is unstated.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Per-row micro-label or min/max at strip ends; no-direction and check rows drawn unmirrored, with no "bedre" label.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Accessibility</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Rounded "Til medianen (12 %)" label and amount do not multiply</h3>
+              <span class="finding-location">UJ-2 step 4</span>
+            </header>
+            <div class="finding-note">0,12 × 1 752 531 = 210 304, not 212 807. A sensor checking the arithmetic will flag it.</div>
+            <div class="finding-fix"><strong>Fix:</strong> State that the step uses the exact share; label "≈ 12 %" or one decimal; show the exact share in the trace.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Several states have no copy, so stories cannot be accepted</h3>
+              <span class="finding-location">EXPERIENCE State Patterns</span>
+            </header>
+            <div class="finding-note">No stored explanation; waterfall below floor; hero with no profit gap; working-capital card with only payables; Verdi for an outside-seed company; FR-71, no-match, rate-limit, lookup-error and loading strings still <code>[ASSUMPTION]</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add one row per state with final bokmål copy to messages-v1.nb.json, and remove the tags or list them as story blockers.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Rubric · State coverage</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The data-quality flag is hidden in a drill-down, against the spine's own rule</h3>
+              <span class="finding-location">EXPERIENCE Provenance; DESIGN Brand</span>
+            </header>
+            <div class="finding-note">FR-57's per-filing flag, including a peer's, is visible only after opening a kroner trace — while the spine says a caveat is never hidden.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add an inline slate subline in the company header and peer row when a filing is not fully reconciled.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Licence and credit for document figures not specified</h3>
+              <span class="finding-location">State "Source attribution"; mock <code>about.sources.p2</code></span>
+            </header>
+            <div class="finding-note">The register states no licence for filed documents. The spine promises a separate credit and gives no string; the footer covers both sources without distinguishing them.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Write the document-figure paragraph, including the declared sample and why; link it from the "Ikke i demodataene" note.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">AI influence on inclusion is unmarked</h3>
+              <span class="finding-location">AI marking; Funnel</span>
+            </header>
+            <div class="finding-note">Whether a peer is in the group depended on stage-5 classification, and the "Klassifisering" count is model output without ✦. Companies the model removed are invisible.</div>
+            <div class="finding-fix"><strong>Fix:</strong> ✦ on the "Klassifisering" stage; an "n tatt ut av KI-klassifiseringen – vis" disclosure.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The phone flow is partly decorative</h3>
+              <span class="finding-location">Flow 3 <code>[ASSUMPTION]</code>; Beeswarm; Benchmark row at 375</span>
+            </header>
+            <div class="finding-note">Twenty-three dots in ~340px cannot meet the spine's own 44px tap target. The tap-expanded row must hold the waterfall, two factor pairs and the drill-down inside a table row — not mocked. The share control wraps six steps onto two rows.</div>
+            <div class="finding-fix"><strong>Fix:</strong> At 375 replace dot tapping with the compact list sorted by value; open fold-outs full-width below the row group; mock one phone fold-out.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">The about page can contradict v1's own gate</h3>
+              <span class="finding-location">State "Measurement pending"; PRD §6.1</span>
+            </header>
+            <div class="finding-note">If v1 ships with "Målingen pågår", the industry is offered before its measurement, against the PRD.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Make published measurement a v1 acceptance criterion, or reword §6.1 and say so on the about page.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">"A large residual is a data-quality signal" has no threshold</h3>
+              <span class="finding-location">Margin waterfall</span>
+            </header>
+            <div class="finding-note">Untestable, and the user gets no cue. Is Flow 4's 317 572 kr (1,9 pp) large?</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define a threshold (e.g. |residual| &gt; 2 pp or &gt; 50 % of |total|) with a slate note, or drop the claim.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Peer counts disagree across spine and mocks</h3>
+              <span class="finding-location">Beeswarm, Responsive, Mock discrepancy 7</span>
+            </header>
+            <div class="finding-note">23 in the beeswarm and "Se alle 23", "Vis alle 25" on the phone, 21 in the analysis.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use one example: 25 candidates, 2 excluded, 23 in the standard group, 21 in the analysis.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Figures, Rubric mechanical notes</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Uncertain flag in <code>unfavourable</code> amber</h3>
+              <span class="finding-location">DESIGN Uncertain flag <code>[ASSUMPTION]</code></span>
+            </header>
+            <div class="finding-note">Gives the direction colour a non-direction meaning.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use slate with ✦ and "?". Decide it, drop the tag.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Accessibility</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Dark mode is half-specified</h3>
+              <span class="finding-location">DESIGN Colors</span>
+            </header>
+            <div class="finding-note">Dark <code>surface</code>, <code>gridline</code> and <code>peer-dot</code> undefined, no mock, and no requirement asks for it.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Mark dark mode out of v1, or derive the three missing tokens.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Accessibility, Rubric · Token completeness</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">About-page small-company copy still wrong in the declared copy source</h3>
+              <span class="finding-location">Mock discrepancy 9; messages-v1.nb.json</span>
+            </header>
+            <div class="finding-note">The spines say the mocks lose on conflict, but the messages file is the declared source of copy, so the wrong string will ship.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Correct <code>about.limits.small.body</code> and <code>front.*</code> in messages-v1.nb.json now. The file is code input, not a mock.</div>
+            <div class="finding-fix"><strong>Also raised by:</strong> Rubric · Visual reference coverage</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <div class="mechanical">
+      <h3>Mechanical notes</h3>
+      <ul>
+        <li>DESIGN Colors → Gaps says <code>background</code> has no dark pair, but <code>background-dark</code> (<code>#0B1624</code>) is defined.</li>
+        <li>"Til medianen (42 %)" and "Median nås ved 42 %" match no flow subject (also a figures-review finding).</li>
+        <li>Peer counts conflict: "Se alle 23", "Vis alle 25", and 21/23/25 in Mock discrepancy 7 (also a figures and adversarial finding).</li>
+        <li>In-file anchors resolve under GitHub slugging; <code>#ai-marking-</code> depends on how the renderer handles ✦.</li>
+        <li>Frontmatter: DESIGN carries non-spec keys (<code>status</code>, <code>updated</code>, <code>sources</code>), harmless. EXPERIENCE has no <code>description</code>. Both are <code>status: draft</code>.</li>
+        <li><code>typography.numeric</code> and <code>typography.heading-serif</code> are note-only, with no size; some component values are prose, not tokens.</li>
+        <li>No Mermaid in either file.</li>
+        <li>Arithmetic re-checked and correct: 7,0 pp × 16 714 286 = 1 170 000; 14,0 pp × 12 518 082 = 1 752 531; 1,7 pp × 12 518 082 = 212 807; waterfall 267 429, 83 571 + 267 429 = 351 000; Lønn + Andre = 1 069 714.</li>
+      </ul>
+    </div>
+
+    <footer class="report-footer">
+      <div class="meta">
+        <span>Rubric: C:\Dev\ibe160\_bmad-output\planning-artifacts\ux-designs\ux-Peerless-2026-10-04\review-rubric.md</span>
+        <span>Also: review-accessibility.md · review-figures.md · review-adversarial.md</span>
+        <span>Generated: 2026-10-10T17:01:27Z</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

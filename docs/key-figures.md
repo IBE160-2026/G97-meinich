@@ -14,7 +14,7 @@ The calculation engine implements exactly these definitions. Change this documen
 
 **Undefined is not zero.** If a denominator is zero or negative, or a component is missing and cannot be derived from its stated total, the key figure is undefined for that company. The company is left out of that figure's distribution, and the number left out is shown.
 
-**Arithmetic.** Amounts are integers in øre. Ratios are computed with a decimal library and rounded only for display: percentages to one decimal, days to whole days, kroner to whole kroner.
+**Arithmetic.** Amounts are integers in øre. Ratios are computed with a decimal library and rounded only for display: percentages to one decimal, days to whole days, kroner to whole kroner. **Exception: the percentile is shown in whole percent** ("bedre enn 61 %"), because with a peer group of around twenty a decimal is false precision; it is computed exactly and rounded only for display.
 
 **Distribution.** Median and quartiles use linear interpolation between order statistics (the inclusive method, as `PERCENTILE.INC` in Excel), so every figure can be checked in a spreadsheet. The *favourable quartile* is the upper quartile where higher is better and the lower quartile where lower is better.
 
@@ -102,7 +102,7 @@ Both hold exactly, and the engine's tests assert them:
 - **Return on assets** = operating margin × (`sumDriftsinntekter / sumEiendeler`). Defined without financial income for this reason.
 - **Personnel cost share** = personnel cost per FTE ÷ revenue per FTE. Separates paying more per person from producing less per person.
 
-**Each factor is compared with its own median, and the factors are never multiplied together.** The median margin times the median asset turnover is not the median return on assets, so the decomposition shows the subject's two factors side by side with the peers' median of each, and no single peer is presented as the benchmark. Asset turnover here is `sumDriftsinntekter / sumEiendeler` — total assets, not key figure 11's operating assets.
+**Each factor is compared with its own median, and the factors are never multiplied together.** The median margin times the median asset turnover is not the median return on assets, so the decomposition shows the subject's two factors side by side with the peers' median of each, and no single peer is presented as the benchmark. Asset turnover here is `sumDriftsinntekter / sumEiendeler` — total assets, not key figure 11's operating assets. **Total asset turnover is a derived factor of this decomposition, not a numbered key figure.** It follows the same-basis rule and the minimum group size, and shows a median and the count of peers behind it, but it has no favourable quartile, no percentile and no kroner amount, and it is never labelled as key figure 11.
 
 ### Margin decomposition against the peer group as a whole
 
@@ -112,7 +112,8 @@ The cost shares explain the operating margin. They are not compared with the fav
 - **Components**, each as a share of `sumDriftsinntekter`: cost of goods (3), personnel (4), other operating (5), and **depreciation and other items**, defined as the residual (`sumDriftsinntekter` − `driftsresultat` − `varekostnad` − `lonnskostnad` − `annenDriftskostnad`) / `sumDriftsinntekter`. Defining the fourth as the residual makes operating margin = 1 − the four shares hold exactly for every company.
 - **The peer group as a whole**, per component *x*: *A*ₓ = Σ*P* numeratorₓ / Σ*P* `sumDriftsinntekter`, and the margin *M* = Σ*P* `driftsresultat` / Σ*P* `sumDriftsinntekter`. A revenue-weighted aggregate, not a mean of ratios: a mean is dominated by peers with very little revenue (in the `62.100` screening sample the mean margin is −660 % against a median of −3.2 %), while within the default size band no peer weighs more than four times another (sixteen at the widest step).
 - **Bars.** For each component, (*A*ₓ − *c*ₓ) × the subject's `sumDriftsinntekter`, where *c*ₓ is the subject's share. Positive means the subject spends less than the peer group as a whole. The four bars sum exactly to (subject margin − *M*) × `sumDriftsinntekter`.
-- **Rounding.** Bars are computed exactly and rounded to whole kroner by largest remainder, so the displayed bars sum to the displayed total.
+- **Start, end and total.** The decomposition runs from the peer group's margin applied to the subject's revenue, *M* × `sumDriftsinntekter`, to the subject's `driftsresultat`. The total is `driftsresultat` − *M* × `sumDriftsinntekter`, computed exactly and rounded to whole kroner with ties away from zero. The start bar is displayed as `driftsresultat` − the displayed total, so start plus bars equals the end exactly.
+- **Rounding, signed largest remainder.** Each bar's exact value is rounded down (towards negative infinity) to whole kroner; the kroner still needed to reach the displayed total are added one at a time to the bars with the largest fractional parts. This works for negative bars without special cases, and the displayed bars always sum to the displayed total.
 - **It explains; it is not a gap to close.** The decomposition shows the actual difference against the peer group as a whole. It is not scaled by *s*, is never added to the profit uplift, and states its reference so it is not read against the favourable quartile.
 
 ## From gap to kroner
@@ -121,6 +122,8 @@ Let *r* be the subject's value, *T* the target — **the favourable quartile** �
 
 The target is the favourable quartile at every setting of *s*, and *s* scales the gap to it: *s* = 0 produces no kroner at all, *s* = 1 is full convergence with the quartile. The peer median is shown in every distribution and marked on the control so the user can see where the typical peer sits, but it never enters this arithmetic.
 
+**One exception: the "to the median" step.** The control offers, besides its fixed steps, the share at which the subject's operating margin (1) would reach the peer median *M*: *s*<sub>med</sub> = (M − r) / (T − r), computed exactly and shown rounded to a whole percent. The median only sets *s*; the amounts are then computed by the formulas below with that exact *s*, never with the rounded one shown, and every amount still targets the favourable quartile. The step is defined on operating margin only and labelled so, because other figures reach their own medians at other shares. It exists only where r < M < T; where the subject is at or above the median, it is shown disabled.
+
 - **Profit (1):** (T − r) × `sumDriftsinntekter` × s. This is the annual profit uplift.
 - **Cost shares (3–5):** no kroner amount of their own. Their median, favourable quartile and percentile are shown as for any figure; what they mean in kroner is shown by the margin decomposition against the peer group as a whole (see *Decompositions*), which sums exactly and is never added to the profit uplift.
 - **Receivable days (9):** (r − T) / 365 × `salgsinntekt` × s of capital released.
@@ -128,7 +131,7 @@ The target is the favourable quartile at every setting of *s*, and *s* scales th
 - **Operating asset turnover (11):** ((`sumEiendeler` − `bankinnskudd`) − `sumDriftsinntekter` / T) × s of capital released.
 - **Enterprise value:** annual profit uplift × EV/EBIT multiple set by the user. **There is no default multiple**, and no enterprise value is computed or shown until the user supplies one. EBIT is used because `driftsresultat` is available from the API for every company and traces directly to the filing.
 
-**Two amounts that must never be added.** *Working capital released* is (9) plus (10) — receivable days and payable days — which are safe to add because one is an asset and the other a liability. The operating asset turnover amount (11) is reported **separately** and is never added to either, because its capital base `sumEiendeler − bankinnskudd` already contains `kundefordringer`: adding it to (9) counts the same receivable reduction twice.
+**Two amounts that must never be added.** *Working capital released* is (9) plus (10) — receivable days and payable days — which are safe to add because one is an asset and the other a liability. The operating asset turnover amount (11) is reported **separately** and is never added to either, because its capital base `sumEiendeler − bankinnskudd` already contains `kundefordringer`: adding it to (9) counts the same receivable reduction twice. **Where only one of (9) and (10) clears the minimum group size**, that part is shown as its own line and no working-capital total is shown; the total appears only when both exist.
 
 ## Peer selection and benchmarking
 

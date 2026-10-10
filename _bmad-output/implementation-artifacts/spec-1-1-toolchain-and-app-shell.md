@@ -2,7 +2,7 @@
 title: 'Story 1.1: Toolchain and app shell from a fresh clone'
 type: 'feature'
 created: '2026-10-10'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '0c32889d6a1ae176e758b79a6805fbdb8b71405f'
@@ -50,20 +50,20 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` -- `packageManager: pnpm@12.11.2`, `engines.node`, exact pins; scripts `dev build start lint typecheck test test:e2e check:pins check:env` -- toolchain AC.
-- [ ] `tsconfig.json`, `next.config.ts`, `postcss.config.mjs`, `next-env.d.ts` (gitignored) -- strict, `@/*` → `src/*`; `cacheComponents: false` (flag name verified in Next docs, cited in PR).
-- [ ] `eslint.config.mjs`, `eslint-rules/client-restricted-imports.mjs` -- next + typescript-eslint (`no-explicit-any` error); `no-restricted-properties`/`no-restricted-syntax` for `Math.round`/`toFixed` in `src/engine/**` and `**/*format*.{ts,tsx}`; `no-restricted-imports` for `src/engine/**`; local rule reusing core `no-restricted-imports` only in files with a `'use client'` directive. Ignore `test/fixtures/**`.
-- [ ] `test/fixtures/lint/*`, `test/lint.test.ts` -- six fixtures linted via `ESLint.lintText` with virtual `filePath`; assert each rule fires, and a clean fixture passes.
-- [ ] `scripts/check-pinned-deps.ts`, `scripts/check-no-public-env.ts`, `test/checks.test.ts` -- exported pure check functions + CLI entry (run with `node`, native type stripping); env check scans `git ls-files` excluding `*.md`, `_bmad/`, `_bmad-output/`, `docs/`, `analysis/` and its own test fixtures.
-- [ ] `src/messages/nb.json`, `src/messages/index.ts` -- flat dotted ids; `t(id: MessageId)` typed from the JSON keys.
-- [ ] `src/app/globals.css` -- Tailwind `@theme`: light colour tokens, `--font-sans` Inter, `--font-serif` Source Serif 4 (via `@fontsource-variable/*`, no build-time network), spacing tokens, radii; base body Inter 14px/1.45 with `tabular-nums` utility for figures; headings serif.
-- [ ] `src/app/layout.tsx`, `src/app/page.tsx`, `src/components/site-header.tsx`, `src/components/site-footer.tsx` -- shell; header wordmark → `/`, link → `/slik-fungerer-peerless` (page arrives in a later story), footer source-line placeholder `footer.source`.
-- [ ] `test/no-hardcoded-copy.test.ts` (+ fixture) -- TS compiler API scan of `src/app/**/*.tsx`, `src/components/**/*.tsx`.
-- [ ] `test/theme.test.ts` -- asserts each DESIGN.md light token incl. `band #6C7F95`, radii 3/4/6/9999px, fonts, no `-dark` token.
-- [ ] `e2e/shell.spec.ts`, `playwright.config.ts` -- Chromium against `pnpm build && pnpm start`; 375 and 320 widths; `lang="nb"`, header/footer present.
-- [ ] `vitest.config.ts` -- node environment, `test/**/*.test.ts`.
-- [ ] `.github/workflows/ci.yml` -- Node from `.nvmrc`, corepack pnpm, frozen install, pins, env, lint, typecheck, test, Playwright install + e2e.
-- [ ] `README.md`, `AGENTS.md` (Stack: test runner/CI), technical note line 301, `_bmad-output/implementation-artifacts/sprint-status.yaml`, `docs/ai-sessions/2026-10-10-story-1-1-toolchain-and-shell.md`.
+- [x] `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` -- `packageManager: pnpm@12.11.2`, `engines.node`, exact pins; scripts `dev build start lint typecheck test test:e2e check:pins check:env` -- toolchain AC.
+- [x] `tsconfig.json`, `next.config.ts`, `postcss.config.mjs`, `next-env.d.ts` (gitignored) -- strict, `@/*` → `src/*`; `cacheComponents: false` (flag name verified in Next docs, cited in PR).
+- [x] `eslint.config.mjs`, `eslint-rules/client-restricted-imports.mjs` -- next + typescript-eslint (`no-explicit-any` error); `no-restricted-properties`/`no-restricted-syntax` for `Math.round`/`toFixed` in `src/engine/**` and `**/*format*.{ts,tsx}`; `no-restricted-imports` for `src/engine/**`; local rule reusing core `no-restricted-imports` only in files with a `'use client'` directive. Ignore `test/fixtures/**`.
+- [x] `test/fixtures/lint/*`, `test/lint.test.ts` -- six fixtures linted via `ESLint.lintText` with virtual `filePath`; assert each rule fires, and a clean fixture passes.
+- [x] `scripts/check-pinned-deps.ts`, `scripts/check-no-public-env.ts`, `test/checks.test.ts` -- exported pure check functions + CLI entry (run with `node`, native type stripping); env check scans `git ls-files` excluding `*.md`, `_bmad/`, `_bmad-output/`, `docs/`, `analysis/` and its own test fixtures.
+- [x] `src/messages/nb.json`, `src/messages/index.ts` -- flat dotted ids; `t(id: MessageId)` typed from the JSON keys.
+- [x] `src/app/globals.css` -- Tailwind `@theme`: light colour tokens, `--font-sans` Inter, `--font-serif` Source Serif 4 (via `@fontsource-variable/*`, no build-time network), spacing tokens, radii; base body Inter 14px/1.45 with `tabular-nums` utility for figures; headings serif.
+- [x] `src/app/layout.tsx`, `src/app/page.tsx`, `src/components/site-header.tsx`, `src/components/site-footer.tsx` -- shell; header wordmark → `/`, link → `/slik-fungerer-peerless` (page arrives in a later story), footer source-line placeholder `footer.source`.
+- [x] `test/no-hardcoded-copy.test.ts` (+ fixture) -- TS compiler API scan of `src/app/**/*.tsx`, `src/components/**/*.tsx`.
+- [x] `test/theme.test.ts` -- asserts each DESIGN.md light token incl. `band #6C7F95`, radii 3/4/6/9999px, fonts, no `-dark` token.
+- [x] `e2e/shell.spec.ts`, `playwright.config.ts` -- Chromium against `pnpm build && pnpm start`; 375 and 320 widths; `lang="nb"`, header/footer present.
+- [x] `vitest.config.ts` -- node environment, `test/**/*.test.ts`.
+- [x] `.github/workflows/ci.yml` -- Node from `.nvmrc`, corepack pnpm, frozen install, pins, env, lint, typecheck, test, Playwright install + e2e.
+- [x] `README.md`, `AGENTS.md` (Stack: test runner/CI), technical note line 301, `_bmad-output/implementation-artifacts/sprint-status.yaml`, `docs/ai-sessions/2026-10-10-story-1-1-toolchain-and-shell.md`.
 
 **Acceptance Criteria:**
 - Given a fresh clone with Node 24.21.0, when `corepack enable && pnpm install --frozen-lockfile && pnpm build && pnpm start`, then the shell renders on `/`.
@@ -87,9 +87,45 @@ Test runner: **Vitest** (unit; its Browser Mode with Playwright covers AD-6's re
 - `pnpm-workspace.yaml` denies the `unrs-resolver` install script (`allowBuilds`); pnpm 12 fails install on unapproved builds.
 - `next.config.ts` also sets `agentRules: false` so `next dev` does not write a managed block into AGENTS.md.
 - `typecheck` runs `next typegen && tsc --noEmit` so `next-env.d.ts` (gitignored) exists on a fresh clone.
-- Env check also scans untracked, non-ignored files; it excludes itself and `test/fixtures/env/`.
+- Env check also scans untracked, non-ignored files; it excludes itself and `test/fixtures/public-env/` (moved from `test/fixtures/env/`, which `.gitignore`'s `env/` rule hid).
 - Tailwind default colours, fonts and radii are reset (`--color-*: initial` etc.), so only DESIGN.md tokens exist; a `figure` utility gives Inter + tabular-nums.
 
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1 (blind-hunter BH, edge-case-hunter EC, verification-gap VG):
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---------|---------|----------|-------|
+| 1 | VG: CLI exit path of check:pins/check:env untested | medium | Tests import only pure functions; a dropped `process.exitCode = 1` or a non-matching entry guard passes CI | patch |
+| 2 | EC/VG/BH: string literal in a fragment `<>{'x'}</>` not reported | low | `ts.isJsxElement(node.parent)` excludes `JsxFragment`; one-token fix | patch |
+| 3 | EC/BH: copy attributes miss `label`, `aria-description`, `aria-roledescription`, `aria-valuetext` | low | `COPY_ATTRIBUTES` set; direct addition | patch |
+| 4 | EC/BH: literals in ternaries/`&&`/substituted templates not detected | low | Real, but detection needs subtree walk with `t()` exemption; no such code exists yet | reject (noted in PR as known limit) |
+| 5 | EC/BH/VG: `.ts` files and `metadata` objects not scanned | low | `layout.tsx` uses `t()`; widening scan adds rules for non-JSX literals | reject (noted in PR) |
+| 6 | EC/VG: rounding glob case-sensitive (`kronerFormat.ts`) | low | `**/*format*` misses capital F; direct glob change | patch |
+| 7 | VG/EC: `**/*format*` also matches `information.ts` | low | Errs strict; harmless | reject |
+| 8 | EC/BH: `**/server` pattern blocks `react-dom/server`, `next/server` | low | Verified with `ignore`: both match | patch (narrow to project `server` paths) |
+| 9 | BH: nested `@/server/db/client` not covered | false | Verified with `ignore`: matches (parent-dir rule) | reject |
+| 10 | EC: `postgres/...` subpath not restricted | low | `paths` matches exact name only; add `postgres/*` | patch |
+| 11 | EC: dynamic `import()`/`require` bypass | low | Unlikely; adds selectors | reject |
+| 12 | EC: template-literal computed access `Math[\`round\`]` | low | Contrived; adds selectors | reject |
+| 13 | VG: `no-restricted-syntax` computed selectors redundant with `no-restricted-properties` | low | Core rule resolves static computed names; deletion is direct | patch |
+| 14 | BH: other rounding paths (`floor`, `Intl`, destructuring) | low | Intent names `Math.round` and `toFixed` only | reject (noted in ai-log) |
+| 15 | EC: `packageManager` with corepack `+sha512…` suffix fails check:pins | low | Regex `^pnpm@x.y.z$`; `corepack use` writes the hash; direct regex fix | patch |
+| 16 | EC: `pnpm.overrides` ranges unchecked | low | None exist | reject |
+| 17 | EC/BH: Playwright `webServer` runs bare `pnpm`, fails where shim blocked | false | e2e passed via `corepack pnpm test:e2e` on that machine (`[WebServer] $ next start`) | reject |
+| 18 | EC/BH: `reuseExistingServer` may test a stale server | low | Local-only, port 3100 dedicated | reject |
+| 19 | EC: line count measured before webfont loads | low | Fallback metrics could change wrap; one-line `document.fonts.ready` await | patch |
+| 20 | EC: gitignored `.env` with public var not scanned | low | AC scopes source/config in repo; CI has no `.env` | reject |
+| 21 | EC: `.MD` uppercase extension | low | No such file; contrived | reject |
+| 22 | EC claim: README/AGENTS contain `NEXT_PUBLIC_` | false | AC covers source and configuration; docs are prose and excluded by design | reject |
+| 23 | BH: `next.config` `env` key leaks without `NEXT_PUBLIC_` | low | Real path, requires deliberately writing `env:`; outside AC | reject (recorded in ai-log) |
+| 24 | BH: transitive import via non-client module reaches client bundle | low | AD-19 requires `import 'server-only'` in `src/server/db.ts` (Story 1.2), which fails the build on that path | reject (recorded in ai-log) |
+| 25 | BH: dead `/slik-fungerer-peerless` link | false | Accepted by the user; known gap closed by Story 1.6b, listed in PR | reject |
+| 26 | BH: unused `id="innhold"`, no skip link / `nav` | low | Not in story; no user harm in an empty shell | reject |
+| 27 | BH: Actions on floating `@v4` tags, Node 20 deprecation warning | low | CI warns now; v7 majors exist (verified via gh api); direct bump | patch |
+| 28 | BH: no pnpm/Playwright cache in CI | low | Speed only | reject |
+| 29 | BH: spec `in-review` vs sprint-status `review` | false | Each file uses its own status vocabulary | reject |
+| 30 | BH: AI session thin; no ai-log entry despite AD-8/AD-19 guards | low | AGENTS.md asks for what-could-go-wrong on money/data guards | patch (orchestrator writes docs) |
+| 31 | BH: Node version in three places; `engines` not enforced | low | Consistent today; enforcement adds config | reject |

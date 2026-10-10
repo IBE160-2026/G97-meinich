@@ -86,12 +86,26 @@ interface EnvLine {
   value: string;
 }
 
+// The one line defining variable, which must be exactly `VAR=value` at
+// column 0. dotenv-style parsers accept other forms (`export VAR=`, spaces
+// around `=`, quotes, inline `# comment`) and take the last of several lines;
+// rather than guess which reading the app will use, refuse them all.
 function findLine(lines: readonly string[], variable: string): EnvLine | undefined {
-  const prefix = `${variable}=`;
-  const index = lines.findIndex((line) => line.startsWith(prefix));
-  if (index === -1) return undefined;
+  const mention = new RegExp(`^\\s*(?:export\\s+)?${variable}\\s*=`);
+  const indexes = lines.flatMap((line, index) => (mention.test(line) ? [index] : []));
+  if (indexes.length === 0) return undefined;
+  if (indexes.length > 1) throw new Refusal(`${variable} is defined on more than one line.`);
+  const index = indexes[0] ?? -1;
   const line = lines[index] ?? '';
-  return { index, value: line.slice(prefix.length).trim() };
+  const prefix = `${variable}=`;
+  if (!line.startsWith(prefix)) {
+    throw new Refusal(`${variable} must be written as ${variable}=value at the start of the line.`);
+  }
+  const value = line.slice(prefix.length);
+  if (/[\s#]/.test(value)) {
+    throw new Refusal(`${variable} must not contain whitespace or #.`);
+  }
+  return { index, value };
 }
 
 export interface Plan {

@@ -1,0 +1,9 @@
+# Single-package repository; this file holds pnpm settings only.
+# Every dependency is written as an exact version (CI: pnpm check:pins).
+saveExact: true
+
+# Install scripts are denied unless listed as true here.
+# unrs-resolver (via eslint-config-next's import resolver) ships its native
+# binary as an optional dependency; its postinstall is only a fallback.
+allowBuilds:
+  unrs-resolver: false

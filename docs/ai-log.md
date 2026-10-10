@@ -16,8 +16,8 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 7 |
-| money | 8 |
+| auth | 8 |
+| money | 9 |
 | parsing | 3 |
 | llm-boundary | 5 |
 | scope | 12 |
@@ -282,3 +282,12 @@ Routine work that went as expected is not logged.
 **Problem:** What could go wrong, on the record. Committed document figures outside the declared sample would break NFR15; the reference set is now on the allow-list by name, and the allow-list test reads it. Keeping allow-listed fingerprints when the licence gate is closed commits derived categories only for companies whose document figures are already committed, so the gate's scope shrinks without letting anything new in. Combining the two peer signals is selection logic: read wrongly, it removes genuine peers or keeps resellers among consultancies. The reading chosen — the signals "agree" when they reach the same verdict on the subject's type — is written into the technical note so it can be overruled in one place. A demo company tied to the developer's employer would have made the public demo non-neutral; Statement AS is now excluded by name.
 **Caught by:** Two subagents tracing the plan in parallel, each finding verified against the files; the scheduling conflict by checking the user's answer against the delivery order before editing.
 **Outcome:** `epics.md` (1.3a, 1.3b, 1.4, 1.5, 1.7, 2.3, 2.5, 2.6, 2.7, 2.8, 3.1a, 5.2, 5.4, the inventory and the delivery order), the technical note's funnel, AD-9 and seed sections, PRD FR-9 and FR-73, EXPERIENCE.md and its mock, `docs/key-figures.md` (total cost share has no direction) and `docs/todo.md`. `sprint-status.yaml` created; issues #1–#14 opened. Session: `docs/ai-sessions/2026-10-10-sprint-planning.md`.
+
+### 2026-10-10 — Story 1.1: the AD-8 and AD-19 lint guards, and what they do not catch
+**Tags:** money · auth
+**Tool:** Claude Code (Opus 5.5), `bmad-build`: one implementation subagent, three review subagents (blind, edge-case, verification-gap)
+**Asked:** Implement Story 1.1: pinned toolchain, CI, an ESLint ban on `Math.round`/`toFixed` in the engine and formatting code (AD-8), a ban on importing `src/server` or `postgres` from the engine and `'use client'` modules (AD-19), a CI check that fails on any `NEXT_PUBLIC_` variable, and an empty Norwegian app shell.
+**Got:** Working guards with fixture tests, green locally and in GitHub Actions. Review found the guards narrower and in one place wider than they looked: the server-import pattern `**/server` also blocked `react-dom/server` and `next/server`; `postgres/...` subpaths were not blocked; the rounding glob `*format*` missed `kronerFormat.ts`; and the CLI exit path of both check scripts was untested, so a check that never set a failing exit code would have kept CI green. Separately, the implementation subagent pushed the branch and opened the PR before review, although the workflow keeps remote operations for the end.
+**Problem:** What can still go wrong, on the record. (1) A secret can reach the browser without the `NEXT_PUBLIC_` prefix through the `env` key in `next.config.ts`, which `check:env` does not inspect. (2) A module without `'use client'` can import `src/server` and be imported by a client component; lint is per file and does not see that chain. AD-19's `import 'server-only'` in `src/server/db.ts` (Story 1.2) turns that into a build error, and must not be left out. (3) The rounding ban names `Math.round` and `toFixed` only; `Math.floor`, `Math.trunc`, `Intl.NumberFormat` or destructured `round` are not caught. The engine's single formatter and its byte-exact tests (Story 1.4) remain the real guard. (4) The hard-coded-copy scan misses literals inside ternaries and `.ts` files.
+**Caught by:** Review subagents, each finding verified before acting (e.g. `react-dom/server` checked against the `ignore` matcher ESLint uses); full verification rerun after the fixes.
+**Outcome:** Patterns narrowed to the project's own `server` paths, `postgres/*` added, the glob made case-tolerant, CLI exit tests added, fragment literals and four more attributes scanned, Actions bumped to v7. Items (1)–(4) accepted as known limits and listed in the PR. PR #15.

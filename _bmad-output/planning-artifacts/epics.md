@@ -455,7 +455,7 @@ As a developer or sensor cloning the repository,
 I want a pinned toolchain, CI and an empty app shell that builds and renders,
 So that every later story starts from the same versions, the same guards and a layout that already works at phone width.
 
-**Implements:** FR-55, FR-73 (fresh clone, toolchain part) · **Invariants:** AD-8, AD-19 · **UX:** UX-DR1, UX-DR3, UX-DR4, UX-DR7, UX-DR34, UX-DR68, UX-DR70, UX-DR74, UX-DR77 · **Issue / branch / PR:** one issue, branch `story/1.1-toolchain-app-shell`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-55, FR-73 (fresh clone, toolchain part) · **Invariants:** AD-8, AD-19 · **UX:** UX-DR1, UX-DR3, UX-DR4, UX-DR7, UX-DR34, UX-DR68, UX-DR70, UX-DR74, UX-DR77 · **Issue / branch / PR:** one issue, branch `story/1.1-toolchain-and-shell`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 

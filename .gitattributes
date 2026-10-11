@@ -1,0 +1,6 @@
+# Checksummed bytes: the seed files and the measurement reports they cite
+# are hashed (seed/demo/manifest.json, seed/coverage.json), so line-ending
+# conversion (core.autocrlf) must never touch them (Story 1.3b; AD-16).
+seed/** -text
+analysis/output/** -text
+test/fixtures/seed/** -text

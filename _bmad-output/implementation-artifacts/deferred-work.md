@@ -11,3 +11,15 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3a-step1-register-ingest.md`
   summary: Story 1.4 (engine) and Story 1.7 (peer selection) must handle a negative `sumEiendeler` explicitly. 105 stored filings have one, and in 86 `sumEgenkapitalGjeld` is equally negative. A ratio over total assets, an asset-intensity band or a peer selection must not compute on them silently: flag them, exclude them, or show that the figure is unusable, as the story decides. Peer selection must also refuse a `valuta` that is not a known currency code (`EDT` on 920835252 for 2023 and 2024) instead of treating it as NOK.
   evidence: Step-1 acceptance run 2026-10-11, checked against the live API (example 930115746: −6 186 121 for 2025 in both fields). Details under "Pitfalls" in `docs/data-sources-brreg.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
+  summary: Story 2.3 must make `seed:export` keep the curated entries in `seed/allow-list.json` instead of overwriting it with `[]`, and refuse an export whose document-figure orgnrs are not on the list.
+  evidence: Story 1.3b review. `scripts/seed-export.ts` writes the literal `'[]\n'`. That is harmless while no filing has a document figure, but it erases entries as soon as Story 2.3 adds OCR reference filings with their reasons.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
+  summary: Add a test in which the export's `checkPrimaryKey` refuses a `SEED_TABLES` declaration that disagrees with the catalog, when a migration first changes a seed table's key.
+  evidence: Story 1.3b verification-gap review. Deleting the `checkPrimaryKey` call keeps every test green; the guard only matters once a key changes.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
+  summary: AGENTS.md and technical note AD-16 name `seed/**` and `analysis/output/**` as `-text`, but `.gitattributes` also marks `test/fixtures/seed/**`; add the third path to both.
+  evidence: Story 1.3b review. Deferred because the fix edits an agent-context file.

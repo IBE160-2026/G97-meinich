@@ -2,7 +2,7 @@
 title: 'Story 1.3b: The seed path — export, load and CI'
 type: 'feature'
 created: '2026-10-11'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '78abdd94656040d2b8ad731366465fcdfa411734'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -79,37 +79,37 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/<ts>_register_seed_manifest.sql`:
+- [x] `supabase/migrations/<ts>_register_seed_manifest.sql`:
   - `register.dataset`: `id smallint PK DEFAULT 1 CHECK (id = 1)`, `dataset text CHECK IN ('demo','full')`, `format_version int`, `migration_id text`, `manifest jsonb`, all NOT NULL.
   - `register.covered_industry`: `code text PK CHECK (~ '^\d{2}\.\d{3}$')`, `measured boolean NOT NULL`, `report text`, `sha256 char(64)`, with a CHECK that `report` and `sha256` are non-null exactly when `measured`.
   - `loader` gets SELECT, INSERT and TRUNCATE on all five `register` tables. `ingest` and `derive` get nothing on the two new tables.
-- [ ] `scripts/seed-format.ts` -- the pure core, no DB:
+- [x] `scripts/seed-format.ts` -- the pure core, no DB:
   - `SEED_VERSION = 1`, `SEED_TABLES` (company, filing, key_figures in FK order with their PK sort columns), `LOADER_TABLES` (dataset, covered_industry).
   - Types, `sha256`, `latestMigrationId(root)`, `validateCoverage(json)`, `checkMeasured(root, entries)`, `checkManifest(root, manifest, dir)`, `unlistedDocumentFigures(files, allowList)`.
-- [ ] `scripts/seed-export.ts` -- `exportSeed(sql, root)`:
+- [x] `scripts/seed-export.ts` -- `exportSeed(sql, root)`:
   - COPY each `SEED_TABLES` entry with its catalog column list (by `attnum`) and `ORDER BY` its PK into `seed/demo/`.
   - `fetched_codes` = the codes in `coverage.json` that have at least one company with that `naeringskode1` in the database. Demo C's code is never included.
   - `document_figure_orgnrs` = the orgnrs with a filing whose `status` ≠ `not_extracted`.
   - `read_at` = min and max over `company` and `filing`.
   - Write `manifest.json` with sorted keys, 2-space indent and a final LF, then `seed/allow-list.json` (`[]`).
-- [ ] `scripts/seed-load.ts` -- validate, then `loadSeed(tx, root)`:
+- [x] `scripts/seed-load.ts` -- validate, then `loadSeed(tx, root)`:
   - Assert that the `register` tables in the catalog are exactly `SEED_TABLES` ∪ `LOADER_TABLES`.
   - One `TRUNCATE` over all of them, then COPY with the header as the column list in FK order.
   - Insert the `covered_industry` rows and the `dataset` row.
   - The CLI wraps all of this in `sql.begin`.
-- [ ] `package.json` -- `seed:export` and `seed` scripts.
-- [ ] `.gitattributes` -- `seed/** -text`, `analysis/output/** -text`.
-- [ ] `test/seed-format.test.ts` -- every validation row in the matrix, the allow-list check against fixtures, and that the export's file list never includes `coverage.json`. Fixtures go in `test/fixtures/seed/`.
-- [ ] `test/allow-list.test.ts` -- the committed seed against `seed/allow-list.json`.
-- [ ] `test/db/seed.test.ts` -- as `loader`, always rolled back:
+- [x] `package.json` -- `seed:export` and `seed` scripts.
+- [x] `.gitattributes` -- `seed/** -text`, `analysis/output/** -text`.
+- [x] `test/seed-format.test.ts` -- every validation row in the matrix, the allow-list check against fixtures, and that the export's file list never includes `coverage.json`. Fixtures go in `test/fixtures/seed/`.
+- [x] `test/allow-list.test.ts` -- the committed seed against `seed/allow-list.json`.
+- [x] `test/db/seed.test.ts` -- as `loader`, always rolled back:
   - the round trip and the idempotence digests;
   - each refusal leaves the table digests unchanged;
   - a `covered_industry` row from the committed coverage;
   - the table-set assertion.
-- [ ] `test/db/grants.test.ts` -- the new tables' ACLs, the loader grants on every `register` table (loop), and none for `ingest`/`derive` on the two new tables.
-- [ ] `.github/workflows/ci.yml` -- after `test:db`, add `pnpm seed`, then `pnpm seed` again.
-- [ ] Run `pnpm seed:export` against the 1.3a database and commit `seed/demo/*` and `seed/allow-list.json`, before any loader write outside a rolled-back test.
-- [ ] Docs:
+- [x] `test/db/grants.test.ts` -- the new tables' ACLs, the loader grants on every `register` table (loop), and none for `ingest`/`derive` on the two new tables.
+- [x] `.github/workflows/ci.yml` -- after `test:db`, add `pnpm seed`, then `pnpm seed` again.
+- [x] Run `pnpm seed:export` against the 1.3a database and commit `seed/demo/*` and `seed/allow-list.json`, before any loader write outside a rolled-back test.
+- [x] Docs:
   - README "Seed" section: load, export, re-export in the same PR as any new migration, and recovery from an empty local database;
   - `AGENTS.md` CI list;
   - technical note AD-16 (format, directory, collation-free order, migration-id source, `fetched_codes` rule, re-export with each migration, recovery);
@@ -126,6 +126,48 @@ context:
 - **Document figures:** there is no document-figure table yet. "A document figure" is therefore a `filing` row whose `status` is not `not_extracted`. Story 2.3 extends `unlistedDocumentFigures` when its tables arrive.
 - **SELECT for `loader`:** granted so the round-trip test can export inside the loader's own uncommitted transaction. It adds no exposure, because `reader` already reads every table.
 - **Future tables:** the loader truncates exactly the tables in the catalog. A future table that is not added to `SEED_TABLES`/`LOADER_TABLES`, or not granted to `loader`, makes `pnpm seed` and the grants loop fail loudly instead of keeping stale rows.
+
+## Implementation Notes
+
+- Commits `a5e6088` (migration, scripts, the demo seed exported from the 1.3a database, committed before any loader write outside a rolled-back test), `d1e79bb` (tests, loader fixes, CI), `89e2dae` (fixtures moved out of the gitignored `coverage/` name), `82bd968` (docs). The new migration went in with `supabase migration up`. `pnpm db:reset` ran only after the seed was committed.
+- Migration id = the latest migration file name without `.sql` (`20261011130000_register_seed_manifest`).
+- **CI order:** the two `pnpm seed` steps run after "Step 1 tests", which come after `test:db`. The step-1 tests assume empty register tables, and two of them fail against a loaded database.
+- **postgres.js 3.4.9 COPY faults, worked around:**
+  - (a) Reading `COPY TO` with `for await` sometimes hung the next query. The export now reads in flowing mode.
+  - (b) A `COPY FROM` that the server rejects at the end of the statement (a foreign-key error) hung instead of failing. The loader wraps the query's internal `reject`. This relies on the pinned version's internals; re-check it on any upgrade. The `23503` rollback test covers it.
+- `loadSeed(tx, plan)` takes a plan already checked by `prepareSeed(paths)`, so the loader writes exactly the bytes it checked. `SeedPaths.reportRoot` lets the tests use fixture reports. `.gitattributes` also marks `test/fixtures/seed/** -text`.
+- Verified by the orchestrator: `check:pins`, `check:env`, lint, typecheck, `pnpm test` (114), `pnpm test:db` (57); `pnpm seed` gives 17 557 / 22 354 / 22 354 / 1 / 1; `pnpm seed:export` afterwards leaves `seed/` unchanged; `seed/demo/*` has `text: unset`.
+
+## Spec Change Log
+
+## Review Triage Log
+
+Pass 1 (blind hunter BH, edge-case hunter EC, verification gap VG). The diff left out `seed/demo/*.csv`: exported data, covered by checksums and the round-trip test.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---------|---------|----------|-------|
+| 1 | BH/EC: the loader takes its COPY column list from the CSV header, so `HEADER MATCH` cannot fail. An export from an un-migrated database is stamped with the newest migration id and loads, with NULLs in the new columns | medium | `headerColumns` feeds `copyIn`; `latestMigrationId` reads files, not the database. Nothing compares the header with the catalog | patch: the header must equal the catalog columns in `attnum` order |
+| 2 | EC/BH: `fetched_codes` (manifest, no checksum) is trusted by the FR-59 check; a hand-edited manifest offers an industry with no companies | medium | `checkDeclaredFetched` reads only `manifest.fetched_codes` | patch: inside the load, refuse a declared code with no `company` row of that `naeringskode1` |
+| 3 | EC: export succeeds when a declared code was not fetched, writing a seed the loader refuses | low | `exportSeed` never calls `checkDeclaredFetched` | patch: refuse at export |
+| 4 | EC: `report` with backslashes (`analysis/output/..\..\x`) escapes `analysis/output` on Windows | low | `path.posix.normalize` keeps `\`; `path.join` on win32 treats it as a separator | patch: refuse `\` |
+| 5 | EC/BH: `copyIn` wraps `query.reject` without checking it exists | low | after an upgrade a TypeError would hide the database error | patch: `typeof` guard with a clear message |
+| 6 | BH: the table-set check and the loader-grants loop include views, matviews and foreign tables, which cannot be truncated | low | `relkind in ('r','p','v','m','f')` in `registerTables` and the grants loop | patch: tables only (`'r','p'`) |
+| 7 | BH/VG: the 8 DB refusal tests throw in `prepareSeed` before `loadSeed`, so "digests unchanged" cannot fail; `main`'s refusal path (exit 1, message) is untested | medium | `loadSeed(tx, prepareSeed(paths))` | patch: test `main` refusing (exit 1, stderr names the entry, nothing loaded) |
+| 8 | VG: removing ORDER BY from the export breaks no test; the round trip loads already-sorted rows | medium | demonstrated by the reviewer's analysis; heap order equals key order after a sorted COPY | patch: load rows out of key order, export, assert key order |
+| 9 | VG: nothing checks the `.gitattributes` `-text` rule; CI on Linux is blind to it | medium | no `check-attr` in tests | patch: unit test with `git check-attr text` |
+| 10 | BH: CI never runs `seed:export` as `reader` | low | only the round trip exports, as `loader` | patch: CI `pnpm seed:export && git diff --exit-code seed/` after the second load |
+| 11 | BH: no test that demo company C is in the seed | low | only the count implies it | patch: assert C's orgnr and 3 filings; every other company is in a declared code |
+| 12 | BH: README recovery leaves the worktree behind | low | no `git worktree remove` | patch (README) |
+| 13 | BH: session file omits `89e2dae` and the docs commit hash | low | docs | patch (orchestrator) |
+| 14 | EC/BH: export overwrites `seed/allow-list.json` with `[]`, erasing entries once Story 2.3 adds them, and never checks document figures against it | medium | hard-coded `'[]\n'`; harmless while there are no document figures | defer (Story 2.3 decides where entries come from) |
+| 15 | VG: `checkPrimaryKey` never fails in a test | low | reviewer's filed disposition | defer |
+| 16 | BH: AGENTS.md and AD-16 name two `-text` paths; `.gitattributes` has three | low | the fix edits an agent-context file | defer |
+| 17 | EC: a failed write midway leaves `seed/demo` half-written | low | the loader then refuses it on checksum, and git restores it; rare | reject |
+| 18 | EC: a foreign key from another schema into `register` makes TRUNCATE fail | false | it fails loudly (0A000) and rolls back; no such key exists | reject |
+| 19 | BH: no row counts in the manifest | low | the manifest fields are fixed by epics.md; a suggestion, not a defect | reject |
+| 20 | BH: CI-order deviation only recorded in Implementation Notes | low | the fix is a spec edit; the steps still run after `test:db` | reject |
+| 21 | BH: `db:roles` in the worktree would mint new passwords | false | `scripts/set-role-passwords.ts:12`: an existing password in `.env` is never overwritten | reject |
+| 22 | BH: `analysis/output/` might be gitignored | false | `git check-ignore analysis/output/x.md` exits 1; the directory holds committed files | reject |
 
 ## Verification
 

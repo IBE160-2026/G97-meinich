@@ -76,6 +76,16 @@ jobs:
       - name: Step 1 tests
         run: pnpm test:ingest
 
+      # The committed demo seed loads into the freshly migrated database as
+      # `loader`, twice: the second run proves the load is idempotent
+      # (AD-16). After the step-1 tests, because those assume empty register
+      # tables.
+      - name: Load the demo seed
+        run: pnpm seed
+
+      - name: Load the demo seed again
+        run: pnpm seed
+
       # Proves the image builds. The real `pnpm ingest` is run by hand, never
       # in CI.
       - name: Step 1 image

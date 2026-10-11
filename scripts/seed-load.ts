@@ -70,9 +70,26 @@ function headerColumns(file: string, bytes: Buffer): string[] {
 }
 
 async function copyIn(tx: postgres.TransactionSql, table: string, columns: string[], bytes: Buffer): Promise<void> {
-  const query = `COPY register.${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) FROM STDIN (FORMAT csv, HEADER MATCH)`;
-  const writable = await tx.unsafe(query).writable();
-  await pipeline(Readable.from([bytes]), writable);
+  const text = `COPY register.${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) FROM STDIN (FORMAT csv, HEADER MATCH)`;
+  const query = tx.unsafe(text);
+  // postgres.js 3.4.9 resolves the COPY query with the writable and, when
+  // the server rejects the rows after the last byte (a foreign-key check
+  // runs at the end of the statement), passes the error only to the
+  // already-resolved query: the writable never finishes and the load would
+  // hang. The query's own reject is wrapped so that error fails the load.
+  const internals = query as unknown as { reject: (error: unknown) => void };
+  const reject = internals.reject;
+  let fail: (error: unknown) => void = () => {};
+  const failed = new Promise<never>((_, r) => {
+    fail = r;
+  });
+  failed.catch(() => {}); // handled by the race below, or by the await on writable()
+  internals.reject = (error: unknown) => {
+    fail(error);
+    reject(error);
+  };
+  const writable = await query.writable();
+  await Promise.race([pipeline(Readable.from([bytes]), writable), failed]);
 }
 
 // Writes a checked plan in the caller's transaction. The CLI wraps it in
@@ -102,7 +119,7 @@ export async function loadSeed(tx: postgres.TransactionSql, plan: SeedPlan): Pro
   const { manifest } = plan;
   await tx`
     insert into register.dataset (id, dataset, format_version, migration_id, manifest)
-    values (1, ${manifest.dataset}, ${manifest.format_version}, ${manifest.migration_id}, ${JSON.stringify(manifest)}::jsonb)
+    values (1, ${manifest.dataset}, ${manifest.format_version}, ${manifest.migration_id}, ${JSON.stringify(manifest)}::text::jsonb)
   `;
 }
 

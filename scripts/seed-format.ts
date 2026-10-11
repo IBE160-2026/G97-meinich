@@ -330,10 +330,12 @@ export function checkManifest(
 // --- the whole check before a load ----------------------------------------
 
 export interface SeedPaths {
-  // Migrations and report paths resolve against this.
+  // supabase/migrations is read from here.
   root: string;
   seedDir: string;
   coverageFile: string;
+  // Report paths in coverage.json resolve against this; root when absent.
+  reportRoot?: string;
 }
 
 export const defaultSeedPaths = (root: string): SeedPaths => ({
@@ -363,7 +365,7 @@ export function prepareSeed(paths: SeedPaths): SeedPlan {
   const { manifest, files } = checkManifest(paths.root, json, paths.seedDir);
   const coverage = readCoverage(paths.coverageFile);
   checkDeclaredFetched(coverage, manifest.fetched_codes);
-  checkMeasured(paths.root, coverage);
+  checkMeasured(paths.reportRoot ?? paths.root, coverage);
   return { manifest, files, coverage };
 }
 

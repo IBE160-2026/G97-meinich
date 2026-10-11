@@ -114,6 +114,10 @@ Note also that the API's *derived* langsiktig gjeld — `sumGjeld` minus `sumKor
 
 **Reconcile with two different rules, neither of them exact equality.** Between sources — document against API — use a proportional tolerance, because companies reporting in thousands or millions introduce real scaling error. For 923609016, `sumEiendeler` deviated from `sumEgenkapitalGjeld` by 1 000 000, because the company reports in millions of USD. Within a document, use a **tight absolute bound of a few kroner**: wide enough for the rounding above, far too narrow to admit a recognition error. Observed OCR failures on this filing produced 722 632 310 for 72 632 310 and 8 335 514 for 833 514 — wrong by orders of magnitude, and caught by any absolute bound. A proportional tolerance would have hidden them.
 
+**The key-figures API returns whole currency units, and has no reporting-unit field.** Verified 2026-10-11: 923609016 reports in millions of USD, and the API returns `sumEiendeler` as 127 220 000 000, not 127 220. No field in the response says whether the company reported in kroner, thousands or millions. Step 1 therefore stores every amount ×100 as øre and labels the unit `api_whole_units`; it never infers a unit from how round the amounts are. The 1 000 000 deviation above is the rounding of a millions-reporter seen in whole units, not a scaling factor to apply. Amounts arrive as JSON numbers with a trailing `.0`: parse them without a float (`json.loads(..., parse_float=Decimal)`) and reject any that is not a whole number.
+
+**The API returns several years.** Verified 2026-10-11: `GET /regnskapsregisteret/regnskap/{orgnr}` without a year returned filings for 2023, 2024 and 2025, as separate entries with their own `id`, and both `SELSKAP` and `KONSERN` where a group files. Store each under its own `regnskapsperiode` and `regnskapstype`.
+
 **Currency varies.** 923609016 reports in USD. **Must be filtered before comparison.**
 
 **Accounting rules vary.** `regnskapslovenAlminneligRegler` versus `forenkletAnvendelseIFRS`. **These do not belong in the same peer group.**
@@ -266,7 +270,7 @@ The comparability filter runs before classification: currency, accounting rules,
 - **Accuracy against a hand-transcribed set.** Consistency is measured (above); exact accuracy is not. 15–20 filings spread across the years would do.
 - Whether better row parsing closes most of the remaining income-statement failures, and whether column-cropped recognition helps the older font.
 - Does the key figures API expose historical filings by `id`, or only the most recent one? This determines whether older OCR output has an independent total to reconcile against, or only internal consistency.
-- Exact URLs and filter parameters for bulk download from Enhetsregisteret.
+- ~~Exact URLs and filter parameters for bulk download from Enhetsregisteret.~~ Answered 2026-10-11: `GET https://data.brreg.no/enhetsregisteret/api/enheter/lastned` with `Accept: application/vnd.brreg.enhetsregisteret.enhet.v2+gzip;charset=UTF-8` returns every unit as one gzipped JSON array (210 MB, refreshed daily). It has no filter parameters; filter on `naeringskode1.kode` while streaming. The paged search cannot replace it: it stops at 10 000 results, and `naeringskode=62.100` matches 17 636 units because it includes secondary codes.
 - ~~Terms of use and any rate limits on systematic retrieval at volume.~~ Answered 2026-09-26 — see **Licence and attribution** above. NLOD 2.0 on the APIs, no contractual rate limit, and one genuine gap left open:
 - **Whether the filed annual-account documents may be reused as we reuse them.** The register licences the key-figures API but not the documents, and Peerless derives twelve of fifteen key figures from them. A question for Brønnøysundregistrene directly, before any public deployment.
 

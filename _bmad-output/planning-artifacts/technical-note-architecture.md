@@ -200,7 +200,7 @@ flowchart LR
 - **Prevents:** a factor-100 or factor-1000 error between the writer and the reader of a raw figure.
 - **Rule:**
   - **Columns:** every amount column in `register` is `bigint` øre, named after the register field with the suffix `_ore`, and a column comment states the unit. Nothing is stored as `numeric` or a float.
-  - **Reporting unit:** step 1 resolves each filing's reporting unit (kroner, thousands or millions) and converts to øre before writing. The unit is stored per filing for provenance.
+  - **Reporting unit:** the key-figures API returns whole currency units and has no unit field (verified 2026-10-11: 923609016, reporting in USD millions, returns `sumEiendeler` 127 220 000 000). Step 1 parses each amount as a whole number, never through a float, rejects one that is not whole, and multiplies by 100. It stores `reporting_unit` as the fixed label `api_whole_units` and never guesses a unit; precision, where reconciliation needs it, is computed there, not stored.
   - **Contract test:** a test runs step 1's writer on a fixture filing (979607008, 2025) against a freshly migrated database and asserts hand-checked øre values. This test is also step 1's schema contract.
 
 ### AD-15 — Figures are stored as filed, with a status `[ADOPTED]`

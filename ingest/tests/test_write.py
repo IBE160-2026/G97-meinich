@@ -266,3 +266,14 @@ def test_run_rolls_back_a_failed_filing_and_continues(db: psycopg.Connection, cf
     assert count(db, "select count(*) from register.filing where brreg_id = %s", filings[0]["id"]) == 0
     assert count(db, "select count(*) from register.filing where orgnr = %s", "919951834") == 2
     assert summary.demo_filings_written == 3
+
+
+def test_run_names_an_unreadable_response_and_continues(db: psycopg.Connection, cfg: Config) -> None:
+    transport = run_transport({regnskap_url("919951834"): b"<html>not json</html>"})
+    summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert [p.orgnr for p in summary.failed] == ["919951834"]
+    assert summary.failed[0].what.startswith("key figures: JSONDecodeError")
+    assert summary.codes["62.100"].companies == 1
+    assert summary.codes["62.100"].filings_written == 0
+    assert summary.demo_filings_written == 3

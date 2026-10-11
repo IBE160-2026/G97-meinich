@@ -95,7 +95,13 @@ def _load_company(
     except psycopg.Error as error:
         summary.failed.append(Problem(company.orgnr, f"company: {error.__class__.__name__}: {error}".strip()))
         return 0
-    raw_filings = fetch.fetch_filings(transport, base_url, company.orgnr)
+    try:
+        raw_filings = fetch.fetch_filings(transport, base_url, company.orgnr)
+    except (OSError, ValueError) as error:
+        # A register error that outlasted the retries, or a body that is not
+        # the expected JSON: name it and go on with the next company.
+        summary.failed.append(Problem(company.orgnr, f"key figures: {error.__class__.__name__}: {error}"))
+        return 0
     read_at = now()
     written = 0
     for raw in raw_filings:

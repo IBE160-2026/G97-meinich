@@ -350,6 +350,70 @@ describe('a table added to register later', () => {
   });
 });
 
+// Story 1.3a: the three tables batch step 1 writes. ingest upserts (SELECT,
+// INSERT, UPDATE) and never deletes; derive and loader get nothing yet;
+// reader keeps SELECT through the default privileges.
+describe('the step-1 tables', () => {
+  const STEP1_TABLES = ['register.company', 'register.filing', 'register.key_figures'] as const;
+
+  it('exist', async () => {
+    const rows = await sql<{ name: string }[]>`
+      select format('%I.%I', n.nspname, c.relname) as name
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'register' and c.relkind = 'r'
+      order by 1
+    `;
+    expect(rows.map((r) => r.name)).toEqual(expect.arrayContaining([...STEP1_TABLES]));
+  });
+
+  it('grant exactly reader SELECT and ingest SELECT, INSERT, UPDATE, and nothing to anyone else', async () => {
+    for (const table of STEP1_TABLES) {
+      const rows = await sql<{ grantee: string; privilege: string }[]>`
+        select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
+               a.privilege_type as privilege
+        from pg_catalog.pg_class c, aclexplode(c.relacl) a
+        where c.oid = ${table}::regclass and a.grantee <> c.relowner
+        order by 1, 2
+      `;
+      expect(rows, table).toEqual([
+        { grantee: 'ingest', privilege: 'INSERT' },
+        { grantee: 'ingest', privilege: 'SELECT' },
+        { grantee: 'ingest', privilege: 'UPDATE' },
+        { grantee: 'reader', privilege: 'SELECT' },
+      ]);
+    }
+  });
+
+  it('give ingest no DELETE, TRUNCATE, REFERENCES or TRIGGER, and derive and loader nothing', async () => {
+    for (const table of STEP1_TABLES) {
+      for (const privilege of ['DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) {
+        const [row] = await sql<{ ok: boolean }[]>`
+          select has_table_privilege('ingest', ${table}, ${privilege}) as ok
+        `;
+        expect(row?.ok, `ingest ${privilege} on ${table}`).toBe(false);
+      }
+      for (const role of ['derive', 'loader']) {
+        for (const privilege of ALL_TABLE_PRIVILEGES) {
+          const [row] = await sql<{ ok: boolean }[]>`
+            select has_table_privilege(${role}, ${table}, ${privilege}) as ok
+          `;
+          expect(row?.ok, `${role} ${privilege} on ${table}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('refuse reader a write on each of them', async () => {
+    await rolledBack(async (tx) => {
+      for (const table of STEP1_TABLES) {
+        expect(await attemptAs(tx, 'reader', `delete from ${table}`), table).toBe(INSUFFICIENT_PRIVILEGE);
+        expect(await attemptAs(tx, 'reader', `select * from ${table} limit 1`), table).toBeUndefined();
+      }
+    });
+  });
+});
+
 describe('a function added to register later', () => {
   const fn = 'register.grants_test_later_function';
 

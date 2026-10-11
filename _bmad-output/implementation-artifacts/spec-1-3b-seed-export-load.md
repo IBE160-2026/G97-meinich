@@ -2,7 +2,7 @@
 title: 'Story 1.3b: The seed path — export, load and CI'
 type: 'feature'
 created: '2026-10-11'
-status: 'in-review'
+status: 'done'
 baseline_commit: '78abdd94656040d2b8ad731366465fcdfa411734'
 route: 'dispatch'
 review_loop_iteration: 0

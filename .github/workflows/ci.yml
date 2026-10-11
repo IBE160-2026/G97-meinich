@@ -79,7 +79,12 @@ jobs:
       # Proves the image builds. The real `pnpm ingest` is run by hand, never
       # in CI.
       - name: Step 1 image
-        run: docker build ingest
+        run: docker build --tag peerless-ingest:ci ingest
+
+      # Smoke test: the installed package imports inside the image. No
+      # database and no network are needed.
+      - name: Step 1 image imports
+        run: docker run --rm --entrypoint /app/.venv/bin/python peerless-ingest:ci -c "import peerless_ingest.run"
 
       - name: Build
         run: pnpm build

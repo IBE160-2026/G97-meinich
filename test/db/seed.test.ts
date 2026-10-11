@@ -182,7 +182,7 @@ describe('the committed seed', () => {
   it('loads a measured: true entry whose report exists with a matching sha256', async () => {
     const plan = prepareSeed({
       ...defaultSeedPaths(root),
-      coverageFile: path.join(fixtures, 'coverage/measured-ok.json'),
+      coverageFile: path.join(fixtures, 'declarations/measured-ok.json'),
       reportRoot: fixtures,
     });
     await rolledBack(loader, async (tx) => {
@@ -203,7 +203,7 @@ describe('the committed seed', () => {
 describe('refusals', () => {
   const coverageFixture = (file: string): SeedPaths => ({
     ...defaultSeedPaths(root),
-    coverageFile: path.join(fixtures, 'coverage', file),
+    coverageFile: path.join(fixtures, 'declarations', file),
     reportRoot: fixtures,
   });
 

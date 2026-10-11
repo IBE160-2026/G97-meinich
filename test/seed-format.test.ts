@@ -1,5 +1,7 @@
 // The seed format and the loader's checks before it connects (Story 1.3b;
 // technical note AD-16). No database: test/db/seed.test.ts covers the load.
+// The coverage.json fixtures live in test/fixtures/seed/declarations/,
+// because coverage/ is gitignored repository-wide.
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -60,7 +62,6 @@ function writeCoverage(json: unknown): void {
 beforeEach(() => {
   scratch = mkdtempSync(path.join(tmpdir(), 'peerless-seed-'));
   paths = { root, seedDir: path.join(scratch, 'demo'), coverageFile: path.join(scratch, 'coverage.json') };
-  cpSync(path.join(fixtures, 'coverage'), path.join(scratch, 'coverage-fixtures'), { recursive: true });
   for (const table of SEED_TABLES) {
     mkdirSync(paths.seedDir, { recursive: true });
     writeFileSync(path.join(paths.seedDir, `${table.name}.csv`), `${table.name}\nrow\n`);
@@ -220,7 +221,7 @@ describe('seed/coverage.json shape', () => {
 
 describe('declared against fetched codes', () => {
   it('refuses a declared code that is not among the fetched codes, naming the code', () => {
-    cpSync(path.join(scratch, 'coverage-fixtures/declared-not-fetched.json'), paths.coverageFile);
+    cpSync(path.join(fixtures, 'declarations/declared-not-fetched.json'), paths.coverageFile);
     expect(refusal(() => prepareSeed(paths))).toBe(
       "seed/coverage.json entry 62.010: declared but not among the manifest's fetched_codes",
     );
@@ -230,12 +231,12 @@ describe('declared against fetched codes', () => {
 describe('measured: true', () => {
   const withFixtureReports = (fixture: string): SeedPaths => ({
     ...paths,
-    coverageFile: path.join(fixtures, 'coverage', fixture),
+    coverageFile: path.join(fixtures, 'declarations', fixture),
     reportRoot: fixtures,
   });
 
   const check = (fixture: string) => () =>
-    checkMeasured(fixtures, readCoverage(path.join(fixtures, 'coverage', fixture)));
+    checkMeasured(fixtures, readCoverage(path.join(fixtures, 'declarations', fixture)));
 
   it('refuses an entry with no report or sha256', () => {
     expect(refusal(check('measured-no-report.json'))).toBe(

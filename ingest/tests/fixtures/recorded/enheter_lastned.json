@@ -1,0 +1,357 @@
+[
+  {
+    "_links": {
+      "self": {
+        "href": "https://data.brreg.no/enhetsregisteret/api/enheter/919951834"
+      }
+    },
+    "aktivitet": [
+      "Utvikling av legal tech for rettssøkende publikum og advokat- og",
+      "rettshjelpsvirksomheter, herunder utvikling, drift, markedsføring,",
+      "tjenesteyting og salg av egne og andre selskapers løsninger, samt",
+      "annet som står i den forbindelse."
+    ],
+    "antallAnsatte": 9,
+    "erIKonsern": false,
+    "forretningsadresse": {
+      "adresse": [
+        "Tinngata 1"
+      ],
+      "kommune": "STAVANGER",
+      "kommunenummer": "1103",
+      "land": "Norge",
+      "landkode": "NO",
+      "postnummer": "4014",
+      "poststed": "STAVANGER"
+    },
+    "harRegistrertAntallAnsatte": true,
+    "historiskeNavn": [],
+    "institusjonellSektorkode": {
+      "beskrivelse": "Private aksjeselskaper mv.",
+      "kode": "2100"
+    },
+    "kapital": {
+      "antallAksjer": 228791,
+      "belop": 68637.3,
+      "innfortDato": "2024-09-30",
+      "type": "Aksjekapital",
+      "valuta": "NOK"
+    },
+    "konkurs": false,
+    "maalform": "Bokmål",
+    "naeringskode1": {
+      "beskrivelse": "Dataprogrammeringstjenester",
+      "kode": "62.100"
+    },
+    "navn": "JUSTIFY AS",
+    "organisasjonsform": {
+      "_links": {
+        "self": {
+          "href": "https://data.brreg.no/enhetsregisteret/api/organisasjonsformer/AS"
+        }
+      },
+      "beskrivelse": "Aksjeselskap",
+      "kode": "AS"
+    },
+    "organisasjonsnummer": "919951834",
+    "paategninger": [],
+    "postadresse": {
+      "adresse": [
+        "Postboks 1515 Kjelvene"
+      ],
+      "kommune": "STAVANGER",
+      "kommunenummer": "1103",
+      "land": "Norge",
+      "landkode": "NO",
+      "postnummer": "4093",
+      "poststed": "STAVANGER"
+    },
+    "registreringsdatoAntallAnsatteEnhetsregisteret": "2025-06-11",
+    "registreringsdatoAntallAnsatteNAVAaregisteret": "2025-06-10",
+    "registreringsdatoEnhetsregisteret": "2017-11-23",
+    "registreringsdatoForetaksregisteret": "2017-11-23",
+    "registreringsdatoMerverdiavgiftsregisteret": "2019-01-01",
+    "registreringsdatoMerverdiavgiftsregisteretEnhetsregisteret": "2019-01-29",
+    "registrertIForetaksregisteret": true,
+    "registrertIFrivillighetsregisteret": false,
+    "registrertIMvaregisteret": true,
+    "registrertIPartiregisteret": false,
+    "registrertIStiftelsesregisteret": false,
+    "respons_klasse": "Enhet",
+    "sisteInnsendteAarsregnskap": "2025",
+    "stiftelsesdato": "2017-11-13",
+    "underAvvikling": false,
+    "underTvangsavviklingEllerTvangsopplosning": false,
+    "vedtektsdato": "2024-06-11",
+    "vedtektsfestetFormaal": [
+      "Utvikling av legal tech for rettssøkende publikum og advokat- og",
+      "rettshjelpsvirksomheter, herunder utvikling, drift, markedsføring,",
+      "tjenesteyting og salg av egne og andre selskapers løsninger, samt",
+      "annet som står i den forbindelse."
+    ]
+  },
+  {
+    "_links": {
+      "self": {
+        "href": "https://data.brreg.no/enhetsregisteret/api/enheter/990051232"
+      }
+    },
+    "aktivitet": [
+      "Konsulent- og salgsvirksomhet innen IT og GIS samt utvikling av",
+      "programvare for GIS."
+    ],
+    "antallAnsatte": 9,
+    "erIKonsern": false,
+    "forretningsadresse": {
+      "adresse": [
+        "Økernveien 94"
+      ],
+      "kommune": "OSLO",
+      "kommunenummer": "0301",
+      "land": "Norge",
+      "landkode": "NO",
+      "postnummer": "0579",
+      "poststed": "OSLO"
+    },
+    "harRegistrertAntallAnsatte": true,
+    "historiskeNavn": [
+      {
+        "fraDato": "2006-08-05 14:31:51",
+        "navn": "MICADO AS",
+        "tilDato": "2025-10-22 16:16:36"
+      }
+    ],
+    "institusjonellSektorkode": {
+      "beskrivelse": "Private aksjeselskaper mv.",
+      "kode": "2100"
+    },
+    "kapital": {
+      "antallAksjer": 1000,
+      "belop": 100000.0,
+      "innfortDato": "2006-08-05",
+      "type": "Aksjekapital",
+      "valuta": "NOK"
+    },
+    "konkurs": false,
+    "maalform": "Bokmål",
+    "naeringskode1": {
+      "beskrivelse": "Konsulentvirksomhet tilknyttet informasjonsteknologi og forvaltning og drift av it-systemer",
+      "kode": "62.200"
+    },
+    "naeringskode2": {
+      "beskrivelse": "Dataprogrammeringstjenester",
+      "kode": "62.100"
+    },
+    "navn": "KEYPRO AS",
+    "organisasjonsform": {
+      "_links": {
+        "self": {
+          "href": "https://data.brreg.no/enhetsregisteret/api/organisasjonsformer/AS"
+        }
+      },
+      "beskrivelse": "Aksjeselskap",
+      "kode": "AS"
+    },
+    "organisasjonsnummer": "990051232",
+    "paategninger": [],
+    "registreringsdatoAntallAnsatteEnhetsregisteret": "2025-11-12",
+    "registreringsdatoAntallAnsatteNAVAaregisteret": "2025-11-10",
+    "registreringsdatoEnhetsregisteret": "2006-08-05",
+    "registreringsdatoForetaksregisteret": "2006-08-05",
+    "registrertIForetaksregisteret": true,
+    "registrertIFrivillighetsregisteret": false,
+    "registrertIMvaregisteret": false,
+    "registrertIPartiregisteret": false,
+    "registrertIStiftelsesregisteret": false,
+    "respons_klasse": "Enhet",
+    "sisteInnsendteAarsregnskap": "2025",
+    "stiftelsesdato": "2006-06-19",
+    "underAvvikling": false,
+    "underTvangsavviklingEllerTvangsopplosning": false,
+    "vedtektsdato": "2025-09-30",
+    "vedtektsfestetFormaal": [
+      "Konsulent- og salgsvirksomhet innen IT og GIS samt utvikling av",
+      "programvare for GIS."
+    ]
+  },
+  {
+    "_links": {
+      "self": {
+        "href": "https://data.brreg.no/enhetsregisteret/api/enheter/979607008"
+      }
+    },
+    "aktivitet": [
+      "Drive autorisert regnskapsførervirksomhet, samt",
+      "å yte bistand og drive rådgivning innenfor områder som naturlig kommer",
+      "inn under selskapets forretningsområder. Selskapet skal være",
+      "autorisert regnskapsførerselskap."
+    ],
+    "antallAnsatte": 45,
+    "erIKonsern": false,
+    "forretningsadresse": {
+      "adresse": [
+        "Wergelandsveien 1"
+      ],
+      "kommune": "OSLO",
+      "kommunenummer": "0301",
+      "land": "Norge",
+      "landkode": "NO",
+      "postnummer": "0167",
+      "poststed": "OSLO"
+    },
+    "frivilligMvaRegistrertBeskrivelser": [
+      "Utleier av bygg eller anlegg"
+    ],
+    "harRegistrertAntallAnsatte": true,
+    "historiskeNavn": [
+      {
+        "fraDato": "1998-02-16 13:13:07",
+        "navn": "EKSTRA RESSURS AS",
+        "tilDato": "2022-11-03 10:39:55"
+      },
+      {
+        "fraDato": "2022-11-03 10:39:55",
+        "navn": "STATEMENT ACCOUNTING AS",
+        "tilDato": "2023-08-02 21:09:11"
+      }
+    ],
+    "hjemmeside": "www.statement.no",
+    "institusjonellSektorkode": {
+      "beskrivelse": "Private aksjeselskaper mv.",
+      "kode": "2100"
+    },
+    "kapital": {
+      "antallAksjer": 115638,
+      "belop": 342900.0,
+      "innfortDato": "2023-08-02",
+      "type": "Aksjekapital",
+      "valuta": "NOK"
+    },
+    "konkurs": false,
+    "maalform": "Bokmål",
+    "naeringskode1": {
+      "beskrivelse": "Regnskapsføring og bokføring",
+      "kode": "69.202"
+    },
+    "navn": "STATEMENT AS",
+    "organisasjonsform": {
+      "_links": {
+        "self": {
+          "href": "https://data.brreg.no/enhetsregisteret/api/organisasjonsformer/AS"
+        }
+      },
+      "beskrivelse": "Aksjeselskap",
+      "kode": "AS"
+    },
+    "organisasjonsnummer": "979607008",
+    "paategninger": [],
+    "registreringsdatoAntallAnsatteEnhetsregisteret": "2026-09-14",
+    "registreringsdatoAntallAnsatteNAVAaregisteret": "2026-09-10",
+    "registreringsdatoEnhetsregisteret": "1998-02-16",
+    "registreringsdatoForetaksregisteret": "1998-03-04",
+    "registreringsdatoFrivilligMerverdiavgiftsregisteret": "2014-01-15",
+    "registreringsdatoMerverdiavgiftsregisteret": "2001-07-01",
+    "registreringsdatoMerverdiavgiftsregisteretEnhetsregisteret": "2001-07-11",
+    "registrertIForetaksregisteret": true,
+    "registrertIFrivillighetsregisteret": false,
+    "registrertIMvaregisteret": true,
+    "registrertIPartiregisteret": false,
+    "registrertIStiftelsesregisteret": false,
+    "respons_klasse": "Enhet",
+    "sisteInnsendteAarsregnskap": "2025",
+    "stiftelsesdato": "1998-01-28",
+    "underAvvikling": false,
+    "underTvangsavviklingEllerTvangsopplosning": false,
+    "vedtektsdato": "2024-06-20",
+    "vedtektsfestetFormaal": [
+      "Tilby regnskapstjenester til andre selskaper, annen konsulentbistand,",
+      "samt direkte og indirekte deltakelse i selskaper med lignende eller",
+      "annet formål."
+    ]
+  },
+  {
+    "_links": {
+      "self": {
+        "href": "https://data.brreg.no/enhetsregisteret/api/enheter/967534579"
+      }
+    },
+    "aktivitet": [
+      "Regnskapskontor og annen virksomhet knyttet til",
+      "dette. Selskapet kan også ved aksjetegning eller",
+      "ved å eie aksjer delta i annen næringsvirksomhet",
+      "samt eie, kjøpe og selge fast eiendom samt å drive",
+      "annen næringsvirksomhet."
+    ],
+    "antallAnsatte": 33,
+    "erIKonsern": false,
+    "forretningsadresse": {
+      "adresse": [
+        "Industrigata 1"
+      ],
+      "kommune": "LILLEHAMMER",
+      "kommunenummer": "3405",
+      "land": "Norge",
+      "landkode": "NO",
+      "postnummer": "2619",
+      "poststed": "LILLEHAMMER"
+    },
+    "harRegistrertAntallAnsatte": true,
+    "historiskeNavn": [
+      {
+        "fraDato": "1995-03-12 17:47:00",
+        "navn": "REGNSKAPSHUSET LILLEHAMMER AS",
+        "tilDato": "2018-11-12 12:27:29"
+      }
+    ],
+    "institusjonellSektorkode": {
+      "beskrivelse": "Private aksjeselskaper mv.",
+      "kode": "2100"
+    },
+    "kapital": {
+      "antallAksjer": 936,
+      "belop": 936000.0,
+      "innfortDato": "2026-01-16",
+      "type": "Aksjekapital",
+      "valuta": "NOK"
+    },
+    "konkurs": false,
+    "maalform": "Bokmål",
+    "naeringskode1": {
+      "beskrivelse": "Regnskapsføring og bokføring",
+      "kode": "69.202"
+    },
+    "navn": "KANTALL AS",
+    "organisasjonsform": {
+      "_links": {
+        "self": {
+          "href": "https://data.brreg.no/enhetsregisteret/api/organisasjonsformer/AS"
+        }
+      },
+      "beskrivelse": "Aksjeselskap",
+      "kode": "AS"
+    },
+    "organisasjonsnummer": "967534579",
+    "paategninger": [],
+    "registreringsdatoAntallAnsatteEnhetsregisteret": "2026-09-14",
+    "registreringsdatoAntallAnsatteNAVAaregisteret": "2026-09-10",
+    "registreringsdatoEnhetsregisteret": "1995-03-12",
+    "registreringsdatoForetaksregisteret": "1993-10-21",
+    "registreringsdatoMerverdiavgiftsregisteret": "1993-11-01",
+    "registreringsdatoMerverdiavgiftsregisteretEnhetsregisteret": "1995-03-12",
+    "registrertIForetaksregisteret": true,
+    "registrertIFrivillighetsregisteret": false,
+    "registrertIMvaregisteret": true,
+    "registrertIPartiregisteret": false,
+    "registrertIStiftelsesregisteret": false,
+    "respons_klasse": "Enhet",
+    "sisteInnsendteAarsregnskap": "2025",
+    "stiftelsesdato": "1993-09-13",
+    "telefon": "61 05 39 00",
+    "underAvvikling": false,
+    "underTvangsavviklingEllerTvangsopplosning": false,
+    "vedtektsdato": "2025-10-31",
+    "vedtektsfestetFormaal": [
+      "Levere lønn-, regnskaps- og rådgivningstjenester."
+    ]
+  }
+]

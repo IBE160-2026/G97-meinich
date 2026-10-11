@@ -404,10 +404,28 @@ describe('the step-1 tables', () => {
     }
   });
 
-  it('refuse reader a write on each of them', async () => {
+  it('refuse reader INSERT, UPDATE, DELETE and TRUNCATE on each of them', async () => {
+    // Statements that would succeed with the privilege: INSERT DEFAULT
+    // VALUES fails on the privilege check before any NOT NULL check, and
+    // UPDATE names a real column of each table.
+    const column: Record<(typeof STEP1_TABLES)[number], string> = {
+      'register.company': 'navn',
+      'register.filing': 'journalnr',
+      'register.key_figures': 'aarsresultat_ore',
+    };
     await rolledBack(async (tx) => {
       for (const table of STEP1_TABLES) {
-        expect(await attemptAs(tx, 'reader', `delete from ${table}`), table).toBe(INSUFFICIENT_PRIVILEGE);
+        const attempts: Record<(typeof TABLE_WRITES)[number], string> = {
+          INSERT: `insert into ${table} default values`,
+          UPDATE: `update ${table} set ${column[table]} = null`,
+          DELETE: `delete from ${table}`,
+          TRUNCATE: `truncate ${table} cascade`,
+        };
+        for (const privilege of TABLE_WRITES) {
+          expect(await attemptAs(tx, 'reader', attempts[privilege]), `${privilege} on ${table}`).toBe(
+            INSUFFICIENT_PRIVILEGE,
+          );
+        }
         expect(await attemptAs(tx, 'reader', `select * from ${table} limit 1`), table).toBeUndefined();
       }
     });

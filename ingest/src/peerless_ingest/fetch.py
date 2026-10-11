@@ -8,6 +8,7 @@ is never in a user's request path.
 from __future__ import annotations
 
 import gzip
+import http.client
 import io
 import json
 import time
@@ -51,6 +52,13 @@ class UrllibTransport:
     def _request(self, url: str, accept: str) -> urllib.request.Request:
         return urllib.request.Request(url, headers={"Accept": accept, "User-Agent": self.user_agent})
 
+    def _retry_or_raise(self, attempt: int) -> None:
+        """Back off before the next attempt, or re-raise the current
+        exception when the attempts are used up."""
+        if attempt >= self.attempts - 1:
+            raise
+        time.sleep(2**attempt)
+
     def get(self, url: str, accept: str) -> bytes | None:
         try:
             for attempt in range(self.attempts):
@@ -62,23 +70,34 @@ class UrllibTransport:
                     # here it is simply not loaded.
                     if error.code in (404, 410):
                         return None
-                    if error.code in RETRY_STATUSES and attempt < self.attempts - 1:
-                        time.sleep(2**attempt)
-                        continue
-                    raise
-                except urllib.error.URLError:
-                    if attempt < self.attempts - 1:
-                        time.sleep(2**attempt)
-                        continue
-                    raise
+                    if error.code not in RETRY_STATUSES:
+                        raise
+                    self._retry_or_raise(attempt)
+                except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError):
+                    # Also errors while reading the body: IncompleteRead is an
+                    # HTTPException, not an OSError.
+                    self._retry_or_raise(attempt)
             raise RuntimeError("unreachable")
         finally:
             time.sleep(self.pause_seconds)
 
     @contextmanager
     def stream(self, url: str, accept: str) -> Iterator[BinaryIO]:
-        # Long download: a generous timeout per read, no retry mid-stream.
-        with urllib.request.urlopen(self._request(url, accept), timeout=600) as response:
+        # Long download: a generous timeout per read. Opening the request is
+        # retried like `get`; there is no retry mid-stream.
+        for attempt in range(self.attempts):
+            try:
+                response = urllib.request.urlopen(self._request(url, accept), timeout=600)
+                break
+            except urllib.error.HTTPError as error:
+                if error.code not in RETRY_STATUSES:
+                    raise
+                self._retry_or_raise(attempt)
+            except urllib.error.URLError:
+                self._retry_or_raise(attempt)
+        else:
+            raise RuntimeError("unreachable")
+        with response:
             yield response
 
 

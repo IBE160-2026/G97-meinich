@@ -26,6 +26,7 @@ import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 import { setting } from './run-ingest.ts';
 import {
+  COVERAGE_FILE as COVERAGE_LABEL,
   LOADER_TABLES,
   SEED_TABLES,
   type SeedPlan,
@@ -38,12 +39,13 @@ import {
 
 const quoteIdent = (name: string): string => `"${name.replaceAll('"', '""')}"`;
 
-// The tables in schema register, in byte order.
+// The tables (plain and partitioned) in schema register, in byte order:
+// the relations TRUNCATE applies to.
 export async function registerTables(sql: postgres.Sql | postgres.TransactionSql): Promise<string[]> {
   const rows = await sql<{ name: string }[]>`
     select c.relname as name
     from pg_catalog.pg_class c
-    where c.relnamespace = 'register'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'f')
+    where c.relnamespace = 'register'::regnamespace and c.relkind in ('r', 'p')
   `;
   return rows.map((r) => r.name).sort(compareBytes);
 }
@@ -69,6 +71,24 @@ function headerColumns(file: string, bytes: Buffer): string[] {
   return columns;
 }
 
+// The header must name exactly the table's columns in catalog order, so a
+// seed exported under another schema is refused rather than loaded with
+// NULLs in columns it lacks.
+async function checkHeader(tx: postgres.TransactionSql, file: string, table: string, header: string[]): Promise<void> {
+  const rows = await tx<{ name: string }[]>`
+    select a.attname as name
+    from pg_catalog.pg_attribute a
+    where a.attrelid = ${`register.${table}`}::regclass and a.attnum > 0 and not a.attisdropped
+    order by a.attnum
+  `;
+  const catalog = rows.map((r) => r.name);
+  if (header.join(',') !== catalog.join(',')) {
+    throw new SeedRefusal(
+      `${file}: header (${header.join(', ')}) does not match register.${table} columns (${catalog.join(', ')})`,
+    );
+  }
+}
+
 async function copyIn(tx: postgres.TransactionSql, table: string, columns: string[], bytes: Buffer): Promise<void> {
   const text = `COPY register.${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) FROM STDIN (FORMAT csv, HEADER MATCH)`;
   const query = tx.unsafe(text);
@@ -77,8 +97,11 @@ async function copyIn(tx: postgres.TransactionSql, table: string, columns: strin
   // runs at the end of the statement), passes the error only to the
   // already-resolved query: the writable never finishes and the load would
   // hang. The query's own reject is wrapped so that error fails the load.
-  const internals = query as unknown as { reject: (error: unknown) => void };
+  const internals = query as unknown as { reject?: unknown };
   const reject = internals.reject;
+  if (typeof reject !== 'function') {
+    throw new Error('postgres.js COPY internals changed (query.reject missing); the loader is written against postgres 3.4.9');
+  }
   let fail: (error: unknown) => void = () => {};
   const failed = new Promise<never>((_, r) => {
     fail = r;
@@ -86,7 +109,7 @@ async function copyIn(tx: postgres.TransactionSql, table: string, columns: strin
   failed.catch(() => {}); // handled by the race below, or by the await on writable()
   internals.reject = (error: unknown) => {
     fail(error);
-    reject(error);
+    (reject as (error: unknown) => void)(error);
   };
   const writable = await query.writable();
   await Promise.race([pipeline(Readable.from([bytes]), writable), failed]);
@@ -107,7 +130,20 @@ export async function loadSeed(tx: postgres.TransactionSql, plan: SeedPlan): Pro
     const file = seedFileName(table);
     const bytes = plan.files.get(file);
     if (bytes === undefined) throw new SeedRefusal(`${file}: not in the checked plan`);
-    await copyIn(tx, table.name, headerColumns(file, bytes), bytes);
+    const header = headerColumns(file, bytes);
+    await checkHeader(tx, file, table.name, header);
+    await copyIn(tx, table.name, header, bytes);
+  }
+
+  // FR-59 against the loaded rows, not only the manifest (which no checksum
+  // covers): every declared code must have a company with that primary code.
+  for (const entry of plan.coverage) {
+    const [row] = await tx<{ ok: boolean }[]>`
+      select exists (select 1 from register.company where naeringskode1 = ${entry.code}) as ok
+    `;
+    if (row?.ok !== true) {
+      throw new SeedRefusal(`${COVERAGE_LABEL} entry ${entry.code}: declared but no loaded company has it as naeringskode1`);
+    }
   }
 
   for (const entry of plan.coverage) {

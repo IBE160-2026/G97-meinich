@@ -496,7 +496,7 @@ describe('loader on every register table', () => {
       select format('%I.%I', n.nspname, c.relname) as name
       from pg_catalog.pg_class c
       join pg_catalog.pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'register' and c.relkind in ('r', 'p', 'v', 'm', 'f')
+      where n.nspname = 'register' and c.relkind in ('r', 'p')
       order by 1
     `;
     expect(tables.length).toBeGreaterThanOrEqual(5);

@@ -2,6 +2,7 @@
 // technical note AD-16). No database: test/db/seed.test.ts covers the load.
 // The coverage.json fixtures live in test/fixtures/seed/declarations/,
 // because coverage/ is gitignored repository-wide.
+import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -263,6 +264,8 @@ describe('measured: true', () => {
   it('refuses a report path outside analysis/output', () => {
     const entry = { code: '62.100', measured: true, report: 'analysis/output/../x.md', sha256: '0'.repeat(64) };
     expect(refusal(() => checkMeasured(fixtures, [entry]))).toMatch(/report must be a plain path under analysis\/output/);
+    const backslash = { ...entry, report: 'analysis/output/..\\..\\x.md' };
+    expect(refusal(() => checkMeasured(fixtures, [backslash]))).toMatch(/report must be a plain path under analysis\/output/);
     const outside = { ...entry, report: 'seed/coverage.json' };
     expect(refusal(() => checkMeasured(fixtures, [outside]))).toMatch(/report must be a plain path/);
   });
@@ -300,6 +303,36 @@ describe('the allow-list check', () => {
 });
 
 describe('the committed seed', () => {
+  it('is byte-exact in git: seed, reports and fixtures have the text attribute unset', () => {
+    const files = [
+      'seed/demo/company.csv',
+      'seed/demo/manifest.json',
+      'analysis/output/industry-screening.md',
+      'test/fixtures/seed/analysis/output/x.md',
+    ];
+    const out = execFileSync('git', ['check-attr', 'text', '--', ...files], { cwd: root, encoding: 'utf8' });
+    const lines = out.trim().split(/\r?\n/);
+    expect(lines).toEqual(files.map((file) => `${file}: text: unset`));
+  });
+
+  it('holds demo company C with its 3 filings, and otherwise only companies in declared industries', () => {
+    const config = readFileSync(path.join(root, 'ingest/config.toml'), 'utf8');
+    const demo = /\[demo_company_c\][^[]*?orgnr\s*=\s*"(\d{9})"/.exec(config)?.[1];
+    expect(demo).toBe('967534579');
+    const declared = readCoverage(path.join(root, COVERAGE_FILE)).map((e) => e.code);
+
+    const [companyHeader, ...companies] = parseCsv(readFileSync(path.join(root, 'seed/demo/company.csv'), 'utf8'));
+    const orgnrAt = companyHeader?.indexOf('orgnr') ?? -1;
+    const codeAt = companyHeader?.indexOf('naeringskode1') ?? -1;
+    expect(companies.filter((row) => row[orgnrAt] === demo)).toHaveLength(1);
+    const outside = companies.filter((row) => row[orgnrAt] !== demo && !declared.includes(row[codeAt] ?? ''));
+    expect(outside).toEqual([]);
+
+    const [filingHeader, ...filings] = parseCsv(readFileSync(path.join(root, 'seed/demo/filing.csv'), 'utf8'));
+    const filingOrgnrAt = filingHeader?.indexOf('orgnr') ?? -1;
+    expect(filings.filter((row) => row[filingOrgnrAt] === demo)).toHaveLength(3);
+  });
+
   it('passes every check against the repository', () => {
     const plan = prepareSeed(defaultSeedPaths(root));
     expect(plan.manifest.dataset).toBe('demo');

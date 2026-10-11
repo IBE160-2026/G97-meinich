@@ -25,7 +25,7 @@ import {
   readCoverage,
   stableJson,
 } from '../../scripts/seed-format.ts';
-import { assertTableSet, loadSeed, registerTables } from '../../scripts/seed-load.ts';
+import { assertTableSet, loadSeed, main as seedMain, registerTables } from '../../scripts/seed-load.ts';
 import { root, setting, supabaseDbUrl } from './db-env.ts';
 
 type Tx = postgres.TransactionSql;
@@ -282,6 +282,99 @@ describe('refusals', () => {
       await expect(tx.savepoint((sp) => loadSeed(sp, { ...committed, files }))).rejects.toMatchObject({ code: '23503' });
       expect(await digests(tx)).toEqual(before);
     });
+  });
+});
+
+describe('checks inside the load', () => {
+  it('refuses a declared code that no loaded company has, even when the manifest lists it as fetched', async () => {
+    const paths = seedCopy('fetched-lie');
+    rewriteManifest(paths, (m) => {
+      m.fetched_codes = ['62.010', ...(m.fetched_codes as string[])];
+    });
+    const coverageFile = path.join(scratch, 'fetched-lie-coverage.json');
+    const declared = readCoverage(path.join(root, COVERAGE_FILE));
+    writeFileSync(coverageFile, JSON.stringify([...declared, { code: '62.010', measured: false }]));
+    const plan = prepareSeed({ ...paths, coverageFile });
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      const before = await digests(tx);
+      await expect(tx.savepoint((sp) => loadSeed(sp, plan))).rejects.toThrow(
+        /entry 62\.010: declared but no loaded company has it as naeringskode1/,
+      );
+      expect(await digests(tx)).toEqual(before);
+    });
+  });
+
+  it('refuses a file whose header does not match the table columns, naming file, table and both lists', async () => {
+    const files = new Map(committed.files);
+    const company = (committed.files.get('company.csv') ?? Buffer.alloc(0)).toString('utf8');
+    const [header = '', ...rest] = company.split('\n');
+    files.set('company.csv', Buffer.from([header.replace(',read_at', ''), ...rest].join('\n')));
+    await rolledBack(loader, async (tx) => {
+      await expect(tx.savepoint((sp) => loadSeed(sp, { ...committed, files }))).rejects.toThrow(
+        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at\)$/,
+      );
+    });
+  });
+});
+
+describe('pnpm seed (main) refusing', () => {
+  it('exits 1, names the broken file on stderr, and leaves the database unchanged', async () => {
+    const scratchRoot = path.join(scratch, 'main-root');
+    cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
+    cpSync(path.join(root, 'seed'), path.join(scratchRoot, 'seed'), { recursive: true });
+    const file = path.join(scratchRoot, SEED_DIR, 'filing.csv');
+    const bytes = readFileSync(file);
+    bytes[bytes.length - 2] = bytes[bytes.length - 2]! ^ 1;
+    writeFileSync(file, bytes);
+
+    const observer = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
+    const snapshot = () => observer.begin((tx) => digests(tx));
+    try {
+      const before = await snapshot();
+      const written: string[] = [];
+      const original = process.stderr.write.bind(process.stderr);
+      process.stderr.write = ((chunk: string | Uint8Array) => {
+        written.push(String(chunk));
+        return true;
+      }) as typeof process.stderr.write;
+      let code: number;
+      try {
+        code = await seedMain(scratchRoot);
+      } finally {
+        process.stderr.write = original;
+      }
+      expect(code).toBe(1);
+      expect(written.join('')).toMatch(/filing\.csv: checksum does not match manifest\.json/);
+      expect(await snapshot()).toEqual(before);
+    } finally {
+      await observer.end();
+    }
+  });
+});
+
+describe('the export order', () => {
+  it('writes rows in byte order of the key even when the table was filled in another order', async () => {
+    const company = (committed.files.get('company.csv') ?? Buffer.alloc(0)).toString('utf8');
+    const [header = '', ...rows] = company.split('\n').filter((line) => line !== '');
+    const reversed = Buffer.from(`${[header, ...rows.reverse()].join('\n')}\n`);
+    const headerOnly = (file: string): Buffer =>
+      Buffer.from(`${(committed.files.get(file) ?? Buffer.alloc(0)).toString('utf8').split('\n')[0]}\n`);
+    const files = new Map([
+      ['company.csv', reversed],
+      ['filing.csv', headerOnly('filing.csv')],
+      ['key_figures.csv', headerOnly('key_figures.csv')],
+    ]);
+    const out = path.join(scratch, 'order');
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, { ...committed, files });
+      await exportSeed(tx, root, out);
+    });
+    const [exportedHeader, ...exported] = parseCsv(readFileSync(path.join(out, SEED_DIR, 'company.csv'), 'utf8'));
+    const at = exportedHeader?.indexOf('orgnr') ?? -1;
+    const orgnrs = exported.map((row) => row[at] ?? '');
+    expect(orgnrs.length).toBe(rows.length);
+    expect(orgnrs).toEqual([...orgnrs].sort(compareBytes));
   });
 });
 

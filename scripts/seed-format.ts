@@ -190,7 +190,7 @@ export function checkMeasured(root: string, entries: readonly CoverageEntry[]): 
       throw new SeedRefusal(`${label}: sha256 must be 64 lower-case hex digits`);
     }
     const normalised = path.posix.normalize(entry.report);
-    if (normalised !== entry.report || !normalised.startsWith(`${REPORT_DIR}/`)) {
+    if (entry.report.includes('\\') || normalised !== entry.report || !normalised.startsWith(`${REPORT_DIR}/`)) {
       throw new SeedRefusal(`${label}: report must be a plain path under ${REPORT_DIR}/`);
     }
     const file = path.join(root, ...normalised.split('/'));

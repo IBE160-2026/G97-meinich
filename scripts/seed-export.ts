@@ -34,6 +34,7 @@ import {
   SEED_VERSION,
   type SeedTable,
   SeedRefusal,
+  checkDeclaredFetched,
   compareBytes,
   exportPaths,
   latestMigrationId,
@@ -117,6 +118,12 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
   const fetched = await sql<{ code: string }[]>`
     select distinct naeringskode1 as code from register.company where naeringskode1 = any(${declared}::text[])
   `;
+  // The loader refuses a declared code that was not fetched; refuse it here
+  // too, before any file is written.
+  checkDeclaredFetched(
+    coverage,
+    fetched.map((r) => r.code),
+  );
   const documentFigures = await sql<{ orgnr: string }[]>`
     select distinct orgnr from register.filing where status <> 'not_extracted'
   `;

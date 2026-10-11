@@ -2,7 +2,7 @@
 title: 'Story 1.3a: Step 1 ingests register data for 62.100 and demo company C'
 type: 'feature'
 created: '2026-10-11'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '1340608aae98a74c13b6bcc5413e531394f76d1d'
@@ -140,3 +140,35 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1 (blind-hunter BH, edge-case-hunter EC, verification-gap VG). The real `pnpm ingest` run was in progress during review, started from the code before these fixes.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---------|---------|----------|-------|
+| 1 | EC/BH: `response.read()` errors (`http.client.IncompleteRead`, a timeout or reset mid-body) are not retried; `IncompleteRead` is not an `OSError` and escapes `_load_company`, aborting the run | high | `fetch.py` retries only `HTTPError`/`URLError` around `urlopen`; `IncompleteRead` subclasses `HTTPException(Exception)` | patch |
+| 2 | VG/EC/BH: demo company C's `fetch_unit`/`parse_company` runs unguarded after the long pass | medium | `run.py` step 3 has no `try`; a failure loses the printed summary of the whole run | patch |
+| 3 | VG/EC/BH: one malformed bulk unit (`parse_company` `ValueError`) aborts the run before any key-figures request | medium | step 1 loop has no `try` | patch |
+| 4 | EC/BH: the bulk download's opening request is not retried on 429/5xx/`URLError` | low | `stream` calls `urlopen` once; direct retry | patch |
+| 5 | BH: a dropped DB connection makes every later write fail one by one | medium | `_load_company` catches every `psycopg.Error`; a closed connection never recovers | patch (abort when `conn.closed`) |
+| 6 | BH/VG: exit code is 0 when filings were rejected, demo C was not found or got no filings, or a code returned nothing | medium | `main` returns `1 if summary.failed else 0` | patch |
+| 7 | VG: `UrllibTransport` (404/410 → None, retry, pause) has no test | medium | only `FixtureTransport` is used in tests | patch |
+| 8 | VG: a covered company with no filings (`fetch_filings` → `[]`) never runs through `run` | medium | every run test's companies have filings; no test asserts `companies_with_filings` | patch |
+| 9 | VG/BH: `scripts/run-ingest.ts` (`containerDatabaseUrl`, `setting`, no password in docker argv) untested | medium | no test imports it | patch |
+| 10 | VG: demo-C-not-found branch untested | low | one-line transport override | patch |
+| 11 | BH: grants test tries only DELETE as `reader` on the new tables | low | name claims writes; direct addition | patch |
+| 12 | BH: CI builds the image but never starts it | low | one smoke step importing `peerless_ingest.run` | patch |
+| 13 | EC: empty `seed/coverage.json` downloads 210 MB and reports success | low | direct check in `load_coverage` | patch |
+| 14 | EC/VG: conftest docstring claims "every socket connection" but libpq connects in C | low | wording | patch (docstring) |
+| 15 | BH: records omit `60c1f11`; spec status | low | docs | patch (orchestrator) |
+| 16 | BH: recorded fixtures carry no recording date or source URL | low | provenance for a contract test | patch (fixtures README) |
+| 17 | BH: a company reclassified out of the covered code keeps a stale row | medium | no run revisits it; refresh semantics are not in this story's intent | defer |
+| 18 | BH: filing with missing `virksomhet.organisasjonsnummer` accepted | low | the orgnr is the one requested in the URL; a mismatch is rejected | reject |
+| 19 | EC/BH: two same-key filings in one response, last wins silently | low | not observed; adds tracking | reject |
+| 20 | EC: same `brreg_id`, changed period/type → UniqueViolation each run | low | rare; surfaces as a named failed write | reject |
+| 21 | BH: 429 ignores `Retry-After` | low | backoff still applies | reject |
+| 22 | BH: conftest `.env` parser differs from Node's `parseEnv` | low | `db:roles` refuses non-plain role lines | reject |
+| 23 | EC: `nan`/`inf` pause in config | low | contrived | reject |
+| 24 | EC: demo C also in coverage counted twice | low | C is 69.202 by design | reject |
+| 25 | EC: IPv6 loopback / invalid URL / comma in repo path in `run-ingest.ts` | low | rare | reject |
+| 26 | EC: malformed mid-stream element grows the parse buffer | low | ends in `ValueError` | reject |
+| 27 | BH: overflow comments disagree (10^17 vs 10^19) | false | 10^17 kr × 100 = 10^19 øre; both comments agree | reject |

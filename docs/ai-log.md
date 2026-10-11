@@ -16,9 +16,9 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 10 |
-| money | 9 |
-| parsing | 3 |
+| auth | 11 |
+| money | 10 |
+| parsing | 4 |
 | llm-boundary | 5 |
 | scope | 12 |
 | docs | 16 |
@@ -309,3 +309,12 @@ Routine work that went as expected is not logged.
 **Problem:** The Story 1.1 entry named the wrong story. `epics.md` places `src/server/db.ts`, its `server-only` import and the grep test for `READER_DATABASE_URL` in Story 1.5, and Story 1.2's spec excludes it. Until 1.5, nothing reads the database from the request path, so nothing can leak through a transitive client import.
 **Caught by:** Checking the finding against `epics.md` (Story 1.5) and the Story 1.2 spec's Never list.
 **Outcome:** The guard stays a Story 1.5 requirement; this entry corrects the earlier one, which is left unedited.
+
+### 2026-10-11 — Story 1.3a: step 1 writes money columns, and where they can still go wrong
+**Tags:** money · auth · parsing
+**Tool:** Claude Code (Opus 5.5), `bmad-build` implementation subagent working from the frozen spec
+**Asked:** Batch step 1 in Python: the Enhetsregisteret bulk download filtered on `naeringskode1.kode` from `seed/coverage.json`, every key-figures filing for those companies and demo company C, stored as filed in øre as the `ingest` role, with one migration for the three tables and their grants.
+**Got:** `ingest/` (uv, Docker, psycopg), the migration, fixture and contract tests replaying recorded responses with outbound sockets blocked, `pnpm ingest` and CI steps. One bug found by its own test before commit: the streaming JSON-array reader decoded a number cut at a chunk boundary (`-6` of `-6.5e3`) as complete; it now reads on until a character that cannot continue a number.
+**Problem:** What could go wrong, on the record. Money: (1) an amount parsed through `float` loses precision above 2^53 and can turn `1234.5` into a silent integer; amounts are parsed with `parse_float=Decimal`, a non-whole amount rejects the whole filing, and a test checks that 2^53 + 1 survives. (2) A factor-100 error between writer and reader: every column is `bigint` named `_ore` with a comment starting `øre`, checked against the catalog. (3) The API's amounts are whole units of the filing's own `valuta`; a USD filing's øre are US cents ×1, not NOK. Nothing converts currency, and peer selection must keep filtering on `valuta` (stage 2). (4) `reporting_unit` is always `api_whole_units`: a millions-reporter's amounts are stored exactly as the API returns them, rounded to the million, and nothing here pretends otherwise. (5) An empty element is NULL, never 0, and no total is derived; `sum_langsiktig_gjeld_ore` is NULL for 979607008 while `sum_gjeld_ore` is kept as stated. Writes: (6) a filing and its key figures are one transaction, so a failed key-figure insert leaves no orphan filing row (tested with a bigint overflow); a later run overwrites every column of an existing row, so a field the register has since emptied becomes NULL rather than keeping a stale amount; a filing the register no longer returns is kept, not deleted. (7) A filing the register reissues under a new id for the same period updates one row, and `key_figures` follows through `ON UPDATE CASCADE`; if a new id collides with another filing's id, that filing fails and is named. Auth: (8) `ingest` holds SELECT, INSERT and UPDATE only, no DELETE or DDL (tested both in the grants test and as the real login); `derive` and `loader` have nothing yet. (9) `pnpm ingest` passes `INGEST_DATABASE_URL` to the container through the environment, not argv, so the password does not appear in a process list; it is still visible to anyone who can inspect the container.
+**Caught by:** The parse test across chunk sizes 1, 2 and 7 (the number bug); the I/O matrix tests; catalog queries in the grants test.
+**Outcome:** Migration `20261011120000_register_step1_tables.sql`, `ingest/`, `scripts/run-ingest.ts`, `test/no-industry-literal.test.ts`. Story 1.3a, issue #3.

@@ -2,9 +2,10 @@
 title: 'Story 1.3a: Step 1 ingests register data for 62.100 and demo company C'
 type: 'feature'
 created: '2026-10-11'
-status: 'ready-for-dev'
+status: 'in-progress'
 route: 'dispatch'
 review_loop_iteration: 0
+baseline_commit: '1340608aae98a74c13b6bcc5413e531394f76d1d'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-1-context.md'
   - '{project-root}/docs/data-sources-brreg.md'
@@ -129,6 +130,12 @@ context:
 - `docker build ingest` -- succeeds; `git ls-remote origin story/1.3a-step1-register-ingest` -- empty
 
 ## Implementation Notes
+
+- Bulk download verified 2026-10-11: one pretty-printed JSON array, gzipped, 210 MB; read with a stdlib streaming reader (`parse.iter_json_array`) and collected before any key-figures request. 17 556 units had the covered code as `naeringskode1` on that day; every one gets a key-figures request (most non-AS units answer 404).
+- Database tests connect as the real `ingest` login (`INGEST_DATABASE_URL`, from the environment or `.env`) inside one outer transaction that is always rolled back; the writer's per-filing transactions are savepoints there.
+- Atomic-write case: an amount of 10^17 overflows `bigint` once ×100, so the filing row inserts and `key_figures` fails.
+- Pins: psycopg[binary] 3.3.6, pytest 9.1.1, uv_build 0.12.10, uv 0.12.10 (`tool.uv.required-version`, CI `setup-uv@v10.2.0`), images `python:3.14.7-slim-trixie` and `ghcr.io/astral-sh/uv:0.12.10`.
+- `pnpm ingest` passes `INGEST_DATABASE_URL` through the child environment (`--env NAME`), rewrites a local host to `host.docker.internal`, adds `host-gateway` for Linux, and mounts `seed/` read-only.
 
 ## Spec Change Log
 

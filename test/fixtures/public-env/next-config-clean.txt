@@ -1,0 +1,9 @@
+import type { NextConfig } from 'next';
+
+// The env key is not set here: env: {} would inline into the client.
+const nextConfig: NextConfig = {
+  cacheComponents: false,
+  serverExternalPackages: ['env'],
+};
+
+export default nextConfig;

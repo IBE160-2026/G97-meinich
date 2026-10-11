@@ -5,8 +5,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { findUnpinnedDependencies } from '../scripts/check-pinned-deps.ts';
 import {
+  findNextConfigEnvKey,
   findPublicEnv,
   isExcluded,
+  isNextConfig,
   listRepositoryFiles,
 } from '../scripts/check-no-public-env.ts';
 
@@ -113,6 +115,63 @@ describe('check:env', () => {
   });
 });
 
+describe('check:env, env key in next.config', () => {
+  it('reports an env property with file and line', () => {
+    expect(findNextConfigEnvKey('next.config.ts', envFixture('next-config-env-key.txt'))).toEqual([
+      { file: 'next.config.ts', line: 5, text: expect.stringContaining('env: {') },
+    ]);
+  });
+
+  it('reports a shorthand env property', () => {
+    expect(
+      findNextConfigEnvKey('next.config.js', envFixture('next-config-env-shorthand.txt')),
+    ).toEqual([{ file: 'next.config.js', line: 5, text: 'env,' }]);
+  });
+
+  it('reports an assignment to x.env or x[\'env\']', () => {
+    expect(
+      findNextConfigEnvKey('next.config.ts', envFixture('next-config-env-assignment.txt')),
+    ).toEqual([
+      { file: 'next.config.ts', line: 5, text: expect.stringContaining('nextConfig.env =') },
+      { file: 'next.config.ts', line: 6, text: "nextConfig['env'] = {};" },
+    ]);
+  });
+
+  it('does not report reading x.env or assigning to process.env.X', () => {
+    const content = 'const a = config.env;\nprocess.env.X = "1";\n';
+    expect(findNextConfigEnvKey('next.config.mjs', content)).toEqual([]);
+  });
+
+  it('reports quoted, computed and method forms', () => {
+    const content = [
+      'export default {',
+      "  'env': {},",
+      "  ['env']: {},",
+      '  env() { return {}; },',
+      '};',
+    ].join('\n');
+    expect(findNextConfigEnvKey('next.config.mjs', content).map((v) => v.line)).toEqual([2, 3, 4]);
+  });
+
+  it('passes a clean config, including env in a comment or a string', () => {
+    expect(findNextConfigEnvKey('next.config.ts', envFixture('next-config-clean.txt'))).toEqual([]);
+  });
+
+  it('passes the repository next.config.ts', () => {
+    const file = 'next.config.ts';
+    expect(findNextConfigEnvKey(file, readFileSync(path.join(root, file), 'utf8'))).toEqual([]);
+  });
+
+  it('applies to next.config.{ts,js,mjs,cjs} only', () => {
+    for (const ext of ['ts', 'js', 'mjs', 'cjs']) {
+      expect(isNextConfig(`next.config.${ext}`)).toBe(true);
+    }
+    expect(isNextConfig('apps/web/next.config.mjs')).toBe(true);
+    expect(isNextConfig('next.config.json')).toBe(false);
+    expect(isNextConfig('src/config.ts')).toBe(false);
+  });
+});
+
 // The CLI entry points, run the way CI runs them: plain node, native type
 // stripping, exit status and stderr.
 describe('CLI entry points', () => {
@@ -148,6 +207,36 @@ describe('CLI entry points', () => {
       );
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('config.ts:2');
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('check:env exits 1 on an env key in next.config.ts, with file:line', () => {
+    const repo = mkdtempSync(path.join(os.tmpdir(), 'check-env-key-'));
+    try {
+      execFileSync('git', ['init', '--quiet'], { cwd: repo });
+      writeFileSync(
+        path.join(repo, 'next.config.ts'),
+        envFixture('next-config-env-key.txt'),
+      );
+      execFileSync('git', ['add', 'next.config.ts'], { cwd: repo });
+
+      const failing = spawnSync(
+        process.execPath,
+        [path.join(root, 'scripts/check-no-public-env.ts')],
+        { cwd: repo, encoding: 'utf8' },
+      );
+      expect(failing.status).toBe(1);
+      expect(failing.stderr).toContain('next.config.ts:5');
+
+      writeFileSync(path.join(repo, 'next.config.ts'), envFixture('next-config-clean.txt'));
+      const passing = spawnSync(
+        process.execPath,
+        [path.join(root, 'scripts/check-no-public-env.ts')],
+        { cwd: repo, encoding: 'utf8' },
+      );
+      expect(passing.status).toBe(0);
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

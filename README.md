@@ -19,7 +19,7 @@ pnpm build
 pnpm start            # http://localhost:3000
 ```
 
-In v1 the app is an empty shell (header and footer); the database, seed data and analysis arrive in later stories.
+In v1 the app is an empty shell (header and footer). The local database (below) holds the roles and empty schemas; seed data and analysis arrive in later stories.
 
 Checks, as CI runs them on every pull request:
 
@@ -32,6 +32,20 @@ pnpm test             # Vitest unit tests
 pnpm exec playwright install chromium   # once
 pnpm build && pnpm test:e2e             # Playwright against the built app, at 375 and 320 px
 ```
+
+### Local database
+
+Requires Docker. The Supabase CLI (2.120.0) is a pinned dev dependency, so no global install, account or API key is needed.
+
+```sh
+pnpm db:start         # local Postgres; applies supabase/roles.sql and supabase/migrations
+pnpm db:roles         # creates .env from .env.example if missing, generates the role passwords into it, applies them
+pnpm test:db          # grants and db:roles tests against the local database
+pnpm db:reset         # recreate the database from the migrations; run pnpm db:roles again afterwards
+pnpm db:stop
+```
+
+`pnpm db:roles` never prints a password, never overwrites one already in `.env`, refuses unless `.env` is gitignored, and refuses any database host other than `127.0.0.1` or `localhost`. Running it again leaves `.env` and the passwords unchanged.
 
 If your Node install blocks the `pnpm` shim that `corepack enable` writes, prefix each command with `corepack` instead (`corepack pnpm install …`).
 

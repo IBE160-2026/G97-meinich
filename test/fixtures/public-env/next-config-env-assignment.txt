@@ -1,0 +1,8 @@
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = { cacheComponents: false };
+
+nextConfig.env = { SECRET_THING: 'leaks-into-the-bundle' };
+nextConfig['env'] = {};
+
+export default nextConfig;

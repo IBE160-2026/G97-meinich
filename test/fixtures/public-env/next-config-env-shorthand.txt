@@ -1,0 +1,8 @@
+const env = { API_URL: 'x' };
+
+const nextConfig = {
+  reactStrictMode: true,
+  env,
+};
+
+module.exports = nextConfig;

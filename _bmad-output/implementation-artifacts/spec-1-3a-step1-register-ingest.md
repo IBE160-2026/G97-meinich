@@ -2,7 +2,7 @@
 title: 'Story 1.3a: Step 1 ingests register data for 62.100 and demo company C'
 type: 'feature'
 created: '2026-10-11'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '1340608aae98a74c13b6bcc5413e531394f76d1d'
@@ -99,20 +99,20 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/<ts>_register_step1_tables.sql`:
+- [x] `supabase/migrations/<ts>_register_step1_tables.sql`:
   - `register.company`: `orgnr char(9)` PK, `navn`, `organisasjonsform`, `naeringskode1`, `naeringskode2`, `naeringskode3`, `konkurs`, `under_avvikling`, `under_tvangsavvikling`, `read_at timestamptz`.
   - `register.filing`: PK (`orgnr`, `regnskapstype`, `periode_fra`, `periode_til`); `brreg_id bigint NOT NULL UNIQUE`; `orgnr` FK; `journalnr`; `filing_year` (from `regnskapsperiode.tilDato`), `periode_fra`, `periode_til`, `valuta`, `regnskapsregler`, `smaa_foretak`, `avviklingsregnskap`, `oppstillingsplan`, `reporting_unit` (CHECK = `api_whole_units`), `status` CHECK in the four values (`not_extracted` for API filings), `read_at timestamptz`.
   - `register.key_figures`: `brreg_id` PK, FK to `filing(brreg_id)` `ON UPDATE CASCADE`, plus one `bigint` `<snake_case register field>_ore` column per key-figure path, each with `COMMENT … 'øre'`.
   - `ingest` gets SELECT/INSERT/UPDATE on the three; `derive` and `loader` get nothing.
-- [ ] `ingest/` -- `pyproject.toml`, `uv.lock`, `.python-version` (3.14), `Dockerfile` (python and uv images pinned by exact tag), `src/peerless_ingest/` (`config`, `fetch` with an injectable transport, `parse` with pure functions, `write` with psycopg as `ingest` and upserts, `run` printing a per-code summary), `config.toml` (demo company C = KANTALL AS, 967534579, with the evidence for each criterion as checked on 2026-10-11; no industry code).
-- [ ] `seed/coverage.json` -- `[{"code": "62.100", "measured": false}]`.
-- [ ] `ingest/tests/` with recorded fixtures -- every I/O matrix row; parse tests run without a DB; the contract and write tests use `INGEST_DATABASE_URL` (skipped with a clear message when it is unset locally, required in CI). Assert no outbound network in the tests.
-- [ ] `ingest/tests/test_pins.py` -- reads `ingest/pyproject.toml` with `tomllib`; every requirement in the four places matches `name==X.Y.Z` (extras allowed); a fixture with `>=` fails.
-- [ ] `test/no-industry-literal.test.ts` -- `62.100` absent from `src/`, `scripts/`, `ingest/src/`, `ingest/config.toml`.
-- [ ] `test/db/grants.test.ts` -- the new tables' grants.
-- [ ] `package.json` scripts `ingest` (build and run the image; reaches the local DB on Linux and Docker Desktop) and `test:ingest`.
-- [ ] CI: `astral-sh/setup-uv` pinned, `uv sync --frozen`, `pytest` after `db:roles`, `docker build ingest`.
-- [ ] Docs (the reporting-unit criterion and the bulk URL are already corrected in `epics.md`, issue #3, `docs/data-sources-brreg.md` and AD-14): README "Batch step 1", `AGENTS.md` Stack line, `docs/ai-log.md` (what could go wrong with money columns and writes), session file, sprint-status.
+- [x] `ingest/` -- `pyproject.toml`, `uv.lock`, `.python-version` (3.14), `Dockerfile` (python and uv images pinned by exact tag), `src/peerless_ingest/` (`config`, `fetch` with an injectable transport, `parse` with pure functions, `write` with psycopg as `ingest` and upserts, `run` printing a per-code summary), `config.toml` (demo company C = KANTALL AS, 967534579, with the evidence for each criterion as checked on 2026-10-11; no industry code).
+- [x] `seed/coverage.json` -- `[{"code": "62.100", "measured": false}]`.
+- [x] `ingest/tests/` with recorded fixtures -- every I/O matrix row; parse tests run without a DB; the contract and write tests use `INGEST_DATABASE_URL` (skipped with a clear message when it is unset locally, required in CI). Assert no outbound network in the tests.
+- [x] `ingest/tests/test_pins.py` -- reads `ingest/pyproject.toml` with `tomllib`; every requirement in the four places matches `name==X.Y.Z` (extras allowed); a fixture with `>=` fails.
+- [x] `test/no-industry-literal.test.ts` -- `62.100` absent from `src/`, `scripts/`, `ingest/src/`, `ingest/config.toml`.
+- [x] `test/db/grants.test.ts` -- the new tables' grants.
+- [x] `package.json` scripts `ingest` (build and run the image; reaches the local DB on Linux and Docker Desktop) and `test:ingest`.
+- [x] CI: `astral-sh/setup-uv` pinned, `uv sync --frozen`, `pytest` after `db:roles`, `docker build ingest`.
+- [x] Docs (the reporting-unit criterion and the bulk URL are already corrected in `epics.md`, issue #3, `docs/data-sources-brreg.md` and AD-14): README "Batch step 1", `AGENTS.md` Stack line, `docs/ai-log.md` (what could go wrong with money columns and writes), session file, sprint-status.
 
 **Acceptance Criteria:**
 - Given a migrated DB and `db:roles`, when `pnpm test:ingest` and `pnpm test:db` run, then all pass with no network access.
@@ -136,12 +136,22 @@ context:
 - Atomic-write case: an amount of 10^17 overflows `bigint` once ×100, so the filing row inserts and `key_figures` fails.
 - Pins: psycopg[binary] 3.3.6, pytest 9.1.1, uv_build 0.12.10, uv 0.12.10 (`tool.uv.required-version`, CI `setup-uv@v10.2.0`), images `python:3.14.7-slim-trixie` and `ghcr.io/astral-sh/uv:0.12.10`.
 - `pnpm ingest` passes `INGEST_DATABASE_URL` through the child environment (`--env NAME`), rewrites a local host to `host.docker.internal`, adds `host-gateway` for Linux, and mounts `seed/` read-only.
+- The acceptance run used is the one on the final image, built from `79cde8e` after every review fix. The review fixes changed `fetch.py`, `run.py` and `config.py` only; `parse.py` and `write.py` are unchanged since `60c1f11`. A first run, started on the code before the review fixes, was stopped at about 2 980 companies and its rows were wiped with `pnpm db:reset && pnpm db:roles`; it is not used anywhere.
+- Final run, 2026-10-11 10:09–13:36 UTC (about 3 h 27 min, roughly 1.4 companies a second), exit code 0:
+  ```
+  bulk download: 17556 units with a covered primary code
+  Step 1 summary (register data and key-figures API filings)
+    62.100: 17556 companies, 8441 with filings, 22351 filings written
+    demo company C 967534579 (KANTALL AS): 3 filings written
+    Stored as filed: no ratio, distribution or derived amount was written.
+  ```
+  No filing was rejected and no fetch or write failed (none named in the summary). The database agrees afterwards: 17 557 `company` rows (17 556 with `naeringskode1` 62.100, plus KANTALL AS with 69.202), 22 354 `filing` and 22 354 `key_figures` rows (22 351 + KANTALL's 3, 2023–2025 `SELSKAP`), 8 442 companies with filings, no filing without key figures and no orphan key figures. Every `read_at` lies inside the run.
 
 ## Spec Change Log
 
 ## Review Triage Log
 
-Pass 1 (blind-hunter BH, edge-case-hunter EC, verification-gap VG). The real `pnpm ingest` run was in progress during review, started from the code before these fixes.
+Pass 1 (blind-hunter BH, edge-case-hunter EC, verification-gap VG). The real `pnpm ingest` run was in progress during review, started from the code before these fixes; it was stopped and replaced by a run on the final image (Implementation Notes).
 
 | # | Finding | Verdict | Evidence | Route |
 |---|---------|---------|----------|-------|

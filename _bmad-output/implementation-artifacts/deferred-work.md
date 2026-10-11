@@ -1,5 +1,5 @@
 # Deferred work
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-supabase-roles-grants.md`
-  summary: Align AGENTS.md's "every other DDL is a migration" with what the DDL-placement test checks (CREATE/ALTER/DROP in `.sql` files only), or widen the test to GRANT/REVOKE/COMMENT and DDL issued from code.
-  evidence: Story 1.2 review: `scripts/set-role-passwords.ts` runs `ALTER ROLE` and the DB tests run `create table` via `unsafe`, while AGENTS.md's wording covers all DDL; a stray `seed.sql` with GRANT would pass the test. The fix edits agent-context files, so it is deferred for the human.
+  summary: Stage 2: hosted Supabase does not run `supabase/roles.sql` automatically, so the four roles must exist before migration `20261010120000_register_and_app_schemas.sql` runs there, or its `GRANT … TO reader` statements fail.
+  evidence: The local CLI applies `roles.sql` on `db start` and `db reset` ("Seeding globals from roles.sql"). `supabase db push` does so only with `--include-roles` ("Include custom roles from supabase/roles.sql", verified in CLI 2.120.0 `db push --help`); otherwise the roles must be created another way before the push.

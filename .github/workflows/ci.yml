@@ -86,6 +86,10 @@ jobs:
       - name: Load the demo seed again
         run: pnpm seed
 
+      # The export as reader reproduces the committed seed byte for byte.
+      - name: Re-export the seed and compare
+        run: pnpm seed:export && git diff --exit-code seed/
+
       # Proves the image builds. The real `pnpm ingest` is run by hand, never
       # in CI.
       - name: Step 1 image

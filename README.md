@@ -91,6 +91,7 @@ cd ../peerless-seed && pnpm install && pnpm db:reset && pnpm db:roles && pnpm se
 cd -   # back in the main tree
 pnpm exec supabase migration up
 pnpm seed:export
+git worktree remove ../peerless-seed
 ```
 
 Never run `pnpm db:reset` on the only database holding data that is not yet exported and committed.

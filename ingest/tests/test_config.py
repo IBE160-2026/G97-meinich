@@ -32,7 +32,7 @@ def test_committed_coverage() -> None:
 
 
 def test_coverage_rejects_a_bad_entry(tmp_path: Path) -> None:
-    for content in ['{"code": "62.100"}', '[{"code": "62100"}]', '[{"code": "62.100"}, {"code": "62.100"}]']:
+    for content in ["[]", '{"code": "62.100"}', '[{"code": "62100"}]', '[{"code": "62.100"}, {"code": "62.100"}]']:
         path = tmp_path / "coverage.json"
         path.write_text(content, encoding="utf-8")
         with pytest.raises(config.ConfigError):

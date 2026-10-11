@@ -69,8 +69,8 @@ def load_coverage(path: Path = DEFAULT_COVERAGE) -> list[str]:
     Only `code` matters to step 1. The full validation of the entry shape
     (`measured`, `report`, `sha256`) belongs to the loader (Story 1.3b)."""
     entries = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(entries, list):
-        raise ConfigError(f"{path}: expected a JSON list of entries")
+    if not isinstance(entries, list) or not entries:
+        raise ConfigError(f"{path}: expected a non-empty JSON list of entries")
     codes: list[str] = []
     for index, entry in enumerate(entries):
         code = entry.get("code") if isinstance(entry, dict) else None

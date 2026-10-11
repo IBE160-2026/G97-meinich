@@ -1,7 +1,10 @@
 """Shared test setup for step 1.
 
-- No outbound network: every socket connection to a host other than the
-  local machine fails, so a test that reaches the register fails loudly.
+- No outbound network from Python: a Python socket connection or name
+  lookup for a host other than the local machine fails, so a test that
+  reaches the register fails loudly. The guard covers Python sockets only:
+  libpq (under psycopg) connects in C and is not seen by it; it is held to
+  the local database by INGEST_DATABASE_URL.
 - `FixtureTransport` replays recorded register responses from
   tests/fixtures/recorded (Brønnøysundregistrene, NLOD 2.0).
 - `db` is a connection as `ingest` (INGEST_DATABASE_URL) inside a transaction

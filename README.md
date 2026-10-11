@@ -19,7 +19,7 @@ pnpm build
 pnpm start            # http://localhost:3000
 ```
 
-In v1 the app is an empty shell (header and footer). The local database (below) holds the roles, the schemas and the tables batch step 1 writes, empty until step 1 runs; the seed and analysis arrive in later stories.
+In v1 the app is an empty shell (header and footer). The local database (below) holds the roles, the schemas and the register tables; `pnpm seed` fills them from the committed demo seed, with no call to the register. The analysis arrives in later stories.
 
 Checks, as CI runs them on every pull request:
 
@@ -40,7 +40,8 @@ Requires Docker. The Supabase CLI (2.120.0) is a pinned dev dependency, so no gl
 ```sh
 pnpm db:start         # local Postgres; applies supabase/roles.sql and supabase/migrations
 pnpm db:roles         # creates .env from .env.example if missing, generates the role passwords into it, applies them
-pnpm test:db          # grants and db:roles tests against the local database
+pnpm test:db          # grants, db:roles and seed tests against the local database (all rolled back)
+pnpm seed             # load the committed demo seed (see "Seed" below)
 pnpm db:reset         # recreate the database from the migrations; run pnpm db:roles again afterwards
 pnpm db:stop
 ```
@@ -60,6 +61,40 @@ pnpm ingest           # builds ingest/Dockerfile and runs it once against the lo
 ```
 
 `pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests, so a full run takes a while. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
+
+### Seed
+
+The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. `seed/coverage.json` declares the covered industries and is the only hand-edited file under `seed/`; `seed/allow-list.json` is written by the export.
+
+```sh
+pnpm db:start && pnpm db:roles   # the database and LOADER_DATABASE_URL in .env
+pnpm seed             # check everything, then truncate and replace every register table, as loader
+```
+
+`pnpm seed` checks the manifest version, that the manifest's migration is the latest file in `supabase/migrations`, that every file in `seed/demo/` is listed with a matching checksum, the shape of `seed/coverage.json`, that every declared industry was fetched, and that a `measured: true` entry cites an existing report under `analysis/output/` with a matching SHA-256. Any failure exits non-zero, names the entry and the check, and loads nothing. Then it loads in one transaction, writes `register.covered_industry` from `seed/coverage.json` and stores the manifest in `register.dataset`. Running it twice leaves the same state. CI runs it twice on a freshly migrated database on every pull request.
+
+**Exporting.** After a step-1 run, `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json` from the local database as `reader`. It is deterministic: rows in primary-key order with `COLLATE "C"`, so the bytes never depend on the database's collation, and dates and `read_at` in UTC ISO form. Running it twice on the same database gives byte-identical files. It never writes `seed/coverage.json`.
+
+**A new migration invalidates the seed.** The seed records the latest migration, and `pnpm seed` refuses a seed exported under an older one. The pull request that adds a migration therefore re-exports the seed in the same pull request, on a loaded database and without a reset:
+
+```sh
+pnpm exec supabase migration up   # apply the new migration; the loaded data stays
+pnpm seed:export                  # commit the changed seed/demo/ with the migration
+```
+
+**Recovering an empty local database without a new step-1 run.** If the seed matches the latest migration, `pnpm seed` restores the data. If a new migration is already in the tree and the seed has not been re-exported, load the old seed with the old loader on the old schema, then migrate and export:
+
+```sh
+git worktree add ../peerless-seed <last commit whose seed matched>
+cp .env ../peerless-seed/.env
+cd ../peerless-seed && pnpm install && pnpm db:reset && pnpm db:roles && pnpm seed
+cd -   # back in the main tree
+pnpm exec supabase migration up
+pnpm seed:export
+git worktree remove ../peerless-seed
+```
+
+Never run `pnpm db:reset` on the only database holding data that is not yet exported and committed.
 
 If your Node install blocks the `pnpm` shim that `corepack enable` writes, prefix each command with `corepack` instead (`corepack pnpm install …`).
 

@@ -51,6 +51,24 @@ def count(conn: psycopg.Connection, query: str, *params: object) -> int:
     return int(one(conn, query, *params)[0])
 
 
+def filing_state(conn: psycopg.Connection, brreg_id: int) -> list[tuple]:
+    """The filing and key-figures rows of one filing, as text, or [] when absent.
+
+    Lets a test assert that a run left a filing as it was, whether the database
+    is empty or holds the demo seed (which includes 919951834).
+    """
+    return conn.execute(
+        """select f::text, k::text from register.filing f
+           left join register.key_figures k using (brreg_id) where f.brreg_id = %s""",
+        (brreg_id,),
+    ).fetchall()
+
+
+def written_by_run(conn: psycopg.Connection, orgnr: str) -> int:
+    """Filings of orgnr whose read_at is this test run's READ_AT."""
+    return count(conn, "select count(*) from register.filing where orgnr = %s and read_at = %s", orgnr, READ_AT)
+
+
 def test_connected_as_ingest(db: psycopg.Connection) -> None:
     assert one(db, "select current_user")[0] == "ingest"
 
@@ -242,14 +260,17 @@ def test_run_reports_a_non_whole_amount_and_writes_the_rest(db: psycopg.Connecti
     filings = json.loads(recorded("regnskap_919951834.json"))
     filings[0]["eiendeler"]["sumEiendeler"] = 1234.5
     transport = run_transport({regnskap_url("919951834"): json.dumps(filings).encode("utf-8")})
+    before = filing_state(db, filings[0]["id"])
     summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
 
     assert [(p.orgnr, p.what) for p in summary.rejected] == [
         ("919951834", "field eiendeler.sumEiendeler: not a whole amount: 1234.5")
     ]
     assert summary.codes["62.100"].filings_written == 2
-    assert count(db, "select count(*) from register.filing where brreg_id = %s", filings[0]["id"]) == 0
-    assert count(db, "select count(*) from register.filing where orgnr = %s", "919951834") == 2
+    # The rejected filing is left as it was (absent, or the seed's row); the
+    # other two are written by this run.
+    assert filing_state(db, filings[0]["id"]) == before
+    assert written_by_run(db, "919951834") == 2
     assert "rejected filing, not written: 919951834 field eiendeler.sumEiendeler" in "\n".join(summary.lines())
 
 
@@ -258,13 +279,16 @@ def test_run_rolls_back_a_failed_filing_and_continues(db: psycopg.Connection, cf
     # Beyond bigint once in øre: the key_figures insert fails.
     filings[0]["eiendeler"]["sumEiendeler"] = 10**17
     transport = run_transport({regnskap_url("919951834"): json.dumps(filings).encode("utf-8")})
+    before = filing_state(db, filings[0]["id"])
     summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
 
     assert len(summary.failed) == 1
     assert summary.failed[0].orgnr == "919951834"
     assert summary.failed[0].what.startswith(f"filing {filings[0]['id']} ")
-    assert count(db, "select count(*) from register.filing where brreg_id = %s", filings[0]["id"]) == 0
-    assert count(db, "select count(*) from register.filing where orgnr = %s", "919951834") == 2
+    # Rolled back: the failed filing is left as it was (absent, or the seed's
+    # row); the other two are written by this run.
+    assert filing_state(db, filings[0]["id"]) == before
+    assert written_by_run(db, "919951834") == 2
     assert summary.demo_filings_written == 3
 
 

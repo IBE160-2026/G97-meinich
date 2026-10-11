@@ -1,0 +1,3 @@
+orgnr,regnskapstype,periode_fra,periode_til,brreg_id,journalnr,filing_year,valuta,regnskapsregler,smaa_foretak,avviklingsregnskap,oppstillingsplan,reporting_unit,status,read_at
+811581232,SELSKAP,2023-01-01,2023-12-31,5300853,2024690096,2023,NOK,regnskapslovenAlminneligRegler,t,f,store,api_whole_units,not_extracted,2026-10-11 10:09:57.319216+00
+919951834,SELSKAP,2024-01-01,2024-12-31,6071815,"2025,634107",2024,NOK,regnskapslovenAlminneligRegler,t,f,store,api_whole_units,reconciled,2026-10-11 10:09:57.319216+00

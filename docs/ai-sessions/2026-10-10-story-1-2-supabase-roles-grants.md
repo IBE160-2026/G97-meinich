@@ -3,7 +3,7 @@
 **Date:** 2026-10-10
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session, one implementation subagent working from the frozen spec, three review subagents
 **Story / issue:** #2, Story 1.2
-**Result:** branch `story/1.2-supabase-roles-grants`, commits `44ab41a` (check:env `env` key), `ecf07ba` (CLI, roles, migration), `0298f7c` (db:roles), `9925b99` (tests), `9eaa9e4` (CI and docs), `9f8096d` (notes, AI log, this file), review fixes `7c0fe76`, `40aa01b`, `1778c3a`, `88cdab1`, and the final records commit; not pushed, no PR yet (the human reviews first)
+**Result:** branch `story/1.2-supabase-roles-grants`, commits `44ab41a` (check:env `env` key), `ecf07ba` (CLI, roles, migration), `0298f7c` (db:roles), `9925b99` (tests), `9eaa9e4` (CI and docs), `9f8096d` (notes, AI log, this file), review fixes `7c0fe76`, `40aa01b`, `1778c3a`, `88cdab1`, the records commit and `2438e6a` (AGENTS.md DDL wording, spec wording); PR #16, pushed only after the human reviewed the branch
 
 ## Goal
 
@@ -15,6 +15,7 @@ Enforce the read boundary (AD-3, AD-4) with Postgres grants before any data exis
 - On the plan: "Put the env-key check on the Story 1.2 branch, as its own commit, separate from the roles and grants work."
 - On the spec, password option "(c)", plus: default privileges must name the migration role and the test must create its table as that role; `service_role` in the access tests; `db:roles` never overwrites or prints a password, uses hex from `crypto.randomBytes`, refuses unless `.env` is gitignored, and is idempotent; `reader` cannot CREATE in any schema.
 - Before approval: `db:roles` refuses any host but `127.0.0.1`/`localhost`; revoke PUBLIC's default EXECUTE on functions; verify `SET ROLE` from the test connection first.
+- After reviewing the branch: "accept 1 (GRANT reader TO postgres WITH INHERIT FALSE, SET TRUE), accept 2 (the global EXECUTE revoke), accept 3 — but correct the spec so it says what the code does"; change AGENTS.md so the DDL sentence says exactly what the test checks; record the hosted-Supabase roles gap for stage 2; then push and open the PR, without merging.
 - The dispatch to the implementation subagent: "Read `spec-1-2-supabase-roles-grants.md` fully and implement it — the spec is the sole source of truth."
 - The human decisions frozen in the spec: password option (c) for `pnpm db:roles`, default privileges naming the migration role, `service_role` tested, local host only, no EXECUTE for PUBLIC on functions, SET ROLE verified before the tests, `reader` without CREATE anywhere.
 

@@ -120,6 +120,10 @@ Note also that the API's *derived* langsiktig gjeld — `sumGjeld` minus `sumKor
 
 **Currency varies.** 923609016 reports in USD. **Must be filtered before comparison.**
 
+**`valuta` is not always an ISO 4217 code.** Verified 2026-10-11 in the step-1 run, and against the live API: 920835252 has `valuta` `EDT` for 2023 and 2024, and `NOK` for 2025. `EDT` is no currency code. Across the 22 354 filings stored that day the values were `NOK` (22 267), `USD` (63), `EUR` (22) and `EDT` (2). Step 1 stores the value as filed. A comparability filter must not assume the field is a valid code or map an unknown value to NOK: a filing whose `valuta` is not a known code cannot be compared.
+
+**`sumEiendeler` can be negative, and the balance sheet then "balances" at a negative total.** Verified 2026-10-11 in the step-1 run over 62.100 and demo company C, and against the live API: 105 filings, from 80 companies, have a negative `sumEiendeler`. For example, 930115746 states `sumEiendeler` and `sumEgenkapitalGjeld` both as −4 866 636 for 2024 and both as −6 186 121 for 2025, after a positive 5 152 545 for 2023. In 86 of the 105, `sumEgenkapitalGjeld` is equal to it and just as negative. In the other 19 it differs: positive in 7, a different negative amount in 12. The register delivers these figures this way; step 1 stores them as filed. Total assets cannot be negative in real accounts, so these are filing errors that the register passes through. Any ratio with total assets in the denominator, such as return on assets or the equity ratio, flips sign or blows up on them, and a band or peer selection on asset intensity places them wrongly.
+
 **Accounting rules vary.** `regnskapslovenAlminneligRegler` versus `forenkletAnvendelseIFRS`. **These do not belong in the same peer group.**
 
 **`oppstillingsplan` says nothing about size.** The value `store` occurred on a company with 72 million in revenue and `smaaForetak: true`. **Use `smaaForetak` and `regnskapsregler` for comparability, not `oppstillingsplan`.**

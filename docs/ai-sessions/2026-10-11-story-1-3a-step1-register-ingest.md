@@ -43,6 +43,7 @@ Three independent reviewers (blind diff review, edge-case hunter against the spe
 - The human rejected adding a `--limit` option to shorten the run.
 - The final run, on the image built from `79cde8e`, ran 2026-10-11 10:09–13:36 UTC and exited 0: 17 556 companies with `naeringskode1` 62.100, 8 441 of them with filings, 22 351 filings written, and demo company C (KANTALL AS) with 3 filings. No filing was rejected and no fetch or write failed. The database counts agree, including KANTALL's company row and filings, with no filing lacking key figures and no orphan key figures.
 - Claude Code's background shells following the container were killed twice for low memory while the container ran on. The final summary and exit code were captured from `docker logs -f` and `docker wait` before the container removed itself.
+- The human checked the counts against the database and found two things in the data, which were then confirmed against the live API. First, 105 filings have a negative `sumEiendeler` (930115746, 2025: −6 186 121), and in 86 of them `sumEgenkapitalGjeld` is the same negative amount. Second, `valuta` `EDT`, which is not an ISO code, appears on 920835252 for 2023 and 2024. Both are recorded as verified findings in `docs/data-sources-brreg.md`. A `deferred-work.md` item asks Stories 1.4 and 1.7 to handle them explicitly, and the PR lists them under known limitations.
 - Verification at `79cde8e`: `check:pins`, `check:env`, lint, typecheck, `pnpm test` (79), `test:ingest` (65, none skipped), `test:db` (37), build and e2e (3).
 
 ## Links

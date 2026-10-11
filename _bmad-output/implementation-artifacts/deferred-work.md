@@ -7,3 +7,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3a-step1-register-ingest.md`
   summary: A company that the register later reclassifies out of a covered primary code keeps its old `register.company` row (old `naeringskode1`, old `read_at`), because a step-1 run only upserts the units in today's bulk selection.
   evidence: Story 1.3a review. Only 410 deletion is planned (Story 2.4); reclassification is not. Readers that select on `naeringskode1` would still see the stale row as covered until a run records which companies it last saw, or a later story decides how a refresh retires rows.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3a-step1-register-ingest.md`
+  summary: Story 1.4 (engine) and Story 1.7 (peer selection) must handle a negative `sumEiendeler` explicitly. 105 stored filings have one, and in 86 `sumEgenkapitalGjeld` is equally negative. A ratio over total assets, an asset-intensity band or a peer selection must not compute on them silently: flag them, exclude them, or show that the figure is unusable, as the story decides. Peer selection must also refuse a `valuta` that is not a known currency code (`EDT` on 920835252 for 2023 and 2024) instead of treating it as NOK.
+  evidence: Step-1 acceptance run 2026-10-11, checked against the live API (example 930115746: −6 186 121 for 2025 in both fields). Details under "Pitfalls" in `docs/data-sources-brreg.md`.

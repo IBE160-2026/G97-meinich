@@ -10,6 +10,7 @@ stores no ratio, distribution or derived amount (AD-1, AD-15).
 
 from __future__ import annotations
 
+import http.client
 import os
 import sys
 from collections.abc import Callable
@@ -47,6 +48,16 @@ class Summary:
     rejected: list[Problem] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
 
+    def needs_operator(self) -> bool:
+        """True when anything in the run needs a person to look at it."""
+        return bool(
+            self.failed
+            or self.rejected
+            or not self.demo_found
+            or self.demo_filings_written == 0
+            or self.codes_returning_nothing()
+        )
+
     def codes_returning_nothing(self) -> list[str]:
         return [code for code, summary in self.codes.items() if summary.companies == 0]
 
@@ -77,6 +88,22 @@ class Summary:
         return out
 
 
+class ConnectionLost(Exception):
+    """The database connection closed: every later write would fail too."""
+
+
+# Errors from the register that end one company's fetch, not the run:
+# OSError covers URLError and timeouts, ValueError a body that is not JSON,
+# HTTPException e.g. IncompleteRead.
+FETCH_ERRORS = (OSError, ValueError, http.client.HTTPException)
+
+
+def _write_failed(conn: psycopg.Connection, summary: Summary, problem: Problem, error: psycopg.Error) -> None:
+    summary.failed.append(problem)
+    if conn.closed:
+        raise ConnectionLost(f"database connection closed after: {problem.orgnr} {problem.what}") from error
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -93,11 +120,11 @@ def _load_company(
     try:
         write.write_company(conn, company)
     except psycopg.Error as error:
-        summary.failed.append(Problem(company.orgnr, f"company: {error.__class__.__name__}: {error}".strip()))
+        _write_failed(conn, summary, Problem(company.orgnr, f"company: {error.__class__.__name__}: {error}".strip()), error)
         return 0
     try:
         raw_filings = fetch.fetch_filings(transport, base_url, company.orgnr)
-    except (OSError, ValueError) as error:
+    except FETCH_ERRORS as error:
         # A register error that outlasted the retries, or a body that is not
         # the expected JSON: name it and go on with the next company.
         summary.failed.append(Problem(company.orgnr, f"key figures: {error.__class__.__name__}: {error}"))
@@ -113,13 +140,12 @@ def _load_company(
         try:
             write.write_filing(conn, filing)
         except psycopg.Error as error:
-            summary.failed.append(
-                Problem(
-                    filing.orgnr,
-                    f"filing {filing.brreg_id} ({filing.regnskapstype} {filing.filing_year}):"
-                    f" {error.__class__.__name__}: {str(error).strip()}",
-                )
+            problem = Problem(
+                filing.orgnr,
+                f"filing {filing.brreg_id} ({filing.regnskapstype} {filing.filing_year}):"
+                f" {error.__class__.__name__}: {str(error).strip()}",
             )
+            _write_failed(conn, summary, problem, error)
             continue
         written += 1
     return written
@@ -141,7 +167,11 @@ def run(
     bulk_read_at = now()
     selected: list[tuple[str, parse.Company]] = []
     for code, unit in parse.select_covered(fetch.iter_bulk_units(transport, cfg.base_url), codes):
-        selected.append((code, parse.parse_company(unit, bulk_read_at)))
+        try:
+            selected.append((code, parse.parse_company(unit, bulk_read_at)))
+        except ValueError as error:
+            orgnr = unit.get("organisasjonsnummer")
+            summary.failed.append(Problem(str(orgnr), f"bulk unit not loaded: {error}"))
     progress(f"bulk download: {len(selected)} units with a covered primary code")
 
     # 2. Each covered company and its filings.
@@ -156,9 +186,14 @@ def run(
             progress(f"{index} of {len(selected)} companies")
 
     # 3. Demo company C, by orgnr, whatever its industry.
-    unit = fetch.fetch_unit(transport, cfg.base_url, cfg.demo_company_c.orgnr)
-    if unit is not None:
-        company = parse.parse_company(unit, now())
+    demo_orgnr = cfg.demo_company_c.orgnr
+    try:
+        unit = fetch.fetch_unit(transport, cfg.base_url, demo_orgnr)
+        company = parse.parse_company(unit, now()) if unit is not None else None
+    except FETCH_ERRORS as error:
+        summary.failed.append(Problem(demo_orgnr, f"demo company C: {error.__class__.__name__}: {error}"))
+        company = None
+    if company is not None:
         summary.demo_found = True
         summary.demo_navn = company.navn
         summary.demo_filings_written = _load_company(conn, transport, cfg.base_url, company, summary, now)
@@ -175,7 +210,7 @@ def main() -> int:
         summary = run(conn, transport, cfg, codes, progress=lambda message: print(message, file=sys.stderr, flush=True))
     for line in summary.lines():
         print(line)
-    return 1 if summary.failed else 0
+    return 1 if summary.needs_operator() else 0
 
 
 if __name__ == "__main__":

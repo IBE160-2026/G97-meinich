@@ -277,3 +277,95 @@ def test_run_names_an_unreadable_response_and_continues(db: psycopg.Connection, 
     assert summary.codes["62.100"].companies == 1
     assert summary.codes["62.100"].filings_written == 0
     assert summary.demo_filings_written == 3
+
+
+def test_run_company_without_key_figures(db: psycopg.Connection, cfg: Config) -> None:
+    transport = run_transport({regnskap_url("919951834"): None})
+    summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert count(db, "select count(*) from register.company where orgnr = %s", "919951834") == 1
+    code = summary.codes["62.100"]
+    assert (code.companies, code.companies_with_filings, code.filings_written) == (1, 0, 0)
+    assert summary.failed == [] and summary.rejected == []
+    assert "62.100: 1 companies, 0 with filings, 0 filings written" in summary.lines()[1]
+
+
+def test_run_demo_c_not_found(db: psycopg.Connection, cfg: Config) -> None:
+    transport = run_transport({enhet_url("967534579"): None})
+    summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert summary.demo_found is False
+    assert "  demo company C 967534579: not found in Enhetsregisteret" in summary.lines()
+    assert regnskap_url("967534579") not in transport.requested
+    assert summary.needs_operator()
+
+
+def test_run_bulk_unit_without_valid_orgnr_is_named(db: psycopg.Connection, cfg: Config) -> None:
+    units = json.loads(recorded("enheter_lastned.json"))
+    broken = json.loads(json.dumps(units[0]))
+    broken["organisasjonsnummer"] = "12345"
+    transport = FixtureTransport(run_transport().responses, bulk=json.dumps([broken, *units]).encode("utf-8"))
+    summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert [(p.orgnr, p.what.startswith("bulk unit not loaded")) for p in summary.failed] == [("12345", True)]
+    assert summary.codes["62.100"].companies == 1
+    assert summary.codes["62.100"].filings_written == 3
+    assert summary.demo_filings_written == 3
+
+
+# --- main's exit code -------------------------------------------------------------
+
+
+def clean_summary() -> run.Summary:
+    summary = run.Summary(codes={"62.100": run.CodeSummary("62.100", 1, 1, 3)}, demo_orgnr="967534579")
+    summary.demo_found = True
+    summary.demo_navn = "KANTALL AS"
+    summary.demo_filings_written = 3
+    return summary
+
+
+def with_failed(s: run.Summary) -> None:
+    s.failed.append(run.Problem("919951834", "x"))
+
+
+def with_rejected(s: run.Summary) -> None:
+    s.rejected.append(run.Problem("919951834", "x"))
+
+
+def without_demo(s: run.Summary) -> None:
+    s.demo_found = False
+    s.demo_filings_written = 0
+
+
+def demo_without_filings(s: run.Summary) -> None:
+    s.demo_filings_written = 0
+
+
+def code_without_companies(s: run.Summary) -> None:
+    s.codes["62.010"] = run.CodeSummary("62.010")
+
+
+@pytest.mark.parametrize(
+    "spoil",
+    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies],
+    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies"],
+)
+def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: object) -> None:
+    summary = clean_summary()
+    if callable(spoil):
+        spoil(summary)
+
+    class NoConnection:
+        def __enter__(self) -> object:
+            return object()
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+    monkeypatch.setattr(run.config_module, "load_config", lambda _path: cfg)
+    monkeypatch.setattr(run.config_module, "load_coverage", lambda _path: list(summary.codes))
+    monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
+    monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run, "run", lambda *_args, **_kwargs: summary)
+
+    assert run.main() == (0 if spoil is None else 1)

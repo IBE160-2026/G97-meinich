@@ -1,0 +1,28 @@
+[project]
+name = "peerless-ingest"
+version = "0.1.0"
+description = "Peerless batch step 1: register data and API key figures, stored as filed, in øre"
+requires-python = "==3.14.*"
+# Every dependency is pinned exactly (tests/test_pins.py).
+dependencies = [
+    "psycopg[binary]==3.3.6",
+]
+
+[project.scripts]
+peerless-ingest = "peerless_ingest.run:main"
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+]
+
+[build-system]
+requires = ["uv_build==0.12.10"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = "==0.12.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

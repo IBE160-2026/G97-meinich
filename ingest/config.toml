@@ -1,0 +1,40 @@
+# Batch step 1 configuration (Story 1.3a).
+#
+# The industries step 1 fetches are not listed here: they come from
+# seed/coverage.json, the one hand-edited file under seed/ (AD-16). No
+# industry code is named in this file or in ingest/src.
+
+[register]
+# Overridden by BRREG_API_BASE_URL when that is set.
+base_url = "https://data.brreg.no"
+# Identifies Peerless to the register on every request.
+user_agent = "Peerless student project (IBE160, Hogskolen i Molde)"
+# Pause after each key-figures request, in seconds.
+request_pause_seconds = 0.15
+
+# Demo company C: a real company in an industry Peerless does not cover, used
+# to show the uncovered-industry state (FR-4, UX-DR41). Chosen in Story 1.3a;
+# Story 5.4 confirms it and does not choose it again. Step 1 fetches only its
+# Enhetsregisteret record and its key figures, never a filed document.
+#
+# Each criterion from Story 1.3a, with the evidence as checked on 2026-10-11
+# against GET /enhetsregisteret/api/enheter/967534579 and
+# GET /regnskapsregisteret/regnskap/967534579:
+#
+# - In an uncovered industry: naeringskode1.kode is that of
+#   "Regnskapsføring og bokføring"; no naeringskode2 or naeringskode3.
+# - Active AS: organisasjonsform.kode "AS"; konkurs false; underAvvikling
+#   false; underTvangsavviklingEllerTvangsopplosning false.
+# - A filing for the latest filing year: SELSKAP filing id 6430011,
+#   regnskapsperiode 2025-01-01 to 2025-12-31 (also 2023 and 2024 on file).
+# - smaaForetak true and regnskapsregler regnskapslovenAlminneligRegler
+#   (read from regnkapsprinsipper, as the API spells it); valuta NOK;
+#   avviklingsregnskap false.
+# - Unremarkable, all three API figures defined: sumDriftsinntekter
+#   50 392 460 and sumEiendeler 25 541 816, both positive; driftsresultat
+#   6 381 720 and sumEgenkapital 11 038 439, both positive; 33 employees.
+#   Nothing in the name or figures draws attention away from the state.
+# - Not the developer's employer: not Statement AS (979 607 008).
+[demo_company_c]
+orgnr = "967534579"
+navn = "KANTALL AS"

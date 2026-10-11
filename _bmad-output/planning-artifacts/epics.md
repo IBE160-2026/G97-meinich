@@ -601,9 +601,10 @@ So that the seed rests on figures whose year, unit and missing values are handle
 **And** every amount column is `bigint` named `<field>_ore` with a column comment stating the unit (AD-14)
 **And** each filing row stores the filing year, `read_at timestamptz`, the reporting unit, a status from `reconciled` / `failed_reconciliation` / `not_extracted` / `paper`, and the comparability fields `valuta`, `regnskapsregler`, `smaaForetak`, `avviklingsregnskap`, financial period and `regnskapstype`; the company row stores `organisasjonsform`
 
-**Given** an API response whose amounts are reported in thousands or millions
+**Given** an API response, including one from a company that reports in thousands or millions
 **When** step 1 writes it
-**Then** each amount is converted to øre and the reporting unit is stored on the filing
+**Then** each amount is parsed as a whole number (never through a float), multiplied by 100 to øre, and an amount that is not a whole number is rejected
+**And** `reporting_unit` is stored as the fixed label `api_whole_units`: the key-figures API returns whole currency units and has no unit field (verified 2026-10-11 — 923609016, which reports in USD millions, returns `sumEiendeler` 127 220 000 000), so step 1 never guesses a unit; how precise an amount is, for example when reconciling against a document in Epic 2, is computed where it is needed and not stored as a register fact
 
 **Given** the contract test
 **When** it runs step 1's writer on fixture 979607008/2025 against a freshly migrated database

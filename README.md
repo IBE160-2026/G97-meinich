@@ -19,7 +19,7 @@ pnpm build
 pnpm start            # http://localhost:3000
 ```
 
-In v1 the app is an empty shell (header and footer). The local database (below) holds the roles and empty schemas; seed data and analysis arrive in later stories.
+In v1 the app is an empty shell (header and footer). The local database (below) holds the roles, the schemas and the tables batch step 1 writes, empty until step 1 runs; the seed and analysis arrive in later stories.
 
 Checks, as CI runs them on every pull request:
 
@@ -46,6 +46,20 @@ pnpm db:stop
 ```
 
 `pnpm db:roles` never prints a password, never overwrites one already in `.env`, refuses unless `.env` is gitignored, and refuses any database host other than `127.0.0.1` or `localhost`. Running it again leaves `.env` and the passwords unchanged.
+
+### Batch step 1: register data
+
+Step 1 fetches Enhetsregisteret data and the key-figures API filings for every company whose primary industry is declared in `seed/coverage.json`, plus demo company C (`ingest/config.toml`), and stores them as filed, in øre, as the `ingest` role. It is a manual batch run; the app never calls the register. The register is free and needs no key.
+
+Requires Docker, and [uv](https://docs.astral.sh/uv/) 0.12.10 for the tests (uv installs Python 3.14 from `ingest/.python-version`).
+
+```sh
+pnpm db:start && pnpm db:roles   # the database and INGEST_DATABASE_URL in .env
+pnpm test:ingest      # fixture and contract tests: recorded responses, no network; database tests roll back
+pnpm ingest           # builds ingest/Dockerfile and runs it once against the local database
+```
+
+`pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests, so a full run takes a while. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
 
 If your Node install blocks the `pnpm` shim that `corepack enable` writes, prefix each command with `corepack` instead (`corepack pnpm install …`).
 

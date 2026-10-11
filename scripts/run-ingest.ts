@@ -42,6 +42,23 @@ export function containerDatabaseUrl(url: string): string {
   return parsed.toString();
 }
 
+// The `docker run` argv. It holds no value of any variable: each is passed
+// as `--env NAME`, and docker reads the value from the child's environment.
+export function dockerRunArgs(root: string, withBaseUrl: boolean): string[] {
+  const args = [
+    'run',
+    '--rm',
+    '--add-host',
+    `${CONTAINER_HOST}:host-gateway`,
+    '--env',
+    'INGEST_DATABASE_URL',
+    '--mount',
+    `type=bind,source=${path.join(root, 'seed')},target=/seed,readonly`,
+  ];
+  if (withBaseUrl) args.push('--env', 'BRREG_API_BASE_URL');
+  return [...args, IMAGE];
+}
+
 function docker(args: string[], env: NodeJS.ProcessEnv = process.env): number {
   const result = spawnSync('docker', args, { stdio: 'inherit', env });
   if (result.error !== undefined) {
@@ -65,23 +82,10 @@ export function main(root: string): number {
   const built = docker(['build', '--tag', IMAGE, path.join(root, 'ingest')]);
   if (built !== 0) return built;
 
-  const env: NodeJS.ProcessEnv = { ...process.env, INGEST_DATABASE_URL: containerDatabaseUrl(url) };
-  const args = [
-    'run',
-    '--rm',
-    '--add-host',
-    `${CONTAINER_HOST}:host-gateway`,
-    '--env',
-    'INGEST_DATABASE_URL',
-    '--mount',
-    `type=bind,source=${path.join(root, 'seed')},target=/seed,readonly`,
-  ];
   const baseUrl = setting(root, 'BRREG_API_BASE_URL');
-  if (baseUrl !== undefined) {
-    env.BRREG_API_BASE_URL = baseUrl;
-    args.push('--env', 'BRREG_API_BASE_URL');
-  }
-  return docker([...args, IMAGE], env);
+  const env: NodeJS.ProcessEnv = { ...process.env, INGEST_DATABASE_URL: containerDatabaseUrl(url) };
+  if (baseUrl !== undefined) env.BRREG_API_BASE_URL = baseUrl;
+  return docker(dockerRunArgs(root, baseUrl !== undefined), env);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

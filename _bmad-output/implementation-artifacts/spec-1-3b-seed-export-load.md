@@ -131,7 +131,7 @@ context:
 
 - Commits `a5e6088` (migration, scripts, the demo seed exported from the 1.3a database, committed before any loader write outside a rolled-back test), `d1e79bb` (tests, loader fixes, CI), `89e2dae` (fixtures moved out of the gitignored `coverage/` name), `82bd968` (docs). The new migration went in with `supabase migration up`. `pnpm db:reset` ran only after the seed was committed.
 - Migration id = the latest migration file name without `.sql` (`20261011130000_register_seed_manifest`).
-- **CI order:** the two `pnpm seed` steps run after "Step 1 tests", which come after `test:db`. The step-1 tests assume empty register tables, and two of them fail against a loaded database.
+- **CI order:** as the spec says, the seed steps run right after `test:db`. The first implementation moved them after "Step 1 tests", because two step-1 tests assumed empty tables. At the human's request, the tests were fixed instead: they compare state before and after inside the transaction, and pass on an empty and on a seeded database.
 - **postgres.js 3.4.9 COPY faults, worked around:**
   - (a) Reading `COPY TO` with `for await` sometimes hung the next query. The export now reads in flowing mode.
   - (b) A `COPY FROM` that the server rejects at the end of the statement (a foreign-key error) hung instead of failing. The loader wraps the query's internal `reject`. This relies on the pinned version's internals; re-check it on any upgrade. The `23503` rollback test covers it.

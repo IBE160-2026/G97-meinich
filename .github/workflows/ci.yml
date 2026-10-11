@@ -59,6 +59,20 @@ jobs:
       - name: Database tests (grants, db:roles)
         run: pnpm test:db
 
+      # The committed demo seed loads into the freshly migrated database as
+      # `loader`, twice: the second run proves the load is idempotent
+      # (AD-16). Right after the database tests, so the step-1 tests below
+      # run against a loaded database, as they would on a developer's.
+      - name: Load the demo seed
+        run: pnpm seed
+
+      - name: Load the demo seed again
+        run: pnpm seed
+
+      # The export as reader reproduces the committed seed byte for byte.
+      - name: Re-export the seed and compare
+        run: pnpm seed:export && git diff --exit-code seed/
+
       # Batch step 1 (Python). uv is pinned here and in ingest/pyproject.toml
       # (tool.uv.required-version); Python 3.14 comes from
       # ingest/.python-version and the dependencies from ingest/uv.lock.
@@ -71,24 +85,10 @@ jobs:
         working-directory: ingest
 
       # Fixture and contract tests: recorded responses, no network, writes
-      # as ingest into the freshly migrated database (INGEST_DATABASE_URL
+      # as ingest into the seeded database (INGEST_DATABASE_URL
       # from the .env that db:roles wrote), always rolled back.
       - name: Step 1 tests
         run: pnpm test:ingest
-
-      # The committed demo seed loads into the freshly migrated database as
-      # `loader`, twice: the second run proves the load is idempotent
-      # (AD-16). After the step-1 tests, because those assume empty register
-      # tables.
-      - name: Load the demo seed
-        run: pnpm seed
-
-      - name: Load the demo seed again
-        run: pnpm seed
-
-      # The export as reader reproduces the committed seed byte for byte.
-      - name: Re-export the seed and compare
-        run: pnpm seed:export && git diff --exit-code seed/
 
       # Proves the image builds. The real `pnpm ingest` is run by hand, never
       # in CI.

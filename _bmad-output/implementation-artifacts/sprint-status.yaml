@@ -40,7 +40,7 @@ development_status:
   1-2-local-supabase-with-roles-and-grants-the-read-boundary: done
   1-3a-step-1-ingests-register-data-for-62-100-and-demo-company-c: done
   1-3b-the-seed-path-export-load-and-ci: done
-  1-4-the-engine-calculates-and-formats-correctly: review
+  1-4-the-engine-calculates-and-formats-correctly: done
   1-5-find-a-company-by-name-or-organisation-number: backlog
   1-6a-one-module-reads-and-writes-the-analysis-url: backlog
   1-6b-open-an-analysis-in-the-right-state: backlog

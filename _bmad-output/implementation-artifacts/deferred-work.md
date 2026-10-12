@@ -9,8 +9,8 @@
   evidence: Story 1.3a review. Only 410 deletion is planned (Story 2.4); reclassification is not. Readers that select on `naeringskode1` would still see the stale row as covered until a run records which companies it last saw, or a later story decides how a refresh retires rows.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3a-step1-register-ingest.md`
-  summary: Story 1.4 (engine) and Story 1.7 (peer selection) must handle a negative `sumEiendeler` explicitly. 105 stored filings have one, and in 86 `sumEgenkapitalGjeld` is equally negative. A ratio over total assets, an asset-intensity band or a peer selection must not compute on them silently: flag them, exclude them, or show that the figure is unusable, as the story decides. Peer selection must also refuse a `valuta` that is not a known currency code (`EDT` on 920835252 for 2023 and 2024) instead of treating it as NOK.
-  evidence: Step-1 acceptance run 2026-10-11, checked against the live API (example 930115746: −6 186 121 for 2025 in both fields). Details under "Pitfalls" in `docs/data-sources-brreg.md`.
+  summary: Negative `sumEiendeler` and unknown `valuta` are left to Stories 1.7 and 1.8. 105 stored filings have a negative `sumEiendeler` (in 86 `sumEgenkapitalGjeld` is equally negative). Story 1.4's engine already makes every ratio over a negative (or zero) `sumEiendeler` undefined (`denominator_not_positive`), never a sign-flipped value. Story 1.7 must decide how such a filing enters an asset-intensity band or peer selection (flag or exclude it, never compute on it silently), and in stage 2 refuse a `valuta` that is not a known currency code — for subject and peers alike, never mapped to NOK (`EDT` on 920835252 for 2023 and 2024). The engine's ratios are currency-neutral and it does not read `valuta`, but `formatKroner`, `formatSignedKroner` and `formatMillions` write "kr" and assume NOK: Story 1.8 shows a kroner amount only when the subject's `valuta` is `NOK`.
+  evidence: Step-1 acceptance run 2026-10-11, checked against the live API (example 930115746: −6 186 121 for 2025 in both fields). Details under "Pitfalls" in `docs/data-sources-brreg.md`. Story 1.4 human decision 2026-10-12 ("Currency is not the engine's"); reference case 931165992 SIGMA DATA SOLUTIONS AS 2023 in `test/engine/reference-cases.test.ts`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
   summary: Story 2.3 must make `seed:export` keep the curated entries in `seed/allow-list.json` instead of overwriting it with `[]`, and refuse an export whose document-figure orgnrs are not on the list.
@@ -23,3 +23,23 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
   summary: AGENTS.md and technical note AD-16 name `seed/**` and `analysis/output/**` as `-text`, but `.gitattributes` also marks `test/fixtures/seed/**`; add the third path to both.
   evidence: Story 1.3b review. Deferred because the fix edits an agent-context file.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
+  summary: Story 1.7 must keep dormant companies — zero or near-zero `sumDriftsinntekter` — out of the peer group. They are a selection question, not an engine one: the engine makes their margin undefined (`denominator_not_positive`, or within ±5 kr of zero when revenue is derived), but as peers they would still count towards the 10-peer floor of the other figures and pull their distributions.
+  evidence: Story 1.4 human decision 2026-10-12. 4 268 filings in the demo seed have zero or near-zero revenue; examples 924971487 PAF SOFTWARE AS 2021 (stated 0) and 919728574 JOAKIM BORDING AS 2025 (derived 1 kr).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
+  summary: Story 1.8, the first story that displays a figure, should extend the ESLint bans to where numbers are displayed — `toFixed`, `toDecimalPlaces`/`toDP`, `toSignificantDigits` and `toLocaleString` in `src/app` and `src/components` — so `src/engine/format.ts` stays the only formatter and the only rounding, and update AGENTS.md's ESLint sentence in the same change.
+  evidence: Story 1.4 review (edge-case and blind hunters). Today the rounding ban covers only `src/engine/**` and `*format*` files, and the Intl ban only `Intl.NumberFormat`; `Number#toLocaleString` uses Intl and differs between Node and browsers. Deferred because the fix edits an agent-context file and no component displays a figure yet.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
+  summary: Story 1.5's `src/server/db.ts` must be covered by a read-types test through the app's own client, so a `types`/`transform` option that parses `int8` or `numeric` to a number fails a test.
+  evidence: Story 1.4 review. `test/db/read-types.test.ts` builds its own postgres.js client with default options, because the app client does not exist yet.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
+  summary: Decide whether a filing whose stated balance does not balance (`sumEiendeler` ≠ `sumEgenkapitalGjeld` beyond a few kroner) is flagged or excluded from the API figures, the way document figures are reconciled.
+  evidence: Story 1.4 review. 1 903 of 22 354 seed filings have `sumEiendeler ≠ sumEgenkapitalGjeld`, most by 1 kr (rounding); some by far more, e.g. 931165992 SIGMA DATA SOLUTIONS AS 2023 (−17 767 against +14 019 kr). The engine computes on stated values as filed and does not reconcile.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
+  summary: The provenance drill-down (FR-64, Epic 3) needs to know which inputs were derived; `FigureResult` records only `denominatorDerived`, not a derived numerator (`driftsresultat`, `sumEgenkapital`).
+  evidence: Story 1.4 review. JOAKIM BORDING AS 2025's equity ratio uses a derived `sumEgenkapital` and cannot be told apart from a stated one.

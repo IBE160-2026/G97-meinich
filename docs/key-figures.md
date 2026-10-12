@@ -12,7 +12,16 @@ The calculation engine implements exactly these definitions. Change this documen
 
 **Closing balances.** Balance sheet items are taken at year end, not averaged. The key figures API gives only the latest year, so an average would not be available for every peer.
 
-**Undefined is not zero.** If a denominator is zero or negative, or a component is missing and cannot be derived from its stated total, the key figure is undefined for that company. The company is left out of that figure's distribution, and the number left out is shown.
+**Undefined is not zero.** If a denominator is zero or negative, or a component is missing and cannot be derived from its stated total, the key figure is undefined for that company. The company is left out of that figure's distribution, and the number left out is shown. A missing component is checked before the denominator's sign.
+
+**Deriving a missing API input.** An empty field is derived from stated values only, one level deep — a derived value never feeds another derivation:
+
+- `sumDriftsinntekter` = `driftsresultat` + `sumDriftskostnad`
+- `driftsresultat` = `sumDriftsinntekter` − `sumDriftskostnad`
+- `sumEiendeler` = `sumEgenkapitalGjeld`
+- `sumEgenkapital` = `sumEgenkapitalGjeld` − `sumGjeld`
+
+A stated value is always used as it is, however small. **A derived denominator of 5 kr or less counts as not positive** (+5 kr itself included; any negative amount is not positive anyway), and the figure is undefined. The reason: the register prints whole kroner rounded from øre, so a derived figure inherits the rounding uncertainty of the totals it is computed from, and a derived amount within ±5 kr of zero cannot be told apart from zero. Example: JOAKIM BORDING AS (919728574), 2025, has no `sumDriftsinntekter`; it derives to −17 003 + 17 004 = 1 kr, and a margin over that 1 kr would be −1 700 300 %. The bound applies to derived figures only.
 
 **Arithmetic.** Amounts are integers in øre. Ratios are computed with a decimal library and rounded only for display — to the nearest value, ties away from zero — percentages to one decimal, days to whole days, kroner to whole kroner. **Exception: the percentile is shown in whole percent** ("bedre enn 61 %"), because with a peer group of around twenty a decimal is false precision; it is computed exactly and rounded only for display.
 

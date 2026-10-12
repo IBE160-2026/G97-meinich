@@ -25,12 +25,24 @@ const serverImportRestriction = {
   ],
 };
 
+// Every displayed number goes through src/engine/format.ts (AD-6).
+// Intl.NumberFormat writes different characters in Node and in browsers, so
+// it is banned in all application code and scripts.
+const intlRestriction = {
+  object: 'Intl',
+  property: 'NumberFormat',
+  message: 'Format numbers with src/engine/format.ts (AD-6).',
+};
+
 // Money is rounded once, at display, half away from zero, by the engine's
 // decimal formatter (AD-8). Math.round rounds half towards +Infinity and
 // toFixed works on binary floats; both are banned where figures are handled.
+// A later flat-config block replaces the rule's options rather than merging
+// them, so this list repeats the Intl entry.
 const roundingRestriction = {
   'no-restricted-properties': [
     'error',
+    intlRestriction,
     { object: 'Math', property: 'round', message: 'Use the engine decimal rounding (AD-8).' },
     { property: 'toFixed', message: 'Use the engine decimal formatter (AD-8).' },
   ],
@@ -43,6 +55,10 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
     },
+  },
+  {
+    files: ['src/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}', 'scripts/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}'],
+    rules: { 'no-restricted-properties': ['error', intlRestriction] },
   },
   {
     files: ['src/engine/**/*.{ts,tsx}', '**/*[fF]ormat*.{ts,tsx}'],

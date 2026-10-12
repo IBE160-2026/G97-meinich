@@ -50,6 +50,32 @@ describe('rounding ban (AD-8)', () => {
   });
 });
 
+describe('Intl.NumberFormat ban (AD-6)', () => {
+  it('rejects Intl.NumberFormat in src/', async () => {
+    expect(await ruleIds('intl-number-format.ts', 'src/components/fixture.ts')).toContain(
+      'no-restricted-properties',
+    );
+  });
+
+  it('rejects Intl.NumberFormat in scripts/', async () => {
+    expect(await ruleIds('intl-number-format.ts', 'scripts/fixture.ts')).toContain(
+      'no-restricted-properties',
+    );
+  });
+
+  it('rejects Intl.NumberFormat in src/engine, where the rounding list replaces the options', async () => {
+    expect(await ruleIds('intl-number-format.ts', 'src/engine/fixture.ts')).toContain(
+      'no-restricted-properties',
+    );
+  });
+
+  it('rejects Intl.NumberFormat in a formatting file outside src/', async () => {
+    expect(await ruleIds('intl-number-format.ts', 'test/helpers/format-fixture.ts')).toContain(
+      'no-restricted-properties',
+    );
+  });
+});
+
 describe('restricted imports (AD-8, AD-19)', () => {
   it('rejects src/server in the engine', async () => {
     expect(await ruleIds('engine-imports-server.ts', 'src/engine/fixture.ts')).toContain(

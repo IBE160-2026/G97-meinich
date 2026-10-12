@@ -2,7 +2,8 @@
 title: 'Story 1.4: The engine calculates and formats correctly'
 type: 'feature'
 created: '2026-10-12'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '2822b28a02f271563aa42a3d2c962875c1007024'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -78,24 +79,55 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `package.json` -- add `decimal.js` `10.6.0` (exact) to dependencies; `pnpm install`.
-- [ ] `src/engine/decimal.ts` -- the one `Decimal.clone` (config above), `roundHalfAwayFromZero`.
-- [ ] `src/engine/types.ts` -- `ApiInputs` (`bigint | null` per register field), `Source`, `Direction`, `FigureResult` (value with source | absence), `Comparison` union (`subject_absent` | `below_floor` | `compared`, the last with `best: { quartile, percentile } | null`), `MIN_PEERS = 10`.
-- [ ] `src/engine/key-figures.ts` -- input derivation, then `computeApiKeyFigures(inputs)` → the three `FigureResult`s with source `api`; directions ↑, ↑, none.
-- [ ] `src/engine/statistics.ts` -- `percentileInc(sorted, p)`, `percentileRank(subject, peers, direction)`, `compareFigure(subject, peers, direction)` applying source match, floor and `leftOut`.
-- [ ] `src/engine/inputs.ts` -- `parseOre`, `parseDecimal` (strings matching `^-?\d+$` / `^-?\d+(\.\d+)?$` only; anything else throws), `apiInputsFromRow(row)` from the `key_figures` column names.
-- [ ] `src/engine/format.ts` -- `formatKroner(ore)`, `formatSignedKroner(ore)`, `formatMillions(ore)`, `formatPercent(fraction)`, `formatWholePercent(percent)`, `formatPercentagePoints(fraction)`, `formatDays`, `formatTurnover`, `formatMultiple`, `formatOrgnr`.
-- [ ] `src/engine/index.ts` -- re-exports.
-- [ ] `test/engine/*.test.ts` -- every matrix row; formatter bytes compared as code-point arrays.
-- [ ] `test/engine/reference-cases.test.ts` -- the six cases below, inputs copied from `seed/demo/key_figures.csv`; above each case a comment with orgnr, name, filing year and the calculation step by step in kroner (inputs, any derivation, each division, the result to 20 significant digits and as displayed). The expected values come from that hand calculation, not from the engine.
-- [ ] `test/no-other-decimal.test.ts` -- only `src/engine/decimal.ts` imports `decimal.js` or calls `clone`/`config`/`set` on it.
-- [ ] `test/db/read-types.test.ts` -- as `reader`, `select 9007199254740993::bigint, 12.345::numeric, null::bigint` arrive as strings/null and parse exactly.
-- [ ] `_bmad-output/implementation-artifacts/deferred-work.md` -- add the Story 1.7 dormant-company entry; rewrite the 1.3a negative-`sumEiendeler`/`valuta` entry so it points at 1.7 (asset band, unknown `valuta`) and 1.8 (kroner only for NOK), and records that 1.4 makes ratios over a negative `sumEiendeler` undefined.
-- [ ] Docs: `docs/key-figures.md` (General rules: the four derivation rules and the ±5 kr bound with its reason); `AGENTS.md` (ESLint list, decimal.js); `docs/ai-log.md` (what could go wrong with money handling); `docs/ai-sessions/` file; sprint-status.
+- [x] `package.json` -- add `decimal.js` `10.6.0` (exact) to dependencies; `pnpm install`.
+- [x] `src/engine/decimal.ts` -- the one `Decimal.clone` (config above), `roundHalfAwayFromZero`.
+- [x] `src/engine/types.ts` -- `ApiInputs` (`bigint | null` per register field), `Source`, `Direction`, `FigureResult` (value with source | absence), `Comparison` union (`subject_absent` | `below_floor` | `compared`, the last with `best: { quartile, percentile } | null`), `MIN_PEERS = 10`.
+- [x] `src/engine/key-figures.ts` -- input derivation, then `computeApiKeyFigures(inputs)` → the three `FigureResult`s with source `api`; directions ↑, ↑, none.
+- [x] `src/engine/statistics.ts` -- `percentileInc(sorted, p)`, `percentileRank(subject, peers, direction)`, `compareFigure(subject, peers, direction)` applying source match, floor and `leftOut`.
+- [x] `src/engine/inputs.ts` -- `parseOre`, `parseDecimal` (strings matching `^-?\d+$` / `^-?\d+(\.\d+)?$` only; anything else throws), `apiInputsFromRow(row)` from the `key_figures` column names.
+- [x] `src/engine/format.ts` -- `formatKroner(ore)`, `formatSignedKroner(ore)`, `formatMillions(ore)`, `formatPercent(fraction)`, `formatWholePercent(percent)`, `formatPercentagePoints(fraction)`, `formatDays`, `formatTurnover`, `formatMultiple`, `formatOrgnr`.
+- [x] `src/engine/index.ts` -- re-exports.
+- [x] `test/engine/*.test.ts` -- every matrix row; formatter bytes compared as code-point arrays.
+- [x] `test/engine/reference-cases.test.ts` -- the six cases below, inputs copied from `seed/demo/key_figures.csv`; above each case a comment with orgnr, name, filing year and the calculation step by step in kroner (inputs, any derivation, each division, the result to 20 significant digits and as displayed). The expected values come from that hand calculation, not from the engine.
+- [x] `test/no-other-decimal.test.ts` -- only `src/engine/decimal.ts` imports `decimal.js` or calls `clone`/`config`/`set` on it.
+- [x] `test/db/read-types.test.ts` -- as `reader`, `select 9007199254740993::bigint, 12.345::numeric, null::bigint` arrive as strings/null and parse exactly.
+- [x] `_bmad-output/implementation-artifacts/deferred-work.md` -- add the Story 1.7 dormant-company entry; rewrite the 1.3a negative-`sumEiendeler`/`valuta` entry so it points at 1.7 (asset band, unknown `valuta`) and 1.8 (kroner only for NOK), and records that 1.4 makes ratios over a negative `sumEiendeler` undefined.
+- [x] Docs: `docs/key-figures.md` (General rules: the four derivation rules and the ±5 kr bound with its reason); `AGENTS.md` (ESLint list, decimal.js); `docs/ai-log.md` (what could go wrong with money handling); `docs/ai-sessions/` file; sprint-status.
 
 **Acceptance Criteria:**
 - Given the reference cases — 979803125 BMC SOFTWARE AS 2025 (normal), 921708750 TRACSENSE AS 2020 (negative equity), 924971487 PAF SOFTWARE AS 2021 (stated zero revenue), 926662600 APP1 AS 2023 (`driftsresultat` underivable), 919728574 JOAKIM BORDING AS 2025 (`sumEgenkapital` derived: 196 779 − 30 327 = 166 452 kr; its revenue also derives to 1 kr, the Q1 case), 931165992 SIGMA DATA SOLUTIONS AS 2023 (negative assets) — when the engine runs them, every figure equals the hand calculation (fraction, then 20 significant digits) and its formatted percent, and each case names orgnr and filing year.
 - Given `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db`, then all pass, including the lint fixture with `Intl.NumberFormat` in `src/` failing.
+
+## Implementation Notes
+
+- Branch `story/1.4-engine-format` was created from `2822b28` (the approved-spec commit on `main`, one commit past `a04346d`), which is the baseline.
+- Choices the spec left open, taken by the implementation: an absent subject's `count` covers defined peers whatever their source (there is no subject source to match); `formatMillions` writes U+00A0 inside "mill. kr" as well as before it; a single figure's absence can never be `below_floor` (`FigureAbsence`); `index.ts` does not re-export `roundHalfAwayFromZero`.
+- The orchestrator re-ran `check:pins`, `check:env`, `lint`, `typecheck`, `pnpm test` (239) and `pnpm test:db` (62), and recomputed five reference quotients with Python `decimal` at 40 digits: all agree with the test file.
+
+## Spec Change Log
+
+## Review Triage Log
+
+Pass 1 (blind hunter BH, edge-case hunter EC, verification gap VG).
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---------|---------|----------|-------|
+| 1 | VG: no `compareFigure` test has unordered peers; deleting the sort passes every test | medium | every test uses `peersOf(n)`, already ascending | patch: shuffled-peers test |
+| 2 | VG: the `subject_absent` count "whatever their source" is untested with a document peer | low | the only test has api peers; an api-only filter passes it | patch: add a document peer, expect 12/1 |
+| 3 | VG/EC/BH: the decimal scan misses an aliased `Decimal` (`D.set(…)`) and direct assignment (`Decimal.rounding = …`); AGENTS.md and ai-log overstate it | low | `CONFIGURES_DECIMAL` needs a receiver starting with `Decimal` and a call | patch: two more patterns; ai-log (3) states what still slips past (destructuring, other packages) |
+| 4 | EC/BH: rounding and locale formatting are not banned where numbers are displayed (`toFixed`, `toDecimalPlaces`, `toLocaleString` in `src/app`/`src/components`) | medium | the rounding ban covers only `src/engine/**` and `*format*`; the Intl ban only `Intl.NumberFormat` | defer: the fix widens a lint rule AGENTS.md states, and the first displayed figure is Story 1.8 |
+| 5 | EC: the Intl ban's globs omit `.cjs`/`.mts`/`.cts` | low | `eslint.config.mjs` globs | patch: extend globs |
+| 6 | BH: ai-log (1) claims the read-types test would catch the app client parsing `int8` to a number | low | the test builds its own client; the app client arrives in Story 1.5 | patch (ai-log wording) + defer (1.5 covers its client) |
+| 7 | BH: nothing ties `apiInputsFromRow`'s column names to `register.key_figures` | low | unit tests feed literals; a rename would throw only at runtime | patch: catalog test as `reader` |
+| 8 | BH: comments call 40-digit division results "exact" | low | `statistics.ts`, `types.ts`, `key-figures.ts` comments | patch: "to 40 significant digits" |
+| 9 | BH: "within ±5 kr" is ambiguous at the edge; code treats ≤ +5 kr as not positive | low | `<= DERIVED_ZERO_BOUND_ORE`; tests at +5 and +6 kr | patch: doc and comment say "5 kr or less" |
+| 10 | BH: the stated balance sheet may not balance (SIGMA: assets −17 767 vs EK+gjeld +14 019 kr) and nothing flags it | medium | 1 903 seed filings have `sumEiendeler ≠ sumEgenkapitalGjeld`, most by 1 kr; no API reconciliation exists | defer: not caused by this story |
+| 11 | BH: provenance records only a derived denominator, not a derived numerator | low | `denominatorDerived` only | defer: the provenance drill-down (FR-64, Epic 3) decides what it needs |
+| 12 | BH: reference cases do not re-check their inputs against the seed CSV | low | the hand calculations stand on their own; checked byte for byte by VG today | reject |
+| 13 | BH: the ±5 kr bound also applies to `sumEiendeler` copied from `sumEgenkapitalGjeld` | low | the frozen decision lists that copy as a derivation; `sumEiendeler` is NULL in 0 of 22 354 seed filings | reject |
+| 14 | BH: further derivations (innskutt + opptjent, anleggs- + omløpsmidler) are not used | low | the four rules are the frozen decision; general derivation is Story 2.9 | reject |
+| 15 | BH: formatter edge cases untested (`formatMillions` → 0,0, small `+` amounts, `'007'`, `'-0'`); pp never signed | false | `render()` drops the sign on zero for every kind; `BigInt('007')` is 7n and `-0` is 0n; pp is unsigned by EXPERIENCE.md ("▼ 7,0 pp under") | reject |
+| 16 | BH: spec says `in-review`, sprint status `review`; session file lacks PR link | false | two vocabularies by design (spec template vs sprint-status); the PR link is added when the PR exists | reject |
 
 ## Design Notes
 

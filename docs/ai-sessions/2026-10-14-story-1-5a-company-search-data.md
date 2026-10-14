@@ -3,7 +3,7 @@
 **Date:** 2026-10-14
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #20, Story 1.5a
-**Result:** branch `story/1.5a-company-search-data`, implemented, reviewed and verified locally; PR to follow.
+**Result:** branch `story/1.5a-company-search-data`, PR [#21](https://github.com/IBE160-2026/G97-meinich/pull/21).
 
 ## Goal
 

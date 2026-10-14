@@ -2,7 +2,8 @@
 title: 'Story 1.5a: Step 1 stores what search shows — municipality and industry name'
 type: 'feature'
 created: '2026-10-14'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: 'a5ccd6d935da0afcd06aed04b046dae8d7d4d0f8'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -29,6 +30,7 @@ context:
   - It adds no company and deletes none, so the company set still matches the 1.3a filings.
   - It leaves every other column unchanged, including `navn` and `read_at`, and touches no filing.
   - Its summary says how many companies it updated and how many were not found in the bulk file.
+  - **It stores `naeringskode1_beskrivelse` only when the register's `naeringskode1` equals the stored one** (human, before push, 2026-10-14). Otherwise it stores NULL and names the company in the summary, because a description of the register's new code is wrong next to the stored code.
 - **`read_at` never describes values read later** (human, at approval). A fourth nullable column, `search_fields_read_at timestamptz`, records when the three fields were read.
   - Companies-only mode sets it to the time of its bulk read.
   - A normal step-1 run sets it equal to `read_at`.
@@ -45,7 +47,7 @@ context:
 - **The function and index:**
   - extensions go in schema `extensions`;
   - the function and index go in `register` (schema `app` must hold no relations);
-  - `GRANT EXECUTE` on the wrapper to `reader` only.
+  - `GRANT EXECUTE` on the wrapper, and USAGE on schema `extensions`, to `reader`, `ingest` and `loader` only. This was amended by the human at review on 2026-10-14. The approved text said `reader` only, which fails: Postgres evaluates an index expression as the role that writes the row.
 - `pnpm seed` loads the new seed twice, and `pnpm seed:export` reproduces it byte-identically.
 
 **Never:**
@@ -63,6 +65,7 @@ context:
 | no business address | unit without `forretningsadresse` (only `postadresse`) | the two kommune columns NULL | — |
 | companies-only, match | DB orgnr present in bulk | the three columns and `search_fields_read_at` (the bulk read time) updated; `navn`, `read_at` and the filings unchanged | — |
 | companies-only, missing | DB orgnr absent from bulk (e.g. deleted unit, or demo C outside the filter) | row untouched (`search_fields_read_at` stays as it was); counted and named in the summary | needs-operator exit only if a write fails |
+| companies-only, code changed | bulk `naeringskode1` ≠ stored (920768695: 62.100 → 31.000) | `naeringskode1_beskrivelse` NULL, municipality stored; named in the summary | not an error |
 | companies-only, extra | bulk unit with a covered code, not in DB | not inserted | — |
 | accents | `immutable_unaccent(lower('Ærlig Søndre'))` as `reader` | `'aerlig sondre'` | — |
 
@@ -88,13 +91,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261014120000_register_company_search.sql` -- the following, each with a `COMMENT` naming its source:
+- [x] `supabase/migrations/20261014120000_register_company_search.sql` -- the following, each with a `COMMENT` naming its source:
   - `create extension if not exists pg_trgm with schema extensions`, and the same for `unaccent`;
   - the three columns and `search_fields_read_at timestamptz`, all nullable;
   - `register.immutable_unaccent(text) returns text language sql immutable parallel safe strict`, as `select extensions.unaccent('extensions.unaccent'::regdictionary, $1)`;
-  - `GRANT EXECUTE … TO reader`;
+  - `GRANT EXECUTE … TO reader, ingest, loader` and `GRANT USAGE ON SCHEMA extensions` to the same three (amended at review);
   - `create index company_navn_trgm on register.company using gin (register.immutable_unaccent(lower(navn)) extensions.gin_trgm_ops)`.
-- [ ] `test/db/company-search.test.ts` -- as `reader`:
+- [x] `test/db/company-search.test.ts` -- as `reader`:
   - `immutable_unaccent` returns `'aerlig sondre'`;
   - the function is IMMUTABLE;
   - the index exists, with the expression above;
@@ -102,10 +105,10 @@ context:
   - the wrapper's body names `extensions.unaccent` and the dictionary `extensions.unaccent`;
   - the wrapper returns the same result under `set search_path = ''`;
   - `reader` cannot UPDATE them.
-- [ ] `ingest/src/peerless_ingest/{parse,write,run}.py` + tests -- every row of the I/O matrix. The companies-only run against recorded fixtures leaves `navn`, `read_at` and a filing's `read_at` unchanged and sets `search_fields_read_at` to the run's time; a normal run sets it equal to `read_at` (the existing `written_by_run`-style helpers).
-- [ ] `scripts/run-ingest.ts` + test -- argv passthrough, allowing only `--companies-only`.
-- [ ] The local refresh, then `seed/` re-exported and committed (not in CI). Record the summary counts in the PR and the session file.
-- [ ] Docs:
+- [x] `ingest/src/peerless_ingest/{parse,write,run}.py` + tests -- every row of the I/O matrix. The companies-only run against recorded fixtures leaves `navn`, `read_at` and a filing's `read_at` unchanged and sets `search_fields_read_at` to the run's time; a normal run sets it equal to `read_at` (the existing `written_by_run`-style helpers).
+- [x] `scripts/run-ingest.ts` + test -- argv passthrough, allowing only `--companies-only`.
+- [x] The local refresh, then `seed/` re-exported and committed (not in CI). Record the summary counts in the PR and the session file.
+- [x] Docs:
   - `docs/data-sources-brreg.md`;
   - `AGENTS.md` (step 1's companies-only mode, in the Stack paragraph);
   - `docs/ai-log.md` (what could go wrong);
@@ -119,6 +122,33 @@ context:
   - a municipality left stale while the name is refreshed by a later full run;
   - a sole proprietor's municipality made searchable — public in the register, but a person's;
   - the wrapper's IMMUTABLE label holding only while the `unaccent` dictionary does not change.
+
+## Implementation Notes
+
+## Spec Change Log
+
+## Review Triage Log
+
+Pass 1 — blind hunter (BH), edge-case hunter (EC) and verification gap (VG). `seed/demo/company.csv` was left out of the reviewed diff: it is 35 116 lines of generated rows. The seed is checked by the export → load twice → re-export round trip, and by comparing its first ten columns with the previous seed.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---------|---------|----------|-------|
+| 1 | BH/EC: the migration grants EXECUTE and USAGE on `extensions` to `reader`, `ingest` and `loader`, while the frozen spec said `reader` only | medium | Granting `reader` alone was tried in a rolled-back transaction. Every write by `ingest` or `loader` failed, because the index expression is evaluated as the writer | intent_gap. The human accepted the wider grant at review, and the frozen line now says so. The code is kept |
+| 2 | VG: `main()` in `scripts/run-ingest.ts` is never tested. A dropped `checked.args` would turn `--companies-only` into a full ingest run | medium | `test/run-ingest.test.ts` imports only the helpers; no `main(` | patch: mock `spawnSync`; assert forwarding, and exit 2 with no docker call |
+| 3 | BH/EC: USAGE on `extensions` is untested, although AGENTS.md says the test covers it | medium | `company-search.test.ts` checks only EXECUTE on the wrapper | patch: assert USAGE holders |
+| 4 | BH: a bulk `naeringskode1.kode` that differs from the stored code goes unreported (920768695) | medium | `run_companies_only` stores the description without comparing codes | patch: the summary counts and names mismatches |
+| 5 | BH/EC: an UPDATE that matches no row is reported as "not found in bulk file" | low | the `matched == False` branch falls into `stored - accounted` | patch: record a `Problem` |
+| 6 | BH/EC: companies-only mode loads `seed/coverage.json`, which it never uses | low | `main` calls `load_coverage` before choosing the mode | patch: load it only for a normal run |
+| 7 | BH: `test_main_refuses_other_arguments` does not show that nothing connects | low | the test only checks the exit code | patch: make `connect` fail |
+| 8 | BH: the warnings for 1.5b (ENK municipality privacy, description vs stored code, an EXPLAIN check of index use) are not where 1.5b will see them | low | they are only in the ai-log and data-sources prose | defer: deferred-work entry for 1.5b |
+| 9 | BH: no regression write as `ingest`/`loader` | low | CI covers it: `test:ingest` writes as `ingest` on the seeded database, and `pnpm seed` writes as `loader` | reject |
+| 10 | BH: the manifest's `read_at` range ignores `search_fields_read_at` | low | true. The analysis shows filing read dates, and widening the manifest changes the seed format | reject (low, the fix is not a direct correction) |
+| 11 | BH/EC: `pnpm ingest -- --companies-only` may pass a literal `--` | low | the documented form `pnpm ingest --companies-only` works. Accepting `--` adds a branch | reject |
+| 12 | BH: the session file is unfinished; the `last_updated` timestamp | false | the PR and commit links are added when they exist; the timestamp is refreshed at finalisation | reject |
+| 13 | BH: spec `in-review` vs sprint `review` | false | two vocabularies by design (Story 1.4 triage #16) | reject |
+| 14 | EC: an unhashable `organisasjonsnummer` in the bulk file | low | the register always sends a string; a type error would fail loudly | reject |
+| 15 | EC: the bulk stream fails mid-download → a traceback, not a summary | false | a loud failure with a non-zero exit, as in `run()`; nothing is half-reported | reject |
+| 16 | EC: the same orgnr twice in the bulk file, one copy failing to parse | low | never observed; the bulk file has one unit per orgnr | reject |
 
 ## Design Notes
 

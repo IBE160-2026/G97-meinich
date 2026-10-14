@@ -776,6 +776,7 @@ Split from Story 1.5 on 2026-10-14, following the 1.3a/1.3b pattern. `register.c
 **When** it reads the bulk file
 **Then** it fills the three columns, and sets `search_fields_read_at` to the time of its bulk read, only on companies already in `register.company`
 **And** it inserts no company, deletes none, and writes nothing else: `read_at`, `navn` and every other column stay as they were, and no `filing` or `key_figures` row changes
+**And** it stores `naeringskode1_beskrivelse` only when the register's `naeringskode1` equals the stored one; otherwise it stores NULL and names the company in the summary
 **And** its summary states how many companies it updated, and how many companies in `register.company` were not found in the bulk file
 
 **Given** the local database refreshed by companies-only mode

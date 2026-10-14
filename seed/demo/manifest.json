@@ -5,12 +5,12 @@
     "62.100"
   ],
   "files": {
-    "company.csv": "1db40f9f103be0d9530390e7996442730107b9853beea3f1b43d3ffd9bcad1f5",
+    "company.csv": "a7d5cefe09730a11d1d301897bb013337bc27ccbae4de115175f9b62c524600e",
     "filing.csv": "88bb7fd1a195f4cd46c3057c7ed1c677b51959e01ab6495c894dd94ee5bbf6b3",
     "key_figures.csv": "61ecab7b34fca9f8b041718a06d506e55c993cf017abea9f826345d932e1fe1c"
   },
   "format_version": 1,
-  "migration_id": "20261011130000_register_seed_manifest",
+  "migration_id": "20261014120000_register_company_search",
   "read_at": {
     "max": "2026-10-11 13:36:34.74071+00",
     "min": "2026-10-11 10:09:07.22884+00"

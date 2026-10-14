@@ -29,6 +29,7 @@ context:
 
 **Decisions (human, 2026-10-14):**
 - **Demo links A and B:** placeholders until Story 5.4, held in one constant in `src/demo-companies.ts`. Both are real seed companies with a `SELSKAP` filing in NOK for 2025, and all three API figures are computable (`sumEiendeler` > 0, revenue > 0). A comment gives each one's orgnr, its name and why it was chosen, and says the links are temporary until 5.4. The PR says so too.
+- **Companies without a municipality (human, 2026-10-14):** 504 of the 17 557 stored companies have no `forretningsadresse_kommune` in the seed from 1.5a: 491 `NUF` and 3 `FLI` without a Norwegian business address, and 10 not found in the bulk file. Search must still return them, and show the result line without a municipality: "orgnr · industry", with no empty separator and no placeholder. The same applies to a NULL `naeringskode1_beskrivelse`: show the code alone. A test covers both.
 - **Header search:** `SearchField` gets a compact variant now, with its own test: it renders, has the label, and sends the same search. The header stays unchanged. Story 1.6b mounts the variant, and `epics.md` 1.6b says so. A `deferred-work.md` entry points to 1.6b.
 
 ## Boundaries & Constraints

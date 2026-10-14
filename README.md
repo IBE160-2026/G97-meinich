@@ -58,7 +58,10 @@ Requires Docker, and [uv](https://docs.astral.sh/uv/) 0.12.10 for the tests (uv 
 pnpm db:start && pnpm db:roles   # the database and INGEST_DATABASE_URL in .env
 pnpm test:ingest      # fixture and contract tests: recorded responses, no network; database tests roll back
 pnpm ingest           # builds ingest/Dockerfile and runs it once against the local database
+pnpm ingest --companies-only   # refreshes only the search fields of companies already stored
 ```
+
+`pnpm ingest --companies-only` streams the bulk download and fills the business municipality (number and name) and the primary industry's name on the companies already in `register.company`. The name is stored only when the register's primary code still equals the stored one; otherwise it is NULL, and the company is named in the summary. It adds and deletes no company, touches no filing, and leaves every other column, `navn` and `read_at` included, unchanged; `search_fields_read_at` records when the three were read. Its summary gives the number updated and names every stored company not found in the bulk file, which it leaves untouched. It accepts no other argument.
 
 `pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests, so a full run takes a while. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
 

@@ -14,8 +14,11 @@
 //   which Docker Desktop provides and `--add-host …:host-gateway` provides
 //   on Linux.
 // - seed/coverage.json is mounted read-only at /seed.
+// - `--companies-only` (Story 1.5a) is passed on to the container: step 1
+//   then reads only the bulk download and fills the search fields of the
+//   companies already stored. No other argument is accepted.
 //
-// Run: node scripts/run-ingest.ts   (from the repository root)
+// Run: node scripts/run-ingest.ts [--companies-only]   (from the repository root)
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -25,6 +28,17 @@ import { parseEnv } from 'node:util';
 const IMAGE = 'peerless-ingest:local';
 const LOCAL_HOSTS: readonly string[] = ['127.0.0.1', 'localhost'];
 const CONTAINER_HOST = 'host.docker.internal';
+// The only arguments passed on to the container.
+const ALLOWED_ARGS: readonly string[] = ['--companies-only'];
+
+// The step-1 arguments, or an error naming what is not allowed. Each allowed
+// argument at most once.
+export function stepArgs(argv: readonly string[]): { args: string[] } | { error: string } {
+  const unknown = argv.filter((arg) => !ALLOWED_ARGS.includes(arg));
+  if (unknown.length > 0) return { error: `unknown argument ${unknown.join(' ')}; allowed: ${ALLOWED_ARGS.join(' ')}` };
+  if (new Set(argv).size !== argv.length) return { error: 'an argument is repeated' };
+  return { args: [...argv] };
+}
 
 export function setting(root: string, name: string): string | undefined {
   const value = process.env[name];
@@ -44,8 +58,8 @@ export function containerDatabaseUrl(url: string): string {
 
 // The `docker run` argv. It holds no value of any variable: each is passed
 // as `--env NAME`, and docker reads the value from the child's environment.
-export function dockerRunArgs(root: string, withBaseUrl: boolean): string[] {
-  const args = [
+export function dockerRunArgs(root: string, withBaseUrl: boolean, args: readonly string[] = []): string[] {
+  const runArgs = [
     'run',
     '--rm',
     '--add-host',
@@ -55,8 +69,16 @@ export function dockerRunArgs(root: string, withBaseUrl: boolean): string[] {
     '--mount',
     `type=bind,source=${path.join(root, 'seed')},target=/seed,readonly`,
   ];
-  if (withBaseUrl) args.push('--env', 'BRREG_API_BASE_URL');
-  return [...args, IMAGE];
+  if (withBaseUrl) runArgs.push('--env', 'BRREG_API_BASE_URL');
+  return [...runArgs, IMAGE, ...stepArgsOnly(args)];
+}
+
+// Defence in depth: dockerRunArgs never forwards an argument stepArgs would
+// refuse, whoever calls it.
+function stepArgsOnly(args: readonly string[]): string[] {
+  const checked = stepArgs(args);
+  if ('error' in checked) throw new Error(`ingest: ${checked.error}`);
+  return checked.args;
 }
 
 function docker(args: string[], env: NodeJS.ProcessEnv = process.env): number {
@@ -68,7 +90,12 @@ function docker(args: string[], env: NodeJS.ProcessEnv = process.env): number {
   return result.status ?? 1;
 }
 
-export function main(root: string): number {
+export function main(root: string, argv: readonly string[] = []): number {
+  const checked = stepArgs(argv);
+  if ('error' in checked) {
+    process.stderr.write(`ingest: ${checked.error}\n`);
+    return 2;
+  }
   const url = setting(root, 'INGEST_DATABASE_URL');
   if (url === undefined) {
     process.stderr.write('ingest: INGEST_DATABASE_URL is not set; run `pnpm db:start` and `pnpm db:roles`.\n');
@@ -85,9 +112,9 @@ export function main(root: string): number {
   const baseUrl = setting(root, 'BRREG_API_BASE_URL');
   const env: NodeJS.ProcessEnv = { ...process.env, INGEST_DATABASE_URL: containerDatabaseUrl(url) };
   if (baseUrl !== undefined) env.BRREG_API_BASE_URL = baseUrl;
-  return docker(dockerRunArgs(root, baseUrl !== undefined), env);
+  return docker(dockerRunArgs(root, baseUrl !== undefined, checked.args), env);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exitCode = main(process.cwd());
+  process.exitCode = main(process.cwd(), process.argv.slice(2));
 }

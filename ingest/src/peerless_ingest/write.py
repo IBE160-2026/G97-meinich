@@ -1,6 +1,6 @@
 """Writes step 1's rows as the `ingest` role (INGEST_DATABASE_URL).
 
-Upserts only, no DDL and no DELETE: the tables come from
+Upserts and one column update, no DDL and no DELETE: the tables come from
 supabase/migrations, and `ingest` holds SELECT, INSERT and UPDATE on them and
 nothing else. A filing and its key figures are written in one transaction,
 both or neither.
@@ -8,10 +8,21 @@ both or neither.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import psycopg
 from psycopg import sql
 
 from .parse import KEY_FIGURE_COLUMNS, Company, Filing
+
+# What search shows (Story 1.5a) and when it was read. A normal run writes
+# them with the rest of the company; companies-only mode writes only these.
+SEARCH_FIELD_COLUMNS = (
+    "forretningsadresse_kommunenummer",
+    "forretningsadresse_kommune",
+    "naeringskode1_beskrivelse",
+    "search_fields_read_at",
+)
 
 COMPANY_COLUMNS = (
     "orgnr",
@@ -24,6 +35,7 @@ COMPANY_COLUMNS = (
     "under_avvikling",
     "under_tvangsavvikling",
     "read_at",
+    *SEARCH_FIELD_COLUMNS,
 )
 
 FILING_COLUMNS = (
@@ -71,6 +83,13 @@ def _upsert(table: str, columns: tuple[str, ...], key: tuple[str, ...]) -> sql.C
 UPSERT_COMPANY = _upsert("company", COMPANY_COLUMNS, ("orgnr",))
 UPSERT_FILING = _upsert("filing", FILING_COLUMNS, FILING_KEY)
 UPSERT_KEY_FIGURES = _upsert("key_figures", ("brreg_id", *KEY_FIGURE_COLUMNS), ("brreg_id",))
+UPDATE_SEARCH_FIELDS = sql.SQL("UPDATE register.company SET {updates} WHERE orgnr = {orgnr}").format(
+    updates=sql.SQL(", ").join(
+        sql.SQL("{column} = {value}").format(column=sql.Identifier(column), value=sql.Placeholder(column))
+        for column in SEARCH_FIELD_COLUMNS
+    ),
+    orgnr=sql.Placeholder("orgnr"),
+)
 
 
 def write_company(conn: psycopg.Connection, company: Company) -> None:
@@ -78,6 +97,18 @@ def write_company(conn: psycopg.Connection, company: Company) -> None:
     holding the name the register gives now."""
     with conn.transaction():
         conn.execute(UPSERT_COMPANY, {column: getattr(company, column) for column in COMPANY_COLUMNS})
+
+
+def update_company_search_fields(conn: psycopg.Connection, company: Company, read_at: datetime) -> bool:
+    """Companies-only mode: sets the three search fields of an existing
+    company, and `search_fields_read_at` to `read_at`, the time of the bulk
+    read. Touches no other column (`navn` and `read_at` stay as they were)
+    and inserts nothing. Returns whether a row with the orgnr exists."""
+    values = {column: getattr(company, column) for column in SEARCH_FIELD_COLUMNS}
+    values["search_fields_read_at"] = read_at
+    with conn.transaction():
+        cursor = conn.execute(UPDATE_SEARCH_FIELDS, {**values, "orgnr": company.orgnr})
+        return cursor.rowcount == 1
 
 
 def write_filing(conn: psycopg.Connection, filing: Filing) -> None:

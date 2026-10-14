@@ -200,4 +200,4 @@ The review session read the reference cases against the seeded database and reco
 
 ## From Story 1.5 on
 
-At the end of each story, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.
+After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

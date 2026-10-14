@@ -346,7 +346,7 @@ v1 only; DESIGN.md is visual, EXPERIENCE.md behavioural; spines win over mocks.
 
 ### FR Coverage Map
 
-FR-1: Epic 1 — Search by name or orgnr (Story 1.5)
+FR-1: Epic 1 — Search by name or orgnr (municipality and industry name stored by Story 1.5a; search in Story 1.5b)
 FR-2: Epic 1 — Company identification and analysed year (Story 1.6b; year from `regnskapsperiode` stored by Story 1.3a)
 FR-3: Epic 1, 5 — Covered-industry gate (62.100) from `register.covered_industry`, loaded from `seed/coverage.json`, in Epic 1 (SN2025 only, with the SN2007 test, in Story 1.3a; the loader's `measured`/`report`/`sha256` validation in Story 1.3b; the gate on the analysis route in Story 1.6b); `measured: true` with its report reference set in Epic 5 (Story 5.2); stage-3 industries in Epic 6
 FR-4: Epic 1 — Uncovered-industry state (demo C chosen in Story 1.3a; the state in Story 1.6b)
@@ -427,12 +427,12 @@ Every stage-2 and stage-3 FR, and the stage-2/3 parts of split FRs, as listed un
 
 ## Delivery order
 
-For sprint planning. Story numbers stay as they are; three stories are split into halves numbered a and b (1.3a/1.3b, 1.6a/1.6b, 3.1a/3.1b), each half its own issue, branch and PR, built in that order. This section sets the sequence in which they are built.
+For sprint planning. Story numbers stay as they are; four stories are split into halves numbered a and b (1.3a/1.3b, 1.5a/1.5b, 1.6a/1.6b, 3.1a/3.1b), each half its own issue, branch and PR, built in that order. This section sets the sequence in which they are built.
 
 - **Week 1, in parallel, calendar work:** Story 5.1 (the labelled set) and the hand-transcribed OCR reference set (the input to Story 2.3) start in week 1 and run alongside Epic 1. Both are labelling and transcription, not coding, and both must be complete before the story that consumes them starts. The reference set is a seeded random draw from all of 62.100's generated filings (Story 2.3), not from the demo set, so it does not wait for demo companies A and B, which are chosen in Story 5.4.
 - **The OCR reference set has its own issue from week 1** ([#14](https://github.com/IBE160-2026/G97-meinich/issues/14)). It is not a story with a branch and PR of its own, but it is tracked as its own GitHub issue, opened in week 1, so its progress is visible before Story 2.3 starts; Story 2.3 links that issue.
 - **Sequence:**
-  1. Epic 1 (1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5 → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10)
+  1. Epic 1 (1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5a → 1.5b → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10)
   2. Epic 2 (2.1 → 2.9)
   3. Story 5.2, the layer-by-layer measurement, directly after Epic 2: it needs only the funnel and the labelled set, and the teacher calls the measurement the core of the project.
   4. Epic 3 (3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7)
@@ -741,13 +741,61 @@ So that every figure on screen can be traced to a hand calculation and no float 
 **When** it is opened
 **Then** it states what could go wrong with money handling (AGENTS.md Working style), and the reasoning is recorded in `docs/ai-log.md`
 
-### Story 1.5: Find a company by name or organisation number
+### Story 1.5a: Step 1 stores what search shows — municipality and industry name
+
+As the owner of Peerless,
+I want step 1 to store each company's municipality and primary-industry description, and the database to carry the name-search index,
+So that search (Story 1.5b) and the uncovered state (Story 1.6b) read them from Peerless's own database.
+
+Split from Story 1.5 on 2026-10-14, following the 1.3a/1.3b pattern. `register.company` from Story 1.3a stored `navn` and the `naeringskode1` code, but no municipality and no industry description, although FR-1 needs the municipality and the uncovered state needs "{Bransjenavn} ({kode})". Step 1 already reads both from the bulk file and dropped them. The data change goes first, in its own PR, so that 1.5b is only the API and the page.
+
+**Implements:** FR-1 (data part), FR-73 (seed re-exported with the migration) · **Invariants:** AD-1, AD-2, AD-12, AD-15, AD-16 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/1.5a-company-search-data`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** the new migration
+**When** it is applied
+**Then** `register.company` gains three nullable columns, filled exactly as the register returns them:
+- `forretningsadresse_kommunenummer`
+- `forretningsadresse_kommune`
+- `naeringskode1_beskrivelse`
+
+**And** a fourth nullable column, `search_fields_read_at timestamptz`, records when those three were read, so that `read_at` never describes values read later
+**And** `pg_trgm` and `unaccent` exist in schema `extensions`
+**And** an IMMUTABLE wrapper `register.immutable_unaccent(text)` exists, with `EXECUTE` granted to `reader`
+**And** the wrapper calls `extensions.unaccent('extensions.unaccent', …)`, qualifying both the function and the dictionary by schema, so its result does not depend on `search_path`
+**And** a GIN trigram index exists on `register.immutable_unaccent(lower(navn))`
+**And** `pnpm test:db` passes, with a test that `reader` can call the wrapper
+
+**Given** a normal step-1 run
+**When** it parses a unit
+**Then** it stores the three fields and sets `search_fields_read_at` equal to `read_at`
+**And** a unit without `forretningsadresse` stores NULL — never an empty string, and never a value taken from `postadresse`
+
+**Given** step 1 run in companies-only mode
+**When** it reads the bulk file
+**Then** it fills the three columns, and sets `search_fields_read_at` to the time of its bulk read, only on companies already in `register.company`
+**And** it inserts no company, deletes none, and writes nothing else: `read_at`, `navn` and every other column stay as they were, and no `filing` or `key_figures` row changes
+**And** its summary states how many companies it updated, and how many companies in `register.company` were not found in the bulk file
+
+**Given** the local database refreshed by companies-only mode
+**When** `pnpm seed:export` runs
+**Then** the re-exported seed is committed in the same PR (README, "Seed")
+**And** CI loads it twice and re-exports it unchanged
+
+**Given** the PR
+**When** it is opened
+**Then** it states what could go wrong — for example, an orphaned or stale municipality, or a sole proprietor's municipality made searchable — and the reasoning is recorded in `docs/ai-log.md`
+
+### Story 1.5b: Find a company by name or organisation number
 
 As Kari or Anders,
 I want one search field that finds a company by name or organisation number,
 So that I can reach a company's analysis without knowing anything but its name or number.
 
-**Implements:** FR-1, FR-61, NFR30 (SM-8: an organisation number is all a complete analysis needs) · **Invariants:** AD-4, AD-5, AD-12, AD-19 · **UX:** UX-DR8, UX-DR9, UX-DR34, UX-DR36, UX-DR42, UX-DR43, UX-DR44, UX-DR45, UX-DR60, UX-DR61, UX-DR63, UX-DR65, UX-DR67, UX-DR69, UX-DR71 · **Issue / branch / PR:** one issue, branch `story/1.5-search`, one PR (AGENTS.md Git workflow)
+Split from Story 1.5 on 2026-10-14. This half covers the API and the search page; the data it reads comes from Story 1.5a. The compact header variant of the search field is built and tested here, and mounted in the header by Story 1.6b.
+
+**Implements:** FR-1, FR-61, NFR30 (SM-8: an organisation number is all a complete analysis needs) · **Invariants:** AD-4, AD-5, AD-12, AD-19 · **UX:** UX-DR8, UX-DR9, UX-DR34, UX-DR36, UX-DR42, UX-DR43, UX-DR44, UX-DR45, UX-DR60, UX-DR61, UX-DR63, UX-DR65, UX-DR67, UX-DR69, UX-DR71 · **Issue / branch / PR:** issue #6, branch `story/1.5b-search`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -917,6 +965,11 @@ This story builds on the URL module from Story 1.6a.
 **And** the NLOD credit is attached to the API figures only; no document-derived figure is shown in Epic 1, and the document-figure paragraph is added by Story 5.4 with the licence assessment
 **And** the header link "Slik fungerer Peerless" and the footer link "Kilder og lisens" resolve on every page, the latter to the section's anchor (link test)
 **And** at 375 px and 320 px the body does not scroll horizontally
+
+**Given** any page other than `/`
+**When** it renders
+**Then** the header carries the compact variant of Story 1.5b's search field (UX-DR7), mounted here because this story adds the first page other than the front page; on `/` the header search stays hidden
+**And** at 375 px and 320 px the header search flexes and the body does not scroll horizontally
 
 **Given** each state above at 375 px and 320 px
 **When** it renders
@@ -2247,7 +2300,7 @@ So that the full analysis runs locally without any key, within what the licence 
 **When** the demo companies are settled
 **Then** A is chosen as a typical consultancy with a full analysis and B as a loss-making product company showing fingerprint separation and a large gap, each recorded with the reason it was chosen
 **And** C is not chosen again: this story confirms the `69.202` company chosen in Story 1.3a, recorded in step 1's configuration file, still shows the uncovered state from API figures alone
-**And** the placeholders for A and B from Stories 1.5 and 1.6b are replaced with their links (tests for the not-in-database and no-match states)
+**And** the placeholders for A and B from Stories 1.5b and 1.6b are replaced with their links (tests for the not-in-database and no-match states)
 
 **Given** the licence gate
 **When** it is assessed

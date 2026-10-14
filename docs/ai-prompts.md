@@ -198,6 +198,101 @@ The review session read the reference cases against the seeded database and reco
 
 ---
 
+## Story 1.5 split, and Story 1.5a: step 1 stores what search shows (#20, PR #21)
+
+### Prompts to the BMAD session
+
+**2026-10-14 19:30**
+```
+/bmad-build Story 1.5, issue #6
+```
+
+**19:42**: four questions from the spec, answered by typing into the menu. The review session drafted each answer.
+
+*Data gap.* `register.company` had no municipality or industry name. The AI recommended a companies-only refresh.
+```
+1, med to krav:
+- Oppdateringen fyller bare de nye kolonnene på selskaper som allerede
+  finnes i register.company. Den legger ikke til og sletter ikke selskaper,
+  så selskapssettet fortsatt passer med regnskapene fra 1.3a. Oppsummeringen
+  sier hvor mange som ikke ble funnet i bulkfilen.
+- Verdiene lagres som registeret leverer dem (kommunenummer og kommunenavn
+  fra forretningsadresse, næringskodens beskrivelse), og migrasjonen
+  re-eksporterer seeden i samme PR, slik README "Seed" beskriver.
+```
+
+*Demo links until Story 5.4.*
+```
+1, med krav: begge selskapene har et SELSKAP-regnskap i NOK for 2025 med
+alle tre API-nøkkeltall beregnbare (ingen negativ sumEiendeler, omsetning
+over null). Oppgi orgnr, navn og hvorfor de ble valgt i en kommentar i
+src/demo-companies.ts, og at de er midlertidige til Story 5.4.
+```
+
+*Header search.*
+```
+1, med krav: den kompakte varianten har en egen test nå (rendrer, har
+label, sender samme søk), og deferred-work-posten peker eksplisitt på
+Story 1.6b som stedet der den monteres. Hvis akseptansekriteriet i
+epics.md sier at headersøket er en del av 1.5, oppdater det så planen
+og koden sier det samme.
+```
+
+*Spec size.* The AI recommended keeping the spec whole, as in 1.3b and 1.4. The answer was to split it, because here the data change can be merged and tested without the search page, and one PR mixing Python, SQL, seed data and UI would be hard to review.
+```
+2, som 1.5a og 1.5b etter samme mønster som 1.3a/1.3b:
+- 1.5a: migrasjonen, companies-only-oppdateringen i step 1 og
+  re-eksport av seeden. Eget issue, egen gren og egen PR.
+- 1.5b: API og søkesiden, med resten av 1.5 sine akseptansekriterier.
+Oppdater epics.md, sprint-status.yaml og issue #6 (som blir 1.5b, med et
+nytt issue for 1.5a), og skriv i begge spec-ene hvorfor den ble delt.
+Start med 1.5a.
+```
+*Changed:* the planning commit `a5ccd6d` on `main` has new issue #20 for 1.5a, issue #6 rewritten as 1.5b, and `epics.md` with both stories and the reason for the split. Story 1.6b mounts the header search.
+
+**19:47**: approval of the 1.5a spec, with three changes after the review session read it.
+```
+Godkjent, med tre endringer før du starter:
+1. register.immutable_unaccent kaller unaccent med fullt skjemanavn på
+   både funksjon og ordbok (f.eks. extensions.unaccent('extensions.unaccent', $1)),
+   så resultatet ikke avhenger av search_path.
+2. read_at skal ikke beskrive verdier lest senere. Legg til en egen kolonne
+   (f.eks. location_read_at timestamptz) som --companies-only setter for de
+   tre nye feltene; en vanlig step-1-kjøring setter den lik read_at.
+   read_at, navn og regnskapene forblir urørt.
+3. Rett delivery-order-linjen ("step N of 12") i de åpne issuene #7 og
+   utover så de stemmer med splitten, som del av planleggingscommiten.
+Commit planleggingsendringene til main før du lager grenen for 1.5a.
+Approve and continue.
+```
+The BMAD session asked whether the pasted text was really from the human. The answer was: `Ja det er fra meg, kjør`.
+
+*Changed:* the spec itself said the three new values would be "read later than `read_at` says", which is a false read date. They now carry their own `search_fields_read_at`. The wrapper is schema-qualified, and the open issues match the new delivery order.
+
+**20:16**: the implementation found that the spec's grant was wrong. Postgres evaluates an index expression as the role that writes the row, so `ingest` and `loader` also need EXECUTE on the wrapper. The answer, from the menu, was "Accept the wider grant", recorded in the spec's locked section with the reason. A test pins the exact set of roles.
+
+**20:22**: before push, after the review session queried the refreshed data.
+```
+Fra meg: én ting før push.
+920768695 KIRKEBY GÅRDSDRIFT har naeringskode1 62.100 men
+naeringskode1_beskrivelse "Produksjon av møbler" – beskrivelsen er for
+registerets nye kode, ikke den lagrede. Lagre beskrivelsen bare når
+registerets naeringskode1 er lik den lagrede; ellers NULL, og nevnt i
+oppsummeringen. Legg til en test for det. Kjør --companies-only på nytt,
+re-eksporter seeden, og sjekk at bare den raden endret seg.
+Sørg også for at spec-en for 1.5b sier at 504 selskaper mangler kommune
+og at søkeresultatet må vise dem uten.
+Deretter: push main (planleggingscommiten a5ccd6d) først, så grenen, og
+opprett PR-en for #20. La CI kjøre build og e2e.
+```
+*Changed:* `b2c90e9` and `e43af18`. The refresh had stored the name of the register's new industry code (31.000, furniture) next to the old stored code, 62.100. Neither the BMAD session nor its reviewers had caught it. The review session also checked that the ten original columns of `company.csv` are byte-identical to `main`, row by row, so the diff of 17 558 changed lines is only the added columns.
+
+### Checks before merging
+
+The human posted the review on PR #21 before merging (comment 20:33:58, merge 20:34:12).
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

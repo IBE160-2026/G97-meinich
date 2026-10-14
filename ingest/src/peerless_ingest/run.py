@@ -2,10 +2,16 @@
 filings for every company whose primary industry is declared in
 seed/coverage.json, plus demo company C, stored as filed, in øre.
 
-    python -m peerless_ingest           (inside the image: `pnpm ingest`)
+    python -m peerless_ingest                   (inside the image: `pnpm ingest`)
+    python -m peerless_ingest --companies-only  (`pnpm ingest --companies-only`)
 
 Prints a summary per industry code. Fetches no document and runs no OCR;
 stores no ratio, distribution or derived amount (AD-1, AD-15).
+
+Companies-only mode (Story 1.5a) reads only the bulk download and fills the
+fields search shows on the companies already in register.company. It adds
+no company, deletes none, touches no filing and leaves every other column,
+`navn` and `read_at` included, as it was.
 """
 
 from __future__ import annotations
@@ -13,7 +19,7 @@ from __future__ import annotations
 import http.client
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -85,6 +91,42 @@ class Summary:
         for problem in self.failed:
             out.append(f"  failed write, rolled back: {problem.orgnr} {problem.what}")
         out.append("  Stored as filed: no ratio, distribution or derived amount was written.")
+        return out
+
+
+@dataclass
+class CompaniesOnlySummary:
+    in_database: int
+    updated: int = 0
+    # In register.company but absent from the bulk download: withdrawn units
+    # (deleting them is Story 2.4) or, in a test database, units outside it.
+    not_found: list[str] = field(default_factory=list)
+    failed: list[Problem] = field(default_factory=list)
+    # (orgnr, stored naeringskode1, bulk naeringskode1) where the register's
+    # primary code has changed since the company was stored. Its description
+    # is stored as delivered, next to the stored code; reported, not fixed.
+    code_differs: list[tuple[str, str | None, str | None]] = field(default_factory=list)
+
+    def needs_operator(self) -> bool:
+        """Only a failed write needs a person: a company not found in the
+        bulk file is expected and left untouched, and a changed code is
+        reported for the next full run."""
+        return bool(self.failed)
+
+    def lines(self) -> list[str]:
+        out = [
+            "Step 1 summary, companies only (search fields of companies already stored)",
+            f"  {self.in_database} companies in the database: updated {self.updated},"
+            f" not found in bulk file {len(self.not_found)}",
+        ]
+        for orgnr in self.not_found:
+            out.append(f"  not found in bulk file, left untouched: {orgnr}")
+        out.append(f"  code differs from stored naeringskode1: {len(self.code_differs)}")
+        for orgnr, stored_code, bulk_code in self.code_differs:
+            out.append(f"  code differs: {orgnr} stored {stored_code} bulk {bulk_code}")
+        for problem in self.failed:
+            out.append(f"  failed write, rolled back: {problem.orgnr} {problem.what}")
+        out.append("  No company added or deleted, no filing touched, navn and read_at unchanged.")
         return out
 
 
@@ -200,18 +242,96 @@ def run(
     return summary
 
 
-def main() -> int:
+def run_companies_only(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    cfg: config_module.Config,
+    now: Callable[[], datetime] = _now,
+    progress: Callable[[str], None] = lambda _message: None,
+) -> CompaniesOnlySummary:
+    """Fills forretningsadresse_kommunenummer, forretningsadresse_kommune,
+    naeringskode1_beskrivelse and search_fields_read_at from the bulk
+    download, for every company already in register.company. The bulk file
+    is read without the industry filter: demo company C, or a company whose
+    primary code has changed since it was stored, is in it like any unit."""
+    stored_codes: dict[str, str | None] = {
+        row[0]: row[1] for row in conn.execute("SELECT orgnr, naeringskode1 FROM register.company").fetchall()
+    }
+    stored = set(stored_codes)
+    summary = CompaniesOnlySummary(in_database=len(stored))
+
+    # Collected before any write, so the long download is not held open
+    # across the updates.
+    bulk_read_at = now()
+    selected: list[parse.Company] = []
+    for unit in fetch.iter_bulk_units(transport, cfg.base_url):
+        orgnr = unit.get("organisasjonsnummer")
+        if orgnr not in stored:
+            continue
+        try:
+            company = parse.parse_company(unit, bulk_read_at)
+        except ValueError as error:
+            summary.failed.append(Problem(str(orgnr), f"bulk unit not loaded: {error}"))
+            continue
+        selected.append(company)
+        if company.naeringskode1 != stored_codes[company.orgnr]:
+            summary.code_differs.append((company.orgnr, stored_codes[company.orgnr], company.naeringskode1))
+    progress(f"bulk download: {len(selected)} of {len(stored)} stored companies found")
+
+    seen: set[str] = set()
+    for index, company in enumerate(selected, start=1):
+        try:
+            matched = write.update_company_search_fields(conn, company, bulk_read_at)
+        except psycopg.Error as error:
+            summary.failed.append(Problem(company.orgnr, f"search fields: {error.__class__.__name__}: {error}".strip()))
+            if conn.closed:
+                raise ConnectionLost(f"database connection closed after: {company.orgnr}") from error
+            continue
+        if not matched:
+            # Stored at the start of the run, gone now: step 1 never deletes,
+            # so something else did. Not the same as absent from the bulk file.
+            summary.failed.append(Problem(company.orgnr, "no row to update"))
+            continue
+        if company.orgnr not in seen:
+            summary.updated += 1
+            seen.add(company.orgnr)
+        if index % 5000 == 0:
+            progress(f"{index} of {len(selected)} companies")
+    # A unit that failed to parse or write is reported there, not here.
+    accounted = seen | {problem.orgnr for problem in summary.failed}
+    summary.not_found = sorted(stored - accounted)
+    return summary
+
+
+def _progress(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """`argv` is the command line after the program name (sys.argv[1:] when
+    None, as from the `peerless-ingest` script): empty for a normal run, or
+    exactly `--companies-only`. Anything else exits 2."""
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args not in ([], ["--companies-only"]):
+        print(f"usage: python -m peerless_ingest [--companies-only]; got {' '.join(args)}", file=sys.stderr)
+        return 2
+    companies_only = args == ["--companies-only"]
     config_path = Path(os.environ.get("PEERLESS_INGEST_CONFIG", config_module.DEFAULT_CONFIG))
     coverage_path = Path(os.environ.get("PEERLESS_COVERAGE", config_module.DEFAULT_COVERAGE))
     cfg = config_module.load_config(config_path)
-    codes = config_module.load_coverage(coverage_path)
+    # Companies-only mode fetches no industry: it never reads coverage.json.
+    codes = [] if companies_only else config_module.load_coverage(coverage_path)
     transport = fetch.UrllibTransport(cfg.user_agent, cfg.request_pause_seconds)
+    summary: Summary | CompaniesOnlySummary
     with write.connect(config_module.database_url()) as conn:
-        summary = run(conn, transport, cfg, codes, progress=lambda message: print(message, file=sys.stderr, flush=True))
+        if companies_only:
+            summary = run_companies_only(conn, transport, cfg, progress=_progress)
+        else:
+            summary = run(conn, transport, cfg, codes, progress=_progress)
     for line in summary.lines():
         print(line)
     return 1 if summary.needs_operator() else 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

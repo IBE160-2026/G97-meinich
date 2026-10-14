@@ -14,12 +14,14 @@ from datetime import UTC, datetime
 import psycopg
 import pytest
 
-from conftest import FixtureTransport, enhet_url, recorded, regnskap_url
+from conftest import BASE_URL, FixtureTransport, enhet_url, recorded, regnskap_url
 from peerless_ingest import parse, run, write
 from peerless_ingest.config import Config
 from test_parse import CONTRACT_979607008_2025
 
 READ_AT = datetime(2026, 10, 11, 9, 0, tzinfo=UTC)
+# A companies-only run after the run that stored the companies.
+LATER = datetime(2026, 10, 14, 12, 0, tzinfo=UTC)
 
 
 def company(orgnr: str, navn: str = "TEST AS") -> parse.Company:
@@ -34,6 +36,10 @@ def company(orgnr: str, navn: str = "TEST AS") -> parse.Company:
         under_avvikling=False,
         under_tvangsavvikling=False,
         read_at=READ_AT,
+        forretningsadresse_kommunenummer=None,
+        forretningsadresse_kommune=None,
+        naeringskode1_beskrivelse=None,
+        search_fields_read_at=READ_AT,
     )
 
 
@@ -256,6 +262,181 @@ def test_run_loads_covered_code_and_demo_c_and_names_the_sn2007_code(db: psycopg
     )
 
 
+def search_fields(conn: psycopg.Connection, orgnr: str) -> tuple:
+    return one(
+        conn,
+        """select forretningsadresse_kommunenummer, forretningsadresse_kommune, naeringskode1_beskrivelse,
+                  search_fields_read_at, read_at
+           from register.company where orgnr = %s""",
+        orgnr,
+    )
+
+
+def test_run_stores_the_search_fields_read_with_the_unit(db: psycopg.Connection, cfg: Config) -> None:
+    run.run(db, run_transport(), cfg, ["62.100"], now=lambda: READ_AT)
+
+    # From the bulk download (919951834) and from the single-unit endpoint
+    # (demo company C), as delivered; read at the same time as the rest.
+    assert search_fields(db, "919951834") == ("1103", "STAVANGER", "Dataprogrammeringstjenester", READ_AT, READ_AT)
+    assert search_fields(db, "967534579") == ("3405", "LILLEHAMMER", "Regnskapsføring og bokføring", READ_AT, READ_AT)
+
+
+def test_run_stores_no_municipality_without_a_business_address(db: psycopg.Connection, cfg: Config) -> None:
+    units = json.loads(recorded("enheter_lastned.json"))
+    for unit in units:
+        if unit["organisasjonsnummer"] == "919951834":
+            del unit["forretningsadresse"]  # postadresse remains
+    transport = FixtureTransport(run_transport().responses, bulk=json.dumps(units).encode("utf-8"))
+    run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert search_fields(db, "919951834") == (None, None, "Dataprogrammeringstjenester", READ_AT, READ_AT)
+
+
+# --- Companies-only mode (Story 1.5a) ------------------------------------------
+
+BULK_ORGNRS = {"919951834", "990051232", "979607008", "967534579"}
+# In the database, never in the bulk file.
+ABSENT = "000000000"
+
+
+def stored_orgnrs(conn: psycopg.Connection) -> set[str]:
+    return {row[0] for row in conn.execute("select orgnr from register.company").fetchall()}
+
+
+def company_row(conn: psycopg.Connection, orgnr: str) -> str:
+    return one(conn, "select c::text from register.company c where orgnr = %s", orgnr)[0]
+
+
+def prepare_companies_only(db: psycopg.Connection) -> None:
+    """Two bulk companies stored by an earlier run, under an old name and
+    without search fields, one with a filing; and one company the bulk file
+    does not have."""
+    write.write_company(db, company("919951834", "OLD NAME AS"))
+    write.write_company(db, company("979607008", "EKSTRA RESSURS AS"))
+    [filing] = filings_of("regnskap_979607008_2025.json", "979607008")
+    write.write_filing(db, filing)
+    write.write_company(db, company(ABSENT, "WITHDRAWN AS"))
+
+
+def companies_only_transport() -> FixtureTransport:
+    # Only the bulk download: any other request fails the test.
+    return FixtureTransport({}, bulk=recorded("enheter_lastned.json"))
+
+
+def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.Connection, cfg: Config) -> None:
+    prepare_companies_only(db)
+    filing_before = filing_state(db, 6984522)
+    stored = stored_orgnrs(db)
+    transport = companies_only_transport()
+
+    summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
+
+    assert transport.requested == [f"{BASE_URL}/enhetsregisteret/api/enheter/lastned"]
+    # The search fields come from the bulk file, read at the run's time;
+    # navn and read_at are those of the run that stored the company.
+    assert search_fields(db, "919951834") == ("1103", "STAVANGER", "Dataprogrammeringstjenester", LATER, READ_AT)
+    assert search_fields(db, "979607008") == ("0301", "OSLO", "Regnskapsføring og bokføring", LATER, READ_AT)
+    assert one(db, "select navn from register.company where orgnr = %s", "919951834") == ("OLD NAME AS",)
+    assert one(db, "select navn from register.company where orgnr = %s", "979607008") == ("EKSTRA RESSURS AS",)
+    # The filing, with its read_at, is untouched.
+    assert filing_state(db, 6984522) == filing_before
+    # No company added, none deleted.
+    assert stored_orgnrs(db) == stored
+
+    assert summary.in_database == len(stored)
+    assert summary.updated == len(stored & BULK_ORGNRS)
+    assert summary.not_found == sorted(stored - BULK_ORGNRS)
+    assert summary.failed == [] and not summary.needs_operator()
+
+
+def test_companies_only_leaves_a_company_missing_from_the_bulk_file(db: psycopg.Connection, cfg: Config) -> None:
+    prepare_companies_only(db)
+    before = company_row(db, ABSENT)
+
+    summary = run.run_companies_only(db, companies_only_transport(), cfg, now=lambda: LATER)
+
+    assert company_row(db, ABSENT) == before
+    assert search_fields(db, ABSENT)[3] == READ_AT  # as the earlier run left it
+    assert ABSENT in summary.not_found
+    lines = summary.lines()
+    assert f"not found in bulk file {len(summary.not_found)}" in lines[1]
+    assert f"updated {summary.updated}," in lines[1]
+    assert f"  not found in bulk file, left untouched: {ABSENT}" in lines
+
+
+def test_companies_only_inserts_no_bulk_unit_that_is_not_stored(db: psycopg.Connection, cfg: Config) -> None:
+    prepare_companies_only(db)
+    # 990051232 is in the bulk file, with 62.100 only as a secondary code.
+    assert count(db, "select count(*) from register.company where orgnr = %s", "990051232") == 0
+
+    run.run_companies_only(db, companies_only_transport(), cfg, now=lambda: LATER)
+
+    assert count(db, "select count(*) from register.company where orgnr = %s", "990051232") == 0
+
+
+def test_companies_only_names_a_failed_write_and_continues(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prepare_companies_only(db)
+    real = write.update_company_search_fields
+
+    def failing(conn: psycopg.Connection, comp: parse.Company, read_at: datetime) -> bool:
+        if comp.orgnr == "919951834":
+            raise psycopg.errors.InsufficientPrivilege("refused in the test")
+        return real(conn, comp, read_at)
+
+    monkeypatch.setattr(run.write, "update_company_search_fields", failing)
+    summary = run.run_companies_only(db, companies_only_transport(), cfg, now=lambda: LATER)
+
+    assert [p.orgnr for p in summary.failed] == ["919951834"]
+    assert "919951834" not in summary.not_found
+    assert summary.needs_operator()
+    assert search_fields(db, "919951834")[3] == READ_AT
+    assert search_fields(db, "979607008")[3] == LATER
+
+
+def test_companies_only_reports_no_row_to_update_as_failed(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prepare_companies_only(db)
+    real = write.update_company_search_fields
+
+    def vanished(conn: psycopg.Connection, comp: parse.Company, read_at: datetime) -> bool:
+        if comp.orgnr == "919951834":
+            return False
+        return real(conn, comp, read_at)
+
+    monkeypatch.setattr(run.write, "update_company_search_fields", vanished)
+    summary = run.run_companies_only(db, companies_only_transport(), cfg, now=lambda: LATER)
+
+    assert [(p.orgnr, p.what) for p in summary.failed] == [("919951834", "no row to update")]
+    assert "919951834" not in summary.not_found
+    assert summary.needs_operator()
+
+
+def test_companies_only_names_a_changed_primary_code(db: psycopg.Connection, cfg: Config) -> None:
+    prepare_companies_only(db)  # 919951834 stored as 69.202 by company()
+    units = json.loads(recorded("enheter_lastned.json"))
+    for unit in units:
+        if unit["organisasjonsnummer"] == "979607008":
+            unit["naeringskode1"] = {"kode": "31.010", "beskrivelse": "Produksjon av møbler"}
+    transport = FixtureTransport({}, bulk=json.dumps(units).encode("utf-8"))
+
+    summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
+
+    # Stored as delivered, next to the stored code; reported, not an error.
+    assert one(
+        db, "select naeringskode1, naeringskode1_beskrivelse from register.company where orgnr = %s", "979607008"
+    ) == ("69.202", "Produksjon av møbler")
+    differs = {orgnr: (stored, bulk) for orgnr, stored, bulk in summary.code_differs}
+    assert differs["979607008"] == ("69.202", "31.010")
+    assert differs["919951834"] == ("69.202", "62.100")
+    assert not summary.needs_operator()
+    lines = summary.lines()
+    assert f"  code differs from stored naeringskode1: {len(summary.code_differs)}" in lines
+    assert "  code differs: 979607008 stored 69.202 bulk 31.010" in lines
+
+
 def test_run_reports_a_non_whole_amount_and_writes_the_rest(db: psycopg.Connection, cfg: Config) -> None:
     filings = json.loads(recorded("regnskap_919951834.json"))
     filings[0]["eiendeler"]["sumEiendeler"] = 1234.5
@@ -392,4 +573,45 @@ def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: obj
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
     monkeypatch.setattr(run, "run", lambda *_args, **_kwargs: summary)
 
-    assert run.main() == (0 if spoil is None else 1)
+    assert run.main([]) == (0 if spoil is None else 1)
+
+
+def test_main_selects_companies_only_mode(monkeypatch: pytest.MonkeyPatch, cfg: Config) -> None:
+    calls: list[str] = []
+
+    class NoConnection:
+        def __enter__(self) -> object:
+            return object()
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+    def companies_only(*_args: object, **_kwargs: object) -> run.CompaniesOnlySummary:
+        calls.append("companies-only")
+        return run.CompaniesOnlySummary(in_database=2, updated=1, not_found=["000000000"])
+
+    def full(*_args: object, **_kwargs: object) -> run.Summary:
+        raise AssertionError("the full run must not start in companies-only mode")
+
+    monkeypatch.setattr(run.config_module, "load_config", lambda _path: cfg)
+    def no_coverage(_path: object) -> list[str]:
+        raise AssertionError("companies-only mode must not read coverage.json")
+
+    monkeypatch.setattr(run.config_module, "load_coverage", no_coverage)
+    monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
+    monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run, "run", full)
+    monkeypatch.setattr(run, "run_companies_only", companies_only)
+
+    # A company not found in the bulk file is expected: exit 0.
+    assert run.main(["--companies-only"]) == 0
+    assert calls == ["companies-only"]
+
+
+@pytest.mark.parametrize("argv", [["--company-only"], ["--companies-only", "x"], ["62.100"]])
+def test_main_refuses_other_arguments(monkeypatch: pytest.MonkeyPatch, argv: list[str]) -> None:
+    def no_connection(_url: str) -> object:
+        raise AssertionError("a refused argument must not reach the database")
+
+    monkeypatch.setattr(run.write, "connect", no_connection)
+    assert run.main(argv) == 2

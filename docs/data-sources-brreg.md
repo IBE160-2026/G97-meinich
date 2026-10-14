@@ -15,6 +15,17 @@ Technical note for Peerless. Everything below has been tested against actual cal
 
 ---
 
+## Enhetsregisteret fields Peerless stores
+
+Step 1 stores these fields of each unit in `register.company`, read from the bulk download (or, for demo company C, from `GET /enhetsregisteret/api/enheter/{orgnr}`), as the register delivers them:
+
+- `organisasjonsnummer` → `orgnr`, the key; `navn`; `organisasjonsform.kode`; `naeringskode1.kode`, `naeringskode2.kode`, `naeringskode3.kode`; `konkurs`, `underAvvikling`, `underTvangsavviklingEllerTvangsopplosning`.
+- What search shows (Story 1.5a): `forretningsadresse.kommunenummer` → `forretningsadresse_kommunenummer`, `forretningsadresse.kommune` → `forretningsadresse_kommune`, and `naeringskode1.beskrivelse` → `naeringskode1_beskrivelse`. A unit without `forretningsadresse`, or without the field, stores NULL — never an empty string, and never `postadresse` in its place. `search_fields_read_at` records when these three were read: equal to `read_at` after a normal run, the bulk read time after `pnpm ingest --companies-only`, which fills only these on companies already stored.
+
+The business municipality of a sole proprietorship (`ENK`) is often the owner's home. It is public in the register, but made searchable by name in Peerless it is a person's location. Step 1 stores every unit with a covered primary code, whatever its form — 6 258 of the 17 557 companies in the demo seed are `ENK` — so this applies from Story 1.5b on, which decides what search returns for them.
+
+---
+
 ## Endpoints
 
 ```

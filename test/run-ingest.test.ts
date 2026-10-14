@@ -4,7 +4,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { containerDatabaseUrl, dockerRunArgs, setting } from '../scripts/run-ingest.ts';
+import { spawnSync } from 'node:child_process';
+import { containerDatabaseUrl, dockerRunArgs, main, setting, stepArgs } from '../scripts/run-ingest.ts';
+
+// main() runs docker through spawnSync; here it is recorded, never run.
+vi.mock('node:child_process', () => ({ spawnSync: vi.fn(() => ({ status: 0 })) }));
 
 const PASSWORD = 'a'.repeat(64);
 
@@ -69,5 +73,57 @@ describe('dockerRunArgs', () => {
       expect(args.includes('BRREG_API_BASE_URL')).toBe(withBaseUrl);
       expect(args.at(-1)).toBe('peerless-ingest:local');
     }
+  });
+});
+
+describe('argument passthrough', () => {
+  it('passes nothing after the image for a normal run', () => {
+    expect(dockerRunArgs('/repo', false).at(-1)).toBe('peerless-ingest:local');
+  });
+
+  it('passes --companies-only after the image, to the container', () => {
+    const args = dockerRunArgs('/repo', true, ['--companies-only']);
+    expect(args.slice(-2)).toEqual(['peerless-ingest:local', '--companies-only']);
+    expect(args.filter((arg) => arg === '--companies-only')).toHaveLength(1);
+  });
+
+  it('allows only --companies-only, once', () => {
+    expect(stepArgs([])).toEqual({ args: [] });
+    expect(stepArgs(['--companies-only'])).toEqual({ args: ['--companies-only'] });
+    for (const argv of [['--entrypoint=sh'], ['--companies-only', '--rm'], ['-e', 'X'], ['--companies-only', '--companies-only']]) {
+      expect(stepArgs(argv), argv.join(' ')).toHaveProperty('error');
+    }
+  });
+
+  it('never forwards a refused argument, even when called directly', () => {
+    expect(() => dockerRunArgs('/repo', false, ['--entrypoint=sh'])).toThrow(/unknown argument/);
+  });
+});
+
+describe('main', () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'run-ingest-main-'));
+    vi.stubEnv('INGEST_DATABASE_URL', `postgresql://ingest:${PASSWORD}@127.0.0.1:54322/postgres`);
+    vi.stubEnv('BRREG_API_BASE_URL', '');
+    vi.mocked(spawnSync).mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('runs the container with --companies-only after the image', () => {
+    expect(main(dir, ['--companies-only'])).toBe(0);
+    const calls = vi.mocked(spawnSync).mock.calls;
+    expect(calls.map((call) => (call[1] as string[])[0])).toEqual(['build', 'run']);
+    expect((calls[1]?.[1] as string[]).slice(-2)).toEqual(['peerless-ingest:local', '--companies-only']);
+  });
+
+  it('refuses another argument with 2 and runs nothing', () => {
+    expect(main(dir, ['--company-only'])).toBe(2);
+    expect(spawnSync).not.toHaveBeenCalled();
   });
 });

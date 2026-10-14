@@ -47,3 +47,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5a-company-search-data.md`
   summary: Story 1.5b — the search API (`GET /api/sok`), the front page with the hero combobox, `src/server/db.ts` and the route-manifest test — split from Story 1.5 to follow 1.5a.
   evidence: Story 1.5 planning 2026-10-14. The spec ran to about 2 700 tokens across the database, step 1, the API, the UI and tests, so the human split it 1.3a/1.3b-style. The data change comes first. Its draft spec is `spec-1-5b-company-search.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5a-company-search-data.md`
+  summary: Story 1.5b must settle three things about the data 1.5a stored:
+    - whether search returns a sole proprietor's (`ENK`) business municipality, which is often the owner's home;
+    - never to present `naeringskode1_beskrivelse` as the name of the stored `naeringskode1` without checking that they belong together, since 920768695 is stored under 62.100 with the description "Produksjon av møbler";
+    - to add a test with `EXPLAIN` that shows its name query uses `company_navn_trgm`, by calling the same `register.immutable_unaccent(lower(navn))` expression.
+  evidence: Story 1.5a review. 6 258 of the 17 557 stored companies are `ENK`, as recorded in `docs/data-sources-brreg.md` and the ai-log entry for 1.5a. Companies-only mode now reports code mismatches in its summary. Index use was shown by a manual `EXPLAIN` only. `reader`'s `search_path` lacks `extensions`, so the query must qualify `extensions.%`/`extensions.word_similarity`.

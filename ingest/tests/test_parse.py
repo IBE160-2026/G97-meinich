@@ -220,6 +220,33 @@ def test_parse_company_fields() -> None:
     assert company.naeringskode1 == "69.202"
     assert (company.naeringskode2, company.naeringskode3) == (None, None)
     assert (company.konkurs, company.under_avvikling, company.under_tvangsavvikling) == (False, False, False)
+    # What search shows, as the register delivers it (Story 1.5a).
+    assert company.forretningsadresse_kommunenummer == "3405"
+    assert company.forretningsadresse_kommune == "LILLEHAMMER"
+    assert company.naeringskode1_beskrivelse == "Regnskapsføring og bokføring"
+    assert company.search_fields_read_at == company.read_at == READ_AT
+
+
+def test_parse_company_without_forretningsadresse_never_uses_postadresse() -> None:
+    # 919951834 as recorded has both addresses; without its business address
+    # only postadresse remains, which search must not show as the municipality.
+    unit = next(u for u in bulk_units() if u["organisasjonsnummer"] == "919951834")
+    assert unit["postadresse"]["kommune"]  # the fixture's premise
+    del unit["forretningsadresse"]
+    company = parse.parse_company(unit, READ_AT)
+    assert (company.forretningsadresse_kommunenummer, company.forretningsadresse_kommune) == (None, None)
+    assert company.naeringskode1_beskrivelse == "Dataprogrammeringstjenester"
+
+
+def test_parse_company_absent_or_empty_search_fields_are_none() -> None:
+    unit = next(u for u in bulk_units() if u["organisasjonsnummer"] == "919951834")
+    unit["forretningsadresse"] = {"kommune": "", "adresse": ["Tinngata 1"]}
+    del unit["naeringskode1"]["beskrivelse"]
+    company = parse.parse_company(unit, READ_AT)
+    assert company.forretningsadresse_kommunenummer is None
+    assert company.forretningsadresse_kommune is None
+    assert company.naeringskode1_beskrivelse is None
+    assert company.naeringskode1 == "62.100"
 
 
 def test_bulk_download_streams_through_gzip() -> None:

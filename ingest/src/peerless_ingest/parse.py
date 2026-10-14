@@ -103,6 +103,15 @@ class Company:
     under_avvikling: bool | None
     under_tvangsavvikling: bool | None
     read_at: datetime
+    # What search shows (Story 1.5a), as the register delivers them. NULL
+    # when the unit has no forretningsadresse or the field is absent; never
+    # an empty string and never taken from postadresse.
+    forretningsadresse_kommunenummer: str | None
+    forretningsadresse_kommune: str | None
+    naeringskode1_beskrivelse: str | None
+    # When the three fields above were read. A normal run reads them with the
+    # rest of the unit, so parse_company sets it to read_at.
+    search_fields_read_at: datetime
 
 
 @dataclass(frozen=True)
@@ -130,12 +139,25 @@ class Filing:
 # --- Enhetsregisteret ----------------------------------------------------------
 
 
-def _code(unit: dict, key: str) -> str | None:
+def _nested_text(unit: dict, key: str, field: str) -> str | None:
+    """`unit[key][field]` when it is a string, else None. An absent object,
+    an absent field or a non-string value is None."""
     value = unit.get(key)
     if isinstance(value, dict):
-        code = value.get("kode")
-        return code if isinstance(code, str) else None
+        text = value.get(field)
+        return text if isinstance(text, str) else None
     return None
+
+
+def _code(unit: dict, key: str) -> str | None:
+    return _nested_text(unit, key, "kode")
+
+
+def _search_field(unit: dict, key: str, field: str) -> str | None:
+    """A field search shows, as delivered. An empty string carries no value
+    and is stored as NULL, like an absent field."""
+    text = _nested_text(unit, key, field)
+    return text if text else None
 
 
 def _bool(value: object) -> bool | None:
@@ -174,6 +196,10 @@ def parse_company(unit: dict, read_at: datetime) -> Company:
         under_avvikling=_bool(unit.get("underAvvikling")),
         under_tvangsavvikling=_bool(unit.get("underTvangsavviklingEllerTvangsopplosning")),
         read_at=read_at,
+        forretningsadresse_kommunenummer=_search_field(unit, "forretningsadresse", "kommunenummer"),
+        forretningsadresse_kommune=_search_field(unit, "forretningsadresse", "kommune"),
+        naeringskode1_beskrivelse=_search_field(unit, "naeringskode1", "beskrivelse"),
+        search_fields_read_at=read_at,
     )
 
 

@@ -20,7 +20,7 @@ import http.client
 import os
 import sys
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -103,8 +103,10 @@ class CompaniesOnlySummary:
     not_found: list[str] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
     # (orgnr, stored naeringskode1, bulk naeringskode1) where the register's
-    # primary code has changed since the company was stored. Its description
-    # is stored as delivered, next to the stored code; reported, not fixed.
+    # primary code has changed since the company was stored. The bulk
+    # description names the new code, not the stored one, so it is stored
+    # as NULL; the municipality is stored as delivered. Reported, not an
+    # error: the next full run stores code and description together.
     code_differs: list[tuple[str, str | None, str | None]] = field(default_factory=list)
 
     def needs_operator(self) -> bool:
@@ -121,7 +123,7 @@ class CompaniesOnlySummary:
         ]
         for orgnr in self.not_found:
             out.append(f"  not found in bulk file, left untouched: {orgnr}")
-        out.append(f"  code differs from stored naeringskode1: {len(self.code_differs)}")
+        out.append(f"  code differs from stored naeringskode1, description stored as NULL: {len(self.code_differs)}")
         for orgnr, stored_code, bulk_code in self.code_differs:
             out.append(f"  code differs: {orgnr} stored {stored_code} bulk {bulk_code}")
         for problem in self.failed:
@@ -253,7 +255,11 @@ def run_companies_only(
     naeringskode1_beskrivelse and search_fields_read_at from the bulk
     download, for every company already in register.company. The bulk file
     is read without the industry filter: demo company C, or a company whose
-    primary code has changed since it was stored, is in it like any unit."""
+    primary code has changed since it was stored, is in it like any unit.
+
+    naeringskode1_beskrivelse is stored only when the bulk naeringskode1
+    equals the stored one; otherwise it describes a code this row does not
+    hold, and NULL is stored and the company named in the summary."""
     stored_codes: dict[str, str | None] = {
         row[0]: row[1] for row in conn.execute("SELECT orgnr, naeringskode1 FROM register.company").fetchall()
     }
@@ -273,9 +279,10 @@ def run_companies_only(
         except ValueError as error:
             summary.failed.append(Problem(str(orgnr), f"bulk unit not loaded: {error}"))
             continue
-        selected.append(company)
         if company.naeringskode1 != stored_codes[company.orgnr]:
             summary.code_differs.append((company.orgnr, stored_codes[company.orgnr], company.naeringskode1))
+            company = replace(company, naeringskode1_beskrivelse=None)
+        selected.append(company)
     progress(f"bulk download: {len(selected)} of {len(stored)} stored companies found")
 
     seen: set[str] = set()

@@ -30,6 +30,7 @@ context:
   - It adds no company and deletes none, so the company set still matches the 1.3a filings.
   - It leaves every other column unchanged, including `navn` and `read_at`, and touches no filing.
   - Its summary says how many companies it updated and how many were not found in the bulk file.
+  - **It stores `naeringskode1_beskrivelse` only when the register's `naeringskode1` equals the stored one** (human, before push, 2026-10-14). Otherwise it stores NULL and names the company in the summary, because a description of the register's new code is wrong next to the stored code.
 - **`read_at` never describes values read later** (human, at approval). A fourth nullable column, `search_fields_read_at timestamptz`, records when the three fields were read.
   - Companies-only mode sets it to the time of its bulk read.
   - A normal step-1 run sets it equal to `read_at`.
@@ -64,6 +65,7 @@ context:
 | no business address | unit without `forretningsadresse` (only `postadresse`) | the two kommune columns NULL | — |
 | companies-only, match | DB orgnr present in bulk | the three columns and `search_fields_read_at` (the bulk read time) updated; `navn`, `read_at` and the filings unchanged | — |
 | companies-only, missing | DB orgnr absent from bulk (e.g. deleted unit, or demo C outside the filter) | row untouched (`search_fields_read_at` stays as it was); counted and named in the summary | needs-operator exit only if a write fails |
+| companies-only, code changed | bulk `naeringskode1` ≠ stored (920768695: 62.100 → 31.000) | `naeringskode1_beskrivelse` NULL, municipality stored; named in the summary | not an error |
 | companies-only, extra | bulk unit with a covered code, not in DB | not inserted | — |
 | accents | `immutable_unaccent(lower('Ærlig Søndre'))` as `reader` | `'aerlig sondre'` | — |
 

@@ -23,7 +23,7 @@ Store the business municipality (number and name) and the primary industry's nam
 - **Corrected against the spec, and how it was caught:**
   - "GRANT EXECUTE on the wrapper to `reader` only" was tried in a rolled-back transaction before the migration was written: as `ingest` and `loader`, writing `register.company` failed with "permission denied for function immutable_unaccent", because Postgres evaluates an index expression as the writer; and as `reader` the call failed with "permission denied for schema extensions". The migration grants EXECUTE and USAGE on `extensions` to `reader`, `ingest` and `loader`. This departs from a frozen line of the spec and needs the human's agreement at review.
   - The spec suggests adding a fixture unit without `forretningsadresse`. The recorded fixtures are byte-for-byte register responses, so the tests instead delete `forretningsadresse` from a copy of 919951834, which keeps its `postadresse`.
-- **Found in the data:** 920768695 (KIRKEBY GÅRDSDRIFT, `ENK`) is stored with `naeringskode1` 62.100, but the register now names its primary industry "Produksjon av møbler"; companies-only mode stored that description next to the old code, as specified.
+- **Found in the data:** 920768695 (KIRKEBY GÅRDSDRIFT, `ENK`) is stored with `naeringskode1` 62.100, but the register now names its primary industry "Produksjon av møbler"; the first companies-only run stored that description next to the old code, as specified then.
 
 ## Review
 
@@ -38,6 +38,13 @@ Three review layers ran on the diff: blind hunter, edge-case hunter and verifica
   - the refusal test proves nothing connects.
 - **One deferred to Story 1.5b** (`deferred-work.md`): ENK municipality privacy, description versus stored code, and an `EXPLAIN` test that the name query uses the index.
 - **Eight rejected,** with reasons.
+
+## Before push (human)
+
+- **The human found the 920768695 mismatch in the result** and changed the rule. Companies-only mode now stores `naeringskode1_beskrivelse` only when the register's `naeringskode1` equals the stored one; otherwise it stores NULL and names the company in the summary. There is a test for this: `test_companies_only_names_a_changed_primary_code`.
+- **Re-run of `pnpm ingest --companies-only`:** exit 0, 17 547 updated, 10 not found, 1 code differs (920768695 stored 62.100, bulk 31.000).
+- **Re-exported seed:** the only changed value is that row's description, now NULL. `search_fields_read_at` moved to the re-run's time on the 17 547 rows read again; every other column is byte-identical. `pnpm seed` twice and `pnpm seed:export`: stable.
+- **For Story 1.5b, as the human asked:** 504 stored companies have no municipality (494 read without one, 491 `NUF` and 3 `FLI`; 10 not found in the bulk file). Search must show them without one. This is recorded in `spec-1-5b-company-search.md`.
 
 ## Verification
 

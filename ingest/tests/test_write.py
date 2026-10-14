@@ -311,7 +311,8 @@ def prepare_companies_only(db: psycopg.Connection) -> None:
     """Two bulk companies stored by an earlier run, under an old name and
     without search fields, one with a filing; and one company the bulk file
     does not have."""
-    write.write_company(db, company("919951834", "OLD NAME AS"))
+    # Stored under its bulk primary code, so its description is kept.
+    write.write_company(db, dataclasses.replace(company("919951834", "OLD NAME AS"), naeringskode1="62.100"))
     write.write_company(db, company("979607008", "EKSTRA RESSURS AS"))
     [filing] = filings_of("regnskap_979607008_2025.json", "979607008")
     write.write_filing(db, filing)
@@ -415,7 +416,7 @@ def test_companies_only_reports_no_row_to_update_as_failed(
 
 
 def test_companies_only_names_a_changed_primary_code(db: psycopg.Connection, cfg: Config) -> None:
-    prepare_companies_only(db)  # 919951834 stored as 69.202 by company()
+    prepare_companies_only(db)
     units = json.loads(recorded("enheter_lastned.json"))
     for unit in units:
         if unit["organisasjonsnummer"] == "979607008":
@@ -424,16 +425,20 @@ def test_companies_only_names_a_changed_primary_code(db: psycopg.Connection, cfg
 
     summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
 
-    # Stored as delivered, next to the stored code; reported, not an error.
+    # The bulk description names 31.010, not the stored 69.202: NULL, and
+    # reported, not an error. The municipality is still stored, and the code
+    # itself is left for a full run.
     assert one(
-        db, "select naeringskode1, naeringskode1_beskrivelse from register.company where orgnr = %s", "979607008"
-    ) == ("69.202", "Produksjon av møbler")
+        db,
+        "select naeringskode1, naeringskode1_beskrivelse, forretningsadresse_kommune from register.company where orgnr = %s",
+        "979607008",
+    ) == ("69.202", None, "OSLO")
     differs = {orgnr: (stored, bulk) for orgnr, stored, bulk in summary.code_differs}
     assert differs["979607008"] == ("69.202", "31.010")
-    assert differs["919951834"] == ("69.202", "62.100")
+    assert set(differs) == {"979607008"}
     assert not summary.needs_operator()
     lines = summary.lines()
-    assert f"  code differs from stored naeringskode1: {len(summary.code_differs)}" in lines
+    assert f"  code differs from stored naeringskode1, description stored as NULL: {len(summary.code_differs)}" in lines
     assert "  code differs: 979607008 stored 69.202 bulk 31.010" in lines
 
 

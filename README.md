@@ -122,6 +122,8 @@ If your Node install blocks the `pnpm` shim that `corepack enable` writes, prefi
 
 [docs/ai-sessions/](docs/ai-sessions/) — one file per working session with an AI tool, linked from the pull request or commit it produced
 
+[docs/ai-prompts.md](docs/ai-prompts.md) — the prompts sent to the AI, verbatim, and what each one changed
+
 ## To-do
 
 [docs/todo.md](docs/todo.md)

@@ -118,6 +118,16 @@ Do not OCR or fetch documents at query time. OCR takes seconds to tens of second
 
 **AI sessions are saved.** Each working session that produces or changes code or a planning decision gets a file in `docs/ai-sessions/`, following the README there: the goal, the prompts that mattered, what was accepted, rejected or corrected, and links to the issue, PR or commits. `docs/ai-log.md` records the lessons; `docs/ai-sessions/` records the sessions themselves.
 
+**Prompts are saved verbatim.** The human's prompts — to the BMAD session and to the separate review session that checks its output — go into `docs/ai-prompts.md` at the end of each story, each with what it changed and the commit or PR it landed in. They are extracted from the Claude Code transcripts, not retyped, and checked for secrets and personal data before commit. When a decision or correction came from the review session, the session file says so; do not credit it to the human's own reading.
+
+## What is graded
+
+The course grades the repository against seven criteria: process and AI steering (30 %), functionality and scope (20 %), quality assurance and testing (15 %), design and UX (10 %), code quality and architecture (10 %), README and runnability (10 %), and repository tidiness (5 %). In practice this means:
+- The path from plan to code must be traceable: stories, issues, PRs, small commits, saved prompts, and concrete examples of AI output that was corrected or rejected.
+- Review happens in the PR, before merging, and says what was checked and found.
+- A grader follows the README on a clean machine for about 15–20 minutes; a step that is missing or fails counts against the README.
+- No secrets, build artefacts, stray files or dead code from abandoned attempts in the repository.
+
 ## Working style
 
 When you propose a change touching auth, data access or money handling, say what could go wrong with it. That reasoning goes into the project's AI log, `docs/ai-log.md`, following the rules at the top of that file.

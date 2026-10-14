@@ -2,7 +2,7 @@
 
 One file per working session with an AI tool that produced or changed code, a planning document or a decision. The point is traceability: a reader should be able to go from a pull request or commit to the session that produced it, see what was asked, and see where the AI was corrected.
 
-`docs/ai-log.md` is the companion: it records the lessons — what went wrong and how it was caught. This folder records the sessions themselves.
+`docs/ai-log.md` is the companion: it records the lessons — what went wrong and how it was caught. This folder records the sessions themselves. `docs/ai-prompts.md` holds the human's prompts verbatim, from both the BMAD session and the review session, with what each one changed.
 
 ## File name
 

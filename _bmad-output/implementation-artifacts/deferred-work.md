@@ -60,9 +60,14 @@
   evidence: Story 1.5b decision (human, 2026-10-14): the header stays unchanged in 1.5b; the variant is built and tested by server-rendered markup only (`test/search-field.test.ts`), because no extra route may be added to render it in a browser.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
-  summary: Story 1.6a's URL module replaces the two hand-built `/analyse/${orgnr}` links — `analysisHref` in `src/components/search-field.tsx` (results, exact submit and the demo links) — so every link goes through `serialize`. The orgnr rules it needs are already in `src/engine/orgnr.ts` (`classifySearchInput`, `isValidOrgnr`).
-  evidence: Story 1.5b. The URL module does not exist yet, and EXPERIENCE.md requires every link and navigation to use it.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
   summary: When Story 1.6b mounts the compact SearchField in the persistent header, `busy` and the "Henter analysen …" notice set before `router.push` are never cleared, because the header does not unmount on navigation.
   evidence: Review of 1.5b (edge-case finding 4, maybe-false, medium if true). The hero variant unmounts with the front page, so 1.5b cannot hit it; settle it in 1.6b with an e2e test that searches from the header twice, or reset `busy` on a `usePathname` change.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
+  summary: Story 1.6b passes `parse` a documented accept-all `isCandidate`; Story 1.7 must replace it with the real candidate pool (funnel stages 1–3 at the parsed band), so an `ekskl` orgnr outside the pool is dropped with the notice (AD-5).
+  evidence: Human decision 2026-10-15 in the 1.6a spec; until 1.7, any valid orgnr other than the subject is kept in `ekskl` (review finding 5).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
+  summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.
+  evidence: Story 1.6a AC (the predicate is an input because no engine computes s_med until 3.5); review finding 5.
+

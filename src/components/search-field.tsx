@@ -8,7 +8,8 @@
 // - Validation runs on submit and blur only, never while typing.
 // - Typing searches after a 300 ms pause, one request at a time; nothing
 //   navigates on input alone. Enter on an option, a click, or a submitted
-//   nine-digit orgnr that matches exactly navigates to /analyse/{orgnr}.
+//   nine-digit orgnr that matches exactly navigates to the company's analysis,
+//   whose URL is written by src/url/analysis-state.ts.
 // - One polite live region, present empty from page load, carries the count,
 //   the no-match and unknown-orgnr copy, validation messages and loading.
 //   A failed request fills a separate role="alert" and shows no results.
@@ -22,6 +23,7 @@ import { classifySearchInput, type SearchInput } from '@/engine/orgnr';
 import { t } from '@/messages';
 import { industryNamed } from '@/messages/industry';
 import { MAX_SEARCH_LENGTH, SEARCH_ENDPOINT, type SearchResult } from '@/search-contract';
+import { defaultState, serialize } from '@/url/analysis-state';
 
 export const SEARCH_DEBOUNCE_MS = 300;
 const MIN_NAME_LENGTH = 2;
@@ -77,7 +79,7 @@ function parseResults(body: unknown): Result[] | null {
 }
 
 function analysisHref(orgnr: string): string {
-  return `/analyse/${orgnr}`;
+  return serialize(defaultState(orgnr));
 }
 
 // "orgnr · industry · municipality", leaving out what the register lacks:

@@ -293,6 +293,81 @@ The human posted the review on PR #21 before merging (comment 20:33:58, merge 20
 
 ---
 
+## Story 1.5b: find a company by name or organisation number (#6, PR #22)
+
+### Prompts to the BMAD session
+
+**2026-10-15 19:00**
+```
+/bmad-build Story 1.5b, issue #6
+```
+
+**19:04**: answers to the spec's open questions on the front-page copy, the industry name and capital letters.
+```
+Fra meg:
+Behold spec-en hel.
+1: Godta teksten, men ingressen skal ikke skrive antallet bransjer inn i
+   teksten ("én bransje"). Bruk f.eks. "Peerless dekker foreløpig
+   {industry}." så den stemmer også når dekningen vokser.
+2: (a). Rett akseptansekriteriet i epics.md og issue #6 så det sier at
+   bransjenavnet kommer fra registeret.
+3: (b). Omgjøringen skjer bare ved visning; databasen beholder registerets
+   verdi. Test med bindestreksnavn (AURSKOG-HØLAND → Aurskog-Høland) og
+   flerspråklige navn (PORSANGER - PORSÁŊGU - PORSANKI → Porsanger -
+   Porsáŋgu - Porsanki, KÅFJORD - GÁIVUOTNA - KAIVUONO).
+```
+*Changed:* the AI's proposed lead, "Foreløpig dekker Peerless én bransje: {industry}.", wrote the number of industries into the copy, and would have gone wrong as coverage grew. Municipality casing is display-only, and tested on the Sámi-language and hyphenated names.
+
+**19:06**: approval, with two additions after the review session read the spec.
+```
+Fra meg: godkjent, med to tillegg i spec-en før du starter:
+1. /api/sok validerer på serveren: q over 100 tegn gir 400 uten å spørre
+   databasen, og et ni-sifret orgnr sjekkes med mod 11 også der. Legg
+   begge til i matrisen.
+2. Hvis søket bruker LIKE/ILIKE, escapes % og _ i brukerens tekst. Test at
+   søket "%" ikke gir alle selskaper.
+Approve and continue.
+```
+*Changed:* the first endpoint open to users had no length limit on input and no server-side orgnr check, and a search for "%" would have matched every company. Both are now in the spec's matrix and tested.
+
+**19:29**: the BMAD session reported, on its own, that its first browser test for "%" passed for the wrong reason: a one-character query returns nothing before any SQL runs. The review session suggested the replacement inputs.
+```
+Fra meg: bruk "%%" (eller "_%") i browser-testen, så søket kommer forbi
+minstelengden på to tegn og faktisk treffer escapingen. Nevn i PR-en at
+den første versjonen av testen besto av feil grunn.
+```
+
+**19:39**: before push.
+```
+Fra meg: før push, rett den gamle bransjeteksten nå i stedet for å utsette
+den: FR-4, UX-DR41, UX-DR42, UX-DR43 og 1.6b-kriteriene i epics.md,
+epic-1-context.md og State Patterns i EXPERIENCE.md skal si at
+bransjenavnet og koden kommer fra registeret (som i 1.5b), ikke ha
+"programmeringstjenester (62.100)" som fast tekst. Fjern deferred-posten.
+Push deretter og opprett PR-en for #6. Nevn i PR-en: demolenkene er
+midlertidige til 5.4, lenkene som gir 404 til 1.6a/1.6b, at CI-rekkefølgen
+er endret og hvorfor, og at den første "%"-testen besto av feil grunn.
+```
+*Changed:* `2cc79c7`. The AI had deferred the stale planning text to Story 1.6b, but UX-DR42 and UX-DR43 describe states that this story builds, so the plan and the code disagreed on the PR's own content.
+
+**19:42**: the PR, the AI log and the session file had credited the "%" finding to the human.
+```
+Fra meg: to rettelser.
+1. "%"-funnet er feil kreditert i PR #22, docs/ai-log.md (linje ~356, punkt c)
+   og session-fila. Det var du (BMAD-sesjonen) som fant at testen besto av
+   feil grunn, under din egen testkjøring. Review-sesjonen foreslo bare
+   "%%"/"_%" og at det skulle nevnes i PR-en. Skriv det slik alle tre steder.
+2. Ja, oppdater issue #8 så den sier at bransjenavnet kommer fra registeret,
+   som epics.md.
+```
+*Changed:* `aad6eee`. Credit now matches what happened, and issue #8 matches `epics.md`.
+
+### Checks before merging
+
+The human posted the review on PR #22 at 19:45:15 and merged at 19:45:22, before the PR's CI run had finished. The two earlier runs had been cancelled by newer pushes. The run on `aad6eee` finished green at 19:47:48, so build and e2e did pass, but only after the merge. From now on, the merge waits for a green check.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

@@ -3,7 +3,7 @@
 **Date:** 2026-10-15
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #7, Story 1.6a
-**Result:** branch `story/1.6a-url-module`; PR to follow.
+**Result:** branch `story/1.6a-url-module`, [PR #23](https://github.com/IBE160-2026/G97-meinich/pull/23).
 
 ## Goal
 

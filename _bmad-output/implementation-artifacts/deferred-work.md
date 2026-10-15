@@ -64,8 +64,5 @@
   evidence: Story 1.5b. The URL module does not exist yet, and EXPERIENCE.md requires every link and navigation to use it.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
-  summary: The literal copy "programmeringstjenester (62.100)" still stands in FR-4, UX-DR41, UX-DR42 and UX-DR43 and in Story 1.6b's ACs in `epics.md`, and in EXPERIENCE.md's State Patterns. Story 1.5b's ACs and issue #6 now say the industry name and code come from the register; the others should be brought in line when 1.6b is planned, so 1.6b's uncovered and not-found states do not reintroduce a literal.
-  evidence: Story 1.5b human decision 2026-10-15 ("Industry name from the register"); the spec scoped the correction to Story 1.5b and issue #6.
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
   summary: When Story 1.6b mounts the compact SearchField in the persistent header, `busy` and the "Henter analysen …" notice set before `router.push` are never cleared, because the header does not unmount on navigation.
   evidence: Review of 1.5b (edge-case finding 4, maybe-false, medium if true). The hero variant unmounts with the front page, so 1.5b cannot hit it; settle it in 1.6b with an e2e test that searches from the header twice, or reset `busy` on a `usePathname` change.

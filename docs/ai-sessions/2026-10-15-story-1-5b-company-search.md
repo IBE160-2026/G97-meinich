@@ -38,11 +38,19 @@ Make the front page work: a hero search over Peerless's own database by name or 
   - **Found by the human:** the first e2e test of "%" against `/api/sok` passed for the wrong reason: a one-character `q` returns `[]` before any query runs, so escaping was never exercised. The test now sends "%%" and "_%".
 - **Settled from Story 1.5a's deferred items:** NULL `naeringskode1_beskrivelse` shows the code alone (920768695 in the tests); the `EXPLAIN` test shows `company_navn_trgm` for names and `company_pkey` for an orgnr, run with `enable_seqscan = off` on the exact SQL the app runs. The ENK municipality question is not decided away: the spec returns the municipality for every company; the risk is in `docs/ai-log.md`.
 
+## Review
+
+Three independent review layers (blind, edge case, verification gap) raised 30 findings; the triage is in the spec's Review Triage Log. 15 were fixed in this PR, 1 deferred, 14 rejected with reasons.
+
+- **Fixed in AI-generated code:** Enter during the 300 ms pause opened the active option from the previous query (active option now reset on every change); a debounced result re-opened the list after the field lost focus; the listbox's `aria-labelledby` pointed at the input, so it was named by the typed value (now the label); the reader client had no `statement_timeout` on an open endpoint (now 5 s); `check:routes` now fails if `/` is prerendered; tests added for a NULL industry name (920768695), `joinList`, and a real no-break space; the ai-log entry misdescribed the 400 rule and said nothing had been corrected.
+- **Deferred:** the compact field's `busy` state may stick when 1.6b mounts it in the persistent header (`deferred-work.md`).
+- **Human, before push:** instead of deferring the remaining "programmeringstjenester (62.100)" literals, FR-4, UX-DR41–43 and Story 1.6b's ACs in `epics.md`, `epic-1-context.md` and EXPERIENCE.md's State Patterns now say `{industry}` comes from the register, as in 1.5b; the deferred entry was removed.
+
 ## Verification
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test` (22 files, 323 tests), `pnpm check:pins`, `pnpm check:env`: pass.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test` (23 files, 332 tests), `pnpm check:pins`, `pnpm check:env`: pass.
 - `pnpm test:db` on the seeded local database (7 files, 105 tests): pass.
-- `pnpm build`, `pnpm check:routes`, `pnpm test:e2e` (30 tests, including 375 and 320 px): pass.
+- `pnpm build`, `pnpm check:routes`, `pnpm test:e2e` (32 tests, including 375 and 320 px): pass.
 - Screenshots of the front page, the list and an error state at 1200 and 375 px were checked by eye.
 
 ## Links
@@ -50,4 +58,4 @@ Make the front page work: a hero search over Peerless's own database by name or 
 - Spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
 - `docs/ai-log.md`, "Story 1.5b: the request path's first database read, and what search can return"
 - `epics.md` Story 1.5b and issue #6: the no-match and unknown-orgnr ACs now say the industry comes from the register.
-- `deferred-work.md`: the compact variant mounted by 1.6b; the hand-built `/analyse/` links for 1.6a; the remaining "programmeringstjenester (62.100)" literals in the planning documents.
+- `deferred-work.md`: the compact variant mounted by 1.6b; the hand-built `/analyse/` links for 1.6a; the compact field's `busy` state for 1.6b.

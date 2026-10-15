@@ -27,7 +27,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-1: One search field accepts a company name or an organisation number; nine digits → exact orgnr match, else fuzzy name match; searches Peerless's own database only (never the register live); each result shows name, orgnr, primary industry, municipality; never filters on financial criteria; choosing a result resolves on orgnr; malformed input or no match gives a clear message, never an empty analysis.
 - FR-2: The subject is shown with registered name, orgnr, primary industry code and the analysed accounting year, the year taken from the returned `regnskapsperiode`/filing `id`, never the requested `år`; a renamed company still resolves to one company.
 - FR-3: Only a subject whose `naeringskode1.kode` is in a covered industry gets a peer analysis; an industry is covered only once extracted, reconciled and measured against a labelled set; SN2025 codes only (SN2007 returns nothing). Stage split: v1 covers `62.100` only; `69.202` and `43.210` are stage 3.
-- FR-4: A subject outside a covered industry shows only the three API-sourced figures (operating margin, return on assets, equity ratio) from the latest year plus a plain statement naming its industry as not yet covered; no peer group, median, quartile, percentile or kroner; an orgnr not in the database shows "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)." with links to demo companies A and B; demonstrated by demo company C (`69.202`); no live register call.
+- FR-4: A subject outside a covered industry shows only the three API-sourced figures (operating margin, return on assets, equity ratio) from the latest year plus a plain statement naming its industry as not yet covered; no peer group, median, quartile, percentile or kroner; an orgnr not in the database shows "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi {industry}." with links to demo companies A and B, where {industry} is each covered code from `register.covered_industry` with the register's own `naeringskode1_beskrivelse` for it, first letter lower-cased — "dataprogrammeringstjenester (62.100)" for v1 — never a literal in `src/` (human decision 2026-10-15); demonstrated by demo company C (`69.202`); no live register call.
 - FR-6: The open route is rate-limited per IP with an in-memory counter in the single local server process, storing no IP; exceeding the limit returns a refusal, never a partial analysis. Stage split: per-IP limit is v1; per-session limit and CAPTCHA are stage 2.
 - FR-7: Funnel stage 1 (rules) filters on `naeringskode1.kode` and a size band of `sumDriftsinntekter` from the same filing, default 0.5–2× the subject's; never `sumEiendeler` or the register's employee count.
 - FR-8: Funnel stage 2 (rules) hard-excludes any candidate not matching the subject on `valuta`, `regnskapsregler`, `smaaForetak`, `avviklingsregnskap`, financial period and `regnskapstype`; none loosenable; only calendar-year filings pass; `smaaForetak`/`regnskapsregler` read from the misspelled `regnkapsprinsipper`.
@@ -290,9 +290,9 @@ v1 only; DESIGN.md is visual, EXPERIENCE.md behavioural; spines win over mocks.
 - UX-DR38: Below the 10-peer floor: row keeps own value; comparison cells merged into one italic slate "For få sammenlignbare (n av 10)" (phone "For få (n av 10)"); no kroner; funnel still shows counts.
 - UX-DR39: Own value undefined: "Kan ikke beregnes" + reason ("omsetningen er null eller negativ" / "en regnskapslinje mangler"); no comparison; subline keeps peer count.
 - UX-DR40: `62.100` company outside the demo seed: full funnel/peer group; API rows compared normally; document rows read "Ikke i demodataene" with info popover; one State block above the table referenced by `aria-describedby`; waterfall and pay/productivity not shown, margin/capital shown; Oversikt "Største kapitalgap" and Verdi capital cards read "Ikke i demodataene"; explanation shown; provenance line "Ikke avstemt – årsregnskapet er ikke i demodataene".
-- UX-DR41: Uncovered industry (demo C): `/analyse/{orgnr}` with no tabs; company header; State block "Bransjen er ikke dekket ennå" + "{Bransjenavn} ({kode}) er ikke dekket ennå. Foreløpig sammenligner Peerless bare selskaper innen programmeringstjenester (62.100). Her er selskapets egne nøkkeltall fra Brønnøysundregistrene."; three API figures with year and read date; "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner."; link "Søk på et annet selskap".
-- UX-DR42: Orgnr not in the database: "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)." + links to demo A and B.
-- UX-DR43: Search no match: "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i programmeringstjenester (62.100)." + demo links.
+- UX-DR41: Uncovered industry (demo C): `/analyse/{orgnr}` with no tabs; company header; State block "Bransjen er ikke dekket ennå" + "{Bransjenavn} ({kode}) er ikke dekket ennå. Foreløpig sammenligner Peerless bare selskaper innen {industry}. Her er selskapets egne nøkkeltall fra Brønnøysundregistrene." ({industry} from the register, as in FR-4); three API figures with year and read date; "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner."; link "Søk på et annet selskap".
+- UX-DR42: Orgnr not in the database: "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi {industry}." + links to demo A and B; {industry} from the register, as in FR-4.
+- UX-DR43: Search no match: "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i {industry}." + demo links; {industry} from the register, as in FR-4.
 - UX-DR44: Empty search submitted: "Skriv inn et navn eller et organisasjonsnummer"; no request.
 - UX-DR45: Malformed number (digits only, spaces ignored, count ≠ 9): "Organisasjonsnummeret må ha 9 siffer"; error border + glyph, `aria-invalid`, live region.
 - UX-DR46: Invalid URL state: bad orgnr (not nine digits / fails mod-11) → front page with malformed-number message; tab on uncovered or no-filing company → `/analyse/{orgnr}`; unknown tab → Oversikt; exclusion outside candidate pool or beyond 20 → dropped; impossible "Til medianen" → 50 %; invalid band/share/multiple → Standard/50 %/empty; one slate notice "Noen innstillinger i lenken var ugyldige og er satt tilbake til standard."; no year in URL.
@@ -839,11 +839,11 @@ Split from Story 1.5 on 2026-10-14. This half covers the API and the search page
 
 **Given** a name search with no match
 **When** results return
-**Then** "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i programmeringstjenester (62.100)." is shown in the same live region, with links to demo companies A and B
+**Then** "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i {industry}." is shown in the same live region, with links to demo companies A and B, where {industry} is each covered code from `register.covered_industry` with the register's own `naeringskode1_beskrivelse` for it, first letter lower-cased — "dataprogrammeringstjenester (62.100)" for v1 — and no industry name or code is a literal in `src/` (human decision 2026-10-15)
 
 **Given** a valid nine-digit orgnr not in the database
 **When** it is submitted
-**Then** "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)." is shown with links to demo companies A and B, and no register call is made
+**Then** "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi {industry}." is shown, with {industry} read from the register as above, with links to demo companies A and B, and no register call is made
 **And** until Story 5.4 chooses demo A and B, the links are placeholders; the AC is met with placeholders and the PR says so
 
 **Given** a submitted search
@@ -932,7 +932,7 @@ This story builds on the URL module from Story 1.6a.
 
 **Given** demo company C (`69.202`, uncovered), chosen in Story 1.3a and read from step 1's configuration file
 **When** `/analyse/{orgnr}` is requested
-**Then** it shows the company header with no tabs, a State block with kicker "Bransjen er ikke dekket ennå" and "{Bransjenavn} ({kode}) er ikke dekket ennå. Foreløpig sammenligner Peerless bare selskaper innen programmeringstjenester (62.100). Her er selskapets egne nøkkeltall fra Brønnøysundregistrene." (for C: its industry name and `69.202`), the three API figures (driftsmargin, totalkapitalrentabilitet, egenkapitalandel) from the latest year with filing year and read date, "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner." and the link "Søk på et annet selskap"
+**Then** it shows the company header with no tabs, a State block with kicker "Bransjen er ikke dekket ennå" and "{Bransjenavn} ({kode}) er ikke dekket ennå. Foreløpig sammenligner Peerless bare selskaper innen {industry}. Her er selskapets egne nøkkeltall fra Brønnøysundregistrene." ({industry} from the register, as in FR-4) (for C: its industry name and `69.202`), the three API figures (driftsmargin, totalkapitalrentabilitet, egenkapitalandel) from the latest year with filing year and read date, "Uten sammenlignbare selskaper viser vi ingen median, plassering eller kroner." and the link "Søk på et annet selskap"
 **And** no peer group, median, beste fjerdedel, Plassering or kroner is computed or shown
 **And** `/analyse/{orgnr}/{fane}` for C redirects to `/analyse/{orgnr}`
 **And** C's real orgnr is used throughout; unlike A and B, C needs no placeholder
@@ -944,7 +944,7 @@ This story builds on the URL module from Story 1.6a.
 
 **Given** a valid nine-digit orgnr not in the database
 **When** its analysis URL is requested
-**Then** it shows "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)." with links to demo companies A and B, and makes no register call
+**Then** it shows "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi {industry}." ({industry} from the register, as in FR-4) with links to demo companies A and B, and makes no register call
 **And** the links are placeholders until Story 5.4 chooses demo A and B; the AC is met with placeholders and the PR says so
 
 **Given** an analysis being rendered

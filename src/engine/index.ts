@@ -7,3 +7,4 @@ export * from './key-figures.ts';
 export * from './statistics.ts';
 export * from './inputs.ts';
 export * from './format.ts';
+export * from './orgnr.ts';

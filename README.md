@@ -12,14 +12,19 @@ Repoet inneholder gruppens applikasjon og dokumentasjon av utvikling, testing og
 
 Requires Node 24.21.0 (see `.nvmrc`). pnpm 12.11.2 comes from `packageManager` in `package.json` through corepack; no API key, account or hosted service is needed.
 
+The app reads the local database, so Docker must be running (see "Local database" below).
+
 ```sh
 corepack enable
 pnpm install --frozen-lockfile
+pnpm db:start         # local Postgres with the roles, schemas and register tables
+pnpm db:roles         # writes the role passwords, READER_DATABASE_URL among them, into .env
+pnpm seed             # loads the committed demo seed
 pnpm build
 pnpm start            # http://localhost:3000
 ```
 
-In v1 the app is an empty shell (header and footer). The local database (below) holds the roles, the schemas and the register tables; `pnpm seed` fills them from the committed demo seed, with no call to the register. The analysis arrives in later stories.
+The front page searches the companies in the local database by name or organisation number; it never calls the register. Choosing a company opens `/analyse/{orgnr}`. That page (Stories 1.6a and 1.6b) and `/slik-fungerer-peerless` (Story 1.6b), where the footer's "Kilder og lisens" and the front page's "Les hvordan …" link point, are not built yet and show 404 until then.
 
 Checks, as CI runs them on every pull request:
 
@@ -30,7 +35,8 @@ pnpm lint
 pnpm typecheck
 pnpm test             # Vitest unit tests
 pnpm exec playwright install chromium   # once
-pnpm build && pnpm test:e2e             # Playwright against the built app, at 375 and 320 px
+pnpm build && pnpm check:routes         # the built app serves only the allowed routes, no server action
+pnpm test:e2e                           # Playwright against the built app and the seeded database, at 375 and 320 px
 ```
 
 ### Local database
@@ -40,8 +46,8 @@ Requires Docker. The Supabase CLI (2.120.0) is a pinned dev dependency, so no gl
 ```sh
 pnpm db:start         # local Postgres; applies supabase/roles.sql and supabase/migrations
 pnpm db:roles         # creates .env from .env.example if missing, generates the role passwords into it, applies them
-pnpm test:db          # grants, db:roles and seed tests against the local database (all rolled back)
 pnpm seed             # load the committed demo seed (see "Seed" below)
+pnpm test:db          # grants, db:roles, seed and search tests against the seeded database (all rolled back)
 pnpm db:reset         # recreate the database from the migrations; run pnpm db:roles again afterwards
 pnpm db:stop
 ```

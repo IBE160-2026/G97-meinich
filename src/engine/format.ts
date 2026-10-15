@@ -102,3 +102,26 @@ export function formatOrgnr(orgnr: string): string {
   if (!/^\d{9}$/.test(orgnr)) throw new TypeError(`not a nine-digit orgnr: ${JSON.stringify(orgnr)}`);
   return groupThousands(orgnr);
 }
+
+/**
+ * A municipality name as the register stores it (upper case) → title case for
+ * display: "AURSKOG-HØLAND" → "Aurskog-Høland",
+ * "PORSANGER - PORSÁŊGU - PORSANKI" → "Porsanger - Porsáŋgu - Porsanki".
+ * A letter is capitalised at the start and after a space or a hyphen; every
+ * other letter is lower-cased. The database keeps the register's value.
+ */
+export function formatKommune(kommune: string): string {
+  let out = '';
+  let startOfWord = true;
+  for (const char of kommune.toLocaleLowerCase('nb')) {
+    out += startOfWord ? char.toLocaleUpperCase('nb') : char;
+    startOfWord = char === ' ' || char === '-';
+  }
+  return out;
+}
+
+/** The first letter lower-cased, for a register name used mid-sentence: "Bransje" → "bransje". */
+export function lowerFirst(text: string): string {
+  const [first = '', ...rest] = Array.from(text);
+  return first.toLocaleLowerCase('nb') + rest.join('');
+}

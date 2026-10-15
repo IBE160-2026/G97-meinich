@@ -54,3 +54,15 @@
     - to handle `naeringskode1_beskrivelse` being NULL where the register's primary code has changed since the company was stored. Companies-only mode stores it only when the codes match: 920768695 is stored under 62.100, and its description is NULL;
     - to add a test with `EXPLAIN` that shows its name query uses `company_navn_trgm`, by calling the same `register.immutable_unaccent(lower(navn))` expression.
   evidence: Story 1.5a review. 6 258 of the 17 557 stored companies are `ENK`, as recorded in `docs/data-sources-brreg.md` and the ai-log entry for 1.5a. Companies-only mode now reports code mismatches in its summary. Index use was shown by a manual `EXPLAIN` only. `reader`'s `search_path` lacks `extensions`, so the query must qualify `extensions.%`/`extensions.word_similarity`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
+  summary: Story 1.6b mounts the compact variant of `SearchField` (`<SearchField variant="compact" coverage={…} />`, `src/components/search-field.tsx`) in the header on every page except `/`, and covers it mounted in its e2e test. It must pass the same coverage string the front page builds (`industryInSentence` and `joinList` over `coveredIndustries()`), and decide the compact variant's visible hint: today its label is visually hidden and it has no placeholder.
+  evidence: Story 1.5b decision (human, 2026-10-14): the header stays unchanged in 1.5b; the variant is built and tested by server-rendered markup only (`test/search-field.test.ts`), because no extra route may be added to render it in a browser.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
+  summary: Story 1.6a's URL module replaces the two hand-built `/analyse/${orgnr}` links — `analysisHref` in `src/components/search-field.tsx` (results, exact submit and the demo links) — so every link goes through `serialize`. The orgnr rules it needs are already in `src/engine/orgnr.ts` (`classifySearchInput`, `isValidOrgnr`).
+  evidence: Story 1.5b. The URL module does not exist yet, and EXPERIENCE.md requires every link and navigation to use it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
+  summary: When Story 1.6b mounts the compact SearchField in the persistent header, `busy` and the "Henter analysen …" notice set before `router.push` are never cleared, because the header does not unmount on navigation.
+  evidence: Review of 1.5b (edge-case finding 4, maybe-false, medium if true). The hero variant unmounts with the front page, so 1.5b cannot hit it; settle it in 1.6b with an e2e test that searches from the header twice, or reset `busy` on a `usePathname` change.

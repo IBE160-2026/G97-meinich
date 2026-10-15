@@ -49,3 +49,29 @@ describe('read types as reader', () => {
     for (const column of columns) expect([column, types.get(column)]).toEqual([column, 'bigint']);
   });
 });
+
+// The same checks through the app's own client (src/server/db.ts), so an
+// option there that parses int8 or numeric to a number fails here (deferred
+// from Story 1.4 to Story 1.5b).
+describe('read types through src/server/db.ts', () => {
+  it('returns bigint and numeric as strings, connected as reader', async () => {
+    process.env.READER_DATABASE_URL = readerUrl;
+    const { readerSql } = await import('../../src/server/db.ts');
+    const app = readerSql();
+    try {
+      const [row] = await app<{ who: string; amount: unknown; ratio: unknown; empty: unknown }[]>`
+        select current_user as who,
+               9007199254740993::bigint as amount,
+               12.345::numeric as ratio,
+               null::numeric as empty`;
+      expect(row?.who).toBe('reader');
+      expect(row?.amount).toBe('9007199254740993');
+      expect(row?.ratio).toBe('12.345');
+      expect(row?.empty).toBeNull();
+      expect(readerSql()).toBe(app);
+    } finally {
+      await app.end();
+      delete (globalThis as { peerlessReaderSql?: unknown }).peerlessReaderSql;
+    }
+  });
+});

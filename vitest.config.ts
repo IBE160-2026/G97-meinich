@@ -1,6 +1,10 @@
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // The app's `@/` path alias (tsconfig.json), for tests that import
+  // components.
+  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts'],

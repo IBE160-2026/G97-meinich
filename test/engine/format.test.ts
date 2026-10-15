@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatDays,
+  formatKommune,
   formatKroner,
   formatMillions,
   formatMultiple,
@@ -12,6 +13,7 @@ import {
   formatSignedKroner,
   formatTurnover,
   formatWholePercent,
+  lowerFirst,
 } from '../../src/engine/format.ts';
 
 const codePoints = (s: string): number[] => [...s].map((c) => c.codePointAt(0) ?? -1);
@@ -105,5 +107,26 @@ describe('formatter input', () => {
     expect(() => formatKroner('1.5')).toThrow(TypeError);
     expect(() => formatKroner(100 as unknown as string)).toThrow(TypeError);
     expect(() => formatOrgnr('91234567')).toThrow(TypeError);
+  });
+});
+
+describe('formatKommune', () => {
+  it.each([
+    ['OSLO', 'Oslo'],
+    ['AURSKOG-HØLAND', 'Aurskog-Høland'],
+    ['PORSANGER - PORSÁŊGU - PORSANKI', 'Porsanger - Porsáŋgu - Porsanki'],
+    ['KÅFJORD - GÁIVUOTNA - KAIVUONO', 'Kåfjord - Gáivuotna - Kaivuono'],
+    ['ÆRØY', 'Ærøy'],
+    ['NORDRE FOLLO', 'Nordre Follo'],
+  ])('%s → %s', (stored, shown) => {
+    expect(formatKommune(stored)).toBe(shown);
+  });
+});
+
+describe('lowerFirst', () => {
+  it('lower-cases the first letter only', () => {
+    expect(lowerFirst('Dataprogrammeringstjenester')).toBe('dataprogrammeringstjenester');
+    expect(lowerFirst('Ærlig Drift')).toBe('ærlig Drift');
+    expect(lowerFirst('')).toBe('');
   });
 });

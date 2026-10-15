@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "check:pins": "node scripts/check-pinned-deps.ts",
     "check:env": "node scripts/check-no-public-env.ts",
+    "check:routes": "node scripts/check-routes.ts",
     "db:start": "supabase db start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
@@ -34,7 +35,8 @@
     "next": "16.4.0",
     "postgres": "3.4.9",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

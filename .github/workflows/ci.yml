@@ -56,13 +56,11 @@ jobs:
       - name: Role passwords
         run: pnpm db:roles
 
-      - name: Database tests (grants, db:roles)
-        run: pnpm test:db
-
       # The committed demo seed loads into the freshly migrated database as
       # `loader`, twice: the second run proves the load is idempotent
-      # (AD-16). Right after the database tests, so the step-1 tests below
-      # run against a loaded database, as they would on a developer's.
+      # (AD-16). Before the database tests, which search the seed (Story
+      # 1.5b), and the step-1 tests below, so both run against a loaded
+      # database, as they would on a developer's.
       - name: Load the demo seed
         run: pnpm seed
 
@@ -72,6 +70,10 @@ jobs:
       # The export as reader reproduces the committed seed byte for byte.
       - name: Re-export the seed and compare
         run: pnpm seed:export && git diff --exit-code seed/
+
+      # Every write in these tests is rolled back, so the seed stays as loaded.
+      - name: Database tests (grants, db:roles, seed, search)
+        run: pnpm test:db
 
       # Batch step 1 (Python). uv is pinned here and in ingest/pyproject.toml
       # (tool.uv.required-version); Python 3.14 comes from
@@ -102,6 +104,11 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # The built route manifests hold only the closed request surface and
+      # no server action (Story 1.5b).
+      - name: Request surface
+        run: pnpm check:routes
 
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium

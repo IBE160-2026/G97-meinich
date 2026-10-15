@@ -839,11 +839,11 @@ Split from Story 1.5 on 2026-10-14. This half covers the API and the search page
 
 **Given** a name search with no match
 **When** results return
-**Then** "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i programmeringstjenester (62.100)." is shown in the same live region, with links to demo companies A and B
+**Then** "Ingen treff på «{q}». Peerless har foreløpig bare selskaper i {industry}." is shown in the same live region, with links to demo companies A and B, where {industry} is each covered code from `register.covered_industry` with the register's own `naeringskode1_beskrivelse` for it, first letter lower-cased — "dataprogrammeringstjenester (62.100)" for v1 — and no industry name or code is a literal in `src/` (human decision 2026-10-15)
 
 **Given** a valid nine-digit orgnr not in the database
 **When** it is submitted
-**Then** "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi programmeringstjenester (62.100)." is shown with links to demo companies A and B, and no register call is made
+**Then** "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi {industry}." is shown, with {industry} read from the register as above, with links to demo companies A and B, and no register call is made
 **And** until Story 5.4 chooses demo A and B, the links are placeholders; the AC is met with placeholders and the PR says so
 
 **Given** a submitted search

@@ -135,7 +135,7 @@ context:
 ## Implementation Notes
 
 - Implementation subagent decisions: CI loads the seed before `pnpm test:db`; `/api/sok` answers 400 for any digits-only length ≠ 9; ENK municipalities returned (risk in ai-log); option line shows "code name"; typing a valid orgnr shows its row but never navigates; compact variant has a visually hidden label.
-- Human (2026-10-15): the first e2e "%" test passed for the wrong reason (one character returns `[]` before any query); now "%%" and "_%".
+- Found by this session's matrix audit (2026-10-15; replacement inputs proposed by the review session): the first e2e "%" test passed for the wrong reason (one character returns `[]` before any query); now "%%" and "_%".
 
 ## Spec Change Log
 
@@ -156,7 +156,7 @@ context:
 | 11 | edge | Industry name literal in a `format.ts` comment | low | `lowerFirst` doc comment; decision says no literal in `src/` | patch |
 | 12 | blind | ENK count 6 287 vs 6 258 | false | Current seed: 6 287 `ENK` of 17 557; 6 258 is 1.5a's earlier count | reject |
 | 13 | blind | ai-log says "Two-to-eight digits" get 400 | low | Route returns 400 for any digits-only length ≠ 9 | patch |
-| 14 | blind | ai-log "Problem: None found" omits corrected AI output | medium | Session file lists the invalid orgnr and similarity-matched wildcard tests; the human found the "%" e2e test passing for the wrong reason | patch |
+| 14 | blind | ai-log "Problem: None found" omits corrected AI output | medium | Session file lists the invalid orgnr and similarity-matched wildcard tests; this session's matrix audit found the "%" e2e test passing for the wrong reason | patch |
 | 15 | blind | `q=5` → 400 but `q=a` → `[]` | false | Intended: digits only are never a name (FR-1) | reject |
 | 16 | blind | No `statement_timeout` on the open endpoint | medium | `src/server/db.ts` sets none; slow queries can hold all 5 connections until 1.10 | patch |
 | 17 | blind | Listbox `aria-labelledby` points at the input | medium | `search-field.tsx:343`; a referenced input contributes its value, not its label | patch |

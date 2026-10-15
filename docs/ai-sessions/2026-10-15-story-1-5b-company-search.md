@@ -35,7 +35,7 @@ Make the front page work: a hero search over Peerless's own database by name or 
 - **Corrected during implementation, and how it was caught:**
   - The first unknown orgnr in the e2e test, 910000014, fails modulus 11; the end-to-end test showed "Ugyldig organisasjonsnummer". It is 910000004 now, with a unit test that it is valid.
   - Two wildcard cases in the first database test ("_a_", "a%s") returned eight rows through word similarity on their letters, not through `LIKE`. They were replaced by punctuation-only inputs and by "dm%t" and "d_mit", which would match ADMMIT AS only if the wildcards were live.
-  - **Found by the human:** the first e2e test of "%" against `/api/sok` passed for the wrong reason: a one-character `q` returns `[]` before any query runs, so escaping was never exercised. The test now sends "%%" and "_%".
+  - **Found by this session during its own verification run** (checking each I/O-matrix row against its covering test, before review): the first e2e test of "%" against `/api/sok` passed for the wrong reason: a one-character `q` returns `[]` before any query runs, so escaping was never exercised. The test now sends "%%" and "_%". The review session proposed "%%" and "_%" as the replacement inputs and asked that the PR mention it.
 - **Settled from Story 1.5a's deferred items:** NULL `naeringskode1_beskrivelse` shows the code alone (920768695 in the tests); the `EXPLAIN` test shows `company_navn_trgm` for names and `company_pkey` for an orgnr, run with `enable_seqscan = off` on the exact SQL the app runs. The ENK municipality question is not decided away: the spec returns the municipality for every company; the risk is in `docs/ai-log.md`.
 
 ## Review

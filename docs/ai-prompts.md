@@ -368,6 +368,54 @@ The human posted the review on PR #22 at 19:45:15 and merged at 19:45:22, before
 
 ---
 
+## Story 1.6a: one module reads and writes the analysis URL (#7, PR #23)
+
+### Prompts to the BMAD session
+
+**2026-10-15 19:50**
+```
+/bmad-build Story 1.6a, issue #7
+```
+
+**19:53**: answers to the spec's two open questions.
+```
+Fra meg:
+Behold spec-en hel.
+1: (a), men isCandidate er en ferdig lukket funksjon fra den som kaller:
+   (peerOrgnr: string) => boolean. parse skal ikke vite hvordan poolen
+   bygges (bånd e.l.) – det avgjør 1.7 inni funksjonen. 1.6b sender
+   en dokumentert "godta alle" til 1.7 finnes.
+2: (a). Ukjente parametre ignoreres uten melding, og forsvinner når URL-en
+   skrives kanonisk. Test med fbclid og utm_source.
+```
+*Changed:* the AI proposed `isCandidate(orgnr, { orgnr, band })`, a signature that guessed what Story 1.7 needs to decide pool membership. It is now a closed `(peerOrgnr) => boolean`, so `parse` knows nothing about how the pool is built. Tracking parameters on shared links never trigger the invalid-settings notice.
+
+**19:57**: approval, with one case the spec's matrix lacked.
+```
+Fra meg: godkjent, med ett tillegg i matrisen før du starter:
+en ekskl-verdi lik orgnr-et i stien (selskapet selv) droppes og setter
+flagget, uavhengig av isCandidate. Test det.
+Approve and continue.
+```
+*Changed:* `9e77cff`. Until Story 1.7, 1.6b passes an accept-all `isCandidate`, so without this a URL could have excluded the subject from its own peer group and kept that in the canonical URL. `parse` now drops it (`src/url/analysis-state.ts`), tested even when `isCandidate` accepts it.
+
+**20:17**: the BMAD session flagged that its own AGENTS.md sentence ("falls back to its default") did not describe what the code does, and offered to fix it later.
+```
+Fra meg: rett AGENTS.md-setningen i denne PR-en, så den sier nøyaktig hva
+som skjer: en avvist ekskl-verdi droppes, en ukjent fane blir Oversikt,
+ukjente parametre ignoreres, øvrige ugyldige verdier faller tilbake til
+standard. Push deretter og opprett PR-en (Closes #7, FR-69).
+```
+*Changed:* `85a3d69`. Fixed in the same PR, because the next story reads that sentence.
+
+During the review the BMAD session asked to read its own diff file in the system temp folder. The human allowed that single read ("Yes, but ask again next time") rather than a standing permission to read outside the project.
+
+### Checks before merging
+
+The human posted the review at 20:21:08. CI on `75e8730` finished green at 20:24:31, and the PR was merged at 20:24:42.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

@@ -119,6 +119,7 @@ type ParseContext = {
 - `serialize` sorts and de-duplicates `ekskl`; it does not otherwise validate the state.
 - `parseMultippel` does not trim; a malformed `%` escape in the path is left undecoded and reads as `length`.
 - Verified: `pnpm lint`, `pnpm typecheck`, `pnpm test` (25 files, 419 tests); seeded local database, `pnpm build`, `pnpm check:routes`, `pnpm test:e2e` (32 passed).
+- Review finding 8 (AGENTS.md sentence), first deferred, was fixed in this PR at the human's request (2026-10-15); its `deferred-work.md` entry is removed.
 
 ## Spec Change Log
 

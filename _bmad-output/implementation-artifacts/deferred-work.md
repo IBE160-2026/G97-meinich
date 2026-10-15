@@ -71,6 +71,3 @@
   summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.
   evidence: Story 1.6a AC (the predicate is an input because no engine computes s_med until 3.5); review finding 5.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
-  summary: The AGENTS.md sentence on the URL module says every value `parse` cannot keep "falls back to its default and sets one `invalidSettings` flag"; state it exactly — a rejected `ekskl` item is dropped, an unknown tab becomes `oversikt`, and unknown query parameters are ignored without the flag.
-  evidence: Review finding 8; the fix edits an agent-context file, so it is routed to the human rather than patched by the build.

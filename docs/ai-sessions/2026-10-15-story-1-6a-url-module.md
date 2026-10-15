@@ -21,6 +21,11 @@ One module that parses and serializes the analysis URL (AD-5, FR-69, UX-DR79), w
 - The human's approval, adding a matrix row the session had not proposed, verbatim:
   > godkjent, med ett tillegg i matrisen før du starter: en ekskl-verdi lik orgnr-et i stien (selskapet selv) droppes og setter flagget, uavhengig av isCandidate. Test det.
 
+- The human's correction after the review, which had deferred an inexact AGENTS.md sentence, verbatim:
+  > rett AGENTS.md-setningen i denne PR-en, så den sier nøyaktig hva som skjer: en avvist ekskl-verdi droppes, en ukjent fane blir Oversikt, ukjente parametre ignoreres, øvrige ugyldige verdier faller tilbake til standard. Push deretter og opprett PR-en (Closes #7, FR-69).
+
+  The sentence was corrected in this PR, and its `deferred-work.md` entry removed.
+
 ## What came back, and what was done with it
 
 - **Accepted:**

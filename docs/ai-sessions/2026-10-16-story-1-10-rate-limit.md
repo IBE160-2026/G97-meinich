@@ -3,7 +3,7 @@
 **Date:** 2026-10-16
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** [#12](https://github.com/IBE160-2026/G97-meinich/issues/12), Story 1.10
-**Result:** branch `story/1.10-rate-limit` (PR to follow): commits `caaf09f` (limiter and logger), `519fab0` (proxy, refusal and search field), `f83ed87` (e2e), `08f32f6` (self-review fixes), and the docs commit.
+**Result:** [PR #28](https://github.com/IBE160-2026/G97-meinich/pull/28), merged 2026-10-16. Commits `caaf09f` (limiter and logger), `519fab0` (proxy, refusal and search field), `f83ed87` (e2e), `08f32f6` (self-review fixes), `154ddb5` (docs), `03d0533` (review fixes), `f05cc89` (review docs) and `84d54a5` (spec: triage log).
 
 ## Goal
 
@@ -33,6 +33,19 @@ Every open surface is limited per client address, with separate budgets for sear
 - **Corrected while running it:**
   - An RSC request without the router's cache-busting parameter answers 307 (a redirect to it), not 200; the sentinel spec now accepts any status below 400 for those requests.
 - **Self-review fixes (`08f32f6`):** the sentinel spec's timeout moved from a top-level `test.setTimeout` to `describe.configure`; a unit test that expected `Retry-After` to be exactly 60 now checks 1 to 60.
+
+## Review
+
+Three reviewers raised 22 findings. Nine were fixed and 13 rejected, each with its reason in the spec's Review Triage Log.
+
+- **Fixed in code (`03d0533`):** one list per log vocabulary, so an event missing from the array can no longer be dropped silently; the test-only `failureKind` re-export removed from `src/server/analysis.ts`; the full-table eviction sweep stops at the first live entry instead of scanning all 10 000; `127.0.0.1` added to the sentinel test.
+- **Fixed in docs (`f05cc89`):** the measured cost of a page view (front page, one analysis and one tab click = 11 requests, so 60 a minute is about 15 views); the fixed window allowing twice the budget across a window boundary; IPv6 /64 rotation named in the deployment gate in AD-10.
+
+## Verification and PR
+
+- Claude Code stopped the full run after the review fixes because the machine was critically low on memory (2.5 GB free of 15.7 GB). The BMAD session did not commit or push without a full run. After the human freed memory, the suite ran in four batches, as in Story 1.8: typecheck and 736 unit tests; 120 database tests; build and route check; 114 e2e tests; and lint. All passed.
+- The first version of the PR text gave the review split as 8 fixed and 14 rejected. The BMAD session corrected it to 9 and 13 right after opening the PR.
+- The review session recommended updating this file with the PR link and the review before merging. The PR was merged at `84d54a5` before that happened, so the review session updated the file on `main` afterwards.
 
 ## Links
 

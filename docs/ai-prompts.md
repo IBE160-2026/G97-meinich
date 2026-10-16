@@ -652,6 +652,57 @@ The spec corrected the mockup, which always said "Over medianen", even for the U
 
 ---
 
+## Story 1.10: the open route is rate-limited without storing anyone (#12, PR #28)
+
+### Prompts to the BMAD session
+
+**2026-10-16 12:39**
+```
+/bmad-build Story 1.10, issue #12
+```
+
+**12:47**: three questions from the spec, answered in the menu. The budgets were set at "60 + 60 per minute". The review session noted that many users behind one shared address share one budget. On the spoofable `X-Forwarded-For` (line breaks restored):
+```
+Fra meg: 1. Dokumenter det som v1-begrensning i PR-en og arkitekturnotatet.
+Kontrollen før utrulling skal kreve at klientadressen leses fra det
+plattformen setter (ikke venstre verdi i X-Forwarded-For), og ha en test
+som viser at en klientsatt X-Forwarded-For bare gir eget budsjett, ikke
+omgår grensen for andre.
+```
+The spec was kept whole: the test proving that no address is stored is the story's own claim, and deferring it would have left the claim untested. The alternatives offered to the AI's recommendation were a global ceiling and a custom Node server. A global ceiling would let one spoofer lock everyone out. A custom server breaks the "no second server" rule in AGENTS.md.
+
+**12:51**: approval, with two additions after the review session read the spec.
+```
+Fra meg: godkjent, med to tillegg i spec-en før du starter:
+1. Saltet er tilfeldig, lages ved prosessstart (crypto.randomBytes) og
+   skrives aldri til fil, env, logg eller database. Test at to prosesser
+   gir ulik hash for samme adresse.
+2. Når tabellen er full (10 000): fjern utløpte oppføringer først, deretter
+   de eldste – aldri tøm hele tabellen, og aldri avvis nye adresser. Test at
+   10 000 forfalskede adresser ikke nullstiller budsjettet til en eksisterende.
+Approve and continue.
+```
+*Changed:* the spec said "a salted hash" but not where the salt came from. A hash of an IPv4 address can be reversed by brute force over its 4 billion values unless the salt is secret and ephemeral. It said "capped at 10 000" but not what happens when the table is full. With a client-set header, one person could fill the table and either reset everyone's counters or lock out every new address.
+
+**12:52**: the BMAD session found that the test the human had asked for would fail under plain "oldest first", because the exhausted address is the oldest and would be evicted with a fresh budget. The answer, from the menu, was "Oldest within budget first": an exhausted entry is evicted only when every live entry is exhausted. The comment in `src/rate-limit/limiter.ts` records it as the human's decision.
+
+**13:30**: for the second time (after Story 1.8), Claude Code stopped the verification because the machine was low on memory (2.5 GB free of 15.7 GB). The review session found 13 Claude processes, a browser and VS Code holding most of it.
+```
+Fra meg: jeg har frigjort minne. Kjør verifiseringen i bolker som i 1.8,
+én om gangen, og stopp ved første feil: (1) pnpm typecheck && pnpm test,
+(2) pnpm test:db, (3) pnpm build && pnpm check:routes, (4) e2e.
+Commit deretter spec-en, push og opprett PR-en for #12.
+```
+*Changed:* `84d54a5`. All batches passed: 736 unit, 120 database and 114 e2e tests. The story landed as eight commits, with the review fixes on their own in `03d0533` and `f05cc89`.
+
+### Checks before merging
+
+The review session read `src/rate-limit/limiter.ts` on the branch. It confirmed the `randomBytes` salt held only in memory, HMAC keying, and the eviction order. The human posted the review at 13:37, and CI was green on `84d54a5`. The PR was merged at 13:41, before the session file had been updated with the PR link and the review fixes, as the review session had recommended. The review session updated the session file on `main` afterwards.
+
+With PR #28, Epic 1 is complete.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

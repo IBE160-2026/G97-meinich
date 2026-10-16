@@ -20,7 +20,7 @@ context:
 **Approach:** A server-rendered hero card on Oversikt built from the same `group.benchmark.driftsmargin` that the table uses, with the amount produced by one shared function so the two cannot differ. ACs: issue #11 and `epics.md` Story 1.9; `epics.md` wins on a conflict.
 
 **Decisions (agent, open to change at approval):**
-- **Context line copy:** the mockup's `ov.hero.ctx` hard-codes "Over medianen", which is wrong when the subject is below it (the EXPERIENCE.md climax company is). The line is three parts: "{Over|Under|På} medianen på {med}" · "bedre enn {v} %" · "{pp} {under|over} beste fjerdedel" (or "på beste fjerdedel" at equality). Which word applies comes from the engine, not a component comparison.
+- **Context line copy:** the mockup's `ov.hero.ctx` hard-codes "Over medianen", which is wrong when the subject is below it (the EXPERIENCE.md climax company is). The line is three parts: "{Over|Under|Lik} medianen på {med}" ("Lik", not "På": human, 2026-10-16, after review) · "bedre enn {v} %" · "{pp} {under|over} beste fjerdedel" (or "på beste fjerdedel" at equality). Which word applies comes from the engine, not a component comparison.
 - **pp:** a new pure engine function `heroContext(comparison)` returns the subject's side of the median and of beste fjerdedel and the non-negative distance to beste fjerdedel as a fraction. `formatPercentagePoints` formats it.
 - **One amount function:** `kronerAmountText(gap)` (wrapping `formatKronerExact`) is called by both the table's gap cell and the hero, so byte identity holds by construction and is still tested.
 - **States not named by the ACs:** not in NOK → "Beløpet er ikke i kroner" in place of the amount, with vs and context line. Own value undefined → own cell text "Kan ikke beregnes: {reason}" (reusing the table's text) and no amount, vs or context line.
@@ -116,7 +116,7 @@ context:
 | 19 | blind | Arbitrary pixel sizes instead of tokens | low | Matches the existing components (`text-[13px]` in the table and peer list) | reject |
 | 20 | blind | `DIRECTION_WORDS` imported from the table component | low | The hero now depends on the table module; a direct move to `api-figures.tsx` fixes it | patch |
 | 21 | blind | `/red|green/i` over raw HTML is fragile | low | Fails loudly on a false hit; same check as Story 1.8 | reject |
-| 22 | blind | "På medianen på {med}" repeats "på" | low | The wording follows the approved decision; changing it edits the spec — raised with the human | reject |
+| 22 | blind | "På medianen på {med}" repeats "på" | low | The wording followed the approved decision; raised with the human, who changed it to "Lik medianen på {med}" | human |
 | 23 | blind | The session file lacks the issue link and the human's approval prompt | low | AGENTS.md: session files link the issue and record the prompts that mattered | patch |
 
 ## Verification

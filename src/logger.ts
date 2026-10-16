@@ -6,39 +6,37 @@
 // address, a header, a path or a query (an orgnr looked up is visitor
 // activity). The fields are copied one by one and checked at run time too,
 // so a value forced past the types (`as`) is dropped, never written.
-import type { BudgetName } from './rate-limit/budgets.ts';
+import { BUDGET_NAMES, type BudgetName } from './rate-limit/budgets.ts';
 
-export type LogLevel = 'info' | 'warn' | 'error';
+export const LOG_LEVELS = ['info', 'warn', 'error'] as const;
 
-export type LogEvent =
-  | 'request'
-  | 'search.failed'
-  | 'notFound.coverageFailed'
-  | 'headerSearch.coverageFailed'
-  | 'analysis.subjectFailed'
-  | 'analysis.candidatesFailed';
+export type LogLevel = (typeof LOG_LEVELS)[number];
 
-/** An error's class and, when it has one, its Postgres SQLSTATE: made only by failureKind. */
-export type FailureKind = string & { readonly __brand: 'FailureKind' };
-
-export interface LogFields {
-  readonly budget?: BudgetName;
-  readonly outcome?: 'served' | 'refused';
-  readonly status?: number;
-  readonly failure?: FailureKind;
-}
-
-const LEVELS: readonly string[] = ['info', 'warn', 'error'];
-const EVENTS: readonly string[] = [
+export const LOG_EVENTS = [
   'request',
   'search.failed',
   'notFound.coverageFailed',
   'headerSearch.coverageFailed',
   'analysis.subjectFailed',
   'analysis.candidatesFailed',
-];
-const BUDGET_NAMES: readonly string[] = ['search', 'analysis'];
-const OUTCOMES: readonly string[] = ['served', 'refused'];
+] as const;
+
+export type LogEvent = (typeof LOG_EVENTS)[number];
+
+const OUTCOMES = ['served', 'refused'] as const;
+
+/** An error's class and, when it has one, its Postgres SQLSTATE: made only by failureKind. */
+export type FailureKind = string & { readonly __brand: 'FailureKind' };
+
+export interface LogFields {
+  readonly budget?: BudgetName;
+  readonly outcome?: (typeof OUTCOMES)[number];
+  readonly status?: number;
+  readonly failure?: FailureKind;
+}
+
+/** Whether `value` is one of `list`, for a value that may have been forced past the types. */
+const isOneOf = (list: readonly string[], value: unknown): boolean => typeof value === 'string' && list.includes(value);
 const FAILURE = /^[A-Za-z]{1,64}(?: [0-9A-Z]{5})?$/;
 
 /**
@@ -54,10 +52,10 @@ export function failureKind(error: unknown): FailureKind {
 
 /** The line log() writes, or null for a level or event it does not know. */
 export function logLine(level: LogLevel, event: LogEvent, fields: LogFields = {}): string | null {
-  if (!LEVELS.includes(level) || !EVENTS.includes(event)) return null;
+  if (!isOneOf(LOG_LEVELS, level) || !isOneOf(LOG_EVENTS, event)) return null;
   const record: Record<string, string | number> = { level, event };
-  if (typeof fields.budget === 'string' && BUDGET_NAMES.includes(fields.budget)) record.budget = fields.budget;
-  if (typeof fields.outcome === 'string' && OUTCOMES.includes(fields.outcome)) record.outcome = fields.outcome;
+  if (isOneOf(BUDGET_NAMES, fields.budget)) record.budget = fields.budget as BudgetName;
+  if (isOneOf(OUTCOMES, fields.outcome)) record.outcome = fields.outcome as string;
   if (Number.isInteger(fields.status) && (fields.status as number) >= 100 && (fields.status as number) <= 599) {
     record.status = fields.status as number;
   }

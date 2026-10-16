@@ -27,7 +27,8 @@ import { expect, test } from './fixtures.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const PORT = 3102;
-const BASE = `http://localhost:${PORT}`;
+// 127.0.0.1, not localhost: every request from one socket address family.
+const BASE = `http://127.0.0.1:${PORT}`;
 const ORGNR = '813235552'; // demo company A, covered in the seed
 const SENTINEL = ['203', '0', '113', '77'].join('.'); // TEST-NET-3, RFC 5737
 const MAX_SCANNED_FILE = 64 * 1024 * 1024;

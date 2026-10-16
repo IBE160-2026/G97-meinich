@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { failureKind, log, logLine, type FailureKind, type LogFields } from '../src/logger.ts';
+import { failureKind, log, LOG_EVENTS, LOG_LEVELS, logLine, type FailureKind, type LogFields } from '../src/logger.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -44,6 +44,14 @@ describe('logLine', () => {
     const line = logLine('info', 'request', forced) ?? '';
     expect(JSON.parse(line)).toEqual({ level: 'info', event: 'request' });
     expect(line).not.toMatch(/203|813235552|ECONNREFUSED|127/);
+  });
+
+  it('writes a line for every event and level it declares', () => {
+    for (const level of LOG_LEVELS) {
+      for (const event of LOG_EVENTS) {
+        expect(JSON.parse(logLine(level, event) ?? 'null'), `${level} ${event}`).toEqual({ level, event });
+      }
+    }
   });
 
   it('writes nothing for a level or an event it does not know', () => {

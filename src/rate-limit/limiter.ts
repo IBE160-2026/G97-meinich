@@ -44,8 +44,11 @@ const expired = (entry: Entry, budget: Budget, now: number): boolean => now - en
  * refusal while anyone within budget is left to evict.
  */
 function makeRoom(store: Store, budget: Budget, now: number): void {
+  // Iteration order is window order, so the expired entries are the first
+  // ones: the sweep stops at the first that has not expired.
   for (const [key, entry] of store) {
-    if (expired(entry, budget, now)) store.delete(key);
+    if (!expired(entry, budget, now)) break;
+    store.delete(key);
   }
   if (store.size < MAX_KEYS) return;
   for (const [key, entry] of store) {

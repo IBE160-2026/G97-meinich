@@ -42,7 +42,8 @@ vi.mock('../../src/server/db.ts', () => ({
 }));
 vi.mock('next/navigation', () => navigation);
 
-const { lookupCandidates, lookupSubject, failureKind } = await import('../../src/server/analysis.ts');
+const { lookupCandidates, lookupSubject } = await import('../../src/server/analysis.ts');
+const { failureKind } = await import('../../src/logger.ts');
 const { default: AnalysisLayout } = await import('../../src/app/analyse/[orgnr]/layout.tsx');
 const { AnalysisPage, analysisMetadata } = await import('../../src/components/analysis/analysis-page.tsx');
 
@@ -151,8 +152,8 @@ describe('a failed candidate read after a successful subject read (Story 1.7)', 
         expect((error as Error).message).toBe('analysis: candidate lookup failed');
         expect(error).not.toHaveProperty('cause');
         expect(log.mock.calls.flat().join(' ')).toBe(
-      '{"level":"error","event":"analysis.candidatesFailed","failure":"PostgresError 57014"}',
-    );
+          '{"level":"error","event":"analysis.candidatesFailed","failure":"PostgresError 57014"}',
+        );
         expect(navigation.notFound).not.toHaveBeenCalled();
         expect(navigation.redirect).not.toHaveBeenCalled();
         log.mockRestore();

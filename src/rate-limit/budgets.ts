@@ -4,7 +4,9 @@
 // address, in fixed windows. No environment variable changes or disables
 // them.
 
-export type BudgetName = 'search' | 'analysis';
+export const BUDGET_NAMES = ['search', 'analysis'] as const;
+
+export type BudgetName = (typeof BUDGET_NAMES)[number];
 
 export interface Budget {
   readonly name: BudgetName;

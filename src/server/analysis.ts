@@ -123,9 +123,6 @@ export async function loadSubject(orgnr: string): Promise<Subject | null> {
   return row === undefined ? null : toSubject(row);
 }
 
-/** "PostgresError 57014", "Error": the class name and a five-character SQLSTATE when there is one (src/logger.ts). */
-export { failureKind };
-
 /**
  * loadSubject for the request path, once per request (React's cache()): the
  * layout decides the 404 from it, and the page and its metadata read the

@@ -120,16 +120,16 @@ export function parseMultippel(text: string): Decimal | null {
   if (!/^\d+([.,]\d+)?$/.test(text)) return null;
   const value = new Decimal(text.replace(',', '.'));
   if (value.lte(0) || value.gt(MULTIPPEL_MAX)) return null;
-  // Exact: at most one decimal place. Dividing by the step would round at
-  // precision 40 and keep 6.5000…0001.
-  if (value.decimalPlaces() > 1) return null;
+  // Exact: no more decimal places than the step has. Dividing by the step
+  // would round at precision 40 and keep 6.5000…0001.
+  if (value.decimalPlaces() > MULTIPPEL_STEP.decimalPlaces()) return null;
   return value;
 }
 
 function parseBand(text: string): Band | null {
-  if (text === '0') return 0;
-  if (text === '1') return 1;
-  if (text === '2') return 2;
+  for (const band of BANDS) {
+    if (text === String(band)) return band;
+  }
   return null;
 }
 

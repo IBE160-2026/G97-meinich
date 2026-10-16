@@ -43,7 +43,7 @@ import { formatOrgnr } from '@/engine/format';
 import { assemblePeerGroup, type PeerGroup } from '@/engine/peers';
 import { failureKind, log } from '@/logger';
 import { t } from '@/messages';
-import { industryInSentence, joinList } from '@/messages/industry';
+import { industryAtSentenceStart, industryInSentence, joinList } from '@/messages/industry';
 import { lookupCandidates, lookupSubject, type Candidate } from '@/server/analysis';
 import { coveredIndustries } from '@/server/search';
 import { parseSegments, type AnalysisState, type Band } from '@/url/analysis-state';
@@ -112,11 +112,11 @@ export async function analysisMetadata(segments: Segments, searchParams: SearchP
   return { title: view.title };
 }
 
-/** "{Bransjenavn} ({kode})" as the register names it, for the uncovered statement. */
+/** "{Bransjenavn} ({kode})" as the register names it: the uncovered statement begins with it. */
 function uncoveredIndustry(subject: Subject): string {
   const { naeringskode1: code, naeringskode1Beskrivelse: beskrivelse } = subject;
-  if (code !== null && beskrivelse !== null) return t('industry.inSentence', { navn: beskrivelse, kode: code });
-  return code ?? beskrivelse ?? t('analysis.uncovered.unknownIndustry');
+  if (code !== null) return industryAtSentenceStart({ code, beskrivelse });
+  return beskrivelse ?? t('analysis.uncovered.unknownIndustry');
 }
 
 /**

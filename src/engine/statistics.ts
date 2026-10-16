@@ -83,6 +83,8 @@ export function compareFigure(
   const lowerQuartile = percentileInc(sorted, '0.25');
   const median = percentileInc(sorted, '0.5');
   const upperQuartile = percentileInc(sorted, '0.75');
+  const p5 = percentileInc(sorted, '0.05');
+  const p95 = percentileInc(sorted, '0.95');
   const best =
     direction === 'none'
       ? null
@@ -99,6 +101,8 @@ export function compareFigure(
     median,
     lowerQuartile,
     upperQuartile,
+    p5,
+    p95,
     best,
   };
 }

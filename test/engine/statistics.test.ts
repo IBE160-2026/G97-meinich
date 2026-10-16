@@ -137,6 +137,9 @@ describe('compareFigure', () => {
     expect(c.upperQuartile.toString()).toBe('0.0775');
     expect(c.best?.quartile.toString()).toBe('0.0775');
     expect(c.best?.percentile.toString()).toBe('45');
+    // P5 h 0.45 → 0.01 + 0.45 × 0.01 = 0.0145; P95 h 8.55 → 0.09 + 0.55 × 0.01 = 0.0955.
+    expect(c.p5.toString()).toBe('0.0145');
+    expect(c.p95.toString()).toBe('0.0955');
   });
 
   it('returns the same statistics for peers in any order', () => {

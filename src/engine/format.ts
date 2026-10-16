@@ -57,6 +57,14 @@ export function formatKroner(oreAmount: string): string {
   return `${render(ore(oreAmount).div(ORE_PER_KRONE), 0)}${NBSP}kr`;
 }
 
+/**
+ * Exact øre (a plain decimal string, may have a fraction: a computed amount
+ * such as a kroner gap) → whole kroner, rounded once here: "1 170 000 kr".
+ */
+export function formatKronerExact(oreAmount: string): string {
+  return `${render(decimal(oreAmount).div(ORE_PER_KRONE), 0)}${NBSP}kr`;
+}
+
 /** Øre (whole-number string) → signed whole kroner: "+1 019 571 kr", "−501 428 kr", "0 kr". */
 export function formatSignedKroner(oreAmount: string): string {
   return `${render(ore(oreAmount).div(ORE_PER_KRONE), 0, { plus: true })}${NBSP}kr`;
@@ -70,6 +78,11 @@ export function formatMillions(oreAmount: string): string {
 /** A fraction (0.021) → percent, one decimal: "2,1 %". */
 export function formatPercent(fraction: string): string {
   return `${render(decimal(fraction).mul(100), 1)}${NBSP}%`;
+}
+
+/** A fraction (0.184) → percent, one decimal, no unit: "18,4", "−6,3" (a range's bounds). */
+export function formatPercentNumber(fraction: string): string {
+  return render(decimal(fraction).mul(100), 1);
 }
 
 /** Percent (0–100, e.g. Plassering 61.36…) → whole percent: "61 %". */

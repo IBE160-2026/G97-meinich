@@ -5,11 +5,13 @@ import {
   formatDays,
   formatKommune,
   formatKroner,
+  formatKronerExact,
   formatMillions,
   formatMultiple,
   formatOrgnr,
   formatPercent,
   formatPercentagePoints,
+  formatPercentNumber,
   formatReadDate,
   formatSignedKroner,
   formatTurnover,
@@ -150,5 +152,35 @@ describe('formatReadDate', () => {
 
   it('refuses an invalid date', () => {
     expect(() => formatReadDate(new Date('not a date'))).toThrow(TypeError);
+  });
+});
+
+describe('formatKronerExact (Story 1.8): exact øre with a fraction, rounded once', () => {
+  it.each([
+    ['117000002.6', `1${NBSP}170${NBSP}000${NBSP}kr`],
+    ['117000050', `1${NBSP}170${NBSP}001${NBSP}kr`],
+    ['117000049.999', `1${NBSP}170${NBSP}000${NBSP}kr`],
+    ['-250', `${MINUS}3${NBSP}kr`],
+    ['-49.9', `0${NBSP}kr`],
+    ['0', `0${NBSP}kr`],
+  ])('%s øre', (ore, expected) => {
+    expectBytes(formatKronerExact(ore), expected);
+  });
+
+  it('refuses a value that is not a plain decimal string', () => {
+    expect(() => formatKronerExact('1e5')).toThrow(TypeError);
+  });
+});
+
+describe('formatPercentNumber (Story 1.8): a range bound, no unit', () => {
+  it.each([
+    ['0.184', '18,4'],
+    ['0.49', '49,0'],
+    ['-0.063', `${MINUS}6,3`],
+    ['-0.0004', '0,0'],
+    ['0.00049', '0,0'],
+    ['0.0005', '0,1'],
+  ])('%s', (fraction, expected) => {
+    expectBytes(formatPercentNumber(fraction), expected);
   });
 });

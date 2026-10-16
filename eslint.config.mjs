@@ -39,14 +39,27 @@ const intlRestriction = {
 // toFixed works on binary floats; both are banned where figures are handled.
 // A later flat-config block replaces the rule's options rather than merging
 // them, so this list repeats the Intl entry.
+const mathRoundRestriction = { object: 'Math', property: 'round', message: 'Use the engine decimal rounding (AD-8).' };
+const toFixedRestriction = { property: 'toFixed', message: 'Use the engine decimal formatter (AD-8).' };
 const roundingRestriction = {
-  'no-restricted-properties': [
-    'error',
-    intlRestriction,
-    { object: 'Math', property: 'round', message: 'Use the engine decimal rounding (AD-8).' },
-    { property: 'toFixed', message: 'Use the engine decimal formatter (AD-8).' },
-  ],
+  'no-restricted-properties': ['error', intlRestriction, mathRoundRestriction, toFixedRestriction],
 };
+
+// Where numbers are displayed (src/app, src/components), format.ts stays the
+// only formatter and the only rounding (Story 1.8): toFixed works on binary
+// floats, Decimal's toDecimalPlaces/toDP/toSignificantDigits would round a
+// second time outside the formatter, and toLocaleString uses Intl, whose
+// output differs between Node and browsers. Math.round stays allowed here:
+// layout code uses it for pixels. The list repeats the Intl entry, because a
+// later block replaces the rule's options.
+const displayRestrictions = [
+  intlRestriction,
+  toFixedRestriction,
+  { property: 'toDecimalPlaces', message: 'Round only in src/engine/format.ts (AD-6, AD-8).' },
+  { property: 'toDP', message: 'Round only in src/engine/format.ts (AD-6, AD-8).' },
+  { property: 'toSignificantDigits', message: 'Round only in src/engine/format.ts (AD-6, AD-8).' },
+  { property: 'toLocaleString', message: 'Format numbers with src/engine/format.ts (AD-6).' },
+];
 
 export default defineConfig([
   ...nextVitals,
@@ -61,8 +74,19 @@ export default defineConfig([
     rules: { 'no-restricted-properties': ['error', intlRestriction] },
   },
   {
+    files: ['src/app/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}', 'src/components/**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}'],
+    rules: { 'no-restricted-properties': ['error', ...displayRestrictions] },
+  },
+  {
     files: ['src/engine/**/*.{ts,tsx}', '**/*[fF]ormat*.{ts,tsx}'],
     rules: roundingRestriction,
+  },
+  {
+    // A formatting file under src/app or src/components gets both lists.
+    files: ['src/app/**/*[fF]ormat*.{ts,tsx}', 'src/components/**/*[fF]ormat*.{ts,tsx}'],
+    rules: {
+      'no-restricted-properties': ['error', ...displayRestrictions, mathRoundRestriction],
+    },
   },
   {
     files: ['src/engine/**/*.{ts,tsx}'],

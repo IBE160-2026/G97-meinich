@@ -6,10 +6,10 @@ import type { SubjectFiling } from '@/analysis/view';
 import { formatPercent, formatReadDate } from '@/engine/format';
 import { apiInputsFromRow } from '@/engine/inputs';
 import { computeApiKeyFigures } from '@/engine/key-figures';
-import type { ApiKeyFigures, FigureResult } from '@/engine/types';
+import type { ApiKeyFigures, FigureAbsence, FigureResult } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 
-const FIGURES: readonly {
+export const FIGURES: readonly {
   readonly key: keyof ApiKeyFigures;
   readonly label: MessageId;
   /** Why the figure is undefined when its denominator is zero or negative. */
@@ -20,13 +20,18 @@ const FIGURES: readonly {
   { key: 'egenkapitalandel', label: 'fig.ek', denominator: 'analysis.figures.reason.assetsNotPositive' },
 ];
 
-function shown(result: FigureResult, denominator: MessageId): string {
-  if (result.kind === 'value') return formatPercent(result.value.toString());
+/** "Kan ikke beregnes: {reason}" for a figure the company's own filing cannot give. */
+export function undefinedText(absence: FigureAbsence, denominator: MessageId): string {
   const reason: MessageId =
-    result.absence.reason === 'undefined' && result.absence.cause === 'denominator_not_positive'
+    absence.reason === 'undefined' && absence.cause === 'denominator_not_positive'
       ? denominator
       : 'analysis.figures.reason.componentMissing';
   return t('analysis.figures.undefined', { grunn: t(reason) });
+}
+
+function shown(result: FigureResult, denominator: MessageId): string {
+  if (result.kind === 'value') return formatPercent(result.value.toString());
+  return undefinedText(result.absence, denominator);
 }
 
 export function ApiFigures({ filing }: { readonly filing: SubjectFiling }) {

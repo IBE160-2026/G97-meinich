@@ -8,10 +8,6 @@
   summary: A company that the register later reclassifies out of a covered primary code keeps its old `register.company` row (old `naeringskode1`, old `read_at`), because a step-1 run only upserts the units in today's bulk selection.
   evidence: Story 1.3a review. Only 410 deletion is planned (Story 2.4); reclassification is not. Readers that select on `naeringskode1` would still see the stale row as covered until a run records which companies it last saw, or a later story decides how a refresh retires rows.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-3a-step1-register-ingest.md`
-  summary: Negative `sumEiendeler` and unknown `valuta` are left to Stories 1.7 and 1.8. 105 stored filings have a negative `sumEiendeler` (in 86 `sumEgenkapitalGjeld` is equally negative). Story 1.4's engine already makes every ratio over a negative (or zero) `sumEiendeler` undefined (`denominator_not_positive`), never a sign-flipped value. Story 1.7 must decide how such a filing enters an asset-intensity band or peer selection (flag or exclude it, never compute on it silently), and in stage 2 refuse a `valuta` that is not a known currency code — for subject and peers alike, never mapped to NOK (`EDT` on 920835252 for 2023 and 2024). The engine's ratios are currency-neutral and it does not read `valuta`, but `formatKroner`, `formatSignedKroner` and `formatMillions` write "kr" and assume NOK: Story 1.8 shows a kroner amount only when the subject's `valuta` is `NOK`.
-  evidence: Step-1 acceptance run 2026-10-11, checked against the live API (example 930115746: −6 186 121 for 2025 in both fields). Details under "Pitfalls" in `docs/data-sources-brreg.md`. Story 1.4 human decision 2026-10-12 ("Currency is not the engine's"); reference case 931165992 SIGMA DATA SOLUTIONS AS 2023 in `test/engine/reference-cases.test.ts`.
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
   summary: Story 2.3 must make `seed:export` keep the curated entries in `seed/allow-list.json` instead of overwriting it with `[]`, and refuse an export whose document-figure orgnrs are not on the list.
   evidence: Story 1.3b review. `scripts/seed-export.ts` writes the literal `'[]\n'`. That is harmless while no filing has a document figure, but it erases entries as soon as Story 2.3 adds OCR reference filings with their reasons.
@@ -23,10 +19,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
   summary: AGENTS.md and technical note AD-16 name `seed/**` and `analysis/output/**` as `-text`, but `.gitattributes` also marks `test/fixtures/seed/**`; add the third path to both.
   evidence: Story 1.3b review. Deferred because the fix edits an agent-context file.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
-  summary: Story 1.8, the first story that displays a figure, should extend the ESLint bans to where numbers are displayed — `toFixed`, `toDecimalPlaces`/`toDP`, `toSignificantDigits` and `toLocaleString` in `src/app` and `src/components` — so `src/engine/format.ts` stays the only formatter and the only rounding, and update AGENTS.md's ESLint sentence in the same change.
-  evidence: Story 1.4 review (edge-case and blind hunters). Today the rounding ban covers only `src/engine/**` and `*format*` files, and the Intl ban only `Intl.NumberFormat`; `Number#toLocaleString` uses Intl and differs between Node and browsers. Deferred because the fix edits an agent-context file and no component displays a figure yet.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
   summary: Story 1.5's `src/server/db.ts` must be covered by a read-types test through the app's own client, so a `types`/`transform` option that parses `int8` or `numeric` to a number fails a test.
@@ -66,10 +58,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
   summary: The analysis 404 states (invalid orgnr, valid orgnr not in the database) answer HTTP 404, but Next.js 16.4 serves them as its error shell and renders the content on the client after load, so they show nothing without JavaScript. Revisit when a Next.js release renders a nested `not-found.tsx` on the server for a `notFound()` thrown before streaming, or decide that a server-rendered 404 is worth a 200 status.
   evidence: Story 1.6b implementation, probing the production build: `curl /analyse/12345678` returns 404 with `<html id="__next_error__">` and an empty body; Playwright sees the front page with the message after load. A nested `src/app/analyse/not-found.tsx` was never used for these requests; the root `src/app/not-found.tsx` is.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-funnel-stages-1-3.md`
-  summary: The Peers list's scroll region lacks UX-DR37's edge-fade cue showing the table can scroll sideways; add it with Story 2.7/2.8's wider peer table.
-  evidence: Story 1.7 review (blind hunter). The region has its role, label, tabindex and focus ring; the cue is noted only in the spec's Implementation Notes and the session file.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-7-funnel-stages-1-3.md`
   summary: `CANDIDATES_SQL` filters `register.company` on `naeringskode1`, which has no index; add one (migration plus seed re-export) when a second industry is covered or the candidate read nears the 1 s budget.

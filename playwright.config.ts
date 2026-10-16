@@ -4,7 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 // runs the app. Two servers run the same build:
 // - port 3100 with the database from .env, for every spec but one;
 // - port 3101 with READER_DATABASE_URL pointing at a closed port, for
-//   e2e/db-down.spec.ts: the analysis answers 500 with the lookup-error state.
+//   e2e/db-down.spec.ts: the front page and the analysis answer 500 with the
+//   lookup-error state, and the search endpoint 500 {}.
 const port = 3100;
 const dbDownPort = 3101;
 // Port 1 on the loopback interface: nothing listens, so every read is refused.

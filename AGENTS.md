@@ -114,7 +114,7 @@ Do not OCR or fetch documents at query time. OCR takes seconds to tens of second
 - Work happens on a branch named `story/<story-id>-<short-slug>`, never directly on `main`.
 - The pull request links the issue (`Closes #n`), lists the FRs, says how it was tested, and links the AI session file in `docs/ai-sessions/`.
 - Review before merging: read the diff, run the tests, and record in the PR what was found and corrected in AI-generated code. The review comments are part of what is graded.
-- Small, scoped commits with messages that say what and why.
+- **Commit in logical steps, not once per story.** A story lands as several small commits, each a coherent step that type-checks on its own, with a message that says what and why: typically the engine and its tests, then the server and queries, the UI and copy, the e2e tests, the review fixes (always a separate commit), and the docs. The full suite runs before the first push. Never one commit for a whole story: the grading guide counts large commits against the process criterion, and the human reviews the PR one commit at a time.
 
 **AI sessions are saved.** Each working session that produces or changes code or a planning decision gets a file in `docs/ai-sessions/`, following the README there: the goal, the prompts that mattered, what was accepted, rejected or corrected, and links to the issue, PR or commits. `docs/ai-log.md` records the lessons; `docs/ai-sessions/` records the sessions themselves.
 

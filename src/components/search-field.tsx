@@ -12,7 +12,9 @@
 //   whose URL is written by src/url/analysis-state.ts.
 // - One polite live region, present empty from page load, carries the count,
 //   the no-match and unknown-orgnr copy, validation messages and loading.
-//   A failed request fills a separate role="alert" and shows no results.
+//   A failed request fills a separate role="alert" and shows no results;
+//   a refused one (HTTP 429, over the search budget; Story 1.10) shows the
+//   rate-limit refusal there instead of the generic failure.
 // - The header field outlives a navigation, so a change of pathname resets
 //   its loading state and notice; opening the company already shown does
 //   not set the loading state at all.
@@ -24,7 +26,7 @@ import { PATH_CONTEXT } from '@/analysis/view';
 import { DEMO_COMPANIES } from '@/demo-companies';
 import { formatKommune, formatOrgnr } from '@/engine/format';
 import { classifySearchInput, type SearchInput } from '@/engine/orgnr';
-import { t } from '@/messages';
+import { t, type MessageId } from '@/messages';
 import { industryNamed } from '@/messages/industry';
 import { MAX_SEARCH_LENGTH, SEARCH_ENDPOINT, type SearchResult } from '@/search-contract';
 import { defaultState, parse, serialize } from '@/url/analysis-state';
@@ -45,6 +47,14 @@ type Notice =
   | { readonly kind: 'loading' };
 
 const NONE: Notice = { kind: 'none' };
+
+/** Why a search shows no results: the request failed, or it was over the rate limit. */
+export type SearchFailure = 'failed' | 'refused';
+
+const FAILURE_MESSAGE: Readonly<Record<SearchFailure, MessageId>> = {
+  failed: 'search.failed',
+  refused: 'rateLimit.refused',
+};
 
 export interface SearchFieldProps {
   readonly variant: 'hero' | 'compact';
@@ -84,6 +94,26 @@ function parseResults(body: unknown): Result[] | null {
     results.push({ navn: row.navn, orgnr: row.orgnr, naeringskode1: { kode, beskrivelse }, kommune: row.kommune });
   }
   return results;
+}
+
+/**
+ * What a response from /api/sok means: the results, a refusal (429, over
+ * the search budget), or a failure for any other status or an unexpected
+ * body.
+ */
+export async function searchOutcome(response: Response): Promise<Result[] | SearchFailure> {
+  if (response.status === 429) return 'refused';
+  if (!response.ok) return 'failed';
+  return parseResults(await response.json()) ?? 'failed';
+}
+
+/** The search's alert: always present, filled only when a search failed or was refused. */
+export function SearchAlert({ failure }: { readonly failure: SearchFailure | null }) {
+  return (
+    <div role="alert" className="text-[14px]">
+      {failure !== null ? <p className="m-0 mt-2.5">{t(FAILURE_MESSAGE[failure])}</p> : null}
+    </div>
+  );
 }
 
 function analysisHref(orgnr: string): string {
@@ -133,7 +163,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
   const [expanded, setExpanded] = useState(false);
   const [active, setActive] = useState(-1);
   const [notice, setNotice] = useState<Notice>(initialError === undefined ? NONE : { kind: 'invalid', id: initialError });
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<SearchFailure | null>(null);
   const [busy, setBusy] = useState(false);
 
   // A navigation has happened under the field (it lives in the header, which
@@ -145,7 +175,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     setShownPath(pathname);
     setBusy(false);
     setNotice(NONE);
-    setFailed(false);
+    setFailure(null);
     setResults([]);
     setExpanded(false);
     setActive(-1);
@@ -171,7 +201,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
   };
 
   // One request; a newer one aborts it. Returns null when superseded.
-  const fetchResults = async (q: string): Promise<Result[] | 'failed' | null> => {
+  const fetchResults = async (q: string): Promise<Result[] | SearchFailure | null> => {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
@@ -180,8 +210,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
         signal: controller.signal,
         headers: { Accept: 'application/json' },
       });
-      if (!response.ok) return 'failed';
-      return parseResults(await response.json()) ?? 'failed';
+      return await searchOutcome(response);
     } catch {
       return controller.signal.aborted ? null : 'failed';
     } finally {
@@ -189,10 +218,10 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     }
   };
 
-  const showFailure = () => {
+  const showFailure = (kind: SearchFailure) => {
     clearResults();
     setNotice(NONE);
-    setFailed(true);
+    setFailure(kind);
   };
 
   // `typing`: a debounced search may land after the field lost focus; it
@@ -202,7 +231,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     rows: readonly Result[],
     typing = false,
   ) => {
-    setFailed(false);
+    setFailure(null);
     setResults(rows);
     setActive(-1);
     setExpanded(rows.length > 0 && (!typing || inputRef.current === document.activeElement));
@@ -235,7 +264,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     setActive(-1);
     // Typing never validates; it only clears an earlier message.
     if (notice.kind === 'invalid' || notice.kind === 'noMatch' || notice.kind === 'unknownOrgnr') setNotice(NONE);
-    setFailed(false);
+    setFailure(null);
     const input = classifySearchInput(next);
     if (!searchable(input)) {
       clearResults();
@@ -246,7 +275,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
       timer.current = null;
       void fetchResults(next).then((outcome) => {
         if (outcome === null) return;
-        if (outcome === 'failed') showFailure();
+        if (outcome === 'failed' || outcome === 'refused') showFailure(outcome);
         else showResults(input, outcome, true);
       });
     }, SEARCH_DEBOUNCE_MS);
@@ -265,21 +294,21 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     const invalid = validationId(input);
     if (invalid !== null || !searchable(input)) {
       clearResults();
-      setFailed(false);
+      setFailure(null);
       setNotice(invalid !== null ? { kind: 'invalid', id: invalid } : { kind: 'noMatch', q: value.trim() });
       return;
     }
     setBusy(true);
-    setFailed(false);
+    setFailure(null);
     setNotice({ kind: 'loading' });
     const outcome = await fetchResults(input.kind === 'orgnr' ? input.orgnr : input.name);
     if (outcome === null) {
       setBusy(false);
       return;
     }
-    if (outcome === 'failed') {
+    if (outcome === 'failed' || outcome === 'refused') {
       setBusy(false);
-      showFailure();
+      showFailure(outcome);
       return;
     }
     if (input.kind === 'orgnr') {
@@ -463,9 +492,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
           ))}
         </p>
       ) : null}
-      <div role="alert" className="text-[14px]">
-        {failed ? <p className="m-0 mt-2.5">{t('search.failed')}</p> : null}
-      </div>
+      <SearchAlert failure={failure} />
     </form>
   );
 }

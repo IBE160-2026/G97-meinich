@@ -8,7 +8,7 @@ import nb from '../src/messages/nb.json' with { type: 'json' };
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: () => {} }), usePathname: () => '/' }));
 
-const { SearchField } = await import('../src/components/search-field.tsx');
+const { SearchField, SearchAlert, searchOutcome } = await import('../src/components/search-field.tsx');
 const { SEARCH_ENDPOINT } = await import('../src/search-contract.ts');
 
 function render(variant: 'hero' | 'compact', extra: object = {}): string {
@@ -73,5 +73,22 @@ describe('SearchField variants', () => {
     const fields = (html: string) => [...html.matchAll(/ (name|role|type)="([^"]+)"/g)].map((m) => m[0]);
     expect(fields(render('compact'))).toEqual(fields(render('hero')));
     expect(SEARCH_ENDPOINT).toBe('/api/sok');
+  });
+});
+
+describe('a refused search (Story 1.10)', () => {
+  const alert = (failure: 'failed' | 'refused' | null) => renderToStaticMarkup(createElement(SearchAlert, { failure }));
+
+  it('reads a 429 as refused, any other failure as failed', async () => {
+    expect(await searchOutcome(new Response('{}', { status: 429 }))).toBe('refused');
+    expect(await searchOutcome(new Response('{}', { status: 500 }))).toBe('failed');
+    expect(await searchOutcome(new Response('{}', { status: 200 }))).toBe('failed');
+    expect(await searchOutcome(Response.json([]))).toEqual([]);
+  });
+
+  it('shows the rate-limit refusal in the alert instead of the generic failure, and no results', () => {
+    expect(alert('refused')).toBe(`<div role="alert" class="text-[14px]"><p class="m-0 mt-2.5">${nb['rateLimit.refused']}</p></div>`);
+    expect(alert('failed')).toContain(nb['search.failed']);
+    expect(alert(null)).toBe('<div role="alert" class="text-[14px]"></div>');
   });
 });

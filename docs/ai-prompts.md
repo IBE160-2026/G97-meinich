@@ -416,6 +416,97 @@ The human posted the review at 20:21:08. CI on `75e8730` finished green at 20:24
 
 ---
 
+## Story 1.6b: open an analysis in the right state (#8, PR #24)
+
+### Prompts to the BMAD session
+
+**2026-10-16 06:18**
+```
+/bmad-build Story 1.6b, issue #8
+```
+
+**06:25**: four questions from the spec, answered by typing into the menu. The menu stores the text without its line breaks, and they are restored here.
+
+*An invalid orgnr in an analysis URL.* The AI recommended rendering the front page's search in place.
+```
+Fra meg: 1, med krav: siden svarer med HTTP 404 (ikke 200), men viser
+forsidens søkefelt med verdien fylt inn og feilmeldingen. Test statuskoden
+i e2e for både feil lengde og feil sjekksum.
+```
+
+*The header search on a phone*, where 7 px were left for the input at 320 px.
+```
+Fra meg: 1, med krav: hvis headeren er sticky, skal den ikke være det med
+to rader under md (ellers tar den for mye av skjermhøyden på telefon).
+Test i e2e ved 320 og 375 px at søkefeltet er minst 200 px bredt og at
+body ikke scroller horisontalt.
+```
+
+*The "Kilder og lisens" copy.*
+```
+Fra meg: godta teksten. Sjekk at NLOD-kreditten er ordrett slik
+docs/data-sources-brreg.md oppgir den, og legg en post i deferred-work for
+Epic 2 (Story 2.1): avsnitt (1) må nevne de innsendte årsregnskapene når
+tall lest med OCR vises.
+```
+
+*Spec size:* kept whole. The alternative offered moved the about page and the header search into deferred work with no story to own them, and the header search had already been deferred once, from 1.5b.
+
+**06:28**: approval, with two changes to decisions the AI had made on its own.
+```
+Fra meg: godkjent, med to endringer før du starter:
+1. Et gyldig orgnr som ikke finnes i databasen svarer også med HTTP 404
+   (med State-blokken og demolenkene), som ugyldig orgnr. Test status i e2e.
+2. Det kompakte feltet beholder en ekte label (visuelt skjult er greit);
+   placeholderen kommer i tillegg, ikke i stedet. Test at feltet har
+   tilgjengelig navn fra label, ikke fra placeholder.
+Approve and continue.
+```
+*Changed:* the spec had a valid but unknown orgnr answering 200, which made every valid orgnr look like a real page. It had also made the placeholder the compact field's only label, which screen readers do not treat as one.
+
+**07:15**: four more questions from implementation, answered in the menu.
+```
+Fra meg: 1, og ikonknappen er minst 44×44 px under md. Test i e2e at den
+har tilgjengelig navn "Sammenlign" og riktig størrelse ved 320 px.
+```
+```
+Fra meg: 2. Databasefeil gir 503, og feilsiden viser den samme
+role="alert"-meldingen fra t() ("Noe gikk galt. Prøv igjen om litt.") –
+ikke Next.js' standardside. Ingen feildetaljer i svaret. Test status og
+melding i e2e med databasen utilgjengelig.
+```
+```
+Fra meg: legg til en synlig h1 (ikke skjult), som fokus flyttes til:
+- gyldig orgnr som ikke er i databasen: "Ingen data for dette selskapet"
+- ukjent sti: "Fant ikke siden"
+Teksten i nb.json. Test i e2e at fokus lander på h1 etter navigasjon.
+```
+For the 404 pages being empty without JavaScript, the answer was "Accept, keep deferred". Search and analysis need JavaScript anyway.
+
+*Changed:* the AI had first offered to keep HTTP 200 on a database error and defer it to Story 1.10, which is about rate limiting. It also offered a visually hidden h1 and the heading "Fant ikke selskapet", which is wrong for a company that exists in the register but not in Peerless.
+
+**07:40**: the 503 requirement came from the review session and was worded too narrowly. Because Next.js 16.4 cannot set 503 from rendering, the BMAD session built `src/proxy.ts`. The proxy relied on undocumented behaviour, read the database twice per analysis, and ran on every request.
+```
+Fra meg: før push, bytt ut 503-løsningen. Jeg mente bare "ikke 200 ved
+databasefeil", ikke akkurat 503 – proxyen koster for mye (udokumentert
+oppførsel, to lesinger, kjører på alle forespørsler).
+- Fjern src/proxy.ts. Databasefeil kastes, Next.js svarer 500, og en
+  error.tsx/global-error.tsx på riktig nivå viser vår role="alert"-melding
+  fra t() uten feildetaljer.
+- Behold e2e-testen med databasen utilgjengelig, men forvent 500.
+- Rett docs/ai-log.md og session-fila: proxyen ble prøvd og forkastet,
+  og hvorfor. Proxyen hører hjemme i Story 1.10 hvis den trengs der.
+Deretter: push og opprett PR-en for #8, med demolenkene, orgnr-nøkkelen
+og 404 uten JavaScript under kjente begrensninger.
+```
+*Changed:* `a6d05d8`. The proxy was removed, and the error page renders our alert with status 500. The ai-log keeps the 503 entry and corrects it in a later entry, following the log's own rule that entries are never edited.
+
+### Checks before merging
+
+CI on `a6d05d8` was green before the review. The human posted the review at 08:08:46 and merged at 08:08:54.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

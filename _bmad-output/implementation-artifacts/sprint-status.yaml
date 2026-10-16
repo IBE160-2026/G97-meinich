@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 16-10-2026 15:10
+last_updated: 16-10-2026 16:02
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -49,7 +49,7 @@ development_status:
   1-8-the-key-figure-table-with-the-three-api-figures-and-the-marg: done  # issue #10
   1-9-oversikt-shows-the-biggest-gap-first: done  # issue #11
   1-10-the-open-route-is-rate-limited-without-storing-anyone: done  # issue #12
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-read-the-filed-accounts-ocr: backlog
@@ -113,3 +113,90 @@ delivery_order:
     - 5-7-runs-from-a-fresh-clone
   backlog:
     - epic-6    # stage 2 and stage 3: no stories until v1 runs from a fresh clone (5.7)
+action_items:
+  - id: "epic-1-retro-item-1-catch-and-log-coveredindustries-failures"
+    epic: 1
+    action: "Catch and log coveredIndustries() failures on / and in the uncovered
+      analysis branch (fixed message, class + SQLSTATE); add / to e2e/db-down.spec.ts.
+      Deadline: before Epic 2, in the Epic 1 follow-ups PR"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-2-pin-next-and-eslint-config-next-to-16-4"
+    epic: 1
+    action: "Pin next and eslint-config-next to 16.4.2 (16.4.0 has GHSA-2464-fhr4-w9xw
+      and GHSA-673q-mjm6-r5xr); record the missed Story 1.1 AC. Deadline: before Epic
+      2, in the Epic 1 follow-ups PR"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-3-copy-only-fix-for-a-subject-with-derivab"
+    epic: 1
+    action: "Copy-only fix for a subject with derivable but unstated revenue, keeping
+      not stated -> no band, plus a test; with R3 (empty peer group without a reason).
+      Recorded in deferred-work under Story 2.9"
+    owner: "Dev (Story 2.9)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-4-ban-next-next-react-and-react-dom-in-the"
+    epic: 1
+    action: "Ban next, next/*, react and react-dom in the engine ESLint block, with
+      a lint fixture. Epic 1 follow-ups PR, before Story 2.1"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-5-tidiness-sweep-src-engine-index-ts-bands"
+    epic: 1
+    action: "Tidiness sweep: src/engine/index.ts, BANDS, MULTIPPEL_STEP, AllowListEntry,
+      seed:full in .env.example, uncovered-page industry casing. Epic 1 follow-ups
+      PR, before Story 2.1"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-6-one-shared-api-key-figure-column-list-re"
+    epic: 1
+    action: "One shared API key-figure column list, rename one SubjectFiling, URL
+      module orgnr stripping through src/engine/orgnr.ts. Before Epic 3"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-7-reconcile-planning-docs-epic-1-context-4"
+    epic: 1
+    action: "Reconcile planning docs (epic-1-context, 404 decision in AD-5/AD-12 and
+      spec-1-6b, no-revenue state in PRD/EXPERIENCE, FR-64 split, ENK in data-sources-brreg,
+      spec-1-10 status, AGENTS.md scope and -text paths, AD-10/README header-rotation
+      wording, 1.1 missed AC). Before Story 2.1"
+    owner: "Meinich"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-8-prune-the-five-resolved-entries-from-def"
+    epic: 1
+    action: "Prune the five resolved entries from deferred-work.md; add R2/R3 (Story
+      2.9), R5, R8, D2 and the unbounded candidate read. Before Story 2.1"
+    owner: "Meinich"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-9-correct-the-ai-process-record-review-ses"
+    epic: 1
+    action: "Correct the AI-process record: review-session credit (1.3a, 1.3b, 1.5a),
+      stale session-file PR links, rejected sections 1.6a-1.9, ai-log corrections
+      for 1.7/1.8/1.10, #18 post-merge review, 1.1/1.2 prompts. Before Story 2.1"
+    owner: "Review session"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-10-process-changes-for-epic-2-deletion-muta"
+    epic: 1
+    action: "Process changes for Epic 2: deletion-mutation column in the spec I/O
+      matrix, AI-log claims cite tests, reviewer prompt states both status vocabularies
+      and the silent-fallback rule, line-comment PR review submitted as Comment before merge, session-file
+      check before merge, spec change-log heading. Before Story 2.1"
+    owner: "Meinich"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-1-retro-item-11-split-e2e-analysis-spec-ts-by-surface-an"
+    epic: 1
+    action: "Split e2e/analysis.spec.ts by surface and make the AD-4 payload scan
+      a shared helper for every tab. In Story 2.7"
+    owner: "Dev (Story 2.7)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"

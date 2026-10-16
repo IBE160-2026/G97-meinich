@@ -738,11 +738,27 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     });
   }
 
+  test('just above md (800 px) the amount scales down to fit its five-of-twelve column', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await expect(rendered(page).getByTestId('hero-amount')).toBeVisible();
+    await noSidewaysScroll(page);
+    const fit = await heroAmount(page).evaluate((el) => ({
+      scroll: el.scrollWidth,
+      client: el.clientWidth,
+      size: parseFloat(getComputedStyle(el).fontSize),
+    }));
+    expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+    expect(fit.size).toBeLessThan(52);
+  });
+
   test('at 1280 px the amount is set at 52 px in a five-of-twelve column', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
     await expect(rendered(page).getByTestId('hero-amount')).toBeVisible();
     await expect(heroAmount(page)).toHaveCSS('font-size', '52px');
+    // The card is the size container the amount scales against.
+    await expect(rendered(page).getByTestId('hero')).toHaveCSS('container-type', 'inline-size');
     const card = await rendered(page).getByTestId('hero').boundingBox();
     if (card === null) throw new Error('hero not rendered');
     expect(card.width).toBeLessThan(1280 / 2);

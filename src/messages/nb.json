@@ -59,5 +59,7 @@
   "about.sources.processed": "Peerless har bearbeidet dataene: alle nøkkeltall og sammenligninger er regnet ut av Peerless.",
   "about.sources.endorsement": "Brønnøysundregistrene står ikke bak Peerless og har ikke godkjent analysene.",
   "notFound.page": "Denne siden finnes ikke.",
-  "notFound.home": "Til forsiden"
+  "notFound.home": "Til forsiden",
+  "notFound.noDataTitle": "Ingen data for dette selskapet",
+  "notFound.pageTitle": "Fant ikke siden"
 }

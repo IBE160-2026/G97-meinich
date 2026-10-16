@@ -118,9 +118,14 @@ Three parts of the design do not hold in Next.js 16.4; found by probing the prod
 - **A failed read does not throw.** Thrown in the layout, outside Suspense, it would skip `error.tsx` for the global error page. `lookupSubject` returns `failed` and the layout renders `LookupError` (the same component `error.tsx` renders).
 - **Params arrive percent-encoded** (`813%20235%20552`): `parseSegments` decodes each segment once, then encodes it, so encoded and decoded segments read the same.
 - Redirects keep the query canonically when nothing fell back, and as it came when a value fell back, so the target shows the notice.
-- Below `md` the compact submit button is a magnifier with "Sammenlign" as its accessible name; with the text the field was 186 px at 320 px.
-- New copy beyond the quoted strings: `analysis.figures.undefined`, `analysis.figures.reason.*` ("eiendelene er null eller negative" for the two asset-based figures), `analysis.uncovered.unknownIndustry`, `notFound.page`, `notFound.home` (unknown non-analysis paths).
-- The lookup-error matrix row is tested by `test/analysis-shell.test.ts` only; the e2e run cannot make the database fail.
+- Below `md` the compact submit button is a 44 × 44 px magnifier with "Sammenlign" as its accessible name (human decision 2026-10-16); with the text the field was 186 px at 320 px, and it is 244 px now.
+- New copy beyond the quoted strings: `analysis.figures.undefined`, `analysis.figures.reason.*` ("eiendelene er null eller negative" for the two asset-based figures), `analysis.uncovered.unknownIndustry`, `notFound.page`, `notFound.home` (unknown non-analysis paths), and the 404 headings `notFound.noDataTitle` "Ingen data for dette selskapet" and `notFound.pageTitle` "Fant ikke siden" (human decision 2026-10-16).
+- **A failed subject read answers 503** (human decision 2026-10-16). Rendering can set only 404, 403, 401 and redirect statuses in Next.js 16.4. So `src/proxy.ts` reads the subject first, through `readSubject`, the uncached read behind `lookupSubject`. When that read fails, it passes the request on with `NextResponse.next({ status: 503 })`, and the page renders the lookup-error state.
+  - The forwarded status is undocumented behaviour; `resolve-routes.js` copies it to the response.
+  - The matcher covers every request but static assets. The URL module decides which paths are analyses.
+  - The cost is a second subject read per analysis request.
+  - Tested by `e2e/db-down.spec.ts` against a second server whose `READER_DATABASE_URL` points at a closed port: status, alert text and no error details. Also by `test/analysis-shell.test.ts` and `test/analysis/failed-read.test.ts`.
+- **The 404 states have a visible, focusable `h1`.** A client navigation to a valid orgnr not in the database focuses it. The e2e test drives `window.next.router`, because no UI path reaches that state. An unknown path cannot be reached by a client navigation at all: Next.js turns `router.push` to an unmatched path into a full page load.
 
 ## Spec Change Log
 

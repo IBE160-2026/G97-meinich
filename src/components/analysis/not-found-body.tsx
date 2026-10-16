@@ -7,8 +7,11 @@
 //   with the length or checksum message in its error state;
 // - an analysis URL with a valid orgnr Peerless has no data for: a State
 //   block with "Peerless har ikke data for dette organisasjonsnummeret ennå.
-//   …" and the demo company links. No register call;
-// - any other unknown path: a State block saying the page does not exist.
+//   …" and the demo company links under the h1 "Ingen data for dette
+//   selskapet". No register call;
+// - any other unknown path: the h1 "Fant ikke siden" and a State block
+//   saying the page does not exist.
+// The h1 is focusable (tabIndex -1), so a client navigation focuses it.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { URL_CONTEXT } from '@/analysis/view';
@@ -43,6 +46,9 @@ export function NotFoundBody({ lead, coverage }: NotFoundBodyProps) {
 
   return (
     <main id="innhold" className="flex-1 px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
+      <h1 tabIndex={-1} className="m-0 mb-4 text-[21px] leading-[1.2] md:text-2xl">
+        {t(parsed.kind === 'analysis' ? 'notFound.noDataTitle' : 'notFound.pageTitle')}
+      </h1>
       {parsed.kind === 'analysis' ? (
         <StateBlock>
           <p className="m-0">{t('search.unknownOrgnr', { industry: coverage })}</p>

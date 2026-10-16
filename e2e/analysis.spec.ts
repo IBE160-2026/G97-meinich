@@ -226,10 +226,40 @@ test.describe('covered company with no filing', () => {
   });
 });
 
+// Neither 404 state is reachable by a client navigation from the UI: the
+// search opens only a company it found, and every link points to a page that
+// exists. So the router is driven directly (Next.js's window.next.router,
+// the same router a Link uses). An unknown path is not covered: for a path
+// no route matches, Next.js turns router.push into a full page load (checked
+// with a marker on window), so there is no client navigation to test, and a
+// full load moves no focus.
+test.describe('a client navigation to a 404 state focuses its h1', () => {
+  for (const [target, heading] of [[`/analyse/${ABSENT}`, nb['notFound.noDataTitle']]] as const) {
+    test(`${target} → "${heading}"`, async ({ page }) => {
+      await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      await page.waitForFunction(() => (window as { next?: { router?: unknown } }).next?.router !== undefined);
+      await page.evaluate((url) => {
+        (window as unknown as { next: { router: { push: (href: string) => void } } }).next.router.push(url);
+      }, target);
+      await expect(page).toHaveURL(new RegExp(`${target}$`));
+      await expect(h1(page)).toHaveText(heading);
+      await expect(h1(page)).toBeFocused();
+    });
+  }
+});
+
+test('an unknown path answers 404 with the h1 "Fant ikke siden"', async ({ page }) => {
+  const response = await page.goto('/finnes-ikke');
+  expect(response?.status()).toBe(404);
+  await expect(h1(page)).toHaveText(nb['notFound.pageTitle']);
+  await expect(page.getByTestId('state-block')).toContainText(nb['notFound.page']);
+});
+
 test('a valid orgnr not in the database answers 404 with the not-found state and the demo links', async ({ page }) => {
   const response = await page.goto(`/analyse/${ABSENT}`);
   expect(response?.status()).toBe(404);
   await expect(page).toHaveTitle('Peerless');
+  await expect(h1(page)).toHaveText(nb['notFound.noDataTitle']);
   const block = page.getByTestId('state-block');
   await expect(block).toContainText(
     `Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi ${coverageSentence}.`,
@@ -393,6 +423,19 @@ for (const width of [375, 320]) {
           expect(field.y, url).toBeGreaterThan(brand.y + brand.height - 1);
         }
       }
+    });
+
+    test('the header search button is a 44 px icon named "Sammenlign", and the field keeps 200 px', async ({ page }) => {
+      await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      const button = page.getByRole('banner').locator('button[type="submit"]');
+      await expect(button).toHaveAccessibleName(nb['search.submit']);
+      await expect(button.locator('svg')).toBeVisible();
+      const box = await button.boundingBox();
+      const field = await headerSearch(page).boundingBox();
+      if (box === null || field === null) throw new Error('header search not rendered');
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(field.width).toBeGreaterThanOrEqual(200);
     });
 
     test('the tabs wrap rather than scroll', async ({ page }) => {

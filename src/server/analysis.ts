@@ -107,13 +107,11 @@ export type SubjectLookup =
   | { readonly kind: 'failed' };
 
 /**
- * loadSubject for the request path, once per request. A failed read is a
- * value, not a throw: the lookup runs before any Suspense boundary (so a 404
- * or a 307 can be decided first), where a thrown error would bypass the
- * analysis error state and end in Next.js's global error page. The caller
- * renders the lookup-error state instead.
+ * loadSubject with a failed read as a value, not a throw. The pages read it
+ * through lookupSubject (cached per request); the proxy reads it once more,
+ * before rendering starts, to answer 503 when it fails (src/proxy.ts).
  */
-export const lookupSubject = cache(async (orgnr: string): Promise<SubjectLookup> => {
+export async function readSubject(orgnr: string): Promise<SubjectLookup> {
   try {
     const subject = await loadSubject(orgnr);
     return subject === null ? { kind: 'absent' } : { kind: 'found', subject };
@@ -123,4 +121,13 @@ export const lookupSubject = cache(async (orgnr: string): Promise<SubjectLookup>
     console.error(`analysis: subject lookup failed (${failureKind(error)})`);
     return { kind: 'failed' };
   }
-});
+}
+
+/**
+ * readSubject for the request path, once per request. A failed read is a
+ * value, not a throw: the lookup runs before any Suspense boundary (so a 404
+ * or a 307 can be decided first), where a thrown error would bypass the
+ * analysis error state and end in Next.js's global error page. The caller
+ * renders the lookup-error state instead; the 503 status is the proxy's.
+ */
+export const lookupSubject = cache(readSubject);

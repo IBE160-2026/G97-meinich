@@ -339,7 +339,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     'block w-full min-w-0 bg-background text-navy-900 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-700',
     hero
       ? 'h-14 rounded-lg px-3.5 text-base md:h-[60px] md:rounded-r-none md:px-[18px] md:text-xl'
-      : 'h-9 rounded-l-md px-2.5 text-[14px]',
+      : 'h-11 rounded-l-md px-2.5 text-[14px] md:h-9',
     invalid ? 'border-2 border-unfavourable' : 'border border-input-border',
     hero && !invalid ? 'md:border-r-0' : '',
     busy ? 'bg-surface text-slate' : '',
@@ -349,7 +349,7 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
     'inline-flex shrink-0 items-center justify-center gap-2 bg-navy-700 font-semibold whitespace-nowrap text-primary-foreground disabled:bg-band',
     hero
       ? 'h-[52px] w-full rounded-lg px-7 text-base md:h-[60px] md:w-auto md:rounded-l-none'
-      : 'h-9 min-w-9 rounded-r-md px-2.5 text-[13px] md:px-3',
+      : 'h-11 w-11 rounded-r-md text-[13px] md:h-9 md:w-auto md:px-3',
   ].join(' ');
 
   return (
@@ -422,9 +422,9 @@ export function SearchField({ variant, coverage, initialValue = '', initialError
             t('search.submit')
           ) : (
             <>
-              {/* Below md the compact button shows a magnifier and keeps its
-                  name for assistive technology, so the field keeps at least
-                  200 px at 320 px. */}
+              {/* Below md the compact button is a 44 × 44 px magnifier that
+                  keeps "Sammenlign" as its name for assistive technology, so
+                  the field keeps at least 200 px at 320 px. */}
               <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4 md:hidden">
                 <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
                 <path d="M10.4 10.4 14 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

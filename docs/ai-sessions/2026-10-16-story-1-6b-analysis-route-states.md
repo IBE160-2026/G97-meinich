@@ -29,9 +29,22 @@ The analysis route in every state — covered (three tabs with an empty panel he
 - **Decided in implementation, for review:**
   - A redirect keeps the query canonically (`serialize`) when nothing fell back, and as it came when a value fell back, so the target still shows the notice.
   - Read date is the filing's `read_at`; month abbreviations are fixed (`jan.` … `des.`, CLDR nb).
-  - Below `md`, the compact submit button shows a magnifier and keeps "Sammenlign" as its accessible name, so the field is at least 200 px wide at 320 px.
+  - Below `md`, the compact submit button shows a magnifier and keeps "Sammenlign" as its accessible name, so the field is at least 200 px wide at 320 px. The human then decided it must be at least 44 × 44 px (see below).
   - New copy beyond the spec's quotes: the undefined-figure reason "eiendelene er null eller negative" (the vocabulary's "omsetningen …" fits driftsmargin only), "Kan ikke beregnes: {grunn}", the uncovered fallback "Selskapets bransje", and for unknown non-analysis paths "Denne siden finnes ikke." / "Til forsiden".
-  - The not-found state has no `h1`; no copy was specified for one.
+  - The not-found state had no `h1` at first, because no copy was specified for one. The human then decided the copy (see below).
+
+## Human decisions after review (2026-10-16), and what was done
+
+- **Phone header button:** keep the magnifier on its own row; at least 44 × 44 px below `md`. It is `h-11 w-11`, and the compact input is `h-11` beside it below `md`. An e2e test at 320 px checks the accessible name "Sammenlign", the 44 × 44 box and a field of at least 200 px.
+- **A database failure answers 503 with our alert.**
+  - Rendering cannot set 503 in Next.js 16.4: only 404, 403, 401 and redirects.
+  - So `src/proxy.ts` reads the subject before rendering and forwards a failed read with `NextResponse.next({ status: 503 })`. This is undocumented: it was found in `resolve-routes.js` and confirmed by probing the build.
+  - `playwright.config.ts` now starts a second server on port 3101 with `READER_DATABASE_URL` pointing at a closed port. `e2e/db-down.spec.ts` runs against it in its own project.
+  - The cost and risks are in the ai-log entry "a failed database read answers 503, set by the proxy".
+- **A visible `h1` on the 404 states:** "Ingen data for dette selskapet" and "Fant ikke siden", both in `nb.json`; the invalid-orgnr page keeps the front-page `h1`.
+  - The e2e test checks focus after a client navigation to an absent valid orgnr, driven through `window.next.router`, because no UI path navigates there.
+  - An unknown path is not covered: Next.js turns that navigation into a full page load, so there is no client navigation to test.
+- **`deferred-work.md`:** unchanged. The client-rendered 404 entry stays, accepted for v1.
 
 ## Links
 

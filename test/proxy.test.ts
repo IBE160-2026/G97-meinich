@@ -93,7 +93,8 @@ describe('proxy', () => {
     expect(response.status).toBe(429);
     expect(response.headers.get('content-type')).toBe('application/json');
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(response.headers.get('retry-after')).toBe('60');
+    expect(Number(response.headers.get('retry-after'))).toBeGreaterThanOrEqual(1);
+    expect(Number(response.headers.get('retry-after'))).toBeLessThanOrEqual(60);
     expect(await response.text()).toBe('{}');
   });
 

@@ -33,8 +33,8 @@ const SENTINEL = ['203', '0', '113', '77'].join('.'); // TEST-NET-3, RFC 5737
 const MAX_SCANNED_FILE = 64 * 1024 * 1024;
 
 test.use({ trace: 'off' });
-test.describe.configure({ mode: 'serial' });
-test.setTimeout(240_000);
+// One server for both tests, in order; the scans take tens of seconds.
+test.describe.configure({ mode: 'serial', timeout: 240_000 });
 
 let server: ChildProcess | null = null;
 let output = '';

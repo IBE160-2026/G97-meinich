@@ -47,7 +47,7 @@ development_status:
   1-6b-open-an-analysis-in-the-right-state: done  # issue #8
   1-7-peerless-finds-comparable-companies-stages-1-3: done  # issue #9
   1-8-the-key-figure-table-with-the-three-api-figures-and-the-marg: done  # issue #10
-  1-9-oversikt-shows-the-biggest-gap-first: review  # issue #11
+  1-9-oversikt-shows-the-biggest-gap-first: done  # issue #11
   1-10-the-open-route-is-rate-limited-without-storing-anyone: backlog
   epic-1-retrospective: optional
 

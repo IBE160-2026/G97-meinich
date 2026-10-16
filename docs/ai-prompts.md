@@ -598,6 +598,60 @@ The review session computed the kroner gap independently in SQL: a peer group bu
 
 ---
 
+## Commit granularity: AGENTS.md rule (on `main`, `5d4b520`)
+
+### Prompts to the review session
+
+**2026-10-16 11:36**: the human asked, with a screenshot of the git graph:
+```
+Og burde man ha flere små commits til senere?
+```
+The review session measured the last story commits: `623b29d` (1.6b) had 50 files and +2 616 lines, `27bbeae` (1.7) +2 032, and `60b0b93` (1.8) +2 190, each a whole story in one commit. The cause is that `bmad-build` commits once, after verification. The grading guide counts "noen store commits" against the process criterion. Merged history was left as it is.
+```
+Legg til i agents og push
+```
+*Changed:* `5d4b520`. AGENTS.md's Git workflow now says that a story lands as several commits in logical steps (engine, server, UI, e2e, review fixes, docs), each one type-checking on its own, with the full suite run before the first push.
+
+---
+
+## Story 1.9: Oversikt shows the biggest gap first (#11, PR #27)
+
+### Prompts to the BMAD session
+
+**2026-10-16 11:38**: the first story started under the new commit rule.
+```
+/bmad-build Story 1.9, issue #11 - remember from agents.md - commit i logiske steg som AGENTS.md sier, ikke én commit for hele storyen.
+```
+
+**11:44**: approval, with one case the spec's matrix lacked.
+```
+Fra meg: godkjent, med ett tillegg i matrisen før du starter:
+når gruppen er tom fordi emptyReason er satt (subject_non_calendar),
+viser hero-kortet samme forklaring som Peers-fanen, ikke "For få
+sammenlignbare (0 av 10)". Test med et selskap med avvikende regnskapsår
+fra seeden.
+Approve and continue.
+```
+*Changed:* without it, a company whose year isn't a calendar year would have read "For få sammenlignbare (0 av 10)" on Oversikt. That is the misleading message already rejected for the Peers tab in Story 1.7. The test is in `test/analysis/oversikt-hero.test.ts`.
+
+**12:21**: the BMAD session pointed out that the approved wording "På medianen på −3,2 %" repeats "på", and left the decision to the human.
+```
+Fra meg: endre til "Lik medianen på {verdi}", så den følger samme mønster
+som "Over/Under medianen på {verdi}". Egen commit. Push deretter og
+opprett PR-en for #11.
+```
+*Changed:* `1824d67`. The AI's own suggestion, "Lik medianen, −3,2 %", broke the pattern of its two sibling lines.
+
+### Result of the commit rule
+
+The story landed as ten commits of 11 to 453 lines: the engine, the shared amount function, the hero card, the e2e tests, a focus fix, a test fix, the docs, the review fixes (`cd98d6f`, on their own), the review log and the copy change.
+
+### Checks before merging
+
+The spec corrected the mockup, which always said "Over medianen", even for the UX document's own example company, which sits below the median. The hero and the table share one amount function, and a test checks that they agree. The human posted the review at 12:24. CI on `1824d67` finished green at 12:27, and the PR was merged at 12:36.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

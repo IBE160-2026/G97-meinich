@@ -45,7 +45,7 @@ Document-derived rows join the table as the seed's document figures land (TN wee
 |---|---|---|---|
 | Forside | `/` | Wordmark, direct | One hero search field; one honest headline and one sentence saying v1 covers 62.100; "Slik fungerer det" in three steps; link to "Slik fungerer Peerless". No SaaS buttons |
 | Analyse · Oversikt | `/analyse/{orgnr}/{fane}` | Search result, URL | Company header; hero card; beeswarm with compact peer list; small cards; explanation |
-| Analyse · Peers | same, own `{fane}` | Tab, "Se alle 23" | Funnel, size-band control, full peer list with exclude/restore |
+| Analyse · Peers | same, own `{fane}` | Tab, "Se alle 23" | Funnel, size-band control, full peer list with exclude/restore. A subject whose own filing is not a calendar year has no peers; the tab says "Peerless sammenligner foreløpig bare selskaper med kalenderår som regnskapsår." instead of "Fant ingen …" |
 | Analyse · Nøkkeltall og gap | same, own `{fane}` | Tab, "Se alle nøkkeltall" | Benchmark table with fold-outs |
 | Analyse · Verdi | same, own `{fane}` | Tab, "Endre i Verdi" | Closable-share control, amount cards, multiple field |
 | Uncovered result | `/analyse/{orgnr}`, no tabs | Search result outside 62.100 | Three API figures and the statement (FR-4) |

@@ -1,7 +1,9 @@
 // The one server renderer behind both analysis pages (Story 1.6b): the bare
-// path and the path with a tab. It parses the URL with the URL module, reads
-// the subject once as `reader` (cached with the layout's read), lets
-// analysisView pick the state, and redirects (307) or renders it.
+// path and the path with a tab. It reads the subject once as `reader`
+// (cached with the layout's read) and, for a covered AS with a filing, its
+// candidate filings in one more read (Story 1.7). It then parses the URL
+// with the URL module, the candidate pool at each band deciding `ekskl`,
+// lets analysisView pick the state, and redirects (307) or renders it.
 //
 // The redirect is decided before anything below a Suspense boundary renders:
 // once a fallback renders, the response has started with status 200 and a
@@ -15,18 +17,29 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
-import { PANEL_HEADING_ID, URL_CONTEXT, analysisView, type AnalysisView, type Subject } from '@/analysis/view';
+import {
+  PANEL_HEADING_ID,
+  PATH_CONTEXT,
+  analysisView,
+  funnelSubject,
+  hasPeerGroup,
+  urlContext,
+  type AnalysisView,
+  type Subject,
+} from '@/analysis/view';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { AnalysisLoading } from '@/components/analysis/analysis-loading';
+import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
+import { assemblePeerGroup, withoutExcluded, type EmptyReason, type PeerGroup } from '@/engine/peers';
 import { t } from '@/messages';
 import { industryInSentence, joinList } from '@/messages/industry';
-import { lookupSubject } from '@/server/analysis';
+import { lookupCandidates, lookupSubject, type Candidate } from '@/server/analysis';
 import { coveredIndustries } from '@/server/search';
-import { parseSegments, type AnalysisState } from '@/url/analysis-state';
+import { parseSegments, type AnalysisState, type Band } from '@/url/analysis-state';
 
 export type Segments = { readonly orgnr: string; readonly fane?: string };
 export type SearchParams = Readonly<Record<string, string | string[] | undefined>>;
@@ -42,11 +55,61 @@ export function searchString(searchParams: SearchParams): string {
   return text === '' ? '' : `?${text}`;
 }
 
+/** The peer group as the page shows it: the pool at the URL's band with the `ekskl` peers removed. */
+type ShownGroup = {
+  readonly peers: readonly Candidate[];
+  /** The group's currency, the subject's: stage 2 makes every peer's equal. */
+  readonly valuta: string | null;
+  readonly emptyReason: EmptyReason;
+  /** The subject's benchmark year. */
+  readonly filingYear: number;
+};
+
+const NO_POOL: ReadonlySet<string> = new Set();
+
 async function resolve(segments: Segments, searchParams: SearchParams) {
   const search = searchString(searchParams);
-  const parsed = parseSegments(segments, search, URL_CONTEXT);
-  const subject = parsed.kind === 'analysis' ? await lookupSubject(parsed.state.orgnr) : null;
-  return { parsed, subject, view: analysisView(subject, parsed, search) };
+  // The path names the company; the query is parsed again below, once the
+  // candidate pool is known.
+  const path = parseSegments(segments, search, PATH_CONTEXT);
+  const subject = path.kind === 'analysis' ? await lookupSubject(path.state.orgnr) : null;
+
+  // Read before analysisView and the redirect decision: an `ekskl` outside
+  // the pool sets the notice, which changes how a redirect keeps the query.
+  const funnel = subject !== null && hasPeerGroup(subject) ? funnelSubject(subject) : null;
+  const candidates =
+    funnel !== null && funnel.naeringskode1 !== null
+      ? await lookupCandidates(funnel.orgnr, funnel.naeringskode1, funnel.filingYear)
+      : [];
+
+  // Each band's group, computed on demand from the one read.
+  const groups = new Map<Band, { readonly group: PeerGroup<Candidate>; readonly orgnrs: ReadonlySet<string> }>();
+  const groupAt = (band: Band) => {
+    if (funnel === null) return null;
+    let entry = groups.get(band);
+    if (entry === undefined) {
+      const group = assemblePeerGroup(funnel, candidates, band);
+      entry = { group, orgnrs: new Set(group.pool.map((peer) => peer.orgnr)) };
+      groups.set(band, entry);
+    }
+    return entry;
+  };
+
+  // A subject without a peer group has an empty pool: every `ekskl` item
+  // is dropped with the notice.
+  const parsed = parseSegments(segments, search, urlContext((band) => groupAt(band)?.orgnrs ?? NO_POOL));
+  const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
+  const filing = subject?.filing ?? null;
+  const group: ShownGroup | null =
+    at === null || parsed.kind !== 'analysis' || filing === null
+      ? null
+      : {
+          peers: withoutExcluded(at.group.pool, parsed.state.ekskl),
+          valuta: filing.valuta,
+          emptyReason: at.group.emptyReason,
+          filingYear: filing.filingYear,
+        };
+  return { parsed, subject, group, view: analysisView(subject, parsed, search) };
 }
 
 export async function analysisMetadata(segments: Segments, searchParams: SearchParams): Promise<Metadata> {
@@ -71,18 +134,56 @@ function SearchAgain() {
   );
 }
 
-function Covered({ state, view }: { readonly state: AnalysisState; readonly view: AnalysisView }) {
+function Covered({
+  state,
+  view,
+  group,
+}: {
+  readonly state: AnalysisState;
+  readonly view: AnalysisView;
+  readonly group: ShownGroup;
+}) {
   if (view.fane === null) return null;
   return (
     <>
       <TabLinks state={state} active={view.fane} />
-      {/* The panel's content arrives with Stories 1.7–1.9. */}
+      {/* Oversikt and Nøkkeltall get their content in Stories 1.8–1.9. */}
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">
           {t(`tabs.${view.fane}`)}
         </h2>
+        {view.fane === 'peers' ? (
+          <PeerList
+            peers={group.peers}
+            valuta={group.valuta}
+            emptyReason={group.emptyReason}
+            filingYear={group.filingYear}
+          />
+        ) : null}
       </section>
     </>
+  );
+}
+
+/** The uncovered and non-AS states: a State block, the subject's own API figures, a way on. No peers. */
+function OwnFigures({
+  subject,
+  kicker,
+  body,
+}: {
+  readonly subject: Subject;
+  readonly kicker: string;
+  readonly body: string;
+}) {
+  if (subject.filing === null) return null;
+  return (
+    <div className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
+      <StateBlock kicker={kicker}>
+        <p className="m-0">{body}</p>
+      </StateBlock>
+      <ApiFigures filing={subject.filing} />
+      <SearchAgain />
+    </div>
   );
 }
 
@@ -93,13 +194,13 @@ export async function AnalysisPage({
   readonly segments: Segments;
   readonly searchParams: SearchParams;
 }) {
-  const { parsed, subject, view } = await resolve(segments, searchParams);
+  const { parsed, subject, group, view } = await resolve(segments, searchParams);
   // The layout has already answered 404 for both; this keeps the types honest.
   if (parsed.kind !== 'analysis' || subject === null) notFound();
   if (view.redirect !== null) redirect(view.redirect);
   return (
     <Suspense fallback={<AnalysisLoading />}>
-      <AnalysisBody subject={subject} state={parsed.state} view={view} />
+      <AnalysisBody subject={subject} state={parsed.state} view={view} group={group} />
     </Suspense>
   );
 }
@@ -108,29 +209,31 @@ async function AnalysisBody({
   subject,
   state,
   view,
+  group,
 }: {
   readonly subject: Subject;
   readonly state: AnalysisState;
   readonly view: AnalysisView;
+  readonly group: ShownGroup | null;
 }) {
   const coverage =
     view.state === 'uncovered' ? joinList((await coveredIndustries()).map(industryInSentence)) : '';
+  const shownGroup = view.state === 'covered' ? group : null;
 
   return (
     <main id="innhold" className="flex-1">
-      <CompanyHeader subject={subject} />
+      <CompanyHeader subject={subject} peerCount={shownGroup?.peers.length} />
       <SettingsNotice show={view.notice} />
-      {view.state === 'covered' ? <Covered state={state} view={view} /> : null}
-      {view.state === 'uncovered' && subject.filing !== null ? (
-        <div className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
-          <StateBlock kicker={t('analysis.uncovered.kicker')}>
-            <p className="m-0">
-              {t('analysis.uncovered.body', { bransje: uncoveredIndustry(subject), industry: coverage })}
-            </p>
-          </StateBlock>
-          <ApiFigures filing={subject.filing} />
-          <SearchAgain />
-        </div>
+      {shownGroup !== null ? <Covered state={state} view={view} group={shownGroup} /> : null}
+      {view.state === 'uncovered' ? (
+        <OwnFigures
+          subject={subject}
+          kicker={t('analysis.uncovered.kicker')}
+          body={t('analysis.uncovered.body', { bransje: uncoveredIndustry(subject), industry: coverage })}
+        />
+      ) : null}
+      {view.state === 'non-as' ? (
+        <OwnFigures subject={subject} kicker={t('analysis.nonAs.kicker')} body={t('analysis.nonAs.body')} />
       ) : null}
       {view.state === 'no-filing' ? (
         <div className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">

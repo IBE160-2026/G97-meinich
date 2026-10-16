@@ -20,7 +20,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { URL_CONTEXT } from '@/analysis/view';
+import { PATH_CONTEXT } from '@/analysis/view';
 import { DEMO_COMPANIES } from '@/demo-companies';
 import { formatKommune, formatOrgnr } from '@/engine/format';
 import { classifySearchInput, type SearchInput } from '@/engine/orgnr';
@@ -114,7 +114,7 @@ function searchable(input: SearchInput): input is Extract<SearchInput, { kind: '
 
 /** The orgnr of the analysis at `pathname`, or null on any other page. */
 function shownOrgnr(pathname: string): string | null {
-  const parsed = parse(pathname, URL_CONTEXT);
+  const parsed = parse(pathname, PATH_CONTEXT);
   return parsed.kind === 'analysis' ? parsed.state.orgnr : null;
 }
 

@@ -25,10 +25,6 @@
   evidence: Story 1.3b review. Deferred because the fix edits an agent-context file.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
-  summary: Story 1.7 must keep dormant companies — zero or near-zero `sumDriftsinntekter` — out of the peer group. They are a selection question, not an engine one: the engine makes their margin undefined (`denominator_not_positive`, or within ±5 kr of zero when revenue is derived), but as peers they would still count towards the 10-peer floor of the other figures and pull their distributions.
-  evidence: Story 1.4 human decision 2026-10-12. 4 268 filings in the demo seed have zero or near-zero revenue; examples 924971487 PAF SOFTWARE AS 2021 (stated 0) and 919728574 JOAKIM BORDING AS 2025 (derived 1 kr).
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
   summary: Story 1.8, the first story that displays a figure, should extend the ESLint bans to where numbers are displayed — `toFixed`, `toDecimalPlaces`/`toDP`, `toSignificantDigits` and `toLocaleString` in `src/app` and `src/components` — so `src/engine/format.ts` stays the only formatter and the only rounding, and update AGENTS.md's ESLint sentence in the same change.
   evidence: Story 1.4 review (edge-case and blind hunters). Today the rounding ban covers only `src/engine/**` and `*format*` files, and the Intl ban only `Intl.NumberFormat`; `Number#toLocaleString` uses Intl and differs between Node and browsers. Deferred because the fix edits an agent-context file and no component displays a figure yet.
 
@@ -70,3 +66,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
   summary: The analysis 404 states (invalid orgnr, valid orgnr not in the database) answer HTTP 404, but Next.js 16.4 serves them as its error shell and renders the content on the client after load, so they show nothing without JavaScript. Revisit when a Next.js release renders a nested `not-found.tsx` on the server for a `notFound()` thrown before streaming, or decide that a server-rendered 404 is worth a 200 status.
   evidence: Story 1.6b implementation, probing the production build: `curl /analyse/12345678` returns 404 with `<html id="__next_error__">` and an empty body; Playwright sees the front page with the message after load. A nested `src/app/analyse/not-found.tsx` was never used for these requests; the root `src/app/not-found.tsx` is.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-funnel-stages-1-3.md`
+  summary: The Peers list's scroll region lacks UX-DR37's edge-fade cue showing the table can scroll sideways; add it with Story 2.7/2.8's wider peer table.
+  evidence: Story 1.7 review (blind hunter). The region has its role, label, tabindex and focus ring; the cue is noted only in the spec's Implementation Notes and the session file.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-7-funnel-stages-1-3.md`
+  summary: `CANDIDATES_SQL` filters `register.company` on `naeringskode1`, which has no index; add one (migration plus seed re-export) when a second industry is covered or the candidate read nears the 1 s budget.
+  evidence: Story 1.7 review (blind hunter). A sequential scan of 17 558 rows is well under 1 s on the demo seed (`test/db/peers.test.ts`); the read runs on every covered-AS analysis request.

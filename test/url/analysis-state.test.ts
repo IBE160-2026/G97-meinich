@@ -165,6 +165,25 @@ describe('ekskl', () => {
     expect(invalidSettings).toBe(true);
   });
 
+  it('asks isCandidate with the parsed band, so a pool that varies by band decides', () => {
+    // A is in every band's pool, B only from band 1 (a widened band keeps it).
+    const pools: Record<0 | 1 | 2, ReadonlySet<string>> = { 0: new Set([A]), 1: new Set([A, B]), 2: new Set([A, B, C]) };
+    const context: ParseContext = { isCandidate: (peer, band) => pools[band].has(peer), medianStepExists: () => false };
+
+    const widened = analysis(`/analyse/${SUBJECT}?ekskl=${A},${B}&band=1`, context);
+    expect(widened.state).toMatchObject({ band: 1, ekskl: [A, B] });
+    expect(widened.invalidSettings).toBe(false);
+
+    const standard = analysis(`/analyse/${SUBJECT}?ekskl=${A},${B}`, context);
+    expect(standard.state).toMatchObject({ band: 0, ekskl: [A] });
+    expect(standard.invalidSettings).toBe(true);
+
+    // A band that falls back is the default band for the pool, too.
+    const fellBack = analysis(`/analyse/${SUBJECT}?ekskl=${B}&band=x`, context);
+    expect(fellBack.state).toMatchObject({ band: 0, ekskl: [] });
+    expect(fellBack.invalidSettings).toBe(true);
+  });
+
   it('drops rejected items before the cap, so they never take a place', () => {
     const rejected = new Set(PEERS.slice(0, 5));
     const context: ParseContext = { isCandidate: (peer) => !rejected.has(peer), medianStepExists: () => false };

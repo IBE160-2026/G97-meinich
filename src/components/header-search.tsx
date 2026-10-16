@@ -6,13 +6,13 @@
 // field. Below `md` it takes a full-width second row under the wordmark and
 // the link; from `md` it sits inline between them.
 import { usePathname } from 'next/navigation';
-import { URL_CONTEXT } from '@/analysis/view';
+import { PATH_CONTEXT } from '@/analysis/view';
 import { SearchField } from '@/components/search-field';
 import { parse } from '@/url/analysis-state';
 
 /** Whether the page at `pathname` shows the front page's hero search instead. */
 export function showsHeroSearch(pathname: string): boolean {
-  return pathname === '/' || parse(pathname, URL_CONTEXT).kind === 'invalid-orgnr';
+  return pathname === '/' || parse(pathname, PATH_CONTEXT).kind === 'invalid-orgnr';
 }
 
 export function HeaderSearch({ coverage }: { readonly coverage: string }) {

@@ -8,7 +8,9 @@
 //   valid orgnr, not in the database  → 404 with the not-found state (layout)
 //   no SELSKAP filing                 → bare path is the result; a tab redirects to it
 //   filing, industry not covered      → bare path is the result; a tab redirects to it
-//   filing, industry covered          → bare path redirects to Oversikt; a tab renders,
+//   filing, covered, not an AS        → bare path is the result; a tab redirects to it
+//                                       (Story 1.7: it can never have peers in v1)
+//   filing, covered, an AS            → bare path redirects to Oversikt; a tab renders,
 //                                       Verdi (Epic 3) renders Oversikt with the notice
 //
 // Every redirect keeps the query. With no fallback it is written
@@ -19,22 +21,43 @@
 // tabs, so its redirect to the bare path drops the tab, and the target shows
 // the notice only if its query has a fallback.
 import { formatOrgnr } from '../engine/format.ts';
-import type { KeyFiguresRow } from '../engine/inputs.ts';
+import { parseOre, type KeyFiguresRow } from '../engine/inputs.ts';
+import { PEER_LEGAL_FORM, type SubjectFiling as FunnelSubject } from '../engine/peers.ts';
 import { t } from '../messages/index.ts';
-import { defaultState, serialize, type Fane, type ParseContext, type ParseResult } from '../url/analysis-state.ts';
+import {
+  defaultState,
+  serialize,
+  type Band,
+  type Fane,
+  type ParseContext,
+  type ParseResult,
+} from '../url/analysis-state.ts';
 
 /**
- * What `parse` is told about the subject's peer group until the stories that
- * compute it. Accept-all `isCandidate` until Story 1.7 builds the candidate
- * pool (funnel stages 1–3 at the parsed band); until then any valid orgnr
- * other than the subject is kept in `ekskl`. `medianStepExists` is false
- * until Story 3.5 computes s_med, so `andel=median` falls back to 50 with
- * the notice.
+ * For parsing only the path (which company, which tab), where no peer group
+ * is at hand: the layout's 404 decision and the client components that read
+ * the pathname. Every `ekskl` item is accepted; the page parses the query
+ * with `urlContext`.
  */
-export const URL_CONTEXT: ParseContext = {
+export const PATH_CONTEXT: ParseContext = {
   isCandidate: () => true,
   medianStepExists: () => false,
 };
+
+/**
+ * What `parse` is told about the subject's peer group on the page:
+ * `isCandidate(peer, band)` asks whether `peer` is in the candidate pool
+ * (funnel stages 1–3) at the band `parse` read from the same URL. A subject
+ * with no pool (not covered, no filing, not an AS) passes a pool that is
+ * always empty. `medianStepExists` is false until Story 3.5 computes s_med,
+ * so `andel=median` falls back to 50 with the notice.
+ */
+export function urlContext(poolAt: (band: Band) => ReadonlySet<string>): ParseContext {
+  return {
+    isCandidate: (peer, band) => poolAt(band).has(peer),
+    medianStepExists: () => false,
+  };
+}
 
 /** The id of the analysis panel's heading, which a tab change focuses. */
 export const PANEL_HEADING_ID = 'fane-tittel';
@@ -55,10 +78,18 @@ export type SubjectKeyFigures = Pick<
   | 'sum_gjeld_ore'
 >;
 
-/** The subject's newest SELSKAP filing by filing_year. */
+/** The subject's newest SELSKAP filing by filing_year: the benchmark-year filing. */
 export type SubjectFiling = {
   readonly filingYear: number;
+  readonly regnskapstype: string;
+  /** ISO date, "YYYY-MM-DD". */
+  readonly periodeFra: string;
+  /** ISO date, "YYYY-MM-DD". */
+  readonly periodeTil: string;
   readonly valuta: string | null;
+  readonly regnskapsregler: string | null;
+  readonly smaaForetak: boolean | null;
+  readonly avviklingsregnskap: boolean | null;
   /** When step 1 read the filing from the register (AD-18). */
   readonly readAt: Date;
   readonly keyFigures: SubjectKeyFigures;
@@ -69,6 +100,7 @@ export type Subject = {
   readonly orgnr: string;
   /** The current name; a company renamed between filings is one row by orgnr. */
   readonly navn: string | null;
+  readonly organisasjonsform: string | null;
   readonly naeringskode1: string | null;
   readonly naeringskode1Beskrivelse: string | null;
   readonly kommune: string | null;
@@ -78,7 +110,7 @@ export type Subject = {
   readonly filing: SubjectFiling | null;
 };
 
-export type AnalysisStateKind = 'covered' | 'uncovered' | 'no-filing' | 'not-found' | 'invalid-orgnr';
+export type AnalysisStateKind = 'covered' | 'uncovered' | 'non-as' | 'no-filing' | 'not-found' | 'invalid-orgnr';
 
 export type AnalysisView = {
   readonly state: AnalysisStateKind;
@@ -90,6 +122,30 @@ export type AnalysisView = {
   readonly notice: boolean;
   readonly title: string;
 };
+
+/** Whether the subject can have a peer group: a filing, a covered industry, an AS. */
+export function hasPeerGroup(subject: Subject): boolean {
+  return subject.filing !== null && subject.covered && subject.organisasjonsform === PEER_LEGAL_FORM;
+}
+
+/** The subject's benchmark filing as the funnel reads it, or null without a filing. */
+export function funnelSubject(subject: Subject): FunnelSubject | null {
+  const filing = subject.filing;
+  if (filing === null) return null;
+  return {
+    orgnr: subject.orgnr,
+    naeringskode1: subject.naeringskode1,
+    filingYear: filing.filingYear,
+    sumDriftsinntekter: parseOre(filing.keyFigures.sum_driftsinntekter_ore),
+    regnskapstype: filing.regnskapstype,
+    periodeFra: filing.periodeFra,
+    periodeTil: filing.periodeTil,
+    valuta: filing.valuta,
+    regnskapsregler: filing.regnskapsregler,
+    smaaForetak: filing.smaaForetak,
+    avviklingsregnskap: filing.avviklingsregnskap,
+  };
+}
 
 /** The company as written in a title: its name, or its orgnr in groups of three. */
 export function displayName(subject: Pick<Subject, 'orgnr' | 'navn'>): string {
@@ -113,8 +169,9 @@ export function analysisView(subject: Subject | null, parsed: ParseResult, searc
   const redirectTo = (fane: Fane | null): string =>
     invalidSettings ? serialize({ ...defaultState(state.orgnr), fane }) + query : serialize({ ...state, fane });
 
-  if (subject.filing === null || !subject.covered) {
-    const kind = subject.filing === null ? 'no-filing' : 'uncovered';
+  // Precedence: no filing, then uncovered, then not an AS.
+  if (!hasPeerGroup(subject)) {
+    const kind = subject.filing === null ? 'no-filing' : !subject.covered ? 'uncovered' : 'non-as';
     if (state.fane !== null) {
       return { state: kind, redirect: redirectTo(null), fane: null, notice: false, title: brand };
     }

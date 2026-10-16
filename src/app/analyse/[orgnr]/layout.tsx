@@ -7,7 +7,7 @@
 // query.
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
-import { URL_CONTEXT } from '@/analysis/view';
+import { PATH_CONTEXT } from '@/analysis/view';
 import { lookupSubject } from '@/server/analysis';
 import { parseSegments } from '@/url/analysis-state';
 
@@ -19,7 +19,7 @@ export default async function AnalysisLayout({
   readonly params: Promise<{ orgnr: string }>;
 }) {
   const { orgnr } = await params;
-  const parsed = parseSegments({ orgnr }, '', URL_CONTEXT);
+  const parsed = parseSegments({ orgnr }, '', PATH_CONTEXT);
   if (parsed.kind !== 'analysis') notFound();
   if ((await lookupSubject(parsed.state.orgnr)) === null) notFound();
   return children;

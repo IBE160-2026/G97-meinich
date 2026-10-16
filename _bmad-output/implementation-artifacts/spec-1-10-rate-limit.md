@@ -2,7 +2,7 @@
 title: 'Story 1.10: The open route is rate-limited without storing anyone'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '5677bec7da93b4a991d3e3ecf1d568a158296427'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -70,11 +70,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/rate-limit/*`, `src/logger.ts` + `test/rate-limit.test.ts`, `test/logger.test.ts` — matrix rows with a fake clock; key hashing (raw IP not in the store); logger rejects nothing it can't type, emits JSON; a lint-style test: no `console.` in `src` outside `src/logger.ts`.
-- [ ] `src/proxy.ts`, refusal, `nb.json`, `search-field.tsx`, replaced `console.error` calls + `test/proxy.test.ts` (classification, matcher excludes static assets, 429 bodies have no digits from the URL) and `test/search-field.test.ts` (429 → refusal alert).
-- [ ] `e2e/fixtures.ts`, `e2e/rate-limit.spec.ts` — within budget served; page, RSC, prefetch and `/api/sok` refused over budget; separate budgets both ways; a tab click after exhaustion ends on the refusal; the search field's alert; refusal at 375 and 320 px with no body scroll.
-- [ ] `e2e/no-ip-stored.spec.ts` — starts its own `pnpm start` on a spare port with output captured, sends sentinel `203.0.113.77` within and over budget, then asserts the sentinel is absent from the output, from every text column of every table (`SUPABASE_DB_URL`), and from every file under the repository (and the OS temp dir) modified since the start.
-- [ ] Docs — README; `technical-note-architecture.md` AD-10 (spoofable header as a v1 limitation; the deployment gate's two requirements) and line ~306's gate list; `docs/ai-log.md` (what could go wrong: spoofed header, one process, unbounded map, prefetch counting, a logger field that later takes a string); session file; `sprint-status.yaml`.
+- [x] `src/rate-limit/*`, `src/logger.ts` + `test/rate-limit.test.ts`, `test/logger.test.ts` — matrix rows with a fake clock; key hashing (raw IP not in the store); logger rejects nothing it can't type, emits JSON; a lint-style test: no `console.` in `src` outside `src/logger.ts`.
+- [x] `src/proxy.ts`, refusal, `nb.json`, `search-field.tsx`, replaced `console.error` calls + `test/proxy.test.ts` (classification, matcher excludes static assets, 429 bodies have no digits from the URL) and `test/search-field.test.ts` (429 → refusal alert).
+- [x] `e2e/fixtures.ts`, `e2e/rate-limit.spec.ts` — within budget served; page, RSC, prefetch and `/api/sok` refused over budget; separate budgets both ways; a tab click after exhaustion ends on the refusal; the search field's alert; refusal at 375 and 320 px with no body scroll.
+- [x] `e2e/no-ip-stored.spec.ts` — starts its own `pnpm start` on a spare port with output captured, sends sentinel `203.0.113.77` within and over budget, then asserts the sentinel is absent from the output, from every text column of every table (`SUPABASE_DB_URL`), and from every file under the repository (and the OS temp dir) modified since the start.
+- [x] Docs — README; `technical-note-architecture.md` AD-10 (spoofable header as a v1 limitation; the deployment gate's two requirements) and line ~306's gate list; `docs/ai-log.md` (what could go wrong: spoofed header, one process, unbounded map, prefetch counting, a logger field that later takes a string); session file; `sprint-status.yaml`.
 
 **Acceptance Criteria:**
 - Given issue #12 and the matrix, when `pnpm lint && pnpm typecheck && pnpm test` run, then all pass.
@@ -92,6 +92,31 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Layer | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | gap/blind | `LogEvent`/`EVENTS` (and levels, budget names) kept twice; an event missing from the array is silently dropped; the two coverage-failure events untested | medium | `logLine` returns null for an event not in `EVENTS`, typed `string[]`, so the compiler does not tie them | patch |
+| 2 | gap/blind | `failureKind` re-export in `src/server/analysis.ts` exists only for one test | low | Its one importer is `test/analysis/failed-read.test.ts` | patch |
+| 3 | gap/blind | Mis-indented `toBe(` in `failed-read.test.ts` | low | Visible in the diff; lint does not format | patch |
+| 4 | blind/edge | Production minification may mangle `constructor.name` in failure logs | maybe-false | `failureKind` predates this story (1.6b); would only make a log line less readable | reject |
+| 5 | blind/edge | Prefetches make one view cost several analysis requests | low | Measured on the built server: front page + one analysis + one tab click = 11 requests, so 60/min ≈ 15 views/min; no ordinary reader hits it. Record the number | patch (docs) |
+| 6 | blind | Fixed window allows 2× the budget across a boundary, undocumented | low | True of `consume`; direct fix is a sentence | patch (docs) |
+| 7 | blind | Deployment gate silent on IPv6 /64 rotation | low | `clientAddress` keys the full address; gate text is the place | patch (docs) |
+| 8 | blind/edge | Full table: every new address sweeps all 10 000 entries | low | `makeRoom` loops the whole map; insertion order is window order, so the sweep can stop at the first live entry | patch |
+| 9 | blind | Fixture replaces configured `extraHTTPHeaders` | low | No config sets them; unlikely, and a fix adds merging | reject |
+| 10 | blind | Search budget classified by path, not method | low | POST/HEAD to `/api/sok` count as search and get 405; no harm | reject |
+| 11 | blind/edge | Spec still says "static files by extension"; spec uncommitted | false | Recorded in Implementation Notes; fix would edit this spec | reject |
+| 12 | blind | `console` ban test is easy to evade | low | Needs a deliberate workaround; a lint rule is more than a direct fix | reject |
+| 13 | blind | Sentinel test hard-codes `limit - 5`, never searches hashed forms | low | A changed request count fails loudly; the hash is salted per process, so searching it is meaningless | reject |
+| 14 | blind | Search field ignores `Retry-After` | low | Refused requests are not counted; the alert repeats, no harm | reject |
+| 15 | blind | AD-10 says not even process memory holds an address | low | Request headers hold it while a request is handled; wording fix | patch (docs) |
+| 16 | edge | Empty or trailing-comma `X-Forwarded-For` gives the shared `''` key | low | Only clients that send it share it; same class as the documented spoofing | reject |
+| 17 | edge | Ports or IPv6 spellings give fresh keys | low | Same class as the documented spoofing | reject |
+| 18 | edge | Wall clock stepping back stretches a window | low | Rare (NTP step); worst case a longer wait | reject |
+| 19 | edge | A refused prefetch is cached as a hard navigation | low | The later click loads the page in full, which is served; no wrong content | reject |
+| 20 | edge | `localhost` in the sentinel spec can split ::1 and 127.0.0.1 keys | low | `BASE` is `localhost`; direct fix is `127.0.0.1` | patch |
+| 21 | edge | File scan can false-fail if another process writes the literal | low | Unlikely during the run | reject |
+| 22 | edge | Expired entries stay until their key returns or the table fills | low | Salted hashes only, bounded at 10 000 | reject |
 
 ## Verification
 

@@ -556,6 +556,48 @@ The review session counted the peer group for both demo companies with its own S
 
 ---
 
+## Story 1.8: the key-figure table with the three API figures and the margin in kroner (#10, PR #26)
+
+### Prompts to the BMAD session
+
+**2026-10-16 10:21**
+```
+/bmad-build Story 1.8, issue #10
+```
+
+**10:28**: the spec reported "no gaps that need your call". The review session found that two deferred-work entries addressed to Story 1.8 were missing from it, and that its strip scale would break on outliers.
+```
+Fra meg: godkjent, med tre tillegg i spec-en før du starter:
+1. Deferred-posten fra 1.3a/1.4: Gap i kroner vises bare når selskapets
+   valuta er NOK; ellers en tekst om at beløpet ikke er i kroner. Test med
+   et USD-selskap fra seeden.
+2. Deferred-posten fra 1.4: utvid ESLint-forbudet (toFixed, toDP/
+   toDecimalPlaces, toSignificantDigits, toLocaleString) til src/app og
+   src/components, og oppdater AGENTS.md i samme commit. Lukk begge postene.
+3. Stripeskalaen klippes (f.eks. 5.–95. persentil) med en markør for verdier
+   utenfor, så én ekstrem peer ikke presser resten sammen. Test med en
+   gruppe som har én ekstrem verdi.
+Approve and continue.
+```
+*Changed:* without (1), the 85 USD and EUR filings in the seed would have shown a dollar amount followed by "kr". `driftsmarginGap` now returns `not_nok` for them. The ESLint bans and AGENTS.md were updated. The AI's linear min–max strip let one peer at −400 % squeeze every other mark into one end. The strip now uses P5–P95, with a marker for values outside it.
+
+**11:22**: Claude Code stopped the final verification because the machine was critically low on memory: 2.0 GB free of 15.7 GB. The BMAD session did not commit without a full run.
+```
+Fra meg: jeg har frigjort minne. Kjør verifiseringen i bolker, én om
+gangen, og stopp ved første feil: (1) pnpm test, (2) pnpm test:db,
+(3) pnpm build && pnpm check:routes, (4) e2e. Merk deretter spec-en
+som done og commit.
+```
+*Changed:* `60b0b93`. All four batches passed: 675 unit, 120 database and 91 e2e tests.
+
+**11:27**: `Fra meg: push og opprett PR-en for #10.`
+
+### Checks before merging
+
+The review session computed the kroner gap independently in SQL: a peer group built from the spec's rules, `percentile_cont` (the same as PERCENTILE.INC), and (beste fjerdedel − own margin) × revenue. It then ran `benchmarkApiFigures` on the same seed data. ADMMIT AS gives 3 215 708 kr and EXEBENUS AS 4 789 071 kr in both. The human posted the review at 11:28. CI on `60b0b93` finished green at 11:32, and the PR was merged at 11:33.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

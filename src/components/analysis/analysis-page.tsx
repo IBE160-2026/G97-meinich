@@ -9,7 +9,9 @@
 // once a fallback renders, the response has started with status 200 and a
 // redirect could only be streamed. So the loading state is a Suspense
 // boundary inside this page, after the decision, not a loading.tsx file,
-// which would wrap the page and start the stream first.
+// which would wrap the page and start the stream first. Every read happens
+// before that boundary too, the coverage read for an uncovered company
+// included, so a failed read answers 500, never a streamed 200.
 //
 // Nothing here writes: the reader connection is read-only, and no state
 // leaves the URL (no cookie, no browser storage).
@@ -39,6 +41,7 @@ import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
 import { formatOrgnr } from '@/engine/format';
 import { assemblePeerGroup, type PeerGroup } from '@/engine/peers';
+import { failureKind, log } from '@/logger';
 import { t } from '@/messages';
 import { industryInSentence, joinList } from '@/messages/industry';
 import { lookupCandidates, lookupSubject, type Candidate } from '@/server/analysis';
@@ -114,6 +117,21 @@ function uncoveredIndustry(subject: Subject): string {
   const { naeringskode1: code, naeringskode1Beskrivelse: beskrivelse } = subject;
   if (code !== null && beskrivelse !== null) return t('industry.inSentence', { navn: beskrivelse, kode: code });
   return code ?? beskrivelse ?? t('analysis.uncovered.unknownIndustry');
+}
+
+/**
+ * The covered industries as the uncovered statement names them. A failed
+ * read throws a new error with a fixed message, so the driver's error goes
+ * no further than the one log line below.
+ */
+async function uncoveredCoverage(): Promise<string> {
+  try {
+    return joinList((await coveredIndustries()).map(industryInSentence));
+  } catch (error) {
+    // Only the error's class and its Postgres SQLSTATE reach the log.
+    log('error', 'analysis.coverageFailed', { failure: failureKind(error) });
+    throw new Error('analysis: coverage lookup failed');
+  }
 }
 
 function SearchAgain() {
@@ -206,26 +224,29 @@ export async function AnalysisPage({
   // The layout has already answered 404 for both; this keeps the types honest.
   if (parsed.kind !== 'analysis' || subject === null) notFound();
   if (view.redirect !== null) redirect(view.redirect);
+  // Read before the Suspense boundary, like the subject and the candidates.
+  const coverage = view.state === 'uncovered' ? await uncoveredCoverage() : '';
   return (
     <Suspense fallback={<AnalysisLoading />}>
-      <AnalysisBody subject={subject} state={parsed.state} view={view} group={group} />
+      <AnalysisBody subject={subject} state={parsed.state} view={view} group={group} coverage={coverage} />
     </Suspense>
   );
 }
 
-async function AnalysisBody({
+function AnalysisBody({
   subject,
   state,
   view,
   group,
+  coverage,
 }: {
   readonly subject: Subject;
   readonly state: AnalysisState;
   readonly view: AnalysisView;
   readonly group: ShownGroup | null;
+  /** The covered industries, for the uncovered statement; "" in every other state. */
+  readonly coverage: string;
 }) {
-  const coverage =
-    view.state === 'uncovered' ? joinList((await coveredIndustries()).map(industryInSentence)) : '';
   const coveredGroup = view.state === 'covered' ? group : null;
 
   return (

@@ -3,7 +3,7 @@
 // The search field (FR-1; EXPERIENCE.md "Search field", "Search results"):
 // one field for a name or an organisation number, an ARIA 1.2 combobox over
 // GET /api/sok. Two variants share every behaviour: `hero` on the front page
-// and `compact` for the header (mounted by Story 1.6b).
+// and `compact` in the header on every other page (Story 1.6b).
 //
 // - Validation runs on submit and blur only, never while typing.
 // - Typing searches after a 300 ms pause, one request at a time; nothing
@@ -13,24 +13,28 @@
 // - One polite live region, present empty from page load, carries the count,
 //   the no-match and unknown-orgnr copy, validation messages and loading.
 //   A failed request fills a separate role="alert" and shows no results.
+// - The header field outlives a navigation, so a change of pathname resets
+//   its loading state and notice; opening the company already shown does
+//   not set the loading state at all.
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { URL_CONTEXT } from '@/analysis/view';
 import { DEMO_COMPANIES } from '@/demo-companies';
 import { formatKommune, formatOrgnr } from '@/engine/format';
 import { classifySearchInput, type SearchInput } from '@/engine/orgnr';
 import { t } from '@/messages';
 import { industryNamed } from '@/messages/industry';
 import { MAX_SEARCH_LENGTH, SEARCH_ENDPOINT, type SearchResult } from '@/search-contract';
-import { defaultState, serialize } from '@/url/analysis-state';
+import { defaultState, parse, serialize } from '@/url/analysis-state';
 
 export const SEARCH_DEBOUNCE_MS = 300;
 const MIN_NAME_LENGTH = 2;
 
 type Result = SearchResult;
 
-type ValidationId = 'search.empty' | 'search.orgnrLength' | 'search.orgnrChecksum';
+export type ValidationId = 'search.empty' | 'search.orgnrLength' | 'search.orgnrChecksum';
 
 type Notice =
   | { readonly kind: 'none' }
@@ -46,6 +50,10 @@ export interface SearchFieldProps {
   readonly variant: 'hero' | 'compact';
   /** The covered industries as written mid-sentence, e.g. "name (code)", from the register. */
   readonly coverage: string;
+  /** The field's value on first render: the input of an invalid analysis URL. */
+  readonly initialValue?: string;
+  /** A validation message shown on first render, with the error state. */
+  readonly initialError?: ValidationId;
 }
 
 function nullableString(value: unknown): value is string | null {
@@ -104,8 +112,15 @@ function searchable(input: SearchInput): input is Extract<SearchInput, { kind: '
   return input.kind === 'orgnr' || (input.kind === 'name' && Array.from(input.name).length >= MIN_NAME_LENGTH);
 }
 
-export function SearchField({ variant, coverage }: SearchFieldProps) {
+/** The orgnr of the analysis at `pathname`, or null on any other page. */
+function shownOrgnr(pathname: string): string | null {
+  const parsed = parse(pathname, URL_CONTEXT);
+  return parsed.kind === 'analysis' ? parsed.state.orgnr : null;
+}
+
+export function SearchField({ variant, coverage, initialValue = '', initialError }: SearchFieldProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const baseId = useId();
   const inputId = `${baseId}-input`;
   const listboxId = `${baseId}-listbox`;
@@ -113,13 +128,28 @@ export function SearchField({ variant, coverage }: SearchFieldProps) {
   const labelId = `${baseId}-label`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialValue);
   const [results, setResults] = useState<readonly Result[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [active, setActive] = useState(-1);
-  const [notice, setNotice] = useState<Notice>(NONE);
+  const [notice, setNotice] = useState<Notice>(initialError === undefined ? NONE : { kind: 'invalid', id: initialError });
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // A navigation has happened under the field (it lives in the header, which
+  // stays mounted): what it was showing belongs to the previous page.
+  // Adjusted during render, the pattern React documents for state that
+  // follows a prop, so no stale "Henter analysen …" is ever painted.
+  const [shownPath, setShownPath] = useState(pathname);
+  if (shownPath !== pathname) {
+    setShownPath(pathname);
+    setBusy(false);
+    setNotice(NONE);
+    setFailed(false);
+    setResults([]);
+    setExpanded(false);
+    setActive(-1);
+  }
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -184,8 +214,15 @@ export function SearchField({ variant, coverage }: SearchFieldProps) {
   const open = (orgnr: string) => {
     cancelPending();
     setExpanded(false);
-    setBusy(true);
-    setNotice({ kind: 'loading' });
+    if (shownOrgnr(pathname) === orgnr) {
+      // The company is already on screen: the URL may not change, so a
+      // loading state would never be cleared.
+      setBusy(false);
+      setNotice(NONE);
+    } else {
+      setBusy(true);
+      setNotice({ kind: 'loading' });
+    }
     router.push(analysisHref(orgnr));
   };
 
@@ -302,7 +339,7 @@ export function SearchField({ variant, coverage }: SearchFieldProps) {
     'block w-full min-w-0 bg-background text-navy-900 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy-700',
     hero
       ? 'h-14 rounded-lg px-3.5 text-base md:h-[60px] md:rounded-r-none md:px-[18px] md:text-xl'
-      : 'h-9 rounded-l-md px-2.5 text-[14px]',
+      : 'h-11 rounded-l-md px-2.5 text-[14px] md:h-9',
     invalid ? 'border-2 border-unfavourable' : 'border border-input-border',
     hero && !invalid ? 'md:border-r-0' : '',
     busy ? 'bg-surface text-slate' : '',
@@ -312,7 +349,7 @@ export function SearchField({ variant, coverage }: SearchFieldProps) {
     'inline-flex shrink-0 items-center justify-center gap-2 bg-navy-700 font-semibold whitespace-nowrap text-primary-foreground disabled:bg-band',
     hero
       ? 'h-[52px] w-full rounded-lg px-7 text-base md:h-[60px] md:w-auto md:rounded-l-none'
-      : 'h-9 rounded-r-md px-3 text-[13px]',
+      : 'h-11 w-11 rounded-r-md text-[13px] md:h-9 md:w-auto md:px-3',
   ].join(' ');
 
   return (
@@ -341,6 +378,7 @@ export function SearchField({ variant, coverage }: SearchFieldProps) {
             autoCapitalize="off"
             spellCheck={false}
             enterKeyHint="search"
+            placeholder={hero ? undefined : t('search.label')}
             readOnly={busy}
             aria-autocomplete="list"
             aria-expanded={expanded}
@@ -380,7 +418,20 @@ export function SearchField({ variant, coverage }: SearchFieldProps) {
             aria-hidden="true"
             className={busy ? 'hidden size-3.5 rounded-full border-2 border-divider border-t-primary-foreground motion-safe:inline-block motion-safe:animate-spin' : 'hidden'}
           />
-          {t('search.submit')}
+          {hero ? (
+            t('search.submit')
+          ) : (
+            <>
+              {/* Below md the compact button is a 44 × 44 px magnifier that
+                  keeps "Sammenlign" as its name for assistive technology, so
+                  the field keeps at least 200 px at 320 px. */}
+              <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4 md:hidden">
+                <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M10.4 10.4 14 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              <span className="sr-only md:not-sr-only">{t('search.submit')}</span>
+            </>
+          )}
         </button>
       </div>
       <div role="status" className={hero ? 'mt-2.5 text-[14px]' : 'text-[13px]'}>

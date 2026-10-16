@@ -11,6 +11,7 @@ import {
   defaultState,
   parse,
   parseMultippel,
+  parseSegments,
   serialize,
   type AnalysisState,
   type ParseContext,
@@ -105,8 +106,8 @@ describe('path', () => {
     ['%', 'length'],
     ['123456789', 'checksum'],
   ] as const)('refuses the orgnr %s with reason %s', (orgnr, reason) => {
-    expect(run(`/analyse/${orgnr}`)).toEqual({ kind: 'invalid-orgnr', reason });
-    expect(run(`/analyse/${orgnr}/peers?band=1`)).toEqual({ kind: 'invalid-orgnr', reason });
+    expect(run(`/analyse/${orgnr}`)).toMatchObject({ kind: 'invalid-orgnr', reason });
+    expect(run(`/analyse/${orgnr}/peers?band=1`)).toMatchObject({ kind: 'invalid-orgnr', reason });
   });
 
   it.each(['/', '/analyse', '/analyse/', `/analyse/${SUBJECT}/peers/extra`, '/analyse/x/y/z', `/annet/${SUBJECT}`])(
@@ -381,6 +382,80 @@ describe('serialize', () => {
 
   it('writes a multiple with a point and no trailing zero', () => {
     expect(serialize({ ...defaultState(SUBJECT), multippel: new Decimal('6.50') })).toBe(`/analyse/${SUBJECT}?multippel=6.5`);
+  });
+});
+
+describe('invalid orgnr input', () => {
+  it.each([
+    ['/analyse/12345678', '12345678'],
+    ['/analyse/123%20456%2078', '123 456 78'],
+    ['/analyse/123456789/peers', '123456789'],
+    ['/analyse/%zz', '%zz'],
+    ['/analyse/abc', 'abc'],
+  ])('%s keeps the segment as typed, decoded: %s', (href, input) => {
+    expect(parse(href, ACCEPT_ALL)).toEqual({
+      kind: 'invalid-orgnr',
+      reason: href.includes('123456789') ? 'checksum' : 'length',
+      input,
+    });
+  });
+
+  it('parseSegments gives the same input for an encoded or a decoded segment', () => {
+    expect(parseSegments({ orgnr: '123%20456%2078' }, '', ACCEPT_ALL)).toEqual({
+      kind: 'invalid-orgnr',
+      reason: 'length',
+      input: '123 456 78',
+    });
+    expect(parseSegments({ orgnr: '123 456 78' }, '', ACCEPT_ALL)).toMatchObject({ input: '123 456 78' });
+  });
+});
+
+describe('parseSegments', () => {
+  it('reads the bare path from the orgnr segment alone', () => {
+    expect(parseSegments({ orgnr: SUBJECT }, '', ACCEPT_ALL)).toEqual(parse(`/analyse/${SUBJECT}`, ACCEPT_ALL));
+  });
+
+  it('reads the tab segment and the query, with or without the "?"', () => {
+    const expected = parse(`/analyse/${SUBJECT}/peers?band=1`, ACCEPT_ALL);
+    expect(parseSegments({ orgnr: SUBJECT, fane: 'peers' }, '?band=1', ACCEPT_ALL)).toEqual(expected);
+    expect(parseSegments({ orgnr: SUBJECT, fane: 'peers' }, 'band=1', ACCEPT_ALL)).toEqual(expected);
+  });
+
+  it('applies the same fallbacks as parse', () => {
+    expect(parseSegments({ orgnr: SUBJECT, fane: 'foo' }, 'band=x', ACCEPT_ALL)).toEqual({
+      kind: 'analysis',
+      state: { ...defaultState(SUBJECT), fane: 'oversikt' },
+      invalidSettings: true,
+    });
+    expect(parseSegments({ orgnr: '12345678' }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'length' });
+    expect(parseSegments({ orgnr: '123456789' }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'checksum' });
+  });
+
+  it('reads a segment percent-encoded, as Next.js passes it, or decoded, the same way', () => {
+    for (const orgnr of ['123 456 785', '123%20456%20785']) {
+      const result = parseSegments({ orgnr }, '', ACCEPT_ALL);
+      expect(result.kind === 'analysis' && result.state.orgnr, orgnr).toBe(SUBJECT);
+    }
+    expect(parseSegments({ orgnr: SUBJECT, fane: 'n%C3%B8kkeltall' }, '', ACCEPT_ALL)).toEqual(
+      parseSegments({ orgnr: SUBJECT, fane: 'nøkkeltall' }, '', ACCEPT_ALL),
+    );
+    // A malformed escape is kept as it is and can never be nine digits.
+    expect(parseSegments({ orgnr: '%zz' }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'length' });
+  });
+
+  it('encodes each decoded segment, so "/", "?" and "#" in one never make another', () => {
+    expect(parseSegments({ orgnr: `${SUBJECT}/peers` }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'length' });
+    expect(parseSegments({ orgnr: `${SUBJECT}?band=1` }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'length' });
+    expect(parseSegments({ orgnr: SUBJECT, fane: 'peers#x' }, '', ACCEPT_ALL)).toEqual({
+      kind: 'analysis',
+      state: { ...defaultState(SUBJECT), fane: 'oversikt' },
+      invalidSettings: true,
+    });
+    expect(parseSegments({ orgnr: SUBJECT, fane: 'peers%2Fx' }, '', ACCEPT_ALL)).toEqual({
+      kind: 'analysis',
+      state: { ...defaultState(SUBJECT), fane: 'oversikt' },
+      invalidSettings: true,
+    });
   });
 });
 

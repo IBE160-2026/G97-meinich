@@ -55,14 +55,6 @@
     - to add a test with `EXPLAIN` that shows its name query uses `company_navn_trgm`, by calling the same `register.immutable_unaccent(lower(navn))` expression.
   evidence: Story 1.5a review. 6 258 of the 17 557 stored companies are `ENK`, as recorded in `docs/data-sources-brreg.md` and the ai-log entry for 1.5a. Companies-only mode now reports code mismatches in its summary. Index use was shown by a manual `EXPLAIN` only. `reader`'s `search_path` lacks `extensions`, so the query must qualify `extensions.%`/`extensions.word_similarity`.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
-  summary: Story 1.6b mounts the compact variant of `SearchField` (`<SearchField variant="compact" coverage={…} />`, `src/components/search-field.tsx`) in the header on every page except `/`, and covers it mounted in its e2e test. It must pass the same coverage string the front page builds (`industryInSentence` and `joinList` over `coveredIndustries()`), and decide the compact variant's visible hint: today its label is visually hidden and it has no placeholder.
-  evidence: Story 1.5b decision (human, 2026-10-14): the header stays unchanged in 1.5b; the variant is built and tested by server-rendered markup only (`test/search-field.test.ts`), because no extra route may be added to render it in a browser.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-5b-company-search.md`
-  summary: When Story 1.6b mounts the compact SearchField in the persistent header, `busy` and the "Henter analysen …" notice set before `router.push` are never cleared, because the header does not unmount on navigation.
-  evidence: Review of 1.5b (edge-case finding 4, maybe-false, medium if true). The hero variant unmounts with the front page, so 1.5b cannot hit it; settle it in 1.6b with an e2e test that searches from the header twice, or reset `busy` on a `usePathname` change.
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
   summary: Story 1.6b passes `parse` a documented accept-all `isCandidate`; Story 1.7 must replace it with the real candidate pool (funnel stages 1–3 at the parsed band), so an `ekskl` orgnr outside the pool is dropped with the notice (AD-5).
   evidence: Human decision 2026-10-15 in the 1.6a spec; until 1.7, any valid orgnr other than the subject is kept in `ekskl` (review finding 5).
@@ -71,3 +63,10 @@
   summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.
   evidence: Story 1.6a AC (the predicate is an input because no engine computes s_med until 3.5); review finding 5.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
+  summary: Story 2.1 must extend the first paragraph of "Kilder og lisens" on `/slik-fungerer-peerless` ("Tallene i Peerless kommer fra Brønnøysundregistrene: Enhetsregisteret og nøkkeltallene i Regnskapsregisteret.") to name the filed annual accounts once figures read by OCR are shown.
+  evidence: Human decision 2026-10-16 when accepting the 1.6b copy. In Epic 1 only API figures are shown, so the paragraph names only the API sources; the separate document-figure licence paragraph stays with Story 5.4.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
+  summary: The analysis 404 states (invalid orgnr, valid orgnr not in the database) answer HTTP 404, but Next.js 16.4 serves them as its error shell and renders the content on the client after load, so they show nothing without JavaScript. Revisit when a Next.js release renders a nested `not-found.tsx` on the server for a `notFound()` thrown before streaming, or decide that a server-rendered 404 is worth a 200 status.
+  evidence: Story 1.6b implementation, probing the production build: `curl /analyse/12345678` returns 404 with `<html id="__next_error__">` and an empty body; Playwright sees the front page with the message after load. A nested `src/app/analyse/not-found.tsx` was never used for these requests; the root `src/app/not-found.tsx` is.

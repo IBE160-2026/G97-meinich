@@ -3,7 +3,7 @@
 **Date:** 2026-10-15
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #7, Story 1.6a
-**Result:** branch `story/1.6a-url-module`, [PR #23](https://github.com/IBE160-2026/G97-meinich/pull/23).
+**Result:** [PR #23](https://github.com/IBE160-2026/G97-meinich/pull/23), merged 2026-10-15, from branch `story/1.6a-url-module`.
 
 ## Goal
 
@@ -41,6 +41,12 @@ One module that parses and serializes the analysis URL (AD-5, FR-69, UX-DR79), w
   - A tab segment is matched exactly (`Peers`, `nøkkeltall` fall back to `oversikt`).
 - **Corrected during implementation:** none beyond a variable-name typo.
 - **Corrected after review** (`bmad-build` review layers: blind, edge-case and verification-gap): the multiple's step check rounded at precision 40 and is now exact (`decimalPlaces() <= 1`); a repeated empty value no longer sets the flag; malformed `%` escapes in the path are now tested; the boundary test searches for `/analyse` without the trailing slash. Details in the ai-log entry.
+- **Rejected (12), reasons in the spec's Review Triage Log:**
+  - `serialize` neither validates nor encodes `orgnr` or `ekskl`: its only caller passes an orgnr already checked as nine digits, and `parse` is the gate by design.
+  - Thousands of `ekskl` items call `isCandidate` without bound: the server's header limit caps the URL length, and Story 1.7's predicate is a set lookup.
+  - A double slash (`/analyse//x`, `/analyse/x//`): both still give a refusal or the flagged fallback, and Next normalises paths.
+  - `/analyse/{orgnr}` and `/analyse/{orgnr}/oversikt` are both canonical: the AD-5 grammar defines both, and Story 1.6b redirects the bare path to `oversikt` for covered companies.
+  - A throwing `isCandidate` makes `parse` throw: a caller's own bug failing loudly is correct behaviour.
 
 ## Links
 

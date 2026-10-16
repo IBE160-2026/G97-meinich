@@ -3,7 +3,7 @@
 **Date:** 2026-10-16
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #9, Story 1.7
-**Result:** branch `story/1.7-funnel-stages-1-3` (PR to follow).
+**Result:** [PR #25](https://github.com/IBE160-2026/G97-meinich/pull/25), merged 2026-10-16, from branch `story/1.7-funnel-stages-1-3`.
 
 ## Goal
 
@@ -46,6 +46,12 @@ Funnel stages 1–3 as a pure engine module, one candidate read per request as `
   - A failed candidate read is driven through the page and its metadata.
   - e2e: zero, negative and null revenue, a non-calendar subject, and `ekskl` on subjects with no pool.
 - Correction found while running e2e: `FocusManager` could focus the old page's `h1` while the old page and the loading state, or the old page and the 404, were both in the document. Two client-navigation focus tests then failed in most full runs. It now waits until there is one `main` and no busy one. The 404 focus test first waits for a single `h1`. Three full e2e runs then passed.
+- **Rejected (9), reasons in the spec's Review Triage Log:**
+  - An unknown `valuta` empties the group without a reason: the seed has 2 `EDT` filings, and the fix needs a new reason and copy.
+  - The e2e oracle is the engine itself: selection is pinned by hand-built cases in `test/engine/peers.test.ts`; the e2e tests check the wiring.
+  - Early filers get an empty group in their newest year: intended, since FR-25 and "Same year" in `docs/key-figures.md` fix the benchmark year to the subject's latest.
+  - `benchmarkFiling` prefers a short-year filing over a calendar one with the same end: the seed has no company with two filings of the same type, year and end.
+  - `toSubject` turns a malformed filing into the no-filing state: `regnskapstype`, `periode_fra` and `periode_til` are NOT NULL, so they are null only when the join finds no filing.
 
 ## Links
 

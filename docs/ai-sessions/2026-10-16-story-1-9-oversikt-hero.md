@@ -3,7 +3,7 @@
 **Date:** 2026-10-16
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** [#11](https://github.com/IBE160-2026/G97-meinich/issues/11), Story 1.9
-**Result:** branch `story/1.9-oversikt-hero` (PR to follow): commits `6cd8595` (engine), `a6c1808` (shared amount function and copy), `c83ce88` (hero, copy, CSS, component test), `72a0066` (e2e), `ed59bf3` (focus fix found by e2e), `08a5bb0` (a self-check of the tests: the amount's container sizing), the docs commit, and the review-fix commit.
+**Result:** [PR #27](https://github.com/IBE160-2026/G97-meinich/pull/27), merged 2026-10-16, from branch `story/1.9-oversikt-hero`: commits `6cd8595` (engine), `a6c1808` (shared amount function and copy), `c83ce88` (hero, copy, CSS, component test), `72a0066` (e2e), `ed59bf3` (focus fix found by e2e), `08a5bb0` (a self-check of the tests: the amount's container sizing), the docs commit, and the review-fix commit.
 
 ## Goal
 
@@ -42,6 +42,12 @@ The Oversikt tab leads with the driftsmargin gap in kroner, the product's most i
   - The Oversikt payload e2e test scanned peer orgnrs at band 0 only; it now also scans every non-null peer key-figure amount, as Story 1.8's test does, and covers `?ekskl=…&band=1` with that band's pool.
   - `pool[0]?.orgnr ?? ''` could build `?ekskl=&band=1`; the test now throws if demo A's pool is empty.
   - This session file: the issue link, the human's approval prompt, and these fixes credited to the review step, not to the self-check above.
+- **Rejected (15), reasons in the spec's Review Triage Log:**
+  - A ten-digit amount could overflow the card at 320 px (three more findings share this root): a nine-digit amount is about 223 px in a 256 px card, and ten digits need a gap of at least 1 mrd. kr.
+  - "0,0 pp under beste fjerdedel" or "Over medianen på 5,0 %" beside an own value that differs by under 0,05 pp: real but rare; the side is decided on exact values and only the display rounds.
+  - The amount is under 52 px from `md` below about 1 000 px: deliberate, since the 5-of-12 column would overflow at 52 px; recorded in the spec's Implementation Notes.
+  - An empty group with no reason shows "(0 av 10)" while Peers says `peers.none`: the human's decision covers only a set `emptyReason`, and the AC asks for "For få sammenlignbare (n av 10)" below the floor.
+  - The focus fix has no unit test: both branches are pinned by e2e.
 
 ## Links
 

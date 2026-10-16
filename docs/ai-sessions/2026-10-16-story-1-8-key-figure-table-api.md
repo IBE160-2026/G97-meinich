@@ -3,7 +3,7 @@
 **Date:** 2026-10-16
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #10, Story 1.8
-**Result:** branch `story/1.8-key-figure-table-api` (PR to follow).
+**Result:** [PR #26](https://github.com/IBE160-2026/G97-meinich/pull/26), merged 2026-10-16, from branch `story/1.8-key-figure-table-api`.
 
 ## Goal
 
@@ -66,6 +66,12 @@ From the coordinator's review of the implementation:
 - `docs/key-figures.md` now records the NOK condition, the resolved revenue and the single rounding in "From gap to kroner", and the strip's [P5, P95] domain under the distribution rules.
 - A desktop row whose own value is undefined showed five blank columns; the merged cell now shows a visible aria-hidden "–" beside the sr-only "ikke relevant", as the phone row does.
 - A test now checks that the out-of-range chevron points outwards at both edges.
+- **Rejected (10), reasons in the spec's Review Triage Log:**
+  - P5 = P95 puts an outlying own value on the median with no chevron: real, but it needs about 90 % of at least 10 peers to share one value, the cells carry the true value, and the frozen decision puts every mark at the centre then.
+  - `driftsmarginGap`'s RangeError could give a 500 on every tab: unreachable, because a compared driftsmargin needs a non-null resolved `sumDriftsinntekter`.
+  - The non-small notice is not shown for a `subject_absent` figure with fewer than 10 peers: the AC ties the notice to a comparison below the floor, and a `subject_absent` row has no comparison.
+  - A gap under 0,5 kr shows "0 kr per år": this needs (T − r) × revenue under 0,5 kr on exact Decimals, and the fix would be a new rule.
+  - The phone expansion needs JavaScript: real only before hydration or with JavaScript off; `<details>` cannot wrap table rows, so the fix is a redesign.
 
 ## Links
 

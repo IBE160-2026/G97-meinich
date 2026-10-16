@@ -3,7 +3,7 @@
 **Date:** 2026-10-12
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #5, Story 1.4
-**Result:** branch `story/1.4-engine-format`, reviewed (blind hunter, edge-case hunter, verification gap) and committed; PR to follow.
+**Result:** [PR #19](https://github.com/IBE160-2026/G97-meinich/pull/19), merged 2026-10-12, from branch `story/1.4-engine-format`, reviewed (blind hunter, edge-case hunter, verification gap) and committed.
 
 ## Goal
 

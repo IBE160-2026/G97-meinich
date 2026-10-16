@@ -20,8 +20,8 @@ Routine work that went as expected is not logged.
 | money | 14 |
 | parsing | 7 |
 | llm-boundary | 5 |
-| scope | 13 |
-| docs | 16 |
+| scope | 14 |
+| docs | 18 |
 
 ## Entry template
 
@@ -437,3 +437,21 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 **Problem:** (1) What the analysis budget costs. On the built server, the front page, one analysis page and one tab click spent 11 analysis-budget requests, prefetches included, so 60 a minute is roughly 15 page views a minute: enough for reading, but prefetching spends most of it. (2) The window is fixed, not sliding, so one address can send up to twice the budget across a window boundary. A v1 limitation, now in the README and AD-10. (3) Keying an IPv6 address on the full address gives a client with a /64 (the usual allocation) an almost unlimited number of budgets; the deployment gate now also requires keying IPv6 by its /64 prefix. (4) AD-10 said not even process memory holds an address. That overclaimed: the request's headers hold it while the request is handled. What is true is that no long-lived structure holds one; AD-10 now says so.
 **Caught by:** The review step; the request count by loading the pages on the built server.
 **Outcome:** Story 1.10, issue #12, branch `story/1.10-rate-limit`; README "Rate limit" and technical note AD-10 updated.
+
+### 2026-10-16 — Correction: "None found wrong" in the Story 1.7, 1.8 and 1.10 entries
+**Tags:** docs · scope
+**Tool:** Claude Code (Opus 5.5), the review session, from the Epic 1 retrospective (finding L4)
+**Asked:** Correct the AI-process record before Epic 2 (retro action item 9).
+**Got:** The entries "Story 1.7: what the peer read reads …", "Story 1.8: the first kroner amount …" and "Story 1.10: the rate limiter and the logger …" each open their **Problem** with "None found wrong". That was written before review and never revised, and it is not true.
+**Problem:** (1) Story 1.7: the review patched 9 findings and 1 changed a locked decision. Among them: a failed candidate read was never driven through the page in any test, so a `catch { return [] }` passed every test (spec triage #1). The new selection rules existed only in the spec and not in `docs/key-figures.md` (#19). And 3 346 of the 8 299 covered AS companies, about 40 %, have no positive revenue and were shown "Fant ingen sammenlignbare selskaper", as if a search had come up empty. The human changed the locked decision and gave them their own sentence, without a revert. Before approval, the review session had also caught that the spec showed the same generic message to non-calendar subjects, and that it changed the 1.6a `isCandidate` signature without saying so. (2) Story 1.8: the review patched 8 findings, including a USD e2e test that passed whatever the currency (retro L2). Before approval, the review session found that the spec omitted two deferred-work entries addressed to 1.8: kroner only in NOK, which affects 85 USD and EUR filings in the seed, and the display rounding ban. It also found that the strip's linear min–max scale let one outlier squeeze the rest. (3) Story 1.10: the review patched 9 findings: 5 in code (`03d0533`), among them an event missing from the log vocabulary being dropped silently and a full-table sweep over all 10 000 entries; and 4 in docs (`f05cc89`). Before approval, the review session found that the spec named neither the salt's source nor what happens when the table is full. With a client-set header, either gap would have let one person reset or lock out everyone's budget.
+**Caught by:** The Epic 1 retrospective (L4), checked against each spec's Review Triage Log and `docs/ai-prompts.md`.
+**Outcome:** This entry. The three original entries stand unedited, as the log's rules require. Their "what could go wrong" analyses remain valid; only the opening claim is wrong.
+
+### 2026-10-16 — Correction: findings credited to the human in session files and PR comments
+**Tags:** docs
+**Tool:** Claude Code (Opus 5.5), the review session, from the Epic 1 retrospective (findings L5, L8)
+**Asked:** Correct the AI-process record before Epic 2 (retro action item 9).
+**Got:** The 1.3a, 1.3b and 1.5a session files, and the review comments on PR #17, #18 and #21, credited the human with findings the review session made. These were the negative `sumEiendeler` and `EDT` findings, the two step-1 tests that assumed empty tables, and the 920768695 industry-name mismatch. `docs/ai-prompts.md` credits them correctly.
+**Problem:** AGENTS.md: "When a decision or correction came from the review session, the session file says so; do not credit it to the human's own reading." The human's role was to decide and pass the instruction on. The finding itself came from a second Claude session that queried the database and ran the tests. In addition, PR #17 and #18 were merged before their review comments were posted, and #18's ordering was not acknowledged anywhere.
+**Caught by:** The Epic 1 retrospective, comparing the session files and PR comments with `docs/ai-prompts.md`.
+**Outcome:** The three session files were corrected on `main`, together with this entry. PR comments cannot be edited into the past, so this entry is the correction of record. From Epic 2 on, the review is posted before merge as a GitHub review with line comments, and the session-file update is checked before merge (retro action item 10).

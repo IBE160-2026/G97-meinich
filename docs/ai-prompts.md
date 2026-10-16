@@ -1,6 +1,6 @@
 # Prompts: how the AI sessions were steered
 
-This file records the prompts the human sent to the AI, verbatim, from Story 1.3a on, and what each one changed in the repository. It complements `docs/ai-sessions/` (one summary per session) and `docs/ai-log.md` (lessons).
+This file records the prompts the human sent to the AI, verbatim, from Story 1.1 on, and what each one changed in the repository. It complements `docs/ai-sessions/` (one summary per session) and `docs/ai-log.md` (lessons).
 
 ## How the work is set up
 
@@ -14,6 +14,72 @@ The prompts in the BMAD session below are therefore mostly drafted in the review
 ## How this file is produced
 
 Claude Code stores every session as a local transcript (`~/.claude/projects/<project>/<session>.jsonl`). After each story, the human's prompts are extracted from both sessions with their timestamps (UTC). Pasted BMAD output in the review session is shortened to a note in brackets. Menu choices made with the arrow keys are not in the transcript and are noted where they mattered. Before committing, the text is checked for passwords, connection strings, keys and personal data.
+
+---
+
+## Stories 1.1 and 1.2: the toolchain and the read boundary (#1/PR #15, #2/PR #16)
+
+These two stories ran before this file existed. The prompts below were extracted afterwards from the same transcripts, for the Epic 1 retrospective (finding L7). At that time the review session was an earlier desktop session, and the human mostly pasted the BMAD session's output into it to ask what to answer.
+
+### Prompts to the BMAD session
+
+**2026-10-10 19:50**: `/bmad-build`, with Story 1.1 chosen from the menu.
+
+**19:57**
+```
+Approve and continue. Two small things: update issue #1's branch name to story/1.1-toolchain-and-shell so issue, branch and PR match; and list the dead /slik-fungerer-peerless link in the PR as a known gap closed by story 1.6b. When the PR is open, stop — don't merge.
+```
+*Changed:* issue, branch and PR #15 share one name. The PR names the link that 404s until 1.6b as a known gap.
+
+**20:54**: Story 1.2, carrying a finding from the review of PR #15.
+```
+/bmad-build Story 1.2 (local Supabase with roles and grants).
+Two additions:
+1. Follow-up from the review of PR #15: `check:env` must also fail if `next.config.ts` has an `env` key, since those values are inlined into the client bundle regardless of the NEXT_PUBLIC_ prefix. Add a test for it.
+2. Do not push the branch and do not open a PR before I have reviewed the code. Stop when the story is ready for review and give me a summary.
+```
+```
+Yes, this is my request. PR #15 is already merged (3e9c6ce) and the 1.1 branch is deleted, so run `git pull` on main first and verify.
+1. Create story/1.2-<slug> from the updated main.
+2. Put the env-key check on the Story 1.2 branch, as its own commit, separate from the roles and grants work.
+As before: no push and no PR until I have reviewed it.
+```
+*Changed:* `pnpm check:env` also rejects an `env` key in `next.config.*` (AD-19). Values set there reach the browser bundle whatever their name. The rule "no push before the human has reviewed" started here.
+
+**21:10**: answer to the spec's password question, with four additions.
+```
+(c), and keep the spec whole.
+
+Add to the spec:
+1. ALTER DEFAULT PRIVILEGES must name the role that runs the migrations (FOR ROLE postgres or whichever it is), and the test must create its table as that same role. Otherwise the "tables added later" test proves nothing.
+2. Include service_role in the access tests: no access to register, the same as anon and authenticated.
+3. db:roles must never overwrite an existing password in .env, never print a password to stdout or a log, generate URL-safe passwords (e.g. hex from crypto.randomBytes), and refuse to write unless .env is gitignored. Test the idempotence: running it twice changes nothing.
+4. Test that reader cannot CREATE in any schema — register, app and public — not only register.
+
+Then show me the finished spec before you write any code.
+```
+*Changed:* without (1), the test for tables added later would have passed without testing anything, because default privileges apply only to objects created by the role they name.
+
+**21:15**
+```
+Approve and continue — but first add three things to the spec:
+1. db:roles refuses unless the host in SUPABASE_DB_URL is 127.0.0.1 or localhost (stage 2 brings a hosted database; the script must never be able to change passwords there). Add a matrix row and a test.
+2. Postgres grants EXECUTE on functions to PUBLIC by default. The migration also revokes that default for functions in register and app (ALTER DEFAULT PRIVILEGES FOR ROLE <migration role> ... REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC). The test checks that a function added later in register cannot be executed by anon or reader.
+3. Before you write the tests, verify that the role the tests connect as can SET ROLE to reader, anon, authenticated and service_role in Supabase's local Postgres (postgres is not a real superuser there). Record the result and the solution in Implementation Notes.
+```
+*Changed:* `pnpm db:roles` cannot reach a hosted database. Functions added later are not executable by default. The test setup was checked against Supabase's non-superuser `postgres` before any test relied on it. That check led to `GRANT reader TO postgres WITH INHERIT FALSE, SET TRUE`.
+
+**2026-10-11 09:08**: decisions on the review, before push.
+```
+Reviewed. Decisions: accept 1 (GRANT reader TO postgres WITH INHERIT FALSE, SET TRUE), accept 2 (the global EXECUTE revoke), accept 3 — but correct the spec so it says what the code does: db:roles reads .env to find SUPABASE_DB_URL, and writes nothing and alters no role before the host check.
+
+Before push, on this branch:
+- Change AGENTS.md so the DDL sentence says exactly what the test checks (CREATE/ALTER/DROP in .sql files live only in supabase/migrations; roles.sql holds only CREATE ROLE; db:roles may only run ALTER ROLE … PASSWORD against a local database). Remove that item from deferred-work.md.
+- Add to deferred-work.md for stage 2: hosted Supabase does not run supabase/roles.sql automatically; the roles must go with `supabase db push --include-roles` or be created otherwise, or the migration fails on GRANT … TO reader.
+
+Then push the branch and open the PR (Closes #2, list the FRs, link the session file, and add the review triage). Do not merge. Tell me when CI has run — the Supabase start on the runner is untested.
+```
+*Changed:* `2438e6a` and `b657c3e`, PR #16. The spec and AGENTS.md describe what the code does. The stage-2 trap with hosted roles is recorded in deferred work.
 
 ---
 
@@ -703,6 +769,64 @@ With PR #28, Epic 1 is complete.
 
 ---
 
-## From Story 1.5 on
+## Epic 1 retrospective (on `main`, `d168791`)
+
+### Prompts to the BMAD session
+
+**2026-10-16 13:44**: `/bmad-retrospective Epic 1`
+
+**14:01**: two questions, answered by typing into the menu (line breaks restored). On the verdict:
+```
+Fra meg: accepted-with-open-items, med frist per punkt:
+- Punkt 1 (rå databasefeil i loggen) og punkt 2 (Next.js-versjonen mot
+  sikkerhetsvarsler, særlig middleware-omgåelse siden rate limiteren
+  ligger i proxyen) lukkes før Epic 2 starter, som én liten PR.
+- Punkt 3 (motstridende tekst) går i deferred-work med eier-story.
+Skriv fristene inn som tiltak i retrospektiven.
+```
+The retro's open questions were answered in the box for its second menu question, "which action items to track". The BMAD session therefore tracked all 11 items and said so.
+```
+Fra meg:
+1. Ja: next 16.4.0 er sårbar for GHSA-2464-fhr4-w9xw og GHSA-673q-mjm6-r5xr
+   (begge kritiske, rettet i 16.4.1). Pin next og eslint-config-next til
+   16.4.2 i oppfølgings-PR-en, og noter det som et bommet AC i retroen.
+2. Behold "ikke oppgitt → intet bånd" og rett bare teksten (1 av 4 890
+   regnskap har utledet omsetning over 5 kr, og den er negativ).
+3. Tiltak 1–5 som én "Epic 1 follow-ups"-PR før Story 2.1.
+4. Ja, akseptabelt for lokal v1; AD-10-kontrollen dekker trinn 2.
+```
+*Changed:* the retro had left open whether `next` 16.4.0 was exposed to the 2026-10-14 advisory. The review session queried GitHub's security advisories for `vercel/next.js`. It found two critical unauthenticated remote-code-execution advisories, both fixed in 16.4.1, while the project pinned 16.4.0. This is recorded as a missed acceptance criterion from Story 1.1 and is fixed in the follow-ups PR before Epic 2.
+
+**14:03**: three corrections before commit.
+```
+Fra meg: tre rettelser, så commit retroen og sprint-status til main:
+1. Sikkerhetsvarslene er verifisert: GHSA-2464-fhr4-w9xw og
+   GHSA-673q-mjm6-r5xr, hentet fra GitHubs security advisories for
+   vercel/next.js av review-sesjonen, begge kritiske, publisert 2026-10-14,
+   rettet i 16.4.1. Skriv kilden i retroen i stedet for "not verified".
+2. Tiltak 10: en PR-forfatter kan ikke godkjenne sin egen PR på GitHub.
+   Endre til en review med linjekommentarer, sendt som "Comment" via
+   Files changed → Start a review, før merge.
+3. Sett last_updated tilbake til dag-måned-år (16-10-2026).
+```
+*Changed:* `d168791`. The retro's action 10 required "an Approve review before merge", which GitHub does not allow the author of a PR to give. It now requires a review with line comments, submitted as "Comment".
+
+**14:09**: the follow-ups PR was started:
+```
+/bmad-build Epic 1 follow-ups: retro action items 1, 3, 4 og 5 (epic-1-retro-2026-10-16.md). Én PR, logiske commits.
+```
+
+### Action 9, done by the review session
+
+The corrections to the AI-process record from findings L4–L8 were made on `main` in a separate worktree, alongside the follow-ups PR:
+- PR links in the stale session-file headers;
+- "rejected" sections for 1.6a–1.9;
+- credit to the review session in the 1.3a, 1.3b and 1.5a session files;
+- two correction entries in `docs/ai-log.md`;
+- the prompts for Stories 1.1 and 1.2 above.
+
+---
+
+## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

@@ -3,7 +3,7 @@
 **Date:** 2026-10-16
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #8, Story 1.6b
-**Result:** branch `story/1.6b-analysis-route-states` (PR to follow).
+**Result:** [PR #24](https://github.com/IBE160-2026/G97-meinich/pull/24), merged 2026-10-16, from branch `story/1.6b-analysis-route-states`.
 
 ## Goal
 

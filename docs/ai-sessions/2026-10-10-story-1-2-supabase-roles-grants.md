@@ -3,7 +3,7 @@
 **Date:** 2026-10-10
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session, one implementation subagent working from the frozen spec, three review subagents
 **Story / issue:** #2, Story 1.2
-**Result:** branch `story/1.2-supabase-roles-grants`, commits `44ab41a` (check:env `env` key), `ecf07ba` (CLI, roles, migration), `0298f7c` (db:roles), `9925b99` (tests), `9eaa9e4` (CI and docs), `9f8096d` (notes, AI log, this file), review fixes `7c0fe76`, `40aa01b`, `1778c3a`, `88cdab1`, the records commit and `2438e6a` (AGENTS.md DDL wording, spec wording); PR #16, pushed only after the human reviewed the branch
+**Result:** [PR #16](https://github.com/IBE160-2026/G97-meinich/pull/16), merged 2026-10-11, from branch `story/1.2-supabase-roles-grants`, commits `44ab41a` (check:env `env` key), `ecf07ba` (CLI, roles, migration), `0298f7c` (db:roles), `9925b99` (tests), `9eaa9e4` (CI and docs), `9f8096d` (notes, AI log, this file), review fixes `7c0fe76`, `40aa01b`, `1778c3a`, `88cdab1`, the records commit and `2438e6a` (AGENTS.md DDL wording, spec wording); the branch was pushed only after the human reviewed it
 
 ## Goal
 

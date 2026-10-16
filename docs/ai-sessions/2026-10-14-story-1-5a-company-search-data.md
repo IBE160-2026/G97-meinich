@@ -3,7 +3,7 @@
 **Date:** 2026-10-14
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #20, Story 1.5a
-**Result:** branch `story/1.5a-company-search-data`, PR [#21](https://github.com/IBE160-2026/G97-meinich/pull/21).
+**Result:** [PR #21](https://github.com/IBE160-2026/G97-meinich/pull/21), merged 2026-10-14, from branch `story/1.5a-company-search-data`.
 
 ## Goal
 
@@ -12,7 +12,8 @@ Store the business municipality (number and name) and the primary industry's nam
 ## Prompts that mattered
 
 - The dispatch to the implementation subagent: "Read `spec-1-5a-company-search-data.md` fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start."
-- The human decisions frozen in the spec: values stored as delivered; companies-only mode touches only the three fields on existing companies; a fourth column `search_fields_read_at` so `read_at` never describes values read later; the wrapper qualifies both function and dictionary by schema.
+- The human decisions frozen in the spec: values stored as delivered; companies-only mode touches only the three fields on existing companies.
+- Two changes to the spec at approval, recommended by the review session (a separate Claude session the human uses to check the BMAD output) after it read the spec, and approved by the human: a fourth column `search_fields_read_at`, so `read_at` never describes values read later (the spec itself had said the new values would be read later than `read_at` says); and the wrapper qualifies both the `unaccent` function and its dictionary by schema, so the result does not depend on `search_path`.
 
 ## What came back, and what was done with it
 
@@ -23,7 +24,7 @@ Store the business municipality (number and name) and the primary industry's nam
 - **Corrected against the spec, and how it was caught:**
   - "GRANT EXECUTE on the wrapper to `reader` only" was tried in a rolled-back transaction before the migration was written: as `ingest` and `loader`, writing `register.company` failed with "permission denied for function immutable_unaccent", because Postgres evaluates an index expression as the writer; and as `reader` the call failed with "permission denied for schema extensions". The migration grants EXECUTE and USAGE on `extensions` to `reader`, `ingest` and `loader`. This departs from a frozen line of the spec and needs the human's agreement at review.
   - The spec suggests adding a fixture unit without `forretningsadresse`. The recorded fixtures are byte-for-byte register responses, so the tests instead delete `forretningsadresse` from a copy of 919951834, which keeps its `postadresse`.
-- **Found in the data:** 920768695 (KIRKEBY GÅRDSDRIFT, `ENK`) is stored with `naeringskode1` 62.100, but the register now names its primary industry "Produksjon av møbler"; the first companies-only run stored that description next to the old code, as specified then.
+- **Found in the data, by the review session (see "Before push"):** 920768695 (KIRKEBY GÅRDSDRIFT, `ENK`) is stored with `naeringskode1` 62.100, but the register now names its primary industry "Produksjon av møbler"; the first companies-only run stored that description next to the old code, as specified then.
 
 ## Review
 
@@ -39,9 +40,9 @@ Three review layers ran on the diff: blind hunter, edge-case hunter and verifica
 - **One deferred to Story 1.5b** (`deferred-work.md`): ENK municipality privacy, description versus stored code, and an `EXPLAIN` test that the name query uses the index.
 - **Eight rejected,** with reasons.
 
-## Before push (human)
+## Before push (review session and human)
 
-- **The human found the 920768695 mismatch in the result** and changed the rule. Companies-only mode now stores `naeringskode1_beskrivelse` only when the register's `naeringskode1` equals the stored one; otherwise it stores NULL and names the company in the summary. There is a test for this: `test_companies_only_names_a_changed_primary_code`.
+- **The review session found the 920768695 mismatch** by querying the refreshed data; neither the BMAD session nor its reviewers had caught it. The human decided to change the rule and passed it on. Companies-only mode now stores `naeringskode1_beskrivelse` only when the register's `naeringskode1` equals the stored one; otherwise it stores NULL and names the company in the summary. There is a test for this: `test_companies_only_names_a_changed_primary_code`.
 - **Re-run of `pnpm ingest --companies-only`:** exit 0, 17 547 updated, 10 not found, 1 code differs (920768695 stored 62.100, bulk 31.000).
 - **Re-exported seed:** the only changed value is that row's description, now NULL. `search_fields_read_at` moved to the re-run's time on the 17 547 rows read again; every other column is byte-identical. `pnpm seed` twice and `pnpm seed:export`: stable.
 - **For Story 1.5b, as the human asked:** 504 stored companies have no municipality (494 read without one, 491 `NUF` and 3 `FLI`; 10 not found in the bulk file). Search must show them without one. This is recorded in `spec-1-5b-company-search.md`.

@@ -3,7 +3,7 @@
 **Date:** 2026-10-15
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
 **Story / issue:** #6, Story 1.5b
-**Result:** branch `story/1.5b-search`; [PR #22](https://github.com/IBE160-2026/G97-meinich/pull/22).
+**Result:** [PR #22](https://github.com/IBE160-2026/G97-meinich/pull/22), merged 2026-10-15, from branch `story/1.5b-search`.
 
 ## Goal
 

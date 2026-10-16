@@ -3,7 +3,7 @@
 **Date:** 2026-10-10
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session, one implementation subagent working from a frozen spec, three review subagents
 **Story / issue:** #1, Story 1.1
-**Result:** PR #15 on branch `story/1.1-toolchain-and-shell`, commits `0c32889` (spec) through the review fixes; not merged
+**Result:** [PR #15](https://github.com/IBE160-2026/G97-meinich/pull/15), merged 2026-10-10, from branch `story/1.1-toolchain-and-shell`, commits `0c32889` (spec) through the review fixes
 
 ## Goal
 

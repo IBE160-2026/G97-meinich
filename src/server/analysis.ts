@@ -151,12 +151,18 @@ export const lookupSubject = cache(async (orgnr: string): Promise<Subject | null
 
 /**
  * A candidate's filing as the funnel reads it, with what the Peers list
- * shows: the name and the municipality. Nothing else per peer is read
- * (AD-4): no assets, no employee count, no figure but revenue.
+ * shows (the name and the municipality) and the seven key-figure inputs the
+ * three API figures are computed from (Story 1.8). Selection never reads
+ * those inputs (src/engine/peers.ts takes a CandidateFiling, which has no
+ * such field); they are compared only after the group is formed. Nothing
+ * else per peer is read (AD-4): no employee count, no other register field.
+ * None of it reaches the browser as a value: the page sends only the
+ * formatted statistics.
  */
 export type Candidate = CandidateFiling & {
   readonly navn: string | null;
   readonly kommune: string | null;
+  readonly keyFigures: SubjectKeyFigures;
 };
 
 interface CandidateRow {
@@ -175,12 +181,19 @@ interface CandidateRow {
   smaa_foretak: boolean | null;
   avviklingsregnskap: boolean | null;
   sum_driftsinntekter_ore: string | null;
+  driftsresultat_ore: string | null;
+  sum_driftskostnad_ore: string | null;
+  sum_eiendeler_ore: string | null;
+  sum_egenkapital_gjeld_ore: string | null;
+  sum_egenkapital_ore: string | null;
+  sum_gjeld_ore: string | null;
 }
 
 // Every filing in the benchmark year ($3) of every company with the
 // subject's primary industry ($2), other than the subject ($1). The engine
 // picks each company's benchmark filing and runs stages 1–3; the band is
-// applied there, so one read serves every band.
+// applied there, so one read serves every band. The key-figure columns are
+// the seven the engine's API inputs read, as in SUBJECT_SQL.
 export const CANDIDATES_SQL = `
 select c.orgnr,
        c.navn,
@@ -196,7 +209,13 @@ select c.orgnr,
        f.regnskapsregler,
        f.smaa_foretak,
        f.avviklingsregnskap,
-       k.sum_driftsinntekter_ore
+       k.sum_driftsinntekter_ore,
+       k.driftsresultat_ore,
+       k.sum_driftskostnad_ore,
+       k.sum_eiendeler_ore,
+       k.sum_egenkapital_gjeld_ore,
+       k.sum_egenkapital_ore,
+       k.sum_gjeld_ore
   from register.company c
   join register.filing f on f.orgnr = c.orgnr and f.filing_year = $3::smallint
   left join register.key_figures k on k.brreg_id = f.brreg_id
@@ -224,6 +243,15 @@ function toCandidate(row: CandidateRow): Candidate {
     smaaForetak: row.smaa_foretak,
     avviklingsregnskap: row.avviklingsregnskap,
     sumDriftsinntekter: parseOre(row.sum_driftsinntekter_ore),
+    keyFigures: {
+      sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
+      driftsresultat_ore: row.driftsresultat_ore,
+      sum_driftskostnad_ore: row.sum_driftskostnad_ore,
+      sum_eiendeler_ore: row.sum_eiendeler_ore,
+      sum_egenkapital_gjeld_ore: row.sum_egenkapital_gjeld_ore,
+      sum_egenkapital_ore: row.sum_egenkapital_ore,
+      sum_gjeld_ore: row.sum_gjeld_ore,
+    },
   };
 }
 

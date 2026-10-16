@@ -46,7 +46,7 @@ describe('PeerList', () => {
 
   it('sits in a focusable, labelled scroll region', () => {
     expect(render()).toMatch(
-      new RegExp(`<div role="region" tabindex="0" aria-label="${nb['peers.regionLabel']}" class="[^"]*overflow-x-auto`),
+      new RegExp(`<div role="region" tabindex="0" aria-label="${nb['peers.regionLabel']}" class="[^"]*scroll-region`),
     );
   });
 

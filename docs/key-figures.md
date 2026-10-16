@@ -27,6 +27,8 @@ A stated value is always used as it is, however small. **A derived denominator o
 
 **Distribution.** Median and quartiles use linear interpolation between order statistics (the inclusive method, as `PERCENTILE.INC` in Excel), so every figure can be checked in a spreadsheet. The *favourable quartile* is the upper quartile where higher is better and the lower quartile where lower is better.
 
+**Distribution strip.** The strip drawn in each benchmark row spans the 5th to the 95th percentile of the peer values used (`PERCENTILE.INC` at 0.05 and 0.95), so one extreme peer cannot squeeze the rest into a corner; the median and both quartiles always fall inside it. A subject value outside that domain is drawn at the edge with a marker pointing outwards. If the two percentiles are equal, every mark sits at the centre. Lower-is-better figures are drawn mirrored, so better is always to the right. The strip is geometry only: every value it shows is also in the row as text.
+
 **Percentile.** The share of peers the subject does better than, counting ties as half: (peers worse + 0.5 × peers equal) / peers × 100, in the favourable direction.
 
 ## Source fields
@@ -133,7 +135,7 @@ The target is the favourable quartile at every setting of *s*, and *s* scales th
 
 **One exception: the "to the median" step.** The control offers, besides its fixed steps, the share at which the subject's operating margin (1) would reach the peer median *M*: *s*<sub>med</sub> = (M − r) / (T − r), computed exactly and shown rounded to a whole percent. The median only sets *s*; the amounts are then computed by the formulas below with that exact *s*, never with the rounded one shown, and every amount still targets the favourable quartile. The step is defined on operating margin only and labelled so, because other figures reach their own medians at other shares. It exists only where r < M < T; where the subject is at or above the median, it is shown disabled.
 
-- **Profit (1):** (T − r) × `sumDriftsinntekter` × s. This is the annual profit uplift.
+- **Profit (1):** (T − r) × `sumDriftsinntekter` × s. This is the annual profit uplift. `sumDriftsinntekter` is the subject's resolved revenue — stated, or derived from `driftsresultat` + `sumDriftskostnad` as under *Deriving a missing API input* — in exact øre, never a rounded figure; the product is rounded once, to whole kroner, at display. The amount is produced only when the subject's filing has `valuta` NOK; otherwise the cell reads "Beløpet er ikke i kroner", because amounts are written in kroner. A subject at or above T is a strength with no amount in any currency.
 - **Cost shares (3–5):** no kroner amount of their own. Their median, favourable quartile and percentile are shown as for any figure; what they mean in kroner is shown by the margin decomposition against the peer group as a whole (see *Decompositions*), which sums exactly and is never added to the profit uplift.
 - **Receivable days (9):** (r − T) / 365 × `salgsinntekt` × s of capital released.
 - **Payable days (10):** (T − r) / 365 × (`varekostnad` + `annenDriftskostnad`) × s.

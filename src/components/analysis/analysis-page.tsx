@@ -27,14 +27,17 @@ import {
   type AnalysisView,
   type Subject,
 } from '@/analysis/view';
+import { shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
+import { KeyFigureTable } from '@/components/analysis/key-figure-table';
 import { AnalysisLoading } from '@/components/analysis/analysis-loading';
 import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
-import { assemblePeerGroup, withoutExcluded, type EmptyReason, type PeerGroup } from '@/engine/peers';
+import { formatOrgnr } from '@/engine/format';
+import { assemblePeerGroup, type PeerGroup } from '@/engine/peers';
 import { t } from '@/messages';
 import { industryInSentence, joinList } from '@/messages/industry';
 import { lookupCandidates, lookupSubject, type Candidate } from '@/server/analysis';
@@ -55,15 +58,8 @@ export function searchString(searchParams: SearchParams): string {
   return text === '' ? '' : `?${text}`;
 }
 
-/** The peer group as the page shows it: the pool at the URL's band with the `ekskl` peers removed. */
-type ShownGroup = {
-  readonly peers: readonly Candidate[];
-  /** The group's currency, the subject's: stage 2 makes every peer's equal. */
-  readonly valuta: string | null;
-  readonly emptyReason: EmptyReason;
-  /** The subject's benchmark year. */
-  readonly filingYear: number;
-};
+/** The peer group as the page shows it (src/analysis/shown-group.ts). */
+type ShownGroup = ShownGroupOf<Candidate>;
 
 const NO_POOL: ReadonlySet<string> = new Set();
 
@@ -100,15 +96,10 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
   const parsed = parseSegments(segments, search, urlContext((band) => groupAt(band)?.orgnrs ?? NO_POOL));
   const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
   const filing = subject?.filing ?? null;
-  const group: ShownGroup | null =
+  const group =
     at === null || parsed.kind !== 'analysis' || filing === null
       ? null
-      : {
-          peers: withoutExcluded(at.group.pool, parsed.state.ekskl),
-          valuta: filing.valuta,
-          emptyReason: at.group.emptyReason,
-          filingYear: filing.filingYear,
-        };
+      : shownGroup(at.group.pool, parsed.state.ekskl, at.group.emptyReason, filing);
   return { parsed, subject, group, view: analysisView(subject, parsed, search) };
 }
 
@@ -135,10 +126,12 @@ function SearchAgain() {
 }
 
 function Covered({
+  subject,
   state,
   view,
   group,
 }: {
+  readonly subject: Subject;
   readonly state: AnalysisState;
   readonly view: AnalysisView;
   readonly group: ShownGroup;
@@ -147,7 +140,7 @@ function Covered({
   return (
     <>
       <TabLinks state={state} active={view.fane} />
-      {/* Oversikt and Nøkkeltall get their content in Stories 1.8–1.9. */}
+      {/* Oversikt gets its content in Story 1.9. */}
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">
           {t(`tabs.${view.fane}`)}
@@ -158,6 +151,13 @@ function Covered({
             valuta={group.valuta}
             emptyReason={group.emptyReason}
             filingYear={group.filingYear}
+          />
+        ) : null}
+        {view.fane === 'nokkeltall' ? (
+          <KeyFigureTable
+            benchmark={group.benchmark}
+            companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
+            smaaForetak={group.smaaForetak}
           />
         ) : null}
       </section>
@@ -218,13 +218,13 @@ async function AnalysisBody({
 }) {
   const coverage =
     view.state === 'uncovered' ? joinList((await coveredIndustries()).map(industryInSentence)) : '';
-  const shownGroup = view.state === 'covered' ? group : null;
+  const coveredGroup = view.state === 'covered' ? group : null;
 
   return (
     <main id="innhold" className="flex-1">
-      <CompanyHeader subject={subject} peerCount={shownGroup?.peers.length} />
+      <CompanyHeader subject={subject} peerCount={coveredGroup?.peers.length} />
       <SettingsNotice show={view.notice} />
-      {shownGroup !== null ? <Covered state={state} view={view} group={shownGroup} /> : null}
+      {coveredGroup !== null ? <Covered subject={subject} state={state} view={view} group={coveredGroup} /> : null}
       {view.state === 'uncovered' ? (
         <OwnFigures
           subject={subject}

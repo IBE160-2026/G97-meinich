@@ -50,6 +50,37 @@ describe('rounding ban (AD-8)', () => {
   });
 });
 
+describe('display rounding ban (Story 1.8, AD-6)', () => {
+  async function messages(virtualPath: string) {
+    const code = readFileSync(path.join(root, 'test/fixtures/lint/display-rounding.tsx'), 'utf8');
+    const [result] = await eslint.lintText(code, { filePath: path.join(root, virtualPath) });
+    if (!result) throw new Error(`no lint result for ${virtualPath}`);
+    return result.messages.filter((m) => m.severity === 2);
+  }
+
+  for (const virtualPath of ['src/components/fixture.tsx', 'src/app/fixture-page.tsx', 'src/components/kroner-format.tsx']) {
+    it(`rejects toFixed, toDecimalPlaces, toDP, toSignificantDigits and toLocaleString in ${virtualPath}`, async () => {
+      const found = await messages(virtualPath);
+      expect(found.map((m) => m.ruleId)).toEqual(Array(5).fill('no-restricted-properties'));
+      expect(found.map((m) => m.line)).toEqual([9, 10, 11, 12, 13]);
+    });
+  }
+
+  it('keeps Intl.NumberFormat banned in src/components alongside the display list', async () => {
+    expect(await ruleIds('intl-number-format.ts', 'src/components/fixture.ts')).toContain('no-restricted-properties');
+  });
+
+  it('keeps Math.round banned in a formatting file under src/components', async () => {
+    expect(await ruleIds('engine-math-round.ts', 'src/components/kroner-format.ts')).toContain(
+      'no-restricted-properties',
+    );
+  });
+
+  it('leaves the methods alone outside src/app and src/components (scripts, tests)', async () => {
+    expect((await messages('scripts/fixture.tsx')).map((m) => m.ruleId)).not.toContain('no-restricted-properties');
+  });
+});
+
 describe('Intl.NumberFormat ban (AD-6)', () => {
   it('rejects Intl.NumberFormat in src/', async () => {
     expect(await ruleIds('intl-number-format.ts', 'src/components/fixture.ts')).toContain(

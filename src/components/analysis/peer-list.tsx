@@ -5,8 +5,9 @@
 // name, grouped 3-3-3 in its place, as the spec allows; rows are never keyed
 // by orgnr, because a React key travels in the RSC payload.
 //
-// The table sits in its own horizontal scroll region, so it may be wider
-// than a phone while the page body never scrolls sideways.
+// The table sits in its own horizontal scroll region (`.scroll-region` in
+// globals.css, with the edge fade), so it may be wider than a phone while
+// the page body never scrolls sideways.
 import type { EmptyReason } from '@/engine/peers';
 import { formatKommune, formatMillions, formatOrgnr } from '@/engine/format';
 import { t } from '@/messages';
@@ -64,7 +65,7 @@ export function PeerList({
           role="region"
           tabIndex={0}
           aria-label={t('peers.regionLabel')}
-          className="mt-4 max-w-full overflow-x-auto rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-link"
+          className="scroll-region mt-4"
         >
           <table className="w-full border-collapse text-left">
             <caption className="sr-only">{t('peers.regionLabel')}</caption>

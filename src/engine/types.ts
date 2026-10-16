@@ -87,6 +87,13 @@ export type Comparison =
       readonly lowerQuartile: Decimal;
       readonly upperQuartile: Decimal;
       /**
+       * The 5th and 95th percentiles (PERCENTILE.INC) of the peer values
+       * used: the distribution strip's domain, so one extreme peer cannot
+       * squeeze the others into a corner. Every quartile lies inside them.
+       */
+      readonly p5: Decimal;
+      readonly p95: Decimal;
+      /**
        * Beste fjerdedel and Plassering, in the favourable direction; null for
        * a figure with no direction. `percentile` is in percent (0–100).
        */

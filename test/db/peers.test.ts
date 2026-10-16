@@ -9,6 +9,8 @@ import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { funnelSubject } from '../../src/analysis/view.ts';
 import { DEMO_COMPANIES } from '../../src/demo-companies.ts';
+import { benchmarkApiFigures } from '../../src/engine/benchmark.ts';
+import { apiInputsFromRow } from '../../src/engine/inputs.ts';
 import { assemblePeerGroup } from '../../src/engine/peers.ts';
 import { listRepositoryFiles } from '../../scripts/check-no-public-env.ts';
 import { root, setting } from './db-env.ts';
@@ -53,6 +55,39 @@ describe("demo A's peer group", () => {
       expect(candidate.sumDriftsinntekter === null || typeof candidate.sumDriftsinntekter === 'bigint').toBe(true);
       expect(candidate.periodeFra).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
+  });
+
+  it('carries each candidate’s seven key-figure inputs as int8 strings, so the API figures can be benchmarked', async () => {
+    const { group } = await groupForDemoA(0);
+    const keys = [
+      'sum_driftsinntekter_ore',
+      'driftsresultat_ore',
+      'sum_driftskostnad_ore',
+      'sum_eiendeler_ore',
+      'sum_egenkapital_gjeld_ore',
+      'sum_egenkapital_ore',
+      'sum_gjeld_ore',
+    ] as const;
+    for (const peer of group.pool) {
+      expect(Object.keys(peer.keyFigures).sort()).toEqual([...keys].sort());
+      for (const key of keys) {
+        const value = peer.keyFigures[key];
+        expect(value === null || /^-?\d+$/.test(value), `${key} = ${String(value)}`).toBe(true);
+      }
+      // The revenue the funnel read is the same column, parsed exactly.
+      expect(apiInputsFromRow(peer.keyFigures).sumDriftsinntekter).toBe(peer.sumDriftsinntekter);
+    }
+    // Demo A's group is large enough that every figure clears the floor.
+    const subject = await loadSubject(DEMO_A.orgnr);
+    if (subject === null || subject.filing === null) throw new Error('demo A has no filing');
+    const result = benchmarkApiFigures(
+      apiInputsFromRow(subject.filing.keyFigures),
+      group.pool.map((peer) => apiInputsFromRow(peer.keyFigures)),
+      subject.filing.valuta,
+    );
+    expect(result.driftsmargin.comparison.kind).toBe('compared');
+    expect(result.totalkapitalrentabilitet.comparison.kind).toBe('compared');
+    expect(result.egenkapitalandel.comparison.kind).toBe('compared');
   });
 
   it('is a non-empty AS group whose pool widens with the band', async () => {

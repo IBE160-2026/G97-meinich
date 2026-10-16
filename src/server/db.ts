@@ -4,7 +4,9 @@ import 'server-only';
 // nowhere else (test/reader-url.test.ts). One client per process: it is kept
 // on globalThis so a dev-server reload does not open a second pool. Every
 // statement has a 5 s timeout (statement_timeout), because the request path
-// is open and unauthenticated.
+// is open and unauthenticated, and every transaction is read-only
+// (default_transaction_read_only), so a request cannot write even by mistake;
+// `reader` holds no write grant either (AD-3).
 //
 // postgres.js is used with its default types: int8 and numeric arrive as
 // strings and are parsed by src/engine/inputs.ts (AD-8). Do not add a
@@ -28,9 +30,9 @@ export function readerSql(): ReaderSql {
       idle_timeout: 60,
       connect_timeout: 10,
       onnotice: () => {},
-      // /api/sok is open to anyone: no query may hold a connection longer
-      // than five seconds.
-      connection: { application_name: 'peerless-web', statement_timeout: 5000 },
+      // The request path is open to anyone: no query may hold a connection
+      // longer than five seconds, and no transaction may write.
+      connection: { application_name: 'peerless-web', statement_timeout: 5000, default_transaction_read_only: true },
     });
   }
   return holder.peerlessReaderSql;

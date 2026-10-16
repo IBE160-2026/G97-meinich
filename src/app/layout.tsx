@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/source-serif-4';
 import './globals.css';
+import { FocusManager } from '@/components/analysis/focus-manager';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { t } from '@/messages';
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SiteHeader />
         {children}
         <SiteFooter />
+        <FocusManager />
       </body>
     </html>
   );

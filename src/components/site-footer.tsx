@@ -3,7 +3,7 @@ import { t } from '@/messages';
 
 // The source line on every page (FR-65): "Data fra Brønnøysundregistrene,
 // bearbeidet av Peerless · Kilder og lisens". The link goes to the sources
-// section of /slik-fungerer-peerless, which Story 1.6b builds.
+// section of /slik-fungerer-peerless.
 export function SiteFooter() {
   return (
     <footer className="mx-gutter-phone mt-7 border-t border-divider pt-4 pb-[22px] text-[12.5px] text-slate md:mx-gutter-desktop md:mt-10">

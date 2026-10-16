@@ -10,6 +10,7 @@ import {
   formatOrgnr,
   formatPercent,
   formatPercentagePoints,
+  formatReadDate,
   formatSignedKroner,
   formatTurnover,
   formatWholePercent,
@@ -128,5 +129,26 @@ describe('lowerFirst', () => {
     expect(lowerFirst('Dataprogrammeringstjenester')).toBe('dataprogrammeringstjenester');
     expect(lowerFirst('Ærlig Drift')).toBe('ærlig Drift');
     expect(lowerFirst('')).toBe('');
+  });
+});
+
+describe('formatReadDate', () => {
+  it('writes the date in Europe/Oslo, not UTC: 2026-10-02T23:30Z is 3 October in Oslo', () => {
+    expect(formatReadDate(new Date('2026-10-02T23:30:00Z'))).toBe('3. okt. 2026');
+  });
+
+  it.each([
+    ['2026-01-01T00:00:00+01:00', '1. jan. 2026'],
+    ['2025-12-31T22:59:59Z', '31. des. 2025'],
+    ['2025-12-31T23:00:00Z', '1. jan. 2026'],
+    ['2026-03-29T00:30:00Z', '29. mar. 2026'],
+    ['2026-05-17T12:00:00Z', '17. mai 2026'],
+    ['2026-10-11T13:36:34Z', '11. okt. 2026'],
+  ])('%s → %s', (iso, shown) => {
+    expect(formatReadDate(new Date(iso))).toBe(shown);
+  });
+
+  it('refuses an invalid date', () => {
+    expect(() => formatReadDate(new Date('not a date'))).toThrow(TypeError);
   });
 });

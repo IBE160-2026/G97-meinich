@@ -58,8 +58,12 @@ export type AnalysisState = {
 
 export type ParseResult =
   | { readonly kind: 'analysis'; readonly state: AnalysisState; readonly invalidSettings: boolean }
-  /** `length`: not nine digits after removing spaces; `checksum`: nine digits failing modulus 11. */
-  | { readonly kind: 'invalid-orgnr'; readonly reason: 'length' | 'checksum' }
+  /**
+   * `length`: not nine digits after removing spaces; `checksum`: nine digits
+   * failing modulus 11. `input` is the orgnr segment as typed, decoded, for
+   * the search field that shows the message.
+   */
+  | { readonly kind: 'invalid-orgnr'; readonly reason: 'length' | 'checksum'; readonly input: string }
   | { readonly kind: 'not-analysis' };
 
 export type ParseContext = {
@@ -151,9 +155,10 @@ export function parse(href: string, context: ParseContext): ParseResult {
   const segments = pathname.slice(PATH_PREFIX.length).split('/');
   if (segments.length > 2) return { kind: 'not-analysis' };
 
-  const orgnr = stripSpaces(decodeSegment(segments[0] ?? ''));
-  if (!/^\d{9}$/.test(orgnr)) return { kind: 'invalid-orgnr', reason: 'length' };
-  if (!isValidOrgnr(orgnr)) return { kind: 'invalid-orgnr', reason: 'checksum' };
+  const input = decodeSegment(segments[0] ?? '');
+  const orgnr = stripSpaces(input);
+  if (!/^\d{9}$/.test(orgnr)) return { kind: 'invalid-orgnr', reason: 'length', input };
+  if (!isValidOrgnr(orgnr)) return { kind: 'invalid-orgnr', reason: 'checksum', input };
 
   let invalidSettings = false;
 
@@ -231,6 +236,27 @@ export function parse(href: string, context: ParseContext): ParseResult {
   }
 
   return { kind: 'analysis', state: { orgnr, fane, ekskl, band, andel, multippel }, invalidSettings };
+}
+
+/**
+ * Parses an analysis URL from its route segments, as a page receives them,
+ * and its query string (with or without the leading "?"). Next.js 16 passes
+ * segments still percent-encoded ("813%20235%20552"); a decoded segment is
+ * accepted too. Each segment is decoded once and percent-encoded again
+ * before `parse` decodes it, so either form reads the same, a segment
+ * holding "/", "?" or "#" stays one segment, and pages never compose the
+ * path themselves.
+ */
+export function parseSegments(
+  segments: { readonly orgnr: string; readonly fane?: string },
+  search: string,
+  context: ParseContext,
+): ParseResult {
+  const encode = (segment: string): string => encodeURIComponent(decodeSegment(segment));
+  let path = `${PATH_PREFIX}${encode(segments.orgnr)}`;
+  if (segments.fane !== undefined) path += `/${encode(segments.fane)}`;
+  const query = search === '' || search.startsWith('?') ? search : `?${search}`;
+  return parse(path + query, context);
 }
 
 /**

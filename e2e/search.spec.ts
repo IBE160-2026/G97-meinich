@@ -1,6 +1,7 @@
 // The front page and its search (Story 1.5b), against the production build
-// and the loaded demo seed. The analysis pages arrive in Story 1.6b, so a
-// navigation is checked by its URL only.
+// and the loaded demo seed. A navigation is checked by its URL: the bare
+// analysis path of a covered company redirects to its Oversikt tab
+// (Story 1.6b; the analysis pages are tested in e2e/analysis.spec.ts).
 import { expect, test, type Page } from '@playwright/test';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
@@ -99,14 +100,14 @@ test.describe('typing', () => {
     await combobox(page).press('ArrowDown');
     await expect(combobox(page)).toHaveAttribute('aria-expanded', 'true');
     await combobox(page).press('Enter');
-    await page.waitForURL(`**/analyse/${ADMMIT}`);
+    await page.waitForURL(`**/analyse/${ADMMIT}/oversikt`);
   });
 
   test('a click on a result opens it', async ({ page }) => {
     await page.goto('/');
     await combobox(page).fill('admmit');
     await page.getByRole('option', { name: /ADMMIT AS/ }).click();
-    await page.waitForURL(`**/analyse/${ADMMIT}`);
+    await page.waitForURL(`**/analyse/${ADMMIT}/oversikt`);
   });
 
   test('typing the ninth digit opens nothing; fewer digits make no request and no error', async ({ page }) => {
@@ -153,7 +154,7 @@ test.describe('submit', () => {
     await page.goto('/');
     await combobox(page).fill('813 235 552');
     await submit(page).click();
-    await page.waitForURL(`**/analyse/${ADMMIT}`);
+    await page.waitForURL(`**/analyse/${ADMMIT}/oversikt`);
   });
 
   test('a valid orgnr not in the database shows the not-in-database copy and the demo links', async ({ page }) => {

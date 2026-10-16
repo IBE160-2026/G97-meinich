@@ -125,3 +125,36 @@ export function lowerFirst(text: string): string {
   const [first = '', ...rest] = Array.from(text);
   return first.toLocaleLowerCase('nb') + rest.join('');
 }
+
+/**
+ * Month abbreviations as Peerless writes them (EXPERIENCE.md, "Data date":
+ * "hentet 3. okt. 2026"). Fixed here rather than taken from Intl, whose nb
+ * month names differ between ICU versions.
+ */
+const MONTHS_NB = ['jan.', 'feb.', 'mar.', 'apr.', 'mai', 'jun.', 'jul.', 'aug.', 'sep.', 'okt.', 'nov.', 'des.'] as const;
+
+const OSLO_DATE = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Europe/Oslo',
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+});
+
+/**
+ * A point in time → its calendar date in Europe/Oslo: "3. okt. 2026". Only
+ * the numeric day, month and year are taken from Intl (with the time zone);
+ * the words are fixed above, so the server writes the same date whatever
+ * its own zone or locale data.
+ */
+export function formatReadDate(date: Date): string {
+  if (Number.isNaN(date.getTime())) throw new TypeError('a date to format must be valid');
+  const parts = OSLO_DATE.formatToParts(date);
+  const part = (type: 'day' | 'month' | 'year'): number => {
+    const found = parts.find((p) => p.type === type);
+    if (found === undefined) throw new TypeError(`no ${type} in the formatted date`);
+    return Number(found.value);
+  };
+  const month = MONTHS_NB[part('month') - 1];
+  if (month === undefined) throw new TypeError('month out of range');
+  return `${part('day')}. ${month} ${part('year')}`;
+}

@@ -5,6 +5,7 @@ import 'server-only';
 //
 // Both queries are parameterised ($1); the SQL text is exported so the
 // database tests can EXPLAIN exactly what runs.
+import { cache } from 'react';
 import type { CoveredIndustry } from '../messages/industry.ts';
 import { MAX_SEARCH_RESULTS, type SearchResult } from '../search-contract.ts';
 import { readerSql } from './db.ts';
@@ -72,8 +73,10 @@ export async function searchCompanies(query: SearchQuery): Promise<SearchResult[
  * The covered industries (register.covered_industry, written by the loader
  * from seed/coverage.json) with the register's name for each code: the
  * naeringskode1_beskrivelse most stored companies under that code carry.
+ * Read once per request: the header search, the front page and the analysis
+ * all call it, and React's cache() shares the one query between them.
  */
-export async function coveredIndustries(): Promise<CoveredIndustry[]> {
+export const coveredIndustries = cache(async (): Promise<CoveredIndustry[]> => {
   const sql = readerSql();
   const rows = await sql<{ code: string; beskrivelse: string | null }[]>`
     select ci.code,
@@ -86,4 +89,4 @@ export async function coveredIndustries(): Promise<CoveredIndustry[]> {
       from register.covered_industry ci
      order by ci.code`;
   return rows.map((row) => ({ code: row.code, beskrivelse: row.beskrivelse }));
-}
+});

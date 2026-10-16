@@ -507,6 +507,55 @@ CI on `a6d05d8` was green before the review. The human posted the review at 08:0
 
 ---
 
+## Story 1.7: Peerless finds comparable companies, stages 1–3 (#9, PR #25)
+
+### Prompts to the BMAD session
+
+**2026-10-16 08:10**
+```
+/bmad-build Story 1.7, issue #9
+```
+
+**08:20**: answers to the spec's two questions, plus two points the review session raised after reading it.
+```
+Fra meg:
+Behold spec-en hel.
+2: Hverken ren (a) eller (c). Bruk (a)-strukturen (vanlig analyse, ingen
+   ny sidetilstand), men når grunnen til null peers er at selskapets
+   regnskapsår ikke er kalenderår, viser Peers-fanen en egen tekst som
+   sier det, f.eks. "Peerless sammenligner foreløpig bare selskaper med
+   kalenderår som regnskapsår." Oppdater PRD og UX med én linje.
+I tillegg:
+- isCandidate(peer, band) endrer en beslutning fra 1.6a. Skriv i spec-en,
+  session-fila og AGENTS.md hvorfor: båndet leses av parse selv, så den
+  som kaller kan ikke lukke over det.
+- Lukk deferred-posten om sovende selskaper: trinn 1 krever omsetning
+  innenfor båndet, så selskaper med null omsetning kan ikke bli peers.
+  Legg til en testrad som viser det.
+```
+*Changed:* the AI recommended (c): show the generic "Fant ingen sammenlignbare selskaper" for the 10 % of filings whose year isn't a calendar year, and defer the explanation. That suggests a search found nothing, when no search was made. The engine now returns `emptyReason`, and the Peers tab explains. The AI had changed the 1.6a `isCandidate` signature without saying so. The change was justified, so it was kept and documented as a deliberate reversal.
+
+**08:24**: `Approve and continue`
+
+**08:50**: the review found that 3 346 of the 8 299 covered AS companies (about 40 %) have no positive revenue, and so never get peers. That changed a locked decision in the spec.
+```
+Fra meg: (a), og ja, hopp over revert. Skriv endringen av den låste
+beslutningen inn i spec-ens endringslogg med dato og at jeg godkjente den.
+Teksten skal dekke null, negativ og manglende omsetning, f.eks.:
+"Peerless finner sammenlignbare selskaper ut fra omsetning, og regnskapet
+for {år} har ingen positiv omsetning å sammenligne med."
+Test at Peers-fanen viser den for alle tre tilfellene.
+```
+*Changed:* the AI's wording, "Selskapet har ingen driftsinntekter", was wrong for negative and for missing revenue. The workflow's rule is to revert and re-plan when a locked decision changes. It was set aside here, because the change was one copy string and one branch and the human made it explicitly. The renegotiation is recorded in the spec.
+
+**10:10**: `Fra meg: push og opprett PR-en for #9.`
+
+### Checks before merging
+
+The review session counted the peer group for both demo companies with its own SQL, written from the spec's rules without reading the code. It then ran `assemblePeerGroup` on the same seed data. Both give ADMMIT AS 391 and EXEBENUS AS 393 peers at the standard band. It also confirmed that `src/engine/peers.ts` reads no profit, equity or asset field, so selection uses size only. The human posted the review at 10:12. CI on `27bbeae` finished green at 10:15, and the PR was merged at 10:18.
+
+---
+
 ## From Story 1.5 on
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

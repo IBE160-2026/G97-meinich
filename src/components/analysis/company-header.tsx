@@ -1,7 +1,8 @@
 // The company header (FR-2, FR-64; DESIGN.md "Company header"): the name as
 // the page's h1, then a slate meta line of items separated by "·". With a
 // filing: orgnr · industry · revenue · "Regnskapsår YYYY · hentet D. mon.
-// YYYY". Without one: identification only — orgnr · industry ·
+// YYYY", with "{n} sammenlignbare" after the revenue when the subject has a
+// peer group (Story 1.7), also when n is 0. Without one: identification only — orgnr · industry ·
 // municipality. The read date is formatted here, on the server, in
 // Europe/Oslo (formatReadDate); the year is the stored filing_year.
 import { Fragment } from 'react';
@@ -18,7 +19,7 @@ export function industryText(subject: Pick<Subject, 'naeringskode1' | 'naeringsk
   return subject.naeringskode1Beskrivelse;
 }
 
-function metaItems(subject: Subject): string[] {
+function metaItems(subject: Subject, peerCount: number | undefined): string[] {
   const items = [formatOrgnr(subject.orgnr)];
   const industry = industryText(subject);
   if (industry !== null) items.push(industry);
@@ -33,12 +34,22 @@ function metaItems(subject: Subject): string[] {
   if (filing.valuta === 'NOK' && revenue !== null) {
     items.push(t('analysis.revenue', { belop: formatMillions(revenue) }));
   }
+  if (peerCount !== undefined) {
+    items.push(peerCount === 1 ? t('analysis.peerCountOne') : t('analysis.peerCount', { n: String(peerCount) }));
+  }
   items.push(t('analysis.dataDate', { aar: String(filing.filingYear), dato: formatReadDate(filing.readAt) }));
   return items;
 }
 
-export function CompanyHeader({ subject }: { readonly subject: Subject }) {
-  const items = metaItems(subject);
+export function CompanyHeader({
+  subject,
+  peerCount,
+}: {
+  readonly subject: Subject;
+  /** The peer group's size, excluded peers removed; omitted when there is no peer group. */
+  readonly peerCount?: number;
+}) {
+  const items = metaItems(subject, peerCount);
   return (
     <div className="px-gutter-phone pt-4 md:px-gutter-desktop md:pt-[22px]">
       <h1 tabIndex={-1} className="m-0 mb-1 text-[21px] leading-[1.2] break-words md:text-2xl">

@@ -12,6 +12,12 @@ const NBSP = ' ';
 const filing: SubjectFiling = {
   filingYear: 2025,
   valuta: 'NOK',
+  regnskapstype: 'SELSKAP',
+  periodeFra: '2025-01-01',
+  periodeTil: '2025-12-31',
+  regnskapsregler: 'regnskapslovenAlminneligRegler',
+  smaaForetak: true,
+  avviklingsregnskap: false,
   readAt: new Date('2026-10-02T23:30:00Z'),
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
@@ -27,6 +33,7 @@ const filing: SubjectFiling = {
 const subject: Subject = {
   orgnr: '813235552',
   navn: 'ADMMIT AS',
+  organisasjonsform: 'AS',
   naeringskode1: '00.001',
   naeringskode1Beskrivelse: 'Dekket bransje',
   kommune: 'VINDAFJORD',
@@ -58,5 +65,30 @@ describe('CompanyHeader revenue', () => {
 
   it('always shows the filing year and the read date in Europe/Oslo', () => {
     expect(text({ ...subject, filing: { ...filing, valuta: 'EUR' } })).toContain('Regnskapsår 2025 · hentet 3. okt. 2026');
+  });
+});
+
+describe('CompanyHeader peer count (Story 1.7)', () => {
+  const items = (peerCount?: number): string[] => {
+    const html = renderToString(createElement(CompanyHeader, { subject, peerCount }));
+    return [...html.matchAll(/<span>([^<]*)<\/span>/g)].map((match) => match[1] ?? '');
+  };
+
+  it('shows "{n} sammenlignbare" right after the revenue', () => {
+    const shown = items(23);
+    expect(shown[shown.indexOf(`Omsetning 16,7${NBSP}mill.${NBSP}kr`) + 1]).toBe('23 sammenlignbare');
+  });
+
+  it('shows "1 sammenlignbart" for a group of one', () => {
+    expect(items(1)).toContain('1 sammenlignbart');
+    expect(items(1)).not.toContain('1 sammenlignbare');
+  });
+
+  it('shows "0 sammenlignbare" for an empty group', () => {
+    expect(items(0)).toContain('0 sammenlignbare');
+  });
+
+  it('shows no count without a peer group', () => {
+    expect(items().join(' ')).not.toContain('sammenlignbare');
   });
 });

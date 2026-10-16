@@ -1,6 +1,8 @@
-// The analysis route in every state (Story 1.6b), against the production
-// build and the loaded demo seed: the spec's I/O matrix (covered, uncovered,
-// no filing, not found, invalid orgnr), titles, tabs and their history and
+// The analysis route in every state (Stories 1.6b and 1.7), against the
+// production build and the loaded demo seed: the specs' I/O matrices
+// (covered, uncovered, non-AS, no filing, not found, invalid orgnr), the
+// peer group on the header and the Peers tab, `ekskl` against the pool,
+// titles, tabs and their history and
 // focus, the invalid-settings notice, the header search, "Slik fungerer
 // Peerless", and no storage and no sideways scroll in any state. The orgnrs
 // come from the seed CSVs and ingest/config.toml, not from literals.
@@ -12,6 +14,7 @@ import { expect, test, type Page } from '@playwright/test';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 import { formatKommune, formatMillions, formatOrgnr, formatReadDate } from '../src/engine/format.ts';
+import { assemblePeerGroup, type CandidateFiling, type SizeBand, type SubjectFiling } from '../src/engine/peers.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -37,8 +40,16 @@ const filings = csv('filing.csv').filter((f) => f.regnskapstype === 'SELSKAP');
 const keyFigures = new Map(csv('key_figures.csv').map((k) => [k.brreg_id, k]));
 const withFiling = new Set(filings.map((f) => f.orgnr));
 
+// The subject's filing as SUBJECT_SQL picks it: newest filing_year, then
+// periode_til, periode_fra and brreg_id, each descending.
+const filingOrder = (a: Record<string, string>, b: Record<string, string>): number =>
+  Number(b.filing_year) - Number(a.filing_year) ||
+  (b.periode_til ?? '').localeCompare(a.periode_til ?? '') ||
+  (b.periode_fra ?? '').localeCompare(a.periode_fra ?? '') ||
+  (BigInt(b.brreg_id ?? '0') > BigInt(a.brreg_id ?? '0') ? 1 : BigInt(b.brreg_id ?? '0') < BigInt(a.brreg_id ?? '0') ? -1 : 0);
+
 function newestFiling(orgnr: string): Record<string, string> {
-  const own = filings.filter((f) => f.orgnr === orgnr).sort((a, b) => Number(b.filing_year) - Number(a.filing_year));
+  const own = filings.filter((f) => f.orgnr === orgnr).sort(filingOrder);
   if (own[0] === undefined) throw new Error(`${orgnr} has no filing in the seed`);
   return own[0];
 }
@@ -64,6 +75,64 @@ const NO_FILING = companies.find(
 if (NO_FILING === undefined) throw new Error('no covered company without a filing in the seed');
 const ABSENT = '910000004'; // valid modulus 11, not in the seed
 if (companies.some((c) => c.orgnr === ABSENT)) throw new Error(`${ABSENT} is in the seed`);
+// A covered NUF with a SELSKAP filing (the non-AS state), and a covered ENK
+// with none (the no-filing state comes first).
+const NON_AS = companies.find(
+  (c) => covered.has(c.naeringskode1 ?? '') && c.organisasjonsform === 'NUF' && withFiling.has(c.orgnr ?? ''),
+);
+if (NON_AS === undefined) throw new Error('no covered NUF with a filing in the seed');
+const NON_AS_NO_FILING = companies.find(
+  (c) => covered.has(c.naeringskode1 ?? '') && c.organisasjonsform === 'ENK' && !withFiling.has(c.orgnr ?? ''),
+);
+if (NON_AS_NO_FILING === undefined) throw new Error('no covered ENK without a filing in the seed');
+
+// The expected peer group, computed by the engine from the seed CSVs as the
+// server computes it from the database.
+const companyByOrgnr = new Map(companies.map((c) => [c.orgnr ?? '', c]));
+const allFilings = csv('filing.csv');
+const bool = (text: string | undefined): boolean | null => (text === 't' ? true : text === 'f' ? false : null);
+const ore = (text: string | undefined): bigint | null => (text === undefined || text === '' ? null : BigInt(text));
+const orNull = (text: string | undefined): string | null => (text === undefined || text === '' ? null : text);
+function comparability(f: Record<string, string>) {
+  return {
+    regnskapstype: f.regnskapstype ?? '',
+    periodeFra: f.periode_fra ?? '',
+    periodeTil: f.periode_til ?? '',
+    valuta: orNull(f.valuta),
+    regnskapsregler: orNull(f.regnskapsregler),
+    smaaForetak: bool(f.smaa_foretak),
+    avviklingsregnskap: bool(f.avviklingsregnskap),
+  };
+}
+type SeedCandidate = CandidateFiling & { readonly navn: string };
+function expectedGroup(orgnr: string, band: SizeBand) {
+  const own = company(orgnr);
+  const filing = newestFiling(orgnr);
+  const subject: SubjectFiling = {
+    orgnr,
+    naeringskode1: orNull(own.naeringskode1),
+    filingYear: Number(filing.filing_year),
+    sumDriftsinntekter: ore(keyFigures.get(filing.brreg_id ?? '')?.sum_driftsinntekter_ore),
+    ...comparability(filing),
+  };
+  const candidates: SeedCandidate[] = allFilings
+    .filter((f) => f.filing_year === filing.filing_year && f.orgnr !== orgnr)
+    .filter((f) => companyByOrgnr.get(f.orgnr ?? '')?.naeringskode1 === own.naeringskode1)
+    .map((f) => {
+      const c = companyByOrgnr.get(f.orgnr ?? '');
+      return {
+        orgnr: f.orgnr ?? '',
+        navn: c?.navn === undefined || c.navn === '' ? formatOrgnr(f.orgnr ?? '') : c.navn,
+        organisasjonsform: orNull(c?.organisasjonsform),
+        naeringskode1: orNull(c?.naeringskode1),
+        brregId: BigInt(f.brreg_id ?? '0'),
+        filingYear: Number(f.filing_year),
+        sumDriftsinntekter: ore(keyFigures.get(f.brreg_id ?? '')?.sum_driftsinntekter_ore),
+        ...comparability(f),
+      };
+    });
+  return assemblePeerGroup(subject, candidates, band).pool;
+}
 
 const coverageSentence = 'dataprogrammeringstjenester (62.100)';
 const dataDate = (orgnr: string) => {
@@ -74,6 +143,9 @@ const revenue = (orgnr: string) =>
   `Omsetning ${formatMillions(keyFigures.get(newestFiling(orgnr).brreg_id ?? '')?.sum_driftsinntekter_ore ?? '')}`;
 
 const h1 = (page: Page) => page.locator('main h1');
+// The rendered page, not the Suspense fallback: while the stream swaps one
+// for the other, both <main> elements can be in the document.
+const rendered = (page: Page) => page.locator('main:not([aria-busy="true"])');
 const tabs = (page: Page) => page.getByRole('navigation', { name: nb['tabs.label'] });
 const notice = (page: Page) => page.getByTestId('settings-notice');
 const headerSearch = (page: Page) => page.getByRole('banner').getByRole('combobox');
@@ -205,6 +277,179 @@ test.describe('uncovered company (demo company C)', () => {
   });
 });
 
+test.describe('the peer group (Story 1.7)', () => {
+  const pool0 = expectedGroup(A.orgnr ?? '', 0);
+  const pool1 = expectedGroup(A.orgnr ?? '', 1);
+  const inBand0 = new Set(pool0.map((peer) => peer.orgnr));
+  // A peer only the widened band 1 keeps.
+  const widenedOnly = pool1.find((peer) => !inBand0.has(peer.orgnr));
+  const peerTable = (page: Page) => page.getByRole('region', { name: nb['peers.regionLabel'] }).locator('table');
+  const peersCount = (n: number) => nb['peers.count'].replace('{n}', String(n));
+  const headerCount = (n: number) => nb['analysis.peerCount'].replace('{n}', String(n));
+
+  test('the seed gives demo A a group to test with', () => {
+    expect(pool0.length).toBeGreaterThan(1);
+    expect(widenedOnly).toBeDefined();
+  });
+
+  test('the header shows "{n} sammenlignbare" after the revenue', async ({ page }) => {
+    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    const items = page.getByTestId('company-meta').locator('span:not([aria-hidden])');
+    const texts = await items.allTextContents();
+    expect(texts[texts.indexOf(revenue(A.orgnr ?? '')) + 1]).toBe(headerCount(pool0.length));
+  });
+
+  test('the Peers tab lists the group by revenue, with the count, in a labelled scroll region', async ({ page }) => {
+    await page.goto(`/analyse/${A.orgnr}/peers`);
+    await expect(page.getByTestId('peer-count')).toHaveText(peersCount(pool0.length));
+    const region = page.getByRole('region', { name: nb['peers.regionLabel'] });
+    await expect(region).toHaveAttribute('tabindex', '0');
+    expect(await region.evaluate((el) => getComputedStyle(el).overflowX)).toBe('auto');
+    await expect(peerTable(page).locator('thead th')).toHaveText([
+      nb['peers.col.selskap'],
+      nb['peers.col.omsetning'],
+      nb['peers.col.kommune'],
+    ]);
+    const rows = peerTable(page).locator('tbody tr');
+    await expect(rows).toHaveCount(pool0.length);
+    await expect(rows.locator('td:first-child')).toHaveText(pool0.map((peer) => peer.navn));
+    await expect(rows.locator('td:nth-child(2)')).toHaveText(
+      pool0.map((peer) => formatMillions(String(peer.sumDriftsinntekter))),
+    );
+  });
+
+  test('no peer orgnr reaches the Peers page', async ({ request }) => {
+    const html = await (await request.get(`/analyse/${A.orgnr}/peers`)).text();
+    const leaked = pool0.filter((peer) => html.includes(peer.orgnr)).map((peer) => peer.orgnr);
+    expect(leaked).toEqual([]);
+  });
+
+  test('ekskl: a pool peer leaves the count, an orgnr outside the pool is dropped with the notice', async ({ page }) => {
+    const peer = pool0[0]?.orgnr ?? '';
+    await page.goto(`/analyse/${A.orgnr}/peers?ekskl=${peer},${ABSENT}`);
+    await expect(page.getByTestId('peer-count')).toHaveText(peersCount(pool0.length - 1));
+    await expect(page.getByTestId('company-meta')).toContainText(headerCount(pool0.length - 1));
+    await expect(notice(page)).toHaveText(nb['analysis.notice']);
+  });
+
+  test('ekskl: a widened-band peer is kept at band 1 and dropped with the notice at the default band', async ({ page }) => {
+    const peer = widenedOnly?.orgnr ?? '';
+    await page.goto(`/analyse/${A.orgnr}/peers?band=1&ekskl=${peer}`);
+    await expect(page.getByTestId('peer-count')).toHaveText(peersCount(pool1.length - 1));
+    await expect(notice(page)).toHaveText('');
+    // The tab links keep the exclusion: it was kept.
+    await expect(tabs(page).getByRole('link', { name: nb['tabs.oversikt'] })).toHaveAttribute(
+      'href',
+      `/analyse/${A.orgnr}/oversikt?ekskl=${peer}&band=1`,
+    );
+
+    await page.goto(`/analyse/${A.orgnr}/peers?ekskl=${peer}`);
+    await expect(page.getByTestId('peer-count')).toHaveText(peersCount(pool0.length));
+    await expect(notice(page)).toHaveText(nb['analysis.notice']);
+    await expect(tabs(page).getByRole('link', { name: nb['tabs.oversikt'] })).toHaveAttribute(
+      'href',
+      `/analyse/${A.orgnr}/oversikt`,
+    );
+  });
+
+  for (const width of [375, 320]) {
+    test(`the Peers tab reflows at ${width} px: the table scrolls in its region, the body never`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`/analyse/${A.orgnr}/peers`);
+      await expect(peerTable(page)).toBeVisible();
+      await noSidewaysScroll(page);
+      const region = await page.getByRole('region', { name: nb['peers.regionLabel'] }).boundingBox();
+      if (region === null) throw new Error('peer region not rendered');
+      expect(region.x + region.width).toBeLessThanOrEqual(width);
+    });
+  }
+});
+
+test.describe('a covered AS that cannot have peers', () => {
+  // Covered AS subjects from the seed, by what their newest filing holds.
+  const coveredAs = companies.filter(
+    (c) => covered.has(c.naeringskode1 ?? '') && c.organisasjonsform === 'AS' && withFiling.has(c.orgnr ?? ''),
+  );
+  const revenueOf = (c: Record<string, string>) =>
+    keyFigures.get(newestFiling(c.orgnr ?? '').brreg_id ?? '')?.sum_driftsinntekter_ore ?? '';
+  const isCalendar = (c: Record<string, string>) => {
+    const f = newestFiling(c.orgnr ?? '');
+    return /-01-01$/.test(f.periode_fra ?? '') && /-12-31$/.test(f.periode_til ?? '') && f.periode_fra?.slice(0, 4) === f.periode_til?.slice(0, 4);
+  };
+  const pick = (label: string, test: (c: Record<string, string>) => boolean) => {
+    const found = coveredAs.find(test);
+    if (found === undefined) throw new Error(`no covered AS with ${label} in the seed`);
+    return found;
+  };
+  const noRevenue = [
+    ['zero', pick('zero revenue', (c) => revenueOf(c) === '0')],
+    ['negative', pick('negative revenue', (c) => revenueOf(c).startsWith('-'))],
+    ['null', pick('no stated revenue', (c) => revenueOf(c) === '')],
+  ] as const;
+  const nonCalendar = pick('a non-calendar year and positive revenue', (c) => /^\d+$/.test(revenueOf(c)) && revenueOf(c) !== '0' && !isCalendar(c));
+
+  for (const [label, subject] of noRevenue) {
+    test(`${label} revenue: "0 sammenlignbare" and the no-revenue sentence with the year`, async ({ page }) => {
+      await page.goto(`/analyse/${subject.orgnr}/peers`);
+      await expect(page.getByTestId('company-meta')).toContainText(nb['analysis.peerCount'].replace('{n}', '0'));
+      await expect(page.getByTestId('peer-count')).toHaveText(nb['peers.count'].replace('{n}', '0'));
+      await expect(page.getByText(nb['peers.noRevenue'].replace('{aar}', newestFiling(subject.orgnr ?? '').filing_year ?? ''))).toBeVisible();
+      await expect(page.getByText(nb['peers.none'])).toHaveCount(0);
+    });
+  }
+
+  test('a non-calendar year: "0 sammenlignbare" and the non-calendar sentence', async ({ page }) => {
+    await page.goto(`/analyse/${nonCalendar.orgnr}/peers`);
+    await expect(page.getByTestId('company-meta')).toContainText(nb['analysis.peerCount'].replace('{n}', '0'));
+    await expect(page.getByText(nb['peers.nonCalendar'])).toBeVisible();
+    await expect(page.getByText(nb['peers.none'])).toHaveCount(0);
+  });
+});
+
+test.describe('ekskl on a subject with no pool', () => {
+  for (const [label, orgnr] of [
+    ['uncovered (demo C)', C_ORGNR],
+    ['non-AS', NON_AS.orgnr ?? ''],
+  ] as const) {
+    test(`${label}: the bare path with an ekskl shows the notice`, async ({ page }) => {
+      await page.goto(`/analyse/${orgnr}?ekskl=${A.orgnr}`);
+      await expect(notice(page)).toHaveText(nb['analysis.notice']);
+    });
+  }
+});
+
+test.describe('non-AS company in a covered industry', () => {
+  test('shows the header, the non-AS State block, three API figures and the search link; no tabs, no count', async ({ page }) => {
+    const response = await page.goto(`/analyse/${NON_AS.orgnr}`);
+    expect(response?.status()).toBe(200);
+    await expect(page).toHaveTitle(`${NON_AS.navn} – Peerless`);
+    await expect(h1(page)).toHaveText(NON_AS.navn ?? '');
+    await expect(page.getByTestId('company-meta')).toContainText(dataDate(NON_AS.orgnr ?? ''));
+    await expect(page.getByTestId('company-meta')).not.toContainText('sammenlignbare');
+    await expect(tabs(page)).toHaveCount(0);
+    const block = page.getByTestId('state-block');
+    await expect(block).toContainText(nb['analysis.nonAs.kicker'], { ignoreCase: true });
+    await expect(block).toContainText(nb['analysis.nonAs.body']);
+    await expect(page.locator('main dt')).toHaveCount(3);
+    await expect(page.getByText(nb['analysis.figures.noPeers'])).toBeVisible();
+    await expect(page.getByRole('link', { name: nb['analysis.searchAgain'] })).toHaveAttribute('href', '/');
+    await noSidewaysScroll(page);
+  });
+
+  test('a tab redirects (307) to the bare path', async ({ request }) => {
+    const response = await request.get(`/analyse/${NON_AS.orgnr}/peers`, { maxRedirects: 0 });
+    expect(response.status()).toBe(307);
+    expect(response.headers().location).toMatch(new RegExp(`/analyse/${NON_AS.orgnr}$`));
+  });
+
+  test('without a filing it is in the no-filing state', async ({ page }) => {
+    const response = await page.goto(`/analyse/${NON_AS_NO_FILING.orgnr}`);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByTestId('state-block')).toHaveText(nb['analysis.noFiling']);
+    await expect(tabs(page)).toHaveCount(0);
+  });
+});
+
 test.describe('covered company with no filing', () => {
   test('shows identification only and the no-filing sentence', async ({ page }) => {
     const response = await page.goto(`/analyse/${NO_FILING.orgnr}`);
@@ -242,6 +487,8 @@ test.describe('a client navigation to a 404 state focuses its h1', () => {
         (window as unknown as { next: { router: { push: (href: string) => void } } }).next.router.push(url);
       }, target);
       await expect(page).toHaveURL(new RegExp(`${target}$`));
+      // The old page and the 404 can briefly both be in the document.
+      await expect(h1(page)).toHaveCount(1);
       await expect(h1(page)).toHaveText(heading);
       await expect(h1(page)).toBeFocused();
     });
@@ -386,7 +633,7 @@ test('nothing is written to browser storage or cookies in any state', async ({ p
     '/slik-fungerer-peerless',
   ]) {
     await page.goto(url);
-    await expect(page.locator('main')).toBeVisible();
+    await expect(rendered(page)).toBeVisible();
   }
   const storage = await page.evaluate(async () => ({
     local: window.localStorage.length,
@@ -413,7 +660,7 @@ for (const width of [375, 320]) {
         '/slik-fungerer-peerless',
       ]) {
         await page.goto(url);
-        await expect(page.locator('main')).toBeVisible();
+        await expect(rendered(page)).toBeVisible();
         await noSidewaysScroll(page);
         if ((await headerSearch(page).count()) > 0) {
           const field = await headerSearch(page).boundingBox();

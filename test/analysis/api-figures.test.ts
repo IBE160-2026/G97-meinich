@@ -21,6 +21,12 @@ function figures(keyFigures: Partial<SubjectKeyFigures>): Record<string, string>
   const filing: SubjectFiling = {
     filingYear: 2025,
     valuta: 'NOK',
+    regnskapstype: 'SELSKAP',
+    periodeFra: '2025-01-01',
+    periodeTil: '2025-12-31',
+    regnskapsregler: 'regnskapslovenAlminneligRegler',
+    smaaForetak: true,
+    avviklingsregnskap: false,
     readAt: new Date('2026-10-11T12:00:00Z'),
     keyFigures: { ...base, ...keyFigures },
   };

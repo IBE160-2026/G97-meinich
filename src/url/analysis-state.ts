@@ -22,14 +22,16 @@
 
 import { Decimal } from '../engine/decimal.ts';
 import { isValidOrgnr } from '../engine/orgnr.ts';
+import type { SizeBand } from '../engine/peers.ts';
 
 const PATH_PREFIX = '/analyse/';
 
 export const FANER = ['oversikt', 'peers', 'nokkeltall', 'verdi'] as const;
 export type Fane = (typeof FANER)[number];
 
-export const BANDS = [0, 1, 2] as const;
-export type Band = (typeof BANDS)[number];
+export const BANDS = [0, 1, 2] as const satisfies readonly SizeBand[];
+/** The engine's size-band step; the URL module imports only from the engine. */
+export type Band = SizeBand;
 
 export const ANDELER = [0, 25, 50, 75, 100, 'median'] as const;
 export type Andel = (typeof ANDELER)[number];
@@ -68,11 +70,13 @@ export type ParseResult =
 
 export type ParseContext = {
   /**
-   * Whether `peerOrgnr` is in the subject's candidate pool. `parse` does not
-   * know how the pool is built (Story 1.7 decides); an `ekskl` item it
-   * rejects is dropped with the flag.
+   * Whether `peerOrgnr` is in the subject's candidate pool at `band` (funnel
+   * stages 1–3, Story 1.7). The pool depends on the band, and the band is
+   * read from the same URL, so `parse` reads `band` first and passes the
+   * parsed value; a caller could not close over a band it has not parsed.
+   * An `ekskl` item it rejects is dropped with the flag.
    */
-  readonly isCandidate: (peerOrgnr: string) => boolean;
+  readonly isCandidate: (peerOrgnr: string, band: Band) => boolean;
   /**
    * Whether a median step s_med exists for this peer group. Called only for
    * `andel=median`, with the parsed orgnr, band and exclusions; when false,
@@ -185,6 +189,15 @@ export function parse(href: string, context: ParseContext): ParseResult {
     return values[0] ?? null;
   };
 
+  // The band first: whether an `ekskl` item is a candidate depends on it.
+  let band: Band = DEFAULT_BAND;
+  const bandText = single('band');
+  if (bandText !== null) {
+    const parsed = parseBand(bandText);
+    if (parsed === null) invalidSettings = true;
+    else band = parsed;
+  }
+
   let ekskl: string[] = [];
   const eksklText = single('ekskl');
   if (eksklText !== null) {
@@ -193,7 +206,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
     const items = new Set(eksklText.split(',').map(stripSpaces).filter((item) => item !== ''));
     const kept: string[] = [];
     for (const item of items) {
-      if (isValidOrgnr(item) && item !== orgnr && context.isCandidate(item)) {
+      if (isValidOrgnr(item) && item !== orgnr && context.isCandidate(item, band)) {
         kept.push(item);
       } else {
         invalidSettings = true;
@@ -205,14 +218,6 @@ export function parse(href: string, context: ParseContext): ParseResult {
       kept.length = MAX_EKSKL;
     }
     ekskl = kept;
-  }
-
-  let band: Band = DEFAULT_BAND;
-  const bandText = single('band');
-  if (bandText !== null) {
-    const parsed = parseBand(bandText);
-    if (parsed === null) invalidSettings = true;
-    else band = parsed;
   }
 
   let andel: Andel = DEFAULT_ANDEL;

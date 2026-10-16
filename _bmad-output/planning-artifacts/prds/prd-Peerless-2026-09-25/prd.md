@@ -281,6 +281,7 @@ A candidate must match the subject on currency (`valuta`), accounting framework 
 - A candidate failing any comparability field cannot appear in the peer group by any later stage.
 - **All six fields are hard exclusions, and none of them is loosenable.** FR-18's loosening reaches the size band and segmentation only; no user action can admit a candidate that failed comparability.
 - Only calendar-year filings pass.
+- A subject whose own benchmark filing is not a calendar year gets an empty peer group, and the Peers tab says why: "Peerless sammenligner foreløpig bare selskaper med kalenderår som regnskapsår." (Story 1.7, human decision 2026-10-16.)
 - `smaaForetak` and `regnskapsregler` are read from the object the API misspells as `regnkapsprinsipper`.
 
 #### FR-9: Stage 3 — segmentation (rules) · v1

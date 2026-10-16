@@ -8,3 +8,4 @@ export * from './statistics.ts';
 export * from './inputs.ts';
 export * from './format.ts';
 export * from './orgnr.ts';
+export * from './peers.ts';

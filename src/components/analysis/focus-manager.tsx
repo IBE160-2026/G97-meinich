@@ -12,14 +12,14 @@
 // for at most a few seconds.
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { PANEL_HEADING_ID, URL_CONTEXT } from '@/analysis/view';
+import { PANEL_HEADING_ID, PATH_CONTEXT } from '@/analysis/view';
 import { parse } from '@/url/analysis-state';
 
 const WAIT_MS = 5000;
 
 function isTabChange(from: string, to: string): boolean {
-  const before = parse(from, URL_CONTEXT);
-  const after = parse(to, URL_CONTEXT);
+  const before = parse(from, PATH_CONTEXT);
+  const after = parse(to, PATH_CONTEXT);
   return before.kind === 'analysis' && after.kind === 'analysis' && before.state.orgnr === after.state.orgnr;
 }
 
@@ -37,8 +37,15 @@ function hashTarget(): HTMLElement | null {
 }
 
 function target(tabChange: boolean): HTMLElement | null {
+  // While the new page streams in, the old page can still be in the
+  // document beside the loading state, or beside the new page. Wait until no
+  // loading state and one main is left, so focus never lands on the old page.
+  if (document.querySelector('main[aria-busy="true"]') !== null) return null;
+  if (document.querySelectorAll('main').length > 1) return null;
   if (tabChange) return document.getElementById(PANEL_HEADING_ID);
-  return hashTarget() ?? document.querySelector<HTMLElement>('main h1');
+  const hash = hashTarget();
+  if (hash !== null) return hash;
+  return document.querySelector<HTMLElement>('main h1');
 }
 
 export function FocusManager() {

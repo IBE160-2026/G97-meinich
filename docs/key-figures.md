@@ -144,6 +144,14 @@ The target is the favourable quartile at every setting of *s*, and *s* scales th
 
 ## Peer selection and benchmarking
 
+**Stages 1–3 (rules, `src/engine/peers.ts`).** A candidate is compared on its benchmark filing: its filing for the benchmark year, preferring the subject's `regnskapstype`, then the latest `periode_til`, `periode_fra` and register id. A company with no filing that year is excluded.
+
+- **Stage 1.** Same `naeringskode1` (the primary code only). `sumDriftsinntekter` inside the size band around the subject's, both bounds included, computed exactly on øre: 0.5–2× by default, widened to 0.33–3× and 0.25–4×. A candidate with no stated revenue is out. A subject with no positive revenue (zero, negative or not stated) has no size band and therefore no peers.
+- **Stage 2.** `valuta`, `regnskapsregler`, `smaaForetak`, `avviklingsregnskap`, `regnskapstype` and the financial period are equal and stated on both sides. A `valuta` that is not an ISO 4217 code matches nothing, not even itself, and is never read as NOK. Only filings running 1 January – 31 December pass, so a subject with another financial year has no peers. None of these is loosenable.
+- **Stage 3.** Legal form `AS` only (`ASA` is a different form).
+
+Selection never reads total assets, the register's employee count, or any benchmarked measure.
+
 Any measure used to select peers enters selection only in coarse bands, and is benchmarked within its band. Today that is cost of goods share (3) and personnel cost share (4); see the fingerprint in the technical note. Selecting on the exact value would make that gap close to zero by construction.
 
 ## Known limitations

@@ -14,7 +14,7 @@
 // The h1 is focusable (tabIndex -1), so a client navigation focuses it.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { URL_CONTEXT } from '@/analysis/view';
+import { PATH_CONTEXT } from '@/analysis/view';
 import { StateBlock } from '@/components/analysis/state-block';
 import { FrontPageBody } from '@/components/front-page-body';
 import { DEMO_COMPANIES } from '@/demo-companies';
@@ -30,7 +30,7 @@ export interface NotFoundBodyProps {
 
 export function NotFoundBody({ lead, coverage }: NotFoundBodyProps) {
   const pathname = usePathname();
-  const parsed = parse(pathname, URL_CONTEXT);
+  const parsed = parse(pathname, PATH_CONTEXT);
 
   if (parsed.kind === 'invalid-orgnr') {
     return (

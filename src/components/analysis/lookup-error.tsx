@@ -1,8 +1,10 @@
 // The lookup-error state for an analysis (EXPERIENCE.md "Lookup error"):
 // role="alert" "Noe gikk galt. Prøv igjen om litt." and nothing else, so no
 // partial figure is ever shown and nothing about the cause is rendered.
-// Rendered by the analysis error boundary and, for a failed subject read
-// before any Suspense boundary, by the layout and the page themselves.
+// Rendered by the analysis error boundary (the analysis segment's error.tsx), which
+// a failed subject read reaches, by the global error page
+// (src/app/global-error.tsx), and by the root not-found page when its
+// coverage read fails.
 import { StateBlock } from '@/components/analysis/state-block';
 import { t } from '@/messages';
 

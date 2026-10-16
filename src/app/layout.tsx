@@ -4,6 +4,7 @@ import '@fontsource-variable/inter';
 import '@fontsource-variable/source-serif-4';
 import './globals.css';
 import { FocusManager } from '@/components/analysis/focus-manager';
+import { HeaderSearchSlot } from '@/components/header-search-slot';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { t } from '@/messages';
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="nb">
       <body className="flex min-h-dvh flex-col">
-        <SiteHeader />
+        <SiteHeader search={<HeaderSearchSlot />} />
         {children}
         <SiteFooter />
         <FocusManager />

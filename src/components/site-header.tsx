@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { HeaderSearchSlot } from '@/components/header-search-slot';
+import type { ReactNode } from 'react';
 import { t } from '@/messages';
 
 // Header per DESIGN.md: wordmark left, compact search, "Slik fungerer
@@ -7,7 +7,11 @@ import { t } from '@/messages';
 // two lines (max ~92px) and the search takes a full-width second row; a
 // two-row header is never sticky. The search is hidden on the front page.
 // No item for a non-v1 feature.
-export function SiteHeader() {
+//
+// The search comes in as `search` (the root layout passes the server-side
+// HeaderSearchSlot), so this component imports nothing server-only and the
+// global error page can render the header without it.
+export function SiteHeader({ search }: { readonly search?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-divider bg-background px-gutter-phone py-2.5 md:flex-nowrap md:gap-5 md:px-gutter-desktop md:py-3">
       <Link
@@ -16,7 +20,7 @@ export function SiteHeader() {
       >
         {t('shell.brand')}
       </Link>
-      <HeaderSearchSlot />
+      {search}
       <Link
         href="/slik-fungerer-peerless"
         data-testid="header-how"

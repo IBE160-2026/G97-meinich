@@ -7,7 +7,7 @@ import 'server-only';
 //
 // lookupSubject is wrapped in React's cache(): the layout decides the 404
 // from it, and the page and its metadata read the same row within the
-// request.
+// request. A failed read throws (see lookupSubject).
 import { cache } from 'react';
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
 import { readerSql } from './db.ts';
@@ -100,34 +100,22 @@ export function failureKind(error: unknown): string {
   return typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code) ? `${name} ${code}` : name;
 }
 
-export type SubjectLookup =
-  | { readonly kind: 'found'; readonly subject: Subject }
-  | { readonly kind: 'absent' }
-  /** The read failed; nothing about the cause leaves the server. */
-  | { readonly kind: 'failed' };
-
 /**
- * loadSubject with a failed read as a value, not a throw. The pages read it
- * through lookupSubject (cached per request); the proxy reads it once more,
- * before rendering starts, to answer 503 when it fails (src/proxy.ts).
+ * loadSubject for the request path, once per request (React's cache()): the
+ * layout decides the 404 from it, and the page and its metadata read the
+ * same row. A failed read throws a new error with a fixed message, so the
+ * driver's error (its message, the query, the address) goes no further than
+ * the one log line below. Thrown before streaming, it makes Next.js answer
+ * 500; the analysis error boundary (the analysis segment's error.tsx) shows only
+ * the alert.
  */
-export async function readSubject(orgnr: string): Promise<SubjectLookup> {
+export const lookupSubject = cache(async (orgnr: string): Promise<Subject | null> => {
   try {
-    const subject = await loadSubject(orgnr);
-    return subject === null ? { kind: 'absent' } : { kind: 'found', subject };
+    return await loadSubject(orgnr);
   } catch (error) {
     // Only the error's class and its Postgres SQLSTATE reach the log: never
-    // its message, the query or the orgnr. Nothing reaches the client.
+    // its message, the query or the orgnr.
     console.error(`analysis: subject lookup failed (${failureKind(error)})`);
-    return { kind: 'failed' };
+    throw new Error('analysis: subject lookup failed');
   }
-}
-
-/**
- * readSubject for the request path, once per request. A failed read is a
- * value, not a throw: the lookup runs before any Suspense boundary (so a 404
- * or a 307 can be decided first), where a thrown error would bypass the
- * analysis error state and end in Next.js's global error page. The caller
- * renders the lookup-error state instead; the 503 status is the proxy's.
- */
-export const lookupSubject = cache(readSubject);
+});

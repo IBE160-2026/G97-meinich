@@ -24,7 +24,7 @@ The analysis route in every state — covered (three tabs with an empty panel he
 - **Deviations from the spec's design, forced by Next.js 16.4 and found by probing the production build** (details in the ai-log entry):
   - No `loading.tsx`: below the layout it wraps the page in Suspense and starts a 200 response before the page's redirect, which then arrives as a meta refresh. The loading state is a Suspense boundary inside the page, after the redirect decision; redirects are real 307s.
   - The 404 states are rendered by the root `src/app/not-found.tsx`, not `src/app/analyse/not-found.tsx`: a `notFound()` before streaming is recovered with the root not-found tree. The status is 404; the content is rendered on the client after load (Next.js's error shell).
-  - A failed subject read is a value, not a throw: thrown outside Suspense it would skip `error.tsx`. The layout renders the lookup-error state; `src/app/analyse/error.tsx` stays for anything else thrown below the segment.
+  - A failed subject read was first made a value, not a throw: thrown outside Suspense, it was expected to skip `error.tsx`. The human later reversed this (below), and it throws.
   - Next.js passes params percent-encoded, so `parseSegments` decodes each segment once before encoding it.
 - **Decided in implementation, for review:**
   - A redirect keeps the query canonically (`serialize`) when nothing fell back, and as it came when a value fell back, so the target still shows the notice.
@@ -36,11 +36,15 @@ The analysis route in every state — covered (three tabs with an empty panel he
 ## Human decisions after review (2026-10-16), and what was done
 
 - **Phone header button:** keep the magnifier on its own row; at least 44 × 44 px below `md`. It is `h-11 w-11`, and the compact input is `h-11` beside it below `md`. An e2e test at 320 px checks the accessible name "Sammenlign", the 44 × 44 box and a field of at least 200 px.
-- **A database failure answers 503 with our alert.**
+- **A database failure must not answer 200.** The first decision said 503.
   - Rendering cannot set 503 in Next.js 16.4: only 404, 403, 401 and redirects.
-  - So `src/proxy.ts` reads the subject before rendering and forwards a failed read with `NextResponse.next({ status: 503 })`. This is undocumented: it was found in `resolve-routes.js` and confirmed by probing the build.
-  - `playwright.config.ts` now starts a second server on port 3101 with `READER_DATABASE_URL` pointing at a closed port. `e2e/db-down.spec.ts` runs against it in its own project.
-  - The cost and risks are in the ai-log entry "a failed database read answers 503, set by the proxy".
+  - So `src/proxy.ts` read the subject before rendering and forwarded a failed read with `NextResponse.next({ status: 503 })`. That was undocumented: found in `resolve-routes.js` and confirmed by probing the build.
+  - The human rejected the proxy and revised the decision to "not 200 on a database failure". The proxy relied on undocumented status forwarding, read the subject twice per analysis request, and ran before every request. If Story 1.10's rate limit needs a proxy, it belongs there.
+  - `src/proxy.ts` and `readSubject` are removed. `lookupSubject` now logs the class and SQLSTATE and throws a fixed-message error.
+  - Next.js answers 500. Probing showed the page is rendered on the client by `src/app/analyse/error.tsx` inside the root layout, not by the global error page.
+  - `src/app/global-error.tsx`, with its own `<html lang="nb">`, header and footer, covers errors from the root layout. `SiteHeader` takes the search as a prop so the global error page can render it.
+  - `playwright.config.ts` starts a second server on port 3101 with `READER_DATABASE_URL` pointing at a closed port. `e2e/db-down.spec.ts` runs against it in its own project and expects 500, the alert, and no error details. Next.js's digest hash is in the RSC payload but not rendered.
+  - Details are in the ai-log entries "a failed database read answers 503, set by the proxy" (superseded) and "the 503 proxy is rejected; a failed read answers 500".
 - **A visible `h1` on the 404 states:** "Ingen data for dette selskapet" and "Fant ikke siden", both in `nb.json`; the invalid-orgnr page keeps the front-page `h1`.
   - The e2e test checks focus after a client navigation to an absent valid orgnr, driven through `window.next.router`, because no UI path navigates there.
   - An unknown path is not covered: Next.js turns that navigation into a full page load, so there is no client navigation to test.

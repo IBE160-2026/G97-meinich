@@ -58,7 +58,7 @@ describe('loadSubject', () => {
 
   it('returns null for an orgnr not in the database', async () => {
     expect(await loadSubject(ABSENT)).toBeNull();
-    expect(await lookupSubject(ABSENT)).toEqual({ kind: 'absent' });
+    expect(await lookupSubject(ABSENT)).toBeNull();
   });
 
   it('picks the newest filing by filing_year among several', async () => {

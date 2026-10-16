@@ -115,16 +115,19 @@ Three parts of the design do not hold in Next.js 16.4; found by probing the prod
 
 - **No `loading.tsx`.** Below the layout it wraps the page in Suspense; its fallback starts a 200 response before the page redirects, so every matrix 307 became a streamed meta refresh. The loading state (`AnalysisLoading`: `main aria-busy` with Skeletons) is a Suspense boundary inside `AnalysisPage`, after the redirect decision. Redirects are 307.
 - **404 content from the root `src/app/not-found.tsx`.** A `notFound()` before streaming is recovered with the root not-found tree, never `src/app/analyse/not-found.tsx`. `NotFoundBody` tells the invalid-orgnr and not-found states apart from `usePathname()` (not `useParams`). Status 404 as required; the HTML is Next.js's error shell and the content renders on the client (deferred-work entry).
-- **A failed read does not throw.** Thrown in the layout, outside Suspense, it would skip `error.tsx` for the global error page. `lookupSubject` returns `failed` and the layout renders `LookupError` (the same component `error.tsx` renders).
+- **A failed read throws** (human decision 2026-10-16, revised: "not 200 on a database failure"). `lookupSubject` logs the class and SQLSTATE and throws a fixed-message `Error`. Thrown in the layout before streaming, Next.js answers 500 with its error shell. On the client the nearest boundary, `src/app/analyse/error.tsx`, renders the lookup-error state inside the root layout. The global error page is not reached: an earlier guess said it would be. `src/app/global-error.tsx`, with its own `<html lang="nb">`, header and footer, renders the same state for an error the root layout throws.
 - **Params arrive percent-encoded** (`813%20235%20552`): `parseSegments` decodes each segment once, then encodes it, so encoded and decoded segments read the same.
 - Redirects keep the query canonically when nothing fell back, and as it came when a value fell back, so the target shows the notice.
 - Below `md` the compact submit button is a 44 × 44 px magnifier with "Sammenlign" as its accessible name (human decision 2026-10-16); with the text the field was 186 px at 320 px, and it is 244 px now.
 - New copy beyond the quoted strings: `analysis.figures.undefined`, `analysis.figures.reason.*` ("eiendelene er null eller negative" for the two asset-based figures), `analysis.uncovered.unknownIndustry`, `notFound.page`, `notFound.home` (unknown non-analysis paths), and the 404 headings `notFound.noDataTitle` "Ingen data for dette selskapet" and `notFound.pageTitle` "Fant ikke siden" (human decision 2026-10-16).
-- **A failed subject read answers 503** (human decision 2026-10-16). Rendering can set only 404, 403, 401 and redirect statuses in Next.js 16.4. So `src/proxy.ts` reads the subject first, through `readSubject`, the uncached read behind `lookupSubject`. When that read fails, it passes the request on with `NextResponse.next({ status: 503 })`, and the page renders the lookup-error state.
-  - The forwarded status is undocumented behaviour; `resolve-routes.js` copies it to the response.
-  - The matcher covers every request but static assets. The URL module decides which paths are analyses.
-  - The cost is a second subject read per analysis request.
-  - Tested by `e2e/db-down.spec.ts` against a second server whose `READER_DATABASE_URL` points at a closed port: status, alert text and no error details. Also by `test/analysis-shell.test.ts` and `test/analysis/failed-read.test.ts`.
+- **The 503 proxy was tried and rejected** (human decision 2026-10-16). `src/proxy.ts` read the subject before rendering and forwarded a failed read with `NextResponse.next({ status: 503 })`. It was rejected for three reasons:
+  - the forwarded status is undocumented behaviour;
+  - it read the subject twice per analysis request;
+  - it ran before every request.
+  It and `readSubject` are removed; if Story 1.10's rate limit needs a proxy, it belongs there.
+  - `e2e/db-down.spec.ts` runs against a second server whose `READER_DATABASE_URL` points at a closed port. It asserts 500, the alert text, and no error detail in the rendered page or the response. Next.js's digest hash in the RSC payload is the one exception, and it is not rendered.
+  - `test/analysis/failed-read.test.ts` asserts the throw and that `notFound`/`redirect` are not called.
+  - With the database unreachable, requests took 2–18 s on this Windows machine. The reader pool's connection handling looks responsible; `src/server/db.ts` was not changed.
 - **The 404 states have a visible, focusable `h1`.** A client navigation to a valid orgnr not in the database focuses it. The e2e test drives `window.next.router`, because no UI path reaches that state. An unknown path cannot be reached by a client navigation at all: Next.js turns `router.push` to an unmatched path into a full page load.
 
 ## Spec Change Log

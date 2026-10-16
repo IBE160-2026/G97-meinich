@@ -24,7 +24,6 @@ import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
 import { t } from '@/messages';
 import { industryInSentence, joinList } from '@/messages/industry';
-import { LookupError } from '@/components/analysis/lookup-error';
 import { lookupSubject } from '@/server/analysis';
 import { coveredIndustries } from '@/server/search';
 import { parseSegments, type AnalysisState } from '@/url/analysis-state';
@@ -46,14 +45,13 @@ export function searchString(searchParams: SearchParams): string {
 async function resolve(segments: Segments, searchParams: SearchParams) {
   const search = searchString(searchParams);
   const parsed = parseSegments(segments, search, URL_CONTEXT);
-  const lookup = parsed.kind === 'analysis' ? await lookupSubject(parsed.state.orgnr) : null;
-  const subject = lookup?.kind === 'found' ? lookup.subject : null;
-  return { parsed, failed: lookup?.kind === 'failed', subject, view: analysisView(subject, parsed, search) };
+  const subject = parsed.kind === 'analysis' ? await lookupSubject(parsed.state.orgnr) : null;
+  return { parsed, subject, view: analysisView(subject, parsed, search) };
 }
 
 export async function analysisMetadata(segments: Segments, searchParams: SearchParams): Promise<Metadata> {
-  const { failed, view } = await resolve(segments, searchParams);
-  return { title: failed ? t('shell.brand') : view.title };
+  const { view } = await resolve(segments, searchParams);
+  return { title: view.title };
 }
 
 /** "{Bransjenavn} ({kode})" as the register names it, for the uncovered statement. */
@@ -95,9 +93,8 @@ export async function AnalysisPage({
   readonly segments: Segments;
   readonly searchParams: SearchParams;
 }) {
-  const { parsed, failed, subject, view } = await resolve(segments, searchParams);
-  // The layout has already rendered both of these; this keeps the types honest.
-  if (failed) return <LookupError />;
+  const { parsed, subject, view } = await resolve(segments, searchParams);
+  // The layout has already answered 404 for both; this keeps the types honest.
   if (parsed.kind !== 'analysis' || subject === null) notFound();
   if (view.redirect !== null) redirect(view.redirect);
   return (

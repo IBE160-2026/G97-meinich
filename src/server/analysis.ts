@@ -12,6 +12,7 @@ import { cache } from 'react';
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
 import { parseOre } from '../engine/inputs.ts';
 import type { CandidateFiling } from '../engine/peers.ts';
+import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
 
 interface SubjectRow extends SubjectKeyFigures {
@@ -122,13 +123,6 @@ export async function loadSubject(orgnr: string): Promise<Subject | null> {
   return row === undefined ? null : toSubject(row);
 }
 
-/** "PostgresError 57014", "Error": the class name and a five-character SQLSTATE when there is one. */
-export function failureKind(error: unknown): string {
-  const name = error instanceof Error ? error.constructor.name : typeof error;
-  const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
-  return typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code) ? `${name} ${code}` : name;
-}
-
 /**
  * loadSubject for the request path, once per request (React's cache()): the
  * layout decides the 404 from it, and the page and its metadata read the
@@ -144,7 +138,7 @@ export const lookupSubject = cache(async (orgnr: string): Promise<Subject | null
   } catch (error) {
     // Only the error's class and its Postgres SQLSTATE reach the log: never
     // its message, the query or the orgnr.
-    console.error(`analysis: subject lookup failed (${failureKind(error)})`);
+    log('error', 'analysis.subjectFailed', { failure: failureKind(error) });
     throw new Error('analysis: subject lookup failed');
   }
 });
@@ -271,7 +265,7 @@ export const lookupCandidates = cache(
     try {
       return await loadCandidates(orgnr, naeringskode1, filingYear);
     } catch (error) {
-      console.error(`analysis: candidate lookup failed (${failureKind(error)})`);
+      log('error', 'analysis.candidatesFailed', { failure: failureKind(error) });
       throw new Error('analysis: candidate lookup failed');
     }
   },

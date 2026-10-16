@@ -119,5 +119,8 @@
   "notFound.page": "Denne siden finnes ikke.",
   "notFound.home": "Til forsiden",
   "notFound.noDataTitle": "Ingen data for dette selskapet",
-  "notFound.pageTitle": "Fant ikke siden"
+  "notFound.pageTitle": "Fant ikke siden",
+  "rateLimit.title": "For mange oppslag",
+  "rateLimit.pageTitle": "For mange oppslag – Peerless",
+  "rateLimit.refused": "Det er gjort mange oppslag fra denne adressen på kort tid. Vent litt, og prøv igjen."
 }

@@ -4,6 +4,7 @@
 // takes the header down with it; the page itself shows the error state.
 import { connection } from 'next/server';
 import { HeaderSearch } from '@/components/header-search';
+import { failureKind, log } from '@/logger';
 import { industryInSentence, joinList } from '@/messages/industry';
 import { coveredIndustries } from '@/server/search';
 
@@ -12,8 +13,8 @@ export async function HeaderSearchSlot() {
   let coverage: string;
   try {
     coverage = joinList((await coveredIndustries()).map(industryInSentence));
-  } catch {
-    console.error('header search: coverage read failed');
+  } catch (error) {
+    log('error', 'headerSearch.coverageFailed', { failure: failureKind(error) });
     return null;
   }
   return <HeaderSearch coverage={coverage} />;

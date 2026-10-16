@@ -167,6 +167,8 @@ flowchart LR
   - **No IP stored:** no IP is written anywhere, logs included (AD-19).
   - **Run command:** the README runs `pnpm start`, not `next dev`.
   - **Limit of the design:** this does not hold across serverless instances, which is why persistent rate limiting is a gate before any public deployment.
+  - **Client address (Story 1.10):** the key is the rightmost `X-Forwarded-For` entry, hashed with a random per-process salt, so no long-lived structure holds an address (the request's headers hold it only while that request is handled). Under `next start` with no proxy in front, Next.js sets that header from the socket only when the client sent none, and the proxy cannot see the socket, so a client can choose its own key. In v1 this is a documented limitation: a chosen key only buys its own budget, and an exhausted address stays refused whatever other values arrive (tested). A full table (10 000 keys per budget) drops expired entries first, then the oldest entry within budget, and an exhausted entry only when every live one is exhausted; it is never cleared and never refuses a new address. The window is fixed, not sliding, so one address can send up to twice the budget across a window boundary; a v1 limitation.
+  - **Deployment gate:** persistent rate limiting before any public deployment has three requirements: the counters are shared by every instance; the client address is read from what the platform sets, not from the leftmost or any client-supplied `X-Forwarded-For` value, with a test that a client-set `X-Forwarded-For` only gets its own budget and does not lift the limit for anyone else; and an IPv6 address is keyed by its /64 prefix, not the full address, since one client usually holds a whole /64.
 
 ### AD-11 — User data from stage 2 `[ADOPTED]`
 
@@ -303,7 +305,7 @@ flowchart LR
 
 **Deferred, with the reason it can wait.**
 
-- **Hosted deployment** (Vercel, hosted Supabase): v1 runs locally from the README. It arrives with stage 2, behind three gates: the licence assessment, persistent rate limiting, and a refresh cadence.
+- **Hosted deployment** (Vercel, hosted Supabase): v1 runs locally from the README. It arrives with stage 2, behind three gates: the licence assessment, persistent rate limiting (shared counters, and the client address from what the platform sets, not a client-set header; AD-10), and a refresh cadence.
 - **Render caching:** Cache Components is off in v1, and every analysis renders dynamically from the URL. It is revisited with the stage-2 deployment. Any cache then keys on the canonical parsed URL state (AD-5) and the loaded manifest (AD-16), and every seed load invalidates it.
 - **Automatic refresh cadence:** v1 refreshes manually and shows the read date (AD-18). A cadence shaped to the filing window is a gate before any public deployment.
 - **Embeddings** (pgvector): computed in batch step 2 for the measurement only, never user-facing, and the first v1 item cut if time runs short.

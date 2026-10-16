@@ -2,6 +2,7 @@
 // surface). Validates q itself, then reads Peerless's own database through
 // the reader client. No register call, no write, no detail on failure.
 import { classifySearchInput } from '@/engine/orgnr';
+import { failureKind, log } from '@/logger';
 import { MAX_SEARCH_LENGTH, MAX_SEARCH_RESULTS, toSearchResult } from '@/search-contract';
 import { searchCompanies } from '@/server/search';
 
@@ -28,9 +29,10 @@ export async function GET(request: Request): Promise<Response> {
     // route enforces the contract again so no later change to the query can
     // widen what leaves the server.
     return Response.json(rows.slice(0, MAX_SEARCH_RESULTS).map(toSearchResult), { headers: NO_STORE });
-  } catch {
-    // No detail: neither the error nor the query reaches the client or the log.
-    console.error('GET /api/sok: search failed');
+  } catch (error) {
+    // No detail: neither the error's message nor the query reaches the client
+    // or the log; the log gets the error's class and SQLSTATE only.
+    log('error', 'search.failed', { failure: failureKind(error) });
     return Response.json({}, { status: 500, headers: NO_STORE });
   }
 }

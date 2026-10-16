@@ -8,6 +8,7 @@
 import { connection } from 'next/server';
 import { LookupError } from '@/components/analysis/lookup-error';
 import { NotFoundBody } from '@/components/analysis/not-found-body';
+import { failureKind, log } from '@/logger';
 import { industryInSentence, industryNamed, joinList, type CoveredIndustry } from '@/messages/industry';
 import { coveredIndustries } from '@/server/search';
 
@@ -16,8 +17,8 @@ export default async function NotFound() {
   let industries: CoveredIndustry[];
   try {
     industries = await coveredIndustries();
-  } catch {
-    console.error('not-found: coverage read failed');
+  } catch (error) {
+    log('error', 'notFound.coverageFailed', { failure: failureKind(error) });
     return <LookupError />;
   }
   return (

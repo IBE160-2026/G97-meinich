@@ -108,6 +108,7 @@ describe('GET /api/sok', () => {
     expect(response.status).toBe(500);
     expect(await response.text()).toBe('{}');
     expect(error.mock.calls.flat().join(' ')).not.toMatch(/password|reader|admmit/);
+    expect(error.mock.calls).toEqual([['{"level":"error","event":"search.failed","failure":"Error"}']]);
     error.mockRestore();
   });
 

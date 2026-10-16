@@ -652,6 +652,9 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
       .first();
   const pct = (value: { toString(): string }) => formatPercent(value.toString());
   const pool = expectedGroup(A.orgnr ?? '', 0);
+  const firstPeer = pool[0]?.orgnr;
+  if (firstPeer === undefined) throw new Error('demo A has no peers at the default band in the seed');
+  const withSettings = `?ekskl=${firstPeer}&band=1`;
   const amountFor = (benchmark: ApiBenchmark): string => {
     const gap = benchmark.driftsmargin.gap;
     if (gap.kind !== 'amount') throw new Error(`demo A's driftsmargin gap is ${gap.kind}, not an amount`);
@@ -689,7 +692,7 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     await expect(page.getByText(nb['keyFigures.topNote'])).toBeVisible();
   });
 
-  for (const query of ['', `?ekskl=${pool[0]?.orgnr ?? ''}&band=1`]) {
+  for (const query of ['', withSettings]) {
     test(`the hero amount is the table’s driftsmargin cell for the same URL (${query === '' ? 'default' : query})`, async ({ page }) => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(`/analyse/${A.orgnr}/oversikt${query}`);
@@ -775,18 +778,36 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     await expect(page.getByText(nb['keyFigures.topNote'])).toHaveCount(0);
   });
 
-  test('the HTML and the RSC payload of Oversikt carry no peer orgnr', async ({ request }) => {
-    const url = `/analyse/${A.orgnr}/oversikt`;
-    const html = await (await request.get(url)).text();
-    const payload = await (await request.get(url, { headers: { RSC: '1' } })).text();
-    for (const [label, body] of [
-      ['html', html],
-      ['rsc', payload],
-    ] as const) {
-      expect(body, label).toContain(nb['hero.kicker']);
-      expect(pool.filter((peer) => body.includes(peer.orgnr)).map((peer) => peer.orgnr), label).toEqual([]);
-    }
-  });
+  for (const [query, band] of [
+    ['', 0],
+    [withSettings, 1],
+  ] as const) {
+    test(`the HTML and the RSC payload of Oversikt carry no peer orgnr and no peer key-figure amount (${query === '' ? 'default' : query})`, async ({ request }) => {
+      const bandPool = expectedGroup(A.orgnr ?? '', band);
+      const url = `/analyse/${A.orgnr}/oversikt${query}`;
+      const html = await (await request.get(url)).text();
+      const payload = await (await request.get(url, { headers: { RSC: '1' } })).text();
+      // The excluded peer is in the URL, and the tab links keep it.
+      const scanned = bandPool.filter((peer) => !(query !== '' && peer.orgnr === firstPeer));
+      // Every non-null key-figure amount of every pool peer, excluded or not, as
+      // its øre digits without the sign; under 6 digits skipped, as in Story 1.8's test.
+      const amounts = bandPool
+        .flatMap((peer) => Object.values(keyFigureRow(String(peer.brregId))))
+        .filter((ore): ore is string => ore !== null)
+        .map((ore) => ore.replace(/^-/, ''))
+        .filter((digits) => digits.length >= 6);
+      expect(amounts.length).toBeGreaterThan(bandPool.length);
+      for (const [label, body] of [
+        ['html', html],
+        ['rsc', payload],
+      ] as const) {
+        expect(body, label).toContain(nb['hero.kicker']);
+        expect(scanned.filter((peer) => body.includes(peer.orgnr)).map((peer) => peer.orgnr), label).toEqual([]);
+        const leaked = amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body));
+        expect(leaked, label).toEqual([]);
+      }
+    });
+  }
 });
 
 test.describe('ekskl on a subject with no pool', () => {

@@ -2,8 +2,8 @@
 
 **Date:** 2026-10-16
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session and one implementation subagent working from the frozen spec
-**Story / issue:** #11, Story 1.9
-**Result:** branch `story/1.9-oversikt-hero` (PR to follow): commits `6cd8595` (engine), `a6c1808` (shared amount function and copy), `c83ce88` (hero, copy, CSS, component test), `72a0066` (e2e), `ed59bf3` (focus fix found by e2e), `08a5bb0` (review: the amount's container sizing), and the docs commit.
+**Story / issue:** [#11](https://github.com/IBE160-2026/G97-meinich/issues/11), Story 1.9
+**Result:** branch `story/1.9-oversikt-hero` (PR to follow): commits `6cd8595` (engine), `a6c1808` (shared amount function and copy), `c83ce88` (hero, copy, CSS, component test), `72a0066` (e2e), `ed59bf3` (focus fix found by e2e), `08a5bb0` (a self-check of the tests: the amount's container sizing), the docs commit, and the review-fix commit.
 
 ## Goal
 
@@ -12,7 +12,7 @@ The Oversikt tab leads with the driftsmargin gap in kroner, the product's most i
 ## Prompts that mattered
 
 - The dispatch to the implementation subagent: "Read `spec-1-9-oversikt-hero.md` fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start."
-- The human's decision recorded in the spec's frozen section (2026-10-16): an empty group says why, with the Peers tab's sentence (`emptyText`, shared, not copied), not "For få sammenlignbare (0 av 10)".
+- The human's approval of the spec (2026-10-16), given in Norwegian, with one change: when the shown group is empty because `emptyReason` is set, the hero shows the Peers tab's sentence (the one `emptyText`, shared, not copied), not "For få sammenlignbare (0 av 10)", tested with a non-calendar-year company from the seed. The approval is paraphrased here from the spec's frozen section; its verbatim text is extracted from the transcript into `docs/ai-prompts.md` by the review session.
 
 ## What came back, and what was done with it
 
@@ -33,7 +33,15 @@ The Oversikt tab leads with the driftsmargin gap in kroner, the product's most i
   - The focus manager. The spec said no change was expected, but the new e2e test failed: after a search, focus landed on the panel's h2, not the h1. A search opens the bare path, the server redirects to Oversikt, and `usePathname` reports that as a second change with the same orgnr, which `isTabChange` treated as a tab change. Only a change between two tabs is a tab change now (`ed59bf3`).
   - Two test strings had a plain space where the formatter writes U+00A0; the e2e context line is now built from the message ids and the engine instead of a regex.
   - A comment in `focus-manager.tsx` named the analysis path, which `test/url-module-boundary.test.ts` forbids outside the URL module; it was reworded.
-- **Review fix:** the container-unit cap falls back to viewport units if the card is not a size container, and at 1280, 375 and 320 px that fallback gives the same sizes, so the first tests could not tell. The e2e test now asserts the card's `container-type` and checks the amount at 800 px.
+- **Self-check before review (`08a5bb0`):** the container-unit cap falls back to viewport units if the card is not a size container, and at 1280, 375 and 320 px that fallback gives the same sizes, so the first tests could not tell. The e2e test now asserts the card's `container-type` and checks the amount at 800 px.
+
+- **Review fixes** (the review step's blind, edge-case and verification-gap layers; one commit):
+  - Impossible compared states in `oversikt-hero.tsx` (no beste fjerdedel, or a `none` gap) rendered silently as the undefined state or with no lead line; they now throw a fixed message, and `main` has no `null`.
+  - The hero imported `DIRECTION_WORDS` from the table component; it now lives in `api-figures.tsx`, imported by both.
+  - The half-krone component case only compared hero with table; it now also asserts the exact string (499,50 kr gives "500 kr"), as do the other two cases.
+  - The Oversikt payload e2e test scanned peer orgnrs at band 0 only; it now also scans every non-null peer key-figure amount, as Story 1.8's test does, and covers `?ekskl=…&band=1` with that band's pool.
+  - `pool[0]?.orgnr ?? ''` could build `?ekskl=&band=1`; the test now throws if demo A's pool is empty.
+  - This session file: the issue link, the human's approval prompt, and these fixes credited to the review step, not to the self-check above.
 
 ## Links
 

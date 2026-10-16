@@ -20,8 +20,7 @@ import type { EmptyReason } from '@/engine/peers';
 import { MIN_PEERS } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 import { serialize, type AnalysisState } from '@/url/analysis-state';
-import { FIGURES, undefinedText } from './api-figures';
-import { DIRECTION_WORDS } from './key-figure-table';
+import { DIRECTION_WORDS, FIGURES, undefinedText } from './api-figures';
 import { kronerAmountText } from './kroner-amount';
 import { emptyText } from './peer-list';
 
@@ -39,8 +38,7 @@ type HeroModel =
       readonly main:
         | { readonly kind: 'amount'; readonly text: string }
         | { readonly kind: 'strength' }
-        | { readonly kind: 'not_nok' }
-        | null;
+        | { readonly kind: 'not_nok' };
       readonly vs: string;
       readonly context: string;
     };
@@ -64,23 +62,19 @@ function heroModel(figure: FigureBenchmark, emptyReason: EmptyReason, filingYear
     return { kind: 'below_floor', own, text: t('keyFigures.belowFloor', { n: String(c.count), min: String(MIN_PEERS) }) };
   }
   const context = heroContext(c);
-  // A compared driftsmargin always has a beste fjerdedel; without one there
-  // is nothing to compare against, so only the own value is shown.
-  if (context === null || c.best === null) return { kind: 'absent', own };
+  // A compared driftsmargin always has a beste fjerdedel (it has a direction).
+  if (context === null || c.best === null) throw new Error('a compared driftsmargin has no beste fjerdedel');
   const med = formatPercent(c.median.toString());
   const best =
     context.best === 'at'
       ? t('hero.ctx.best.at')
       : t(`hero.ctx.best.${context.best}`, { pp: formatPercentagePoints(context.toBest.toString()) });
   const gap = figure.gap;
+  // A compared driftsmargin always has a kroner gap: an amount, a strength or not in NOK.
+  if (gap.kind === 'none') throw new Error('a compared driftsmargin has no kroner gap');
   return {
     kind: 'compared',
-    main:
-      gap.kind === 'amount'
-        ? { kind: 'amount', text: kronerAmountText(gap) }
-        : gap.kind === 'strength' || gap.kind === 'not_nok'
-          ? { kind: gap.kind }
-          : null,
+    main: gap.kind === 'amount' ? { kind: 'amount', text: kronerAmountText(gap) } : { kind: gap.kind },
     vs: t('hero.vs', { own, best: formatPercent(c.best.quartile.toString()) }),
     context: t('hero.ctx', {
       median: t(`hero.ctx.median.${context.median}`, { med }),
@@ -107,7 +101,7 @@ function Body({ model }: { readonly model: HeroModel }) {
   const main = model.main;
   return (
     <>
-      {main?.kind === 'amount' ? (
+      {main.kind === 'amount' ? (
         <>
           <p className="hero-amount m-0 mt-2.5" data-testid="hero-amount">
             {main.text}
@@ -115,12 +109,12 @@ function Body({ model }: { readonly model: HeroModel }) {
           <p className="m-0 mt-1 text-slate">{t('hero.perYear')}</p>
         </>
       ) : null}
-      {main?.kind === 'strength' ? (
+      {main.kind === 'strength' ? (
         <p className="m-0 mt-2.5 text-[22px] font-semibold" data-testid="hero-strength">
           {t('keyFigures.strength')}
         </p>
       ) : null}
-      {main?.kind === 'not_nok' ? (
+      {main.kind === 'not_nok' ? (
         <p className={`${figurePair} mt-2.5`} data-testid="hero-not-nok">
           {t('keyFigures.notInKroner')}
         </p>
@@ -131,7 +125,7 @@ function Body({ model }: { readonly model: HeroModel }) {
       <p className="m-0 mt-1.5 text-slate" data-testid="hero-context">
         {model.context}
       </p>
-      {main?.kind === 'strength' ? <p className="m-0 mt-3">{t('hero.noGap')}</p> : null}
+      {main.kind === 'strength' ? <p className="m-0 mt-3">{t('hero.noGap')}</p> : null}
     </>
   );
 }

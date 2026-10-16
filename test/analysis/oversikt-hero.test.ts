@@ -136,14 +136,23 @@ describe('the hero amount and the table', () => {
   };
 
   it.each([
-    ['the climax company', CLIMAX],
-    ['EXPERIENCE.md’s reference company', { ...CLIMAX, sumDriftsinntekter: 1_671_428_600n, driftsresultat: 35_100_000n }],
-    ['an amount that rounds half away from zero', { ...CLIMAX, sumDriftsinntekter: 100_000_000n, driftsresultat: 9_050_050n }],
-  ])('are the same string for %s', (_label, inputs) => {
+    ['the climax company', CLIMAX, `1${NBSP}752${NBSP}531${NBSP}kr`],
+    [
+      'EXPERIENCE.md’s reference company',
+      { ...CLIMAX, sumDriftsinntekter: 1_671_428_600n, driftsresultat: 35_100_000n },
+      `1${NBSP}170${NBSP}000${NBSP}kr`,
+    ],
+    // (0,091 − 0,0905005) × 1 000 000 kr = 499,50 kr, half away from zero: 500 kr.
+    [
+      'an amount that rounds half away from zero',
+      { ...CLIMAX, sumDriftsinntekter: 100_000_000n, driftsresultat: 9_050_050n },
+      `500${NBSP}kr`,
+    ],
+  ])('are the same string for %s', (_label, inputs, expected) => {
     const benchmark = amountOf(inputs);
     const table = renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'X AS', smaaForetak: true }));
     const hero = byTestId(render(benchmark), 'hero-amount');
-    expect(hero).not.toBeNull();
+    expect(hero).toBe(expected);
     expect(hero).toBe(cell(table));
   });
 });

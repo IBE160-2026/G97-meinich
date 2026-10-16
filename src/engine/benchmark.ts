@@ -92,6 +92,32 @@ export function benchmarkApiFigures(
   };
 }
 
+/** Which side of a reference value the subject's own value lies on, compared exactly. */
+export type Side = 'above' | 'at' | 'below';
+
+/**
+ * What the Oversikt hero's context line says about a compared figure
+ * (Story 1.9): the side of the median and of beste fjerdedel the subject's
+ * own value lies on, and its distance to beste fjerdedel as a non-negative
+ * fraction (0.14 is 14,0 pp), from the exact values, rounded only at
+ * display. The sides are numeric ("above" is a higher value), which for
+ * driftsmargin, the hero's only figure, is also the better side. Null when
+ * there is no comparison or no beste fjerdedel (no direction).
+ */
+export type HeroContext = {
+  readonly median: Side;
+  readonly best: Side;
+  readonly toBest: Decimal;
+};
+
+export function heroContext(comparison: Comparison): HeroContext | null {
+  if (comparison.kind !== 'compared' || comparison.best === null) return null;
+  const own = comparison.subject;
+  const side = (reference: Decimal): Side => (own.gt(reference) ? 'above' : own.lt(reference) ? 'below' : 'at');
+  const best = comparison.best.quartile;
+  return { median: side(comparison.median), best: side(best), toBest: own.minus(best).abs() };
+}
+
 /**
  * Where `value` sits on a distribution strip, as a share of its width from
  * the left: 0 is the left edge, 1 the right. The domain is [P5, P95] of the

@@ -21,8 +21,11 @@ export type PeerRow = {
   readonly sumDriftsinntekter: bigint | null;
 };
 
-/** The Peers tab's sentence for an empty group: the subject's own reason, or none found. */
-function emptyText(emptyReason: EmptyReason, filingYear: number): string {
+/**
+ * The Peers tab's sentence for an empty group: the subject's own reason, or
+ * none found. The Oversikt hero shows the same sentence (Story 1.9).
+ */
+export function emptyText(emptyReason: EmptyReason, filingYear: number): string {
   if (emptyReason === 'subject_no_revenue') return t('peers.noRevenue', { aar: String(filingYear) });
   if (emptyReason === 'subject_non_calendar') return t('peers.nonCalendar');
   return t('peers.none');

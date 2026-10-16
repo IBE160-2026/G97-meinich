@@ -32,6 +32,7 @@ import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { KeyFigureTable } from '@/components/analysis/key-figure-table';
 import { AnalysisLoading } from '@/components/analysis/analysis-loading';
+import { OversiktHero } from '@/components/analysis/oversikt-hero';
 import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
@@ -140,11 +141,18 @@ function Covered({
   return (
     <>
       <TabLinks state={state} active={view.fane} />
-      {/* Oversikt gets its content in Story 1.9. */}
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">
           {t(`tabs.${view.fane}`)}
         </h2>
+        {view.fane === 'oversikt' ? (
+          <OversiktHero
+            figure={group.benchmark.driftsmargin}
+            state={state}
+            emptyReason={group.emptyReason}
+            filingYear={group.filingYear}
+          />
+        ) : null}
         {view.fane === 'peers' ? (
           <PeerList
             peers={group.peers}

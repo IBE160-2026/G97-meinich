@@ -1,16 +1,19 @@
 // The API figures against the shown group (Story 1.8): the driftsmargin gap
 // in kroner on the exact revenue, strength at equality, no kroner where
 // there is no comparison or no translation, a derived revenue, the currency
-// gate, and the distribution strip's clipped, mirrored domain.
+// gate, and the distribution strip's clipped, mirrored domain. The Oversikt
+// hero's context line (Story 1.9): the sides of the median and of beste
+// fjerdedel, and the distance to beste fjerdedel.
 import { describe, expect, it } from 'vitest';
 import {
   benchmarkApiFigures,
   driftsmarginGap,
+  heroContext,
   stripPosition,
   type KronerGap,
 } from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
-import { formatKronerExact } from '../../src/engine/format.ts';
+import { formatKronerExact, formatPercentagePoints } from '../../src/engine/format.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
 
@@ -219,3 +222,44 @@ describe('stripPosition', () => {
 function peersEven(): string[] {
   return Array.from({ length: 10 }, (_, i) => new Decimal(i + 1).div(100).toString());
 }
+
+describe('heroContext', () => {
+  // Median −3,2 % ((−0,032 + −0,032) / 2), upper quartile 9,1 % (h = 6,75 between two 0,091).
+  const CLIMAX = ['-0.1', '-0.09', '-0.08', '-0.07', '-0.032', '-0.032', '0.091', '0.091', '0.1', '0.2'];
+
+  it('EXPERIENCE.md’s climax: −4,9 % against median −3,2 % and beste fjerdedel 9,1 % is below both, 14,0 pp', () => {
+    const c = comparisonOf('-0.049', CLIMAX, 'higher_is_better');
+    expect(c.median.toString()).toBe('-0.032');
+    expect(c.best?.quartile.toString()).toBe('0.091');
+    const context = heroContext(c);
+    expect(context?.median).toBe('below');
+    expect(context?.best).toBe('below');
+    expect(context?.toBest.toString()).toBe('0.14');
+    expect(formatPercentagePoints(context?.toBest.toString() ?? '')).toBe(`14,0${NBSP}pp`);
+  });
+
+  it('is above the median and below beste fjerdedel between them', () => {
+    const context = heroContext(comparisonOf('0.021', CLIMAX, 'higher_is_better'));
+    expect(context).toMatchObject({ median: 'above', best: 'below' });
+    expect(context?.toBest.toString()).toBe('0.07');
+  });
+
+  it('is at the median and at beste fjerdedel on equality, with a distance of zero at beste fjerdedel', () => {
+    expect(heroContext(comparisonOf('-0.032', CLIMAX, 'higher_is_better'))).toMatchObject({ median: 'at', best: 'below' });
+    const atBest = heroContext(comparisonOf('0.091', CLIMAX, 'higher_is_better'));
+    expect(atBest).toMatchObject({ median: 'above', best: 'at' });
+    expect(atBest?.toBest.isZero()).toBe(true);
+  });
+
+  it('is above beste fjerdedel with a non-negative distance', () => {
+    const context = heroContext(comparisonOf('0.15', CLIMAX, 'higher_is_better'));
+    expect(context).toMatchObject({ median: 'above', best: 'above' });
+    expect(context?.toBest.toString()).toBe('0.059');
+  });
+
+  it('is null without a comparison or without a beste fjerdedel', () => {
+    expect(heroContext(benchmarkApiFigures(SUBJECT, TEN.slice(0, 9), 'NOK').driftsmargin.comparison)).toBeNull();
+    expect(heroContext(benchmarkApiFigures({ ...SUBJECT, sumDriftsinntekter: 0n }, TEN, 'NOK').driftsmargin.comparison)).toBeNull();
+    expect(heroContext(comparisonOf('0.1', CLIMAX, 'none'))).toBeNull();
+  });
+});

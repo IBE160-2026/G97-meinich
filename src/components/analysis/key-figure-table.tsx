@@ -16,11 +16,12 @@
 // kroner) whose row names open a full-width expansion row.
 import type { ReactNode } from 'react';
 import { stripPosition, type ApiBenchmark, type FigureBenchmark } from '@/engine/benchmark';
-import { formatKronerExact, formatPercent, formatPercentNumber, formatWholePercent } from '@/engine/format';
+import { formatPercent, formatPercentNumber, formatWholePercent } from '@/engine/format';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
-import { FIGURES, undefinedText } from './api-figures';
+import { DIRECTION_WORDS, FIGURES, undefinedText } from './api-figures';
 import { DistributionStrip, type StripMarks } from './distribution-strip';
+import { kronerAmountText } from './kroner-amount';
 import { PhoneRowToggle } from './phone-row-toggle';
 import { StateBlock } from './state-block';
 
@@ -57,12 +58,6 @@ type RowModel = {
 };
 
 const DASH = '–';
-
-const DIRECTION_WORDS: Record<FigureBenchmark['direction'], MessageId> = {
-  higher_is_better: 'keyFigures.dir.higher',
-  lower_is_better: 'keyFigures.dir.lower',
-  none: 'keyFigures.dir.none',
-};
 
 /** "midtre halvdel 18,4–49,0 %", or "… −6,3 til 9,1 %" when a bound is negative; "Midtre halvdel: …" with no direction. */
 export function middleHalfText(lower: string, upper: string, labelled: boolean): string {
@@ -101,7 +96,7 @@ function gapCell(key: FigureKey, figure: FigureBenchmark): GapCell | null {
   if (key !== 'driftsmargin') return { text: t('keyFigures.noKroner'), amount: false };
   const gap = figure.gap;
   if (gap.kind === 'amount') {
-    return { text: formatKronerExact(gap.ore.toString()), sub: t('keyFigures.perYear'), amount: true };
+    return { text: kronerAmountText(gap), sub: t('keyFigures.perYear'), amount: true };
   }
   if (gap.kind === 'strength') return { text: t('keyFigures.strength'), amount: false };
   if (gap.kind === 'not_nok') return { text: t('keyFigures.notInKroner'), amount: false };

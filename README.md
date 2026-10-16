@@ -24,7 +24,15 @@ pnpm build
 pnpm start            # http://localhost:3000
 ```
 
-The front page searches the companies in the local database by name or organisation number; it never calls the register. Choosing a company opens `/analyse/{orgnr}`. That page (Stories 1.6a and 1.6b) and `/slik-fungerer-peerless` (Story 1.6b), where the footer's "Kilder og lisens" and the front page's "Les hvordan …" link point, are not built yet and show 404 until then.
+The front page searches the companies in the local database by name or organisation number; it never calls the register. Choosing a company opens `/analyse/{orgnr}`, the analysis; `/slik-fungerer-peerless` explains the method and the sources.
+
+Run the production build with `pnpm start`, as above, not `next dev`: the rate limit below and every test assume the built app.
+
+**Rate limit.** Every request the server answers (pages, their RSC payloads and prefetches, 404s and `GET /api/sok`) is counted per client address in `src/proxy.ts`: 60 analysis and 60 search requests a minute (`src/rate-limit/budgets.ts`). Over budget, a page answers 429 with "Det er gjort mange oppslag fra denne adressen på kort tid. Vent litt, og prøv igjen." and no figures, and the search field shows the same text. No address is stored: the counters hold salted hashes in memory only, and the logs (one JSON line per event, `src/logger.ts`) carry no address, header or path. Known v1 limitations:
+
+- The counters live in the one `next start` process. They are not shared between processes or serverless instances and are lost on restart.
+- The address is the rightmost `X-Forwarded-For` entry. With no proxy in front, `next start` fills that header from the socket only when the client sent none, so a client can choose its own key. That buys it a budget of its own, but it cannot lift the limit for anyone else.
+- **Persistent rate limiting is a gate before any public deployment** (technical note, AD-10): the limit must be shared across instances, and the client address must be read from what the hosting platform sets, not from a header the client can send, with a test that a client-set `X-Forwarded-For` does not lift anyone else's limit.
 
 Checks, as CI runs them on every pull request:
 

@@ -68,3 +68,7 @@
     - R2 (retro action 3): a subject whose revenue is not stated but derivable (driftsresultat + sumDriftskostnad) gets "…har ingen positiv omsetning å sammenligne med" beside a hero that shows a margin. Keep the rule "not stated → no band" (`docs/key-figures.md:151`; `funnelSubject` passes only the stated `sum_driftsinntekter_ore`) and change only the copy: a message key for "revenue not stated", plus a test with null stated revenue (`test/analysis/oversikt-hero.test.ts` covers only `0n`).
     - R3: an empty peer group can show no reason. `emptyReason` is set only for no revenue and a non-calendar year, so a subject with `valuta` ≠ NOK, or a null `regnskapsregler`/`smaaForetak`/`avviklingsregnskap`, empties stage 2 with no explanation ("0 av 10").
   evidence: Epic 1 retro, findings R2 and R3 (`src/analysis/view.ts:139`, `src/engine/peers.ts:219-221`). Human decision (Meinich, 2026-10-16): no code change in the Epic 1 follow-ups PR; in the seed, 1 of 4 890 filings has a derived revenue above 5 kr, and that one is negative.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-follow-ups.md`
+  summary: Remove `minimumReleaseAgeExclude` (and its comment) from `pnpm-workspace.yaml` once Next.js 16.4.2 (released 2026-10-15) is past pnpm's minimum release age. Trigger: the next dependency update or Story 2.1, whichever comes first.
+  evidence: Commit `6a17ca7` pinned 16.4.2 for GHSA-2464-fhr4-w9xw and GHSA-673q-mjm6-r5xr; pnpm install refused the too-young versions and wrote the exemption list.

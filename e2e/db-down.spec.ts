@@ -62,8 +62,8 @@ test('the search endpoint answers 500 with an empty object', async ({ request })
   expect(await response.json()).toEqual({});
 });
 
-// The header's coverage read fails too, but the header renders without its
-// search, so a page that reads nothing else still answers 200.
-test('a path that is not an analysis is not affected', async ({ request }) => {
+// The sources page reads nothing but the header's coverage, and the header
+// renders without its search when that read fails, so it still answers 200.
+test('/slik-fungerer-peerless, which reads only the header coverage, still answers 200', async ({ request }) => {
   expect((await request.get('/slik-fungerer-peerless')).status()).toBe(200);
 });

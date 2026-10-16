@@ -1,5 +1,7 @@
 // How covered industries are written in copy (src/messages/industry.ts): the
-// code alone when the register gives no name, and the list joined in bokmål.
+// name capital kept at the start of a sentence and lower-cased mid-sentence,
+// the code alone when the register gives no name, and the list joined in
+// bokmål.
 import { describe, expect, it } from 'vitest';
 import { industryAtSentenceStart, industryInSentence, industryNamed, joinList } from '../src/messages/industry.ts';
 

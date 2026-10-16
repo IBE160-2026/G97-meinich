@@ -179,6 +179,13 @@ describe('a failed coverage read on the front page (retro R1)', () => {
     expect(logged).toBe('{"level":"error","event":"home.coverageFailed","failure":"PostgresError 57014"}');
     expect(logged).not.toContain('statement timeout');
   });
+
+  it('does the same when the client is created and the coverage query itself rejects', async () => {
+    database.subjectRow = { orgnr: ORGNR };
+    const logged = await expectFixedThrow(() => HomePage(), 'home: coverage lookup failed');
+    expect(logged).toBe('{"level":"error","event":"home.coverageFailed","failure":"PostgresError 57014"}');
+    expect(logged).not.toContain('statement timeout');
+  });
 });
 
 describe('a failed coverage read for an uncovered company (retro R4)', () => {

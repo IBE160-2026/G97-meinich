@@ -25,18 +25,6 @@ const serverImportRestriction = {
   ],
 };
 
-// Every displayed number goes through src/engine/format.ts (AD-6).
-// Intl.NumberFormat writes different characters in Node and in browsers, so
-// it is banned in all application code and scripts.
-const intlRestriction = {
-  object: 'Intl',
-  property: 'NumberFormat',
-  message: 'Format numbers with src/engine/format.ts (AD-6).',
-};
-
-// Money is rounded once, at display, half away from zero, by the engine's
-// decimal formatter (AD-8). Math.round rounds half towards +Infinity and
-// toFixed works on binary floats; both are banned where figures are handled.
 // The engine is pure functions, figures in and figures out (AD-8; Story 1.4):
 // on top of the server restriction it may import nothing from Next.js or
 // React, subpaths included (next/server, react/jsx-runtime, react-dom/server).
@@ -56,6 +44,18 @@ const engineImportRestriction = {
   ],
 };
 
+// Every displayed number goes through src/engine/format.ts (AD-6).
+// Intl.NumberFormat writes different characters in Node and in browsers, so
+// it is banned in all application code and scripts.
+const intlRestriction = {
+  object: 'Intl',
+  property: 'NumberFormat',
+  message: 'Format numbers with src/engine/format.ts (AD-6).',
+};
+
+// Money is rounded once, at display, half away from zero, by the engine's
+// decimal formatter (AD-8). Math.round rounds half towards +Infinity and
+// toFixed works on binary floats; both are banned where figures are handled.
 // A later flat-config block replaces the rule's options rather than merging
 // them, so this list repeats the Intl entry.
 const mathRoundRestriction = { object: 'Math', property: 'round', message: 'Use the engine decimal rounding (AD-8).' };

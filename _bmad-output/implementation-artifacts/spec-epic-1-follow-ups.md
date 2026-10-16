@@ -2,7 +2,7 @@
 title: 'Epic 1 follow-ups: retro actions 1–5'
 type: 'bugfix'
 created: '2026-10-16'
-status: 'in-progress'
+status: 'done'
 baseline_commit: 'b9fbbd48b13b76d1b750f43eaeee21894d29fedd'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -72,15 +72,41 @@ Decisions (Meinich, 2026-10-16): include action 2 even though the request named 
 
 ## Implementation Notes
 
-- Branch `story/e1-follow-ups`. Commit 1 is done: `6a17ca7` pins 16.4.2. pnpm 12's minimum release age made `pnpm install` add a commented `minimumReleaseAgeExclude` list to `pnpm-workspace.yaml`. The full suite passed on that commit alone: test 736, test:db 120, test:ingest 79, e2e 114. The local DB is running and seeded.
-- Make commits 2–6 one at a time, in the order of the task list, each one type-checking, with the `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` trailer. Do not push.
-- R1 "before" (db-down server, `GET /` on 16.4.2): HTTP 500, and the body contains no detail. But the server log prints Next.js's `⨯ Error: connect ECONNREFUSED 127.0.0.1:1` with a stack, `address: '127.0.0.1'`, `port: 1`, `code: 'ECONNREFUSED'` and a digest. After the fix, capture the same with `READER_DATABASE_URL='postgresql://reader:unreachable@127.0.0.1:1/postgres' pnpm start --port 3199` (after `pnpm build`), then stop the server, and write the result here.
+- Final verification after the review fixes: check:pins, check:env, lint, typecheck, test 750, test:db 120, build, check:routes, e2e 116 (db-down included). test:ingest is not re-run: nothing under `ingest/` changed after `6a17ca7`.
+
+- Branch `story/e1-follow-ups`. `6a17ca7` pins 16.4.2. pnpm 12's minimum release age made `pnpm install` add a commented `minimumReleaseAgeExclude` list to `pnpm-workspace.yaml`. The full suite passed on that commit alone: test 736, test:db 120, test:ingest 79, e2e 114.
+- Commits 2–6: `4325185` guards, `4e55a7e` db-down e2e, `2164dae` engine ban, `e517794` sweep, `7e0994a` ledger and spec. Review fixes: `368b9df`.
+- R1 "before" (db-down server, `GET /` on 16.4.2): HTTP 500, and the body contains no detail. But the server log prints Next.js's `⨯ Error: connect ECONNREFUSED 127.0.0.1:1` with a stack, `address: '127.0.0.1'`, `port: 1`, `code: 'ECONNREFUSED'` and a digest.
 - R1 "after" (same server, 16.4.2, `GET /` with the fix): HTTP 500, global-error alert, and the body matches none of `ECONNREFUSED`, `127.0.0.1`, `coverage lookup failed`, `PostgresError`. The server log has our line `{"level":"error","event":"home.coverageFailed","failure":"Error"}`, then Next.js's own `⨯ Error: home: coverage lookup failed` with a stack into a compiled chunk (`.next/server/chunks/ssr/…`) and a digest. No address, port, `code` or query text is printed any more. Next.js still logs the fixed message and a stack frame for any uncaught render error; that is its behaviour, not something the app passes on.
 - `failureKind` gives `Error` (not `PostgresError …`) for a refused connection, because ECONNREFUSED is no SQLSTATE.
 
-## Spec Change Log
-
 ## Review Triage Log
+
+Pass 1, three layers: blind hunter (19 findings), edge-case hunter (4), verification gap (0 gaps). Prefix: B = blind, E = edge case.
+
+| # | Finding | Verdict | Evidence / route |
+|---|---|---|---|
+| B1 | The engine-ban block splits the AD-8 rounding comment from `mathRoundRestriction` | low | `eslint.config.mjs:37-44` as cited. **Patch.** |
+| B2/E1 | Dynamic `import()`/`require` of next/react pass the engine ban | low | Real, but the same holds for the existing `postgres`/`src/server` ban: `no-restricted-imports` checks static imports, and the engine has no dynamic import. The fix adds a `no-restricted-syntax` rule, so it is rejected (low, unlikely, adds complexity). |
+| B3/E1 | `server-only`, `client-only`, `@next/*`, `react-server-dom-*` not banned in the engine | low | Retro action 4 names `next`, `next/*`, `react`, `react-dom`, and these four are what an engine module could plausibly reach for. Rejected (low, unlikely). |
+| B4 | The db-down test "a path that is not an analysis is not affected" is wrong now that `/` answers 500 | low | `e2e/db-down.spec.ts:65`. **Patch** (rename). |
+| B5 | The release-age exemption has no owner | low | Only a comment tracks it. **Patch** (ledger entry). |
+| B6 | The workspace comment's "written by pnpm install" is ambiguous | low | **Patch** (direct wording fix). |
+| B7 | `/` reads coverage twice, giving two queries and two log lines | false | `coveredIndustries` is already `cache()`d (`src/server/search.ts:79`): one query per request, shared by the header slot and the page. Two log events for one outage are two callers, each naming its own surface. |
+| B8 | `CoveredIndustry` is used for an uncovered industry | low | The type is a `{code, beskrivelse}` label. A rename touches 5 files for no behavioural harm. Rejected (low, cosmetic churn). |
+| B9 | `industryAtSentenceStart` reuses the `industry.inSentence` key and does not capitalise | low | The register's `naeringskode1_beskrivelse` is capitalised (the e2e test asserts the real seed text). The key is the shared "{navn} ({kode})" shape. Rejected (low). |
+| B10 | Nothing enforces "no page calls `t('industry.inSentence')`" | low | A source-scan test adds machinery for a cosmetic regression. Rejected (low). |
+| B11 | The `test/industry.test.ts` header comment is not updated | low | **Patch.** |
+| B12/E4 | `test/no-other-decimal.test.ts:57` names the deleted `src/engine/index.ts` | false | It is a regex input string that tests alias detection. The path is data, a barrel is the realistic case, and the spec says to keep it. |
+| B13 | Older specs and session files still describe `src/engine/index.ts` | false | Historical records of a past state. This spec's Code Map records the deletion. |
+| B14 | The HomePage test covers only `readerSql()` throwing, not a rejected query | low | The guard is one try/catch around both. The case is a two-line addition. **Patch.** |
+| B15 | No test that a covered analysis skips the coverage read | low | Affects performance only, and the condition is one ternary. Rejected (low). |
+| B16 | `/api/sok` db-down test: does `q=admmit` reach the database? | false | A query rejected before the read answers 400, not 500. The asserted 500 proves the read ran and failed. |
+| B17 | The HomePage case lives under `test/analysis/` | low | Cosmetic. Rejected. |
+| B18 | The spec's Implementation Notes are stale, and its logs are empty | — | The fix edits this build's spec, so it is rejected by rule. The notes are tidied at hand-off. |
+| B19 | The retro's action-5 row still states the original D10 fix | low | `epic-1-retro-2026-10-16.md:217`. AGENTS.md says to edit, not append. **Patch.** |
+| E2 | `decimalPlaces() > MULTIPPEL_STEP.decimalPlaces()` is wrong for a step like 0.25 | low | Holds only for power-of-ten steps. The step is fixed at 0.1 by the URL contract, and the old `> 1` made the same assumption. Rejected (low, hypothetical). |
+| E3 | An empty `covered_industry` leaves `{industry}` blank | low | The old code behaved the same. The loader writes coverage from `seed/coverage.json`, so it is unreachable in v1. Rejected (low, pre-existing). |
 
 ## Verification
 

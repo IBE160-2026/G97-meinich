@@ -11,7 +11,8 @@
 // test/analysis-shell.test.ts: the build cannot be made to fail its reads here.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 import { benchmarkApiFigures, heroContext, type ApiBenchmark } from '../src/engine/benchmark.ts';

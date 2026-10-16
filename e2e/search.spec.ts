@@ -2,7 +2,8 @@
 // and the loaded demo seed. A navigation is checked by its URL: the bare
 // analysis path of a covered company redirects to its Oversikt tab
 // (Story 1.6b; the analysis pages are tested in e2e/analysis.spec.ts).
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
 const ADMMIT = '813235552'; // demo company A; a covered company in the seed

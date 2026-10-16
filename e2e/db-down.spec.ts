@@ -6,7 +6,7 @@
 // "Noe gikk galt. Prøv igjen om litt." — with no detail of the error in the
 // response. Runs against the second server in playwright.config.ts, whose
 // READER_DATABASE_URL points at a closed port.
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
 const ORGNR = '813235552'; // demo company A; any valid orgnr is read

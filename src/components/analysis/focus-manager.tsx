@@ -17,10 +17,20 @@ import { parse } from '@/url/analysis-state';
 
 const WAIT_MS = 5000;
 
+// The bare path is not a tab: a search opens a company's bare path, and the
+// server's redirect to its Oversikt tab reaches usePathname as a second change.
+// That arrival is a route change to the company (focus its h1), not a tab
+// change (Story 1.9).
 function isTabChange(from: string, to: string): boolean {
   const before = parse(from, PATH_CONTEXT);
   const after = parse(to, PATH_CONTEXT);
-  return before.kind === 'analysis' && after.kind === 'analysis' && before.state.orgnr === after.state.orgnr;
+  return (
+    before.kind === 'analysis' &&
+    after.kind === 'analysis' &&
+    before.state.orgnr === after.state.orgnr &&
+    before.state.fane !== null &&
+    after.state.fane !== null
+  );
 }
 
 /** The element the URL's hash names (the footer's "#kilder"), if there is one. */

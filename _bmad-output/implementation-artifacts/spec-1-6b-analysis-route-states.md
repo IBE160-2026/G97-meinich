@@ -18,20 +18,20 @@ context:
 
 **Approach:**
 - Two pages, `/analyse/[orgnr]` and `/analyse/[orgnr]/[fane]`, share one server renderer. It parses the URL with `src/url/analysis-state.ts`, reads the subject once as `reader`, and picks one state: covered (three tab links with an empty panel `h2` each), uncovered, no filing, not found, or invalid orgnr. Each state redirects or renders by the matrix.
-- Also `loading.tsx`/`error.tsx`, `/slik-fungerer-peerless` with "Kilder og lisens", the compact header search on every page but `/`, and the service-role grep test.
+- Also the loading state (a Suspense boundary inside the page), `error.tsx`, `/slik-fungerer-peerless` with "Kilder og lisens", the compact header search on every page but `/`, and the service-role grep test.
 - ACs: issue #8 plus `epics.md` Story 1.6b. `epics.md` wins on a conflict, and it adds the compact header search AC.
 
 **Decisions (agent, open to change at approval):**
 - **Subject filing:** the subject's newest `SELSKAP` filing by `filing_year`. With no `SELSKAP` filing the company is in the no-filing state, whether or not its industry is covered.
 - **Revenue:** "Omsetning x mill. kr" appears only when `valuta = 'NOK'` and `sum_driftsinntekter_ore` is not null. Kroner are never printed for another currency.
-- **Not found:** the State block and the demo links, with HTTP **404** (human, 2026-10-16), asserted in the e2e tests. No register call. `src/app/analyse/[orgnr]/layout.tsx` does the cheap subject lookup (`loadSubject`, cached), so a 404 is decided before streaming. `loading.tsx` sits below it and covers the page-level work that Stories 1.7–1.9 add. `src/app/analyse/error.tsx` catches errors from that layout. `not-found.tsx` renders the front page for an invalid orgnr and the not-found State block for a valid one.
+- **Not found:** the State block and the demo links, with HTTP **404** (human, 2026-10-16), asserted in the e2e tests. No register call. `src/app/analyse/[orgnr]/layout.tsx` does the cheap subject lookup (`lookupSubject`, `loadSubject` wrapped in React's `cache()`), so a 404 is decided before streaming. The loading state is a Suspense boundary inside `AnalysisPage`, after the redirect decision, and covers the page-level work that Stories 1.7–1.9 add; there is no `loading.tsx`. `src/app/analyse/error.tsx` catches errors from that layout. The root `src/app/not-found.tsx` renders the front page for an invalid orgnr and the not-found State block for a valid one.
 - **Titles:** covered "{navn} – {Fane} – Peerless"; uncovered and no filing "{navn} – Peerless"; not found and invalid "Peerless". A null `navn` falls back to the orgnr in groups of three.
 - **Notice:** a client component renders an empty `role="status"` and fills it after mount, so it is announced once.
 - **Picked over the deferred-work items:** the compact field keeps its real `<label>`, visually hidden, and also gets `placeholder = t('search.label')`, in addition to the label and never in its place (human, 2026-10-16). The e2e tests check that its accessible name comes from the label: the name stays the same when the placeholder is removed. It does not set `busy` when the target orgnr is the one already shown, and it resets `busy` and the notice when the pathname changes.
 - **No writes:** `readerSql()` connects with `default_transaction_read_only=on`, so a request cannot write even by mistake.
 
 **Decisions (human, 2026-10-16):**
-- **Invalid orgnr:** the front page's content renders at the analysis URL, with the hero field holding the input and the length or checksum message. The response is **HTTP 404**, not 200, and the e2e tests assert 404 for both a wrong length and a wrong checksum. The 404 status must be set before streaming starts. So `notFound()` is called in `src/app/analyse/[orgnr]/layout.tsx`, above the `loading.tsx` boundary, and `src/app/analyse/not-found.tsx` renders the front-page body. The raw input comes from `useParams()` in a client part, parsed by the URL module.
+- **Invalid orgnr:** the front page's content renders at the analysis URL, with the hero field holding the input and the length or checksum message. The response is **HTTP 404**, not 200, and the e2e tests assert 404 for both a wrong length and a wrong checksum. The 404 status must be set before streaming starts. So `notFound()` is called in `src/app/analyse/[orgnr]/layout.tsx`, before any Suspense boundary renders, and the root `src/app/not-found.tsx` renders the front-page body. The raw input comes from `usePathname()` in a client part, parsed by the URL module.
 - **Header search on phone:** below `md` the search takes a full-width second row under the wordmark and the link, and stays inline from `md`. A two-row header is never sticky. The e2e tests assert, at 320 px and 375 px, that the header's search input is at least 200 px wide and that the body does not scroll horizontally.
 - **"Kilder og lisens" copy**, accepted:
   - "Tallene i Peerless kommer fra Brønnøysundregistrene: Enhetsregisteret og nøkkeltallene i Regnskapsregisteret."
@@ -131,6 +131,8 @@ Three parts of the design do not hold in Next.js 16.4; found by probing the prod
 - **The 404 states have a visible, focusable `h1`.** A client navigation to a valid orgnr not in the database focuses it. The e2e test drives `window.next.router`, because no UI path reaches that state. An unknown path cannot be reached by a client navigation at all: Next.js turns `router.push` to an unmatched path into a full page load.
 
 ## Spec Change Log
+
+- **2026-10-19 (Meinich, Epic 1 retro action 7, finding S5):** Intent and Design Notes corrected to the as-built design recorded under Implementation Notes: no `loading.tsx` (the loading state is a Suspense boundary inside the page), 404 content from the root `src/app/not-found.tsx` rather than a nested `src/app/analyse/not-found.tsx`, the raw input read with `usePathname()` rather than `useParams()`, and the cached lookup named `lookupSubject` (the uncached `loadSubject` is what it wraps). The 404 status decision itself (human, 2026-10-16) is unchanged and is now also in the technical note, AD-5. Review finding 10 rejected this edit as "fix edits this spec"; AGENTS.md ("Specs, reviews and merging") now requires it. The ticked task list is left as the record of what was planned.
 
 ## Review Triage Log
 

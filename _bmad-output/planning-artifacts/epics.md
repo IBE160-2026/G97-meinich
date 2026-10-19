@@ -388,7 +388,7 @@ FR-59: Epic 1 — No OCR or fetch at query time (Stories 1.3a, 1.7)
 FR-60: Epic 3 — Traceability to filed values
 FR-61: Epic 1 — Front page (industry overviews in Epic 6)
 FR-62: Epic 1, 3 — Tabs: Oversikt, Peers and Nøkkeltall og gap in Epic 1 (three tabs during Epics 1–2); Verdi added in Epic 3, so four open tabs once Epic 3 is done (Utvikling in Epic 6)
-FR-64: Epic 1, 3 — Filing year and read date (stored by Story 1.3a, shown by Story 1.6b); in every provenance drill-down in Epic 3 (PDF and saved parts in Epic 6)
+FR-64: Epic 1, 3 — Filing year and read date: stored by Story 1.3a, and shown for the subject in the company header by Story 1.6b; for peer aggregates and in every provenance drill-down in Epic 3 (PDF and saved parts in Epic 6)
 FR-65: Epic 1, 5 — Source credit in Story 1.6b; the document-figure paragraph published in Story 5.4, with the licence assessment
 FR-66: Epic 2 — Withdrawn company removed from stored data (saved-analysis part in Epic 6)
 FR-68: Epic 5 — Embeddings for the ablation, cut first
@@ -403,7 +403,7 @@ FR-5, FR-33 to FR-51, FR-63, FR-67: Epic 6 — backlog (stage 2)
 
 ### Epic 1: Look up a company and see where it stands — API figures and the first gap in kroner (slice 0)
 Kari or Anders searches by name or organisation number and gets the company header, a peer group from funnel stages 1–3, and the key-figure table for the three API figures (driftsmargin, totalkapitalrentabilitet, egenkapitalandel) with median, beste fjerdedel and Plassering. The driftsmargin gap is already in kroner — (beste fjerdedel − own margin) × `sumDriftsinntekter` at full convergence — shown in the table and in the Oversikt hero card "Største gap i kroner". Uncovered, no-filing and invalid-number states, URL state, rate limit, data date, source line, the front page and responsive layout from the first story. Delivers the teacher's "organisasjonsnummer → peer-gruppe → nøkkeltall og gap i kroner" early.
-**FRs covered:** FR-1, FR-2, FR-3, FR-4, FR-6, FR-7, FR-8, FR-9, FR-20, FR-21 (API figures), FR-22, FR-24, FR-25, FR-27 (API rows), FR-29 (API part: driftsmargin), FR-55, FR-56, FR-59, FR-61, FR-62 (three tabs; Verdi in Epic 3), FR-64, FR-65, FR-69, FR-72 (page with "Kilder og lisens" only), FR-73 (local run on the API seed)
+**FRs covered:** FR-1, FR-2, FR-3, FR-4, FR-6, FR-7, FR-8, FR-9, FR-20, FR-21 (API figures), FR-22, FR-24, FR-25, FR-27 (API rows), FR-29 (API part: driftsmargin), FR-55, FR-56, FR-59, FR-61, FR-62 (three tabs; Verdi in Epic 3), FR-64 (the subject's filing year and read date; peer aggregates in Epic 3), FR-65, FR-69, FR-72 (page with "Kilder og lisens" only), FR-73 (local run on the API seed)
 
 ### Epic 2: Trust the peer group
 The user sees why each company was chosen: funnel counts per stage, "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" per peer, and can exclude a peer or widen the size band. Behind it: OCR, reconciliation and per-filing status (batch step 1, 2021–2025 as data and SM-2 measurement), fingerprint and classification (batch step 2), `410 Gone` deletion, and the state for a subject whose own filing fails reconciliation.
@@ -411,7 +411,7 @@ The user sees why each company was chosen: funnel counts per stage, "Hvorfor med
 
 ### Epic 3: See every gap in kroner and what closing it is worth
 The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), and the no-double-counting tests.
-**FRs covered:** FR-21, FR-23 (document rows), FR-24 (document rows), FR-26, FR-27 (remaining rows), FR-29 (document figures), FR-30, FR-31, FR-32, FR-60, FR-62 (Verdi tab), FR-64 (provenance), FR-71 (document rows)
+**FRs covered:** FR-21, FR-23 (document rows), FR-24 (document rows), FR-26, FR-27 (remaining rows), FR-29 (document figures), FR-30, FR-31, FR-32, FR-60, FR-62 (Verdi tab), FR-64 (peer aggregates and provenance), FR-71 (document rows)
 
 ### Epic 4: Understand the gaps — the explanation
 Every 62.100 company has a stored explanation marked ✦, generated in batch step 2 and guarded by the FR-53 figure test, the FR-54 phrase list and the input digest; hidden when the peer group is adjusted ("Forklaringen gjelder standard peer-gruppe. Tilbakestill for å se den."), an acceptance criterion moved here from Story 2.8 because the explanation card first exists in this epic.
@@ -469,6 +469,8 @@ So that every later story starts from the same versions, the same guards and a l
 **Given** the Next.js security release announced for 2026-10-14
 **When** the story's PR is reviewed before merge
 **Then** the PR records whether the advisory has shipped, and if it has, `next` is pinned to the patched 16.4.x
+
+*Missed (Epic 1 retro, 2026-10-16): the advisory shipped on 2026-10-14 as 16.4.1 (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr), and no later PR re-checked it. 16.4.2 was pinned in the Epic 1 follow-ups PR (#30).*
 
 **Given** `next.config.ts`
 **When** it is read

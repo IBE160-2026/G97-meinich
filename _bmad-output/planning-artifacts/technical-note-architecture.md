@@ -302,11 +302,11 @@ flowchart LR
 - **Database:** Supabase CLI 2.120, pinned exactly. Local Postgres 17 with `pg_trgm` and `unaccent` for name search.
 - **Reader connection:** postgres.js 3.4.9, no ORM, in a `server-only` module. It returns `int8` and `numeric` as strings, never passed through `Number()`.
 - **Decimal library:** decimal.js 10.6.0, pinned exactly (AD-8).
-- **Step 1:** Python 3.14 (`.python-version`) with `uv` from a pinned image tag and a committed `uv.lock`. Tesseract 5.5 with `nor` from `tessdata_best`, pinned by commit, in Docker.
+- **Step 1:** Python 3.14 (`.python-version`) with `uv` from a pinned image tag and a committed `uv.lock`. Tesseract 5.5 with `nor` from `tessdata_best`, pinned by commit, in Docker; PDF pages rendered with PyMuPDF, pinned exactly (Story 2.1a).
 
 **Deferred, with the reason it can wait.**
 
-- **Hosted deployment** (Vercel, hosted Supabase): v1 runs locally from the README. It arrives with stage 2, behind three gates: the licence assessment, persistent rate limiting (shared counters, and the client address from what the platform sets, not a client-set header; AD-10), and a refresh cadence.
+- **Hosted deployment** (Vercel, hosted Supabase): v1 runs locally from the README. It arrives with stage 2, behind three gates: the licence assessment (which also covers PyMuPDF, the AGPL-3.0 library step 1 renders the filed documents with: acceptable while step 1 is a local batch tool that is neither served nor distributed, to be reassessed before step 1 runs on hosted infrastructure; Story 2.1a), persistent rate limiting (shared counters, and the client address from what the platform sets, not a client-set header; AD-10), and a refresh cadence.
 - **Render caching:** Cache Components is off in v1, and every analysis renders dynamically from the URL. It is revisited with the stage-2 deployment. Any cache then keys on the canonical parsed URL state (AD-5) and the loaded manifest (AD-16), and every seed load invalidates it.
 - **Automatic refresh cadence:** v1 refreshes manually and shows the read date (AD-18). A cadence shaped to the filing window is a gate before any public deployment.
 - **Embeddings** (pgvector): computed in batch step 2 for the measurement only, never user-facing, and the first v1 item cut if time runs short.

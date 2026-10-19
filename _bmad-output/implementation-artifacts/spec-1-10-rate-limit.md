@@ -2,7 +2,7 @@
 title: 'Story 1.10: The open route is rate-limited without storing anyone'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-review'
+status: 'done'
 baseline_commit: '5677bec7da93b4a991d3e3ecf1d568a158296427'
 route: 'dispatch'
 review_loop_iteration: 0

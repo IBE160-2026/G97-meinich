@@ -167,7 +167,7 @@ Run on the 2025 filing for 979 607 008: the three generated pages rendered at 30
 
 ## Filing eras and OCR consistency — second measurement
 
-Run on 2026-09-26 by `analysis/ocr/era_screening.py` and `analysis/ocr/ocr_accuracy.py`, with Tesseract 5 and its Norwegian model in Docker (`analysis/ocr/Dockerfile`). Reports in `analysis/output/filing-eras.md` and `analysis/output/ocr-consistency.md`.
+Run on 2026-09-26 by `analysis/ocr/era_screening.py` and `analysis/ocr/ocr_accuracy.py`, with Tesseract 5.3 and Debian bookworm's Norwegian model in Docker (`analysis/ocr/Dockerfile`, since removed: the scripts now run against step 1's image, Story 2.1a). Reports in `analysis/output/filing-eras.md` and `analysis/output/ocr-consistency.md`.
 
 **Paper filings are a small remainder.** Across 30 companies from 62.100 and 69.202, one or two filings per year were on paper in 2011–2013, and none from 2014. 979 607 008 itself filed on paper until 2013. The heading of page 1 tells the two apart: "GENERELL INFORMASJON" on a generated section, "VEDLEGG TIL" on a paper cover form. The paper form also contains the word "regnskapsåret", so a looser rule misclassifies it.
 
@@ -182,13 +182,23 @@ Run on 2026-09-26 by `analysis/ocr/era_screening.py` and `analysis/ocr/ocr_accur
 - **Latest filing against the key figures API: 71 of 71 figures agree.**
 - **Last year's column against the previous year's own filing: 1 142 of 1 217 agree (94 %)** — two readings of the same figure from two documents.
 - When the plain read yields a figure, it is almost always right: 99 % of the columns it could check reconciled.
-- A **digits-only pass** (`tessedit_char_whitelist`) recovers more figures but drops digits in the older font — "622821" for 6 228 521. Used alone it is worse; used only where the plain read gave nothing, and kept only where the result reconciles, it lifts verified columns for 2021–2025 from 71 % to 88 %.
+- A **digits-only pass** (`tessedit_char_whitelist`) recovers more figures but drops digits in the older font — "622821" for 6 228 521. Used alone it is worse; used only where the plain read gave nothing, it lifted verified columns for 2021–2025 from 71 % to 88 % in this measurement. The spike's combined read had no reconciliation gate on that fallback: a column whose other checks failed could still keep a digits-only figure. Step 1's gate (below) is stricter, and Story 2.3 measures what it costs.
 - The older generated section uses a font where Tesseract reads "s" as "o" ("Driftoreoultat"), so row labels are matched exactly first, then with a strict similarity rule on the row's own label.
 - Most remaining failures are in the income statement check, and several look like row parsing rather than recognition. Headroom, not a v1 blocker.
 
 **This measures consistency, not accuracy.** No hand-transcribed truth exists yet. A filing that reconciles internally and against the API is very unlikely to hold a wrong figure, because recognition errors are wrong by orders of magnitude, but the hand-transcribed set is still owed.
 
 **Consequence:** development over time in v1 covers the last five years, 2021–2025, where about nine in ten columns verify. Paper filings are never read. Older generated filings are used wherever they reconcile, but reach back unevenly — about six in ten verify.
+
+## Reading rules as built in step 1 (Story 2.1a)
+
+The spike's rules are production code in `ingest/src/peerless_ingest/` (`ocr.py`, `layout.py`, `documents.py`; entry point `read_document`), run in step 1's image: Tesseract 5.5.0 from Debian trixie, `nor.traineddata` from `tessdata_best` at commit `e12c65a`, checked by sha256 in the build and by `image_check` in CI. Where they differ from the spike:
+
+- **Look-alike letters are folded in labels and headings, never in figures.** Cyrillic and Greek letters that look like Latin ones (a Cyrillic `Р` inside `RESULTATREGNSKAP`) and the Norwegian letters are mapped before diacritics are dropped. A figure token with any character other than ASCII digits after a leading minus is absent.
+- **The plain pass accepts only the generated layout's digit groups** (a leading group of 1–3, then groups of exactly 3, at most one space apart). A single ungrouped token is accepted only from the digits-only pass.
+- **The digits-only gate.** A digits-only figure fills only a field the plain pass missed. It is kept only if, with the column's digits-only figures filled in, the field is in a within-document check that is then evaluable and every evaluable check of that column passes; otherwise every digits-only figure of the column is dropped. A field in no check — salgsinntekt, varekostnad, lønnskostnad, annen driftskostnad, leverandørgjeld and the other non-total lines — never takes one. In the 2025 filing for 979 607 008 this leaves annen driftskostnad (2025) and leverandørgjeld (both years) absent: the plain pass misread a digit (`l0 170 8365`, `l 001 605`), and for annen driftskostnad the digits-only pass was wrong as well (`101708365`).
+- **"Beløp i:".** Every figure page states its unit on the year-header line, `Beløp i: NOK` in whole kroner. Figures are read only when every such header is a bare three-letter currency code. A scale ("NOK 1000", "tusen kroner"), headers that disagree between pages, or no readable header gives the document no columns, with the refusal `reporting_unit` and the header text as read — never a guessed scale. No readable year header gives the refusal `year_header`.
+- **Within-document bound:** 5 kr absolute, one named constant (`TOLERANCE_KR`) until Story 2.2 moves it into configuration.
 
 ---
 

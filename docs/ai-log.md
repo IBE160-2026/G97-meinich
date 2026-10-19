@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 23 |
-| money | 14 |
-| parsing | 7 |
+| money | 15 |
+| parsing | 8 |
 | llm-boundary | 5 |
 | scope | 14 |
 | docs | 18 |
@@ -484,3 +484,21 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 - The review step: 23 findings, 7 patched (`368b9df`), the rest rejected with evidence in the spec's triage log.
 
 **Outcome:** Branch `story/e1-follow-ups`, issue #29. The retro's D10 fix was corrected before implementation: the copy begins with the industry, so it keeps the capital (human decision). The retro row was edited to match.
+
+### 2026-10-19 — Story 2.1a: the OCR library and the one Tesseract image
+**Tags:** money, parsing
+**Tool:** Claude Code (Opus 5.5), an implementation subagent working from the frozen spec `spec-2-1a-ocr-library.md`
+**Asked:** Port the spike's reading rules into step 1 as a pure library (`read_document(pdf) -> DocumentRead`), move Tesseract into step 1's image (5.5, `nor` from `tessdata_best` pinned by commit and sha256), and pin every known OCR failure with a regression test (issue #31).
+
+**Got:** `ocr.py`, `layout.py`, `documents.py`, `image_check.py` in `ingest/src/peerless_ingest/`, the 979607008/2025 fixture with its recorded TSVs and expected JSON, hand-built trap TSVs (`ingest/tests/tsv_builder.py`), the CI step `ocr-image-check`, and `test/one-tesseract-image.test.ts`.
+
+**Problem:** One spec conflict, and what could go wrong with figures read by OCR:
+1. **The spec's expected values and its gate disagree.** The Design Notes table gives annen driftskostnad 2025 (10 170 865) and leverandørgjeld (1 001 605, 1 731 356) as values the read returns. Under the approved gate it cannot: the plain pass misread a digit in each (`l0 170 8365`, `l 001 605`, `l 731 356`), and neither field is in a check, so the digits-only figure is refused. The expected JSON records the gated read, with those three figures absent; every figure it does hold equals the hand-checked table, which `test_contract_979607008_2025` in `ingest/tests/test_documents.py` asserts (`FILED_979607008_2025`, `ABSENT_BY_GATE`). The gate was right to refuse one of them: the digits-only pass read `101708365` for 10 170 865.
+2. **A figure in no check is never confirmed.** A plain-pass figure outside the four checks (salgsinntekt, varekostnad, lønnskostnad, kundefordringer, leverandørgjeld, …) is trusted on its digit grouping alone. A well-grouped misread — a `3` read as an `8` — passes every rule here and reaches Story 2.1b's table. Only Story 2.2's between-source check and Story 2.3's measurement can bound that.
+3. **A scaled report is refused, not converted.** "Beløp i: NOK 1000" gives no columns (`test_scaled_or_unreadable_unit_gives_no_columns`). If a generated filing ever printed a scale somewhere other than that header line, the read would take thousands as kroner; the spike saw only `NOK`.
+4. **The checks are the only arithmetic, and a passing check can hide two compensating errors.** C1 passes if sum inntekter and sum kostnader are both misread by the same amount. Recognition errors are wrong by orders of magnitude, so two equal ones are unlikely, not impossible.
+5. **Label matching takes the first row in document order.** The notes page (zero-based 4) is parsed with inherited columns, like the spike. A field missing from the statements could match a notes line that ends with its label; its figures would then be None or a stray number from the notes' text. `varer` is the field at risk.
+
+**Caught by:** Running the library on the recorded output and comparing every figure with the PDF pages by eye (item 1); the guards were checked by deleting each one and watching its test fail (the length rule, the gate, plain-over-digits, the look-alike fold).
+
+**Outcome:** Branch `story/2.1a-ocr-library`, commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653` and the docs commit. Item 1 is recorded in the spec's Implementation Notes for the human to confirm.

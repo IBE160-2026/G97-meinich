@@ -62,10 +62,6 @@
   summary: `/analyse/813 235 552/oversikt` renders without a redirect, while the bare spaced path `/analyse/813 235 552` redirects, so every analysis has duplicate URLs. Redirect a non-canonical orgnr segment to its canonical form on every tab.
   evidence: Epic 1 retro, finding R8 (`src/analysis/view.ts`, the covered branch of `analysisView`). Crosses Stories 1.6a and 1.6b. Deferred (small) by Meinich, 2026-10-16.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-follow-ups.md`
-  summary: Remove `minimumReleaseAgeExclude` (and its comment) from `pnpm-workspace.yaml` once Next.js 16.4.2 (released 2026-10-15) is past pnpm's minimum release age. Trigger: the next dependency update or Story 2.1a, whichever comes first.
-  evidence: Commit `6a17ca7` pinned 16.4.2 for GHSA-2464-fhr4-w9xw and GHSA-673q-mjm6-r5xr; pnpm install refused the too-young versions and wrote the exemption list.
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1a-ocr-library.md`
   summary: Årsverk (`aarsverk`, full-time equivalents, one decimal) is not read in Epic 2, so key figures #7 revenue per FTE (`sumDriftsinntekter / aarsverk`) and #8 personnel cost per FTE (`lonnskostnad / aarsverk`) in `docs/key-figures.md` have no input until a later story reads it. Until then Story 2.9 must show both as absent with the right reason, not as undefined or as a failed reconciliation.
   evidence: Story 2.1 planning, 2026-10-19. Årsverk is printed in the company's own notes, which follow the three Brreg-generated pages; the spike's layout rules read only the generated section, and the notes are free-form. Deferred by Meinich, 2026-10-19.

@@ -6,10 +6,14 @@ of 979607008/2025 for the contract. No Tesseract, no database, no network.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
-from peerless_ingest import documents
+from peerless_ingest import documents, image_check
 from peerless_ingest.documents import DocumentRead
+from peerless_ingest.ocr import PageWords, Word, read_tsv
 from tsv_builder import BASE_ROWS, Row, digits_of, document, replace_row
 
 
@@ -177,3 +181,98 @@ def test_split_merge_fails_check() -> None:
     # As printed correctly, the same column passes.
     column = current_of(read(replace_row(rows, "Driftsresultat", current="833 514")))
     assert (column.c1, column.c2) == ("pass", "pass")
+
+
+# --- The contract: 979607008/2025 ---------------------------------------------------
+
+DOCUMENTS = Path(__file__).resolve().parent / "fixtures" / "documents"
+STEM = "979607008-2025"
+
+# Hand-checked against the filed document (fixtures/documents/979607008-2025.pdf),
+# whole kroner as printed, (2025, 2024). The spec's Design Notes table.
+# "Nedskrivning 0" is a printed 0. Varer is a heading with no figure.
+FILED_979607008_2025: dict[str, tuple[int | None, int | None]] = {
+    "salgsinntekt": (71_987_157, 66_799_459),
+    "sum_driftsinntekter": (72_632_310, 69_051_006),
+    "varekostnad": (1_327_425, 744_327),
+    "lonnskostnad": (55_582_660, 52_967_147),
+    "avskrivninger": (5_429_357, 5_512_071),
+    "nedskrivninger": (0, 328_527),
+    "annen_driftskostnad": (10_170_865, 10_468_045),
+    "sum_driftskostnad": (72_510_307, 70_020_117),
+    "driftsresultat": (122_003, -969_111),
+    "netto_finans": (-826_511, -1_102_745),
+    "ordinaert_resultat_foer_skattekostnad": (-704_508, -2_071_857),
+    "aarsresultat": (-1_541_009, -2_611_560),
+    "sum_immaterielle_eiendeler": (16_213_245, 14_615_003),
+    "sum_varige_driftsmidler": (1_197_768, 2_102_723),
+    "varer": (None, None),
+    "kundefordringer": (8_421_893, 11_253_243),
+    "bankinnskudd": (2_115_356, 4_502_513),
+    "sum_eiendeler": (31_073_544, 35_615_025),
+    "sum_egenkapital": (7_764_189, 9_305_198),
+    "leverandorgjeld": (1_001_605, 1_731_356),
+    "sum_kortsiktig_gjeld": (18_676_023, 18_009_823),
+    "sum_gjeld": (23_309_355, 26_309_827),
+    "sum_egenkapital_gjeld": (31_073_544, 35_615_025),
+}
+
+# Figures the read leaves absent although the document prints them. The
+# plain pass misread a digit ("l0 170 8365", "l 001 605", "l 731 356"), and
+# neither field is in a check, so the gate refuses the digits-only figure
+# (for annen driftskostnad 2025 it was also wrong: "101708365").
+ABSENT_BY_GATE = {("annen_driftskostnad", 0), ("leverandorgjeld", 0), ("leverandorgjeld", 1)}
+
+
+def recorded_words(stem: str) -> tuple[list[Word], list[PageWords]]:
+    def tsv(name: str) -> list[Word]:
+        return read_tsv((DOCUMENTS / name).read_text(encoding="utf-8"))
+
+    pages = [PageWords(tsv(f"{stem}.p{n}.plain.tsv"), tsv(f"{stem}.p{n}.digits.tsv")) for n in (2, 3, 4, 5)]
+    return tsv(f"{stem}.top.tsv"), pages
+
+
+def test_contract_979607008_2025() -> None:
+    top, pages = recorded_words(STEM)
+    result = documents.read_words(top, pages)
+    expected = json.loads((DOCUMENTS / f"expected-{STEM}.json").read_text(encoding="utf-8"))
+    assert documents.to_json(result) == expected
+
+    assert (result.layout, result.valuta, result.unit_text, result.refusal) == ("generated", "NOK", "NOK", None)
+    assert result.current is not None and result.prior is not None
+    assert (result.current.year, result.prior.year) == (2025, 2024)
+    for index, column in enumerate((result.current, result.prior)):
+        assert checks_of(column) == ("pass", "pass", "pass", "pass")
+        assert column.digits_pass_fields == ()
+        for name, filed in FILED_979607008_2025.items():
+            want = None if (name, index) in ABSENT_BY_GATE else filed[index]
+            assert column.figures[name] == want, (name, column.year)
+    assert set(FILED_979607008_2025) == set(documents.FIELDS)
+
+
+def test_contract_split_figure_in_the_recorded_document() -> None:
+    # The recorded words with sum inntekter 2025 ("72 632 310", the first "72"
+    # on the page; "72 510 307" is the second) read as 722 632 310.
+    top, pages = recorded_words(STEM)
+    page = pages[0]
+    first = next(i for i, w in enumerate(page.plain) if w.text == "72")
+    w = page.plain[first]
+    plain = [*page.plain[:first], Word("722", w.left - 40, w.top, w.width + 40, w.height, w.line), *page.plain[first + 1 :]]
+    result = documents.read_words(top, [PageWords(plain, page.digits), *pages[1:]])
+    column = current_of(result)
+    assert column.figures["sum_driftsinntekter"] == 722_632_310
+    assert column.c1 == "fail"
+
+
+def test_image_check_reports_every_difference() -> None:
+    expected = json.loads((DOCUMENTS / f"expected-{STEM}.json").read_text(encoding="utf-8"))
+    got = json.loads(json.dumps(expected))
+    assert image_check.differences(got, expected) == []
+    got["current"]["figures"]["driftsresultat"] = 12_200
+    got["valuta"] = None
+    assert image_check.differences(got, expected) == [
+        ".current.figures.driftsresultat: read 12200, expected 122003",
+        ".valuta: read None, expected 'NOK'",
+    ]
+    assert image_check.VERSION.match("tesseract 5.5.0")
+    assert not image_check.VERSION.match("tesseract 5.3.0")

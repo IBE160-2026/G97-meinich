@@ -102,6 +102,16 @@ jobs:
       - name: Step 1 image imports
         run: docker run --rm --entrypoint /app/.venv/bin/python peerless-ingest:ci -c "import peerless_ingest.run"
 
+      # Story 2.1a: Tesseract 5.5.x and the pinned nor model in the image, and
+      # the read of the fixture PDF equals the expected JSON the host tests
+      # reach from the recorded Tesseract output. No database, no network.
+      - name: ocr-image-check
+        run: >-
+          docker run --rm
+          --mount type=bind,src=${{ github.workspace }}/ingest/tests/fixtures/documents,dst=/fixtures,ro
+          --entrypoint /app/.venv/bin/python peerless-ingest:ci
+          -m peerless_ingest.image_check /fixtures
+
       - name: Build
         run: pnpm build
 

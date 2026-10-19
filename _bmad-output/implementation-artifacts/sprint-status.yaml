@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 16-10-2026 16:02
+last_updated: 19-10-2026 20:55
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -120,7 +120,7 @@ action_items:
       analysis branch (fixed message, class + SQLSTATE); add / to e2e/db-down.spec.ts.
       Deadline: before Epic 2, in the Epic 1 follow-ups PR"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-2-pin-next-and-eslint-config-next-to-16-4"
     epic: 1
@@ -128,7 +128,7 @@ action_items:
       and GHSA-673q-mjm6-r5xr); record the missed Story 1.1 AC. Deadline: before Epic
       2, in the Epic 1 follow-ups PR"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-3-copy-only-fix-for-a-subject-with-derivab"
     epic: 1
@@ -136,14 +136,14 @@ action_items:
       not stated -> no band, plus a test; with R3 (empty peer group without a reason).
       Recorded in deferred-work under Story 2.9"
     owner: "Dev (Story 2.9)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-4-ban-next-next-react-and-react-dom-in-the"
     epic: 1
     action: "Ban next, next/*, react and react-dom in the engine ESLint block, with
       a lint fixture. Epic 1 follow-ups PR, before Story 2.1"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-5-tidiness-sweep-src-engine-index-ts-bands"
     epic: 1
@@ -151,7 +151,7 @@ action_items:
       seed:full in .env.example, uncovered-page industry casing. Epic 1 follow-ups
       PR, before Story 2.1"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-6-one-shared-api-key-figure-column-list-re"
     epic: 1
@@ -182,7 +182,7 @@ action_items:
       stale session-file PR links, rejected sections 1.6a-1.9, ai-log corrections
       for 1.7/1.8/1.10, #18 post-merge review, 1.1/1.2 prompts. Before Story 2.1"
     owner: "Review session"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-10-process-changes-for-epic-2-deletion-muta"
     epic: 1

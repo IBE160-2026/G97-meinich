@@ -827,6 +827,55 @@ The corrections to the AI-process record from findings L4–L8 were made on `mai
 
 ---
 
+## Epic 1 follow-ups: retro actions 1–5 (#29, PR #30)
+
+### Prompts to the BMAD session
+
+**2026-10-16 14:09**
+```
+/bmad-build Epic 1 follow-ups: retro action items 1, 3, 4 og 5 (epic-1-retro-2026-10-16.md). Én PR, logiske commits.
+```
+The review session drafted this command using the action numbers from before the retro renumbered them. It left out the security pin, which had become action 2.
+
+**14:11**: the BMAD session caught the gap: "Action 2 (pin next + eslint-config-next to 16.4.2, both still on 16.4.0) is not in your list. Include it?" The answer, from the menu, was "Include action 2". For action 3, the copy for a derived but unstated revenue, the answer was "Ledger entry only": it goes to Story 2.9, as the retro had decided.
+
+**14:14**: the BMAD session caught an error in the retro itself. Finding D10 proposed lower-casing the industry name on the uncovered page, but there the name begins the sentence. The answer, from the menu, was "A: keep capital".
+
+**14:15**: approval.
+```
+Fra meg: godkjent. Kjør hele suiten i bolker etter Next.js-oppgraderingen
+(særlig e2e for 404-status, 500 via error.tsx og rate limit, som bygger på
+Next.js-detaljer), før de andre commitene. Bekreft KANTALL-teksten i e2e.
+Approve and continue.
+```
+*Changed:* the suite ran after the pin commit `6a17ca7` and before the others, because several Epic 1 designs depend on Next.js details: 404 before Suspense, 500 through `error.tsx`, and the proxy.
+
+**2026-10-19 18:39**
+```
+Fra meg: ja, gjør alt: opprett issue, legg session-fil og ai-log-oppføring
+som egne commits på grenen, push og opprett PR-en (Closes #n). Session-fila
+skal ha PR-lenken før merge.
+```
+*Changed:* issue #29 and PR #30. For the first time, the session file and the ai-log entry were in the PR before merge (retro L6). That held except for the merge date, which the review session filled in on `main` afterwards.
+
+### Result
+
+Eleven commits:
+- `6a17ca7`: Next.js 16.4.2, with a pnpm release-age exemption for exactly these versions, whose removal is deferred;
+- `4325185`: the front page and the uncovered page log only error class and SQLSTATE;
+- `4e55a7e`: the database-down e2e test covers every route;
+- `2164dae`: the engine may not import Next.js or React;
+- `e517794`: the tidiness sweep;
+- `7e0994a`: the ledger;
+- `368b9df`: the review fixes;
+- the remaining four: spec and documentation.
+
+### Checks before merging
+
+The human posted the review as a conversation comment at 18:44. CI on `0cdcf3b` finished green at 18:48:31, and the PR was merged at 18:48:37. Retro action 10 asks for a GitHub review with line comments, and that was not done this time: PR #30 has no inline comments. The review session had drafted three line comments, on `pnpm-workspace.yaml`, `src/app/page.tsx` and `e2e/db-down.spec.ts`. Retro actions 1–5 and 9 are marked done in `sprint-status.yaml`.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

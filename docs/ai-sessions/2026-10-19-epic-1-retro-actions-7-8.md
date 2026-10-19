@@ -39,7 +39,7 @@ Two choices made by this session:
 
 Corrected:
 - The first `spec-1-6b` change-log entry said there is "no cached `loadSubject`". That is wrong: `lookupSubject` is `loadSubject` wrapped in React's `cache()`. Caught by this session checking `src/server/analysis.ts` after the commit; the local commit was amended before push.
-- This session said the session file was the review session's to write. The human corrected it: only `docs/ai-prompts.md` is the review session's (AGENTS.md, "Prompts are saved verbatim").
+- This session said the session file was the review session's to write. The review session caught it, and the human passed the correction on: only `docs/ai-prompts.md` is the review session's (AGENTS.md, "Prompts are saved verbatim").
 
 ## Links
 

@@ -894,6 +894,37 @@ The BMAD session and its reviewers read AGENTS.md at the start of every session,
 
 ---
 
+## Retro actions 7 and 8: planning documents and the ledger (on `main`, `9583878`…`5916ecb`, `68107b2`)
+
+### Prompts to the BMAD session
+
+**2026-10-19 18:52**
+```
+Fra meg: gjør retro-tiltak 7 og 8 fra _bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md (listene under tabellen). Bare dokumenter, rett på main, én commit per dokument. Sett tiltakene til done i sprint-status.yaml.
+```
+*Changed:* thirteen commits, one per document. Among them:
+- AD-5 records that the status (404, redirect or 500) is decided before any Suspense boundary renders.
+- AD-10 and the README say plainly that rotating `X-Forwarded-For` defeats the local limit.
+- PRD FR-7 and EXPERIENCE.md describe the no-revenue state.
+- `epics.md` and the 1.1 spec record the missed Next.js advisory acceptance criterion.
+- Five resolved entries were pruned from `deferred-work.md`, and four new ones were added.
+
+The review session checked the push and found that finding R6 was to be recorded under AD-10 but was missing from action 7's list. It added R6 itself in `6a9295b`. The BMAD session had also said that the session file was the review session's to write.
+
+**19:01**
+```
+Fra meg: session-fila er din, ikke review-sesjonens – bare docs/ai-prompts.md
+er review-sesjonens (se AGENTS.md, "Prompts are saved verbatim"). Skriv
+docs/ai-sessions/2026-10-19-epic-1-retro-actions-7-8.md med commitene,
+de to valgene du tok (den femte deferred-posten, R6 utelatt), og at
+review-sesjonen la inn R6 i AD-10 (6a9295b). Commit og push til main.
+```
+*Changed:* `68107b2`. The session file at first credited this correction to "the human". The review session changed it to say that the review session caught it and the human passed it on, as AGENTS.md requires.
+
+With this, every Epic 1 retro action due before Story 2.1 is closed: 1–5 and 7–10. Action 6 is due before Epic 3, and action 11 belongs to Story 2.7.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

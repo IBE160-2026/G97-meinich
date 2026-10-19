@@ -1207,7 +1207,7 @@ So that the reading rules the spike proved are production code, with every known
 
 Split from Story 2.1 on 2026-10-19 (Meinich), following the 1.3a/1.3b pattern. This half covers the image, the extraction library and its fixtures, and touches no database. Fetching, storing, the contract test against the database, the seed and the docs come in Story 2.1b. It builds on the spike in `analysis/ocr/` (`ocr_accuracy.py`, `era_screening.py`, `Dockerfile`) and its measurement in `analysis/output/ocr-consistency.md`; it does not start from scratch. PDF pages are rendered with PyMuPDF, pinned, as in the spike, so the spike's measurement carries over (Meinich, 2026-10-19; its AGPL-3.0 licence is part of the licence assessment before stage 2, technical note, "Deferred", Hosted deployment). Årsverk is read from the company's notes, outside the generated section, and is not read in Epic 2 (`deferred-work.md`).
 
-**Implements:** FR-28 (batch part: the reading rules) · **Invariants:** AD-1, AD-2, AD-14 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.1a-ocr-library`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-28 (batch part: the reading rules) · **Invariants:** AD-1, AD-2, AD-14 · **UX:** – · **Issue / branch / PR:** issue #31, branch `story/2.1a-ocr-library`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -1265,7 +1265,7 @@ So that the document-derived key figures rest on pre-warmed, traceable figures a
 
 Split from Story 2.1 on 2026-10-19 (Meinich). This half covers the migration, the fetch and the step-1 run, the contract test against the database, the seed and the docs; the reading rules come from Story 2.1a.
 
-**Implements:** FR-28 (batch part: 2021–2025 extracted as data), FR-59, FR-64 (read date per filing) · **Invariants:** AD-1, AD-2, AD-3, AD-9, AD-14, AD-15, AD-16, AD-18 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.1b-ocr-ingest`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-28 (batch part: 2021–2025 extracted as data), FR-59, FR-64 (read date per filing) · **Invariants:** AD-1, AD-2, AD-3, AD-9, AD-14, AD-15, AD-16, AD-18 · **UX:** – · **Issue / branch / PR:** issue #32, branch `story/2.1b-ocr-ingest`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 

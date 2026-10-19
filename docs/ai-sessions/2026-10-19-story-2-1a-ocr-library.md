@@ -3,7 +3,7 @@
 **Date:** 2026-10-19
 **Tool:** Claude Code (Opus 5.5): an orchestrating session and an implementation subagent working from the frozen spec
 **Story / issue:** #31, Story 2.1a
-**Result:** branch `story/2.1a-ocr-library`, commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653` and the docs commit; PR to follow
+**Result:** branch `story/2.1a-ocr-library`, commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653` and the docs commit; PR #33
 
 ## Goal
 

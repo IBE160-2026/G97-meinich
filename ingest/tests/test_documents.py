@@ -122,6 +122,24 @@ def test_digits_kept_only_if_column_reconciles() -> None:
     assert result.prior is not None and result.prior.figures["sum_driftskostnad"] == 70_020_117
 
 
+def test_digits_never_confirm_each_other() -> None:
+    # Both C3 totals unreadable in the plain pass, and the digits-only pass
+    # drops the same digit from both: C3 passes on two digits-only figures,
+    # which confirms neither. Both absent (Meinich, 2026-10-19). Sum gjeld is
+    # read by neither pass, so C4 cannot catch it.
+    plain = replace_row(BASE_ROWS, "SUM EIENDELER", current="31 o73 544")
+    plain = replace_row(plain, "SUM EGENKAPITAL OG GJELD", current="31 o73 544")
+    plain = replace_row(plain, "Sum gjeld", current="23 3o9 355")
+    digits = replace_row(digits_of(BASE_ROWS), "SUM EIENDELER", current="3107354")
+    digits = replace_row(digits, "SUM EGENKAPITAL OG GJELD", current="3107354")
+    digits = replace_row(digits, "Sum gjeld", current="")
+    column = current_of(read(plain, digits))
+    assert column.figures["sum_eiendeler"] is None
+    assert column.figures["sum_egenkapital_gjeld"] is None
+    assert column.digits_pass_fields == ()
+    assert (column.c3, column.c4) == ("not_evaluable", "not_evaluable")
+
+
 def test_digits_unused_outside_checks() -> None:
     # Varekostnad is in no check, so nothing could confirm a digits-only
     # figure for it, even with every check passing.

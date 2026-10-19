@@ -19,9 +19,13 @@ figure stays None, never 0.
    pass reads "622821" for 6 228 521).
 3. Such a digits-only figure is kept only if, with all of the column's
    digits-only figures filled in, (a) the field takes part in at least one
-   check that is then evaluable, and (b) every evaluable check of that column
-   passes. Otherwise every digits-only figure of the column is dropped, and
-   the field is absent. A field in no check never takes a digits-only figure.
+   check that then passes and in which at least one of the other operands
+   came from the plain pass, and (b) every evaluable check of that column
+   passes. Otherwise the figure is absent; if any check fails, every
+   digits-only figure of the column is dropped. A field in no check never
+   takes a digits-only figure, and digits-only figures never confirm each
+   other: sum eiendeler and sum egenkapital og gjeld print the same number,
+   so the same dropped digit in both would pass C3 (Meinich, 2026-10-19).
 
 **Reporting unit.** Figures are read only when every "Beløp i:" header states
 a bare three-letter currency code, which means whole units. A scale ("NOK
@@ -133,8 +137,17 @@ def combine(plain: dict[str, int | None], digits: dict[str, int | None]) -> tupl
     results = checks(filled)
     if any(r == "fail" for r in results.values()):
         return dict(plain), ()
-    evaluable = {name for name, r in results.items() if r == "pass"}
-    kept = tuple(k for k in offered if any(k in CHECK_FIELDS[name] for name in evaluable))
+    passing = [name for name, r in results.items() if r == "pass"]
+
+    def confirmed(k: str) -> bool:
+        # A passing check with k in it and a plain-pass figure among its
+        # other operands.
+        return any(
+            k in CHECK_FIELDS[name] and any(plain[f] is not None for f in CHECK_FIELDS[name] if f != k)
+            for name in passing
+        )
+
+    kept = tuple(k for k in offered if confirmed(k))
     figures = dict(plain)
     for k in kept:
         figures[k] = digits[k]

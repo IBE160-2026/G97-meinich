@@ -876,6 +876,24 @@ The human posted the review as a conversation comment at 18:44. CI on `0cdcf3b` 
 
 ---
 
+## Retro action 10: process rules in AGENTS.md (on `main`)
+
+### Prompts to the review session
+
+**2026-10-19**: the review session offered to make action 10's process changes, and the human answered `okei`.
+
+*Changed:* AGENTS.md gained a section, "Specs, reviews and merging", with the six process changes from retro findings L2–L11:
+- an I/O-matrix row names the test that would fail if its code were deleted;
+- every AI-log claim names its test;
+- reviewers know both status vocabularies;
+- no silent fallbacks;
+- post-freeze spec corrections go under `## Spec Change Log`;
+- the session file is current, and the human's review has line comments, before merge.
+
+The BMAD session and its reviewers read AGENTS.md at the start of every session, so the rules apply from Story 2.1 on.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

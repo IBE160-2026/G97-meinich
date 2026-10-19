@@ -191,7 +191,7 @@ action_items:
       and the silent-fallback rule, line-comment PR review submitted as Comment before merge, session-file
       check before merge, spec change-log heading. Before Story 2.1"
     owner: "Meinich"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-11-split-e2e-analysis-spec-ts-by-surface-an"
     epic: 1

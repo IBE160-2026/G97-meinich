@@ -128,6 +128,18 @@ The course grades the repository against seven criteria: process and AI steering
 - A grader follows the README on a clean machine for about 15–20 minutes; a step that is missing or fails counts against the README.
 - No secrets, build artefacts, stray files or dead code from abandoned attempts in the repository.
 
+## Specs, reviews and merging
+
+These rules come from the Epic 1 retrospective (`_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`, action 10). Each one answers a failure that happened more than once.
+
+- **Every row in a spec's I/O matrix names what would fail if its code were deleted:** the test, by file and name. A test that still passes with its guard removed is the commonest AI error in this project; it appeared in all 13 Epic 1 stories (L2).
+- **Every claim in `docs/ai-log.md` names the test that backs it,** by file and name, and the review checks that the test asserts what the entry says. "None found wrong" is written only after review, never before (L3, L4).
+- **Reviewers know two status vocabularies.** A spec's frontmatter `status` runs `draft` → `ready-for-dev` → `in-review` → `done`. `sprint-status.yaml` runs `backlog` → `ready-for-dev` → `in-progress` → `review` → `done`. A spec at `in-review` alongside a story at `review` is consistent, not a finding (L9).
+- **No silent fallbacks.** When a value cannot be read, parsed or computed, the code shows it as absent with a reason, refuses, or falls back *and signals it* (a flag, a notice, a log line). A fallback the user and the logs cannot see is a defect, and reviews patch it rather than reject it (L9).
+- **A frozen spec that turns out wrong is corrected, not left standing.** The correction goes under a `## Spec Change Log` heading with the date and who decided, so a frozen spec never stays inaccurate because "the fix edits this spec" (L11).
+- **Before merge, the session file is current:** it links the PR, lists the review fixes and the rejected findings, and credits each finding to whoever made it (L5, L6).
+- **Before merge, the human's review is a GitHub review with line comments** on the diff, submitted as "Comment" via Files changed → Start a review → Finish your review. A PR author cannot approve their own PR on GitHub, so "Approve" is not required. Merge waits for green CI (L8).
+
 ## Working style
 
 When you propose a change touching auth, data access or money handling, say what could go wrong with it. That reasoning goes into the project's AI log, `docs/ai-log.md`, following the rules at the top of that file.

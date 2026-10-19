@@ -41,6 +41,42 @@ Corrected during the session, caught by the subagent:
 - The first commit swept in the staged removal of `analysis/ocr/Dockerfile`; it was undone with a soft reset and the removal moved to the image commit.
 - Each guard was checked by deleting it and running the tests: the label length rule, the gate, plain-over-digits and the look-alike fold each fail at least one test. The plain-over-digits check first went undetected, because the gate also rejected the overriding figure; `test_digits_never_override_plain` gained a case where the overriding figure would reconcile.
 
+## Review
+
+Three review layers ran on the diff: a blind reviewer with no context, an edge-case reviewer, and a verification-gap reviewer. They raised 32 findings, all triaged in the spec's Review Triage Log.
+
+- **Human decisions (Meinich, 2026-10-19):**
+  - **The digits-only gate is amended.** A check confirms a digits-only figure only against an operand from the plain pass. Raised by the edge-case reviewer: sum eiendeler and sum egenkapital og gjeld print the same number, so one dropped digit in both passed C3. Commit `e468fcd`, test `test_digits_never_confirm_each_other`, with no revert.
+  - **Three figures stay absent.** Annen driftskostnad 2025 and leverandørgjeld 2025/2024 are absent from the 979607008/2025 read. Sub-total checks are deferred to Story 2.2.
+- **Fixed in one commit, `bd6c4ad`, credited to the reviewer who raised each:**
+  - Edge-case and blind reviewers:
+    - year checks (prior = current − 1, every page agreeing);
+    - a statement page with no year header to read or inherit now refuses;
+    - a unit is required on every page with its own year header.
+  - Blind reviewer:
+    - the gap check now covers a standalone minus;
+    - the digits pass may fill a row the plain pass left empty;
+    - a notes page is no longer read after the balance sheet;
+    - AI-log claims now name their tests;
+    - the missing `l 731 356` is added;
+    - a real paper cover is in the image check;
+    - README lines for the image.
+  - Verification-gap reviewer:
+    - a test of the digits gate in the prior column;
+    - the image check now compares the real digits pass;
+    - tests of the `OcrError` paths.
+  - Blind reviewer: a test that `CHECK_FIELDS` matches the checks.
+  - Edge-case reviewer: `differences` reports a key missing on either side.
+- **Deferred:**
+  - The apt pin installs from the live Debian mirror (blind reviewer).
+  - `OcrError` messages need diagnostic detail (blind reviewer). Both entries are in `deferred-work.md`.
+- **Rejected:** 14 findings, each with its evidence in the triage log, among them overlapping tokens, raw exceptions that fail loudly, binaries that do not exist, and spec-only edits.
+- **Verified by the orchestrating session after the fixes:**
+  - `pnpm test:ingest`: 137 passed.
+  - `pnpm test`: 753 passed.
+  - lint, typecheck, pins and the frozen lockfile pass.
+  - The image check reports "979607008-2011: matches" and "979607008-2025: matches".
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-1a-ocr-library.md` (Implementation Notes)

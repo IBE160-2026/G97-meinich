@@ -32,7 +32,7 @@ Run the production build with `pnpm start`, as above, not `next dev`: the rate l
 
 - The counters live in the one `next start` process. They are not shared between processes or serverless instances and are lost on restart.
 - The window is fixed, not sliding: one address can send a full budget at the end of one window and another at the start of the next, up to twice the budget within a minute.
-- The address is the rightmost `X-Forwarded-For` entry. With no proxy in front, `next start` fills that header from the socket only when the client sent none, so a client can choose its own key. That buys it a budget of its own, but it cannot lift the limit for anyone else.
+- The address is the rightmost `X-Forwarded-For` entry. With no proxy in front, `next start` fills that header from the socket only when the client sent none, so a client can choose its own key. **A client that sends a new value with every request gets a fresh budget every time, so locally the limit does not stop anyone from harvesting the open pages.** It cannot lift the limit for anyone else, and an exhausted address stays refused. Each covered analysis also reads its industry's whole candidate pool, uncached. This is accepted for the local v1 run; the deployment gate below closes it.
 - **Persistent rate limiting is a gate before any public deployment** (technical note, AD-10): the limit must be shared across instances; the client address must be read from what the hosting platform sets, not from a header the client can send, with a test that a client-set `X-Forwarded-For` does not lift anyone else's limit; and an IPv6 address must be keyed by its /64 prefix, since one client usually holds a whole /64.
 
 Checks, as CI runs them on every pull request:

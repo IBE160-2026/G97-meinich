@@ -272,6 +272,7 @@ Candidates are reduced by industry code and size band.
 - Filtering uses `naeringskode1.kode`. The register's `naeringskode` filter also matches secondary and tertiary codes and is never used where the primary industry is meant.
 - The size band is `sumDriftsinntekter` from the same filing as the figures being compared, by default 0.5 to 2 times the subject's, widened only in FR-18's fixed steps.
 - Size is revenue, never `sumEiendeler` and never the register's employee count — that count is today's figure, not the accounting year's (§5).
+- A subject whose benchmark filing states zero, negative or no `sumDriftsinntekter` has no size band, so its peer group is empty. The page keeps the covered structure, the header reads "0 sammenlignbare", and the Peers tab says why: "Peerless finner sammenlignbare selskaper ut fra omsetning, og regnskapet for {år} har ingen positiv omsetning å sammenligne med." (Story 1.7, human decision 2026-10-16 after review finding 6.) Revenue that is not stated but derivable still gives no band (`docs/key-figures.md`); the copy for that case is Story 2.9's.
 
 #### FR-8: Stage 2 — comparability filter (rules) · v1
 

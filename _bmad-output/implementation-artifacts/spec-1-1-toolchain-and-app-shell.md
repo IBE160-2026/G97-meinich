@@ -71,7 +71,7 @@ context:
 
 ## Design Notes
 
-Test runner: **Vitest** (unit; its Browser Mode with Playwright covers AD-6's real-browser test later) + **Playwright Test** for the rendered shell. CI: **GitHub Actions** (repo is on GitHub). Fonts via `@fontsource-variable` so builds need no Google fetch. Next.js 16.4 security release (2026-10-14) has not shipped on 2026-10-10: PR states this and asks the reviewer to re-check before merge.
+Test runner: **Vitest** (unit; its Browser Mode with Playwright covers AD-6's real-browser test later) + **Playwright Test** for the rendered shell. CI: **GitHub Actions** (repo is on GitHub). Fonts via `@fontsource-variable` so builds need no Google fetch. Next.js 16.4 security release (2026-10-14) has not shipped on 2026-10-10: PR states this and asks the reviewer to re-check before merge. (Missed: see the Spec Change Log.)
 
 ## Verification
 
@@ -91,6 +91,8 @@ Test runner: **Vitest** (unit; its Browser Mode with Playwright covers AD-6's re
 - Tailwind default colours, fonts and radii are reset (`--color-*: initial` etc.), so only DESIGN.md tokens exist; a `figure` utility gives Inter + tabular-nums.
 
 ## Spec Change Log
+
+- **2026-10-19 (Meinich, Epic 1 retro action 7, finding S1):** the AC to pin the patched `next` once the 2026-10-14 advisory shipped was missed. The advisory shipped that day as 16.4.1 (GHSA-2464-fhr4-w9xw and GHSA-673q-mjm6-r5xr, both critical), no later story re-checked it, and the repository stayed on 16.4.0 until the retro. `next` and `eslint-config-next` were pinned to 16.4.2 in the Epic 1 follow-ups PR (#30, commit `6a17ca7`). The Implementation Notes' 16.4.0 references describe the version this story shipped.
 
 ## Review Triage Log
 

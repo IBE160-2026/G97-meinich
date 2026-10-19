@@ -120,6 +120,28 @@ describe('restricted imports (AD-8, AD-19)', () => {
     );
   });
 
+  it('rejects next/server in the engine (Story 1.4: no framework import)', async () => {
+    expect(await ruleIds('engine-imports-next.ts', 'src/engine/fixture.ts')).toContain(
+      'no-restricted-imports',
+    );
+  });
+
+  it.each([
+    "import { cache } from 'react';\nexport const c = cache;\n",
+    "import { jsx } from 'react/jsx-runtime';\nexport const j = jsx;\n",
+    "import { flushSync } from 'react-dom';\nexport const f = flushSync;\n",
+    "import { renderToString } from 'react-dom/server';\nexport const r = renderToString;\n",
+    "import type { Metadata } from 'next';\nexport type M = Metadata;\n",
+    "import Link from 'next/link';\nexport const l = Link;\n",
+  ])('rejects a framework import in the engine: %j', async (code) => {
+    expect(await inlineRuleIds(code, 'src/engine/fixture.ts')).toContain('no-restricted-imports');
+  });
+
+  it('still allows the engine its own decimal module', async () => {
+    const code = "import { Decimal } from './decimal.ts';\nexport const d = Decimal;\n";
+    expect(await inlineRuleIds(code, 'src/engine/fixture.ts')).toEqual([]);
+  });
+
   it("rejects a relative src/server import in a 'use client' module", async () => {
     expect(await ruleIds('client-imports-server.tsx', 'src/components/fixture.tsx')).toContain(
       'local/client-restricted-imports',

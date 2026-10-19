@@ -15,10 +15,12 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 export const LOG_EVENTS = [
   'request',
   'search.failed',
+  'home.coverageFailed',
   'notFound.coverageFailed',
   'headerSearch.coverageFailed',
   'analysis.subjectFailed',
   'analysis.candidatesFailed',
+  'analysis.coverageFailed',
 ] as const;
 
 export type LogEvent = (typeof LOG_EVENTS)[number];

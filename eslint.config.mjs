@@ -25,6 +25,25 @@ const serverImportRestriction = {
   ],
 };
 
+// The engine is pure functions, figures in and figures out (AD-8; Story 1.4):
+// on top of the server restriction it may import nothing from Next.js or
+// React, subpaths included (next/server, react/jsx-runtime, react-dom/server).
+// Client modules keep serverImportRestriction alone: they import React.
+const engineImportRestriction = {
+  paths: [
+    ...serverImportRestriction.paths,
+    { name: 'next', message: 'The engine is framework-free (AD-8): no Next.js import.' },
+    { name: 'react', message: 'The engine is framework-free (AD-8): no React import.' },
+    { name: 'react-dom', message: 'The engine is framework-free (AD-8): no React import.' },
+  ],
+  patterns: [
+    ...serverImportRestriction.patterns,
+    { regex: '^next/', message: 'The engine is framework-free (AD-8): no Next.js import.' },
+    { regex: '^react/', message: 'The engine is framework-free (AD-8): no React import.' },
+    { regex: '^react-dom/', message: 'The engine is framework-free (AD-8): no React import.' },
+  ],
+};
+
 // Every displayed number goes through src/engine/format.ts (AD-6).
 // Intl.NumberFormat writes different characters in Node and in browsers, so
 // it is banned in all application code and scripts.
@@ -91,7 +110,7 @@ export default defineConfig([
   {
     files: ['src/engine/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-imports': ['error', serverImportRestriction],
+      'no-restricted-imports': ['error', engineImportRestriction],
     },
   },
   {

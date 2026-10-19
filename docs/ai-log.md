@@ -16,7 +16,7 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 22 |
+| auth | 23 |
 | money | 14 |
 | parsing | 7 |
 | llm-boundary | 5 |
@@ -455,3 +455,32 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 **Problem:** AGENTS.md: "When a decision or correction came from the review session, the session file says so; do not credit it to the human's own reading." The human's role was to decide and pass the instruction on. The finding itself came from a second Claude session that queried the database and ran the tests. In addition, PR #17 and #18 were merged before their review comments were posted, and #18's ordering was not acknowledged anywhere.
 **Caught by:** The Epic 1 retrospective, comparing the session files and PR comments with `docs/ai-prompts.md`.
 **Outcome:** The three session files were corrected on `main`, together with this entry. PR comments cannot be edited into the past, so this entry is the correction of record. From Epic 2 on, the review is posted before merge as a GitHub review with line comments, and the session-file update is checked before merge (retro action item 10).
+
+### 2026-10-16 — Epic 1 follow-ups: the coverage-read guards, the Next.js pin and its release-age exemption
+**Tags:** auth
+**Tool:** Claude Code (Opus 5.5), `bmad-build`: an orchestrating session, an implementation subagent working from the frozen spec, and three review subagents
+**Asked:** Retro actions 1–5 in one PR (issue #29).
+- Action 1: catch the unguarded `coveredIndustries()` read on `/` and in the uncovered analysis.
+- Action 2: pin Next.js 16.4.2.
+- Action 3: ledger entries for R2 and R3.
+- Action 4: ban Next.js and React imports in the engine.
+- Action 5: a tidiness sweep.
+
+**Got:**
+- `src/app/page.tsx` and `analysis-page.tsx` now log `home.coverageFailed` / `analysis.coverageFailed` (class + SQLSTATE) and throw a fixed message. The uncovered page's coverage read moved above the Suspense boundary.
+- `e2e/db-down.spec.ts` now requests `/` and `/api/sok`.
+- `engineImportRestriction` in `eslint.config.mjs`.
+- `next` and `eslint-config-next` 16.4.2, with a `minimumReleaseAgeExclude` list that `pnpm install` wrote into `pnpm-workspace.yaml`.
+
+**Problem:** None found wrong in the guards. What could go wrong, on the record:
+1. **What the log still prints.** Before the fix, `GET /` with the database unreachable answered a clean 500. But Next.js logged the raw `connect ECONNREFUSED 127.0.0.1:1`, with `address`, `port` and a stack, past the logger's closed field set. After the fix the app logs one line with the class only (`"failure":"Error"`: a refused connection has no SQLSTATE). Next.js still logs the fixed message `home: coverage lookup failed`, a stack frame into the compiled chunk, and a digest. The app cannot suppress that, so a fixed message is the most that can be guaranteed. It is the same as for `analysis: subject lookup failed`.
+2. **A streamed 200.** Left inside `AnalysisBody`, the uncovered page's read failed after the Suspense fallback had started the response, so a database failure answered 200 with the error boundary. The read now happens in `AnalysisPage` before the boundary. `test/analysis/failed-read.test.ts` fails if it moves back, because the page would resolve instead of rejecting.
+3. **The release-age exemption loosens a supply-chain guard.** It exempts exact versions only (`next@16.4.2`, `eslint-config-next@16.4.2` and the ten `@next/*` packages at 16.4.2), not ranges, and only because 16.4.2 fixes two critical advisories, one of them a middleware bypass. That matters here because the rate limit lives in `src/proxy.ts`. Left in place, the list would exempt those versions indefinitely, so removing it is a ledger entry: the next dependency update or Story 2.1, whichever comes first.
+4. **The engine ban is static only.** `no-restricted-imports` does not see `import()` or `require`. That was already true of the `postgres` and `src/server` ban, and was rejected in review as unlikely in pure functions (B2).
+
+**Caught by:**
+- R1: the retro's open item, checked by running a db-down server before and after the fix.
+- The ordering: the human asked for the suite to run on the pin commit alone. It did, with 114 e2e passing, before any other change.
+- The review step: 23 findings, 7 patched (`368b9df`), the rest rejected with evidence in the spec's triage log.
+
+**Outcome:** Branch `story/e1-follow-ups`, issue #29. The retro's D10 fix was corrected before implementation: the copy begins with the industry, so it keeps the capital (human decision). The retro row was edited to match.

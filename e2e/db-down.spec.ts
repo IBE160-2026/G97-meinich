@@ -4,8 +4,11 @@
 // (src/app/analyse/error.tsx, rendered on the client inside the root layout)
 // shows the lookup-error state — role="alert"
 // "Noe gikk galt. Prøv igjen om litt." — with no detail of the error in the
-// response. Runs against the second server in playwright.config.ts, whose
-// READER_DATABASE_URL points at a closed port.
+// response. The front page fails the same way on its coverage read (retro
+// R1), shown by the global error page (src/app/global-error.tsx), and the
+// search endpoint answers 500 {}. With the sources page below, every route
+// in `pnpm check:routes` is requested here. Runs against the second server
+// in playwright.config.ts, whose READER_DATABASE_URL points at a closed port.
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
@@ -24,13 +27,14 @@ const DETAILS = [
   /Application error/i,
   /Internal Server Error/i,
   /subject lookup failed/i,
+  /coverage lookup failed/i,
 ];
 // Next.js puts the error's digest, a hash it logs on the server, into the
 // RSC payload ({"digest":"…"}); it is no detail of the error and it is not
 // rendered. The page shows no digest text.
 const RENDERED_DETAILS = [...DETAILS, /digest/i];
 
-for (const path of [`/analyse/${ORGNR}`, `/analyse/${ORGNR}/peers`, `/analyse/${ORGNR}/oversikt?band=x`]) {
+for (const path of ['/', `/analyse/${ORGNR}`, `/analyse/${ORGNR}/peers`, `/analyse/${ORGNR}/oversikt?band=x`]) {
   test(`${path} answers 500 with the alert and no error details`, async ({ page, request }) => {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status()).toBe(500);
@@ -40,7 +44,8 @@ for (const path of [`/analyse/${ORGNR}`, `/analyse/${ORGNR}/peers`, `/analyse/${
     const shown = await page.goto(path);
     expect(shown?.status()).toBe(500);
     // Next.js serves its error shell and renders on the client: the root
-    // layout with src/app/analyse/error.tsx in it, not its default error page.
+    // layout with src/app/analyse/error.tsx in it, or for / the global error
+    // page, not its default error page.
     await expect(page.locator('html')).toHaveAttribute('lang', 'nb');
     await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
     await expect(page.locator('main h1, main h2, main dl')).toHaveCount(0);
@@ -51,8 +56,14 @@ for (const path of [`/analyse/${ORGNR}`, `/analyse/${ORGNR}/peers`, `/analyse/${
   });
 }
 
-// The header's coverage read fails too, but the header renders without its
-// search, so a page that reads nothing else still answers 200.
-test('a path that is not an analysis is not affected', async ({ request }) => {
+test('the search endpoint answers 500 with an empty object', async ({ request }) => {
+  const response = await request.get('/api/sok?q=admmit');
+  expect(response.status()).toBe(500);
+  expect(await response.json()).toEqual({});
+});
+
+// The sources page reads nothing but the header's coverage, and the header
+// renders without its search when that read fails, so it still answers 200.
+test('/slik-fungerer-peerless, which reads only the header coverage, still answers 200', async ({ request }) => {
   expect((await request.get('/slik-fungerer-peerless')).status()).toBe(200);
 });

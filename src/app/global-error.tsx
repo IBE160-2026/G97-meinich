@@ -1,7 +1,8 @@
 'use client';
 
 // The global error page: what an error that no nearer error boundary
-// catches renders — one thrown by the root layout itself. A failed subject
+// catches renders — one thrown by the root layout itself, or by the front
+// page (src/app/page.tsx, its failed coverage read). A failed subject
 // read in the analysis layout is caught nearer, by the analysis segment's error.tsx
 // (Next.js answers 500 and renders that boundary on the client). This page
 // replaces the root layout, so it brings its own <html lang="nb"> and

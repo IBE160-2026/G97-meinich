@@ -17,6 +17,16 @@ export function industryNamed(industry: CoveredIndustry): string {
   return t('industry.named', { kode: industry.code, navn: industry.beskrivelse });
 }
 
+/**
+ * "{navn} ({kode})" with the name as the register writes it, capital and all,
+ * for a sentence that begins with the industry (the uncovered statement,
+ * analysis.uncovered.body). The code alone without a name.
+ */
+export function industryAtSentenceStart(industry: CoveredIndustry): string {
+  if (industry.beskrivelse === null) return industry.code;
+  return t('industry.inSentence', { kode: industry.code, navn: industry.beskrivelse });
+}
+
 /** "{navn} ({kode})" with the name's first letter lower-cased, for use mid-sentence. */
 export function industryInSentence(industry: CoveredIndustry): string {
   if (industry.beskrivelse === null) return industry.code;

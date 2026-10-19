@@ -419,11 +419,6 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-export interface AllowListEntry {
-  orgnr: string;
-  reason: string;
-}
-
 // seed/allow-list.json: [{orgnr, reason}]. Returns the orgnrs.
 export function parseAllowList(json: unknown): string[] {
   if (!Array.isArray(json)) throw new SeedRefusal(`${ALLOW_LIST_FILE}: must be an array`);

@@ -2,7 +2,7 @@
 title: 'Story 2.1a: Read a filed document (OCR library and image)'
 type: 'feature'
 created: '2026-10-19'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'f6651e1b7256eb804a195a4b81f9ad0428fc111e'
 route: 'dispatch'
 review_loop_iteration: 0

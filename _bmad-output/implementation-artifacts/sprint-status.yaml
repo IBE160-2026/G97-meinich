@@ -52,7 +52,7 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: in-progress
-  2-1a-read-a-filed-document-ocr-library-and-image: review  # issue #31
+  2-1a-read-a-filed-document-ocr-library-and-image: done  # issue #31
   2-1b-store-the-filed-accounts-ocr-ingest: backlog  # issue #32
   2-2-accept-only-figures-that-reconcile: backlog
   2-3-measure-ocr-accuracy-sm-2: backlog

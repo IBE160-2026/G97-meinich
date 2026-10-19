@@ -925,6 +925,74 @@ With this, every Epic 1 retro action due before Story 2.1 is closed: 1–5 and 7
 
 ---
 
+## Story 2.1 split, and Story 2.1a: read a filed document, the OCR library and image (#31, PR #33)
+
+### Prompts to the BMAD session
+
+**2026-10-19 19:04**
+```
+/bmad-build Story 2.1
+```
+
+**19:14**: three questions from the investigation: which library renders PDF pages, whether årsverk is read, and whether to split.
+```
+Fra meg:
+1: (a) PyMuPDF, pinnet. Legg AGPL-forbeholdet inn i lisensvurderingen som
+   er port før trinn 2 (AD-en for hosted deployment), så det ikke
+   overrasker senere.
+2: (a) Utsett årsverk. Deferred-posten skal navngi hvilke nøkkeltall som
+   mangler til da, og peke på Story 2.9 for at de vises med riktig grunn.
+3: (a) Del i 2.1a (bibliotek, image, fixtures – ingen database) og 2.1b
+   (migrasjon, kjøring, kontraktstest, seed, docs). Oppdater epics.md,
+   sprint-status og issuet som for 1.5a/b, og start med 2.1a.
+```
+*Changed:* the planning commits on `main` (issues #31 and #32, `epics.md`, the technical note). The AGPL licence of PyMuPDF is recorded in the licence assessment that gates hosted deployment. It is acceptable while step 1 is a local batch tool. The deferred årsverk entry names the two figures that stay absent (#7 revenue per FTE, #8 personnel cost per FTE) and hands their display to Story 2.9.
+
+**19:20**: approval, with one rule the spec lacked, after the review session read it.
+```
+Fra meg: godkjent, med ett tillegg i matrisen før du starter:
+tallene leses bare når "Beløp i:" er en ren valutakode (hele enheter).
+Står det noe annet (f.eks. "NOK 1000", "tusen kroner"), gir dokumentet
+ingen kolonner – aldri en gjettet skala. Test med en fixture der
+"Beløp i:" har en enhet.
+Approve and continue.
+```
+*Changed:* the spec read "Beløp i:" only for the currency, and set `valuta` to None when it was anything else. It did not say what happened to the figures. A document in thousands could have been read as kroner, a thousand times too small. `test_scaled_or_unreadable_unit_gives_no_columns` covers it.
+
+**19:33**: `remember to have several commit per story`
+
+**19:59**: two decisions after the review. The BMAD session asked; the review session drafted the answers.
+```
+Fra meg:
+1: (a). En kontroll bekrefter et sifferlest tall bare når minst ett av de
+   andre tallene i kontrollen kom fra den vanlige lesingen. Ingen revert;
+   skriv det i Spec Change Log med dato og at jeg besluttet det. Test med
+   sum eiendeler og sum egenkapital og gjeld som mister samme siffer.
+2: (a). De tre tallene står som manglende. Deferred-post for Story 2.2:
+   delsumkontroller (f.eks. komponentene mot sum kortsiktig gjeld) så
+   slike felt kan bekreftes.
+Bruk de 14 rettelsene i én egen commit.
+```
+*Changed:* `e468fcd` and `bd6c4ad`. The edge-case reviewer found that the approved rule let two digits-only figures confirm each other. Sum eiendeler and sum egenkapital og gjeld print the same number, so the same dropped digit in both would pass the balance check, and both wrong figures would be kept. Test: `test_digits_never_confirm_each_other`.
+
+**20:09**
+```
+Fra meg: push og opprett PR-en (Closes #31). Nevn at ocr-image-check kjører
+i GitHub Actions for første gang i denne PR-en.
+```
+
+### Result
+
+Eleven commits on the story branch, plus the spec commit on `main`, with the human's rule and the review fixes each in a commit of their own.
+
+### Checks before merging
+
+The review session compared the OCR contract for 979607008/2025 with the register's API for the same filing. Sum driftsinntekter 72 632 310, driftsresultat 122 003, årsresultat −1 541 009 and sum eiendeler 31 073 544 are identical, so the contract is confirmed by an independent source and not only by the AI's own reading of the PDF. It also confirmed that both tests the human asked for exist.
+
+The human asked the review session to post the review ("kan du fikse det?"). It posted a GitHub review, submitted as Comment, with five line comments: on the digits-only rule, both tests, the model pin in the Dockerfile and the contract values. The review's summary says the comments were drafted by the review session and posted at the human's decision. This was the first PR with line comments, as retro action 10 asks. CI was green at 20:17, including the first GitHub run of `ocr-image-check`, and the PR was merged at 20:22.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

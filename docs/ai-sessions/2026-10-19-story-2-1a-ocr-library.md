@@ -3,7 +3,7 @@
 **Date:** 2026-10-19
 **Tool:** Claude Code (Opus 5.5): an orchestrating session and an implementation subagent working from the frozen spec
 **Story / issue:** #31, Story 2.1a
-**Result:** branch `story/2.1a-ocr-library`, commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653` and the docs commit; PR #33
+**Result:** [PR #33](https://github.com/IBE160-2026/G97-meinich/pull/33), merged 2026-10-19, from branch `story/2.1a-ocr-library`: commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653`, `77d0559` (docs), `e468fcd` (the human's digits-only rule), `bd6c4ad` (review fixes), `00913d5` (review record) and `e890a76` (PR link).
 
 ## Goal
 
@@ -81,3 +81,7 @@ Three review layers ran on the diff: a blind reviewer with no context, an edge-c
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-1a-ocr-library.md` (Implementation Notes)
 - AI log: "2026-10-19 — Story 2.1a: the OCR library and the one Tesseract image"
+
+## Merge
+
+The review was posted on PR #33 before merge as a GitHub review with five line comments, the first PR to follow retro action 10. The review session drafted the comments, and they were posted at the human's request, which the review's summary says. CI on `e890a76`, the first GitHub run of `ocr-image-check`, was green at 20:17, and the PR was merged at 20:22. The review session updated this header and the spec status on `main` after the merge.

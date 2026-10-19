@@ -112,6 +112,8 @@ class Page:
     edges: Edges | None
     unit_text: str | None  # the words after "Beløp i:", as read; None if no such line
     rows: list[Row] = field(default_factory=list)
+    own_header: bool = False  # the edges come from this page's own year header
+    balance_closed: bool = False  # this page or one before it holds SUM EGENKAPITAL OG GJELD
 
 
 def group_lines(words: Sequence[Word]) -> list[list[Word]]:
@@ -162,7 +164,8 @@ def parse_number(tokens: Sequence[Word], pitch: float, mode: Pass) -> int | None
     text = [t.text for t in words]
     negative = False
     if text[0] == "-":
-        negative, words, text = True, words[1:], text[1:]
+        # The minus stays in `words`, so the gap check below covers it too.
+        negative, text = True, text[1:]
     elif text[0].startswith("-"):
         negative, text = True, [text[0][1:], *text[1:]]
     if not text or not all(DIGITS.match(t) for t in text):
@@ -194,17 +197,24 @@ def parse_page(
 ) -> Page:
     """One page's rows. A continuation page has no heading or year header; it
     inherits both from the page before, since the generated layout is
-    identical. Labels always come from the plain pass (`label_words`); the
-    figures from `number_words`, the plain or the digits-only pass."""
+    identical, until the balance sheet has ended (SUM EGENKAPITAL OG GJELD):
+    a later page without its own year header is the company's notes, kind
+    "other" with no rows. Labels always come from the plain pass
+    (`label_words`); the figures from `number_words`, the plain or the
+    digits-only pass."""
     kind = page_kind(label_words)
     edges = column_edges(label_words)
+    own_header = edges is not None
+    closed_before = previous is not None and previous.balance_closed
+    unit = unit_text(label_words)
+    if edges is None and closed_before:
+        return Page("other", None, unit, [], False, True)
     if edges is None and previous is not None and previous.edges is not None:
         edges = previous.edges
         if kind == "other":
             kind = previous.kind
-    unit = unit_text(label_words)
     if edges is None:
-        return Page(kind, None, unit)
+        return Page(kind, None, unit, [], False, closed_before)
     pitch = edges.pitch
     number_zone_left = edges.current_right - 13 * pitch  # widest figure: "-999 999 999"
     split = (edges.current_right + edges.prior_right) / 2 - 4 * pitch
@@ -219,9 +229,13 @@ def parse_page(
         )
         current = parse_number([w for w in near if w.right <= split], pitch, mode)
         prior = parse_number([w for w in near if w.right > split], pitch, mode)
-        has_number = any(w.left >= number_zone_left for w in line)
+        # A row has a number if either the plain line or this pass's number
+        # words put something in the number zone: the digits-only pass can
+        # fill a row whose plain line read nothing there.
+        has_number = bool(near) or any(w.left >= number_zone_left for w in line)
         rows.append(Row(label, has_number, current, prior))
-    return Page(kind, edges, unit, rows)
+    closed = closed_before or any(r.has_number and ends_balance(r.label) for r in rows)
+    return Page(kind, edges, unit, rows, own_header, closed)
 
 
 # --- Label matching ------------------------------------------------------------
@@ -268,6 +282,13 @@ def similar(label: str, variant: str) -> bool:
     if abs(len(label) - len(variant)) > 1:
         return False
     return difflib.SequenceMatcher(None, label, variant).ratio() >= LABEL_SIMILARITY
+
+
+def ends_balance(label: str) -> bool:
+    """The row that ends the generated balance sheet, matched like any label
+    (exact, or fuzzy within one character: "S5O0M EGENKAPITAL OG GJELD")."""
+    own = fold(label)
+    return any(own.endswith(v) or similar(own, v) for v in TARGETS["sum_egenkapital_gjeld"])
 
 
 def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:

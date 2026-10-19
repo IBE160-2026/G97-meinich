@@ -6,7 +6,10 @@ engine in CI (`python -m peerless_ingest.image_check`).
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from peerless_ingest import ocr
 from tsv_builder import HEADER
@@ -60,3 +63,29 @@ def test_model_hash_matches_the_dockerfile() -> None:
     # The build checks the same hash; the two must not drift apart.
     dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(encoding="utf-8")
     assert f'echo "{ocr.NOR_TRAINEDDATA_SHA256}  ' in dockerfile
+
+
+def test_tesseract_failure_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    image = tmp_path / "p2.png"
+    image.write_bytes(b"")
+
+    def failed(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.CompletedProcess(argv, 123, b"", b"")
+
+    monkeypatch.setattr(ocr.subprocess, "run", failed)
+    with pytest.raises(ocr.OcrError, match="exit 123"):
+        ocr._run([image], tmp_path, "plain", ocr.PLAIN_ARGS)
+
+
+def test_missing_tsv_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    image = tmp_path / "p2.png"
+    image.write_bytes(b"")
+
+    def silent(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        assert kwargs["env"]["OMP_THREAD_LIMIT"] == "1"  # type: ignore[index]
+        return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+    monkeypatch.setattr(ocr.subprocess, "run", silent)
+    with pytest.raises(ocr.OcrError, match="no plain output for p2.png"):
+        ocr._run([image], tmp_path, "plain", ocr.PLAIN_ARGS)
+

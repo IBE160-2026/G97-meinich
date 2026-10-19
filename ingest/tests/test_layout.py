@@ -62,6 +62,12 @@ def test_generated_digit_groups() -> None:
     assert figure("- 969 111") == -969_111  # minus read as its own word
 
 
+def test_distant_minus_is_absent() -> None:
+    # The minus is part of the gap check: three spaces between it and the
+    # first group is no figure, not a negative one and not a positive one.
+    assert figure("-   969 111") is None
+
+
 @pytest.mark.parametrize(
     "printed",
     ["1 327 42이", "1 327 4o5", "l 001 605", "l0 170 865", "1 O01 605", "7 0O3", "1 327 425²", "١ 327 425"],
@@ -190,3 +196,19 @@ def test_continuation_page_inherits_columns() -> None:
     assert page.edges == previous.edges
     assert page.kind == "balanse"
     assert layout.extract([previous, page])["sum_gjeld"] == (23_309_355, 26_309_827)
+
+
+def test_notes_page_after_the_balance_sheet_is_not_read() -> None:
+    # Once SUM EGENKAPITAL OG GJELD has been read, a following page without
+    # its own year header is the company's notes, even if it says "balanse".
+    first = words(page_lines([("SUM EGENKAPITAL OG GJELD", "31 073 544", "35 615 025")], heading="BALANSE"))
+    notes_lines = page_lines(
+        [("Salg av varer", "1 000", "2 000")], heading="Klassifisering av balanseposter", years=None, unit_line=None
+    )
+    notes = words(notes_lines)
+    previous = layout.parse_page(first, first, "plain")
+    assert previous.balance_closed
+    page = layout.parse_page(notes, notes, "plain", previous)
+    assert (page.kind, page.edges, page.rows) == ("other", None, [])
+    assert "varer" not in layout.extract([previous, page])
+

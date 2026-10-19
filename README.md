@@ -80,6 +80,13 @@ pnpm ingest --companies-only   # refreshes only the search fields of companies a
 
 `pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests, so a full run takes a while. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
 
+The step-1 image also carries Tesseract 5.5 and, at build time, downloads the pinned Norwegian model (`nor.traineddata` from `tessdata_best`, checked against its SHA-256), for reading the filed documents. The OCR tests in `pnpm test:ingest` need no Tesseract on the host; to check the image itself, as CI does:
+
+```sh
+docker build --tag peerless-ingest:local ingest
+docker run --rm --mount "type=bind,src=$PWD/ingest/tests/fixtures/documents,dst=/fixtures,ro"   --entrypoint /app/.venv/bin/python peerless-ingest:local -m peerless_ingest.image_check /fixtures
+```
+
 ### Seed
 
 The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. `seed/coverage.json` declares the covered industries and is the only hand-edited file under `seed/`; `seed/allow-list.json` is written by the export.

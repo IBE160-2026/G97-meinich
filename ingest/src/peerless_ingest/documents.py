@@ -27,12 +27,17 @@ figure stays None, never 0.
    other: sum eiendeler and sum egenkapital og gjeld print the same number,
    so the same dropped digit in both would pass C3 (Meinich, 2026-10-19).
 
-**Reporting unit.** Figures are read only when every "Beløp i:" header states
-a bare three-letter currency code, which means whole units. A scale ("NOK
-1000", "tusen kroner"), a header that disagrees between pages, or no readable
-header refuses the document's columns with `refusal = "reporting_unit"`,
-never a guessed scale. No readable year header refuses with
-`refusal = "year_header"`.
+**Reporting unit.** Figures are read only when every page with its own year
+header has a "Beløp i:" header, and every such header states the same bare
+three-letter currency code, which means whole units. A scale ("NOK 1000",
+"tusen kroner"), headers that disagree between pages, or a missing or
+unreadable header refuses the document's columns with
+`refusal = "reporting_unit"`, never a guessed scale.
+
+**Years.** The columns' years come from the year headers. No readable year
+header, year headers that disagree between pages, a prior year that is not
+the current year minus one, or a statement page with no year header and
+nothing to inherit one from refuses with `refusal = "year_header"`.
 """
 
 from __future__ import annotations
@@ -160,7 +165,7 @@ def _column(year: int, plain: dict[str, int | None], digits: dict[str, int | Non
     return Column(year, figures, c["c1"], c["c2"], c["c3"], c["c4"], kept)
 
 
-def _parse_pages(pages: Sequence[PageWords], mode: Pass) -> list[Page]:
+def parse_pages(pages: Sequence[PageWords], mode: Pass) -> list[Page]:
     parsed: list[Page] = []
     previous: Page | None = None
     for page in pages:
@@ -180,36 +185,47 @@ def read_words(top: Sequence[Word], pages: Sequence[PageWords]) -> DocumentRead:
     if kind != "generated":
         return DocumentRead(kind, None, None, None, None, None)
 
-    plain_pages = _parse_pages(pages, "plain")
-    edges = next((p.edges for p in plain_pages if p.edges is not None), None)
-    units = [p.unit_text for p in plain_pages if p.unit_text is not None]
-    unit = "; ".join(dict.fromkeys(units)) if units else None
-    if edges is None:
+    plain_pages = parse_pages(pages, "plain")
+    headed = [p for p in plain_pages if p.own_header]
+    units = [p.unit_text for p in plain_pages if p.own_header or p.unit_text is not None]
+    found_units = [u for u in units if u is not None]
+    unit = "; ".join(dict.fromkeys(found_units)) if found_units else None
+    years = {(p.edges.current_year, p.edges.prior_year) for p in headed if p.edges is not None}
+    headless_statement = any(p.kind != "other" and p.edges is None for p in plain_pages)
+    if len(years) != 1 or headless_statement:
         return DocumentRead(kind, None, unit, "year_header", None, None)
-    if unit is None or not VALUTA.match(unit):
+    [(current_year, prior_year)] = years
+    if prior_year != current_year - 1:
+        return DocumentRead(kind, None, unit, "year_header", None, None)
+    if None in units or unit is None or not VALUTA.match(unit):
         return DocumentRead(kind, None, unit, "reporting_unit", None, None)
 
     plain = layout.extract(plain_pages)
-    digits = layout.extract(_parse_pages(pages, "digits"))
+    digits = layout.extract(parse_pages(pages, "digits"))
     return DocumentRead(
         kind,
         unit,
         unit,
         None,
-        _column(edges.current_year, _split(plain, 0), _split(digits, 0)),
-        _column(edges.prior_year, _split(plain, 1), _split(digits, 1)),
+        _column(current_year, _split(plain, 0), _split(digits, 0)),
+        _column(prior_year, _split(plain, 1), _split(digits, 1)),
     )
 
 
-def read_document(pdf: bytes) -> DocumentRead:
-    """Render, recognise and read one filed document. Only page 1's top is
+def recognise(pdf: bytes) -> tuple[list[Word], list[PageWords]]:
+    """Render and recognise one filed document. Only page 1's top is
     recognised unless it is a generated filing; a paper filing is never read."""
     with tempfile.TemporaryDirectory(prefix="peerless-ocr-") as tmp:
         workdir = Path(tmp)
         top = ocr.ocr_top(pdf, workdir)
         generated = layout.classify(top) == "generated"
         pages = ocr.ocr_figure_pages(pdf, workdir) if generated else []
-    return read_words(top, pages)
+    return top, pages
+
+
+def read_document(pdf: bytes) -> DocumentRead:
+    """Render, recognise and read one filed document."""
+    return read_words(*recognise(pdf))
 
 
 # --- JSON, for the fixtures ----------------------------------------------------------

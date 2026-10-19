@@ -182,6 +182,67 @@ def test_unreadable_year_header_gives_no_columns() -> None:
     assert (result.layout, result.refusal, result.current, result.prior) == ("generated", "year_header", None, None)
 
 
+def test_years_must_follow_and_agree() -> None:
+    # A prior year that is not the current year minus one.
+    result = read(BASE_ROWS, years=("2025", "2023"))
+    assert (result.refusal, result.current, result.prior) == ("year_header", None, None)
+    # Two pages whose own year headers disagree.
+    top, first = document(BASE_ROWS)
+    _, second = document(BASE_ROWS, heading="BALANSE", years=("2024", "2023"))
+    result = documents.read_words(top, first + second)
+    assert (result.refusal, result.current) == ("year_header", None)
+
+
+def test_statement_page_without_year_header_refuses() -> None:
+    # The first statement page has no year header and nothing to inherit it
+    # from; a later page has one. Its rows would be lost silently.
+    top, first = document(BASE_ROWS, years=None)
+    _, second = document(BASE_ROWS, heading="BALANSE")
+    result = documents.read_words(top, first + second)
+    assert (result.refusal, result.current, result.prior) == ("year_header", None, None)
+
+
+def test_every_headed_page_needs_the_unit() -> None:
+    # The second page has its own year header but no "Beløp i:".
+    top, first = document(BASE_ROWS)
+    _, second = document(BASE_ROWS, heading="BALANSE", unit_line=None)
+    result = documents.read_words(top, first + second)
+    assert (result.refusal, result.unit_text, result.current) == ("reporting_unit", "NOK", None)
+
+
+def test_digits_fill_a_row_the_plain_pass_left_empty() -> None:
+    # The plain pass put nothing in the number zone of "Sum kostnader"; the
+    # digits-only pass reads both figures, C1 passes against plain figures.
+    plain = replace_row(BASE_ROWS, "Sum kostnader", current="", prior="")
+    result = read(plain, digits_of(BASE_ROWS))
+    assert result.current is not None and result.prior is not None
+    assert result.current.figures["sum_driftskostnad"] == 72_510_307
+    assert result.prior.figures["sum_driftskostnad"] == 70_020_117
+    assert result.current.digits_pass_fields == ("sum_driftskostnad",)
+    assert result.current.c1 == "pass"
+
+
+def test_digits_gate_in_the_prior_column() -> None:
+    plain = replace_row(BASE_ROWS, "Sum kostnader", prior="70 02o 117")
+    result = read(plain, digits_of(BASE_ROWS))
+    assert result.current is not None and result.prior is not None
+    assert result.prior.figures["sum_driftskostnad"] == 70_020_117
+    assert result.prior.digits_pass_fields == ("sum_driftskostnad",)
+    assert result.current.digits_pass_fields == ()
+
+
+def test_check_fields_match_the_checks() -> None:
+    # CHECK_FIELDS drives the gate; checks() does the arithmetic. Each field
+    # a check reads is the one whose absence makes it unevaluable.
+    full = dict.fromkeys(documents.FIELDS, 1)
+    derived: dict[str, set[str]] = {name: set() for name in documents.CHECK_FIELDS}
+    for name in documents.FIELDS:
+        for check, result in documents.checks(full | {name: None}).items():
+            if result == "not_evaluable":
+                derived[check].add(name)
+    assert derived == {check: set(fields) for check, fields in documents.CHECK_FIELDS.items()}
+
+
 def test_split_merge_fails_check() -> None:
     # A merged figure: 722 632 310 for sum inntekter 72 632 310.
     column = current_of(read(replace_row(BASE_ROWS, "Sum inntekter", current="722 632 310")))
@@ -292,5 +353,23 @@ def test_image_check_reports_every_difference() -> None:
         ".current.figures.driftsresultat: read 12200, expected 122003",
         ".valuta: read None, expected 'NOK'",
     ]
+    # A key missing on either side is reported, even where the other is null.
+    missing = json.loads(json.dumps(expected))
+    del missing["refusal"]
+    assert image_check.differences(missing, expected) == [".refusal: missing from the read"]
+    assert image_check.differences(expected, missing) == [".refusal: not in the expected JSON"]
     assert image_check.VERSION.match("tesseract 5.5.0")
     assert not image_check.VERSION.match("tesseract 5.3.0")
+
+
+def test_image_check_compares_the_digits_pass() -> None:
+    recorded = image_check.recorded_pages(DOCUMENTS, STEM)
+    assert len(recorded) == 4
+    assert image_check.digits_differences(recorded, recorded) == []
+    # A digits-only pass that drops a digit from sum inntekter 2025.
+    page = recorded[0]
+    broken = [Word("7263231", w.left, w.top, w.width, w.height, w.line) if w.text == "72632310" else w for w in page.digits]
+    assert broken != page.digits
+    diff = image_check.digits_differences([PageWords(page.plain, broken), *recorded[1:]], recorded)
+    assert diff == [".digits_pass.sum_driftsinntekter: read [7263231, 69051006], expected [72632310, 69051006]"]
+

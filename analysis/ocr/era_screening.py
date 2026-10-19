@@ -20,8 +20,11 @@ model, in Docker) and classifies each year. The answer decides how many years
 of history the fixed-layout pipeline can reach without handling paper filings.
 
 Run:  uv run analysis/ocr/era_screening.py
-Needs: Docker running, and the image built from analysis/ocr/Dockerfile:
-       docker build -t peerless-tesseract analysis/ocr
+Needs: Docker running, and step 1's image, the project's one Tesseract image
+       (Story 2.1a): docker build -t peerless-ingest:local ingest
+       It runs Tesseract 5.5 with the pinned tessdata_best `nor` model; the
+       reports in analysis/output/ were measured with Tesseract 5.3 and the
+       Debian bookworm tesseract-ocr-nor package, before the image moved.
 """
 
 from __future__ import annotations
@@ -47,6 +50,7 @@ OUTPUT = ROOT / "output"
 BASE = "https://data.brreg.no/regnskapsregisteret/regnskap/aarsregnskap/kopi"
 USER_AGENT = "Peerless student project (IBE160, Hogskolen i Molde)"
 PAUSE_SECONDS = 0.2
+IMAGE = "peerless-ingest:local"  # step 1's image (ingest/Dockerfile); shell entrypoint, workdir /work
 
 INDUSTRIES = ["62100", "69202"]
 COMPANIES_PER_INDUSTRY = 15  # the screening sample is already random (seed 160)
@@ -103,8 +107,8 @@ def ocr_batch(pngs: list[Path]) -> None:
     names = " ".join(p.name for p in todo)
     script = f'for f in {names}; do tesseract "$f" "${{f%.png}}" -l nor --psm 6 >/dev/null 2>&1; done'
     subprocess.run(
-        ["docker", "run", "--rm", "-v", f"{CACHE}:/work", "--entrypoint", "sh",
-         "peerless-tesseract", "-c", script],
+        ["docker", "run", "--rm", "-v", f"{CACHE}:/work", "-w", "/work", "--entrypoint", "sh",
+         IMAGE, "-c", script],
         check=True,
     )
 

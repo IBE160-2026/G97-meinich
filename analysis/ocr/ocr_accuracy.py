@@ -62,6 +62,7 @@ RECENT_YEARS = list(range(2021, 2026))
 PAGES = [1, 2, 3, 4]  # zero-based: the generated section follows the cover page
 PARALLEL = 8
 ZOOM = 2.5  # the embedded images are ~200 dpi, 1-bit; Tesseract reads better enlarged
+IMAGE = "peerless-ingest:local"  # step 1's image (ingest/Dockerfile); shell entrypoint, workdir /work
 TOLERANCE_KR = 5  # "a few kroner": the register rounds øre to whole kroner
 
 DIGITS_CONFIG = "-c tessedit_char_whitelist=0123456789-"
@@ -132,8 +133,8 @@ def ocr_all(pngs: list[Path]) -> None:
     # Pages in parallel; one Tesseract thread each, so the cores are not oversubscribed.
     script = f"export OMP_THREAD_LIMIT=1; xargs -P {PARALLEL} -I{{}} sh -c '{one}' _ {{}} < ocr_todo.txt"
     print(f"OCR: {len(todo)} pages, two passes each")
-    subprocess.run(["docker", "run", "--rm", "-v", f"{CACHE}:/work", "--entrypoint", "sh",
-                    "peerless-tesseract", "-c", script], check=True)
+    subprocess.run(["docker", "run", "--rm", "-v", f"{CACHE}:/work", "-w", "/work", "--entrypoint", "sh",
+                    IMAGE, "-c", script], check=True)
 
 
 @dataclass
@@ -408,8 +409,8 @@ def main() -> None:
             p.get_pixmap(dpi=150, clip=pymupdf.Rect(0, 0, p.rect.width, p.rect.height * 0.3)).save(png)
             tops.append(png.name)
         (CACHE / "top_todo.txt").write_text("\n".join(tops) + "\n", encoding="utf-8", newline="\n")
-        subprocess.run(["docker", "run", "--rm", "-v", f"{CACHE}:/work", "--entrypoint", "sh",
-                        "peerless-tesseract", "-c",
+        subprocess.run(["docker", "run", "--rm", "-v", f"{CACHE}:/work", "-w", "/work", "--entrypoint", "sh",
+                        IMAGE, "-c",
                         'while read f; do tesseract "$f" "${f%.png}" -l nor --psm 6 >/dev/null 2>&1; done < top_todo.txt'],
                        check=True)
 

@@ -6,6 +6,7 @@ requires-python = "==3.14.*"
 # Every dependency is pinned exactly (tests/test_pins.py).
 dependencies = [
     "psycopg[binary]==3.3.6",
+    "pymupdf==1.28.2",
 ]
 
 [project.scripts]

@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 23 |
-| money | 14 |
-| parsing | 7 |
+| money | 15 |
+| parsing | 8 |
 | llm-boundary | 5 |
 | scope | 14 |
 | docs | 18 |
@@ -484,3 +484,27 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 - The review step: 23 findings, 7 patched (`368b9df`), the rest rejected with evidence in the spec's triage log.
 
 **Outcome:** Branch `story/e1-follow-ups`, issue #29. The retro's D10 fix was corrected before implementation: the copy begins with the industry, so it keeps the capital (human decision). The retro row was edited to match.
+
+### 2026-10-19 — Story 2.1a: the OCR library and the one Tesseract image
+**Tags:** money, parsing
+**Tool:** Claude Code (Opus 5.5), an implementation subagent working from the frozen spec `spec-2-1a-ocr-library.md`
+**Asked:** Port the spike's reading rules into step 1 as a pure library (`read_document(pdf) -> DocumentRead`), move Tesseract into step 1's image (5.5, `nor` from `tessdata_best` pinned by commit and sha256), and pin every known OCR failure with a regression test (issue #31).
+
+**Got:** `ocr.py`, `layout.py`, `documents.py`, `image_check.py` in `ingest/src/peerless_ingest/`, the 979607008/2025 fixture with its recorded TSVs and expected JSON, hand-built trap TSVs (`ingest/tests/tsv_builder.py`), the CI step `ocr-image-check`, and `test/one-tesseract-image.test.ts`.
+
+**Problem:** One spec conflict, and what could go wrong with figures read by OCR:
+1. **The spec's expected values and its gate disagree.** The Design Notes table gives annen driftskostnad 2025 (10 170 865) and leverandørgjeld (1 001 605, 1 731 356) as values the read returns. Under the approved gate it cannot: the plain pass misread a digit in each (`l0 170 8365`, `l 001 605`, `l 731 356`), and neither field is in a check, so the digits-only figure is refused. The expected JSON records the gated read, with those three figures absent; every figure it does hold equals the hand-checked table, which `test_contract_979607008_2025` in `ingest/tests/test_documents.py` asserts (`FILED_979607008_2025`, `ABSENT_BY_GATE`). The gate was right to refuse one of them: the digits-only pass read `101708365` for 10 170 865. **Decided by the human (Meinich, 2026-10-19):** the three figures stay absent and the JSON stands. Review then found that digits-only figures could confirm each other (C3's two totals print the same number, so the same dropped digit in both passes); the human amended the gate so a check confirms a digits-only figure only if one of its other operands came from the plain pass (`test_digits_never_confirm_each_other`, `ingest/tests/test_documents.py`).
+2. **A figure in no check is never confirmed.** A plain-pass figure outside the four checks (salgsinntekt, varekostnad, lønnskostnad, kundefordringer, leverandørgjeld, …) is trusted on its digit grouping alone. A well-grouped misread — a `3` read as an `8` — passes every rule here and reaches Story 2.1b's table. Only Story 2.2's between-source check and Story 2.3's measurement can bound that. What the code does guarantee is narrower: such a field never takes a digits-only figure (`test_digits_unused_outside_checks`, `ingest/tests/test_documents.py`), and a token with any non-digit is absent (`test_non_digit_token_is_absent`, `ingest/tests/test_layout.py`).
+3. **A scaled report is refused, not converted.** "Beløp i: NOK 1000" gives no columns (`test_scaled_or_unreadable_unit_gives_no_columns`). If a generated filing ever printed a scale somewhere other than that header line, the read would take thousands as kroner; the spike saw only `NOK`.
+4. **The checks are the only arithmetic, and a passing check can hide two compensating errors.** C1 passes if sum inntekter and sum kostnader are both misread by the same amount. Recognition errors are wrong by orders of magnitude, so two equal ones are unlikely, not impossible. No test can rule that out; `test_split_merge_fails_check` (`ingest/tests/test_documents.py`) shows only that a single split or merged figure fails its check.
+5. **Label matching takes the first row in document order.** As first written, the notes page (zero-based 4) was parsed with inherited columns, like the spike, so a field missing from the statements (`varer`) could match a notes line. Review caught it: a page after SUM EGENKAPITAL OG GJELD with no year header of its own is now read as no rows (`test_notes_page_after_the_balance_sheet_is_not_read`, `ingest/tests/test_layout.py`). A notes page that carries its own year header would still be read.
+
+**Caught by:** Running the library on the recorded output and comparing every figure with the PDF pages by eye (item 1). Each guard was deleted in turn and the tests run; the test that failed, all in `ingest/tests/`:
+- Label length rule (`similar`): `test_layout.py::test_exact_first_no_sum_confusion` and `test_layout.py::test_wrapped_label_joins_rows`.
+- The gate (keeping every digits-only figure): `test_documents.py::test_digits_kept_only_if_column_reconciles` and `test_documents.py::test_digits_unused_outside_checks`.
+- Plain over digits (offering digits for every field): `test_documents.py::test_digits_never_override_plain`, after it gained the case where the overriding figure would reconcile; before that it passed with the guard deleted.
+- Look-alike fold (`LOOKALIKES`): `test_layout.py::test_lookalike_heading_and_diacritics`, `test_layout.py::test_fold_maps_lookalikes_only_in_labels` and the contract test.
+- The plain-confirmation rule of the amended gate: `test_documents.py::test_digits_never_confirm_each_other`.
+- Review fixes, each by the same method: the minus in the gap check (`test_layout.py::test_distant_minus_is_absent`), digits filling an empty plain row (`test_documents.py::test_digits_fill_a_row_the_plain_pass_left_empty`), the notes page (`test_layout.py::test_notes_page_after_the_balance_sheet_is_not_read`), the year checks (`test_documents.py::test_years_must_follow_and_agree`, `test_documents.py::test_statement_page_without_year_header_refuses`) and the unit on every headed page (`test_documents.py::test_every_headed_page_needs_the_unit`).
+
+**Outcome:** Branch `story/2.1a-ocr-library`, commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653` and the docs commit. Item 1 and the gate amendment are recorded in the spec.

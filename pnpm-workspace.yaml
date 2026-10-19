@@ -7,22 +7,3 @@ saveExact: true
 # binary as an optional dependency; its postinstall is only a fallback.
 allowBuilds:
   unrs-resolver: false
-
-# Next.js 16.4.2 (2026-10-15) fixes GHSA-2464-fhr4-w9xw and
-# GHSA-673q-mjm6-r5xr, both critical; it is younger than pnpm's minimum
-# release age, so these exact versions are exempted. pnpm install wrote the
-# list below; this comment is a hand-written note. Remove the list once
-# 16.4.2 is past the age (deferred-work.md).
-minimumReleaseAgeExclude:
-  - '@next/env@16.4.2'
-  - '@next/eslint-plugin-next@16.4.2'
-  - '@next/swc-darwin-arm64@16.4.2'
-  - '@next/swc-darwin-x64@16.4.2'
-  - '@next/swc-linux-arm64-gnu@16.4.2'
-  - '@next/swc-linux-arm64-musl@16.4.2'
-  - '@next/swc-linux-x64-gnu@16.4.2'
-  - '@next/swc-linux-x64-musl@16.4.2'
-  - '@next/swc-win32-arm64-msvc@16.4.2'
-  - '@next/swc-win32-x64-msvc@16.4.2'
-  - eslint-config-next@16.4.2
-  - next@16.4.2

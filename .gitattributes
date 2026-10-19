@@ -4,3 +4,10 @@
 seed/** -text
 analysis/output/** -text
 test/fixtures/seed/** -text
+
+# Step 1 runs in a Linux container: its files stay LF on every host, so no
+# script, config or fixture reaches the container with a carriage return
+# (Story 2.1a, spike error 2). PDFs are binary; that line comes after
+# this one, so it wins for a PDF under ingest/.
+ingest/** text eol=lf
+*.pdf binary

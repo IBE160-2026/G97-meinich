@@ -427,13 +427,13 @@ Every stage-2 and stage-3 FR, and the stage-2/3 parts of split FRs, as listed un
 
 ## Delivery order
 
-For sprint planning. Story numbers stay as they are; four stories are split into halves numbered a and b (1.3a/1.3b, 1.5a/1.5b, 1.6a/1.6b, 3.1a/3.1b), each half its own issue, branch and PR, built in that order. This section sets the sequence in which they are built.
+For sprint planning. Story numbers stay as they are; five stories are split into halves numbered a and b (1.3a/1.3b, 1.5a/1.5b, 1.6a/1.6b, 2.1a/2.1b, 3.1a/3.1b), each half its own issue, branch and PR, built in that order. This section sets the sequence in which they are built.
 
 - **Week 1, in parallel, calendar work:** Story 5.1 (the labelled set) and the hand-transcribed OCR reference set (the input to Story 2.3) start in week 1 and run alongside Epic 1. Both are labelling and transcription, not coding, and both must be complete before the story that consumes them starts. The reference set is a seeded random draw from all of 62.100's generated filings (Story 2.3), not from the demo set, so it does not wait for demo companies A and B, which are chosen in Story 5.4.
 - **The OCR reference set has its own issue from week 1** ([#14](https://github.com/IBE160-2026/G97-meinich/issues/14)). It is not a story with a branch and PR of its own, but it is tracked as its own GitHub issue, opened in week 1, so its progress is visible before Story 2.3 starts; Story 2.3 links that issue.
 - **Sequence:**
   1. Epic 1 (1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5a → 1.5b → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10)
-  2. Epic 2 (2.1 → 2.9)
+  2. Epic 2 (2.1a → 2.1b → 2.2 → … → 2.9)
   3. Story 5.2, the layer-by-layer measurement, directly after Epic 2: it needs only the funnel and the labelled set, and the teacher calls the measurement the core of the project.
   4. Epic 3 (3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7)
   5. Story 5.4, the demo seed, directly after Epic 3, so the sensor sees document figures and kroner even if Epic 4 or the rest of Epic 5 slips.
@@ -1199,43 +1199,38 @@ So that the dataset cannot be harvested through the open route, and v1 still sto
 
 The user sees why each company was chosen: funnel counts per stage, "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" per peer, and can exclude a peer or widen the size band. Behind it: OCR, reconciliation and per-filing status (batch step 1, 2021–2025 as data and SM-2 measurement), fingerprint and classification (batch step 2), `410 Gone` deletion, and the state for a subject whose own filing fails reconciliation.
 
-### Story 2.1: Read the filed accounts (OCR)
+### Story 2.1a: Read a filed document (OCR library and image)
 
 As the owner of Peerless,
-I want batch step 1 to read the figures from every filed 62.100 document for 2021–2025 and store them exactly as filed,
-So that the document-derived key figures rest on pre-warmed, traceable figures and nothing is ever read at query time.
+I want step 1 to carry one Tesseract image and a tested library that reads the figures from a generated filed document,
+So that the reading rules the spike proved are production code, with every known OCR failure pinned by a regression test, before anything is fetched or stored.
 
-This story builds on the spike in `analysis/ocr/` (`ocr_accuracy.py`, `era_screening.py`, `Dockerfile`) and its measurement in `analysis/output/ocr-consistency.md`; it does not start from scratch.
+Split from Story 2.1 on 2026-10-19 (Meinich), following the 1.3a/1.3b pattern. This half covers the image, the extraction library and its fixtures, and touches no database. Fetching, storing, the contract test against the database, the seed and the docs come in Story 2.1b. It builds on the spike in `analysis/ocr/` (`ocr_accuracy.py`, `era_screening.py`, `Dockerfile`) and its measurement in `analysis/output/ocr-consistency.md`; it does not start from scratch. PDF pages are rendered with PyMuPDF, pinned, as in the spike, so the spike's measurement carries over (Meinich, 2026-10-19; its AGPL-3.0 licence is part of the licence assessment before stage 2, technical note, "Deferred", Hosted deployment). Årsverk is read from the company's notes, outside the generated section, and is not read in Epic 2 (`deferred-work.md`).
 
-**Implements:** FR-28 (batch part: 2021–2025 extracted as data), FR-59, FR-64 (read date per filing) · **Invariants:** AD-1, AD-2, AD-3, AD-9, AD-14, AD-15, AD-18 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.1-ocr-filed-accounts`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-28 (batch part: the reading rules) · **Invariants:** AD-1, AD-2, AD-14 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.1a-ocr-library`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
 **Given** the repository
 **When** its Dockerfiles are listed
-**Then** exactly one image installs Tesseract: the existing `analysis/ocr/Dockerfile` is moved into step 1's image or step 1's image (Story 1.3a) is extended with it, never duplicated, and the spike scripts in `analysis/ocr/` run against that one image (a CI check fails on a second Dockerfile installing Tesseract)
+**Then** exactly one image installs Tesseract: step 1's image (Story 1.3a) is extended with it, the existing `analysis/ocr/Dockerfile` is removed, never duplicated, and the spike scripts in `analysis/ocr/` run against that one image (a CI check fails on a second Dockerfile installing Tesseract)
 **And** the image runs Tesseract 5.5 (`tesseract --version` reports 5.5.x in a container test) with `nor.traineddata` from `tessdata_best`, fetched at a pinned commit and verified against a recorded checksum
-
-**Given** step 1 run over 62.100
-**When** it completes
-**Then** it has fetched every filed document for 2021–2025 of every company whose `naeringskode1.kode` is `62.100`, matched to the company on orgnr only, never on name
-**And** each document's filing year is taken from the document and the returned filing `id` / `regnskapsperiode`, never from a requested `år`
-**And** no document is fetched or OCR'd outside a batch run; the no-outbound-request test of Story 1.7 still passes during an analysis
 
 **Given** a filed document
 **When** its first page is classified
-**Then** it is generated only if the heading of the generated section ("GENERELL INFORMASJON") is found, and paper if the paper cover form ("VEDLEGG TIL") is found; a paper filing is stored with status `paper` and never read
+**Then** it is generated only if the heading of the generated section ("GENERELL INFORMASJON") is found, and paper if the paper cover form ("VEDLEGG TIL") is found; a paper filing is classified `paper` and never read
 **And** a paper cover form is never classified as generated, even though it contains "regnskapsåret" (regression test: spike error 1, a fixture of a paper cover form)
 
 **Given** a generated filing
 **When** its pages are read
 **Then** words are grouped into rows by vertical position and into the two figure columns (this year, last year) by position against the column edges taken from the year header, as in the spike
+**And** each column carries the year its header states, read from the document
 **And** a figure is assembled only from digit groups of the generated layout (a leading group of 1–3 digits, then groups of exactly 3, at most one space apart); anything else yields no figure, never a guess
 
 **Given** the combined read
 **When** a page is processed
 **Then** the plain pass runs first; the digits-only pass (`tessedit_char_whitelist`) is used only for a figure the plain pass did not yield, and its figure is kept only if the column then reconciles within the document; otherwise the figure is absent
-**And** a regression test reproduces spike error 4: a fixture where the digits-only pass drops a digit in the older font ("622821" for 6 228 521) and the stored figure is the plain pass's 6 228 521, or absent, never 622 821
+**And** a regression test reproduces spike error 4: a fixture where the digits-only pass drops a digit in the older font ("622821" for 6 228 521) and the result is the plain pass's 6 228 521, or absent, never 622 821
 
 **Given** a row label
 **When** it is matched to a target field
@@ -1244,14 +1239,42 @@ This story builds on the spike in `analysis/ocr/` (`ocr_accuracy.py`, `era_scree
 **And** regression tests reproduce spike error 3: "Annen driftskostnad" never matches "Sum driftskostnad", and "Sum innskutt egenkapital" never matches "Sum egenkapital"
 
 **Given** OCR look-alikes in figures and labels — `이`, `o` or `O` for `0`, `l` for `1`, a Cyrillic `Р` inside `RESULTATREGNSKAP`, lost Norwegian diacritics ("Lonnskostnad", "Arsresultat")
-**When** step 1 parses them
+**When** the library parses them
 **Then** label and heading normalisation folds diacritics and known look-alike letters so that the heading and labels still match (tests for the Cyrillic heading and the diacritic-free labels)
 **And** a figure token containing any non-digit character is never repaired into a digit: the figure is absent (tests for `이`, `o` and `l` in a figure)
-**And** split or merged figures are not trusted on recognition alone: fixtures reproducing `722 632 310` for 72 632 310 and `8 335 514` for 833 514 make their column fail the within-document check used by the combined read, and that result is stored with the filing (acceptance itself is Story 2.2)
+**And** split or merged figures are not trusted on recognition alone: fixtures reproducing `722 632 310` for 72 632 310 and `8 335 514` for 833 514 make their column fail the within-document check used by the combined read, and that result is part of the read's output (storing it is Story 2.1b; acceptance itself is Story 2.2)
 
 **Given** files passed into the container (todo lists, filenames)
-**When** step 1 writes them on any host
+**When** they are written on any host
 **Then** they are written with LF line endings, and the repository's `.gitattributes` keeps step 1's files LF (regression test: spike error 2, a list written on Windows reaches the container without `\r`)
+
+**Given** the committed fixture document 979607008/2025 (credited under NLOD in the fixtures README)
+**When** the library reads it — from its recorded Tesseract output on the host, and from the PDF itself in the container test
+**Then** both columns equal hand-checked kroner values in the test, the "Beløp i" header is read as stated, and the two reads agree
+**And** Python computes no ratio, distribution or amount; its only arithmetic is the within-document checks (AD-1)
+
+**Given** the PR
+**When** it is opened
+**Then** it states what could go wrong with figures read by OCR (AGENTS.md Working style) and links the AI session file, and the reasoning is recorded in `docs/ai-log.md`
+
+### Story 2.1b: Store the filed accounts (OCR ingest)
+
+As the owner of Peerless,
+I want batch step 1 to read every filed 62.100 document for 2021–2025 with the Story 2.1a library and store the figures exactly as filed,
+So that the document-derived key figures rest on pre-warmed, traceable figures and nothing is ever read at query time.
+
+Split from Story 2.1 on 2026-10-19 (Meinich). This half covers the migration, the fetch and the step-1 run, the contract test against the database, the seed and the docs; the reading rules come from Story 2.1a.
+
+**Implements:** FR-28 (batch part: 2021–2025 extracted as data), FR-59, FR-64 (read date per filing) · **Invariants:** AD-1, AD-2, AD-3, AD-9, AD-14, AD-15, AD-16, AD-18 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.1b-ocr-ingest`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** step 1 run over 62.100
+**When** it completes
+**Then** it has fetched every filed document for 2021–2025 of every company whose `naeringskode1.kode` is `62.100`, matched to the company on orgnr only, never on name
+**And** each document's filing year is taken from the document and the returned filing `id` / `regnskapsperiode`, never from a requested `år`
+**And** no document is fetched or OCR'd outside a batch run; the no-outbound-request test of Story 1.7 still passes during an analysis
+**And** a paper filing is stored with status `paper` and never read
 
 **Given** an extracted filing
 **When** step 1 stores it
@@ -1264,6 +1287,14 @@ This story builds on the spike in `analysis/ocr/` (`ocr_accuracy.py`, `era_scree
 **Given** the contract test (AD-14)
 **When** step 1's document writer runs on fixture 979607008/2025 against a freshly migrated database
 **Then** the stored øre values for both columns equal hand-checked values in the test
+
+**Given** the new migration
+**When** `pnpm seed:export` runs
+**Then** the re-exported seed is committed in the same PR, and CI loads it twice and re-exports it unchanged
+
+**Given** the "Kilder og lisens" section on `/slik-fungerer-peerless`
+**When** document figures are stored
+**Then** its first paragraph names the filed annual accounts as a source (`deferred-work.md`)
 
 **Given** the PR
 **When** it is opened
@@ -1686,7 +1717,7 @@ So that every figure the table will show can be traced to a formula and a hand c
 **When** the engine computes their comparison and amounts
 **Then** no cost share yields a kroner value (test), total cost share yields a distribution and no kroner, and the no-direction figures yield median and midtre halvdel with no beste fjerdedel, no Plassering and no kroner
 **And** kontantandel is a diagnostic: the engine never ranks it (never eligible for Største styrke, never a sort key) and produces no kroner for it (test)
-**And** omsetningsvekst is context, computed from the prior-year column of the same document (Story 2.1), and undefined when that column did not reconcile
+**And** omsetningsvekst is context, computed from the prior-year column of the same document (Story 2.1b), and undefined when that column did not reconcile
 
 **Given** receivable days (9), payable days (10) or operating-asset turnover (11) worse than beste fjerdedel
 **When** the engine computes the kroner amount at full convergence

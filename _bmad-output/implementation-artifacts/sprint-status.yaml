@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 19-10-2026 20:59
+last_updated: 19-10-2026 22:00
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,8 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: backlog
-  2-1-read-the-filed-accounts-ocr: backlog
+  2-1a-read-a-filed-document-ocr-library-and-image: backlog
+  2-1b-store-the-filed-accounts-ocr-ingest: backlog
   2-2-accept-only-figures-that-reconcile: backlog
   2-3-measure-ocr-accuracy-sm-2: backlog
   2-4-withdrawn-companies-disappear: backlog
@@ -102,7 +103,7 @@ delivery_order:
     - ocr-reference-set  # not a story: GitHub issue #14, consumed by 2-3; seeded draw from all of 62.100
   sequence:
     - epic-1    # 1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5a → 1.5b → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10
-    - epic-2    # 2.1 → 2.9
+    - epic-2    # 2.1a → 2.1b → 2.2 → 2.9
     - 5-2-layer-by-layer-measurement
     - epic-3    # 3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7
     - 5-4-the-demo-seed

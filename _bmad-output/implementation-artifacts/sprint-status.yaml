@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 19-10-2026 20:55
+last_updated: 19-10-2026 20:59
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -167,14 +167,14 @@ action_items:
       spec-1-10 status, AGENTS.md scope and -text paths, AD-10/README header-rotation
       wording, 1.1 missed AC). Before Story 2.1"
     owner: "Meinich"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-8-prune-the-five-resolved-entries-from-def"
     epic: 1
     action: "Prune the five resolved entries from deferred-work.md; add R2/R3 (Story
       2.9), R5, R8, D2 and the unbounded candidate read. Before Story 2.1"
     owner: "Meinich"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-9-correct-the-ai-process-record-review-ses"
     epic: 1

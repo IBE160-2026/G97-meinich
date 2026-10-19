@@ -3,7 +3,7 @@
 **Date:** 2026-10-16 (PR opened 2026-10-19)
 **Tool:** Claude Code (Opus 5.5), `bmad-build` workflow: an orchestrating session, one implementation subagent working from the frozen spec, and three review subagents (blind, edge case, verification gap)
 **Story / issue:** [#29](https://github.com/IBE160-2026/G97-meinich/issues/29), Epic 1 follow-ups (no new FR; retro actions 1–5)
-**Result:** PR to follow, from branch `story/e1-follow-ups`: commits `6a17ca7` (Next.js 16.4.2), `4325185` (coverage-read guards), `4e55a7e` (db-down e2e), `2164dae` (engine framework ban), `e517794` (tidiness sweep), `7e0994a` (ledger and spec), `368b9df` (review fixes), `cd445d7` (spec: triage log, done), then this file and the AI-log entry.
+**Result:** [PR #30](https://github.com/IBE160-2026/G97-meinich/pull/30), not yet merged, from branch `story/e1-follow-ups`: commits `6a17ca7` (Next.js 16.4.2), `4325185` (coverage-read guards), `4e55a7e` (db-down e2e), `2164dae` (engine framework ban), `e517794` (tidiness sweep), `7e0994a` (ledger and spec), `368b9df` (review fixes), `cd445d7` (spec: triage log, done), `2879395` (this file), `3bd34e6` (the AI-log entry), and the commit adding this PR link.
 
 ## Goal
 

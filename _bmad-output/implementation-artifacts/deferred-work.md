@@ -8,6 +8,10 @@
   summary: A company that the register later reclassifies out of a covered primary code keeps its old `register.company` row (old `naeringskode1`, old `read_at`), because a step-1 run only upserts the units in today's bulk selection.
   evidence: Story 1.3a review. Only 410 deletion is planned (Story 2.4); reclassification is not. Readers that select on `naeringskode1` would still see the stale row as covered until a run records which companies it last saw, or a later story decides how a refresh retires rows.
 
+- source_spec: `_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`
+  summary: Step 1 refuses a corrected filing that keeps the register's id. `UPSERT_FILING` resolves conflicts on `FILING_KEY` (orgnr, regnskapstype, periode_fra, periode_til), but `brreg_id` is also UNIQUE, so a reissued filing whose period changed under the same id raises UniqueViolation and the stale row stays.
+  evidence: Epic 1 retro, finding R5 (`ingest/src/peerless_ingest/write.py`, `UPSERT_FILING`; migration `20261011120000_register_step1_tables.sql`, `brreg_id … UNIQUE`). Deferred by Meinich, 2026-10-16; decide with the reclassification entry above how a refresh retires or replaces rows.
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
   summary: Story 2.3 must make `seed:export` keep the curated entries in `seed/allow-list.json` instead of overwriting it with `[]`, and refuse an export whose document-figure orgnrs are not on the list.
   evidence: Story 1.3b review. `scripts/seed-export.ts` writes the literal `'[]\n'`. That is harmless while no filing has a document figure, but it erases entries as soon as Story 2.3 adds OCR reference filings with their reasons.
@@ -16,14 +20,6 @@
   summary: Add a test in which the export's `checkPrimaryKey` refuses a `SEED_TABLES` declaration that disagrees with the catalog, when a migration first changes a seed table's key.
   evidence: Story 1.3b verification-gap review. Deleting the `checkPrimaryKey` call keeps every test green; the guard only matters once a key changes.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
-  summary: AGENTS.md and technical note AD-16 name `seed/**` and `analysis/output/**` as `-text`, but `.gitattributes` also marks `test/fixtures/seed/**`; add the third path to both.
-  evidence: Story 1.3b review. Deferred because the fix edits an agent-context file.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
-  summary: Story 1.5's `src/server/db.ts` must be covered by a read-types test through the app's own client, so a `types`/`transform` option that parses `int8` or `numeric` to a number fails a test.
-  evidence: Story 1.4 review. `test/db/read-types.test.ts` builds its own postgres.js client with default options, because the app client does not exist yet.
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
   summary: Decide whether a filing whose stated balance does not balance (`sumEiendeler` ≠ `sumEgenkapitalGjeld` beyond a few kroner) is flagged or excluded from the API figures, the way document figures are reconciled.
   evidence: Story 1.4 review. 1 903 of 22 354 seed filings have `sumEiendeler ≠ sumEgenkapitalGjeld`, most by 1 kr (rounding); some by far more, e.g. 931165992 SIGMA DATA SOLUTIONS AS 2023 (−17 767 against +14 019 kr). The engine computes on stated values as filed and does not reconcile.
@@ -31,21 +27,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
   summary: The provenance drill-down (FR-64, Epic 3) needs to know which inputs were derived; `FigureResult` records only `denominatorDerived`, not a derived numerator (`driftsresultat`, `sumEgenkapital`).
   evidence: Story 1.4 review. JOAKIM BORDING AS 2025's equity ratio uses a derived `sumEgenkapital` and cannot be told apart from a stated one.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-5a-company-search-data.md`
-  summary: Story 1.5b — the search API (`GET /api/sok`), the front page with the hero combobox, `src/server/db.ts` and the route-manifest test — split from Story 1.5 to follow 1.5a.
-  evidence: Story 1.5 planning 2026-10-14. The spec ran to about 2 700 tokens across the database, step 1, the API, the UI and tests, so the human split it 1.3a/1.3b-style. The data change comes first. Its draft spec is `spec-1-5b-company-search.md`.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-5a-company-search-data.md`
-  summary: Story 1.5b must settle three things about the data 1.5a stored:
-    - whether search returns a sole proprietor's (`ENK`) business municipality, which is often the owner's home;
-    - to handle `naeringskode1_beskrivelse` being NULL where the register's primary code has changed since the company was stored. Companies-only mode stores it only when the codes match: 920768695 is stored under 62.100, and its description is NULL;
-    - to add a test with `EXPLAIN` that shows its name query uses `company_navn_trgm`, by calling the same `register.immutable_unaccent(lower(navn))` expression.
-  evidence: Story 1.5a review. 6 258 of the 17 557 stored companies are `ENK`, as recorded in `docs/data-sources-brreg.md` and the ai-log entry for 1.5a. Companies-only mode now reports code mismatches in its summary. Index use was shown by a manual `EXPLAIN` only. `reader`'s `search_path` lacks `extensions`, so the query must qualify `extensions.%`/`extensions.word_similarity`.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
-  summary: Story 1.6b passes `parse` a documented accept-all `isCandidate`; Story 1.7 must replace it with the real candidate pool (funnel stages 1–3 at the parsed band), so an `ekskl` orgnr outside the pool is dropped with the notice (AD-5).
-  evidence: Human decision 2026-10-15 in the 1.6a spec; until 1.7, any valid orgnr other than the subject is kept in `ekskl` (review finding 5).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
   summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.
@@ -64,10 +45,22 @@
   evidence: Story 1.7 review (blind hunter). A sequential scan of 17 558 rows is well under 1 s on the demo seed (`test/db/peers.test.ts`); the read runs on every covered-AS analysis request.
 
 - source_spec: `_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`
+  summary: The rate limit does not bound what one client can read. A client that sends a new `X-Forwarded-For` value with each request gets a fresh budget each time, and every covered-AS analysis reads its industry's whole candidate pool (`lookupCandidates` in `src/server/analysis.ts`) with no limit and no cross-request cache, so each request costs a full industry scan. The AD-10 deployment gate must solve both before stage 2.
+  evidence: Epic 1 retro, finding S11 (`src/rate-limit/limiter.ts`, `src/server/analysis.ts`). Accepted for local v1 by Meinich, 2026-10-16; stated in the README and AD-10.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`
   summary: Story 2.9 (missing figures say why) owns two copy gaps from the Epic 1 retro:
     - R2 (retro action 3): a subject whose revenue is not stated but derivable (driftsresultat + sumDriftskostnad) gets "…har ingen positiv omsetning å sammenligne med" beside a hero that shows a margin. Keep the rule "not stated → no band" (`docs/key-figures.md:151`; `funnelSubject` passes only the stated `sum_driftsinntekter_ore`) and change only the copy: a message key for "revenue not stated", plus a test with null stated revenue (`test/analysis/oversikt-hero.test.ts` covers only `0n`).
     - R3: an empty peer group can show no reason. `emptyReason` is set only for no revenue and a non-calendar year, so a subject with `valuta` ≠ NOK, or a null `regnskapsregler`/`smaaForetak`/`avviklingsregnskap`, empties stage 2 with no explanation ("0 av 10").
   evidence: Epic 1 retro, findings R2 and R3 (`src/analysis/view.ts:139`, `src/engine/peers.ts:219-221`). Human decision (Meinich, 2026-10-16): no code change in the Epic 1 follow-ups PR; in the seed, 1 of 4 890 filings has a derived revenue above 5 kr, and that one is negative.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`
+  summary: The benchmark-filing order (benchmark year, the subject's `regnskapstype` first, then latest `periode_til`, `periode_fra` and register id) is written three times: the subject SQL, the engine's `benchmarkFiling`, and the e2e oracle. Choose the subject's filing in the engine too, before Epic 2 adds the document figures as a second figure source.
+  evidence: Epic 1 retro, finding D2 (`src/server/analysis.ts`, `SUBJECT_SQL`; `src/engine/peers.ts`, `benchmarkFiling`; `e2e/analysis.spec.ts`, the seed oracle). Deferred by Meinich, 2026-10-16.
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`
+  summary: `/analyse/813 235 552/oversikt` renders without a redirect, while the bare spaced path `/analyse/813 235 552` redirects, so every analysis has duplicate URLs. Redirect a non-canonical orgnr segment to its canonical form on every tab.
+  evidence: Epic 1 retro, finding R8 (`src/analysis/view.ts`, the covered branch of `analysisView`). Crosses Stories 1.6a and 1.6b. Deferred (small) by Meinich, 2026-10-16.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-follow-ups.md`
   summary: Remove `minimumReleaseAgeExclude` (and its comment) from `pnpm-workspace.yaml` once Next.js 16.4.2 (released 2026-10-15) is past pnpm's minimum release age. Trigger: the next dependency update or Story 2.1, whichever comes first.

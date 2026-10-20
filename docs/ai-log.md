@@ -16,9 +16,9 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 23 |
-| money | 15 |
-| parsing | 8 |
+| auth | 24 |
+| money | 16 |
+| parsing | 9 |
 | llm-boundary | 5 |
 | scope | 14 |
 | docs | 18 |
@@ -508,3 +508,22 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 - Review fixes, each by the same method: the minus in the gap check (`test_layout.py::test_distant_minus_is_absent`), digits filling an empty plain row (`test_documents.py::test_digits_fill_a_row_the_plain_pass_left_empty`), the notes page (`test_layout.py::test_notes_page_after_the_balance_sheet_is_not_read`), the year checks (`test_documents.py::test_years_must_follow_and_agree`, `test_documents.py::test_statement_page_without_year_header_refuses`) and the unit on every headed page (`test_documents.py::test_every_headed_page_needs_the_unit`).
 
 **Outcome:** Branch `story/2.1a-ocr-library`, commits `75e02d4`, `7801884`, `02397cb`, `c486dfa`, `1f66653` and the docs commit. Item 1 and the gate amendment are recorded in the spec.
+
+### 2026-10-20 — Story 2.1b: storing the filed accounts, and what could go wrong with them
+**Tags:** money, parsing, auth
+**Tool:** Claude Code (Opus 5.5), an implementation subagent working from the frozen spec `spec-2-1b-ocr-ingest.md`
+**Asked:** Fetch every filed 2021–2025 document of each covered company in step 1, read it with `read_document`, and store one row per document and one per figure column, as filed, in øre, through `INGEST_DATABASE_URL` with no DDL; a migration with grants and a seed decision, a contract test against the database, a resumable run, `--documents <file>`, and the acceptance set computed in Node (issue #32).
+
+**Got:** Migration `20261020120000_register_document_tables.sql` (`register.document`, `register.document_column`), `fetch_document_years` and `fetch_document`, `write_document` with `to_ore` and `document_outcome`, the document pass in `run.py` and documents mode, `scripts/document-set.ts` and `seed/document-run.json`, and the seed re-exported with the two tables empty.
+
+**Problem:** One error found by running it, and what could go wrong with money figures stored from OCR:
+1. **The register refuses `Accept: application/pdf`.** The first run against the register (one company, `pnpm ingest --documents` with 813235552) failed all five documents with 406 Not Acceptable. The endpoint serves `application/pdf` but only to `Accept: application/octet-stream` (curl, 2026-10-20). No fixture test could have caught it, because `FixtureTransport` ignores the header; step 1 now sends octet-stream, and `test_fetch.py::test_document_is_requested_as_octet_stream` pins the header. After the fix the same run stored all five documents (2021–2025) as `extracted` in 132 s (123 s of reading); for 2023–2025, the years the key-figures API holds, the current column's sum driftsinntekter equals the API's to the øre. The local database was then restored with `pnpm seed`.
+2. **A figure becomes øre only through `× 100` on an `int`.** `to_ore` refuses a float, a bool or a string with `TypeError` and keeps None as None, so an absent figure never becomes 0 (`test_documents_write.py::test_ore_is_int_times_100`). The contract test writes the 979607008/2025 read to the database and compares both columns with literal øre values (`test_documents_write.py::test_contract_979607008_2025_db`).
+3. **A stored document is never read again.** That is what makes the run resumable (`test_documents_run.py::test_interrupted_run_resumes_without_redoing`, `::test_stored_document_not_refetched`), but a refiled document keeps its first read, and a document stored after an OCR error is not retried. Recorded in `deferred-work.md`.
+4. **The filing year is the path's, and a document that disagrees is not stored as figures.** A document whose this-year column states another year than its path is `not_extracted` with `year_mismatch` and no columns (`test_documents_run.py::test_year_mismatch_is_refused`). The `brreg_id` link is set only when exactly one SELSKAP key-figures filing has the same orgnr and year (`test_documents_write.py::test_links_brreg_id_by_year`); two periods ending in one year are not guessed between.
+5. **Nothing is usable yet.** A read with columns is stored `extracted`, not `reconciled`: the figures have passed only the within-document checks, and the between-source check is Story 2.2. No reader in `src/` selects from the new tables. The database CHECK accepts exactly the five statuses and keeps status, layout and refusal consistent (`test/db/documents.test.ts`, "status accepts exactly the five values" and "keeps status, layout and refusal consistent, even where a column is NULL"); the first draft of that CHECK compared nullable columns with `=`, which a NULL turns into a passing CHECK, and was rewritten with `coalesce` before any test ran.
+6. **Grants and the seed.** `ingest` has SELECT, INSERT and UPDATE on both tables and no DELETE (`test_documents_write.py::test_ingest_cannot_delete_documents`, `test/db/grants.test.ts`); `loader` SELECT, INSERT and TRUNCATE; `reader` SELECT through the default privileges. `seed:export` refuses a `document_column` row for an orgnr not on `seed/allow-list.json` before writing anything (`test/db/seed.test.ts`, "refuses to export a document column for an orgnr not on the allow-list, writing nothing"; deleting the call fails it), and writes the list back as it read it instead of `[]`, which closes the Story 1.3b ledger entry assigned to 2.3.
+
+**Caught by:** Item 1 by a one-company run against the register before review. Each guard in the matrix was deleted in turn and the named test run; every one failed: the 2021–2025 filter (`test_fetches_only_2021_2025_from_year_list`), the stored-year skip (`test_interrupted_run_resumes_without_redoing`, `test_stored_document_not_refetched`), the year mismatch (`test_year_mismatch_is_refused`), the stored and covered checks of documents mode (`test_documents_mode_only_listed_orgnrs`), the int conversion (`test_ore_is_int_times_100`), the brreg_id link (`test_links_brreg_id_by_year`), storing an OCR error (`test_refusal_and_ocr_error_store_not_extracted`) and the duplicate check of the list file (`test_documents_mode_rejects_bad_file`), all in `ingest/tests/test_documents_run.py` and `ingest/tests/test_documents_write.py`.
+
+**Outcome:** Branch `story/2.1b-ocr-ingest`. Demo company C is not in the acceptance set although the spec names it: its industry is not covered and the spec's own documents mode refuses an uncovered company (recorded in the spec's Implementation Notes). The acceptance run itself waits for review.

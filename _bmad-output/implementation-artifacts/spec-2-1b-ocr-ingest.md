@@ -2,7 +2,7 @@
 title: 'Story 2.1b: Store the filed accounts (OCR ingest)'
 type: 'feature'
 created: '2026-10-20'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'cf512ebc1d6160cc263501c320c1c1484058d4a3'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -179,6 +179,18 @@ context:
 **Acceptance Criteria:** `epics.md` Story 2.1b and the matrix above. In addition: given CI, when `pnpm test:ingest` runs against the seeded database, then the contract test runs there and is not skipped.
 
 ## Implementation Notes
+
+Recorded by the implementation subagent, 2026-10-20. Choices open to the reviewer and the human:
+
+- **Demo company C is not in `seed/document-run.json`.** The Decisions say the acceptance run is "demo companies A, B and C plus their peer groups", but C (967534579, KANTALL AS) is in an uncovered industry: it has no peer group, `ingest/config.toml` says step 1 never fetches its documents, and the spec's own documents mode refuses a listed orgnr that is not covered. The set is therefore A and B and their standard-band pools: 407 orgnrs (`test/document-set.test.ts` asserts C is absent). If C's documents are wanted, documents mode would need an exception for it; that is a human decision.
+- **Accept header.** The register refuses `Accept: application/pdf` on the document endpoint with 406; step 1 sends `application/octet-stream` (found by a one-company run against the register before review; `test_fetch.py::test_document_is_requested_as_octet_stream`). The run's database rows were removed by `pnpm seed` afterwards.
+- **`write_document` takes a `DocumentOutcome`, not the raw read.** `document_outcome(year, read)` decides status, refusal and columns (paper, unknown, refusal, year mismatch, extracted) and is pure; `OCR_FAILED` is the outcome for an `OcrError`. The Code Map's signature `write_document(conn, orgnr, year, read, brreg_id, read_at)` is otherwise kept.
+- **`layout` is nullable** and NULL only for an `OcrError`, with `refusal = 'ocr_error'`: a Tesseract failure can happen before page 1 is classified. The refusal values are `reporting_unit`, `year_header`, `year_mismatch` and `ocr_error`. A CHECK keeps status, layout and refusal consistent, written with `coalesce` because a CHECK whose expression is NULL passes.
+- **A PDF that PyMuPDF cannot open** (`RuntimeError`, e.g. `FileDataError`) or a body that is not a PDF is a failure of that document: named in the summary, not stored, retried by the next run. Only an `OcrError` is stored as `not_extracted`, as the spec says. OCR errors do not by themselves make the run exit 1; failures and refusals do.
+- **`brreg_id`** links to the key-figures filing only when exactly one SELSKAP filing has the same orgnr and filing year.
+- **The export keeps the allow-list.** Refusing unlisted document figures while still writing `[]` would erase an entry the export had just accepted, so `seed:export` writes the allow-list back as it read it (`stableJson`). That also closes the Story 1.3b ledger entry assigned to 2.3; 2.3 still adds the reference filings to the list.
+- **The acceptance set runs through Vite's module runner** (`scripts/document-set.ts` → `scripts/document-set-compute.ts`), because `src/` imports JSON without an import attribute and `src/server` begins with `import 'server-only'`; plain Node cannot load either. `test/db/document-set.test.ts` recomputes the set against the loaded seed and compares the committed file.
+- **Summary figures.** The run prints counts per filing year and status, documents read, seconds spent reading and wall time; seconds per document is read from those two numbers, not computed in Python.
 
 ## Spec Change Log
 

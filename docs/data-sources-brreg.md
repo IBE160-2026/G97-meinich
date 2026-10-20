@@ -200,6 +200,18 @@ The spike's rules are production code in `ingest/src/peerless_ingest/` (`ocr.py`
 - **"Beløp i:".** Every figure page states its unit on the year-header line, `Beløp i: NOK` in whole kroner. Figures are read only when every such header is a bare three-letter currency code. A scale ("NOK 1000", "tusen kroner"), headers that disagree between pages, or no readable header gives the document no columns, with the refusal `reporting_unit` and the header text as read — never a guessed scale. No readable year header gives the refusal `year_header`.
 - **Within-document bound:** 5 kr absolute, one named constant (`TOLERANCE_KR`) until Story 2.2 moves it into configuration.
 
+## Fetching and storing the documents (Story 2.1b)
+
+Step 1 reads the filed documents in its own batch run, never in a request (`ingest/src/peerless_ingest/run.py`, `fetch.py`, `write.py`):
+
+- **Which documents.** For each company whose primary code is covered, after its key-figures filings, step 1 asks `…/aarsregnskap/kopi/{orgnr}/aar` for the years on file and fetches each of 2021–2025 by that year in the path. The `år` query parameter is never sent. A year outside 2021–2025 is counted and never fetched; demo company C, in an uncovered industry, gets no document request.
+- **The `Accept` header.** The document endpoint answers `406 Not Acceptable` to `Accept: application/pdf`, although it serves the file as `application/pdf`; it serves it for `Accept: application/octet-stream`, which step 1 sends. Verified 2026-10-20 on 813235552/2025 with curl, after the first run against the register failed every document with 406 (`ingest/tests/test_fetch.py::test_document_is_requested_as_octet_stream`). A body that does not start with `%PDF-` is refused as a fetch error.
+- **The filing year** is the year in the `/aar` list and the path. A generated document whose this-year column states another year is stored `not_extracted` with the refusal `year_mismatch`, and no columns.
+- **What is stored.** One `register.document` row per (orgnr, filing year): the layout, the status, the refusal, `valuta` and the "Beløp i:" text as read, `read_at`, the dataset tag `full`, and the `brreg_id` of the key-figures filing when exactly one SELSKAP filing has the same orgnr and year. For a read with columns, two `register.document_column` rows, `current` and `prior`, each with the year it states, the four check results, the fields taken from the digits-only pass and the 23 figures as printed times 100, in øre: NULL when absent or unreadable, never 0, and a printed 0 stays 0.
+- **Statuses.** `paper` for a paper filing (never read beyond page 1's top); `not_extracted` for an unknown layout, a refusal (`reporting_unit`, `year_header`, `year_mismatch`) or a Tesseract failure (`ocr_error`, layout NULL, logged with the page and Tesseract's first stderr line); `extracted` for a read with columns, not yet reconciled. Story 2.2 replaces `extracted` with `reconciled` or `failed_reconciliation`.
+- **Reruns.** Each document and its columns are one transaction. A rerun skips every stored (orgnr, filing year): it neither fetches nor reads it again. A refiled document is therefore not picked up, and a document stored `not_extracted` after an OCR error is not retried.
+- **Cost.** Measured 2026-10-20 in the step-1 image on the development machine (16 logical cores), over 20 cached 2021–2025 filings: `read_document` takes a median of 21.1 s per document (mean 22.8 s, max 38.5 s); two or three documents at once give 19.1 and 21.5 s each, because one document already fills the CPU. The acceptance set (`seed/document-run.json`, 407 companies) is therefore a run of hours, and all of 62.100 (about 33 000 documents) about 190 hours.
+
 ---
 
 ## Business descriptions — first measurement

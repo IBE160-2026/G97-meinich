@@ -53,7 +53,7 @@ development_status:
 
   epic-2: in-progress
   2-1a-read-a-filed-document-ocr-library-and-image: done  # issue #31
-  2-1b-store-the-filed-accounts-ocr-ingest: in-progress  # issue #32
+  2-1b-store-the-filed-accounts-ocr-ingest: review  # issue #32; acceptance run after review
   2-2-accept-only-figures-that-reconcile: backlog
   2-3-measure-ocr-accuracy-sm-2: backlog
   2-4-withdrawn-companies-disappear: backlog

@@ -18,7 +18,7 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from conftest import BASE_URL, FixtureTransport, aar_url, enhet_url, kopi_url, recorded, regnskap_url
+from conftest import BASE_URL, FixtureTransport, aar_url, enhet_url, ingest_database_url, kopi_url, recorded, regnskap_url
 from document_fakes import DOCUMENTS, FakeRecognise, Recognised, generated, paper_top, pdf, recorded_979607008_2025
 from peerless_ingest import documents, ocr, run, write
 from peerless_ingest.config import Config
@@ -134,7 +134,7 @@ def test_refusal_and_ocr_error_store_not_extracted(
         "document 2024: tesseract failed (digits pass, exit 123) on p3.png: Error, could not read image p3.png"
     ]
     assert summary.failed == []
-    assert not summary.needs_operator()
+    assert summary.needs_operator()  # stored for good: a person must look at it
     text = "\n".join(summary.lines())
     assert "OCR error, stored as not_extracted: 979607008 document 2024" in text
     assert "    written: extracted 1, not_extracted 2, paper 0" in text
@@ -233,6 +233,77 @@ def test_a_failed_document_fetch_costs_only_that_document(
     assert summary.needs_operator()
     # 2024 is not stored, so a rerun tries it again; 2025 is.
     assert [row[0] for row in documents_of(stored, ORGNR)] == [2025]
+
+
+def test_a_listed_year_not_served_is_named_and_the_next_is_stored(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
+    transport = FixtureTransport(
+        {aar_url(ORGNR): b'["2024", "2025"]', kopi_url(ORGNR, 2024): None, kopi_url(ORGNR, 2025): pdf("2025")}
+    )
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    assert [p.what for p in summary.failed] == ["document 2024: listed in /aar but not served (404 or 410)"]
+    assert summary.needs_operator()
+    assert [row[0] for row in documents_of(stored, ORGNR)] == [2025]
+
+
+def test_a_read_that_fails_otherwise_is_named_not_stored_and_the_run_goes_on(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken() -> Recognised:
+        raise ValueError("something unexpected")
+
+    FakeRecognise(monkeypatch, {pdf("2024"): broken, pdf("2025"): generated(2025)})
+    transport = FixtureTransport(
+        {aar_url(ORGNR): b'["2024", "2025"]', kopi_url(ORGNR, 2024): pdf("2024"), kopi_url(ORGNR, 2025): pdf("2025")}
+    )
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    assert [p.what for p in summary.failed] == ["document 2024: read failed: ValueError: something unexpected"]
+    assert summary.needs_operator()
+    # 2024 is not stored, so a rerun retries it.
+    assert [row[0] for row in documents_of(stored, ORGNR)] == [2025]
+
+
+def test_a_malformed_year_list_costs_that_company_only(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    reader = FakeRecognise(monkeypatch, {})
+    transport = FixtureTransport({aar_url(ORGNR): b'{"years": ["2025"]}'})
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    assert [(p.orgnr, p.what) for p in summary.failed] == [
+        (ORGNR, f"document years: ValueError: document years {ORGNR}: expected a JSON list of four-digit year strings")
+    ]
+    assert transport.requested == [aar_url(ORGNR)]
+    assert reader.calls == []
+    assert documents_of(stored, ORGNR) == []
+
+
+def test_a_company_with_no_document_list_is_counted_and_named(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    FakeRecognise(monkeypatch, {})
+    transport = FixtureTransport({aar_url(ORGNR): None})
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    assert summary.documents.no_document_list == [ORGNR]
+    assert summary.failed == []
+    lines = summary.lines()
+    assert "    companies with no list of filed documents (404 or 410): 1" in lines
+    assert f"    no list of filed documents: {ORGNR}" in lines
+
+
+def test_connect_commits_each_transaction(db: psycopg.Connection) -> None:
+    # The `db` fixture runs every test inside one outer transaction, so the
+    # resume test cannot see real commits. What makes them real in a run is
+    # this: `write.connect` returns an autocommit connection, on which each
+    # document's `conn.transaction()` is its own committed transaction.
+    url = ingest_database_url()
+    assert url is not None
+    conn = write.connect(url)
+    try:
+        assert conn.autocommit is True
+    finally:
+        conn.close()
 
 
 def test_documents_mode_only_listed_orgnrs(db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:

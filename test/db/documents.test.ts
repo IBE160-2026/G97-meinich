@@ -140,6 +140,27 @@ describe('register.document_column', () => {
     });
   });
 
+  it('goes with its document, and the document with its company (ON DELETE CASCADE, for Story 2.4)', async () => {
+    const rules = await sql<{ table: string; references: string; on_delete: string }[]>`
+      select conrelid::regclass::text as table, confrelid::regclass::text as references, confdeltype as on_delete
+        from pg_catalog.pg_constraint
+       where contype = 'f' and conrelid in ('register.document'::regclass, 'register.document_column'::regclass)
+       order by 1, 2
+    `;
+    expect([...rules]).toEqual([
+      { table: 'register.document', references: 'register.company', on_delete: 'c' },
+      { table: 'register.document', references: 'register.filing', on_delete: 'a' },
+      { table: 'register.document_column', references: 'register.document', on_delete: 'c' },
+    ]);
+    await withCompany(async (tx) => {
+      await tx.unsafe(insertDocument(2025, 'extracted', 'generated', null, 'NOK'));
+      await tx.unsafe(insertColumn('current', 2025));
+      await tx`delete from register.document where orgnr = ${ORGNR} and filing_year = 2025`;
+      const [row] = await tx<{ n: number }[]>`select count(*)::int as n from register.document_column where orgnr = ${ORGNR}`;
+      expect(row?.n).toBe(0);
+    });
+  });
+
   it('stores every figure as bigint øre with a unit comment', async () => {
     const rows = await sql<{ name: string; kind: string; comment: string | null }[]>`
       select a.attname as name, format_type(a.atttypid, a.atttypmod) as kind,
@@ -151,7 +172,7 @@ describe('register.document_column', () => {
     expect(rows).toHaveLength(23);
     for (const row of rows) {
       expect(row.kind, row.name).toBe('bigint');
-      expect(row.comment?.startsWith('øre; '), row.name).toBe(true);
+      expect(row.comment?.startsWith('øre (hundredths of document.valuta'), row.name).toBe(true);
     }
   });
 });

@@ -145,6 +145,7 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
   const [range] = await sql<{ min: string | null; max: string | null }[]>`
     select min(read_at)::text as min, max(read_at)::text as max from (
       select read_at from register.company union all select read_at from register.filing
+      union all select read_at from register.document
     ) r
   `;
   if (range?.min === null || range?.min === undefined || range.max === null) {

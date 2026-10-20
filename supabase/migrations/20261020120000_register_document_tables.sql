@@ -22,7 +22,7 @@
 -- list of filed documents (`…/aarsregnskap/kopi/{orgnr}/aar`), used in the
 -- document's path; the `år` query parameter is never sent.
 CREATE TABLE register.document (
-  orgnr       char(9)     NOT NULL REFERENCES register.company (orgnr),
+  orgnr       char(9)     NOT NULL REFERENCES register.company (orgnr) ON DELETE CASCADE,
   filing_year smallint    NOT NULL,
   -- The key-figures API filing of the same company and year, when there is
   -- exactly one SELSKAP filing for it; NULL otherwise (the API holds only the
@@ -112,7 +112,7 @@ CREATE TABLE register.document_column (
   sum_egenkapital_gjeld_ore                 bigint,
   dataset            text     NOT NULL CHECK (dataset IN ('demo', 'full')),
   PRIMARY KEY (orgnr, filing_year, role),
-  FOREIGN KEY (orgnr, filing_year) REFERENCES register.document (orgnr, filing_year),
+  FOREIGN KEY (orgnr, filing_year) REFERENCES register.document (orgnr, filing_year) ON DELETE CASCADE,
   CHECK (
     (role = 'current' AND stated_year = filing_year)
     OR (role = 'prior' AND stated_year = filing_year - 1)
@@ -129,33 +129,33 @@ CREATE TABLE register.document_column (
 );
 
 COMMENT ON TABLE register.document_column IS
-  'The figure columns of a read document, as printed, in øre (AD-14, AD-15): this year''s and the prior year''s, each with its own stated year and check results. Written by batch step 1 (ingest).';
+  'The figure columns of a read document, as printed, in øre: hundredths of the document''s valuta (NOK in every filing seen) (AD-14, AD-15). This year''s and the prior year''s, each with its own stated year and check results. Written by batch step 1 (ingest).';
 COMMENT ON COLUMN register.document_column.stated_year IS 'The year the column header states, read from the document.';
 COMMENT ON COLUMN register.document_column.digits_pass_fields IS 'Fields whose figure came from the digits-only pass (Story 2.1a gate).';
 COMMENT ON COLUMN register.document_column.dataset IS 'The dataset that produced this row; provenance only (AD-9).';
-COMMENT ON COLUMN register.document_column.salgsinntekt_ore IS 'øre; Salgsinntekt(er), as printed';
-COMMENT ON COLUMN register.document_column.sum_driftsinntekter_ore IS 'øre; Sum inntekter / Sum driftsinntekter, as printed';
-COMMENT ON COLUMN register.document_column.varekostnad_ore IS 'øre; Varekostnad, as printed';
-COMMENT ON COLUMN register.document_column.lonnskostnad_ore IS 'øre; Lønnskostnad, as printed';
-COMMENT ON COLUMN register.document_column.avskrivninger_ore IS 'øre; Avskrivning på varige driftsmidler og immaterielle eiendeler, as printed';
-COMMENT ON COLUMN register.document_column.nedskrivninger_ore IS 'øre; Nedskrivning av varige driftsmidler og immaterielle eiendeler, as printed';
-COMMENT ON COLUMN register.document_column.annen_driftskostnad_ore IS 'øre; Annen driftskostnad, as printed';
-COMMENT ON COLUMN register.document_column.sum_driftskostnad_ore IS 'øre; Sum kostnader / Sum driftskostnader, as printed';
-COMMENT ON COLUMN register.document_column.driftsresultat_ore IS 'øre; Driftsresultat, as printed';
-COMMENT ON COLUMN register.document_column.netto_finans_ore IS 'øre; Netto finans, as printed';
-COMMENT ON COLUMN register.document_column.ordinaert_resultat_foer_skattekostnad_ore IS 'øre; (Ordinært) resultat før skattekostnad, as printed';
-COMMENT ON COLUMN register.document_column.aarsresultat_ore IS 'øre; Årsresultat, as printed';
-COMMENT ON COLUMN register.document_column.sum_immaterielle_eiendeler_ore IS 'øre; Sum immaterielle eiendeler, as printed';
-COMMENT ON COLUMN register.document_column.sum_varige_driftsmidler_ore IS 'øre; Sum varige driftsmidler, as printed';
-COMMENT ON COLUMN register.document_column.varer_ore IS 'øre; Varer, as printed';
-COMMENT ON COLUMN register.document_column.kundefordringer_ore IS 'øre; Kundefordringer, as printed';
-COMMENT ON COLUMN register.document_column.bankinnskudd_ore IS 'øre; Sum bankinnskudd, kontanter og lignende, as printed';
-COMMENT ON COLUMN register.document_column.sum_eiendeler_ore IS 'øre; Sum eiendeler, as printed';
-COMMENT ON COLUMN register.document_column.sum_egenkapital_ore IS 'øre; Sum egenkapital, as printed';
-COMMENT ON COLUMN register.document_column.leverandorgjeld_ore IS 'øre; Leverandørgjeld, as printed';
-COMMENT ON COLUMN register.document_column.sum_kortsiktig_gjeld_ore IS 'øre; Sum kortsiktig gjeld, as printed';
-COMMENT ON COLUMN register.document_column.sum_gjeld_ore IS 'øre; Sum gjeld, as printed';
-COMMENT ON COLUMN register.document_column.sum_egenkapital_gjeld_ore IS 'øre; Sum egenkapital og gjeld, as printed';
+COMMENT ON COLUMN register.document_column.salgsinntekt_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Salgsinntekt(er), as printed';
+COMMENT ON COLUMN register.document_column.sum_driftsinntekter_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum inntekter / Sum driftsinntekter, as printed';
+COMMENT ON COLUMN register.document_column.varekostnad_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Varekostnad, as printed';
+COMMENT ON COLUMN register.document_column.lonnskostnad_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Lønnskostnad, as printed';
+COMMENT ON COLUMN register.document_column.avskrivninger_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Avskrivning på varige driftsmidler og immaterielle eiendeler, as printed';
+COMMENT ON COLUMN register.document_column.nedskrivninger_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Nedskrivning av varige driftsmidler og immaterielle eiendeler, as printed';
+COMMENT ON COLUMN register.document_column.annen_driftskostnad_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Annen driftskostnad, as printed';
+COMMENT ON COLUMN register.document_column.sum_driftskostnad_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum kostnader / Sum driftskostnader, as printed';
+COMMENT ON COLUMN register.document_column.driftsresultat_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Driftsresultat, as printed';
+COMMENT ON COLUMN register.document_column.netto_finans_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Netto finans, as printed';
+COMMENT ON COLUMN register.document_column.ordinaert_resultat_foer_skattekostnad_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); (Ordinært) resultat før skattekostnad, as printed';
+COMMENT ON COLUMN register.document_column.aarsresultat_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Årsresultat, as printed';
+COMMENT ON COLUMN register.document_column.sum_immaterielle_eiendeler_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum immaterielle eiendeler, as printed';
+COMMENT ON COLUMN register.document_column.sum_varige_driftsmidler_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum varige driftsmidler, as printed';
+COMMENT ON COLUMN register.document_column.varer_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Varer, as printed';
+COMMENT ON COLUMN register.document_column.kundefordringer_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Kundefordringer, as printed';
+COMMENT ON COLUMN register.document_column.bankinnskudd_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum bankinnskudd, kontanter og lignende, as printed';
+COMMENT ON COLUMN register.document_column.sum_eiendeler_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum eiendeler, as printed';
+COMMENT ON COLUMN register.document_column.sum_egenkapital_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum egenkapital, as printed';
+COMMENT ON COLUMN register.document_column.leverandorgjeld_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Leverandørgjeld, as printed';
+COMMENT ON COLUMN register.document_column.sum_kortsiktig_gjeld_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum kortsiktig gjeld, as printed';
+COMMENT ON COLUMN register.document_column.sum_gjeld_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum gjeld, as printed';
+COMMENT ON COLUMN register.document_column.sum_egenkapital_gjeld_ore IS 'øre (hundredths of document.valuta, NOK in every filing seen); Sum egenkapital og gjeld, as printed';
 
 -- Step 1 is the one writer (AD-2): upserts need SELECT, INSERT and UPDATE; no
 -- DELETE or TRUNCATE. The seed loader truncates and replaces them (SELECT,

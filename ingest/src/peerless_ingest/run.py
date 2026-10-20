@@ -79,6 +79,9 @@ class DocumentSummary:
     skipped_stored: int = 0
     # Years in the register's list outside DOCUMENT_YEARS: never fetched.
     outside_years: int = 0
+    # Companies whose /aar list the register answered 404 or 410: no
+    # filed document to read.
+    no_document_list: list[str] = field(default_factory=list)
     # Documents passed to the reader, and the seconds spent reading them
     # (time, not money: a float is fine here).
     read_count: int = 0
@@ -96,6 +99,9 @@ class DocumentSummary:
         )
         out.append(f"    written: {totals}")
         out.append(f"    already stored, skipped: {self.skipped_stored}; listed years outside 2021–2025: {self.outside_years}")
+        out.append(f"    companies with no list of filed documents (404 or 410): {len(self.no_document_list)}")
+        for orgnr in self.no_document_list:
+            out.append(f"    no list of filed documents: {orgnr}")
         out.append(f"    read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
         for problem in self.ocr_errors:
             out.append(f"    OCR error, stored as not_extracted: {problem.orgnr} {problem.what}")
@@ -118,6 +124,7 @@ class Summary:
         """True when anything in the run needs a person to look at it."""
         return bool(
             self.failed
+            or self.documents.ocr_errors
             or self.rejected
             or not self.demo_found
             or self.demo_filings_written == 0
@@ -170,7 +177,9 @@ class DocumentsOnlySummary:
     wall_seconds: float = 0.0
 
     def needs_operator(self) -> bool:
-        return bool(self.failed or self.refused)
+        # An OCR error is stored for good (a rerun skips it), so it needs a
+        # person even though the run went on.
+        return bool(self.failed or self.refused or self.documents.ocr_errors)
 
     def lines(self) -> list[str]:
         out = [
@@ -314,7 +323,8 @@ def _load_documents(
         failed.append(Problem(orgnr, f"document years: {error.__class__.__name__}: {error}"))
         return
     if years is None:
-        return  # the register holds no filed document for this company
+        summary.no_document_list.append(orgnr)
+        return
     stored = write.stored_document_years(conn, orgnr)
     for year in years:
         if year not in DOCUMENT_YEARS:
@@ -341,10 +351,12 @@ def _load_documents(
             summary.ocr_errors.append(Problem(orgnr, f"document {year}: {error}"))
             progress(f"OCR error {orgnr}/{year}: {error}")
             outcome = write.OCR_FAILED
-        except RuntimeError as error:
-            # PyMuPDF cannot open the file (FileDataError): nothing is
-            # stored, so a rerun tries it again.
-            failed.append(Problem(orgnr, f"document {year}: unreadable PDF: {error.__class__.__name__}: {error}"))
+        except Exception as error:
+            # Any other failure of the read (a PDF PyMuPDF cannot open, a
+            # bug): named, nothing stored, so a rerun tries it again, and
+            # the run goes on. KeyboardInterrupt is not an Exception and
+            # still stops the run.
+            failed.append(Problem(orgnr, f"document {year}: read failed: {error.__class__.__name__}: {error}"))
             continue
         finally:
             summary.read_count += 1

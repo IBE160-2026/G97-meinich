@@ -140,7 +140,7 @@ def test_figure_columns_match_the_reading_library(db: psycopg.Connection) -> Non
     assert len(write.FIGURE_COLUMNS) == 23
     for name, kind, comment in rows:
         assert kind == "bigint", name
-        assert comment is not None and comment.startswith("øre; "), name
+        assert comment is not None and comment.startswith("øre (hundredths of document.valuta"), name
 
 
 def test_ore_is_int_times_100() -> None:

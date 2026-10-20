@@ -240,7 +240,7 @@ export interface Manifest {
   files: Record<string, string>;
   format_version: number;
   migration_id: string;
-  // Min and max read_at over company and filing, as Postgres prints
+  // Min and max read_at over company, filing and document, as Postgres prints
   // timestamptz with TimeZone UTC and DateStyle ISO.
   read_at: { max: string; min: string };
 }

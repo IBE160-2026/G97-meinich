@@ -379,6 +379,34 @@ describe('the export and document figures', () => {
     });
     expect(existsSync(out)).toBe(false);
   });
+
+  it('exports a listed orgnr, keeps the allow-list byte for byte, and names it in the manifest', async () => {
+    // A scratch root holding the migrations, coverage.json and an allow-list
+    // that names one orgnr with a reason.
+    const scratchRoot = path.join(scratch, 'listed-root');
+    cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
+    cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
+    const out = path.join(scratch, 'listed-out');
+    let manifest: { document_figure_orgnrs: string[] } | undefined;
+    let allowList = '';
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      const [company] = await tx<{ orgnr: string }[]>`select orgnr from register.company order by orgnr limit 1`;
+      const orgnr = company?.orgnr ?? '';
+      allowList = stableJson([{ orgnr, reason: 'OCR-referansesett' }]);
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), allowList);
+      await tx`
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset)
+        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full')`;
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+        values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
+      manifest = await exportSeed(tx, scratchRoot, out);
+      expect(manifest.document_figure_orgnrs).toEqual([orgnr]);
+    });
+    expect(manifest?.document_figure_orgnrs).toHaveLength(1);
+    expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(allowList);
+  });
 });
 
 describe('the export order', () => {

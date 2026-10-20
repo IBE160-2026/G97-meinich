@@ -505,7 +505,7 @@ Where filings allow, the product shows how the subject has moved against its pee
 **Consequences (testable):**
 - **Stage split:** the view, its tab and the sparklines are stage 2. Extracting and reconciling the earlier years is batch work that SM-2 measures, and is not held back with the view.
 - Development over time covers the last five years, 2021–2025. Measured 2026-09-26: about 88 % of columns reconcile in those years. Paper filings are never read; older generated years are used only where they reconcile.
-- Peer history is fetched every other year, since each document carries a prior-year column; every year is still covered.
+- Every filed document of 2021–2025 is fetched and read, not every other year, although each document carries a prior-year column (Meinich, 2026-10-20, Story 2.1b); both columns of each document are stored.
 - The full development-over-time view needs an account; a sparkline preview with the peer median is open to anyone (FR-42).
 
 ### 4.4 Gap quantification in kroner and the closable-share control

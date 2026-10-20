@@ -296,7 +296,7 @@ Because OCR is slow, extraction cannot run inside a user request. Documents are 
 
 Each page is read twice — a plain pass, and a digits-only pass used only where the plain pass gave nothing — and every extracted figure passes an internal consistency check within a tight absolute bound of a few kroner before it is stored, and a proportional reconciliation against the API figures where those exist. A failure blocks the filing rather than degrading the analysis silently. The data quality flag shown with each filing is derived from these arithmetic checks, not from OCR confidence.
 
-History is fetched every other year, since each document carries a prior-year column.
+Every filed document of 2021–2025 is fetched and read, not every other year, although each document carries a prior-year column (Meinich, 2026-10-20, Story 2.1b); both columns of each document are stored.
 
 The comparability filter runs before classification: currency, accounting rules, `smaaForetak`, `avviklingsregnskap`, accounting period, `regnskapstype`.
 

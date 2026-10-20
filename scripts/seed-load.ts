@@ -180,6 +180,8 @@ export async function main(root: string): Promise<number> {
       select 'company' as name, count(*)::text as n from register.company
       union all select 'filing', count(*)::text from register.filing
       union all select 'key_figures', count(*)::text from register.key_figures
+      union all select 'document', count(*)::text from register.document
+      union all select 'document_column', count(*)::text from register.document_column
       union all select 'covered_industry', count(*)::text from register.covered_industry
       union all select 'dataset', count(*)::text from register.dataset
     `;

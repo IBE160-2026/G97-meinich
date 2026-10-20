@@ -6,11 +6,13 @@
   ],
   "files": {
     "company.csv": "a7d5cefe09730a11d1d301897bb013337bc27ccbae4de115175f9b62c524600e",
+    "document.csv": "86034497a6eaadd85aa376034fb3030b942f4fa824b2a8c0fe3c21fa7a126ce8",
+    "document_column.csv": "d08f2f34ca3d3610f1bc90069138e3b4396733d424c1e22d5a2eacaef0539149",
     "filing.csv": "88bb7fd1a195f4cd46c3057c7ed1c677b51959e01ab6495c894dd94ee5bbf6b3",
     "key_figures.csv": "61ecab7b34fca9f8b041718a06d506e55c993cf017abea9f826345d932e1fe1c"
   },
   "format_version": 1,
-  "migration_id": "20261014120000_register_company_search",
+  "migration_id": "20261020120000_register_document_tables",
   "read_at": {
     "max": "2026-10-11 13:36:34.74071+00",
     "min": "2026-10-11 10:09:07.22884+00"

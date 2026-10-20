@@ -9,8 +9,12 @@
 //   primary key with COLLATE "C" on text columns. TimeZone UTC and DateStyle
 //   ISO, YMD make read_at and the dates round-trip byte for byte. No value
 //   is parsed in JS.
-// - Writes seed/demo/{company,filing,key_figures}.csv, seed/demo/manifest.json
-//   and seed/allow-list.json, LF and UTF-8. Never seed/coverage.json.
+// - Writes seed/demo/{company,filing,key_figures,document,document_column}.csv,
+//   seed/demo/manifest.json and seed/allow-list.json, LF and UTF-8. Never
+//   seed/coverage.json.
+// - Refuses, before writing any file, a document figure (a row of
+//   register.document_column) for an orgnr not on seed/allow-list.json, and
+//   writes the allow-list back with the entries it read.
 // - Running it twice on the same database gives byte-identical files.
 //
 // A later migration invalidates the seed: the PR that adds a migration runs
@@ -18,7 +22,7 @@
 // script, in the same PR (README, "Seed").
 //
 // Run: node scripts/seed-export.ts   (from the repository root)
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
@@ -39,7 +43,9 @@ import {
   exportPaths,
   latestMigrationId,
   orderByClause,
+  parseAllowList,
   readCoverage,
+  refuseUnlistedDocumentFigures,
   seedFileName,
   sha256,
   stableJson,
@@ -124,8 +130,17 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
     coverage,
     fetched.map((r) => r.code),
   );
+  // A document figure is a row of register.document_column (Story 2.1b).
+  // None may be exported for an orgnr the allow-list does not name.
+  const allowListFile = path.join(root, ...ALLOW_LIST_FILE.split('/'));
+  const allowListJson: unknown = existsSync(allowListFile) ? JSON.parse(readFileSync(allowListFile, 'utf8')) : [];
+  const allowList = parseAllowList(allowListJson);
+  refuseUnlistedDocumentFigures(
+    new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')])),
+    allowList,
+  );
   const documentFigures = await sql<{ orgnr: string }[]>`
-    select distinct orgnr from register.filing where status <> 'not_extracted'
+    select distinct orgnr from register.document_column
   `;
   const [range] = await sql<{ min: string | null; max: string | null }[]>`
     select min(read_at)::text as min, max(read_at)::text as max from (
@@ -149,7 +164,7 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
   const written = new Map<string, Buffer | string>();
   for (const [file, bytes] of outputs) written.set(`${SEED_DIR}/${file}`, bytes);
   written.set(`${SEED_DIR}/${MANIFEST_FILE}`, stableJson(manifest));
-  written.set(ALLOW_LIST_FILE, '[]\n');
+  written.set(ALLOW_LIST_FILE, stableJson(allowListJson));
 
   const allowed = exportPaths();
   for (const relative of written.keys()) {

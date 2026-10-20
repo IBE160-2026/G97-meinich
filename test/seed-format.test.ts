@@ -24,6 +24,7 @@ import {
   parseCsv,
   prepareSeed,
   readCoverage,
+  refuseUnlistedDocumentFigures,
   sha256,
   stableJson,
   unlistedDocumentFigures,
@@ -87,7 +88,7 @@ function refusal(fn: () => unknown): string {
 
 describe('the seed tables', () => {
   it('lists the step-1 tables in foreign-key order and the loader tables apart', () => {
-    expect(SEED_TABLES.map((t) => t.name)).toEqual(['company', 'filing', 'key_figures']);
+    expect(SEED_TABLES.map((t) => t.name)).toEqual(['company', 'filing', 'key_figures', 'document', 'document_column']);
     expect(LOADER_TABLES).toEqual(['dataset', 'covered_industry']);
   });
 
@@ -108,6 +109,19 @@ describe('the seed tables', () => {
     const filing = SEED_TABLES.find((t) => t.name === 'filing');
     expect(filing?.primaryKey.filter((c) => c.text).map((c) => c.name)).toEqual(['orgnr', 'regnskapstype']);
   });
+
+  it('keys the document tables on orgnr and filing year, and the columns also on role', () => {
+    const key = (name: string) => SEED_TABLES.find((t) => t.name === name)?.primaryKey;
+    expect(key('document')).toEqual([
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
+    ]);
+    expect(key('document_column')).toEqual([
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
+      { name: 'role', text: true },
+    ]);
+  });
 });
 
 describe('the export', () => {
@@ -118,6 +132,8 @@ describe('the export', () => {
       'seed/demo/company.csv',
       'seed/demo/filing.csv',
       'seed/demo/key_figures.csv',
+      'seed/demo/document.csv',
+      'seed/demo/document_column.csv',
       'seed/demo/manifest.json',
       'seed/allow-list.json',
     ]);
@@ -136,7 +152,13 @@ describe('the manifest and files', () => {
   it('accepts the valid seed', () => {
     const plan = prepareSeed(paths);
     expect(plan.coverage).toEqual([{ code: '62.100', measured: false }]);
-    expect([...plan.files.keys()]).toEqual(['company.csv', 'filing.csv', 'key_figures.csv']);
+    expect([...plan.files.keys()]).toEqual([
+      'company.csv',
+      'filing.csv',
+      'key_figures.csv',
+      'document.csv',
+      'document_column.csv',
+    ]);
   });
 
   it('refuses a format_version other than 1, naming the field', () => {
@@ -289,10 +311,22 @@ describe('the allow-list check', () => {
     expect(parseCsv('a,b\n1,"x,""y"""\n,\n')).toEqual([['a', 'b'], ['1', 'x,"y"'], ['', '']]);
   });
 
-  it('fails a filing with a document figure for an orgnr not on the list', () => {
-    const files = new Map([['filing.csv', readFileSync(path.join(fixtures, 'filing-with-document-figure.csv'), 'utf8')]]);
-    expect(unlistedDocumentFigures(files, [])).toEqual(['919951834']);
-    expect(unlistedDocumentFigures(files, ['919951834'])).toEqual([]);
+  // A document figure is a row of register.document_column (Story 2.1b).
+  const withFigure = (): Map<string, string> =>
+    new Map([['document_column.csv', readFileSync(path.join(fixtures, 'document-column-with-figure.csv'), 'utf8')]]);
+
+  it('fails a document column for an orgnr not on the list', () => {
+    expect(unlistedDocumentFigures(withFigure(), [])).toEqual(['979607008']);
+    expect(unlistedDocumentFigures(withFigure(), ['979607008'])).toEqual([]);
+    expect(unlistedDocumentFigures(new Map([['document_column.csv', 'orgnr,role\n']]), [])).toEqual([]);
+  });
+
+  it('refuses document figures not on the allow-list', () => {
+    expect(refusal(() => refuseUnlistedDocumentFigures(withFigure(), ['919951834']))).toBe(
+      'document_column.csv: document figures for orgnrs not on seed/allow-list.json: 979607008',
+    );
+    expect(() => refuseUnlistedDocumentFigures(withFigure(), ['979607008'])).not.toThrow();
+    expect(refusal(() => refuseUnlistedDocumentFigures(new Map(), []))).toBe('document_column.csv: missing');
   });
 
   it('reads the allow-list as {orgnr, reason} entries', () => {

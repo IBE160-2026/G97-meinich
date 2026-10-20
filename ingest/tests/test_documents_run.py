@@ -280,6 +280,7 @@ def test_documents_mode_only_listed_orgnrs(db: psycopg.Connection, cfg: Config, 
         "[979607008]",
         '["97960700"]',
         '["979607008 "]',
+        '["979607008\\n"]',  # `$` would accept a trailing newline; fullmatch does not
         '["979607008", "979607008"]',
     ],
 )

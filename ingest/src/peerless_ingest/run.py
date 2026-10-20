@@ -519,7 +519,7 @@ def _progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
-ORGNR = re.compile(r"^[0-9]{9}$")
+ORGNR = re.compile(r"[0-9]{9}")
 USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file>]"
 
 
@@ -534,7 +534,7 @@ def read_document_list(path: Path) -> list[str]:
         orgnrs = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         raise BadDocumentList(f"{path}: cannot be read as JSON ({error.__class__.__name__}: {error})") from error
-    if not isinstance(orgnrs, list) or not all(isinstance(o, str) and ORGNR.match(o) for o in orgnrs):
+    if not isinstance(orgnrs, list) or not all(isinstance(o, str) and ORGNR.fullmatch(o) for o in orgnrs):
         raise BadDocumentList(f"{path}: must be a JSON list of nine-digit orgnr strings")
     if len(set(orgnrs)) != len(orgnrs):
         raise BadDocumentList(f"{path}: an orgnr is listed twice")

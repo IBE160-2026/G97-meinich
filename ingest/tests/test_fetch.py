@@ -142,7 +142,7 @@ def test_document_years_are_requested_as_json_and_parsed() -> None:
     assert transport.requests == [
         ("https://register.fixture.invalid/regnskapsregisteret/regnskap/aarsregnskap/kopi/813235552/aar", fetch.ACCEPT_JSON)
     ]
-    for body in (b'{"2025": 1}', b"[2025]", b'["25"]'):
+    for body in (b'{"2025": 1}', b"[2025]", b'["25"]', b'["2025\\n"]'):
         with pytest.raises(ValueError):
             fetch.fetch_document_years(RecordingTransport(body), "https://x.invalid", "813235552")  # type: ignore[arg-type]
     assert fetch.fetch_document_years(RecordingTransport(None), "https://x.invalid", "813235552") is None  # type: ignore[arg-type]

@@ -32,7 +32,7 @@ BULK_CHUNK_CHARS = 1 << 20
 ACCEPT_DOCUMENT = "application/octet-stream"
 # The filed annual-accounts documents (docs/data-sources-brreg.md, "Endpoints").
 KOPI_PATH = "regnskapsregisteret/regnskap/aarsregnskap/kopi"
-YEAR = re.compile(r"^[0-9]{4}$")
+YEAR = re.compile(r"[0-9]{4}")
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 
@@ -154,7 +154,7 @@ def fetch_document_years(transport: Transport, base_url: str, orgnr: str) -> lis
     if body is None:
         return None
     years = json.loads(body)
-    if not isinstance(years, list) or not all(isinstance(year, str) and YEAR.match(year) for year in years):
+    if not isinstance(years, list) or not all(isinstance(year, str) and YEAR.fullmatch(year) for year in years):
         raise ValueError(f"document years {orgnr}: expected a JSON list of four-digit year strings")
     return sorted({int(year) for year in years})
 

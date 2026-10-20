@@ -168,13 +168,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Migration, grants, then `scripts/seed-format.ts` and `seed-export.ts` and their TS tests. `pnpm seed:export` gives the re-exported seed.
-- [ ] `fetch.py`, `write.py`, `run.py` and `ocr.py`, plus `ingest/tests/test_documents_{write,run}.py`: every matrix row.
-- [ ] `nb.json` copy, and its e2e/unit assertion if one exists.
-- [ ] `scripts/document-set.ts` (`pnpm ingest:document-set`), `scripts/run-ingest.ts` (`--documents <file>`, mounted read-only) and their Vitest tests; commit `seed/document-run.json`.
+- [x] Migration, grants, then `scripts/seed-format.ts` and `seed-export.ts` and their TS tests. `pnpm seed:export` gives the re-exported seed.
+- [x] `fetch.py`, `write.py`, `run.py` and `ocr.py`, plus `ingest/tests/test_documents_{write,run}.py`: every matrix row.
+- [x] `nb.json` copy, and its e2e/unit assertion if one exists.
+- [x] `scripts/document-set.ts` (`pnpm ingest:document-set`), `scripts/run-ingest.ts` (`--documents <file>`, mounted read-only) and their Vitest tests; commit `seed/document-run.json`.
 - [ ] Acceptance run, last, after review, fixes and the full suite, on the image built from the final commit (hash in PR and session file); tell the human before starting: `pnpm ingest --documents seed/document-run.json` on the local DB. Record the counts per status and year, the wall time and the seconds per document in the PR and the session file.
-- [ ] `deferred-work.md`: the full-62.100 run, about 33 000 documents and about 190 h at 21 s per document, with how the estimate was made.
-- [ ] Docs, the session file and `sprint-status.yaml`.
+- [x] `deferred-work.md`: the full-62.100 run, about 33 000 documents and about 190 h at 21 s per document, with how the estimate was made.
+- [x] Docs, the session file and `sprint-status.yaml`.
 
 **Acceptance Criteria:** `epics.md` Story 2.1b and the matrix above. In addition: given CI, when `pnpm test:ingest` runs against the seeded database, then the contract test runs there and is not skipped.
 
@@ -194,7 +194,34 @@ Recorded by the implementation subagent, 2026-10-20. Choices open to the reviewe
 
 ## Spec Change Log
 
+- **2026-10-20, Meinich (review, finding #21): the acceptance set is A and B and their pools, without C.** Demo company C is in an uncovered industry and uses no document figure. Why: the Decisions named "A, B and C", but documents mode refuses an uncovered company under the same spec, so the two could not both hold. `seed/document-run.json` holds A, B and their standard-band pools, 407 orgnrs (`test/document-set.test.ts` asserts C is absent). KEEP: documents mode refuses any listed orgnr that is not a stored company with a covered primary code.
+
 ## Review Triage Log
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | verif V1; blind B13 | The export's write-back of the allow-list (no longer `[]`) and the manifest's `document_figure_orgnrs` from `document_column` are untested with a non-empty list | medium | Every `exportSeed` call in `test/db/seed.test.ts` uses the committed `[]`; restoring `'[]
+'` or the old `filing.status` query keeps every test green. | patch |
+| 2 | verif V2; blind B5, B6; edge E1, E2, E13 | Only `OcrError` and `RuntimeError` are contained around the read. Any other exception from `read_document`/`document_outcome` aborts the run, and because stored documents are skipped, every rerun crashes on the same document. `except RuntimeError` also mislabels unrelated errors. The not-served, `/aar`-error and unreadable branches have no test. | medium | `run.py` `_load_documents`: the try catches `ocr.OcrError` and `RuntimeError` only; `document_outcome` raises `ValueError`. grep `not served`, `document years:`, `unreadable PDF` in `ingest/tests`: none. | patch |
+| 3 | verif V3 | The resume test runs under the `db` fixture's outer transaction, so it cannot see whether each document is really committed | medium | `conftest.py` `db` yields inside `conn.transaction()`; inner transactions are savepoints. The human's approval requires resumability to be tested. | patch: assert `write.connect` gives an autocommit connection; live stop/restart check before the acceptance run |
+| 4 | verif other; blind B8; edge E4 | A covered company whose `/aar` answers 404/410 is neither counted nor named | low | `_load_documents`: `if years is None: return`. Direct correction. | patch |
+| 5 | blind B7; edge E6 | An OCR error is stored for good, never retried, and leaves the exit status 0 | medium | `needs_operator()` ignores `documents.ocr_errors`; `test_refusal_and_ocr_error_store_not_extracted` asserts it is false. "No silent fallbacks" asks for a signal the exit status carries. | patch |
+| 6 | blind B1; edge E11 | The new tables reference `company` and `document` with NO ACTION, but Story 2.4's AC deletes a 410 company with its document figures through `ON DELETE CASCADE` | medium | `epics.md` Story 2.4 AC: "every row referencing it in `register` goes with it through `ON DELETE CASCADE` (key figures, filings, document figures)". The tables are new in this migration, so the fix is two words. | patch |
+| 7 | blind B2 | The copy names the filed accounts before any document figure is shown, next to the NLOD line | false | The AC requires it "when document figures are stored". The separate document-figure licence paragraph is Story 5.4 (human decision, 2026-10-16, `deferred-work.md`). | reject |
+| 8 | blind B3 | `docs/data-sources-brreg.md:299` and PRD FR-28 (`prd.md:508`) still say history is fetched every other year | low | grep. AGENTS.md: edit the original. Direct correction. | patch |
+| 9 | blind B4 | `epic-2-context.md:63` still lists the "Kilder og lisens" item as open | low | grep. Direct correction. | patch |
+| 10 | blind B9 | A plain `pnpm ingest` now runs the document pass inline, so its first run over 62.100 takes days and no mode refreshes register data alone | medium | It is the approved decision ("The full run (no argument) also runs the document pass"). After the first full pass, a rerun skips stored documents and costs one `/aar` request per company. A register-only mode would change the frozen intent. | reject (frozen decision); raised with the human |
+| 11 | blind B10 | `DOCUMENT_YEARS = range(2021, 2026)` is a constant in code | low | The AC fixes 2021–2025; moving the window is a later decision, not a defect. | reject |
+| 12 | blind B11 | `seed/document-run.json` sits in `seed/` though seed files are written only by the export | false | It is not a seed file: the export never writes it and the loader never reads it (AGENTS.md, README); its path is the approved decision. | reject |
+| 13 | blind B12; edge E10 | The database accepts column rows under a `paper`/`not_extracted` document | low | `write_document` writes columns only for `extracted`; a trigger adds complexity for a state no writer produces. | reject |
+| 14 | blind B14 | The session file lacks the human's prompts and the PR link | low | Filled in before merge, as the AGENTS.md checklist requires. | patch (docs, at PR) |
+| 15 | edge E5 | `brreg_id` stays NULL if a document was stored before its filing | low | The full run writes filings before documents; documents mode runs on stored filings. | reject |
+| 16 | edge E7 | The manifest's read-date range ignores `register.document` | low | `seed-export.ts:146-147` unions only company and filing. Direct correction. | patch |
+| 17 | edge E8 | `document.csv` rows are not checked against the allow-list | false | A document row holds no figure; the allow-list governs document figures (AD-9), which live in `document_column`. | reject |
+| 18 | edge E9, E12 | A malformed allow-list or a failed `runnerImport` gives a raw exception | low | Both fail loudly and write nothing. | reject |
+| 19 | edge E3 | A database error in `stored_document_years` ends the run | low | A failing SELECT means the database is unavailable; ending the run is the existing `ConnectionLost` behaviour. | reject |
+| 20 | blind (valuta) | A non-NOK document is stored ×100 in columns whose comment says "øre" | low | `valuta` is stored per document; the comments overstate. Direct correction to the comments. | patch |
+| 21 | edge E14 | The acceptance set leaves out demo C, which the frozen Decisions name | medium | C (967534579) is uncovered; documents mode refuses it, by the same spec. The two decisions cannot both hold. | intent_gap: human decision at presentation, no revert (the code is right under either reading except the one list entry) |
 
 ## Design Notes
 

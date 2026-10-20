@@ -77,6 +77,26 @@ def test_tesseract_failure_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         ocr._run([image], tmp_path, "plain", ocr.PLAIN_ARGS)
 
 
+def test_tesseract_failure_names_the_page_and_the_first_stderr_line(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Story 2.1b: a failed document in a batch run must be traceable. p2
+    # wrote its TSV, p3 did not: only p3 is named.
+    p2, p3 = tmp_path / "p2.png", tmp_path / "p3.png"
+    stderr = b"\nError, could not read image p3.png\nleptonica: more detail\n"
+
+    def failed(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        (tmp_path / "p2.png.plain.tsv").write_text("", encoding="utf-8")
+        return subprocess.CompletedProcess(argv, 123, b"", stderr)
+
+    monkeypatch.setattr(ocr.subprocess, "run", failed)
+    with pytest.raises(ocr.OcrError) as raised:
+        ocr._run([p2, p3], tmp_path, "plain", ocr.PLAIN_ARGS)
+    assert raised.value.pages == ("p3.png",)
+    assert raised.value.stderr_line == "Error, could not read image p3.png"
+    assert str(raised.value) == "tesseract failed (plain pass, exit 123) on p3.png: Error, could not read image p3.png"
+
+
 def test_missing_tsv_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     image = tmp_path / "p2.png"
     image.write_bytes(b"")
@@ -86,6 +106,7 @@ def test_missing_tsv_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         return subprocess.CompletedProcess(argv, 0, b"", b"")
 
     monkeypatch.setattr(ocr.subprocess, "run", silent)
-    with pytest.raises(ocr.OcrError, match="no plain output for p2.png"):
+    with pytest.raises(ocr.OcrError, match="no plain output for p2.png") as raised:
         ocr._run([image], tmp_path, "plain", ocr.PLAIN_ARGS)
+    assert raised.value.pages == ("p2.png",)
 

@@ -1,0 +1,200 @@
+---
+title: 'Story 2.1b: Store the filed accounts (OCR ingest)'
+type: 'feature'
+created: '2026-10-20'
+status: 'in-progress'
+baseline_commit: 'cf512ebc1d6160cc263501c320c1c1484058d4a3'
+route: 'dispatch'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** Story 2.1a can read a filed document, but nothing fetches the documents or stores what is read. Twelve key figures and revenue growth therefore have no input, and FR-59 requires every document figure to be pre-warmed before anyone asks for it.
+
+**Approach:** Step 1 fetches every filed 2021–2025 document of every covered company. Each one goes through `read_document`. Step 1 then stores one row per document and one row per figure column, as filed, in øre. This happens in the existing full run, through `INGEST_DATABASE_URL`, with no DDL. The work also adds one migration, its grants, the seed decision and re-export, a contract test against the database, and the "Kilder og lisens" copy. The acceptance criteria are in `epics.md` Story 2.1b, which wins on a conflict.
+
+**Decisions (human, Meinich, 2026-10-20):**
+- **The spec is kept whole** (about 2 300 tokens).
+- **Status `extracted`.**
+  - A generated document read with columns is stored `extracted`, meaning read and not yet reconciled.
+  - AD-15 and the status CHECK gain the value. Story 2.2 replaces it with `reconciled` or `failed_reconciliation`.
+  - Until then, nothing is marked usable.
+- **Every year 2021–2025,** as the AC says, not every other year.
+- **A limited run.**
+  - Step 1's document pass can be limited to a given set of orgnrs.
+  - The acceptance run is demo companies A, B and C plus their peer groups in the standard band (about 500 companies), not all of 62.100.
+  - The committed seed has the new tables empty until 2.3's allow-list.
+  - The full-industry run is a `deferred-work.md` entry with its estimated time.
+- **Measured first** (2026-10-20, the step-1 image on the development machine with 16 logical cores, 20 cached 2021–2025 filings):
+  - `read_document` takes a median of 21.1 s per document, with a mean of 22.8 s and a maximum of 38.5 s.
+  - Two or three documents at once give 19.1 and 21.5 s per document, because one document already fills the CPU.
+  - Estimate: 500 companies × about 4 documents ≈ 2 000 documents ≈ 12 h.
+  - The full industry is about 33 000 documents ≈ 190 h ≈ 8 days.
+- **Approval conditions (2026-10-20).**
+  - **Order.** The acceptance run (about 12 h) starts only after:
+    - review;
+    - the review fixes;
+    - the full test suite.
+  - It runs on the image built from the last commit, never earlier, as in 1.3a. The PR and the session file name that commit's full hash.
+  - **Resumable.** The run can be stopped and started again without redoing stored documents:
+    - each document is committed on its own;
+    - a rerun skips every stored `(orgnr, filing_year)`.
+  - This is tested.
+  - The agent tells the human before starting the run, so the machine can be kept awake.
+
+**Decisions (agent, open to change at approval):**
+- **How the run is limited.**
+  - `pnpm ingest --documents <file>` is a second mode alongside `--companies-only`. The file is a JSON list of orgnrs, mounted read-only.
+  - It fetches no bulk data and no key figures. For each listed orgnr that is a stored covered company, it runs only the document pass.
+  - A listed orgnr that is not stored or not covered is refused and reported, never fetched.
+  - The full run (no argument) also runs the document pass for every covered company.
+  - AGENTS.md's "the only argument it accepts" is updated in the same commit.
+- **The acceptance set** is computed in Node, not Python, because peer selection is `src/engine` only:
+  - `pnpm ingest:document-set` writes `seed/document-run.json`, the committed acceptance set: A, B and C, plus each one's stage-1–3 pool at the standard band.
+  - It uses `src/engine/peers.ts` against the seeded DB.
+  - The file is input to the run, not seed data. `seed:export` and `seed` ignore it.
+- **Two tables** (AD-15 names none):
+  - `register.document`, keyed `(orgnr, filing_year)`. Columns:
+    - `brreg_id`: nullable, references `register.filing (brreg_id) ON UPDATE CASCADE`. Set when an API filing has the same orgnr and `filing_year`. 2021–2022 have none.
+    - `layout`, `status`, `refusal`
+    - `valuta`, `unit_text` (the reporting unit)
+    - `read_at`, `dataset`
+  - `register.document_column`, keyed `(orgnr, filing_year, role)`, where `role` is `current` or `prior`. Columns:
+    - `stated_year`, with a CHECK that it equals `filing_year` for current and `filing_year − 1` for prior
+    - `c1`…`c4`, each `pass`, `fail` or `not_evaluable`
+    - `digits_pass_fields text[]`
+    - the 23 `FIELDS` as `<field>_ore bigint`, each with a unit comment
+    - `dataset`
+  - `register.filing.status` is left alone (no `src` reader).
+- **Filing year.**
+  - It is the year as the register's `/aar` list returns it, used in the path. The `år` query parameter is never sent.
+  - A generated document whose current-column year differs from that year is stored `not_extracted` with `refusal = 'year_mismatch'`, and no column rows.
+- **Status in 2.1b:**
+  - `paper` for a paper filing, which is never read.
+  - `not_extracted` for `unknown`, a refusal, or an `OcrError`. The `OcrError` is logged with its page and the first stderr line (deferred-work).
+  - `extracted` for a read with columns.
+- **Whole kroner to øre** is `× 100` on an `int`, never a float. None stays NULL.
+- **Dataset tag.** `text NOT NULL CHECK (dataset IN ('demo','full'))`. Step 1 writes `full`. It is provenance only.
+- **Re-runs.**
+  - A stored `(orgnr, filing_year)` is not fetched again. A refiled document is not picked up; that is recorded as a limit.
+  - A company that fails (fetch or OCR) costs only its own documents, like the register errors today.
+- **Seed.**
+  - Both tables go into `SEED_TABLES`, after `filing`.
+  - `document_figure_orgnrs` and `unlistedDocumentFigures` read `register.document_column` instead of `filing.status`.
+
+## Boundaries & Constraints
+
+**Always:**
+- Match on orgnr only.
+- A figure is NULL when it is absent or unreadable, and never 0. A printed 0 is 0.
+- The only Python arithmetic is the `× 100` unit conversion and 2.1a's checks (AD-1).
+- `ingest` gets SELECT, INSERT and UPDATE on the new tables, `loader` gets SELECT, INSERT and TRUNCATE, and `reader` gets SELECT through the default privileges.
+- The new migration re-exports the seed in the same PR.
+
+**Never:**
+- Fetch or OCR in `src/` or in a request.
+- Derive or store a missing component.
+- Change the reading rules in 2.1a.
+- Add a CLI argument beyond `--documents <file>`.
+- Compute the peer set in Python.
+- Set `reconciled` or `failed_reconciliation` from an API comparison. That is Story 2.2.
+- Edit `analysis/output/**`.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected | What fails if the guard is deleted |
+|---|---|---|---|
+| Contract | the 979607008/2025 read written to a migrated DB | both columns' øre equal hand-checked values; `annen_driftskostnad` 2025, `leverandorgjeld` and `varer` NULL; `nedskrivninger_ore` 2025 = 0 | `test_documents_write.py::test_contract_979607008_2025_db` |
+| Year list | `/aar` has 2019–2025 | only 2021–2025 fetched; no URL carries `år=` | `test_documents_run.py::test_fetches_only_2021_2025_from_year_list` |
+| Year mismatch | path 2024, document header 2025 | `not_extracted`, `year_mismatch`, no columns | `test_documents_run.py::test_year_mismatch_is_refused` |
+| Paper | the 2011 paper fixture's read | `paper`, no columns, OCR of figure pages never called | `test_documents_run.py::test_paper_never_read` |
+| Refusal / OcrError | `reporting_unit`; tesseract fails | `not_extracted` with its refusal; the run continues | `test_documents_run.py::test_refusal_and_ocr_error_store_not_extracted` |
+| Interrupted run | the transport raises `KeyboardInterrupt` after the 2nd of 4 documents; then a rerun | the first 2 committed; the rerun fetches only the other 2 and reads nothing twice | `test_documents_run.py::test_interrupted_run_resumes_without_redoing` |
+| Already stored | `(orgnr, 2025)` in DB | no fetch for it | `test_documents_run.py::test_stored_document_not_refetched` |
+| API link | API filing 2025 exists / not for 2022 | `brreg_id` set / NULL | `test_documents_write.py::test_links_brreg_id_by_year` |
+| No float | figure 72632310 | 7263231000, type `int` | `test_documents_write.py::test_ore_is_int_times_100` |
+| Unlisted export | a `document_column` row for an orgnr not on the allow-list | `seed:export` refuses | `test/seed-format.test.ts` "refuses document figures not on the allow-list" |
+| Limited run | `--documents` with 2 stored covered orgnrs and 1 unknown | documents only for the 2; the unknown refused and reported; no bulk download, no key-figures URL | `test_documents_run.py::test_documents_mode_only_listed_orgnrs` |
+| Bad argument | `--documents` with no file, or a file that is not a JSON list of 9-digit strings | exit 2, nothing fetched | `test_documents_run.py::test_documents_mode_rejects_bad_file` |
+| Status value | an `extracted` row | accepted by the CHECK; a value outside the five is refused | `test/db/documents.test.ts` "status accepts exactly the five values" |
+| Query time | an analysis | no outbound request | `test/db/peers.test.ts` "makes no outbound request…" (unchanged) |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `ingest/src/peerless_ingest/run.py:155-244`:
+  - `_load_company` and `run` are where the document pass goes. It runs after each company's filings and only for covered companies.
+  - Keep the per-company error scope (`FETCH_ERRORS`, `run.py:142`) and the `needs_operator` exit code.
+  - Update the module docstring (:8, "Fetches no document").
+- `ingest/src/peerless_ingest/fetch.py:32-101`:
+  - Add `fetch_document_years(orgnr)` (`…/aarsregnskap/kopi/{orgnr}/aar`) and `fetch_document(orgnr, year)` (`…/kopi/{orgnr}/{year}`), both through the `Transport`.
+  - 404/410 → None.
+- `ingest/src/peerless_ingest/write.py:60-120`:
+  - Add `write_document(conn, orgnr, year, read, brreg_id, read_at)`, using `_upsert`.
+  - The document row and its columns go in one transaction.
+  - Add `stored_document_years(conn, orgnr)`.
+- `ingest/src/peerless_ingest/documents.py:82-102, 226`:
+  - Read `DocumentRead` and `Column` only. Do not change the reading rules.
+  - `ocr.py` `_run`: put the page and the first stderr line into `OcrError` (deferred-work :82).
+- `ingest/tests/conftest.py:97-167`:
+  - `FixtureTransport` gains the `kopi` URLs.
+  - The `db` fixture rolls back.
+  - The figure tests monkeypatch `recognise` so the TSVs feed `read_words`, and no Tesseract runs on the host.
+- `supabase/migrations/20261020120000_register_document_tables.sql` (new). Follow `20261011120000_register_step1_tables.sql`: text CHECKs, per-column `COMMENT … 'øre; …'`, and explicit grants.
+- `scripts/run-ingest.ts:36-41, 61-116`: argument allow-list and mounts; add `--documents <file>`.
+- `src/engine/peers.ts` and the candidate read used by `test/db/peers.test.ts` (`groupForDemoA`): reuse it for the acceptance set; do not reimplement stages 1–3.
+- `scripts/seed-format.ts`: `SEED_TABLES` (:41-53), `unlistedDocumentFigures` (:439-457).
+- `scripts/seed-export.ts:127-129`: `document_figure_orgnrs`.
+- Tests that hard-code table lists, and must change with the code:
+  - `test/db/grants.test.ts` :358, :409-416
+  - `test/seed-format.test.ts` :89-91
+  - `test/allow-list.test.ts` :21-23
+  - `test/db/seed.test.ts` :103
+- `src/messages/nb.json:113` `about.sources.origin`: name "årsregnskapene som er sendt inn til Regnskapsregisteret".
+- Docs:
+  - `technical-note-architecture.md`: AD-15 table names, and Q1's answer.
+  - `docs/data-sources-brreg.md`: the documents step.
+  - `AGENTS.md` stack paragraph: step 1 fetches documents.
+  - `README` ("Ingest").
+  - `docs/ai-log.md`
+  - `deferred-work.md`: close :36, :70 and :82.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [ ] Migration, grants, then `scripts/seed-format.ts` and `seed-export.ts` and their TS tests. `pnpm seed:export` gives the re-exported seed.
+- [ ] `fetch.py`, `write.py`, `run.py` and `ocr.py`, plus `ingest/tests/test_documents_{write,run}.py`: every matrix row.
+- [ ] `nb.json` copy, and its e2e/unit assertion if one exists.
+- [ ] `scripts/document-set.ts` (`pnpm ingest:document-set`), `scripts/run-ingest.ts` (`--documents <file>`, mounted read-only) and their Vitest tests; commit `seed/document-run.json`.
+- [ ] Acceptance run, last, after review, fixes and the full suite, on the image built from the final commit (hash in PR and session file); tell the human before starting: `pnpm ingest --documents seed/document-run.json` on the local DB. Record the counts per status and year, the wall time and the seconds per document in the PR and the session file.
+- [ ] `deferred-work.md`: the full-62.100 run, about 33 000 documents and about 190 h at 21 s per document, with how the estimate was made.
+- [ ] Docs, the session file and `sprint-status.yaml`.
+
+**Acceptance Criteria:** `epics.md` Story 2.1b and the matrix above. In addition: given CI, when `pnpm test:ingest` runs against the seeded database, then the contract test runs there and is not skipped.
+
+## Implementation Notes
+
+## Spec Change Log
+
+## Review Triage Log
+
+## Design Notes
+
+Hand-checked øre for the contract test: `expected-979607008-2025.json` × 100. For example:
+- `sum_driftsinntekter` 2025 is 7 263 231 000 øre.
+- `sum_egenkapital` 2024 is 930 519 800 øre.
+- Every value in the test is written as a literal, not computed from the JSON.
+
+## Verification
+
+**Commands:**
+- `pnpm test:ingest`: passes against the seeded DB, with no Tesseract on the host.
+- `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db`: passes.
+- `pnpm seed && pnpm seed && pnpm seed:export`: `git diff --exit-code seed/`.
+- `pnpm build && pnpm check:routes && pnpm test:e2e`: passes.

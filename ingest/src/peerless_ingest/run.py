@@ -1,28 +1,31 @@
 """Batch step 1: Enhetsregisteret data and key-figures API filings for every
 company whose primary industry is declared in seed/coverage.json, plus demo
-company C, and every filed 2021–2025 document of each covered company, read
-by OCR (Story 2.1b). Everything is stored as filed, in øre.
+company C; and, only in documents mode, the filed 2021–2025 documents of the
+listed companies, read by OCR (Story 2.1b). Everything is stored as filed,
+in øre.
 
     python -m peerless_ingest                     (inside the image: `pnpm ingest`)
     python -m peerless_ingest --companies-only    (`pnpm ingest --companies-only`)
     python -m peerless_ingest --documents <file>  (`pnpm ingest --documents <file>`)
 
-Prints a summary per industry code and per document status and year. Stores
-no ratio, distribution or derived amount (AD-1, AD-15): the only arithmetic
-is the reading library's within-document checks and the × 100 to øre.
+Prints a summary per industry code, or in documents mode per document status
+and year. Stores no ratio, distribution or derived amount (AD-1, AD-15): the
+only arithmetic is the reading library's within-document checks and the
+× 100 to øre.
 
-The document pass runs after a covered company's filings, never for demo
-company C. For each year 2021–2025 in the register's list of filed documents
-(`…/kopi/{orgnr}/aar`) that has no row yet, it fetches the document by that
-year's path, reads it (`documents.read_document`) and commits the document
-and its columns on their own. A rerun therefore skips every stored
-(orgnr, filing year) and reads nothing twice; a refiled document is not
-picked up. A fetch, OCR or write error costs only that company's documents.
+The normal run fetches no filed document (Meinich, 2026-10-20): reading
+documents takes about 21 s each and runs only when asked for, with a list.
 
 Documents mode (Story 2.1b) reads a JSON list of orgnrs and runs only the
 document pass, for each listed orgnr that is a stored company with a covered
 primary code. Any other listed orgnr is refused and reported, never fetched.
-It fetches no bulk data and no key figures.
+It fetches no bulk data and no key figures. For each year 2021–2025 in the
+register's list of filed documents (`…/kopi/{orgnr}/aar`) that has no row
+yet, it fetches the document by that year's path, reads it
+(`documents.read_document`) and commits the document and its columns on
+their own. A rerun therefore skips every stored (orgnr, filing year) and
+reads nothing twice; a refiled document is not picked up. A fetch, OCR or
+write error costs only that document, or that company's documents.
 
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
@@ -117,14 +120,12 @@ class Summary:
     demo_filings_written: int = 0
     rejected: list[Problem] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
-    documents: DocumentSummary = field(default_factory=DocumentSummary)
     wall_seconds: float = 0.0
 
     def needs_operator(self) -> bool:
         """True when anything in the run needs a person to look at it."""
         return bool(
             self.failed
-            or self.documents.ocr_errors
             or self.rejected
             or not self.demo_found
             or self.demo_filings_written == 0
@@ -157,8 +158,8 @@ class Summary:
             out.append(f"  rejected filing, not written: {problem.orgnr} {problem.what}")
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
-        out.extend(self.documents.lines())
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
+        out.append("  No filed document fetched (documents mode reads them: --documents <file>).")
         out.append("  Stored as filed: no ratio, distribution or derived amount was written.")
         return out
 
@@ -261,13 +262,8 @@ def _load_company(
     company: parse.Company,
     summary: Summary,
     now: Callable[[], datetime],
-    read_documents: bool = False,
-    clock: Callable[[], float] = time.monotonic,
-    progress: Callable[[str], None] = lambda _message: None,
 ) -> int:
-    """Writes the company and each of its filings, then, when
-    `read_documents`, its filed documents. Returns filings written. Nothing
-    is fetched after a failed company write or key-figures fetch."""
+    """Writes the company and each of its filings. Returns filings written."""
     try:
         write.write_company(conn, company)
     except psycopg.Error as error:
@@ -299,8 +295,6 @@ def _load_company(
             _write_failed(conn, summary.failed, problem, error)
             continue
         written += 1
-    if read_documents:
-        _load_documents(conn, transport, base_url, company.orgnr, summary.documents, summary.failed, now, clock, progress)
     return written
 
 
@@ -397,19 +391,19 @@ def run(
             summary.failed.append(Problem(str(orgnr), f"bulk unit not loaded: {error}"))
     progress(f"bulk download: {len(selected)} units with a covered primary code")
 
-    # 2. Each covered company, its filings and its filed documents.
+    # 2. Each covered company and its filings. No filed document: those are
+    # read only in documents mode.
     for index, (code, company) in enumerate(selected, start=1):
         code_summary = summary.codes[code]
         code_summary.companies += 1
-        written = _load_company(conn, transport, cfg.base_url, company, summary, now, True, clock, progress)
+        written = _load_company(conn, transport, cfg.base_url, company, summary, now)
         code_summary.filings_written += written
         if written:
             code_summary.companies_with_filings += 1
         if index % 500 == 0:
             progress(f"{index} of {len(selected)} companies")
 
-    # 3. Demo company C, by orgnr, whatever its industry. Its industry is not
-    # covered, so no filed document is fetched for it.
+    # 3. Demo company C, by orgnr, whatever its industry.
     demo_orgnr = cfg.demo_company_c.orgnr
     try:
         unit = fetch.fetch_unit(transport, cfg.base_url, demo_orgnr)

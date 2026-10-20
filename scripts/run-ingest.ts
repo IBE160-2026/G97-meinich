@@ -3,9 +3,9 @@
 //
 // Step 1 fetches the register's bulk download and the key figures of every
 // company in the industries declared in seed/coverage.json, plus demo
-// company C, then every filed 2021–2025 document of each covered company
-// (Story 2.1b), and writes them as `ingest`. It is a manual batch run, never
-// in a user's request path, and never run in CI.
+// company C, and writes them as `ingest`. Filed documents are read only with
+// `--documents <file>` (Story 2.1b). It is a manual batch run, never in a
+// user's request path, and never run in CI.
 //
 // - INGEST_DATABASE_URL comes from the environment, then .env (written by
 //   `pnpm db:roles`). It is handed to the container through the child's

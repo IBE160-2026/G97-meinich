@@ -194,10 +194,12 @@ def test_stored_document_not_refetched(stored: psycopg.Connection, cfg: Config, 
     assert summary.documents.written == {}
 
 
-def test_full_run_reads_covered_documents_after_filings(db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
-    # The full run: the bulk unit 919951834 (62.100) gets its filings, then
-    # its documents; demo company C gets no document request.
-    FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
+def test_normal_run_fetches_no_document(db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Meinich, 2026-10-20: a plain `pnpm ingest` is the register and API run
+    # as before; filed documents are read only with --documents <file>. The
+    # covered company's document list and PDF are served, so a run that asked
+    # for them would get them: the assertions, not the transport, catch it.
+    reader = FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
     responses: dict[str, bytes | None] = {
         regnskap_url("919951834"): recorded("regnskap_919951834.json"),
         enhet_url("967534579"): recorded("enhet_967534579.json"),
@@ -209,13 +211,11 @@ def test_full_run_reads_covered_documents_after_filings(db: psycopg.Connection, 
 
     summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
 
-    requested = transport.requested
-    assert requested.index(aar_url("919951834")) > requested.index(regnskap_url("919951834"))
-    assert not any("967534579" in url for url in requested if "aarsregnskap" in url)
-    assert documents_of(db, "919951834") == [(2025, "generated", "extracted", None, 2)]
-    assert summary.documents.written == {(2025, "extracted"): 1}
-    assert "    2025: extracted 1, not_extracted 0, paper 0" in summary.lines()
-
+    assert summary.codes["62.100"].filings_written == 3
+    assert [url for url in transport.requested if "/aarsregnskap/kopi/" in url] == []
+    assert reader.calls == []
+    assert documents_of(db, "919951834") == []
+    assert "  No filed document fetched (documents mode reads them: --documents <file>)." in summary.lines()
 
 def test_a_failed_document_fetch_costs_only_that_document(
     stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch

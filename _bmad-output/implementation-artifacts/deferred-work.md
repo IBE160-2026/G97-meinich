@@ -67,7 +67,7 @@
   evidence: Story 2.1a review, finding 17 (`ingest/Dockerfile`). Deferred at triage.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`
-  summary: Run the document pass over all of 62.100, not only the acceptance set: `pnpm ingest` (or `pnpm ingest --documents` with every covered orgnr) reads about 33 000 documents, about 190 hours (8 days) at 21 s per document. The run is resumable, so it can be split across sessions; the machine must stay awake while it runs.
+  summary: Run the document pass over all of 62.100, not only the acceptance set: `pnpm ingest --documents` with every covered orgnr (a plain `pnpm ingest` reads no document) reads about 33 000 documents, about 190 hours (8 days) at 21 s per document. The run is resumable, so it can be split across sessions; the machine must stay awake while it runs.
   evidence: Story 2.1b, decided by Meinich 2026-10-20. Estimate: `read_document` measured in the step-1 image on the development machine (16 logical cores) over 20 cached 2021–2025 filings, median 21.1 s per document (mean 22.8 s, max 38.5 s); two or three documents at once gave 19.1 and 21.5 s each, so running in parallel does not help. Document count: the demo seed has 8 441 companies with a 62.100 primary code and at least one SELSKAP key-figures filing; at about four filed documents each in 2021–2025 (the spec's ratio for the acceptance set, about 2 000 documents for 500 companies) that is about 33 000 documents, × 21 s ≈ 190 h. The acceptance run's counts per year (PR and session file) are the first measured check of the four-per-company ratio.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`

@@ -26,7 +26,10 @@ ACCEPT_JSON = "application/json"
 # array, refreshed daily (docs/data-sources-brreg.md, "Open questions").
 ACCEPT_BULK_UNITS = "application/vnd.brreg.enhetsregisteret.enhet.v2+gzip;charset=UTF-8"
 BULK_CHUNK_CHARS = 1 << 20
-ACCEPT_PDF = "application/pdf"
+# The register answers a filed document with Content-Type application/pdf,
+# but refuses `Accept: application/pdf` with 406 Not Acceptable (verified
+# 2026-10-20 on 813235552/2025); it serves the PDF for octet-stream.
+ACCEPT_DOCUMENT = "application/octet-stream"
 # The filed annual-accounts documents (docs/data-sources-brreg.md, "Endpoints").
 KOPI_PATH = "regnskapsregisteret/regnskap/aarsregnskap/kopi"
 YEAR = re.compile(r"^[0-9]{4}$")
@@ -159,7 +162,7 @@ def fetch_document_years(transport: Transport, base_url: str, orgnr: str) -> lis
 def fetch_document(transport: Transport, base_url: str, orgnr: str, year: int) -> bytes | None:
     """The filed document for `year` as PDF bytes, or None when the register
     answers 404 or 410. A body that is not a PDF raises ValueError."""
-    body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/{year}", ACCEPT_PDF)
+    body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/{year}", ACCEPT_DOCUMENT)
     if body is None:
         return None
     if not body.startswith(b"%PDF-"):

@@ -109,3 +109,41 @@ def test_stream_retries_opening(monkeypatch: pytest.MonkeyPatch, sleeps: list[fl
         assert response.read() == b"body"
     assert len(calls) == 3
     assert sleeps == [1, 2]
+
+
+class RecordingTransport:
+    """Records each request's URL and Accept header."""
+
+    def __init__(self, body: bytes | None) -> None:
+        self.body = body
+        self.requests: list[tuple[str, str]] = []
+
+    def get(self, url: str, accept: str) -> bytes | None:
+        self.requests.append((url, accept))
+        return self.body
+
+
+def test_document_is_requested_as_octet_stream() -> None:
+    # The register answers 406 to `Accept: application/pdf` (Story 2.1b,
+    # found by the first run against it) and serves the PDF for octet-stream.
+    transport = RecordingTransport(b"%PDF-1.4 body")
+    assert fetch.fetch_document(transport, "https://register.fixture.invalid", "813235552", 2025) == b"%PDF-1.4 body"  # type: ignore[arg-type]
+    assert transport.requests == [
+        (
+            "https://register.fixture.invalid/regnskapsregisteret/regnskap/aarsregnskap/kopi/813235552/2025",
+            "application/octet-stream",
+        )
+    ]
+
+
+def test_document_years_are_requested_as_json_and_parsed() -> None:
+    transport = RecordingTransport(b'["2014", "2025", "2021"]')
+    assert fetch.fetch_document_years(transport, "https://register.fixture.invalid", "813235552") == [2014, 2021, 2025]  # type: ignore[arg-type]
+    assert transport.requests == [
+        ("https://register.fixture.invalid/regnskapsregisteret/regnskap/aarsregnskap/kopi/813235552/aar", fetch.ACCEPT_JSON)
+    ]
+    for body in (b'{"2025": 1}', b"[2025]", b'["25"]'):
+        with pytest.raises(ValueError):
+            fetch.fetch_document_years(RecordingTransport(body), "https://x.invalid", "813235552")  # type: ignore[arg-type]
+    assert fetch.fetch_document_years(RecordingTransport(None), "https://x.invalid", "813235552") is None  # type: ignore[arg-type]
+    assert fetch.fetch_document(RecordingTransport(None), "https://x.invalid", "813235552", 2025) is None  # type: ignore[arg-type]

@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import psycopg
 import pytest
 
-from conftest import BASE_URL, FixtureTransport, enhet_url, recorded, regnskap_url
+from conftest import BASE_URL, FixtureTransport, aar_url, enhet_url, recorded, regnskap_url
 from peerless_ingest import parse, run, write
 from peerless_ingest.config import Config
 from test_parse import CONTRACT_979607008_2025
@@ -221,6 +221,9 @@ def run_transport(overrides: dict[str, bytes | None] | None = None) -> FixtureTr
         regnskap_url("919951834"): recorded("regnskap_919951834.json"),
         enhet_url("967534579"): recorded("enhet_967534579.json"),
         regnskap_url("967534579"): recorded("regnskap_967534579.json"),
+        # The covered company's list of filed documents: none (404). The
+        # document pass is tested in test_documents_run.py.
+        aar_url("919951834"): None,
     }
     responses.update(overrides or {})
     return FixtureTransport(responses, bulk=recorded("enheter_lastned.json"))
@@ -246,8 +249,9 @@ def test_run_loads_covered_code_and_demo_c_and_names_the_sn2007_code(db: psycopg
     assert regnskap_url("990051232") not in transport.requested
     # Nothing is matched to the SN2007 code.
     assert count(db, "select count(*) from register.company where naeringskode1 = %s", "62.010") == 0
-    # No document is fetched: only the bulk download, the accounts and C.
-    assert all("aarsregnskap" not in url for url in transport.requested)
+    # Documents are listed for the covered company only, never for demo
+    # company C, whose industry is not covered.
+    assert [url for url in transport.requested if "aarsregnskap" in url] == [aar_url("919951834")]
 
     kantall = one(
         db,

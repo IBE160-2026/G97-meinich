@@ -6,7 +6,8 @@
   libpq (under psycopg) connects in C and is not seen by it; it is held to
   the local database by INGEST_DATABASE_URL.
 - `FixtureTransport` replays recorded register responses from
-  tests/fixtures/recorded (Brønnøysundregistrene, NLOD 2.0).
+  tests/fixtures/recorded (Brønnøysundregistrene, NLOD 2.0), and the filed
+  documents' `kopi` URLs (`aar_url`, `kopi_url`) from the bodies a test gives.
 - `db` is a connection as `ingest` (INGEST_DATABASE_URL) inside a transaction
   that is always rolled back: the tests leave no rows behind, and `ingest`
   never needs DELETE.
@@ -124,6 +125,16 @@ def regnskap_url(orgnr: str) -> str:
 
 def enhet_url(orgnr: str) -> str:
     return f"{BASE_URL}/enhetsregisteret/api/enheter/{orgnr}"
+
+
+def aar_url(orgnr: str) -> str:
+    """The register's list of years with a filed document."""
+    return f"{BASE_URL}/regnskapsregisteret/regnskap/aarsregnskap/kopi/{orgnr}/aar"
+
+
+def kopi_url(orgnr: str, year: int) -> str:
+    """One filed document, by the year in its path."""
+    return f"{BASE_URL}/regnskapsregisteret/regnskap/aarsregnskap/kopi/{orgnr}/{year}"
 
 
 @pytest.fixture

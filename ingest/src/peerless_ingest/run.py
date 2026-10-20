@@ -1,12 +1,28 @@
-"""Batch step 1, register part: Enhetsregisteret data and key-figures API
-filings for every company whose primary industry is declared in
-seed/coverage.json, plus demo company C, stored as filed, in øre.
+"""Batch step 1: Enhetsregisteret data and key-figures API filings for every
+company whose primary industry is declared in seed/coverage.json, plus demo
+company C, and every filed 2021–2025 document of each covered company, read
+by OCR (Story 2.1b). Everything is stored as filed, in øre.
 
-    python -m peerless_ingest                   (inside the image: `pnpm ingest`)
-    python -m peerless_ingest --companies-only  (`pnpm ingest --companies-only`)
+    python -m peerless_ingest                     (inside the image: `pnpm ingest`)
+    python -m peerless_ingest --companies-only    (`pnpm ingest --companies-only`)
+    python -m peerless_ingest --documents <file>  (`pnpm ingest --documents <file>`)
 
-Prints a summary per industry code. Fetches no document and runs no OCR;
-stores no ratio, distribution or derived amount (AD-1, AD-15).
+Prints a summary per industry code and per document status and year. Stores
+no ratio, distribution or derived amount (AD-1, AD-15): the only arithmetic
+is the reading library's within-document checks and the × 100 to øre.
+
+The document pass runs after a covered company's filings, never for demo
+company C. For each year 2021–2025 in the register's list of filed documents
+(`…/kopi/{orgnr}/aar`) that has no row yet, it fetches the document by that
+year's path, reads it (`documents.read_document`) and commits the document
+and its columns on their own. A rerun therefore skips every stored
+(orgnr, filing year) and reads nothing twice; a refiled document is not
+picked up. A fetch, OCR or write error costs only that company's documents.
+
+Documents mode (Story 2.1b) reads a JSON list of orgnrs and runs only the
+document pass, for each listed orgnr that is a stored company with a covered
+primary code. Any other listed orgnr is refused and reported, never fetched.
+It fetches no bulk data and no key figures.
 
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
@@ -17,8 +33,12 @@ no company, deletes none, touches no filing and leaves every other column,
 from __future__ import annotations
 
 import http.client
+import json
 import os
+import re
 import sys
+import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -27,7 +47,13 @@ from pathlib import Path
 import psycopg
 
 from . import config as config_module
-from . import fetch, parse, write
+from . import documents, fetch, ocr, parse, write
+
+# Every filed document of these years is read (Story 2.1b): five years of
+# development over time, each document also carrying the year before.
+DOCUMENT_YEARS = range(2021, 2026)
+
+STATUSES = ("extracted", "not_extracted", "paper")
 
 
 @dataclass
@@ -45,6 +71,38 @@ class Problem:
 
 
 @dataclass
+class DocumentSummary:
+    """The document pass: what was written, per filing year and status."""
+
+    written: Counter[tuple[int, str]] = field(default_factory=Counter)
+    # Years already stored by an earlier run: neither fetched nor read.
+    skipped_stored: int = 0
+    # Years in the register's list outside DOCUMENT_YEARS: never fetched.
+    outside_years: int = 0
+    # Documents passed to the reader, and the seconds spent reading them
+    # (time, not money: a float is fine here).
+    read_count: int = 0
+    read_seconds: float = 0.0
+    # OCR errors: stored as not_extracted with refusal ocr_error, and named.
+    ocr_errors: list[Problem] = field(default_factory=list)
+
+    def lines(self) -> list[str]:
+        out = ["  Documents (filed annual accounts, 2021–2025, read by OCR):"]
+        for year in sorted({year for year, _ in self.written}):
+            counts = ", ".join(f"{status} {self.written[(year, status)]}" for status in STATUSES)
+            out.append(f"    {year}: {counts}")
+        totals = ", ".join(
+            f"{status} {sum(n for (_, written), n in self.written.items() if written == status)}" for status in STATUSES
+        )
+        out.append(f"    written: {totals}")
+        out.append(f"    already stored, skipped: {self.skipped_stored}; listed years outside 2021–2025: {self.outside_years}")
+        out.append(f"    read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
+        for problem in self.ocr_errors:
+            out.append(f"    OCR error, stored as not_extracted: {problem.orgnr} {problem.what}")
+        return out
+
+
+@dataclass
 class Summary:
     codes: dict[str, CodeSummary]
     demo_orgnr: str
@@ -53,6 +111,8 @@ class Summary:
     demo_filings_written: int = 0
     rejected: list[Problem] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
+    documents: DocumentSummary = field(default_factory=DocumentSummary)
+    wall_seconds: float = 0.0
 
     def needs_operator(self) -> bool:
         """True when anything in the run needs a person to look at it."""
@@ -89,8 +149,41 @@ class Summary:
         for problem in self.rejected:
             out.append(f"  rejected filing, not written: {problem.orgnr} {problem.what}")
         for problem in self.failed:
-            out.append(f"  failed write, rolled back: {problem.orgnr} {problem.what}")
+            out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        out.extend(self.documents.lines())
+        out.append(f"  Wall time: {self.wall_seconds:.0f} s")
         out.append("  Stored as filed: no ratio, distribution or derived amount was written.")
+        return out
+
+
+@dataclass
+class DocumentsOnlySummary:
+    """Documents mode: the document pass for the listed orgnrs only."""
+
+    listed: int
+    # Listed but not a stored company with a covered primary code: refused,
+    # never fetched.
+    refused: list[Problem] = field(default_factory=list)
+    companies: int = 0
+    failed: list[Problem] = field(default_factory=list)
+    documents: DocumentSummary = field(default_factory=DocumentSummary)
+    wall_seconds: float = 0.0
+
+    def needs_operator(self) -> bool:
+        return bool(self.failed or self.refused)
+
+    def lines(self) -> list[str]:
+        out = [
+            "Step 1 summary, documents only (filed documents of the listed companies)",
+            f"  {self.listed} orgnrs listed: {self.companies} companies read, {len(self.refused)} refused",
+        ]
+        for problem in self.refused:
+            out.append(f"  refused, not fetched: {problem.orgnr} {problem.what}")
+        for problem in self.failed:
+            out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        out.extend(self.documents.lines())
+        out.append(f"  Wall time: {self.wall_seconds:.0f} s")
+        out.append("  No bulk download and no key figures fetched; stored as filed.")
         return out
 
 
@@ -142,8 +235,8 @@ class ConnectionLost(Exception):
 FETCH_ERRORS = (OSError, ValueError, http.client.HTTPException)
 
 
-def _write_failed(conn: psycopg.Connection, summary: Summary, problem: Problem, error: psycopg.Error) -> None:
-    summary.failed.append(problem)
+def _write_failed(conn: psycopg.Connection, failed: list[Problem], problem: Problem, error: psycopg.Error) -> None:
+    failed.append(problem)
     if conn.closed:
         raise ConnectionLost(f"database connection closed after: {problem.orgnr} {problem.what}") from error
 
@@ -159,12 +252,17 @@ def _load_company(
     company: parse.Company,
     summary: Summary,
     now: Callable[[], datetime],
+    read_documents: bool = False,
+    clock: Callable[[], float] = time.monotonic,
+    progress: Callable[[str], None] = lambda _message: None,
 ) -> int:
-    """Writes the company and each of its filings. Returns filings written."""
+    """Writes the company and each of its filings, then, when
+    `read_documents`, its filed documents. Returns filings written. Nothing
+    is fetched after a failed company write or key-figures fetch."""
     try:
         write.write_company(conn, company)
     except psycopg.Error as error:
-        _write_failed(conn, summary, Problem(company.orgnr, f"company: {error.__class__.__name__}: {error}".strip()), error)
+        _write_failed(conn, summary.failed, Problem(company.orgnr, f"company: {error.__class__.__name__}: {error}".strip()), error)
         return 0
     try:
         raw_filings = fetch.fetch_filings(transport, base_url, company.orgnr)
@@ -189,10 +287,77 @@ def _load_company(
                 f"filing {filing.brreg_id} ({filing.regnskapstype} {filing.filing_year}):"
                 f" {error.__class__.__name__}: {str(error).strip()}",
             )
-            _write_failed(conn, summary, problem, error)
+            _write_failed(conn, summary.failed, problem, error)
             continue
         written += 1
+    if read_documents:
+        _load_documents(conn, transport, base_url, company.orgnr, summary.documents, summary.failed, now, clock, progress)
     return written
+
+
+def _load_documents(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    base_url: str,
+    orgnr: str,
+    summary: DocumentSummary,
+    failed: list[Problem],
+    now: Callable[[], datetime],
+    clock: Callable[[], float],
+    progress: Callable[[str], None],
+) -> None:
+    """Fetches, reads and stores every filed 2021–2025 document of `orgnr`
+    that has no row yet, each committed on its own."""
+    try:
+        years = fetch.fetch_document_years(transport, base_url, orgnr)
+    except FETCH_ERRORS as error:
+        failed.append(Problem(orgnr, f"document years: {error.__class__.__name__}: {error}"))
+        return
+    if years is None:
+        return  # the register holds no filed document for this company
+    stored = write.stored_document_years(conn, orgnr)
+    for year in years:
+        if year not in DOCUMENT_YEARS:
+            summary.outside_years += 1
+            continue
+        if year in stored:
+            summary.skipped_stored += 1
+            continue
+        try:
+            pdf = fetch.fetch_document(transport, base_url, orgnr, year)
+        except FETCH_ERRORS as error:
+            failed.append(Problem(orgnr, f"document {year}: {error.__class__.__name__}: {error}"))
+            continue
+        if pdf is None:
+            failed.append(Problem(orgnr, f"document {year}: listed in /aar but not served (404 or 410)"))
+            continue
+        read_at = now()
+        started = clock()
+        try:
+            outcome = write.document_outcome(year, documents.read_document(pdf))
+        except ocr.OcrError as error:
+            # Tesseract failed: stored as not_extracted, so a rerun does not
+            # retry it, and named with its page and first stderr line.
+            summary.ocr_errors.append(Problem(orgnr, f"document {year}: {error}"))
+            progress(f"OCR error {orgnr}/{year}: {error}")
+            outcome = write.OCR_FAILED
+        except RuntimeError as error:
+            # PyMuPDF cannot open the file (FileDataError): nothing is
+            # stored, so a rerun tries it again.
+            failed.append(Problem(orgnr, f"document {year}: unreadable PDF: {error.__class__.__name__}: {error}"))
+            continue
+        finally:
+            summary.read_count += 1
+            summary.read_seconds += clock() - started
+        try:
+            write.write_document(conn, orgnr, year, outcome, write.filing_brreg_id(conn, orgnr, year), read_at)
+        except psycopg.Error as error:
+            problem = Problem(orgnr, f"document {year}: {error.__class__.__name__}: {str(error).strip()}")
+            _write_failed(conn, failed, problem, error)
+            continue
+        summary.written[(year, outcome.status)] += 1
+        refusal = f" ({outcome.refusal})" if outcome.refusal else ""
+        progress(f"document {orgnr}/{year}: {outcome.status}{refusal}")
 
 
 def run(
@@ -202,7 +367,9 @@ def run(
     codes: list[str],
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
+    clock: Callable[[], float] = time.monotonic,
 ) -> Summary:
+    started = clock()
     summary = Summary(codes={code: CodeSummary(code) for code in codes}, demo_orgnr=cfg.demo_company_c.orgnr)
 
     # 1. The bulk download, filtered on the primary code while streaming.
@@ -218,18 +385,19 @@ def run(
             summary.failed.append(Problem(str(orgnr), f"bulk unit not loaded: {error}"))
     progress(f"bulk download: {len(selected)} units with a covered primary code")
 
-    # 2. Each covered company and its filings.
+    # 2. Each covered company, its filings and its filed documents.
     for index, (code, company) in enumerate(selected, start=1):
         code_summary = summary.codes[code]
         code_summary.companies += 1
-        written = _load_company(conn, transport, cfg.base_url, company, summary, now)
+        written = _load_company(conn, transport, cfg.base_url, company, summary, now, True, clock, progress)
         code_summary.filings_written += written
         if written:
             code_summary.companies_with_filings += 1
         if index % 500 == 0:
             progress(f"{index} of {len(selected)} companies")
 
-    # 3. Demo company C, by orgnr, whatever its industry.
+    # 3. Demo company C, by orgnr, whatever its industry. Its industry is not
+    # covered, so no filed document is fetched for it.
     demo_orgnr = cfg.demo_company_c.orgnr
     try:
         unit = fetch.fetch_unit(transport, cfg.base_url, demo_orgnr)
@@ -241,6 +409,43 @@ def run(
         summary.demo_found = True
         summary.demo_navn = company.navn
         summary.demo_filings_written = _load_company(conn, transport, cfg.base_url, company, summary, now)
+    summary.wall_seconds = clock() - started
+    return summary
+
+
+def run_documents(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    cfg: config_module.Config,
+    codes: list[str],
+    orgnrs: list[str],
+    now: Callable[[], datetime] = _now,
+    progress: Callable[[str], None] = lambda _message: None,
+    clock: Callable[[], float] = time.monotonic,
+) -> DocumentsOnlySummary:
+    """The document pass for each listed orgnr that is a stored company whose
+    primary code is declared in seed/coverage.json (`codes`). Any other
+    listed orgnr is refused and named, and nothing is fetched for it."""
+    started = clock()
+    summary = DocumentsOnlySummary(listed=len(orgnrs))
+    stored: dict[str, str | None] = {
+        row[0]: row[1]
+        for row in conn.execute(
+            "SELECT orgnr, naeringskode1 FROM register.company WHERE orgnr = ANY(%s)", (list(orgnrs),)
+        ).fetchall()
+    }
+    for index, orgnr in enumerate(orgnrs, start=1):
+        if orgnr not in stored:
+            summary.refused.append(Problem(orgnr, "not a stored company (register.company)"))
+            continue
+        if stored[orgnr] not in codes:
+            summary.refused.append(Problem(orgnr, f"primary code {stored[orgnr]} is not covered (seed/coverage.json)"))
+            continue
+        summary.companies += 1
+        _load_documents(conn, transport, cfg.base_url, orgnr, summary.documents, summary.failed, now, clock, progress)
+        if index % 25 == 0:
+            progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    summary.wall_seconds = clock() - started
     return summary
 
 
@@ -314,13 +519,44 @@ def _progress(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
+ORGNR = re.compile(r"^[0-9]{9}$")
+USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file>]"
+
+
+class BadDocumentList(Exception):
+    pass
+
+
+def read_document_list(path: Path) -> list[str]:
+    """The orgnrs of a `--documents` file: a JSON list of distinct
+    nine-digit strings. Anything else raises BadDocumentList."""
+    try:
+        orgnrs = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise BadDocumentList(f"{path}: cannot be read as JSON ({error.__class__.__name__}: {error})") from error
+    if not isinstance(orgnrs, list) or not all(isinstance(o, str) and ORGNR.match(o) for o in orgnrs):
+        raise BadDocumentList(f"{path}: must be a JSON list of nine-digit orgnr strings")
+    if len(set(orgnrs)) != len(orgnrs):
+        raise BadDocumentList(f"{path}: an orgnr is listed twice")
+    return orgnrs
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """`argv` is the command line after the program name (sys.argv[1:] when
-    None, as from the `peerless-ingest` script): empty for a normal run, or
-    exactly `--companies-only`. Anything else exits 2."""
+    None, as from the `peerless-ingest` script): empty for a normal run,
+    exactly `--companies-only`, or `--documents <file>`. Anything else, or a
+    file that is not a JSON list of nine-digit strings, exits 2 before any
+    request or connection."""
     args = list(sys.argv[1:] if argv is None else argv)
-    if args not in ([], ["--companies-only"]):
-        print(f"usage: python -m peerless_ingest [--companies-only]; got {' '.join(args)}", file=sys.stderr)
+    document_list: list[str] | None = None
+    if len(args) == 2 and args[0] == "--documents":
+        try:
+            document_list = read_document_list(Path(args[1]))
+        except BadDocumentList as error:
+            print(f"{USAGE}; {error}", file=sys.stderr)
+            return 2
+    elif args not in ([], ["--companies-only"]):
+        print(f"{USAGE}; got {' '.join(args)}", file=sys.stderr)
         return 2
     companies_only = args == ["--companies-only"]
     config_path = Path(os.environ.get("PEERLESS_INGEST_CONFIG", config_module.DEFAULT_CONFIG))
@@ -329,10 +565,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Companies-only mode fetches no industry: it never reads coverage.json.
     codes = [] if companies_only else config_module.load_coverage(coverage_path)
     transport = fetch.UrllibTransport(cfg.user_agent, cfg.request_pause_seconds)
-    summary: Summary | CompaniesOnlySummary
+    summary: Summary | CompaniesOnlySummary | DocumentsOnlySummary
     with write.connect(config_module.database_url()) as conn:
         if companies_only:
             summary = run_companies_only(conn, transport, cfg, progress=_progress)
+        elif document_list is not None:
+            summary = run_documents(conn, transport, cfg, codes, document_list, progress=_progress)
         else:
             summary = run(conn, transport, cfg, codes, progress=_progress)
     for line in summary.lines():

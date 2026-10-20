@@ -2,7 +2,7 @@
 
 The run uses `UrllibTransport`; the tests pass a transport that replays
 recorded responses and never opens a socket. Step 1 runs as a batch job and
-is never in a user's request path.
+is never in a user's request path: no document is fetched outside it.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import gzip
 import http.client
 import io
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -25,6 +26,10 @@ ACCEPT_JSON = "application/json"
 # array, refreshed daily (docs/data-sources-brreg.md, "Open questions").
 ACCEPT_BULK_UNITS = "application/vnd.brreg.enhetsregisteret.enhet.v2+gzip;charset=UTF-8"
 BULK_CHUNK_CHARS = 1 << 20
+ACCEPT_PDF = "application/pdf"
+# The filed annual-accounts documents (docs/data-sources-brreg.md, "Endpoints").
+KOPI_PATH = "regnskapsregisteret/regnskap/aarsregnskap/kopi"
+YEAR = re.compile(r"^[0-9]{4}$")
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 
@@ -135,3 +140,28 @@ def fetch_filings(transport: Transport, base_url: str, orgnr: str) -> list[dict]
     if body is None:
         return []
     return parse.load_filings_json(body)
+
+
+def fetch_document_years(transport: Transport, base_url: str, orgnr: str) -> list[int] | None:
+    """The years the register holds a filed document for, as its `/aar` list
+    gives them (`["2011", …, "2025"]`), sorted, or None when it answers 404
+    or 410. Each year is the one used in that document's path; no year is
+    ever sent as the `år` query parameter, which the register ignores."""
+    body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/aar", ACCEPT_JSON)
+    if body is None:
+        return None
+    years = json.loads(body)
+    if not isinstance(years, list) or not all(isinstance(year, str) and YEAR.match(year) for year in years):
+        raise ValueError(f"document years {orgnr}: expected a JSON list of four-digit year strings")
+    return sorted({int(year) for year in years})
+
+
+def fetch_document(transport: Transport, base_url: str, orgnr: str, year: int) -> bytes | None:
+    """The filed document for `year` as PDF bytes, or None when the register
+    answers 404 or 410. A body that is not a PDF raises ValueError."""
+    body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/{year}", ACCEPT_PDF)
+    if body is None:
+        return None
+    if not body.startswith(b"%PDF-"):
+        raise ValueError(f"document {orgnr}/{year}: the body is not a PDF")
+    return body

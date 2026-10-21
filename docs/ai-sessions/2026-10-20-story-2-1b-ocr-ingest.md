@@ -3,7 +3,7 @@
 **Date:** 2026-10-20 to 2026-10-21
 **Tool:** Claude Code (Opus 5.5): an orchestrating session, an implementation subagent working from the frozen spec, and three review subagents (blind, edge-case, verification gap)
 **Story / issue:** #32, Story 2.1b
-**Result:** branch `story/2.1b-ocr-ingest`, not yet pushed: implementation `c1a33fe`, `cdc2704`, `3a295ee`, `889e5f0`, `e1c87d0`, `f72c206`, `4f1c37c`; docs `6123767`; review fixes `50b39be`; triage log and decision #21 `529f65b`; decision #10 `e09a413`; the seed dump note `9a662c1`; session file and AI log `be324ad`, `80a4108` and the run's results. PR: to be linked. Acceptance run on the image built from `e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d`: 407 of 407 companies, 1 947 documents, 1 refused (see "Acceptance run").
+**Result:** branch `story/2.1b-ocr-ingest`, PR [#34](https://github.com/IBE160-2026/G97-meinich/pull/34): implementation `c1a33fe`, `cdc2704`, `3a295ee`, `889e5f0`, `e1c87d0`, `f72c206`, `4f1c37c`; docs `6123767`; review fixes `50b39be`; triage log and decision #21 `529f65b`; decision #10 `e09a413`; the seed dump note `9a662c1`; session file and AI log `be324ad`, `80a4108` and the run's results. Acceptance run on the image built from `e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d`: 407 of 407 companies, 1 947 documents, 1 refused (see "Acceptance run").
 
 ## Goal
 
@@ -141,4 +141,4 @@ On `e09a413`, batch by batch, stopping at the first failure (none failed):
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md` (Implementation Notes, Spec Change Log, Review Triage Log)
 - AI log: "2026-10-20 — Story 2.1b: storing the filed accounts, and what could go wrong with them" and "2026-10-21 — Story 2.1b review: …"
-- PR: to be linked
+- PR: [#34](https://github.com/IBE160-2026/G97-meinich/pull/34)

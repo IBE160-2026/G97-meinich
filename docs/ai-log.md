@@ -536,13 +536,13 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 **Got:** 21 findings, recorded with verdicts in the spec's Review Triage Log: 11 patched, 8 rejected, 2 decided by the human.
 
 **Problem:**
-1. **A plain `pnpm ingest` ran the document pass inline** (blind, finding #10). The first plain run over 62.100 would take about 8 days at 21 s per document, and nothing would refresh the register data alone. The orchestrating session rejected the finding because the frozen spec said "The full run (no argument) also runs the document pass"; the human overruled it: the decision was that document reading can be limited, not that the normal run reads documents. That sentence in the spec was the AI's reading of the human's answer, and the triage defended it as frozen intent.
+1. **A plain `pnpm ingest` ran the document pass inline** (blind, finding #10). The first plain run over 62.100 would take about 8 days at 21 s per document, and nothing would refresh the register data alone. The orchestrating session rejected the finding because the frozen spec said "The full run (no argument) also runs the document pass". The separate review session argued for overruling it: the decision was that document reading can be limited, not that the normal run reads documents. The human decided on that argument and overruled the rejection. That sentence in the spec was the AI's reading of the human's answer, and the triage defended it as frozen intent.
 2. **A read error other than `OcrError` or `RuntimeError` ended the run, and every rerun crashed on the same document** (verification gap, blind, edge, #2), because a rerun skips only stored documents and the failed one was never stored. Resumability, the property the human required, was what made it permanent.
 3. **The resume test could not see a commit** (verification gap, #3): it runs inside the `db` fixture's outer transaction, where each "commit" is a savepoint.
 4. **An OCR error was stored for good with exit status 0** (blind, edge, #5), and a company with no document list was neither counted nor named (#4): two silent outcomes, against AGENTS.md "No silent fallbacks".
 5. **The new tables referenced `company` and `document` with NO ACTION** (blind, edge, #6), while Story 2.4's AC deletes a withdrawn company with its document figures through `ON DELETE CASCADE`.
 
-**Caught by:** The review subagents, as credited above; #10 by the human at presentation.
+**Caught by:** The review subagents, as credited above. For #10, the argument against the triage's rejection came from the review session; the decision was the human's.
 
 **Outcome:**
 1. `e09a413`: a plain `pnpm ingest` fetches no document; documents are read only with `--documents <file>`. `ingest/tests/test_documents_run.py::test_normal_run_fetches_no_document` serves the year list and the PDF and asserts neither is requested, nothing is read and no document row exists; it fails with the pass put back. Spec Change Log entry dated 2026-10-20, Meinich.

@@ -3,6 +3,7 @@
 // that is always rolled back. Connects as the CLI's local `postgres` role.
 import postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
+import { DOCUMENT_FIGURE_COLUMNS } from '../../src/engine/document-inputs.ts';
 import { supabaseDbUrl } from './db-env.ts';
 
 const CHECK_VIOLATION = '23514';
@@ -246,6 +247,17 @@ describe('register.document_column', () => {
         if (code === undefined) await tx`delete from register.document_column where orgnr = ${ORGNR}`;
       }
     });
+  });
+
+  it("has exactly the engine's document figure columns, in table order (documentFigures reads these)", async () => {
+    const rows = await sql<{ name: string }[]>`
+      select a.attname as name
+        from pg_catalog.pg_attribute a
+       where a.attrelid = 'register.document_column'::regclass and a.attnum > 0 and not a.attisdropped
+         and a.attname like '%\\_ore'
+       order by a.attnum
+    `;
+    expect(rows.map((row) => row.name)).toEqual(Object.values(DOCUMENT_FIGURE_COLUMNS));
   });
 
   it('stores every figure as bigint øre with a unit comment', async () => {

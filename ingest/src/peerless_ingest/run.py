@@ -198,6 +198,10 @@ class DocumentsOnlySummary:
     failed: list[Problem] = field(default_factory=list)
     documents: DocumentSummary = field(default_factory=DocumentSummary)
     wall_seconds: float = 0.0
+    # Rows of register.document still `extracted` after the run, in the
+    # whole table: read but not reconciled, because their company was not
+    # in this list (Story 2.2). None if the count could not be read.
+    still_extracted: int | None = None
 
     def needs_operator(self) -> bool:
         # An OCR error is stored for good (a rerun skips it), so it needs a
@@ -214,6 +218,8 @@ class DocumentsOnlySummary:
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
         out.extend(self.documents.lines())
+        shown = "unknown (count failed)" if self.still_extracted is None else str(self.still_extracted)
+        out.append(f"  documents still extracted (not reconciled; not in this list): {shown}")
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
         out.append("  No bulk download and no key figures fetched; stored as filed.")
         return out
@@ -342,8 +348,15 @@ def _rereconcile(
 ) -> None:
     """Reconciles every stored document of `orgnr` that was read, from its
     stored figures: no fetch, no OCR. Each document is updated in its own
-    transaction."""
-    for document in write.stored_generated_documents(conn, orgnr):
+    transaction. A document that cannot be reconciled or written is named
+    in `failed` and the others go on."""
+    try:
+        stored = write.stored_generated_documents(conn, orgnr)
+    except psycopg.Error as error:
+        problem = Problem(orgnr, f"stored documents not read: {error.__class__.__name__}: {str(error).strip()}")
+        _write_failed(conn, failed, problem, error)
+        return
+    for document in stored:
         year = document.filing_year
         try:
             columns = tuple(
@@ -358,6 +371,10 @@ def _rereconcile(
             status = reconcile.document_status(columns)
         except ValueError as error:
             failed.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
+            continue
+        except psycopg.Error as error:
+            problem = Problem(orgnr, f"document {year}: API figures not read: {error.__class__.__name__}: {str(error).strip()}")
+            _write_failed(conn, failed, problem, error)
             continue
         try:
             write.update_reconciliation(conn, orgnr, year, status, columns)
@@ -545,6 +562,10 @@ def run_documents(
         _load_documents(conn, transport, cfg.base_url, rules, orgnr, summary.documents, summary.failed, now, clock, progress)
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    try:
+        summary.still_extracted = write.count_extracted_documents(conn)
+    except psycopg.Error as error:
+        _write_failed(conn, summary.failed, Problem("-", f"extracted count: {error.__class__.__name__}"), error)
     summary.wall_seconds = clock() - started
     return summary
 

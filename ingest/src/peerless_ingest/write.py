@@ -383,6 +383,12 @@ UPDATE_COLUMN_RECONCILIATION = """UPDATE register.document_column
  WHERE orgnr = %(orgnr)s AND filing_year = %(filing_year)s AND role = %(role)s"""
 
 
+def count_extracted_documents(conn: psycopg.Connection) -> int:
+    """Rows of register.document still `extracted` (read, not reconciled)."""
+    row = conn.execute("SELECT count(*) FROM register.document WHERE status = 'extracted'").fetchone()
+    return 0 if row is None else int(row[0])
+
+
 def update_reconciliation(
     conn: psycopg.Connection,
     orgnr: str,
@@ -391,7 +397,9 @@ def update_reconciliation(
     columns: tuple[tuple[str, Reconciliation], ...],
 ) -> None:
     """A stored document's status and its columns' check results, in one
-    transaction. No figure is touched."""
+    transaction, and its `brreg_id` refreshed to the API filing it was
+    compared with (one loaded since the read is picked up). No figure is
+    touched."""
     with conn.transaction():
         for role, rec in columns:
             cursor = conn.execute(
@@ -413,8 +421,8 @@ def update_reconciliation(
             if cursor.rowcount != 1:
                 raise ValueError(f"document {orgnr}/{filing_year}: no {role} column to update")
         cursor = conn.execute(
-            "UPDATE register.document SET status = %s WHERE orgnr = %s AND filing_year = %s",
-            (status, orgnr, filing_year),
+            "UPDATE register.document SET status = %s, brreg_id = %s WHERE orgnr = %s AND filing_year = %s",
+            (status, filing_brreg_id(conn, orgnr, filing_year), orgnr, filing_year),
         )
         if cursor.rowcount != 1:
             raise ValueError(f"document {orgnr}/{filing_year}: no row to update")

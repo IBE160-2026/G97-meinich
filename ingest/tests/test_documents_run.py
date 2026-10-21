@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import psycopg
@@ -22,6 +22,8 @@ from conftest import BASE_URL, BOUND_KR, RULES, FixtureTransport, aar_url, enhet
 from document_fakes import DOCUMENTS, FakeRecognise, Recognised, generated, paper_top, pdf, recorded_979607008_2025
 from peerless_ingest import documents, ocr, parse, run, write
 from peerless_ingest.config import Config
+from peerless_ingest.reconcile import SHARED_FIELDS
+from tsv_builder import BASE_ROWS, document, replace_row
 from test_write import company, count
 
 READ_AT = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
@@ -424,6 +426,10 @@ def test_stored_documents_reconciled_without_ocr(
     assert kopi_requests(transport) == [] and reader.calls == []  # no PDF fetched, no OCR
     assert summary.failed == []
     assert [row[:3] for row in documents_of(stored, ORGNR)] == [(2022, "generated", "reconciled"), (2025, "generated", "reconciled")]
+    # brreg_id is refreshed to the API filing compared with (stored as None).
+    assert stored.execute(
+        "select filing_year, brreg_id from register.document where orgnr = %s order by 1", (ORGNR,)
+    ).fetchall() == [(2022, None), (2025, 6984522)]
     assert column_reconciliation(stored, ORGNR) == [
         (2022, "current", "pass", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
         (2022, "prior", "pass", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
@@ -453,3 +459,138 @@ def test_stored_documents_reconciled_without_ocr(
     # 2022's hand-built prior column copies those 2024 figures: it fails too.
     assert column_reconciliation(stored, ORGNR)[1][7] == "failed_reconciliation"
     assert summary.documents.prior_failed == 2
+
+
+def filing_for(base: parse.Filing, year: int, brreg_id: int, shared_ore: dict[str, int | None]) -> parse.Filing:
+    """A SELSKAP key-figures filing for `year`, holding `shared_ore` (by
+    field name) and nothing else."""
+    figures: dict[str, int | None] = dict.fromkeys(parse.KEY_FIGURE_COLUMNS)
+    figures |= {f"{field}_ore": value for field, value in shared_ore.items()}
+    return dataclasses.replace(
+        base,
+        brreg_id=brreg_id,
+        journalnr=str(brreg_id),
+        filing_year=year,
+        periode_fra=date(year, 1, 1),
+        periode_til=date(year, 12, 31),
+        key_figures=figures,
+    )
+
+
+def shared_of(words: Recognised, role: str) -> dict[str, int | None]:
+    """The shared figures of one column of a read, in øre, as an API filing
+    holding exactly them would state them."""
+    read = documents.read_words(*words, BOUND_KR)
+    column = read.current if role == "current" else read.prior
+    assert column is not None
+    figures = write.figures_ore(column)
+    return {field: figures[field] for field in SHARED_FIELDS}
+
+
+def api_columns(conn: psycopg.Connection, orgnr: str) -> list[tuple]:
+    return conn.execute(
+        """select filing_year, role, api_check, api_fail_fields, status
+             from register.document_column where orgnr = %s order by filing_year, role""",
+        (orgnr,),
+    ).fetchall()
+
+
+def test_new_reads_are_compared_with_the_api_of_both_years(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2025: the recorded document, its API filing, and a 2024 filing that
+    # differs from the prior column in sum eiendeler (a restated
+    # comparative: information only). 2023: a statement whose prior column
+    # fails c1, with a 2023 filing that differs in sum eiendeler.
+    [api_2025] = [parse.parse_filing(raw, ORGNR, READ_AT) for raw in parse.load_filings_json(recorded("regnskap_979607008_2025.json"))]
+    words_2023 = document(replace_row(BASE_ROWS, "Sum inntekter", prior="69 051 106"), years=("2023", "2022"))
+    shared_2024 = shared_of(recorded_979607008_2025(), "prior")
+    shared_2024["sum_eiendeler"] += 5_600_700  # type: ignore[operator]
+    shared_2023 = shared_of(words_2023, "current")
+    shared_2023["sum_eiendeler"] *= 10  # type: ignore[operator]
+    write.write_filing(stored, api_2025)
+    write.write_filing(stored, filing_for(api_2025, 2024, 9_000_024, shared_2024))
+    write.write_filing(stored, filing_for(api_2025, 2023, 9_000_023, shared_2023))
+    FakeRecognise(monkeypatch, {pdf("2023"): words_2023, pdf("2025"): recorded_979607008_2025()})
+    responses: dict[str, bytes | None] = {aar_url(ORGNR): b'["2023", "2025"]'}
+    responses |= {kopi_url(ORGNR, y): pdf(str(y)) for y in (2023, 2025)}
+
+    summary = run.run_documents(stored, FixtureTransport(responses), cfg, CODES, [ORGNR], now=lambda: READ_AT)
+
+    assert summary.failed == []
+    assert api_columns(stored, ORGNR) == [
+        (2023, "current", "fail", ["sum_eiendeler"], "failed_reconciliation"),
+        (2023, "prior", "not_evaluable", [], "failed_reconciliation"),
+        (2025, "current", "pass", [], "reconciled"),
+        (2025, "prior", "fail", ["sum_eiendeler"], "reconciled"),
+    ]
+    assert [row[2] for row in documents_of(stored, ORGNR)] == ["failed_reconciliation", "reconciled"]
+    assert summary.documents.written == {(2023, "failed_reconciliation"): 1, (2025, "reconciled"): 1}
+    assert summary.documents.prior_failed == 1
+    assert (
+        "    prior-year columns failed_reconciliation (the filing's status is its current column's): 1" in summary.lines()
+    )
+
+    # The register's 2025 figure changes: the next run reconciles the stored
+    # document again and its current column fails, naming the field.
+    stored.execute("update register.key_figures set sum_gjeld_ore = sum_gjeld_ore + 100000 where brreg_id = 6984522")
+    summary = run.run_documents(
+        stored, FixtureTransport({aar_url(ORGNR): b'["2023", "2025"]'}), cfg, CODES, [ORGNR], now=lambda: READ_AT
+    )
+    assert summary.failed == []
+    assert api_columns(stored, ORGNR)[2] == (2025, "current", "fail", ["sum_gjeld"], "failed_reconciliation")
+    assert [row[2] for row in documents_of(stored, ORGNR)] == ["failed_reconciliation", "failed_reconciliation"]
+
+
+def test_a_stored_document_that_cannot_be_reconciled_is_named_and_the_run_goes_on(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2021 stored with no current column; 2023 whose API read fails; 2025 as
+    # it should be. The first two are named, 2025 is reconciled.
+    for year in (2021, 2023, 2025):
+        outcome = write.document_outcome(year, documents.read_words(*generated(year), BOUND_KR), {}, RULES)
+        if year == 2021:
+            outcome = dataclasses.replace(outcome, columns=outcome.columns[1:])
+        write.write_document(stored, ORGNR, year, outcome, None, READ_AT)
+        as_extracted(stored, ORGNR, year)
+    real_api_figures = write.api_figures
+
+    def api_figures(conn: psycopg.Connection, orgnr: str, year: int) -> dict[str, int | None] | None:
+        if year == 2023:
+            raise psycopg.OperationalError("simulated")
+        return real_api_figures(conn, orgnr, year)
+
+    monkeypatch.setattr(write, "api_figures", api_figures)
+    FakeRecognise(monkeypatch, {})
+    transport = FixtureTransport({aar_url(ORGNR): b'["2021", "2023", "2025"]'})
+
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+
+    assert [p.what for p in summary.failed] == [
+        "document 2021: not reconciled: a read document must have exactly one current column, got 0",
+        "document 2023: API figures not read: OperationalError: simulated",
+    ]
+    assert summary.needs_operator()
+    assert [row[2] for row in documents_of(stored, ORGNR)] == ["extracted", "extracted", "reconciled"]
+    assert summary.documents.rereconciled == {(2025, "reconciled"): 1}
+
+
+def test_documents_still_extracted_are_counted(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # An `extracted` row of a company not in the list stays so, and is
+    # counted in the summary; the listed company's rows are reconciled.
+    before = write.count_extracted_documents(db)
+    other = "919951834"
+    for orgnr in (ORGNR, other):
+        write.write_company(db, company(orgnr, "TEST AS"))
+        outcome = write.document_outcome(2025, documents.read_words(*generated(2025), BOUND_KR), {}, RULES)
+        write.write_document(db, orgnr, 2025, outcome, None, READ_AT)
+        as_extracted(db, orgnr, 2025)
+    FakeRecognise(monkeypatch, {})
+
+    summary = run.run_documents(db, FixtureTransport({aar_url(ORGNR): b'["2025"]'}), cfg, CODES, [ORGNR], now=lambda: READ_AT)
+
+    assert summary.still_extracted == before + 1
+    assert f"  documents still extracted (not reconciled; not in this list): {before + 1}" in summary.lines()
+    assert documents_of(db, other)[0][2] == "extracted"

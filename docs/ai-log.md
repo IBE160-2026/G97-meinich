@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 24 |
-| money | 16 |
-| parsing | 10 |
+| money | 17 |
+| parsing | 11 |
 | llm-boundary | 5 |
 | scope | 15 |
 | docs | 18 |
@@ -551,3 +551,19 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 4. An OCR error makes the run exit 1 (`test_documents_run.py::test_refusal_and_ocr_error_store_not_extracted` asserts `needs_operator()`); a missing document list is counted and named (`::test_a_company_with_no_document_list_is_counted_and_named`).
 5. Both foreign keys `ON DELETE CASCADE`: `test/db/documents.test.ts`, "goes with its document, and the document with its company (ON DELETE CASCADE, for Story 2.4)".
 Demo company C is left out of the acceptance set by the human's decision (#21, `529f65b`): it is uncovered and uses no document figure. The rejected findings and their reasons are in the triage log and the session file.
+
+### 2026-10-21 — Story 2.2: the two reconciliation rules and the blocking rule, and what could go wrong with them
+**Tags:** money · parsing
+**Tool:** Claude Code (BMAD dev session, Opus 5.5)
+**Asked:** Implement the frozen Story 2.2 spec: reconcile each read document within the document (5 kr absolute) and against the key-figures API (max(5 kr, 0.001 %)), store each check and status, re-reconcile stored documents without OCR, and block unreconciled figures in the engine.
+**Got:** `ingest/src/peerless_ingest/reconcile.py` (two pure rule functions, the column and document status), `[reconciliation]` in `ingest/config.toml`, the bound threaded into `read_document`, reconcile-on-write and re-reconcile in `write.py`/`run.py`, migration `20261021120000_document_reconciliation.sql`, and `documentFigures` in `src/engine/document-inputs.ts`.
+**Problem:** What could go wrong (not yet reviewed; this entry states the risks, not that none was found):
+1. **A tolerance too wide admits a misread figure as data.** At 0.1 % the swapped digits of 911701251 pass; the value is 0.001 % with a 5 kr floor (`ingest/tests/test_reconcile.py::test_swapped_digits_fail`, `::test_floor_five_kroner`). Too narrow, and a millions reporter's API rounding would fail every filing: `::test_millions_rounding_passes`.
+2. **The two rules collapsed into one value** would let a proportional slack hide a 100 kr within-document error: separate keys and functions, `::test_absolute_bound_rejects_what_proportional_admits`.
+3. **A float in the tolerance** would make the bound itself inexact: the value is a decimal string parsed as a `Fraction`, a TOML float is refused (`ingest/tests/test_config.py::test_reconciliation_config_validated`), and `api_check` refuses a float (`test_reconcile.py::test_no_float_enters`).
+4. **A NULL read as 0** would either fail a correct filing or pass a wrong one: a NULL operand makes a check or a comparison not evaluable, and a column whose core checks c1 or c3 are not evaluable is never reconciled (`::test_core_check_must_be_evaluable`, `::test_no_api_filing_not_evaluable`). The database mirrors the status rule as a CHECK (`test/db/documents.test.ts`, "holds the status rule").
+5. **A restated prior-year comparative treated as an OCR error** would fail 173 good prior columns, or worse, override a year's own filing: the prior column's register deviation is stored but never decides a status (`::test_prior_register_deviation_is_information`, `::test_prior_failure_does_not_fail_filing`). The converse risk remains: a prior column whose c1–c4 pass but whose figures are misread consistently is accepted. Its only use is as a comparative; the year's own document is the source for that year.
+6. **The blocking rule bypassed**: any code reading `register.document_column` directly instead of through `documentFigures` would see failed figures. Today nothing in `src/` reads the table; Story 2.9 must go through `documentFigures` (`test/engine/document-inputs.test.ts`, "a failed column passes no value"). A column with no status gives `not_reconciled` absences rather than a throw ("an unreconciled column is absent as not_reconciled").
+7. **Confidence leaking into the flag**: no reconciliation function takes one (`::test_flag_ignores_confidence` rewrites every `conf` in the recorded TSVs and gets the same outcome).
+**Caught by:** Pending review.
+**Outcome:** Implemented on `story/2.2-reconciliation`; the commits are listed in the session file.

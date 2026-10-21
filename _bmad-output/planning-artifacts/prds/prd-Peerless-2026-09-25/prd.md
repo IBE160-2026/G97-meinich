@@ -805,7 +805,7 @@ A figure is accepted only where it reconciles, and a failure blocks the filing r
 
 **Consequences (testable):**
 - *Within* a document, stated subtotals must agree with their components within a tight absolute bound of a few kroner — because the register prints whole kroner rounded from øre, a legitimate filing can be a krone off.
-- *Between* document and the register's structured figures, a proportional tolerance applies, because reporting in thousands or millions introduces scaling error.
+- *Between* document and the register's structured figures, a figure agrees within max(a few kroner, a very small proportion of the register's figure): the proportional part admits the rounding of a company reporting in millions as the register states it, and is kept small because documents in scaled reporting units are refused, so a coarse tolerance would only admit misread digits (values and measurements in `docs/data-sources-brreg.md`).
 - Neither check is exact equality, and the two are never collapsed into one: the filing's own rounding is a krone or two, while recognition errors are wrong by orders of magnitude.
 - A failing figure is not shown with a caveat and not substituted.
 

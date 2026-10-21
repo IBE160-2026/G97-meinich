@@ -8,6 +8,7 @@ import os
 import re
 import tomllib
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 
 # ingest/src/peerless_ingest/config.py -> ingest/
@@ -19,6 +20,9 @@ ORGNR = re.compile(r"^\d{9}$")
 # An SN2025 code as the register writes it, e.g. "NN.NNN". The shape alone
 # does not tell SN2025 from SN2007; the register does, by returning nothing.
 INDUSTRY_CODE = re.compile(r"^\d{2}\.\d{3}$")
+# A non-negative decimal written as a string, e.g. "0.00001": parsed exactly
+# as a Fraction, never through a float (AD-14).
+DECIMAL_STRING = re.compile(r"^\d+(\.\d+)?$")
 
 
 class ConfigError(Exception):
@@ -37,6 +41,11 @@ class Config:
     user_agent: str
     request_pause_seconds: float
     demo_company_c: DemoCompany
+    # [reconciliation] (Story 2.2): the two rules, each with its own value,
+    # never one shared value. Reasons in docs/data-sources-brreg.md.
+    within_document_bound_kr: int
+    between_sources_floor_kr: int
+    between_sources_tolerance: Fraction
 
 
 def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) -> Config:
@@ -54,13 +63,36 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
     pause = register.get("request_pause_seconds", 0.15)
     if not isinstance(pause, (int, float)) or isinstance(pause, bool) or pause < 0:
         raise ConfigError(f"{path}: register.request_pause_seconds must be a non-negative number")
+    reconciliation = data.get("reconciliation")
+    if not isinstance(reconciliation, dict):
+        raise ConfigError(f"{path}: the [reconciliation] table is missing")
     return Config(
         base_url=str(base_url).rstrip("/"),
         user_agent=str(register.get("user_agent", "Peerless")),
         # A pause in seconds, not money: a float is fine here.
         request_pause_seconds=float(pause),
         demo_company_c=DemoCompany(orgnr=orgnr, navn=str(demo.get("navn", ""))),
+        within_document_bound_kr=_kroner(path, reconciliation, "within_document_bound_kr"),
+        between_sources_floor_kr=_kroner(path, reconciliation, "between_sources_floor_kr"),
+        between_sources_tolerance=_fraction(path, reconciliation, "between_sources_tolerance"),
     )
+
+
+def _kroner(path: Path, table: dict[str, object], key: str) -> int:
+    """A whole, non-negative number of kroner. Required: no default."""
+    value = table.get(key)
+    if type(value) is not int or value < 0:
+        raise ConfigError(f"{path}: reconciliation.{key} must be a non-negative whole number of kroner, got {value!r}")
+    return value
+
+
+def _fraction(path: Path, table: dict[str, object], key: str) -> Fraction:
+    """A non-negative decimal given as a string ("0.00001"), parsed exactly.
+    A TOML float is refused: it would already have been rounded in binary."""
+    value = table.get(key)
+    if not isinstance(value, str) or not DECIMAL_STRING.match(value):
+        raise ConfigError(f"{path}: reconciliation.{key} must be a decimal string such as \"0.00001\", got {value!r}")
+    return Fraction(value)
 
 
 def load_coverage(path: Path = DEFAULT_COVERAGE) -> list[str]:

@@ -1,6 +1,6 @@
 """Writes step 1's rows as the `ingest` role (INGEST_DATABASE_URL).
 
-Upserts and one column update, no DDL and no DELETE: the tables come from
+Upserts and column updates, no DDL and no DELETE: the tables come from
 supabase/migrations, and `ingest` holds SELECT, INSERT and UPDATE on them and
 nothing else. A filing and its key figures are written in one transaction,
 both or neither; so is a filed document and its figure columns (Story 2.1b).
@@ -8,6 +8,7 @@ both or neither; so is a filed document and its figure columns (Story 2.1b).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -16,6 +17,7 @@ from psycopg import sql
 
 from .documents import FIELDS, Column, DocumentRead
 from .parse import KEY_FIGURE_COLUMNS, Company, Filing
+from .reconcile import SHARED_FIELDS, Reconciliation, Role, Rules, document_status, reconcile_column
 
 # What search shows (Story 1.5a) and when it was read. A normal run writes
 # them with the rest of the company; companies-only mode writes only these.
@@ -151,9 +153,13 @@ DOCUMENT_COLUMN_COLUMNS = (
     "c2",
     "c3",
     "c4",
+    "c5",
     "digits_pass_fields",
     *FIGURE_COLUMNS,
     "dataset",
+    "status",
+    "api_check",
+    "api_fail_fields",
 )
 DOCUMENT_COLUMN_KEY = ("orgnr", "filing_year", "role")
 
@@ -173,6 +179,15 @@ def to_ore(whole: int | None) -> int | None:
 
 
 @dataclass(frozen=True)
+class OutcomeColumn:
+    """One column as read, with its reconciliation (Story 2.2)."""
+
+    role: Role
+    column: Column
+    reconciliation: Reconciliation
+
+
+@dataclass(frozen=True)
 class DocumentOutcome:
     """What is stored for one filed document: its row and its columns."""
 
@@ -181,21 +196,36 @@ class DocumentOutcome:
     refusal: str | None
     valuta: str | None
     unit_text: str | None
-    columns: tuple[tuple[str, Column], ...]  # (role, column): ("current", …), ("prior", …)
+    columns: tuple[OutcomeColumn, ...]  # current, then prior
 
 
 # Tesseract failed (ocr.OcrError): nothing was read, not even the layout.
 OCR_FAILED = DocumentOutcome(None, "not_extracted", "ocr_error", None, None, ())
 
+ApiFigures = Mapping[str, int | None]
 
-def document_outcome(filing_year: int, read: DocumentRead) -> DocumentOutcome:
-    """The status of a read, in Story 2.1b's terms:
+
+def figures_ore(column: Column) -> dict[str, int | None]:
+    """A read column's figures in øre, keyed by field name."""
+    return {field: to_ore(column.figures[field]) for field in FIELDS}
+
+
+def document_outcome(
+    filing_year: int,
+    read: DocumentRead,
+    api_by_year: Mapping[int, ApiFigures | None],
+    rules: Rules,
+) -> DocumentOutcome:
+    """The status of a read:
 
     - `paper`: a paper filing, never read beyond page 1's top;
     - `not_extracted`: an unknown layout, a refusal from the read
       (`reporting_unit`, `year_header`), or a current column whose stated
       year is not `filing_year` (`year_mismatch`, no columns);
-    - `extracted`: read, with both columns, not yet reconciled (Story 2.2).
+    - `reconciled` or `failed_reconciliation`: read, with both columns, each
+      reconciled (Story 2.2) against the API figures of its stated year in
+      `api_by_year` (missing or None: no API filing). The document's status
+      is its current column's.
     """
     if read.layout == "paper":
         return DocumentOutcome("paper", "paper", None, None, None, ())
@@ -207,8 +237,13 @@ def document_outcome(filing_year: int, read: DocumentRead) -> DocumentOutcome:
         raise ValueError("a generated read with no refusal must have both columns")
     if read.current.year != filing_year:
         return DocumentOutcome("generated", "not_extracted", "year_mismatch", read.valuta, read.unit_text, ())
-    columns = (("current", read.current), ("prior", read.prior))
-    return DocumentOutcome("generated", "extracted", None, read.valuta, read.unit_text, columns)
+    roles: tuple[tuple[Role, Column], ...] = (("current", read.current), ("prior", read.prior))
+    columns = tuple(
+        OutcomeColumn(role, column, reconcile_column(role, figures_ore(column), api_by_year.get(column.year), rules))
+        for role, column in roles
+    )
+    status = document_status([(c.role, c.reconciliation) for c in columns])
+    return DocumentOutcome("generated", status, None, read.valuta, read.unit_text, columns)
 
 
 def stored_document_years(conn: psycopg.Connection, orgnr: str) -> set[int]:
@@ -258,19 +293,136 @@ def write_document(
                 "dataset": DATASET,
             },
         )
-        for role, column in outcome.columns:
+        for item in outcome.columns:
+            column, rec = item.column, item.reconciliation
             values: dict[str, object] = {
                 "orgnr": orgnr,
                 "filing_year": filing_year,
-                "role": role,
+                "role": item.role,
                 "stated_year": column.year,
-                "c1": column.c1,
-                "c2": column.c2,
-                "c3": column.c3,
-                "c4": column.c4,
+                "c1": rec.c1,
+                "c2": rec.c2,
+                "c3": rec.c3,
+                "c4": rec.c4,
+                "c5": rec.c5,
                 "digits_pass_fields": list(column.digits_pass_fields),
                 "dataset": DATASET,
+                "status": rec.status,
+                "api_check": rec.api.check,
+                "api_fail_fields": list(rec.api.fail_fields),
             }
             for field in FIELDS:
                 values[f"{field}_ore"] = to_ore(column.figures[field])
             conn.execute(UPSERT_DOCUMENT_COLUMN, values)
+
+
+# --- Reconciling stored documents (Story 2.2) ---------------------------------------
+
+# The statuses of a stored document that was read, before Story 2.2
+# (`extracted`) or since. Only these have columns to reconcile.
+READ_STATUSES = ("extracted", "reconciled", "failed_reconciliation")
+
+
+@dataclass(frozen=True)
+class StoredColumn:
+    role: Role
+    stated_year: int
+    figures_ore: dict[str, int | None]  # keyed by field name, as stored
+
+
+@dataclass(frozen=True)
+class StoredDocument:
+    filing_year: int
+    status: str
+    columns: tuple[StoredColumn, ...]  # current first
+
+
+def api_figures(conn: psycopg.Connection, orgnr: str, year: int) -> dict[str, int | None] | None:
+    """The SHARED_FIELDS of the key-figures API filing of `orgnr` for `year`
+    (the one SELSKAP filing `filing_brreg_id` finds), in øre, keyed by field
+    name; None when there is no such filing."""
+    brreg_id = filing_brreg_id(conn, orgnr, year)
+    if brreg_id is None:
+        return None
+    query = sql.SQL("SELECT {columns} FROM register.key_figures WHERE brreg_id = %s").format(
+        columns=sql.SQL(", ").join(sql.Identifier(f"{field}_ore") for field in SHARED_FIELDS)
+    )
+    row = conn.execute(query, (brreg_id,)).fetchone()
+    if row is None:
+        return None
+    return {field: (None if value is None else int(value)) for field, value in zip(SHARED_FIELDS, row, strict=True)}
+
+
+def stored_generated_documents(conn: psycopg.Connection, orgnr: str) -> list[StoredDocument]:
+    """Every stored document of `orgnr` that was read (READ_STATUSES), with
+    its columns' figures as stored. Nothing is fetched or read again."""
+    rows = conn.execute(
+        """SELECT filing_year, status FROM register.document
+            WHERE orgnr = %s AND status = ANY(%s) ORDER BY filing_year""",
+        (orgnr, list(READ_STATUSES)),
+    ).fetchall()
+    query = sql.SQL(
+        """SELECT filing_year, role, stated_year, {figures} FROM register.document_column
+            WHERE orgnr = %s ORDER BY filing_year, role"""
+    ).format(figures=sql.SQL(", ").join(map(sql.Identifier, FIGURE_COLUMNS)))
+    columns: dict[int, list[StoredColumn]] = {}
+    for row in conn.execute(query, (orgnr,)).fetchall():
+        figures = {field: (None if value is None else int(value)) for field, value in zip(FIELDS, row[3:], strict=True)}
+        columns.setdefault(int(row[0]), []).append(StoredColumn(row[1], int(row[2]), figures))
+    return [
+        StoredDocument(
+            int(year), status, tuple(sorted(columns.get(int(year), []), key=lambda c: 0 if c.role == "current" else 1))
+        )
+        for year, status in rows
+    ]
+
+
+UPDATE_COLUMN_RECONCILIATION = """UPDATE register.document_column
+   SET c1 = %(c1)s, c2 = %(c2)s, c3 = %(c3)s, c4 = %(c4)s, c5 = %(c5)s,
+       status = %(status)s, api_check = %(api_check)s, api_fail_fields = %(api_fail_fields)s
+ WHERE orgnr = %(orgnr)s AND filing_year = %(filing_year)s AND role = %(role)s"""
+
+
+def count_extracted_documents(conn: psycopg.Connection) -> int:
+    """Rows of register.document still `extracted` (read, not reconciled)."""
+    row = conn.execute("SELECT count(*) FROM register.document WHERE status = 'extracted'").fetchone()
+    return 0 if row is None else int(row[0])
+
+
+def update_reconciliation(
+    conn: psycopg.Connection,
+    orgnr: str,
+    filing_year: int,
+    status: str,
+    columns: tuple[tuple[str, Reconciliation], ...],
+) -> None:
+    """A stored document's status and its columns' check results, in one
+    transaction, and its `brreg_id` refreshed to the API filing it was
+    compared with (one loaded since the read is picked up). No figure is
+    touched."""
+    with conn.transaction():
+        for role, rec in columns:
+            cursor = conn.execute(
+                UPDATE_COLUMN_RECONCILIATION,
+                {
+                    "orgnr": orgnr,
+                    "filing_year": filing_year,
+                    "role": role,
+                    "c1": rec.c1,
+                    "c2": rec.c2,
+                    "c3": rec.c3,
+                    "c4": rec.c4,
+                    "c5": rec.c5,
+                    "status": rec.status,
+                    "api_check": rec.api.check,
+                    "api_fail_fields": list(rec.api.fail_fields),
+                },
+            )
+            if cursor.rowcount != 1:
+                raise ValueError(f"document {orgnr}/{filing_year}: no {role} column to update")
+        cursor = conn.execute(
+            "UPDATE register.document SET status = %s, brreg_id = %s WHERE orgnr = %s AND filing_year = %s",
+            (status, filing_brreg_id(conn, orgnr, filing_year), orgnr, filing_year),
+        )
+        if cursor.rowcount != 1:
+            raise ValueError(f"document {orgnr}/{filing_year}: no row to update")

@@ -1,8 +1,9 @@
 """Read the figures of a filed document (Story 2.1a).
 
-`read_document(pdf bytes) -> DocumentRead` is the library's one entry point:
-it classifies page 1, and for a generated filing reads both figure columns
-and runs the four within-document checks. `read_words` is the same read from
+`read_document(pdf bytes, bound) -> DocumentRead` is the library's one entry
+point: it classifies page 1, and for a generated filing reads both figure
+columns and runs the four within-document checks within `bound` kroner (the
+configured `within_document_bound_kr`, Story 2.2). `read_words` is the same read from
 words already recognised, so the host tests run it on recorded Tesseract
 output with no Tesseract installed.
 
@@ -56,11 +57,9 @@ from .ocr import PageWords, Word
 CheckResult = Literal["pass", "fail", "not_evaluable"]
 Refusal = Literal["reporting_unit", "year_header"]
 
-# The within-document bound: "a few kroner", because the register prints
-# whole kroner rounded from øre, so a stated subtotal can be a krone or two
-# off its components. Recognition errors are wrong by orders of magnitude.
-# The spike's value; Story 2.2 moves it into configuration.
-TOLERANCE_KR = 5
+# The within-document bound is not set here: it is `within_document_bound_kr`
+# in ingest/config.toml (Story 2.2), passed in as `bound`, in the figures'
+# own unit (whole kroner for a read; øre, times 100, for stored figures).
 
 FIELDS: tuple[str, ...] = tuple(layout.TARGETS)
 
@@ -105,10 +104,10 @@ class DocumentRead:
 # --- Checks ----------------------------------------------------------------------
 
 
-def _close(left: int | None, right: int | None) -> CheckResult:
+def _close(left: int | None, right: int | None, bound: int) -> CheckResult:
     if left is None or right is None:
         return "not_evaluable"
-    return "pass" if abs(left - right) <= TOLERANCE_KR else "fail"
+    return "pass" if abs(left - right) <= bound else "fail"
 
 
 def _plus(a: int | None, b: int | None) -> int | None:
@@ -119,27 +118,33 @@ def _minus(a: int | None, b: int | None) -> int | None:
     return None if a is None or b is None else a - b
 
 
-def checks(f: dict[str, int | None]) -> dict[str, CheckResult]:
-    """The four within-document checks, as in CHECK_FIELDS."""
+def checks(f: dict[str, int | None], bound: int) -> dict[str, CheckResult]:
+    """The four within-document checks, as in CHECK_FIELDS: each holds when
+    its two sides differ by at most `bound`, an absolute amount in the
+    figures' own unit. No confidence enters (Story 2.2)."""
+    if type(bound) is not int or bound < 0:
+        raise ValueError(f"the within-document bound must be a non-negative int, got {bound!r}")
     return {
-        "c1": _close(_minus(f["sum_driftsinntekter"], f["sum_driftskostnad"]), f["driftsresultat"]),
-        "c2": _close(_plus(f["driftsresultat"], f["netto_finans"]), f["ordinaert_resultat_foer_skattekostnad"]),
-        "c3": _close(f["sum_eiendeler"], f["sum_egenkapital_gjeld"]),
-        "c4": _close(_plus(f["sum_egenkapital"], f["sum_gjeld"]), f["sum_egenkapital_gjeld"]),
+        "c1": _close(_minus(f["sum_driftsinntekter"], f["sum_driftskostnad"]), f["driftsresultat"], bound),
+        "c2": _close(_plus(f["driftsresultat"], f["netto_finans"]), f["ordinaert_resultat_foer_skattekostnad"], bound),
+        "c3": _close(f["sum_eiendeler"], f["sum_egenkapital_gjeld"], bound),
+        "c4": _close(_plus(f["sum_egenkapital"], f["sum_gjeld"]), f["sum_egenkapital_gjeld"], bound),
     }
 
 
 # --- The combined read -------------------------------------------------------------
 
 
-def combine(plain: dict[str, int | None], digits: dict[str, int | None]) -> tuple[dict[str, int | None], tuple[str, ...]]:
+def combine(
+    plain: dict[str, int | None], digits: dict[str, int | None], bound: int
+) -> tuple[dict[str, int | None], tuple[str, ...]]:
     """The column's figures and the fields taken from the digits-only pass,
     under the gate described in the module docstring."""
     filled = dict(plain)
     offered = [k for k in FIELDS if plain[k] is None and digits[k] is not None]
     for k in offered:
         filled[k] = digits[k]
-    results = checks(filled)
+    results = checks(filled, bound)
     if any(r == "fail" for r in results.values()):
         return dict(plain), ()
     passing = [name for name, r in results.items() if r == "pass"]
@@ -159,9 +164,9 @@ def combine(plain: dict[str, int | None], digits: dict[str, int | None]) -> tupl
     return figures, kept
 
 
-def _column(year: int, plain: dict[str, int | None], digits: dict[str, int | None]) -> Column:
-    figures, kept = combine(plain, digits)
-    c = checks(figures)
+def _column(year: int, plain: dict[str, int | None], digits: dict[str, int | None], bound: int) -> Column:
+    figures, kept = combine(plain, digits, bound)
+    c = checks(figures, bound)
     return Column(year, figures, c["c1"], c["c2"], c["c3"], c["c4"], kept)
 
 
@@ -179,8 +184,9 @@ def _split(found: dict[str, tuple[int | None, int | None]], index: int) -> dict[
     return {k: (found[k][index] if k in found else None) for k in FIELDS}
 
 
-def read_words(top: Sequence[Word], pages: Sequence[PageWords]) -> DocumentRead:
-    """The read, from words already recognised."""
+def read_words(top: Sequence[Word], pages: Sequence[PageWords], bound: int) -> DocumentRead:
+    """The read, from words already recognised; `bound` is the within-document
+    bound in whole kroner."""
     kind = layout.classify(top)
     if kind != "generated":
         return DocumentRead(kind, None, None, None, None, None)
@@ -207,8 +213,8 @@ def read_words(top: Sequence[Word], pages: Sequence[PageWords]) -> DocumentRead:
         unit,
         unit,
         None,
-        _column(current_year, _split(plain, 0), _split(digits, 0)),
-        _column(prior_year, _split(plain, 1), _split(digits, 1)),
+        _column(current_year, _split(plain, 0), _split(digits, 0), bound),
+        _column(prior_year, _split(plain, 1), _split(digits, 1), bound),
     )
 
 
@@ -223,9 +229,11 @@ def recognise(pdf: bytes) -> tuple[list[Word], list[PageWords]]:
     return top, pages
 
 
-def read_document(pdf: bytes) -> DocumentRead:
-    """Render, recognise and read one filed document."""
-    return read_words(*recognise(pdf))
+def read_document(pdf: bytes, bound: int) -> DocumentRead:
+    """Render, recognise and read one filed document; `bound` is the
+    within-document bound in whole kroner."""
+    top, pages = recognise(pdf)
+    return read_words(top, pages, bound)
 
 
 # --- JSON, for the fixtures ----------------------------------------------------------

@@ -10,8 +10,8 @@ in øre.
 
 Prints a summary per industry code, or in documents mode per document status
 and year. Stores no ratio, distribution or derived amount (AD-1, AD-15): the
-only arithmetic is the reading library's within-document checks and the
-× 100 to øre.
+only arithmetic is the two reconciliation rules (`reconcile`, Story 2.2) and
+the × 100 to øre.
 
 The normal run fetches no filed document (Meinich, 2026-10-20): reading
 documents takes about 21 s each and runs only when asked for, with a list.
@@ -22,10 +22,16 @@ primary code. Any other listed orgnr is refused and reported, never fetched.
 It fetches no bulk data and no key figures. For each year 2021–2025 in the
 register's list of filed documents (`…/kopi/{orgnr}/aar`) that has no row
 yet, it fetches the document by that year's path, reads it
-(`documents.read_document`) and commits the document and its columns on
-their own. A rerun therefore skips every stored (orgnr, filing year) and
-reads nothing twice; a refiled document is not picked up. A fetch, OCR or
-write error costs only that document, or that company's documents.
+(`documents.read_document`), reconciles it and commits the document and its
+columns on their own. A rerun therefore skips every stored (orgnr, filing
+year) and reads nothing twice; a refiled document is not picked up. A fetch,
+OCR or write error costs only that document, or that company's documents.
+
+Before that, for each listed company, every stored document that was read is
+reconciled again from its stored figures under the configured rules (Story
+2.2): no fetch and no OCR, so it is idempotent, and a changed tolerance in
+ingest/config.toml takes effect on the next run, except for the digits-only
+gate, which ran at read time under the bound then configured.
 
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
@@ -50,13 +56,17 @@ from pathlib import Path
 import psycopg
 
 from . import config as config_module
-from . import documents, fetch, ocr, parse, write
+from . import documents, fetch, ocr, parse, reconcile, write
 
 # Every filed document of these years is read (Story 2.1b): five years of
 # development over time, each document also carrying the year before.
 DOCUMENT_YEARS = range(2021, 2026)
 
-STATUSES = ("extracted", "not_extracted", "paper")
+# A stored document's status. `extracted` (read, not yet reconciled) is
+# still a valid stored value, for rows restored from a dump made before Story
+# 2.2, but a run never writes it and reconciles every such row it meets.
+STATUSES = ("reconciled", "failed_reconciliation", "not_extracted", "paper")
+RECONCILED_STATUSES = ("reconciled", "failed_reconciliation")
 
 
 @dataclass
@@ -91,12 +101,24 @@ class DocumentSummary:
     read_seconds: float = 0.0
     # OCR errors: stored as not_extracted with refusal ocr_error, and named.
     ocr_errors: list[Problem] = field(default_factory=list)
+    # Stored documents reconciled again from their stored figures (Story
+    # 2.2), per filing year and new status; no fetch and no OCR.
+    rereconciled: Counter[tuple[int, str]] = field(default_factory=Counter)
+    # Prior-year columns that failed their own checks, among those written or
+    # reconciled again: they do not fail the filing.
+    prior_failed: int = 0
 
     def lines(self) -> list[str]:
         out = ["  Documents (filed annual accounts, 2021–2025, read by OCR):"]
+        if self.rereconciled:
+            out.append("    stored documents reconciled again from stored figures (no fetch, no OCR):")
+            for year in sorted({year for year, _ in self.rereconciled}):
+                counts = ", ".join(f"{status} {self.rereconciled[(year, status)]}" for status in RECONCILED_STATUSES)
+                out.append(f"      {year}: {counts}")
+        out.append("    newly read and written:")
         for year in sorted({year for year, _ in self.written}):
             counts = ", ".join(f"{status} {self.written[(year, status)]}" for status in STATUSES)
-            out.append(f"    {year}: {counts}")
+            out.append(f"      {year}: {counts}")
         totals = ", ".join(
             f"{status} {sum(n for (_, written), n in self.written.items() if written == status)}" for status in STATUSES
         )
@@ -106,6 +128,7 @@ class DocumentSummary:
         for orgnr in self.no_document_list:
             out.append(f"    no list of filed documents: {orgnr}")
         out.append(f"    read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
+        out.append(f"    prior-year columns failed_reconciliation (the filing's status is its current column's): {self.prior_failed}")
         for problem in self.ocr_errors:
             out.append(f"    OCR error, stored as not_extracted: {problem.orgnr} {problem.what}")
         return out
@@ -176,6 +199,10 @@ class DocumentsOnlySummary:
     failed: list[Problem] = field(default_factory=list)
     documents: DocumentSummary = field(default_factory=DocumentSummary)
     wall_seconds: float = 0.0
+    # Rows of register.document still `extracted` after the run, in the
+    # whole table: read but not reconciled, because their company was not
+    # in this list (Story 2.2). None if the count could not be read.
+    still_extracted: int | None = None
 
     def needs_operator(self) -> bool:
         # An OCR error is stored for good (a rerun skips it), so it needs a
@@ -192,6 +219,8 @@ class DocumentsOnlySummary:
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
         out.extend(self.documents.lines())
+        shown = "unknown (count failed)" if self.still_extracted is None else str(self.still_extracted)
+        out.append(f"  documents still extracted (not reconciled; not in this list): {shown}")
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
         out.append("  No bulk download and no key figures fetched; stored as filed.")
         return out
@@ -298,10 +327,74 @@ def _load_company(
     return written
 
 
+def rules_of(cfg: config_module.Config) -> reconcile.Rules:
+    """The reconciliation rules configured in [reconciliation]."""
+    return reconcile.Rules(
+        within_document_bound_kr=cfg.within_document_bound_kr,
+        between_sources_floor_kr=cfg.between_sources_floor_kr,
+        between_sources_tolerance=cfg.between_sources_tolerance,
+    )
+
+
+def _count_prior_failed(columns: Sequence[tuple[str, reconcile.Reconciliation]], summary: DocumentSummary) -> None:
+    summary.prior_failed += sum(1 for role, rec in columns if role == "prior" and rec.status == "failed_reconciliation")
+
+
+def _rereconcile(
+    conn: psycopg.Connection,
+    orgnr: str,
+    rules: reconcile.Rules,
+    summary: DocumentSummary,
+    failed: list[Problem],
+) -> None:
+    """Reconciles every stored document of `orgnr` that was read, from its
+    stored figures: no fetch, no OCR. Each document is updated in its own
+    transaction. A document that cannot be reconciled or written is named
+    in `failed` and the others go on."""
+    try:
+        stored = write.stored_generated_documents(conn, orgnr)
+    except psycopg.Error as error:
+        problem = Problem(orgnr, f"stored documents not read: {error.__class__.__name__}: {str(error).strip()}")
+        _write_failed(conn, failed, problem, error)
+        return
+    for document in stored:
+        year = document.filing_year
+        try:
+            columns = tuple(
+                (
+                    column.role,
+                    reconcile.reconcile_column(
+                        column.role, column.figures_ore, write.api_figures(conn, orgnr, column.stated_year), rules
+                    ),
+                )
+                for column in document.columns
+            )
+            status = reconcile.document_status(columns)
+        except ValueError as error:
+            failed.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
+            continue
+        except psycopg.Error as error:
+            problem = Problem(orgnr, f"document {year}: API figures not read: {error.__class__.__name__}: {str(error).strip()}")
+            _write_failed(conn, failed, problem, error)
+            continue
+        try:
+            write.update_reconciliation(conn, orgnr, year, status, columns)
+        except (psycopg.Error, ValueError) as error:
+            problem = Problem(orgnr, f"document {year}: reconciliation not written: {error.__class__.__name__}: {str(error).strip()}")
+            if isinstance(error, psycopg.Error):
+                _write_failed(conn, failed, problem, error)
+            else:
+                failed.append(problem)
+            continue
+        summary.rereconciled[(year, status)] += 1
+        _count_prior_failed(columns, summary)
+
+
 def _load_documents(
     conn: psycopg.Connection,
     transport: fetch.Transport,
     base_url: str,
+    rules: reconcile.Rules,
     orgnr: str,
     summary: DocumentSummary,
     failed: list[Problem],
@@ -338,13 +431,13 @@ def _load_documents(
         read_at = now()
         started = clock()
         try:
-            outcome = write.document_outcome(year, documents.read_document(pdf))
+            read = documents.read_document(pdf, rules.within_document_bound_kr)
         except ocr.OcrError as error:
             # Tesseract failed: stored as not_extracted, so a rerun does not
             # retry it, and named with its page and first stderr line.
             summary.ocr_errors.append(Problem(orgnr, f"document {year}: {error}"))
             progress(f"OCR error {orgnr}/{year}: {error}")
-            outcome = write.OCR_FAILED
+            read = None
         except Exception as error:
             # Any other failure of the read (a PDF PyMuPDF cannot open, a
             # bug): named, nothing stored, so a rerun tries it again, and
@@ -356,12 +449,27 @@ def _load_documents(
             summary.read_count += 1
             summary.read_seconds += clock() - started
         try:
+            if read is None:
+                outcome = write.OCR_FAILED
+            else:
+                # Reconciled before it is written, against the API filings of
+                # both stated years, and written with its status in one
+                # transaction (Story 2.2).
+                api_by_year = {y: write.api_figures(conn, orgnr, y) for y in (year, year - 1)}
+                try:
+                    outcome = write.document_outcome(year, read, api_by_year, rules)
+                except ValueError as error:
+                    # A read the outcome cannot take: named, nothing stored,
+                    # so a rerun tries it again.
+                    failed.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
+                    continue
             write.write_document(conn, orgnr, year, outcome, write.filing_brreg_id(conn, orgnr, year), read_at)
         except psycopg.Error as error:
             problem = Problem(orgnr, f"document {year}: {error.__class__.__name__}: {str(error).strip()}")
             _write_failed(conn, failed, problem, error)
             continue
         summary.written[(year, outcome.status)] += 1
+        _count_prior_failed([(c.role, c.reconciliation) for c in outcome.columns], summary)
         refusal = f" ({outcome.refusal})" if outcome.refusal else ""
         progress(f"document {orgnr}/{year}: {outcome.status}{refusal}")
 
@@ -430,9 +538,12 @@ def run_documents(
     clock: Callable[[], float] = time.monotonic,
 ) -> DocumentsOnlySummary:
     """The document pass for each listed orgnr that is a stored company whose
-    primary code is declared in seed/coverage.json (`codes`). Any other
-    listed orgnr is refused and named, and nothing is fetched for it."""
+    primary code is declared in seed/coverage.json (`codes`): first its stored
+    documents are reconciled again, then its unstored ones are fetched, read
+    and reconciled. Any other listed orgnr is refused and named, and nothing
+    is fetched for it."""
     started = clock()
+    rules = rules_of(cfg)
     summary = DocumentsOnlySummary(listed=len(orgnrs))
     stored: dict[str, str | None] = {
         row[0]: row[1]
@@ -448,9 +559,14 @@ def run_documents(
             summary.refused.append(Problem(orgnr, f"primary code {stored[orgnr]} is not covered (seed/coverage.json)"))
             continue
         summary.companies += 1
-        _load_documents(conn, transport, cfg.base_url, orgnr, summary.documents, summary.failed, now, clock, progress)
+        _rereconcile(conn, orgnr, rules, summary.documents, summary.failed)
+        _load_documents(conn, transport, cfg.base_url, rules, orgnr, summary.documents, summary.failed, now, clock, progress)
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    try:
+        summary.still_extracted = write.count_extracted_documents(conn)
+    except psycopg.Error as error:
+        _write_failed(conn, summary.failed, Problem("-", f"extracted count: {error.__class__.__name__}"), error)
     summary.wall_seconds = clock() - started
     return summary
 

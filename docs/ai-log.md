@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 24 |
-| money | 16 |
-| parsing | 10 |
+| money | 18 |
+| parsing | 12 |
 | llm-boundary | 5 |
 | scope | 15 |
 | docs | 18 |
@@ -551,3 +551,35 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 4. An OCR error makes the run exit 1 (`test_documents_run.py::test_refusal_and_ocr_error_store_not_extracted` asserts `needs_operator()`); a missing document list is counted and named (`::test_a_company_with_no_document_list_is_counted_and_named`).
 5. Both foreign keys `ON DELETE CASCADE`: `test/db/documents.test.ts`, "goes with its document, and the document with its company (ON DELETE CASCADE, for Story 2.4)".
 Demo company C is left out of the acceptance set by the human's decision (#21, `529f65b`): it is uncovered and uses no document figure. The rejected findings and their reasons are in the triage log and the session file.
+
+### 2026-10-21 — Story 2.2: the two reconciliation rules and the blocking rule, and what could go wrong with them
+**Tags:** money · parsing
+**Tool:** Claude Code (BMAD dev session, Opus 5.5)
+**Asked:** Implement the frozen Story 2.2 spec: reconcile each read document within the document (5 kr absolute) and against the key-figures API (max(5 kr, 0.001 %)), store each check and status, re-reconcile stored documents without OCR, and block unreconciled figures in the engine.
+**Got:** `ingest/src/peerless_ingest/reconcile.py` (two pure rule functions, the column and document status), `[reconciliation]` in `ingest/config.toml`, the bound threaded into `read_document`, reconcile-on-write and re-reconcile in `write.py`/`run.py`, migration `20261021120000_document_reconciliation.sql`, and `documentFigures` in `src/engine/document-inputs.ts`.
+**Problem:** What could go wrong (not yet reviewed; this entry states the risks, not that none was found):
+1. **A tolerance too wide admits a misread figure as data.** At 0.1 % the swapped digits of 911701251 pass; the value is 0.001 % with a 5 kr floor (`ingest/tests/test_reconcile.py::test_swapped_digits_fail`, `::test_floor_five_kroner`). Too narrow, and a millions reporter's API rounding would fail every filing: `::test_millions_rounding_passes`.
+2. **The two rules collapsed into one value** would let a proportional slack hide a 100 kr within-document error: separate keys and functions, `::test_absolute_bound_rejects_what_proportional_admits`.
+3. **A float in the tolerance** would make the bound itself inexact: the value is a decimal string parsed as a `Fraction`, a TOML float is refused (`ingest/tests/test_config.py::test_reconciliation_config_validated`), and `api_check` refuses a float (`test_reconcile.py::test_no_float_enters`).
+4. **A NULL read as 0** would either fail a correct filing or pass a wrong one: a NULL operand makes a check or a comparison not evaluable, and a column whose core checks c1 or c3 are not evaluable is never reconciled (`::test_core_check_must_be_evaluable`, `::test_no_api_filing_not_evaluable`). The database mirrors the status rule as a CHECK (`test/db/documents.test.ts`, "holds the status rule").
+5. **A restated prior-year comparative treated as an OCR error** would fail 173 good prior columns, or worse, override a year's own filing: the prior column's register deviation is stored but never decides a status (`::test_prior_register_deviation_is_information`, `::test_prior_failure_does_not_fail_filing`). The converse risk remains: a prior column whose c1–c4 pass but whose figures are misread consistently is accepted. Its only use is as a comparative; the year's own document is the source for that year.
+6. **The blocking rule bypassed**: any code reading `register.document_column` directly instead of through `documentFigures` would see failed figures. Today nothing in `src/` reads the table; Story 2.9 must go through `documentFigures` (`test/engine/document-inputs.test.ts`, "a failed column passes no value"). A column with no status gives `not_reconciled` absences rather than a throw ("an unreconciled column is absent as not_reconciled").
+7. **Confidence leaking into the flag**: no reconciliation function takes one (`::test_flag_ignores_confidence` rewrites every `conf` in the recorded TSVs and gets the same outcome).
+**Caught by:** Pending review.
+**Outcome:** Implemented on `story/2.2-reconciliation`; the commits are listed in the session file.
+
+### 2026-10-21 — Story 2.2: c5, the balance checked without its stated total
+**Tags:** money · parsing
+**Tool:** Claude Code (BMAD dev session, Opus 5.5)
+**Asked:** After the rolled-back reconciliation of the Story 2.1b rows showed about 45 % of filings failing, mostly because `sum_egenkapital_gjeld` is not read, the human (Meinich) decided on a fifth within-document check: c5, sum eiendeler = sum egenkapital + sum gjeld within the same 5 kr, and a balance that passes by c3 or c5 (spec, "Spec Change Log", 2026-10-21).
+**Got:** c5 in `reconcile.within_document_checks` (not in 2.1a's `documents.checks`, so the digits-only gate is unchanged), the status rule c1 pass, c3 or c5 pass, no fail among c1–c5, the amended migration with `c5` written together with the status, and the mirrored database CHECK.
+**Problem:** What could go wrong with c5 (not yet reviewed):
+1. **A misread total is no longer caught where the total is absent.** When `sum_egenkapital_gjeld` is NULL, nothing checks it; it is not read, so no figure from it is used. But c5 holds over three figures only: one misread among sum eiendeler, sum egenkapital and sum gjeld fails it (`ingest/tests/test_reconcile.py::test_c5_fails_on_one_misread_figure`), while two misreads that cancel would pass. c3 with c4 had the same weakness with their operands.
+2. **c5 computed from a derived component** would let a value step 1 did not read confirm itself. c5 reads only the three stored figures and never derives the total or any part (AD-15); `test_c5_balances_without_total` asserts the total stays NULL.
+3. **c5 passing while c3 fails** would hide a misread total: any failing check among c1–c5 fails the column (`test_reconcile.py::test_core_check_must_be_evaluable`, the c5-fail assertion; `test/db/documents.test.ts`, "holds the status rule").
+4. **The fix hides the reading gap.** The label is still missed in about 836 current columns; c5 makes those filings usable, it does not read the total. Story 2.3 owns the label fix and a new reading of those documents (`deferred-work.md`).
+5. **c5 can fail on legitimate rounding while c3 and c4 pass.** c3 and c4 each allow 5 kr, so sum eiendeler and sum egenkapital + sum gjeld can lie 6–10 kr apart in a correct filing, and c5 then fails it. None of the 3 892 stored columns has this pattern (c3 and c4 pass, c5 fails) in the rolled-back reconciliation; it would show as a `failed_reconciliation` with every figure read.
+
+This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliation rules and the blocking rule": since c5, a column whose c3 is not evaluable is reconciled when c5 passes; only c1, and a balance passing by neither c3 nor c5, are required.
+**Caught by:** The rolled-back reconciliation over the stored rows (the BMAD session's measurement); the decision was the human's. Each new test was checked to fail with its guard removed (the c3-or-c5 rule, c5 in the fail set, the c5 arithmetic).
+**Outcome:** On the Story 2.1b rows, current columns reconciling rose from 1 031 to 1 801 of 1 946, both after the API check (`docs/data-sources-brreg.md`, "Reconciliation"). The commits are listed in the session file.

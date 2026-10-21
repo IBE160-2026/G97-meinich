@@ -3,6 +3,7 @@
 // that is always rolled back. Connects as the CLI's local `postgres` role.
 import postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
+import { DOCUMENT_FIGURE_COLUMNS } from '../../src/engine/document-inputs.ts';
 import { supabaseDbUrl } from './db-env.ts';
 
 const CHECK_VIOLATION = '23514';
@@ -159,6 +160,104 @@ describe('register.document_column', () => {
       const [row] = await tx<{ n: number }[]>`select count(*)::int as n from register.document_column where orgnr = ${ORGNR}`;
       expect(row?.n).toBe(0);
     });
+  });
+
+  // Story 2.2: the reconciliation of each column. Columns are inserted with
+  // c1-c5 given (c5 may be NULL), then status, api_check and api_fail_fields.
+  type Checks = [string, string, string, string, string | null];
+  const insertReconciled = (
+    role: string,
+    checks: Checks,
+    status: string | null,
+    apiCheck: string | null,
+    failFields: string | null,
+  ): string =>
+    `insert into register.document_column
+       (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, c5, digits_pass_fields, dataset, status, api_check, api_fail_fields)
+     values ('${ORGNR}', 2025, '${role}', ${role === 'current' ? 2025 : 2024}, '${checks[0]}', '${checks[1]}', '${checks[2]}',
+             '${checks[3]}', ${quote(checks[4])}, '{}', 'full', ${quote(status)}, ${quote(apiCheck)}, ${quote(failFields)})`;
+  const PASS: Checks = ['pass', 'pass', 'pass', 'pass', 'pass'];
+
+  it('accepts exactly the two column statuses, the three api_check and c5 values, or all four NULL', async () => {
+    await withCompany(async (tx) => {
+      await tx.unsafe(insertDocument(2025, 'reconciled', 'generated', null, 'NOK'));
+      const cases: [string | null, string | null, string | null, string | null, boolean][] = [
+        ['pass', 'reconciled', 'pass', '{}', true],
+        ['pass', 'reconciled', 'not_evaluable', '{}', true],
+        ['pass', 'failed_reconciliation', 'fail', '{sum_gjeld}', true],
+        // Not yet reconciled (a restored extracted row): all four NULL.
+        [null, null, null, null, true],
+        ['pass', 'extracted', 'pass', '{}', false],
+        ['pass', 'reconciled', 'passed', '{}', false],
+        ['passed', 'reconciled', 'pass', '{}', false],
+        // Written together, or not at all.
+        ['pass', 'reconciled', null, '{}', false],
+        ['pass', null, 'pass', '{}', false],
+        ['pass', 'reconciled', 'pass', null, false],
+        [null, 'reconciled', 'pass', '{}', false],
+        ['pass', null, null, null, false],
+        // api_fail_fields is non-empty exactly when api_check is fail, and
+        // names only the eleven shared figures.
+        ['pass', 'failed_reconciliation', 'fail', '{}', false],
+        ['pass', 'reconciled', 'pass', '{sum_gjeld}', false],
+        ['pass', 'failed_reconciliation', 'fail', '{salgsinntekt}', false],
+      ];
+      for (const [c5, status, api, fields, ok] of cases) {
+        const label = `${String(c5)} ${String(status)} ${String(api)} ${String(fields)}`;
+        const statement = insertReconciled('current', ['pass', 'pass', 'pass', 'pass', c5], status, api, fields);
+        const code = await attempt(tx, statement);
+        expect(code, label).toBe(ok ? undefined : CHECK_VIOLATION);
+        if (code === undefined) await tx`delete from register.document_column where orgnr = ${ORGNR}`;
+      }
+    });
+  });
+
+  it('holds the status rule: reconciled exactly when no check fails, c1 passed, c3 or c5 passed, and (current only) the API did not fail', async () => {
+    await withCompany(async (tx) => {
+      await tx.unsafe(insertDocument(2025, 'reconciled', 'generated', null, 'NOK'));
+      const NE = 'not_evaluable';
+      const cases: [string, Checks, string, string, string, boolean][] = [
+        ['current', PASS, 'reconciled', 'pass', '{}', true],
+        ['current', ['pass', NE, 'pass', NE, 'pass'], 'reconciled', 'pass', '{}', true],
+        ['current', ['fail', 'pass', 'pass', 'pass', 'pass'], 'reconciled', 'pass', '{}', false],
+        ['current', ['fail', 'pass', 'pass', 'pass', 'pass'], 'failed_reconciliation', 'pass', '{}', true],
+        // c1 not evaluable: never reconciled.
+        ['current', [NE, 'pass', 'pass', 'pass', 'pass'], 'reconciled', 'pass', '{}', false],
+        ['current', [NE, 'pass', 'pass', 'pass', 'pass'], 'failed_reconciliation', 'pass', '{}', true],
+        // The balance by c3 or c5 (the total unread: c3 and c4 not evaluable).
+        ['current', ['pass', 'pass', NE, NE, 'pass'], 'reconciled', 'pass', '{}', true],
+        ['current', ['pass', 'pass', 'pass', 'pass', NE], 'reconciled', 'pass', '{}', true],
+        ['current', ['pass', 'pass', NE, NE, NE], 'reconciled', 'pass', '{}', false],
+        ['current', ['pass', 'pass', NE, NE, NE], 'failed_reconciliation', 'pass', '{}', true],
+        // A failing c5 fails the column even when c3 passes.
+        ['current', ['pass', 'pass', 'pass', 'pass', 'fail'], 'reconciled', 'pass', '{}', false],
+        ['current', ['pass', 'pass', 'pass', 'pass', 'fail'], 'failed_reconciliation', 'pass', '{}', true],
+        // The current column's API comparison decides; failed_reconciliation needs a reason.
+        ['current', PASS, 'reconciled', 'fail', '{sum_gjeld}', false],
+        ['current', PASS, 'failed_reconciliation', 'fail', '{sum_gjeld}', true],
+        ['current', PASS, 'failed_reconciliation', 'pass', '{}', false],
+        // A prior column's API comparison is information only.
+        ['prior', PASS, 'reconciled', 'fail', '{sum_eiendeler,sum_gjeld}', true],
+        ['prior', PASS, 'failed_reconciliation', 'fail', '{sum_gjeld}', false],
+      ];
+      for (const [role, checks, status, api, fields, ok] of cases) {
+        const label = `${role} ${checks.join(',')} ${status} ${api}`;
+        const code = await attempt(tx, insertReconciled(role, checks, status, api, fields));
+        expect(code, label).toBe(ok ? undefined : CHECK_VIOLATION);
+        if (code === undefined) await tx`delete from register.document_column where orgnr = ${ORGNR}`;
+      }
+    });
+  });
+
+  it("has exactly the engine's document figure columns, in table order (documentFigures reads these)", async () => {
+    const rows = await sql<{ name: string }[]>`
+      select a.attname as name
+        from pg_catalog.pg_attribute a
+       where a.attrelid = 'register.document_column'::regclass and a.attnum > 0 and not a.attisdropped
+         and a.attname like '%\\_ore'
+       order by a.attnum
+    `;
+    expect(rows.map((row) => row.name)).toEqual(Object.values(DOCUMENT_FIGURE_COLUMNS));
   });
 
   it('stores every figure as bigint øre with a unit comment', async () => {

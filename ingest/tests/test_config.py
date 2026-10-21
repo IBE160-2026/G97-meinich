@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
 
-from conftest import REPO_ROOT
+from conftest import REPO_ROOT, RULES
 from peerless_ingest import config
 
 
@@ -42,3 +43,52 @@ def test_coverage_rejects_a_bad_entry(tmp_path: Path) -> None:
 def test_database_url_is_required() -> None:
     with pytest.raises(config.ConfigError):
         config.database_url(env={})
+
+
+def test_committed_reconciliation_values() -> None:
+    # Story 2.2 (Meinich, 2026-10-21): 5 kr within a document; between
+    # sources max(5 kr, 0.001 %), parsed exactly. conftest's RULES mirror them.
+    cfg = config.load_config(REPO_ROOT / "ingest" / "config.toml", env={})
+    assert cfg.within_document_bound_kr == 5
+    assert cfg.between_sources_floor_kr == 5
+    assert cfg.between_sources_tolerance == Fraction(1, 100_000)
+    assert type(cfg.between_sources_tolerance) is Fraction
+    assert (cfg.within_document_bound_kr, cfg.between_sources_floor_kr, cfg.between_sources_tolerance) == (
+        RULES.within_document_bound_kr,
+        RULES.between_sources_floor_kr,
+        RULES.between_sources_tolerance,
+    )
+
+
+VALID_RECONCILIATION = {
+    "within_document_bound_kr": "5",
+    "between_sources_floor_kr": "5",
+    "between_sources_tolerance": '"0.00001"',
+}
+
+
+def _config_with(tmp_path: Path, reconciliation: dict[str, str] | None) -> Path:
+    base = (REPO_ROOT / "ingest" / "config.toml").read_text(encoding="utf-8")
+    base = base[: base.index("[reconciliation]")]
+    if reconciliation is not None:
+        base += "[reconciliation]\n" + "".join(f"{key} = {value}\n" for key, value in reconciliation.items())
+    path = tmp_path / "config.toml"
+    path.write_text(base, encoding="utf-8")
+    return path
+
+
+def test_reconciliation_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with(tmp_path, VALID_RECONCILIATION), env={}).between_sources_tolerance == Fraction(
+        1, 100_000
+    )
+    bad: list[dict[str, str] | None] = [None]  # no [reconciliation] table
+    for key in VALID_RECONCILIATION:
+        bad.append({k: v for k, v in VALID_RECONCILIATION.items() if k != key})  # missing: no default
+    for tolerance in ("0.00001", '"1e-5"', '"abc"', '"-0.00001"', '".00001"', '""', "1"):
+        bad.append(VALID_RECONCILIATION | {"between_sources_tolerance": tolerance})  # a float, an exponent, ...
+    for key in ("within_document_bound_kr", "between_sources_floor_kr"):
+        for value in ("-1", "5.0", '"5"', "true"):
+            bad.append(VALID_RECONCILIATION | {key: value})
+    for reconciliation in bad:
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with(tmp_path, reconciliation), env={})

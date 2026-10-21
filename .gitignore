@@ -62,3 +62,6 @@ Thumbs.db
 
 # Analysis scripts: raw API cache
 analysis/.cache/
+
+# Local database dumps (pnpm ingest --documents output; README "Seed")
+/.local/

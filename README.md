@@ -106,6 +106,17 @@ pnpm seed             # check everything, then truncate and replace every regist
 
 **Exporting.** After a step-1 run, `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json` from the local database as `reader`. It is deterministic: rows in primary-key order with `COLLATE "C"`, so the bytes never depend on the database's collation, and dates and `read_at` in UTC ISO form. Running it twice on the same database gives byte-identical files. It never writes `seed/coverage.json`. It refuses, before writing anything, when `register.document_column` holds a figure for an orgnr not on `seed/allow-list.json`, and writes the allow-list back as it read it; after a document run, `pnpm seed` restores the committed state before an export.
 
+**Document rows are not in the seed yet.** `pnpm seed` truncates every `register` table and `pnpm db:reset` recreates the database, so both delete the rows a `pnpm ingest --documents` run wrote to `register.document` and `register.document_column`; the committed seed keeps those tables empty until Story 2.3's allow-list names the orgnrs whose document figures may be committed. Until then, keep a run's rows in a local, gitignored dump (data only) and restore it after a reset or a seed load:
+
+```sh
+# after a documents run: dump the two tables (data only) under .local/ (gitignored)
+docker exec supabase_db_peerless pg_dump -U postgres --data-only -t register.document -t register.document_column postgres > .local/document-run-<commit>.sql
+# after pnpm seed or pnpm db:reset (+ pnpm db:roles, pnpm seed): restore them
+docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 < .local/document-run-<commit>.sql
+```
+
+`supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first.
+
 **A new migration invalidates the seed.** The seed records the latest migration, and `pnpm seed` refuses a seed exported under an older one. The pull request that adds a migration therefore re-exports the seed in the same pull request, on a loaded database and without a reset:
 
 ```sh

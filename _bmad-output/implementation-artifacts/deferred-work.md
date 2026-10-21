@@ -73,3 +73,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`
   summary: A stored document is never fetched again, so a document the register refiles after it was read, or one stored `not_extracted` after a Tesseract failure (`ocr_error`), keeps its first result. Decide how a later run notices a refiling and retries an OCR error. The `/aar` list gives only years, so a refiling cannot be seen from it.
   evidence: Story 2.1b decision (rerun skips every stored `(orgnr, filing_year)`), recorded as a limit; `ingest/src/peerless_ingest/run.py`, `_load_documents`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`
+  summary: The acceptance run's document rows live only in the local database and in a gitignored dump (`.local/document-run-<commit>.sql`, README "Seed"). `pnpm seed` and `pnpm db:reset` delete them, and they are restored from the dump until Story 2.3's allow-list exists and `seed:export` can commit the listed orgnrs' document figures. Story 2.3 must decide which of these rows enter the committed seed, and drop the dump step from the README once they do.
+  evidence: Story 2.1b, decided by Meinich 2026-10-20. The committed seed keeps `document` and `document_column` empty (`seed/allow-list.json` is `[]`, and `seed:export` refuses unlisted document figures); a 10–12 h OCR run must not be lost to a reset.

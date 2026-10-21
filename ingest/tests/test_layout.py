@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from conftest import BOUND_KR
 from peerless_ingest import documents, layout
 from tsv_builder import CURRENT_RIGHT, PITCH, GENERATED_TOP, figure_words, label_words, page_lines, words
 
@@ -41,14 +42,14 @@ def test_paper_cover_with_regnskapsaaret() -> None:
         ]
     )
     assert layout.classify(top) == "paper"
-    read = documents.read_words(top, [])
+    read = documents.read_words(top, [], BOUND_KR)
     assert (read.layout, read.current, read.prior, read.refusal) == ("paper", None, None, None)
 
 
 def test_unknown_first_page() -> None:
     top = words([label_words("ÅRSREGNSKAP FOR REGNSKAPSÅRET 2025"), label_words("Noter til regnskapet")])
     assert layout.classify(top) == "unknown"
-    read = documents.read_words(top, [])
+    read = documents.read_words(top, [], BOUND_KR)
     assert (read.layout, read.current, read.prior) == ("unknown", None, None)
 
 

@@ -22,6 +22,7 @@ import os
 import socket
 from collections.abc import Iterator
 from contextlib import contextmanager
+from fractions import Fraction
 from pathlib import Path
 from typing import BinaryIO
 
@@ -29,6 +30,7 @@ import psycopg
 import pytest
 
 from peerless_ingest.config import Config, DemoCompany
+from peerless_ingest.reconcile import Rules
 
 TESTS = Path(__file__).resolve().parent
 RECORDED = TESTS / "fixtures" / "recorded"
@@ -137,6 +139,12 @@ def kopi_url(orgnr: str, year: int) -> str:
     return f"{BASE_URL}/regnskapsregisteret/regnskap/aarsregnskap/kopi/{orgnr}/{year}"
 
 
+# The committed [reconciliation] values (test_config checks they are what
+# ingest/config.toml holds).
+RULES = Rules(within_document_bound_kr=5, between_sources_floor_kr=5, between_sources_tolerance=Fraction(1, 100_000))
+BOUND_KR = RULES.within_document_bound_kr
+
+
 @pytest.fixture
 def cfg() -> Config:
     return Config(
@@ -144,6 +152,9 @@ def cfg() -> Config:
         user_agent="peerless-tests",
         request_pause_seconds=0,
         demo_company_c=DemoCompany(orgnr="967534579", navn="KANTALL AS"),
+        within_document_bound_kr=RULES.within_document_bound_kr,
+        between_sources_floor_kr=RULES.between_sources_floor_kr,
+        between_sources_tolerance=RULES.between_sources_tolerance,
     )
 
 

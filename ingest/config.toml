@@ -38,3 +38,22 @@ request_pause_seconds = 0.15
 [demo_company_c]
 orgnr = "967534579"
 navn = "KANTALL AS"
+
+# The two reconciliation rules of Story 2.2 (FR-57, FR-58). Each is set here
+# once, with its own key, and never combined with the other. The reasons and
+# the measurements behind them are in docs/data-sources-brreg.md,
+# "Reconciliation".
+[reconciliation]
+# Within a document: each of the checks c1-c4 holds when its two sides differ
+# by at most this many kroner. Absolute, because the register prints whole
+# kroner rounded from øre (a stated sum can be a krone or two off its
+# components), while a misread figure is wrong by orders of magnitude.
+within_document_bound_kr = 5
+# Between sources (document against the key-figures API): a figure agrees when
+# |document - API| <= max(between_sources_floor_kr, between_sources_tolerance
+# x |API|). The floor admits the same krone rounding; the proportional term,
+# 0.001 %, admits a millions reporter's rounding in the API (923609016:
+# 1 000 000 on 127 220 000 000 is 0.00079 %) and nothing coarser, so swapped
+# digits (911701251) still fail. A decimal string, parsed exactly.
+between_sources_floor_kr = 5
+between_sources_tolerance = "0.00001"

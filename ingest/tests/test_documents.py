@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from peerless_ingest import documents, image_check
+from conftest import BOUND_KR, REPO_ROOT
+from peerless_ingest import config, documents, image_check
 from peerless_ingest.documents import DocumentRead
 from peerless_ingest.ocr import PageWords, Word, read_tsv
 from tsv_builder import BASE_ROWS, Row, digits_of, document, replace_row
@@ -19,7 +20,7 @@ from tsv_builder import BASE_ROWS, Row, digits_of, document, replace_row
 
 def read(rows: list[Row], digits_rows: list[Row] | None = None, **page: object) -> DocumentRead:
     top, pages = document(rows, digits_rows, **page)
-    return documents.read_words(top, pages)
+    return documents.read_words(top, pages, BOUND_KR)
 
 
 def current_of(result: DocumentRead) -> documents.Column:
@@ -44,14 +45,18 @@ def test_base_statement_reads_and_reconciles() -> None:
 
 
 def test_check_bound_is_five_kroner() -> None:
+    # The bound comes from ingest/config.toml (Story 2.2), not a constant.
     # 2024 in 979607008/2025: C2 is one krone off and passes. Six kroner fails.
-    assert documents.TOLERANCE_KR == 5
+    bound = config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).within_document_bound_kr
+    assert bound == 5 == BOUND_KR
     f = dict.fromkeys(documents.FIELDS)
     f |= {"driftsresultat": -969_111, "netto_finans": -1_102_745}
-    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_857})["c2"] == "pass"
-    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_861})["c2"] == "pass"
-    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_862})["c2"] == "fail"
-    assert documents.checks(f)["c1"] == "not_evaluable"
+    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_857}, bound)["c2"] == "pass"
+    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_861}, bound)["c2"] == "pass"
+    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_862}, bound)["c2"] == "fail"
+    assert documents.checks(f, bound)["c1"] == "not_evaluable"
+    # The bound is a parameter: a tighter one fails what 5 kr admits.
+    assert documents.checks(f | {"ordinaert_resultat_foer_skattekostnad": -2_071_857}, 0)["c2"] == "fail"
 
 
 # A statement whose driftsresultat is 6 228 521, the figure of spike error 4.
@@ -171,7 +176,7 @@ def test_scaled_or_unreadable_unit_gives_no_columns(unit_line: str | None, unit_
 def test_units_that_disagree_between_pages_give_no_columns() -> None:
     top, first = document(BASE_ROWS)
     _, second = document(BASE_ROWS, unit_line="Beløp i: NOK 1000", heading="BALANSE")
-    result = documents.read_words(top, first + second)
+    result = documents.read_words(top, first + second, BOUND_KR)
     assert result.refusal == "reporting_unit"
     assert result.unit_text == "NOK; NOK 1000"
     assert result.current is None
@@ -189,7 +194,7 @@ def test_years_must_follow_and_agree() -> None:
     # Two pages whose own year headers disagree.
     top, first = document(BASE_ROWS)
     _, second = document(BASE_ROWS, heading="BALANSE", years=("2024", "2023"))
-    result = documents.read_words(top, first + second)
+    result = documents.read_words(top, first + second, BOUND_KR)
     assert (result.refusal, result.current) == ("year_header", None)
 
 
@@ -198,7 +203,7 @@ def test_statement_page_without_year_header_refuses() -> None:
     # from; a later page has one. Its rows would be lost silently.
     top, first = document(BASE_ROWS, years=None)
     _, second = document(BASE_ROWS, heading="BALANSE")
-    result = documents.read_words(top, first + second)
+    result = documents.read_words(top, first + second, BOUND_KR)
     assert (result.refusal, result.current, result.prior) == ("year_header", None, None)
 
 
@@ -206,7 +211,7 @@ def test_every_headed_page_needs_the_unit() -> None:
     # The second page has its own year header but no "Beløp i:".
     top, first = document(BASE_ROWS)
     _, second = document(BASE_ROWS, heading="BALANSE", unit_line=None)
-    result = documents.read_words(top, first + second)
+    result = documents.read_words(top, first + second, BOUND_KR)
     assert (result.refusal, result.unit_text, result.current) == ("reporting_unit", "NOK", None)
 
 
@@ -237,7 +242,7 @@ def test_check_fields_match_the_checks() -> None:
     full = dict.fromkeys(documents.FIELDS, 1)
     derived: dict[str, set[str]] = {name: set() for name in documents.CHECK_FIELDS}
     for name in documents.FIELDS:
-        for check, result in documents.checks(full | {name: None}).items():
+        for check, result in documents.checks(full | {name: None}, BOUND_KR).items():
             if result == "not_evaluable":
                 derived[check].add(name)
     assert derived == {check: set(fields) for check, fields in documents.CHECK_FIELDS.items()}
@@ -313,7 +318,7 @@ def recorded_words(stem: str) -> tuple[list[Word], list[PageWords]]:
 
 def test_contract_979607008_2025() -> None:
     top, pages = recorded_words(STEM)
-    result = documents.read_words(top, pages)
+    result = documents.read_words(top, pages, BOUND_KR)
     expected = json.loads((DOCUMENTS / f"expected-{STEM}.json").read_text(encoding="utf-8"))
     assert documents.to_json(result) == expected
 
@@ -337,7 +342,7 @@ def test_contract_split_figure_in_the_recorded_document() -> None:
     first = next(i for i, w in enumerate(page.plain) if w.text == "72")
     w = page.plain[first]
     plain = [*page.plain[:first], Word("722", w.left - 40, w.top, w.width + 40, w.height, w.line), *page.plain[first + 1 :]]
-    result = documents.read_words(top, [PageWords(plain, page.digits), *pages[1:]])
+    result = documents.read_words(top, [PageWords(plain, page.digits), *pages[1:]], BOUND_KR)
     column = current_of(result)
     assert column.figures["sum_driftsinntekter"] == 722_632_310
     assert column.c1 == "fail"

@@ -26,7 +26,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import layout
+from . import config, layout
 from .documents import parse_pages, read_words, recognise, to_json
 from .ocr import NOR_TRAINEDDATA_SHA256, PageWords, read_tsv
 
@@ -87,6 +87,9 @@ def main(argv: list[str]) -> int:
         return 2
     fixtures = Path(argv[0])
     failures: list[str] = []
+    # The within-document bound the run uses: [reconciliation] in the
+    # image's config.toml (Story 2.2).
+    bound = config.load_config(Path(os.environ.get("PEERLESS_INGEST_CONFIG", config.DEFAULT_CONFIG))).within_document_bound_kr
 
     version = tesseract_version()
     print(f"tesseract: {version}")
@@ -107,7 +110,7 @@ def main(argv: list[str]) -> int:
             failures.append(f"{stem}: no {pdf.name}")
             continue
         top, pages = recognise(pdf.read_bytes())
-        got = to_json(read_words(top, pages))
+        got = to_json(read_words(top, pages, bound))
         want = json.loads(expected.read_text(encoding="utf-8"))
         diff = differences(got, want)
         recorded = recorded_pages(fixtures, stem)

@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 import psycopg
 import pytest
 
-from conftest import FixtureTransport, aar_url, kopi_url, recorded
+from conftest import BOUND_KR, RULES, FixtureTransport, aar_url, kopi_url, recorded
 from document_fakes import FakeRecognise, generated, pdf, recorded_979607008_2025
 from peerless_ingest import documents, parse, run, write
 from peerless_ingest.config import Config
@@ -96,8 +96,12 @@ def stored_column(conn: psycopg.Connection, orgnr: str, year: int, role: str) ->
 
 def test_contract_979607008_2025_db(db: psycopg.Connection) -> None:
     write.write_company(db, company(ORGNR, "STATEMENT AS"))
-    read = documents.read_words(*recorded_979607008_2025())
-    write.write_document(db, ORGNR, 2025, write.document_outcome(2025, read), None, READ_AT)
+    [filing] = [parse.parse_filing(raw, ORGNR, READ_AT) for raw in parse.load_filings_json(recorded("regnskap_979607008_2025.json"))]
+    write.write_filing(db, filing)
+    read = documents.read_words(*recorded_979607008_2025(), BOUND_KR)
+    api_by_year = {year: write.api_figures(db, ORGNR, year) for year in (2025, 2024)}
+    assert api_by_year[2024] is None  # the recording holds only 2025
+    write.write_document(db, ORGNR, 2025, write.document_outcome(2025, read, api_by_year, RULES), 6984522, READ_AT)
 
     assert one(
         db,
@@ -105,7 +109,13 @@ def test_contract_979607008_2025_db(db: psycopg.Connection) -> None:
            from register.document where orgnr = %s and filing_year = %s""",
         ORGNR,
         2025,
-    ) == ("generated", "extracted", None, "NOK", "NOK", READ_AT, "full")
+    ) == ("generated", "reconciled", None, "NOK", "NOK", READ_AT, "full")
+    # Story 2.2: each column's status and its comparison with the register.
+    assert db.execute(
+        """select role, status, api_check, api_fail_fields from register.document_column
+           where orgnr = %s and filing_year = 2025 order by role""",
+        (ORGNR,),
+    ).fetchall() == [("current", "reconciled", "pass", []), ("prior", "reconciled", "not_evaluable", [])]
 
     for role, year, expected in (("current", 2025, CONTRACT_CURRENT_ORE), ("prior", 2024, CONTRACT_PRIOR_ORE)):
         column = stored_column(db, ORGNR, 2025, role)
@@ -175,22 +185,22 @@ def test_links_brreg_id_by_year(db: psycopg.Connection, cfg: Config, monkeypatch
     rows = db.execute(
         "select filing_year, brreg_id, status from register.document where orgnr = %s order by filing_year", (ORGNR,)
     ).fetchall()
-    assert rows == [(2022, None, "extracted"), (2025, 6984522, "extracted")]
+    assert rows == [(2022, None, "reconciled"), (2025, 6984522, "reconciled")]
 
 
 def test_document_and_columns_are_written_together(db: psycopg.Connection) -> None:
     # A column the database refuses rolls back its document row too: a rerun
     # then finds the year unstored and reads it again.
     write.write_company(db, company(ORGNR, "STATEMENT AS"))
-    outcome = write.document_outcome(2025, documents.read_words(*recorded_979607008_2025()))
-    current = outcome.columns[0][1]
+    outcome = write.document_outcome(2025, documents.read_words(*recorded_979607008_2025(), BOUND_KR), {}, RULES)
+    current = outcome.columns[0]
     broken = write.DocumentOutcome(
         outcome.layout,
         outcome.status,
         outcome.refusal,
         outcome.valuta,
         outcome.unit_text,
-        (("current", current), ("prior", current)),  # prior stating 2025 breaks the year CHECK
+        (current, write.OutcomeColumn("prior", current.column, current.reconciliation)),  # prior stating 2025 breaks the year CHECK
     )
     with pytest.raises(psycopg.errors.CheckViolation):
         write.write_document(db, ORGNR, 2025, broken, None, READ_AT)

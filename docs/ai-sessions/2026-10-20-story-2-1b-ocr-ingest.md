@@ -11,7 +11,9 @@ Implement `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`: step 
 
 ## Prompts that mattered
 
-The human, answering the spec's open questions (in Norwegian, verbatim):
+Several of the human's prompts below carry decisions that came from the separate review session, which checks this session's output, and were then decided by the human. Each is marked where it appears.
+
+The human, answering the spec's open questions (in Norwegian, verbatim). The limit to demo A, B and their peers instead of all 62.100 companies, and the requirement to measure seconds per document in the image first, came from the review session and were decided by the human:
 
 > Behold spec-en hel.
 > 1: A – status extracted.
@@ -20,7 +22,7 @@ The human, answering the spec's open questions (in Norwegian, verbatim):
 
 This replaced the draft's full-industry run with a measured estimate and a limitable run. Measured in the image on 20 cached PDFs (16 logical cores): median 21.1 s, mean 22.8 s, max 38.5 s per document; two or three in parallel gave 19.1 s and 21.5 s per document, so parallelism does not help. 8 442 covered companies with filings give about 33 000 documents and about 190 h; the acceptance set about 10–12 h.
 
-The human, approving the spec:
+The human, approving the spec. Running the acceptance run on the final code after review, and making it resumable, came from the review session and were decided by the human:
 
 > godkjent, med to krav:
 > 1. Rekkefølge: akseptansekjøringen (~12 t) starter først etter review, rettelser og full testsuite, på imaget bygget fra siste commit – ikke før, som i 1.3a. Oppgi commit-hash for imaget i PR og session-fil.
@@ -30,7 +32,7 @@ To the implementation subagent, from the orchestrating session:
 
 > Read C:\Dev\ibe160\_bmad-output\implementation-artifacts\spec-2-1b-ocr-ingest.md fully and implement it — the spec is the sole source of truth. Load every file listed in its frontmatter `context:` before you start.
 
-The human, deciding the two review findings raised with them:
+The human, deciding the two review findings raised with them. The argument for overruling #10 came from the review session; the decision is the human's:
 
 > 1. Godta A og B uten C (C er udekket og bruker ikke dokumenttall). Skriv det i Spec Change Log.
 > 2. Ikke godta. Jeg besluttet at dokumentlesing skal kunne avgrenses, ikke at vanlig pnpm ingest skal lese dokumenter. pnpm ingest gjør register- og API-kjøringen som før; dokumenter leses bare med --documents <fil>. Spec Change Log med dato og min beslutning, egen commit, test som viser at vanlig pnpm ingest ikke henter noen PDF. Oppdater README og AGENTS.md.
@@ -41,9 +43,13 @@ The human, starting the acceptance run:
 > ja, start, med ett tillegg:
 > Når kjøringen er ferdig, dump register.document og register.document_column (data only) til en gitignored fil, f.eks. .local/document-run-<commit>.sql, og legg en gjenopprettingskommando i README "Seed". Skriv i session-fila og deferred-work at pnpm seed og db:reset sletter dokumentradene, og at de gjenopprettes fra dumpen til allow-listen i 2.3 finnes. Si fra når containeren kjører, med navnet.
 
+The human, adjusting the steps after the run. Checking the dump's row counts and copying it to a second location before `pnpm seed` came from the review session and was decided by the human:
+
 > to justeringer for når kjøringen er ferdig:
 > 1. Før du kjører pnpm seed for å teste gjenopprettingen: sjekk at radtallene i dumpen stemmer med tabellene, og kopier dumpen til en ekstra plassering (f.eks. også utenfor repoet). Først da seed + restore + sammenlign.
 > 2. Spec-en står på in-review til etter merge, som etter retroen – ikke done.
+
+The human, before the machine went to sleep mid-run. The completeness check over all 407 companies after sleep came from the review session and was decided by the human:
 
 > jeg lukker PC-en en stund, så maskinen går i dvale midt i kjøringen. Når containeren avslutter: sjekk først at alle 407 selskapene i seed/document-run.json har dokumentrader (eller er rapportert som uten dokumenter). Mangler noen, er kjøringen avbrutt – start den igjen med samme kommando (den hopper over lagrede dokumenter), og ikke dump, seed eller gjenopprett før den har gått helt ferdig.
 
@@ -91,7 +97,7 @@ Rejected, with the reason in the triage log: #7 (blind: the copy follows the AC;
 
 Decided by the human:
 - **#21, demo C** (edge). The orchestrating session raised it as an intent gap. The human accepted A and B and their pools without C (`529f65b`, Spec Change Log).
-- **#10, a plain `pnpm ingest` reads documents** (blind). The orchestrating session had rejected it as a frozen decision; the human overruled that: document reading was meant to be limitable, not part of the normal run. `e09a413`: a plain `pnpm ingest` is the register and key-figures run and fetches no document; documents are read only with `--documents <file>`. `ingest/tests/test_documents_run.py::test_normal_run_fetches_no_document` serves the year list and the PDF and asserts neither is requested; it fails with the pass put back. Spec Change Log, README, AGENTS.md, `docs/data-sources-brreg.md`.
+- **#10, a plain `pnpm ingest` reads documents** (blind). The orchestrating session had rejected it as a frozen decision. The review session made the argument for overruling it: document reading was meant to be limitable, not part of the normal run. The human decided on that argument and overruled the rejection. `e09a413`: a plain `pnpm ingest` is the register and key-figures run and fetches no document; documents are read only with `--documents <file>`. `ingest/tests/test_documents_run.py::test_normal_run_fetches_no_document` serves the year list and the PDF and asserts neither is requested; it fails with the pass put back. Spec Change Log, README, AGENTS.md, `docs/data-sources-brreg.md`.
 
 ## Verification
 

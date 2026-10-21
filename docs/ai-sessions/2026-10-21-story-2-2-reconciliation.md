@@ -3,7 +3,7 @@
 **Date:** 2026-10-21
 **Tool:** Claude Code (Opus 5.5), `bmad-build`. The build session ran planning, triage and verification; subagents did the investigation, the implementation and the three review layers.
 **Story / issue:** #35, Story 2.2 (FR-57, FR-58)
-**Result:** PR #36, branch `story/2.2-reconciliation`, commits `fc24a3a`…`bd2ce3e` plus the acceptance-run commit
+**Result:** [PR #36](https://github.com/IBE160-2026/G97-meinich/pull/36), merged 2026-10-21, branch `story/2.2-reconciliation`, commits `fc24a3a`…`bd2ce3e` plus the acceptance-run commit
 
 ## Goal
 
@@ -89,3 +89,7 @@ So 17 columns fail on a misread figure caught within the document or against the
 - `docs/ai-log.md`: the two Story 2.2 entries (tolerances, blocking rule, c5)
 - `docs/data-sources-brreg.md`, "Reconciliation"
 - `deferred-work.md`: the label fix (Story 2.3) and the column selection (Story 2.9)
+
+## Merge
+
+CI on `91e56ca` was green. The review was posted before merge as a GitHub review with four line comments, drafted by the review session and posted at the human's decision, as its summary says. The review session checked the per-year counts against the database first. The PR was merged at 20:24 UTC. The review session set the spec and the story to done on `main` afterwards.

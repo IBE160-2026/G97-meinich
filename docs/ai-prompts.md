@@ -1125,6 +1125,77 @@ CI on `14ea028` was green. At the human's request ("ja"), the review session pos
 
 ---
 
+## Story 2.2: accept only figures that reconcile (#35, PR #36)
+
+### Prompts to the BMAD session
+
+**2026-10-21 18:35**
+```
+/bmad-build Story 2.2
+```
+
+**18:45**: the spec asked about the tolerance, the prior column and where the "no failed figure" guard lives. It recommended 0.1 % and comparing the prior column with the register. Before answering, the review session compared all 13 681 stored OCR figures with the register's.
+```
+Fra meg:
+Behold spec-en hel.
+1: Ikke 0,1 %. Review-sesjonen målte 2.1b-dataene: av 8 234 nåværende
+   kolonne-tall mot registeret er 8 230 innen 5 kr og 0 mellom 5 kr og
+   0,1 % – den proporsjonale slingringen slipper bare inn lav-siffer-feil
+   (f.eks. 911701251: 114 120 459 vs 114 210 458, ombyttede sifre).
+   Toleranse = maks(5 kr, 0,001 % av registerets tall). Oppdater
+   AGENTS.md og docs/data-sources-brreg.md: 2.1a avviser skalerte enheter,
+   så begrunnelsen for en grov proporsjonal toleranse er borte.
+2: (a), og fjorårskolonnen sammenlignes ikke med registeret: 173 av 5 447
+   avviker, ofte konsekvent i flere summer (924830972: +56 007 i både sum
+   eiendeler og sum gjeld) – omarbeidede sammenligningstall, ikke OCR-feil.
+   Fjorårskolonnen vurderes bare med c1–c4; avviket mot registeret lagres
+   som informasjon, og den overstyrer aldri årets eget dokument.
+3: (a) documentFigures i src/engine.
+Skriv målingene inn i spec-en som grunnlag for valgene.
+```
+*Changed:* the measurement settled both questions, so neither recommendation was taken. A 0.1 % band admitted nothing that 5 kr did not, except misread low digits. Comparing prior columns with the register would have failed correctly read, restated comparatives. AGENTS.md's "Reconcile with two rules" was corrected in place, because its stated reason for a coarse proportional tolerance (scaled reporting units) no longer held after 2.1a.
+
+**18:47**: approval, with one change to the AI's own choice: it had made `documentFigures` throw on an unreconciled column.
+```
+Fra meg: godkjent, med én endring: documentFigures kaster ikke for en
+kolonne uten avstemmingsstatus. Den gir alle tall som fraværende med
+grunnen not_reconciled – synlig, ikke stille, og uten at en hel
+analyseside får 500 fordi én gjenopprettet extracted-rad ikke er
+re-sjekket. Test det.
+Approve and continue.
+```
+
+**19:04**: the human's own check on the commit rule: `comitter du flere ganger som det står i agents.md?`
+
+**19:14**: implementation found that 836 of 1 946 current columns, about 47 %, would fail. The reading library missed the "SUM EGENKAPITAL OG GJELD" line, so the balance check could not run, although in 802 of them the balance held. The review session confirmed both counts in the database.
+```
+Fra meg: B. c5 = sum eiendeler mot sum egenkapital + sum gjeld, samme
+5 kr-grense; balansekontrollen er evaluerbar når c3 eller c5 består.
+Summen brukes bare i kontrollen og lagres ikke (AD-15). Spec Change Log
+med dato og min beslutning, test med 919062223-mønsteret, og en test som
+viser at c5 feiler når ett av de tre tallene er feillest.
+Etikettfeilen ("SUM EGENKAPITAL OG GJELD") skal eies av Story 2.3, ikke
+bare ligge åpen: deferred-post som peker på 2.3, med mål for treffrate før
+og etter, og ny lesing av de ~836 dokumentene.
+```
+
+**19:54**: the reconciliation run over the stored documents.
+```
+Fra meg: ja, start. Den skal ikke OCR-e noe nytt (2.1b-kjøring nr. 2 leste
+ingenting nytt); si fra hvis den gjør det. Rapporter: reconciled /
+failed_reconciliation per år for nåværende kolonne, hvor mange som feilet
+på hhv. c1–c5 og registersammenligningen, og sammenlign med anslaget
+1 803 av 1 946. Ny dump ved siden av den gamle, og kopi til
+C:\Users\cmein\peerless-backups\. Deretter push og PR (Closes #35).
+```
+*Changed:* the run took 224 s with 0 OCR reads. 1 801 current columns are `reconciled` and 145 `failed_reconciliation`: 17 failed a check, and 128 lacked a figure that a required check needs. Of the 1 801, 770 pass the balance by c5 alone, which shows how much the label fix owned by Story 2.3 matters. Only 2 failed solely against the register. A new dump, `document-run-bd2ce3e.sql`, sits next to the old one, and both are copied outside the repository.
+
+### Checks before merging
+
+The review session checked the per-year counts against the database. It read the tolerance (exact `Fraction`, `0.00001`), c5, the current-only register check and `documentFigures` on the PR head. At the human's request ("ja"), it posted the GitHub review with four line comments once CI on `91e56ca` was green. The PR was merged at 20:24 UTC.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

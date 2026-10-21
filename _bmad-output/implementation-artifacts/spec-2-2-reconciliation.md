@@ -2,7 +2,7 @@
 title: 'Story 2.2: Accept only figures that reconcile'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'e1178b0bd724f3159990a0bf98cfb48a82bd5829'
 route: 'dispatch'
 review_loop_iteration: 0

@@ -65,7 +65,7 @@ pnpm db:stop
 
 ### Batch step 1: register data
 
-Step 1 fetches Enhetsregisteret data and the key-figures API filings for every company whose primary industry is declared in `seed/coverage.json`, plus demo company C (`ingest/config.toml`), and stores them as filed, in øre, as the `ingest` role. It is a manual batch run; the app never calls the register. The register is free and needs no key.
+Step 1 fetches Enhetsregisteret data and the key-figures API filings for every company whose primary industry is declared in `seed/coverage.json`, plus demo company C (`ingest/config.toml`), and stores them as filed, in øre, as the `ingest` role. Filed annual-accounts documents are read by OCR only in a separate run for a given list of companies (`pnpm ingest --documents <file>`, below). It is a manual batch run; the app never calls the register and never reads a document. The register is free and needs no key.
 
 Requires Docker, and [uv](https://docs.astral.sh/uv/) 0.12.10 for the tests (uv installs Python 3.14 from `ingest/.python-version`).
 
@@ -74,11 +74,17 @@ pnpm db:start && pnpm db:roles   # the database and INGEST_DATABASE_URL in .env
 pnpm test:ingest      # fixture and contract tests: recorded responses, no network; database tests roll back
 pnpm ingest           # builds ingest/Dockerfile and runs it once against the local database
 pnpm ingest --companies-only   # refreshes only the search fields of companies already stored
+pnpm ingest:document-set       # writes seed/document-run.json from the loaded seed (demo A and B and their peer pools)
+pnpm ingest --documents seed/document-run.json   # reads only the filed documents of the listed companies
 ```
 
 `pnpm ingest --companies-only` streams the bulk download and fills the business municipality (number and name) and the primary industry's name on the companies already in `register.company`. The name is stored only when the register's primary code still equals the stored one; otherwise it is NULL, and the company is named in the summary. It adds and deletes no company, touches no filing, and leaves every other column, `navn` and `read_at` included, unchanged; `search_fields_read_at` records when the three were read. Its summary gives the number updated and names every stored company not found in the bulk file, which it leaves untouched. It accepts no other argument.
 
-`pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests, so a full run takes a while. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
+`pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests. It fetches no filed document. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
+
+**Filed documents.** Only `pnpm ingest --documents <file>` reads them: for each listed company, the years in the register's list of documents, 2021–2025 only, each fetched by the year in its path and read in the container (`register.document`, `register.document_column`). Reading takes about 21 s per document, so a run over all of 62.100 (about 33 000 documents) would take days; the summary counts the documents per filing year and status (`extracted`, `not_extracted`, `paper`). Each document and its two figure columns are committed on their own, so a run can be stopped (Ctrl-C) and started again: a rerun skips every stored company and year and reads nothing twice. A refiled document is therefore not picked up. A paper filing is stored as `paper` and never read; a document the reading library refuses, whose year differs from its path, or on which Tesseract fails is stored as `not_extracted` with the reason. Nothing is reconciled against the key figures yet (Story 2.2), so no document figure is used by the app.
+
+`pnpm ingest --documents <file>` runs only that document pass, for the orgnrs in `<file>`, a JSON list of nine-digit strings, mounted read-only into the container. It fetches no bulk data and no key figures; an orgnr that is not a stored company with a covered primary code is refused and named, never fetched. `pnpm ingest:document-set` writes the committed list `seed/document-run.json` from the loaded seed: demo companies A and B and each one's peer pool at the standard size band, assembled by `src/engine` (demo company C is uncovered, so it has no documents to read). The list is input to the run, not seed data; `pnpm seed` and `pnpm seed:export` ignore it, and the committed seed keeps the document tables empty until Story 2.3's allow-list.
 
 The step-1 image also carries Tesseract 5.5 and, at build time, downloads the pinned Norwegian model (`nor.traineddata` from `tessdata_best`, checked against its SHA-256), for reading the filed documents. The OCR tests in `pnpm test:ingest` need no Tesseract on the host; to check the image itself, as CI does:
 
@@ -89,7 +95,7 @@ docker run --rm --mount "type=bind,src=$PWD/ingest/tests/fixtures/documents,dst=
 
 ### Seed
 
-The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. `seed/coverage.json` declares the covered industries and is the only hand-edited file under `seed/`; `seed/allow-list.json` is written by the export.
+The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`, and `document.csv` and `document_column.csv`, empty for now) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. `seed/coverage.json` declares the covered industries and is the only hand-edited file under `seed/`; `seed/allow-list.json` is written by the export.
 
 ```sh
 pnpm db:start && pnpm db:roles   # the database and LOADER_DATABASE_URL in .env
@@ -98,7 +104,18 @@ pnpm seed             # check everything, then truncate and replace every regist
 
 `pnpm seed` checks the manifest version, that the manifest's migration is the latest file in `supabase/migrations`, that every file in `seed/demo/` is listed with a matching checksum, the shape of `seed/coverage.json`, that every declared industry was fetched, and that a `measured: true` entry cites an existing report under `analysis/output/` with a matching SHA-256. Any failure exits non-zero, names the entry and the check, and loads nothing. Then it loads in one transaction, writes `register.covered_industry` from `seed/coverage.json` and stores the manifest in `register.dataset`. Running it twice leaves the same state. CI runs it twice on a freshly migrated database on every pull request.
 
-**Exporting.** After a step-1 run, `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json` from the local database as `reader`. It is deterministic: rows in primary-key order with `COLLATE "C"`, so the bytes never depend on the database's collation, and dates and `read_at` in UTC ISO form. Running it twice on the same database gives byte-identical files. It never writes `seed/coverage.json`.
+**Exporting.** After a step-1 run, `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json` from the local database as `reader`. It is deterministic: rows in primary-key order with `COLLATE "C"`, so the bytes never depend on the database's collation, and dates and `read_at` in UTC ISO form. Running it twice on the same database gives byte-identical files. It never writes `seed/coverage.json`. It refuses, before writing anything, when `register.document_column` holds a figure for an orgnr not on `seed/allow-list.json`, and writes the allow-list back as it read it; after a document run, `pnpm seed` restores the committed state before an export.
+
+**Document rows are not in the seed yet.** `pnpm seed` truncates every `register` table and `pnpm db:reset` recreates the database, so both delete the rows a `pnpm ingest --documents` run wrote to `register.document` and `register.document_column`; the committed seed keeps those tables empty until Story 2.3's allow-list names the orgnrs whose document figures may be committed. Until then, keep a run's rows in a local, gitignored dump (data only) and restore it after a reset or a seed load:
+
+```sh
+# after a documents run: dump the two tables (data only) under .local/ (gitignored)
+docker exec supabase_db_peerless pg_dump -U postgres --data-only -t register.document -t register.document_column postgres > .local/document-run-<commit>.sql
+# after pnpm seed or pnpm db:reset (+ pnpm db:roles, pnpm seed): restore them
+docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 < .local/document-run-<commit>.sql
+```
+
+`supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first.
 
 **A new migration invalidates the seed.** The seed records the latest migration, and `pnpm seed` refuses a seed exported under an older one. The pull request that adds a migration therefore re-exports the seed in the same pull request, on a loaded database and without a reset:
 

@@ -110,7 +110,7 @@
   "about.title": "Slik fungerer Peerless",
   "about.pageTitle": "Slik fungerer Peerless – Peerless",
   "about.sources.title": "Kilder og lisens",
-  "about.sources.origin": "Tallene i Peerless kommer fra Brønnøysundregistrene: Enhetsregisteret og nøkkeltallene i Regnskapsregisteret.",
+  "about.sources.origin": "Tallene i Peerless kommer fra Brønnøysundregistrene: Enhetsregisteret, nøkkeltallene i Regnskapsregisteret og årsregnskapene som er sendt inn til Regnskapsregisteret.",
   "about.sources.nlod": "Inneholder data under {lisens} tilgjengeliggjort av {lisensgiver}",
   "about.sources.nlodLicence": "Norsk lisens for offentlige data (NLOD)",
   "about.sources.nlodLicensor": "Brønnøysundregistrene",

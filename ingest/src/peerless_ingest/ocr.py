@@ -48,7 +48,27 @@ NOR_TRAINEDDATA_SHA256 = "451d52ba1559aa1aecf163ccbfdeced2b9605fbd49480f5e8a53ac
 
 
 class OcrError(RuntimeError):
-    """Tesseract failed or wrote no output."""
+    """Tesseract failed or wrote no output. Names the page images it failed
+    on and the first non-empty line Tesseract wrote to stderr, so a failed
+    document in a batch run can be traced."""
+
+    def __init__(self, message: str, pages: Sequence[str] = (), stderr_line: str = "") -> None:
+        details = message
+        if pages:
+            details += f" on {', '.join(pages)}"
+        if stderr_line:
+            details += f": {stderr_line}"
+        super().__init__(details)
+        self.pages = tuple(pages)
+        self.stderr_line = stderr_line
+
+
+def first_line(stderr: bytes) -> str:
+    """The first non-empty line of Tesseract's stderr, or ""."""
+    for line in stderr.decode("utf-8", errors="replace").splitlines():
+        if line.strip():
+            return line.strip()
+    return ""
 
 
 @dataclass(frozen=True)
@@ -119,13 +139,18 @@ def _run(images: Sequence[Path], workdir: Path, suffix: str, args: Sequence[str]
     write_page_list(images, page_list)
     env = {**os.environ, "OMP_THREAD_LIMIT": "1"}
     result = subprocess.run(xargs_argv(page_list, suffix, args), env=env, capture_output=True, check=False)
+    stderr_line = first_line(result.stderr or b"")
     if result.returncode != 0:
-        raise OcrError(f"tesseract failed ({suffix} pass, exit {result.returncode})")
+        # xargs answers 123 for any failed page; the pages without output
+        # are the ones that failed, or all of them if every page wrote one.
+        missing = [image.name for image in images if not Path(f"{image}.{suffix}.tsv").exists()]
+        failed = missing or [image.name for image in images]
+        raise OcrError(f"tesseract failed ({suffix} pass, exit {result.returncode})", failed, stderr_line)
     out: list[list[Word]] = []
     for image in images:
         tsv = Path(f"{image}.{suffix}.tsv")
         if not tsv.exists():
-            raise OcrError(f"tesseract wrote no {suffix} output for {image.name}")
+            raise OcrError(f"tesseract wrote no {suffix} output for {image.name}", [image.name], stderr_line)
         out.append(read_tsv(tsv.read_text(encoding="utf-8", errors="replace")))
     return out
 

@@ -63,3 +63,11 @@ describe('Story 1.5b copy', () => {
     }
   });
 });
+
+describe('Story 2.1b copy', () => {
+  it('names the filed annual accounts among the sources in "Kilder og lisens"', () => {
+    expect(t('about.sources.origin')).toBe(
+      'Tallene i Peerless kommer fra Brønnøysundregistrene: Enhetsregisteret, nøkkeltallene i Regnskapsregisteret og årsregnskapene som er sendt inn til Regnskapsregisteret.',
+    );
+  });
+});

@@ -2,7 +2,7 @@
 // AD-16, AD-18). Loads run as `loader` through LOADER_DATABASE_URL, always
 // inside a transaction that is rolled back, so the database is left as it
 // was whatever it held.
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import postgres from 'postgres';
@@ -100,15 +100,22 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 557 companies, 22 354 filings, the coverage rows and one dataset row', async () => {
+  it('loads 17 557 companies, 22 354 filings, no document, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
-      const [counts] = await tx<{ company: number; filing: number; key_figures: number }[]>`
+      const [counts] = await tx<
+        { company: number; filing: number; key_figures: number; document: number; document_column: number }[]
+      >`
         select (select count(*)::int from register.company) as company,
                (select count(*)::int from register.filing) as filing,
-               (select count(*)::int from register.key_figures) as key_figures
+               (select count(*)::int from register.key_figures) as key_figures,
+               (select count(*)::int from register.document) as document,
+               (select count(*)::int from register.document_column) as document_column
       `;
-      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354 });
+      // The document tables stay empty in the committed seed until Story
+      // 2.3's allow-list names the orgnrs whose document figures may be
+      // committed (Story 2.1b).
+      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 0, document_column: 0 });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;
       const declared = readCoverage(path.join(root, COVERAGE_FILE));
@@ -353,6 +360,55 @@ describe('pnpm seed (main) refusing', () => {
   });
 });
 
+describe('the export and document figures', () => {
+  it('refuses to export a document column for an orgnr not on the allow-list, writing nothing', async () => {
+    const out = path.join(scratch, 'unlisted-document');
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      const [company] = await tx<{ orgnr: string }[]>`select orgnr from register.company order by orgnr limit 1`;
+      const orgnr = company?.orgnr ?? '';
+      await tx`
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset)
+        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full')`;
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+        values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
+      await expect(exportSeed(tx, root, out)).rejects.toThrow(
+        `document_column.csv: document figures for orgnrs not on seed/allow-list.json: ${orgnr}`,
+      );
+    });
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('exports a listed orgnr, keeps the allow-list byte for byte, and names it in the manifest', async () => {
+    // A scratch root holding the migrations, coverage.json and an allow-list
+    // that names one orgnr with a reason.
+    const scratchRoot = path.join(scratch, 'listed-root');
+    cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
+    cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
+    const out = path.join(scratch, 'listed-out');
+    let manifest: { document_figure_orgnrs: string[] } | undefined;
+    let allowList = '';
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      const [company] = await tx<{ orgnr: string }[]>`select orgnr from register.company order by orgnr limit 1`;
+      const orgnr = company?.orgnr ?? '';
+      allowList = stableJson([{ orgnr, reason: 'OCR-referansesett' }]);
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), allowList);
+      await tx`
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset)
+        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full')`;
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+        values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
+      manifest = await exportSeed(tx, scratchRoot, out);
+      expect(manifest.document_figure_orgnrs).toEqual([orgnr]);
+    });
+    expect(manifest?.document_figure_orgnrs).toHaveLength(1);
+    expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(allowList);
+  });
+});
+
 describe('the export order', () => {
   it('writes rows in byte order of the key even when the table was filled in another order', async () => {
     const company = (committed.files.get('company.csv') ?? Buffer.alloc(0)).toString('utf8');
@@ -364,6 +420,8 @@ describe('the export order', () => {
       ['company.csv', reversed],
       ['filing.csv', headerOnly('filing.csv')],
       ['key_figures.csv', headerOnly('key_figures.csv')],
+      ['document.csv', headerOnly('document.csv')],
+      ['document_column.csv', headerOnly('document_column.csv')],
     ]);
     const out = path.join(scratch, 'order');
     await rolledBack(loader, async (tx) => {

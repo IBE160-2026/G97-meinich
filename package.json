@@ -26,7 +26,8 @@
     "ingest": "node scripts/run-ingest.ts",
     "test:ingest": "uv --directory ingest run --frozen pytest",
     "seed:export": "node scripts/seed-export.ts",
-    "seed": "node scripts/seed-load.ts"
+    "seed": "node scripts/seed-load.ts",
+    "ingest:document-set": "node scripts/document-set.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.3.0",

@@ -353,9 +353,16 @@ describe('a table added to register later', () => {
 // Story 1.3a: the three tables batch step 1 writes. ingest upserts (SELECT,
 // INSERT, UPDATE) and never deletes; derive gets nothing yet; reader keeps
 // SELECT through the default privileges. Story 1.3b: loader truncates and
-// replaces them (SELECT, INSERT, TRUNCATE).
+// replaces them (SELECT, INSERT, TRUNCATE). Story 2.1b adds the two
+// document tables with the same grants.
 describe('the step-1 tables', () => {
-  const STEP1_TABLES = ['register.company', 'register.filing', 'register.key_figures'] as const;
+  const STEP1_TABLES = [
+    'register.company',
+    'register.filing',
+    'register.key_figures',
+    'register.document',
+    'register.document_column',
+  ] as const;
 
   it('exist', async () => {
     const rows = await sql<{ name: string }[]>`
@@ -414,6 +421,8 @@ describe('the step-1 tables', () => {
       'register.company': 'navn',
       'register.filing': 'journalnr',
       'register.key_figures': 'aarsresultat_ore',
+      'register.document': 'unit_text',
+      'register.document_column': 'aarsresultat_ore',
     };
     await rolledBack(async (tx) => {
       for (const table of STEP1_TABLES) {
@@ -499,7 +508,7 @@ describe('loader on every register table', () => {
       where n.nspname = 'register' and c.relkind in ('r', 'p')
       order by 1
     `;
-    expect(tables.length).toBeGreaterThanOrEqual(5);
+    expect(tables.length).toBeGreaterThanOrEqual(7);
     for (const { name } of tables) {
       for (const privilege of ALL_TABLE_PRIVILEGES) {
         const [row] = await sql<{ ok: boolean }[]>`

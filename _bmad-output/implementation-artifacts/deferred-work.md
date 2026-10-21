@@ -13,10 +13,6 @@
   evidence: Epic 1 retro, finding R5 (`ingest/src/peerless_ingest/write.py`, `UPSERT_FILING`; migration `20261011120000_register_step1_tables.sql`, `brreg_id … UNIQUE`). Deferred by Meinich, 2026-10-16; decide with the reclassification entry above how a refresh retires or replaces rows.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
-  summary: Story 2.3 must make `seed:export` keep the curated entries in `seed/allow-list.json` instead of overwriting it with `[]`, and refuse an export whose document-figure orgnrs are not on the list.
-  evidence: Story 1.3b review. `scripts/seed-export.ts` writes the literal `'[]\n'`. That is harmless while no filing has a document figure, but it erases entries as soon as Story 2.3 adds OCR reference filings with their reasons.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-3b-seed-export-load.md`
   summary: Add a test in which the export's `checkPrimaryKey` refuses a `SEED_TABLES` declaration that disagrees with the catalog, when a migration first changes a seed table's key.
   evidence: Story 1.3b verification-gap review. Deleting the `checkPrimaryKey` call keeps every test green; the guard only matters once a key changes.
 
@@ -31,10 +27,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
   summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.
   evidence: Story 1.6a AC (the predicate is an input because no engine computes s_med until 3.5); review finding 5.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
-  summary: Story 2.1b must extend the first paragraph of "Kilder og lisens" on `/slik-fungerer-peerless` ("Tallene i Peerless kommer fra Brønnøysundregistrene: Enhetsregisteret og nøkkeltallene i Regnskapsregisteret.") to name the filed annual accounts once figures read by OCR are shown.
-  evidence: Human decision 2026-10-16 when accepting the 1.6b copy. In Epic 1 only API figures are shown, so the paragraph names only the API sources; the separate document-figure licence paragraph stays with Story 5.4.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
   summary: The analysis 404 states (invalid orgnr, valid orgnr not in the database) answer HTTP 404, but Next.js 16.4 serves them as its error shell and renders the content on the client after load, so they show nothing without JavaScript. Revisit when a Next.js release renders a nested `not-found.tsx` on the server for a `notFound()` thrown before streaming, or decide that a server-rendered 404 is worth a 200 status.
@@ -67,10 +59,6 @@
   evidence: Story 2.1 planning, 2026-10-19. Årsverk is printed in the company's own notes, which follow the three Brreg-generated pages; the spike's layout rules read only the generated section, and the notes are free-form. Deferred by Meinich, 2026-10-19.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1a-ocr-library.md`
-  summary: Story 2.1b stores what Story 2.1a reads: the document tables and migration, fetching every 2021–2025 document of the covered industry in the step-1 run, the contract test against a migrated database, the seed re-export, the "Kilder og lisens" paragraph and the docs.
-  evidence: Story 2.1 was about 2 900 tokens, against the 1 600-token spec ceiling; split into 2.1a (library, image, fixtures, no database) and 2.1b on 2026-10-19 by Meinich, following the 1.3a/1.3b pattern. `epics.md` holds both halves.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-1a-ocr-library.md`
   summary: Story 2.2 should add sub-total checks within a document (for example the short-term debt lines against sum kortsiktig gjeld, the cost lines against sum kostnader), so that fields in none of the four checks — leverandørgjeld, annen driftskostnad and the other component lines — can confirm a digits-only figure instead of staying absent.
   evidence: Story 2.1a review, 2026-10-19. In 979607008/2025 the plain pass misread a digit in annen driftskostnad 2025 and leverandørgjeld 2025/2024 ("l0 170 8365", "l 001 605", "l 731 356"); no check covers them, so the gate refused the digits-only figure and they are absent. Decided by Meinich.
 
@@ -78,6 +66,14 @@
   summary: The Tesseract pin (`tesseract-ocr=5.5.0-1+b1`, `libtesseract5`) installs from the live trixie mirror; a point release that replaces that version breaks `docker build` with no change in the repository, and leptonica and the other libraries float. Pin through snapshot.debian.org, or record the full package set, so the measured engine stays reproducible.
   evidence: Story 2.1a review, finding 17 (`ingest/Dockerfile`). Deferred at triage.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-1a-ocr-library.md`
-  summary: `OcrError` carries only the pass name and exit code (xargs gives 123), so a failed filing in Story 2.1b's industry-wide run cannot be traced; add the page name and the first line of Tesseract's stderr, logged through step 1's run record.
-  evidence: Story 2.1a review, finding 18 (`ingest/src/peerless_ingest/ocr.py`, `_run`). 2.1b is the first caller that handles the error.
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`
+  summary: Run the document pass over all of 62.100, not only the acceptance set: `pnpm ingest --documents` with every covered orgnr (a plain `pnpm ingest` reads no document) reads about 33 000 documents, about 190 hours (8 days) at 21 s per document. The run is resumable, so it can be split across sessions; the machine must stay awake while it runs.
+  evidence: Story 2.1b, decided by Meinich 2026-10-20. Estimate: `read_document` measured in the step-1 image on the development machine (16 logical cores) over 20 cached 2021–2025 filings, median 21.1 s per document (mean 22.8 s, max 38.5 s); two or three documents at once gave 19.1 and 21.5 s each, so running in parallel does not help. Document count: the demo seed has 8 441 companies with a 62.100 primary code and at least one SELSKAP key-figures filing; at about four filed documents each in 2021–2025 (the spec's ratio for the acceptance set, about 2 000 documents for 500 companies) that is about 33 000 documents, × 21 s ≈ 190 h. The acceptance run's counts per year (PR and session file) are the first measured check of the four-per-company ratio.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`
+  summary: A stored document is never fetched again, so a document the register refiles after it was read, or one stored `not_extracted` after a Tesseract failure (`ocr_error`), keeps its first result. Decide how a later run notices a refiling and retries an OCR error. The `/aar` list gives only years, so a refiling cannot be seen from it.
+  evidence: Story 2.1b decision (rerun skips every stored `(orgnr, filing_year)`), recorded as a limit; `ingest/src/peerless_ingest/run.py`, `_load_documents`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1b-ocr-ingest.md`
+  summary: The acceptance run's document rows live only in the local database and in a gitignored dump (`.local/document-run-<commit>.sql`, README "Seed"). `pnpm seed` and `pnpm db:reset` delete them, and they are restored from the dump until Story 2.3's allow-list exists and `seed:export` can commit the listed orgnrs' document figures. Story 2.3 must decide which of these rows enter the committed seed, and drop the dump step from the README once they do.
+  evidence: Story 2.1b, decided by Meinich 2026-10-20. The committed seed keeps `document` and `document_column` empty (`seed/allow-list.json` is `[]`, and `seed:export` refuses unlisted document figures); a 10–12 h OCR run must not be lost to a reset.

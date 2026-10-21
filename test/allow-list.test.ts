@@ -1,7 +1,7 @@
 // The committed seed holds document figures only for allow-listed orgnrs
 // (Story 1.3b; technical note "Seed data", allow-list test). Reads every
-// committed seed file; until Story 2.3 adds document-figure tables, a
-// document figure is a filing whose status is not `not_extracted`.
+// committed seed file, whatever its dataset tag; a document figure is a row
+// of document_column.csv (Story 2.1b).
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -19,7 +19,13 @@ describe('seed/allow-list.json', () => {
   );
 
   it('reads the committed seed files', () => {
-    expect([...files.keys()].sort()).toEqual(['company.csv', 'filing.csv', 'key_figures.csv']);
+    expect([...files.keys()].sort()).toEqual([
+      'company.csv',
+      'document.csv',
+      'document_column.csv',
+      'filing.csv',
+      'key_figures.csv',
+    ]);
   });
 
   it('covers every orgnr with document figures in the committed seed', () => {

@@ -50,6 +50,24 @@ export const SEED_TABLES: readonly SeedTable[] = [
     ],
   },
   { name: 'key_figures', primaryKey: [{ name: 'brreg_id', text: false }] },
+  // Story 2.1b: the filed documents read by OCR. Empty in the committed
+  // seed until Story 2.3's allow-list names the orgnrs whose document
+  // figures may be committed.
+  {
+    name: 'document',
+    primaryKey: [
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
+    ],
+  },
+  {
+    name: 'document_column',
+    primaryKey: [
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
+      { name: 'role', text: true },
+    ],
+  },
 ];
 
 // Written by the loader from the manifest and seed/coverage.json, never
@@ -222,7 +240,7 @@ export interface Manifest {
   files: Record<string, string>;
   format_version: number;
   migration_id: string;
-  // Min and max read_at over company and filing, as Postgres prints
+  // Min and max read_at over company, filing and document, as Postgres prints
   // timestamptz with TimeZone UTC and DateStyle ISO.
   read_at: { max: string; min: string };
 }
@@ -436,23 +454,35 @@ export function parseAllowList(json: unknown): string[] {
   });
 }
 
-// A document figure, until Story 2.3 adds its tables, is a filing whose
-// status is not `not_extracted`. Returns, sorted, the orgnrs that have one
-// and are not on the allow-list. files maps seed file name → content.
+// A document figure is a row of register.document_column: a figure column
+// read from a filed document (Story 2.1b). Returns, sorted, the orgnrs that
+// have one and are not on the allow-list. files maps seed file name →
+// content.
 export function unlistedDocumentFigures(files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
-  const filing = files.get('filing.csv');
-  if (filing === undefined) throw new SeedRefusal('filing.csv: missing');
-  const [header, ...rows] = parseCsv(filing);
-  if (header === undefined) throw new SeedRefusal('filing.csv: no header');
+  const file = 'document_column.csv';
+  const columns = files.get(file);
+  if (columns === undefined) throw new SeedRefusal(`${file}: missing`);
+  const [header, ...rows] = parseCsv(columns);
+  if (header === undefined) throw new SeedRefusal(`${file}: no header`);
   const orgnrAt = header.indexOf('orgnr');
-  const statusAt = header.indexOf('status');
-  if (orgnrAt === -1 || statusAt === -1) throw new SeedRefusal('filing.csv: header lacks orgnr or status');
+  if (orgnrAt === -1) throw new SeedRefusal(`${file}: header lacks orgnr`);
   const unlisted = new Set<string>();
   for (const row of rows) {
     const orgnr = row[orgnrAt];
-    const status = row[statusAt];
-    if (orgnr === undefined || status === undefined) throw new SeedRefusal('filing.csv: short row');
-    if (status !== 'not_extracted' && !allowList.includes(orgnr)) unlisted.add(orgnr);
+    if (orgnr === undefined) throw new SeedRefusal(`${file}: short row`);
+    if (!allowList.includes(orgnr)) unlisted.add(orgnr);
   }
   return [...unlisted].sort(compareBytes);
+}
+
+// The export's refusal: no document figure for an orgnr that is not on
+// seed/allow-list.json may reach a committed seed file (technical note,
+// "Seed data").
+export function refuseUnlistedDocumentFigures(files: ReadonlyMap<string, string>, allowList: readonly string[]): void {
+  const unlisted = unlistedDocumentFigures(files, allowList);
+  if (unlisted.length > 0) {
+    throw new SeedRefusal(
+      `document_column.csv: document figures for orgnrs not on ${ALLOW_LIST_FILE}: ${unlisted.join(', ')}`,
+    );
+  }
 }

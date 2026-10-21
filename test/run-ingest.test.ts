@@ -5,7 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { containerDatabaseUrl, dockerRunArgs, main, setting, stepArgs } from '../scripts/run-ingest.ts';
+import {
+  CONTAINER_DOCUMENTS_FILE,
+  containerDatabaseUrl,
+  dockerRunArgs,
+  main,
+  setting,
+  stepArgs,
+} from '../scripts/run-ingest.ts';
 
 // main() runs docker through spawnSync; here it is recorded, never run.
 vi.mock('node:child_process', () => ({ spawnSync: vi.fn(() => ({ status: 0 })) }));
@@ -87,12 +94,40 @@ describe('argument passthrough', () => {
     expect(args.filter((arg) => arg === '--companies-only')).toHaveLength(1);
   });
 
-  it('allows only --companies-only, once', () => {
+  it('allows only nothing, --companies-only once, or --documents with one file', () => {
     expect(stepArgs([])).toEqual({ args: [] });
     expect(stepArgs(['--companies-only'])).toEqual({ args: ['--companies-only'] });
-    for (const argv of [['--entrypoint=sh'], ['--companies-only', '--rm'], ['-e', 'X'], ['--companies-only', '--companies-only']]) {
+    expect(stepArgs(['--documents', 'seed/document-run.json'])).toEqual({
+      args: ['--documents', CONTAINER_DOCUMENTS_FILE],
+      documentsFile: 'seed/document-run.json',
+    });
+    for (const argv of [
+      ['--entrypoint=sh'],
+      ['--companies-only', '--rm'],
+      ['-e', 'X'],
+      ['--companies-only', '--companies-only'],
+      ['--documents'],
+      ['--documents', ''],
+      ['--documents', '--rm'],
+      ['--documents', 'a.json', 'b.json'],
+      ['--documents', 'a.json', '--companies-only'],
+      ['--companies-only', '--documents', 'a.json'],
+      ['--documents', 'a,readonly=false.json'],
+    ]) {
       expect(stepArgs(argv), argv.join(' ')).toHaveProperty('error');
     }
+  });
+
+  it('mounts the --documents file read-only and passes its container path after the image', () => {
+    const args = dockerRunArgs('/repo', false, ['--documents', 'seed/document-run.json']);
+    expect(args.slice(-3)).toEqual(['peerless-ingest:local', '--documents', CONTAINER_DOCUMENTS_FILE]);
+    const mounts = args.flatMap((arg, i) => (args[i - 1] === '--mount' ? [arg] : []));
+    expect(mounts).toEqual([
+      `type=bind,source=${path.join('/repo', 'seed')},target=/seed,readonly`,
+      `type=bind,source=${path.resolve('/repo', 'seed/document-run.json')},target=${CONTAINER_DOCUMENTS_FILE},readonly`,
+    ]);
+    // The host path never reaches the container's command line.
+    expect(args.slice(args.indexOf('peerless-ingest:local'))).not.toContain('seed/document-run.json');
   });
 
   it('never forwards a refused argument, even when called directly', () => {
@@ -125,5 +160,21 @@ describe('main', () => {
   it('refuses another argument with 2 and runs nothing', () => {
     expect(main(dir, ['--company-only'])).toBe(2);
     expect(spawnSync).not.toHaveBeenCalled();
+  });
+
+  it('runs the container with --documents when the file exists, and refuses a missing one with 2', () => {
+    expect(main(dir, ['--documents', 'absent.json'])).toBe(2);
+    expect(main(dir, ['--documents'])).toBe(2);
+    expect(spawnSync).not.toHaveBeenCalled();
+
+    writeFileSync(path.join(dir, 'run.json'), '["979607008"]\n');
+    expect(main(dir, ['--documents', 'run.json'])).toBe(0);
+    const calls = vi.mocked(spawnSync).mock.calls;
+    expect(calls.map((call) => (call[1] as string[])[0])).toEqual(['build', 'run']);
+    const run = calls[1]?.[1] as string[];
+    expect(run.slice(-3)).toEqual(['peerless-ingest:local', '--documents', CONTAINER_DOCUMENTS_FILE]);
+    expect(run).toContain(
+      `type=bind,source=${path.join(dir, 'run.json')},target=${CONTAINER_DOCUMENTS_FILE},readonly`,
+    );
   });
 });

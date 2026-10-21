@@ -246,8 +246,9 @@ def test_run_loads_covered_code_and_demo_c_and_names_the_sn2007_code(db: psycopg
     assert regnskap_url("990051232") not in transport.requested
     # Nothing is matched to the SN2007 code.
     assert count(db, "select count(*) from register.company where naeringskode1 = %s", "62.010") == 0
-    # No document is fetched: only the bulk download, the accounts and C.
-    assert all("aarsregnskap" not in url for url in transport.requested)
+    # The normal run fetches no filed document (test_documents_run.py,
+    # test_normal_run_fetches_no_document).
+    assert [url for url in transport.requested if "aarsregnskap" in url] == []
 
     kantall = one(
         db,

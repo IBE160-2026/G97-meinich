@@ -153,6 +153,7 @@ DOCUMENT_COLUMN_COLUMNS = (
     "c2",
     "c3",
     "c4",
+    "c5",
     "digits_pass_fields",
     *FIGURE_COLUMNS,
     "dataset",
@@ -303,6 +304,7 @@ def write_document(
                 "c2": rec.c2,
                 "c3": rec.c3,
                 "c4": rec.c4,
+                "c5": rec.c5,
                 "digits_pass_fields": list(column.digits_pass_fields),
                 "dataset": DATASET,
                 "status": rec.status,
@@ -376,7 +378,7 @@ def stored_generated_documents(conn: psycopg.Connection, orgnr: str) -> list[Sto
 
 
 UPDATE_COLUMN_RECONCILIATION = """UPDATE register.document_column
-   SET c1 = %(c1)s, c2 = %(c2)s, c3 = %(c3)s, c4 = %(c4)s,
+   SET c1 = %(c1)s, c2 = %(c2)s, c3 = %(c3)s, c4 = %(c4)s, c5 = %(c5)s,
        status = %(status)s, api_check = %(api_check)s, api_fail_fields = %(api_fail_fields)s
  WHERE orgnr = %(orgnr)s AND filing_year = %(filing_year)s AND role = %(role)s"""
 
@@ -402,6 +404,7 @@ def update_reconciliation(
                     "c2": rec.c2,
                     "c3": rec.c3,
                     "c4": rec.c4,
+                    "c5": rec.c5,
                     "status": rec.status,
                     "api_check": rec.api.check,
                     "api_fail_fields": list(rec.api.fail_fields),

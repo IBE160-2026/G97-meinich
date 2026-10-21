@@ -18,7 +18,7 @@ from document_fakes import DOCUMENTS, recorded_979607008_2025
 from peerless_ingest import documents, parse, reconcile, write
 from peerless_ingest.ocr import PageWords, Word, read_tsv
 from peerless_ingest.reconcile import SHARED_FIELDS, Reconciliation
-from tsv_builder import BASE_ROWS, Row, document, replace_row
+from tsv_builder import BASE_ROWS, Row, digits_of, document, replace_row
 
 FLOOR_KR = RULES.between_sources_floor_kr
 TOLERANCE = RULES.between_sources_tolerance
@@ -176,10 +176,58 @@ def test_core_check_must_be_evaluable() -> None:
     outcome = write.document_outcome(2025, read, {}, RULES)
     current = statuses(outcome)["current"]
     assert checks_of(current) == ("pass", "pass", "not_evaluable", "pass")
+    assert current.c5 == "not_evaluable"  # c5 needs sum eiendeler too
     assert (current.status, outcome.status) == ("failed_reconciliation", "failed_reconciliation")
     # The same for c1; c2 or c4 unevaluable alone does not fail the column.
-    assert reconcile.column_status("current", "not_evaluable", "pass", "pass", "pass", "pass") == "failed_reconciliation"
-    assert reconcile.column_status("current", "pass", "not_evaluable", "pass", "not_evaluable", "not_evaluable") == "reconciled"
+    status = reconcile.column_status
+    assert status("current", "not_evaluable", "pass", "pass", "pass", "pass", "pass") == "failed_reconciliation"
+    assert status("current", "pass", "not_evaluable", "pass", "not_evaluable", "pass", "not_evaluable") == "reconciled"
+    # The balance passes by c3 or by c5; neither evaluable fails it.
+    assert status("current", "pass", "pass", "not_evaluable", "not_evaluable", "pass", "pass") == "reconciled"
+    assert status("current", "pass", "pass", "pass", "pass", "not_evaluable", "pass") == "reconciled"
+    assert status("current", "pass", "pass", "not_evaluable", "not_evaluable", "not_evaluable", "pass") == "failed_reconciliation"
+    # A failing c5 fails the column even when c3 passes.
+    assert status("current", "pass", "pass", "pass", "pass", "fail", "pass") == "failed_reconciliation"
+
+
+def test_c5_balances_without_total() -> None:
+    # 919062223's pattern (2021-2023): "SUM EGENKAPITAL OG GJELD" not read,
+    # so c3 and c4 cannot be evaluated; sum eiendeler = sum egenkapital + sum
+    # gjeld holds within 5 kr, so the balance is shown to hold without it.
+    plain = replace_row(BASE_ROWS, "SUM EGENKAPITAL OG GJELD", current="31 o73 544")
+    digits = replace_row(digits_of(BASE_ROWS), "SUM EGENKAPITAL OG GJELD", current="")
+    read = documents.read_words(*document(plain, digits), BOUND_KR)
+    assert read.current is not None and read.current.figures["sum_egenkapital_gjeld"] is None
+    outcome = write.document_outcome(2025, read, {}, RULES)
+    current = statuses(outcome)["current"]
+    assert checks_of(current) == ("pass", "pass", "not_evaluable", "not_evaluable")
+    assert current.c5 == "pass"
+    assert (current.status, outcome.status) == ("reconciled", "reconciled")
+    # Nothing derived is stored: the total stays NULL.
+    assert write.figures_ore(read.current)["sum_egenkapital_gjeld"] is None
+    # c5's own bound: 5 kr passes, 6 kr fails.
+    figures = write.figures_ore(read.current)
+    assert reconcile.within_document_checks(figures | {"sum_gjeld": figures["sum_gjeld"] + 500}, BOUND_KR)["c5"] == "pass"  # type: ignore[operator]
+    assert reconcile.within_document_checks(figures | {"sum_gjeld": figures["sum_gjeld"] + 600}, BOUND_KR)["c5"] == "fail"  # type: ignore[operator]
+
+
+def test_c5_fails_on_one_misread_figure() -> None:
+    # The total not read (c3, c4 not evaluable), and one of c5's three
+    # figures misread in turn, well-formed but wrong: c5 fails, the column fails.
+    base = replace_row(BASE_ROWS, "SUM EGENKAPITAL OG GJELD", current="31 o73 544")
+    digits = replace_row(digits_of(BASE_ROWS), "SUM EGENKAPITAL OG GJELD", current="")
+    for label, misread, field in (
+        ("SUM EIENDELER", "31 073 644", "sum_eiendeler"),
+        ("Sum egenkapital", "7 754 189", "sum_egenkapital"),
+        ("Sum gjeld", "23 809 355", "sum_gjeld"),
+    ):
+        rows = replace_row(base, label, current=misread)
+        read = documents.read_words(*document(rows, replace_row(digits, label, current=misread.replace(" ", ""))), BOUND_KR)
+        assert read.current is not None and read.current.figures[field] == int(misread.replace(" ", "")), label
+        outcome = write.document_outcome(2025, read, {}, RULES)
+        current = statuses(outcome)["current"]
+        assert (current.c3, current.c5) == ("not_evaluable", "fail"), label
+        assert (current.status, outcome.status) == ("failed_reconciliation", "failed_reconciliation"), label
 
 
 def test_prior_failure_does_not_fail_filing() -> None:

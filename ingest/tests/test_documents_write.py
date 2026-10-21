@@ -112,10 +112,10 @@ def test_contract_979607008_2025_db(db: psycopg.Connection) -> None:
     ) == ("generated", "reconciled", None, "NOK", "NOK", READ_AT, "full")
     # Story 2.2: each column's status and its comparison with the register.
     assert db.execute(
-        """select role, status, api_check, api_fail_fields from register.document_column
+        """select role, c5, status, api_check, api_fail_fields from register.document_column
            where orgnr = %s and filing_year = 2025 order by role""",
         (ORGNR,),
-    ).fetchall() == [("current", "reconciled", "pass", []), ("prior", "reconciled", "not_evaluable", [])]
+    ).fetchall() == [("current", "pass", "reconciled", "pass", []), ("prior", "pass", "reconciled", "not_evaluable", [])]
 
     for role, year, expected in (("current", 2025, CONTRACT_CURRENT_ORE), ("prior", 2024, CONTRACT_PRIOR_ORE)):
         column = stored_column(db, ORGNR, 2025, role)

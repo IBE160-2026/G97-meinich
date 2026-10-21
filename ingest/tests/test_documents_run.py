@@ -387,10 +387,10 @@ def test_read_document_list_accepts_distinct_orgnrs(tmp_path: Path) -> None:
 
 def as_extracted(conn: psycopg.Connection, orgnr: str, year: int) -> None:
     """A stored document as a dump made before Story 2.2 restores it: status
-    `extracted`, its columns with no reconciliation, and c1-c4 as some
-    earlier bound left them."""
+    `extracted`, its columns with no reconciliation (c5 included), and
+    c1-c4 as some earlier bound left them."""
     conn.execute(
-        """update register.document_column set status = null, api_check = null, api_fail_fields = null, c1 = 'fail'
+        """update register.document_column set c5 = null, status = null, api_check = null, api_fail_fields = null, c1 = 'fail'
             where orgnr = %s and filing_year = %s""",
         (orgnr, year),
     )
@@ -399,7 +399,7 @@ def as_extracted(conn: psycopg.Connection, orgnr: str, year: int) -> None:
 
 def column_reconciliation(conn: psycopg.Connection, orgnr: str) -> list[tuple]:
     return conn.execute(
-        """select filing_year, role, c1, c2, c3, c4, status, api_check, api_fail_fields
+        """select filing_year, role, c1, c2, c3, c4, c5, status, api_check, api_fail_fields
              from register.document_column where orgnr = %s order by filing_year, role""",
         (orgnr,),
     ).fetchall()
@@ -425,10 +425,10 @@ def test_stored_documents_reconciled_without_ocr(
     assert summary.failed == []
     assert [row[:3] for row in documents_of(stored, ORGNR)] == [(2022, "generated", "reconciled"), (2025, "generated", "reconciled")]
     assert column_reconciliation(stored, ORGNR) == [
-        (2022, "current", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
-        (2022, "prior", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
-        (2025, "current", "pass", "pass", "pass", "pass", "reconciled", "pass", []),
-        (2025, "prior", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
+        (2022, "current", "pass", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
+        (2022, "prior", "pass", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
+        (2025, "current", "pass", "pass", "pass", "pass", "pass", "reconciled", "pass", []),
+        (2025, "prior", "pass", "pass", "pass", "pass", "pass", "reconciled", "not_evaluable", []),
     ]
     assert summary.documents.rereconciled == {(2022, "reconciled"): 1, (2025, "reconciled"): 1}
     assert summary.documents.written == {}
@@ -448,8 +448,8 @@ def test_stored_documents_reconciled_without_ocr(
     assert reader.calls == []
     assert [row[2] for row in documents_of(stored, ORGNR)] == ["reconciled", "reconciled"]
     assert column_reconciliation(stored, ORGNR)[3] == (
-        2025, "prior", "pass", "fail", "pass", "pass", "failed_reconciliation", "not_evaluable", []
+        2025, "prior", "pass", "fail", "pass", "pass", "pass", "failed_reconciliation", "not_evaluable", []
     )
     # 2022's hand-built prior column copies those 2024 figures: it fails too.
-    assert column_reconciliation(stored, ORGNR)[1][6] == "failed_reconciliation"
+    assert column_reconciliation(stored, ORGNR)[1][7] == "failed_reconciliation"
     assert summary.documents.prior_failed == 2

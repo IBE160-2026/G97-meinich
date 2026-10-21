@@ -3,7 +3,7 @@
 **Date:** 2026-10-21
 **Tool:** Claude Code (Opus 5.5), `bmad-build`. The build session ran planning, triage and verification; subagents did the investigation, the implementation and the three review layers.
 **Story / issue:** #35, Story 2.2 (FR-57, FR-58)
-**Result:** PR #PR_NUMBER, branch `story/2.2-reconciliation`, commits `fc24a3a`…`bd2ce3e` plus the acceptance-run commit
+**Result:** PR #36, branch `story/2.2-reconciliation`, commits `fc24a3a`…`bd2ce3e` plus the acceptance-run commit
 
 ## Goal
 

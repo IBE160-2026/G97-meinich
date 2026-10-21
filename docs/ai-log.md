@@ -18,9 +18,9 @@ Routine work that went as expected is not logged.
 |---|---|
 | auth | 24 |
 | money | 16 |
-| parsing | 9 |
+| parsing | 10 |
 | llm-boundary | 5 |
-| scope | 14 |
+| scope | 15 |
 | docs | 18 |
 
 ## Entry template
@@ -527,3 +527,27 @@ Run: (10) review found that a body-read error mid-download (`http.client.Incompl
 **Caught by:** Item 1 by a one-company run against the register before review. Each guard in the matrix was deleted in turn and the named test run; every one failed: the 2021–2025 filter (`test_fetches_only_2021_2025_from_year_list`), the stored-year skip (`test_interrupted_run_resumes_without_redoing`, `test_stored_document_not_refetched`), the year mismatch (`test_year_mismatch_is_refused`), the stored and covered checks of documents mode (`test_documents_mode_only_listed_orgnrs`), the int conversion (`test_ore_is_int_times_100`), the brreg_id link (`test_links_brreg_id_by_year`), storing an OCR error (`test_refusal_and_ocr_error_store_not_extracted`) and the duplicate check of the list file (`test_documents_mode_rejects_bad_file`), all in `ingest/tests/test_documents_run.py` and `ingest/tests/test_documents_write.py`.
 
 **Outcome:** Branch `story/2.1b-ocr-ingest`. Demo company C is not in the acceptance set although the spec names it: its industry is not covered and the spec's own documents mode refuses an uncovered company (recorded in the spec's Implementation Notes). The acceptance run itself waits for review.
+
+### 2026-10-21 — Story 2.1b review: a normal run that read documents, and read errors that stopped every rerun
+**Tags:** scope · parsing
+**Tool:** Claude Code (Opus 5.5): three review subagents (blind, edge-case, verification gap) on the Story 2.1b diff, triaged by the orchestrating session; two findings decided by the human
+**Asked:** Review the Story 2.1b branch (`c1a33fe`..`6123767`) against the frozen spec `spec-2-1b-ocr-ingest.md` and AGENTS.md (issue #32).
+
+**Got:** 21 findings, recorded with verdicts in the spec's Review Triage Log: 11 patched, 8 rejected, 2 decided by the human.
+
+**Problem:**
+1. **A plain `pnpm ingest` ran the document pass inline** (blind, finding #10). The first plain run over 62.100 would take about 8 days at 21 s per document, and nothing would refresh the register data alone. The orchestrating session rejected the finding because the frozen spec said "The full run (no argument) also runs the document pass"; the human overruled it: the decision was that document reading can be limited, not that the normal run reads documents. That sentence in the spec was the AI's reading of the human's answer, and the triage defended it as frozen intent.
+2. **A read error other than `OcrError` or `RuntimeError` ended the run, and every rerun crashed on the same document** (verification gap, blind, edge, #2), because a rerun skips only stored documents and the failed one was never stored. Resumability, the property the human required, was what made it permanent.
+3. **The resume test could not see a commit** (verification gap, #3): it runs inside the `db` fixture's outer transaction, where each "commit" is a savepoint.
+4. **An OCR error was stored for good with exit status 0** (blind, edge, #5), and a company with no document list was neither counted nor named (#4): two silent outcomes, against AGENTS.md "No silent fallbacks".
+5. **The new tables referenced `company` and `document` with NO ACTION** (blind, edge, #6), while Story 2.4's AC deletes a withdrawn company with its document figures through `ON DELETE CASCADE`.
+
+**Caught by:** The review subagents, as credited above; #10 by the human at presentation.
+
+**Outcome:**
+1. `e09a413`: a plain `pnpm ingest` fetches no document; documents are read only with `--documents <file>`. `ingest/tests/test_documents_run.py::test_normal_run_fetches_no_document` serves the year list and the PDF and asserts neither is requested, nothing is read and no document row exists; it fails with the pass put back. Spec Change Log entry dated 2026-10-20, Meinich.
+2. `50b39be`: any other read failure is named ("read failed"), not stored, and the run goes on: `test_documents_run.py::test_a_read_that_fails_otherwise_is_named_not_stored_and_the_run_goes_on` (a read raising `ValueError`); also `::test_a_listed_year_not_served_is_named_and_the_next_is_stored` and `::test_a_malformed_year_list_costs_that_company_only`.
+3. `test_documents_run.py::test_connect_commits_each_transaction` asserts `write.connect` is autocommit. Live check on the acceptance run: a container stopped by SIGINT after three documents left them committed, and the rerun kept their `read_at` and went on with the next year (session file, "Acceptance run").
+4. An OCR error makes the run exit 1 (`test_documents_run.py::test_refusal_and_ocr_error_store_not_extracted` asserts `needs_operator()`); a missing document list is counted and named (`::test_a_company_with_no_document_list_is_counted_and_named`).
+5. Both foreign keys `ON DELETE CASCADE`: `test/db/documents.test.ts`, "goes with its document, and the document with its company (ON DELETE CASCADE, for Story 2.4)".
+Demo company C is left out of the acceptance set by the human's decision (#21, `529f65b`): it is uncovered and uses no document figure. The rejected findings and their reasons are in the triage log and the session file.

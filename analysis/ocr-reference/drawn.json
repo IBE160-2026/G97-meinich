@@ -1,0 +1,139 @@
+{
+  "seed": 20261022,
+  "population": {
+    "A": 1949,
+    "B": 1430,
+    "C": 180,
+    "D": 173
+  },
+  "cells": [
+    {
+      "year": 2021,
+      "band": "A",
+      "orgnr": "921716257",
+      "skipped_no_document": [
+        "929821092"
+      ]
+    },
+    {
+      "year": 2021,
+      "band": "B",
+      "orgnr": "915648479",
+      "skipped_no_document": [
+        "929481151",
+        "929151178"
+      ]
+    },
+    {
+      "year": 2021,
+      "band": "C",
+      "orgnr": "917397198",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2021,
+      "band": "D",
+      "orgnr": "995318733",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2022,
+      "band": "A",
+      "orgnr": "929821092",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2022,
+      "band": "B",
+      "orgnr": "929481151",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2022,
+      "band": "C",
+      "orgnr": "912197905",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2022,
+      "band": "D",
+      "orgnr": "885583822",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2023,
+      "band": "A",
+      "orgnr": "927533235",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2023,
+      "band": "B",
+      "orgnr": "929151178",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2023,
+      "band": "C",
+      "orgnr": "915338534",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2023,
+      "band": "D",
+      "orgnr": "992036079",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2024,
+      "band": "A",
+      "orgnr": "919470992",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2024,
+      "band": "B",
+      "orgnr": "981564782",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2024,
+      "band": "C",
+      "orgnr": "911561972",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2024,
+      "band": "D",
+      "orgnr": "936252710",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2025,
+      "band": "A",
+      "orgnr": "989081799",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2025,
+      "band": "B",
+      "orgnr": "918618716",
+      "skipped_no_document": []
+    },
+    {
+      "year": 2025,
+      "band": "C",
+      "orgnr": "917526729",
+      "skipped_no_document": [
+        "915671071"
+      ]
+    },
+    {
+      "year": 2025,
+      "band": "D",
+      "orgnr": "922184534",
+      "skipped_no_document": []
+    }
+  ],
+  "replacements": []
+}

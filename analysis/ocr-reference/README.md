@@ -39,6 +39,7 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 - Each figure is in **whole kroner, exactly as printed**: no spaces, a minus sign for negatives (also when the PDF shows parentheses), and the cell left **empty** when the line does not appear in the document. An empty cell is never 0, and a printed 0 is `0`.
 - The 23 field columns are the lines `read_document` targets (`ingest/src/peerless_ingest/layout.py`, `TARGETS`). Lines the document labels differently (for example "Sum inntekter" for `sum_driftsinntekter`) go in the same column.
 - `transcribed_by` and `transcribed_on` (YYYY-MM-DD) on every row; `notes` for anything unusual.
+- The file is semicolon-separated (`;`), UTF-8, so it opens column by column in a Norwegian Excel. Keep figures as plain digits: no thousands separator, no currency.
 
 ## Files
 

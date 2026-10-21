@@ -2,7 +2,7 @@
 title: 'Story 2.1b: Store the filed accounts (OCR ingest)'
 type: 'feature'
 created: '2026-10-20'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'cf512ebc1d6160cc263501c320c1c1484058d4a3'
 route: 'dispatch'
 review_loop_iteration: 0

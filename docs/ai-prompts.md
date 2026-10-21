@@ -993,6 +993,138 @@ The human asked the review session to post the review ("kan du fikse det?"). It 
 
 ---
 
+## Story 2.1b: store the filed accounts, the OCR ingest (#32, PR #34)
+
+### Prompts to the BMAD session
+
+**2026-10-20 16:41**
+```
+/bmad-build Story 2.1b, issue #32
+```
+
+**16:56**: the spec asked about the status before 2.2, which years to fetch, and how large the run should be. Its recommendation for the run was to ship the seed empty and leave the full industry for the human to run. In the review session the human asked "Hvorfor ikke hele?". The answer: about 42 000 PDFs, days of OCR, nothing a grader would see, and load on Brønnøysund. The message was sent twice, identically:
+```
+Fra meg:
+Behold spec-en hel.
+1: A – status extracted.
+2: A – alle år 2021–2025, som akseptansekriteriet.
+3: Ingen av alternativene. Mål først sekunder per dokument i imaget og gi
+   meg et anslag. Kjøringen skal kunne avgrenses til et sett orgnr, og
+   akseptansekjøringen er demoselskapene A, B, C pluss peer-gruppene deres
+   i standardbåndet (~500 selskaper), ikke hele 62.100. Seeden har de nye
+   tabellene tomme til allow-listen i 2.3. Hele bransjen er en
+   deferred-post med anslått tid.
+```
+*Changed:* the BMAD session measured 21.1 s per document in the image. That gave about 12 hours for the acceptance set and about 190 hours (8 days) for all of 62.100. The review session's own guess, 5–10 s, had been too optimistic. A `--documents <file>` mode was added, with the acceptance set computed in Node from `src/engine/peers.ts`.
+
+**17:20**: approval, with two requirements drawn from Story 1.3a.
+```
+Fra meg: godkjent, med to krav:
+1. Rekkefølge: akseptansekjøringen (~12 t) starter først etter review,
+   rettelser og full testsuite, på imaget bygget fra siste commit – ikke
+   før, som i 1.3a. Oppgi commit-hash for imaget i PR og session-fil.
+2. Kjøringen skal kunne avbrytes og startes på nytt uten å gjøre om
+   lagrede dokumenter. Test det, og si fra før du starter den, så jeg kan
+   holde maskinen våken.
+Approve and continue.
+```
+
+**18:13**: after review. Two findings were put to the human.
+```
+Fra meg:
+1. Godta A og B uten C (C er udekket og bruker ikke dokumenttall). Skriv
+   det i Spec Change Log.
+2. Ikke godta. Jeg besluttet at dokumentlesing skal kunne avgrenses, ikke
+   at vanlig pnpm ingest skal lese dokumenter. pnpm ingest gjør register-
+   og API-kjøringen som før; dokumenter leses bare med --documents <fil>.
+   Spec Change Log med dato og min beslutning, egen commit, test som viser
+   at vanlig pnpm ingest ikke henter noen PDF. Oppdater README og AGENTS.md.
+Kjør deretter hele verifiseringen i bolker, én om gangen, og stopp ved
+første feil.
+```
+*Changed:* `529f65b` and `e09a413`. The BMAD session had rejected finding #10 as an "intended consequence" of the human's earlier decision. But the implementation made every plain `pnpm ingest` read documents, so a routine register refresh would have taken about 8 days. Test: `test_normal_run_fetches_no_document`.
+
+**18:22** and **18:28**: before and during the start of the run. The review session saw that the next `pnpm seed`, which runs in every story's verification, would delete 12 hours of OCR rows that existed nowhere else.
+```
+Fra meg: ja, start, med ett tillegg:
+Når kjøringen er ferdig, dump register.document og register.document_column
+(data only) til en gitignored fil, f.eks. .local/document-run-<commit>.sql,
+og legg en gjenopprettingskommando i README "Seed". Skriv i session-fila og
+deferred-work at pnpm seed og db:reset sletter dokumentradene, og at de
+gjenopprettes fra dumpen til allow-listen i 2.3 finnes. Si fra når
+containeren kjører, med navnet.
+```
+```
+Fra meg: to justeringer for når kjøringen er ferdig:
+1. Før du kjører pnpm seed for å teste gjenopprettingen: sjekk at radtallene
+   i dumpen stemmer med tabellene, og kopier dumpen til en ekstra plassering
+   (f.eks. også utenfor repoet). Først da seed + restore + sammenlign.
+2. Spec-en står på in-review til etter merge, som etter retroen – ikke done.
+```
+*Changed:* the BMAD session's own plan had been to test the restore by running `pnpm seed` first, which would have deleted the only copy before the dump was proven. `9a662c1` adds the dump and restore to the README "Seed" section.
+
+**2026-10-21 05:17**: the human closed the laptop mid-run.
+```
+Fra meg: jeg lukker PC-en en stund, så maskinen går i dvale midt i
+kjøringen. Når containeren avslutter: sjekk først at alle 407 selskapene
+i seed/document-run.json har dokumentrader (eller er rapportert som uten
+dokumenter). Mangler noen, er kjøringen avbrutt – start den igjen med samme
+kommando (den hopper over lagrede dokumenter), og ikke dump, seed eller
+gjenopprett før den har gått helt ferdig.
+```
+The container paused while the machine slept and resumed on wake. The BMAD session's background `docker wait` was stopped for low memory, for the fourth time in the project.
+
+**16:40**
+```
+Fra meg: ikke start watcheren igjen. Jeg sier fra når containeren er ferdig. fullfør resterende
+```
+
+**16:46**: the session file credited every decision to the human and never mentioned the review session, the error retro finding L5 describes.
+```
+Fra meg: før push, rett krediteringen i session-fila (AGENTS.md: "When a
+decision or correction came from the review session, the session file says
+so"). Disse kom fra review-sesjonen og ble besluttet av meg: avgrensningen
+til A, B og peers i stedet for hele 62.100 og kravet om å måle sek/dokument
+først; argumentet for å overstyre #10; akseptansekjøringen på endelig kode
+etter review og at den skal kunne gjenopptas; dump og backup før pnpm seed;
+fullstendighetssjekken etter dvale. Skriv det slik. Egen commit.
+```
+*Changed:* `80a4108`.
+
+**18:07**: the review session found the container gone, with 407 of 407 companies holding document rows. Its summary was lost with the container, so a company missing one year could not be ruled out.
+```
+Fra meg: tender_kepler er ferdig og fjernet. 407 av 407 selskaper har
+dokumentrader (1 947 dokumenter, 1 avvist med year_header). Siden
+oppsummeringen er borte med containeren: kjør pnpm ingest --documents
+seed/document-run.json én gang til, så den fanger år som feilet. Den skal
+bare hoppe over lagrede dokumenter. Når den andre kjøringen er ferdig og
+ikke har lest noe nytt (eller har lest det som manglet): fortsett med
+dump, radtall, backup utenfor repoet, så seed + restore + sammenlign.
+Ikke push før jeg sier fra.
+```
+*Changed:* `8bf3c79`. The second run read nothing new (278 s, exit 0). The dump's row counts matched the tables, the copy outside the repository had the same sha256, and after `pnpm seed` and the restore a checksum over each table was identical.
+
+**18:21**
+```
+Fra meg: rett ai-log-oppføringen der den står – den er ikke på main ennå,
+så den kan redigeres. #10: argumentet kom fra review-sesjonen, beslutningen
+var min. Egen commit. Push deretter og opprett PR-en (Closes #32). Nevn i
+PR-en: akseptansekjøringen (tabellen over), at dokumentradene ikke er i
+seeden og gjenopprettes fra .local-dumpen til allow-listen i 2.3, og at
+vanlig pnpm ingest ikke leser dokumenter.
+```
+*Changed:* `f528639`, PR #34.
+
+### The acceptance run
+
+The run used the image built from `e09a413`. It covered 407 of 407 companies (demo A and B and their standard-band pools) and stored 1 947 documents for 2021–2025, 3 892 figure columns in all. 1 946 documents are `extracted`. One was refused: 912355233/2024, `year_header`. Reading took 21.0 s per document and 12.3 hours of wall time, excluding sleep. Every 2023–2025 document is linked to its key-figures filing. None are linked for 2021–2022, because the key-figures API holds no filings for those years. The review session checked the counts against the database during and after the run.
+
+### Checks before merging
+
+CI on `14ea028` was green. At the human's request ("ja"), the review session posted the GitHub review with five line comments, on `extracted`, the plain-ingest test, `to_ore`, the 406 API finding and the seed-export refusal, and it says so in the summary. The PR was merged at 18:31 UTC.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

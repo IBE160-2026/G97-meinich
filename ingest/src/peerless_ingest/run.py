@@ -30,7 +30,8 @@ OCR or write error costs only that document, or that company's documents.
 Before that, for each listed company, every stored document that was read is
 reconciled again from its stored figures under the configured rules (Story
 2.2): no fetch and no OCR, so it is idempotent, and a changed tolerance in
-ingest/config.toml takes effect on the next run.
+ingest/config.toml takes effect on the next run, except for the digits-only
+gate, which ran at read time under the bound then configured.
 
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds

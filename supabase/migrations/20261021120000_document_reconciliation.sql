@@ -2,7 +2,7 @@
 -- note AD-1, AD-15). Batch step 1 reconciles each read document under two
 -- rules, each set once in ingest/config.toml ([reconciliation]):
 --
---   within a document  c1-c4 each hold within an absolute bound in kroner;
+--   within a document  c1-c5 each hold within an absolute bound in kroner;
 --   between sources    each figure the key-figures API also holds agrees
 --                      within max(floor, tolerance x |API figure|).
 --

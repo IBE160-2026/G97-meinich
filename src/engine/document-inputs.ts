@@ -1,6 +1,6 @@
 // The blocking rule for document figures (Story 2.2; FR-57, FR-58). A figure
 // read from a filed document reaches the engine only when its column
-// reconciled: within the document (checks c1-c4) and, for this year's
+// reconciled: within the document (checks c1-c5) and, for this year's
 // column, against the key-figures API. Batch step 1 decides and stores the
 // status (`register.document_column.status`); this module is the one place
 // that turns a stored column into what the engine may use. Story 2.9

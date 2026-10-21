@@ -44,7 +44,7 @@ navn = "KANTALL AS"
 # the measurements behind them are in docs/data-sources-brreg.md,
 # "Reconciliation".
 [reconciliation]
-# Within a document: each of the checks c1-c4 holds when its two sides differ
+# Within a document: each of the checks c1-c5 holds when its two sides differ
 # by at most this many kroner. Absolute, because the register prints whole
 # kroner rounded from øre (a stated sum can be a krone or two off its
 # components), while a misread figure is wrong by orders of magnitude.

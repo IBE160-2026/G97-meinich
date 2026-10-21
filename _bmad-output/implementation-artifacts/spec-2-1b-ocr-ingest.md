@@ -172,7 +172,7 @@ context:
 - [x] `fetch.py`, `write.py`, `run.py` and `ocr.py`, plus `ingest/tests/test_documents_{write,run}.py`: every matrix row.
 - [x] `nb.json` copy, and its e2e/unit assertion if one exists.
 - [x] `scripts/document-set.ts` (`pnpm ingest:document-set`), `scripts/run-ingest.ts` (`--documents <file>`, mounted read-only) and their Vitest tests; commit `seed/document-run.json`.
-- [ ] Acceptance run, last, after review, fixes and the full suite, on the image built from the final commit (hash in PR and session file); tell the human before starting: `pnpm ingest --documents seed/document-run.json` on the local DB. Record the counts per status and year, the wall time and the seconds per document in the PR and the session file.
+- [x] Acceptance run, last, after review, fixes and the full suite, on the image built from the final commit (hash in PR and session file); tell the human before starting: `pnpm ingest --documents seed/document-run.json` on the local DB. Record the counts per status and year, the wall time and the seconds per document in the PR and the session file.
 - [x] `deferred-work.md`: the full-62.100 run, about 33 000 documents and about 190 h at 21 s per document, with how the estimate was made.
 - [x] Docs, the session file and `sprint-status.yaml`.
 

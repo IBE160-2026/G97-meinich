@@ -3,7 +3,7 @@
 **Date:** 2026-10-20 to 2026-10-21
 **Tool:** Claude Code (Opus 5.5): an orchestrating session, an implementation subagent working from the frozen spec, and three review subagents (blind, edge-case, verification gap)
 **Story / issue:** #32, Story 2.1b
-**Result:** branch `story/2.1b-ocr-ingest`, not yet pushed: implementation `c1a33fe`, `cdc2704`, `3a295ee`, `889e5f0`, `e1c87d0`, `f72c206`, `4f1c37c`; docs `6123767`; review fixes `50b39be`; triage log and decision #21 `529f65b`; decision #10 `e09a413`; the seed dump note `9a662c1`. PR: to be linked. Acceptance run on the image built from `e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d`: in progress (see "Acceptance run").
+**Result:** branch `story/2.1b-ocr-ingest`, not yet pushed: implementation `c1a33fe`, `cdc2704`, `3a295ee`, `889e5f0`, `e1c87d0`, `f72c206`, `4f1c37c`; docs `6123767`; review fixes `50b39be`; triage log and decision #21 `529f65b`; decision #10 `e09a413`; the seed dump note `9a662c1`; session file and AI log `be324ad`, `80a4108` and the run's results. PR: to be linked. Acceptance run on the image built from `e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d`: 407 of 407 companies, 1 947 documents, 1 refused (see "Acceptance run").
 
 ## Goal
 
@@ -118,7 +118,24 @@ On `e09a413`, batch by batch, stopping at the first failure (none failed):
 
 **Seed and reset delete the rows.** `pnpm seed` truncates every `register` table and `pnpm db:reset` recreates the database, so both delete the document rows. The committed seed keeps the two tables empty until Story 2.3's allow-list exists; until then the run is dumped (data only) to the gitignored `.local/document-run-e09a413.sql` and restored from it after a seed or a reset (README "Seed"; `deferred-work.md`; `9a662c1`).
 
-Counts per year and status, wall time and seconds per document: to be filled in when the run has finished.
+**Result.** All 407 listed companies have document rows: 1 947 documents, 3 892 figure columns (two per extracted document).
+
+| Filing year | extracted | not_extracted | paper |
+|---|---|---|---|
+| 2021 | 359 | 0 | 0 |
+| 2022 | 380 | 0 | 0 |
+| 2023 | 396 | 0 | 0 |
+| 2024 | 404 | 1 | 0 |
+| 2025 | 407 | 0 | 0 |
+| Total | 1 946 | 1 | 0 |
+
+- The one `not_extracted` is 912355233/2024, layout `generated`, refused with `year_header`: the year header could not be read, so no figure was stored.
+- No failures, no OCR errors, no company without a document list; 2 177 listed years outside 2021–2025 were never fetched.
+- `tender_kepler` read 1 944 documents in 40 753.9 s of reading, 21.0 s per document, in line with the 21.1 s median measured before the run; its wall time was 44 446 s (12.3 h). The machine slept during the run, so the elapsed time from the first to the last `read_at` (2026-10-20 18:22 to 2026-10-21 18:01 UTC) is longer.
+- `brreg_id` links 1 208 documents to a key-figures filing: every 2023–2025 document, none for 2021–2022, the years the key-figures API does not hold.
+- The completeness check after the machine slept (every listed orgnr has a document row) found none missing. A second run of the same command, on the image built from `80a4108` (no code change since `e09a413`; only docs), read nothing: 1 947 skipped as stored, 278 s, exit 0.
+
+**Dump and restore.** `.local/document-run-e09a413.sql` (data only, 1 186 982 bytes): its COPY blocks hold 1 947 and 3 892 rows, the same as the tables. A second copy outside the repo, `C:\Users\cmein\peerless-backups\document-run-e09a413.sql`, has the same sha256. Then `pnpm seed` (both tables 0 rows) and the README restore command: the md5 of each table's rows in key order is the same before the seed and after the restore.
 
 ## Links
 

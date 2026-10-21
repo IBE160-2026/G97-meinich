@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 24 |
-| money | 17 |
-| parsing | 11 |
+| money | 18 |
+| parsing | 12 |
 | llm-boundary | 5 |
 | scope | 15 |
 | docs | 18 |
@@ -567,3 +567,16 @@ Demo company C is left out of the acceptance set by the human's decision (#21, `
 7. **Confidence leaking into the flag**: no reconciliation function takes one (`::test_flag_ignores_confidence` rewrites every `conf` in the recorded TSVs and gets the same outcome).
 **Caught by:** Pending review.
 **Outcome:** Implemented on `story/2.2-reconciliation`; the commits are listed in the session file.
+
+### 2026-10-21 — Story 2.2: c5, the balance checked without its stated total
+**Tags:** money · parsing
+**Tool:** Claude Code (BMAD dev session, Opus 5.5)
+**Asked:** After the rolled-back reconciliation of the Story 2.1b rows showed about 45 % of filings failing, mostly because `sum_egenkapital_gjeld` is not read, the human (Meinich) decided on a fifth within-document check: c5, sum eiendeler = sum egenkapital + sum gjeld within the same 5 kr, and a balance that passes by c3 or c5 (spec, "Spec Change Log", 2026-10-21).
+**Got:** c5 in `reconcile.within_document_checks` (not in 2.1a's `documents.checks`, so the digits-only gate is unchanged), the status rule c1 pass, c3 or c5 pass, no fail among c1–c5, the amended migration with `c5` written together with the status, and the mirrored database CHECK.
+**Problem:** What could go wrong with c5 (not yet reviewed):
+1. **A misread total is no longer caught where the total is absent.** When `sum_egenkapital_gjeld` is NULL, nothing checks it; it is not read, so no figure from it is used. But c5 holds over three figures only: one misread among sum eiendeler, sum egenkapital and sum gjeld fails it (`ingest/tests/test_reconcile.py::test_c5_fails_on_one_misread_figure`), while two misreads that cancel would pass. c3 with c4 had the same weakness with their operands.
+2. **c5 computed from a derived component** would let a value step 1 did not read confirm itself. c5 reads only the three stored figures and never derives the total or any part (AD-15); `test_c5_balances_without_total` asserts the total stays NULL.
+3. **c5 passing while c3 fails** would hide a misread total: any failing check among c1–c5 fails the column (`test_reconcile.py::test_core_check_must_be_evaluable`, the c5-fail assertion; `test/db/documents.test.ts`, "holds the status rule").
+4. **The fix hides the reading gap.** The label is still missed in about 836 current columns; c5 makes those filings usable, it does not read the total. Story 2.3 owns the label fix and a new reading of those documents (`deferred-work.md`).
+**Caught by:** The rolled-back reconciliation over the stored rows (the BMAD session's measurement); the decision was the human's. Each new test was checked to fail with its guard removed (the c3-or-c5 rule, c5 in the fail set, the c5 arithmetic).
+**Outcome:** On the Story 2.1b rows, current columns reconciling rose from 1 031 to 1 801 of 1 946, both after the API check (`docs/data-sources-brreg.md`, "Reconciliation"). The commits are listed in the session file.

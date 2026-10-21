@@ -161,6 +161,80 @@ describe('register.document_column', () => {
     });
   });
 
+  // Story 2.2: the reconciliation of each column. Columns are inserted with
+  // c1-c4 given, then status, api_check and api_fail_fields.
+  const insertReconciled = (
+    role: string,
+    checks: [string, string, string, string],
+    status: string | null,
+    apiCheck: string | null,
+    failFields: string | null,
+  ): string =>
+    `insert into register.document_column
+       (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset, status, api_check, api_fail_fields)
+     values ('${ORGNR}', 2025, '${role}', ${role === 'current' ? 2025 : 2024}, '${checks[0]}', '${checks[1]}', '${checks[2]}',
+             '${checks[3]}', '{}', 'full', ${quote(status)}, ${quote(apiCheck)}, ${quote(failFields)})`;
+  const PASS: [string, string, string, string] = ['pass', 'pass', 'pass', 'pass'];
+
+  it('accepts exactly the two column statuses and the three api_check values, or all three NULL', async () => {
+    await withCompany(async (tx) => {
+      await tx.unsafe(insertDocument(2025, 'reconciled', 'generated', null, 'NOK'));
+      const cases: [string | null, string | null, string | null, boolean][] = [
+        ['reconciled', 'pass', '{}', true],
+        ['reconciled', 'not_evaluable', '{}', true],
+        ['failed_reconciliation', 'fail', '{sum_gjeld}', true],
+        // Not yet reconciled (a restored extracted row): all three NULL.
+        [null, null, null, true],
+        ['extracted', 'pass', '{}', false],
+        ['reconciled', 'passed', '{}', false],
+        // Written together, or not at all.
+        ['reconciled', null, '{}', false],
+        [null, 'pass', '{}', false],
+        ['reconciled', 'pass', null, false],
+        // api_fail_fields is non-empty exactly when api_check is fail, and
+        // names only the eleven shared figures.
+        ['failed_reconciliation', 'fail', '{}', false],
+        ['reconciled', 'pass', '{sum_gjeld}', false],
+        ['failed_reconciliation', 'fail', '{salgsinntekt}', false],
+      ];
+      for (const [status, api, fields, ok] of cases) {
+        const label = `${String(status)} ${String(api)} ${String(fields)}`;
+        const statement = insertReconciled('current', PASS, status, api, fields);
+        const code = await attempt(tx, statement);
+        expect(code, label).toBe(ok ? undefined : CHECK_VIOLATION);
+        if (code === undefined) await tx`delete from register.document_column where orgnr = ${ORGNR}`;
+      }
+    });
+  });
+
+  it('holds the status rule: reconciled exactly when no check fails, c1 and c3 passed, and (current only) the API did not fail', async () => {
+    await withCompany(async (tx) => {
+      await tx.unsafe(insertDocument(2025, 'reconciled', 'generated', null, 'NOK'));
+      const cases: [string, [string, string, string, string], string, string, string, boolean][] = [
+        ['current', PASS, 'reconciled', 'pass', '{}', true],
+        ['current', ['pass', 'not_evaluable', 'pass', 'not_evaluable'], 'reconciled', 'pass', '{}', true],
+        ['current', ['fail', 'pass', 'pass', 'pass'], 'reconciled', 'pass', '{}', false],
+        ['current', ['fail', 'pass', 'pass', 'pass'], 'failed_reconciliation', 'pass', '{}', true],
+        // A core check not evaluable: never reconciled.
+        ['current', ['pass', 'pass', 'not_evaluable', 'pass'], 'reconciled', 'pass', '{}', false],
+        ['current', ['not_evaluable', 'pass', 'pass', 'pass'], 'failed_reconciliation', 'pass', '{}', true],
+        // The current column's API comparison decides; failed_reconciliation needs a reason.
+        ['current', PASS, 'reconciled', 'fail', '{sum_gjeld}', false],
+        ['current', PASS, 'failed_reconciliation', 'fail', '{sum_gjeld}', true],
+        ['current', PASS, 'failed_reconciliation', 'pass', '{}', false],
+        // A prior column's API comparison is information only.
+        ['prior', PASS, 'reconciled', 'fail', '{sum_eiendeler,sum_gjeld}', true],
+        ['prior', PASS, 'failed_reconciliation', 'fail', '{sum_gjeld}', false],
+      ];
+      for (const [role, checks, status, api, fields, ok] of cases) {
+        const label = `${role} ${checks.join(',')} ${status} ${api}`;
+        const code = await attempt(tx, insertReconciled(role, checks, status, api, fields));
+        expect(code, label).toBe(ok ? undefined : CHECK_VIOLATION);
+        if (code === undefined) await tx`delete from register.document_column where orgnr = ${ORGNR}`;
+      }
+    });
+  });
+
   it('stores every figure as bigint øre with a unit comment', async () => {
     const rows = await sql<{ name: string; kind: string; comment: string | null }[]>`
       select a.attname as name, format_type(a.atttypid, a.atttypmod) as kind,

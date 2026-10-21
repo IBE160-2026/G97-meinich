@@ -32,7 +32,11 @@ export type Absence =
   | { readonly reason: 'undefined'; readonly cause: UndefinedCause }
   | { readonly reason: 'below_floor'; readonly count: number }
   | { readonly reason: 'not_in_dataset' } // produced from Story 2.9
-  | { readonly reason: 'failed_reconciliation' }; // produced from Story 2.9
+  // A document column that failed reconciliation (Story 2.2, `documentFigures`).
+  | { readonly reason: 'failed_reconciliation' }
+  // A document column with no reconciliation status yet: read, not yet
+  // checked (a row restored from a dump made before Story 2.2).
+  | { readonly reason: 'not_reconciled' };
 
 /** A single company's figure cannot be below the floor; that is a comparison's absence. */
 export type FigureAbsence = Exclude<Absence, { readonly reason: 'below_floor' }>;

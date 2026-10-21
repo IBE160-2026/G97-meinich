@@ -139,8 +139,8 @@ context:
 - [x] Config, `reconcile.py` and `documents.py` (the bound as a parameter), with `test_reconcile.py` and `test_config.py` covering every matrix row.
 - [x] `write.py` and `run.py`: reconcile on write and re-reconcile stored documents; update `test_documents_{write,run}.py`.
 - [x] `src/engine/document-inputs.ts` and `test/engine/document-inputs.test.ts`.
-- [ ] Docs, `ai-log.md` (what could go wrong with the tolerances and the blocking rule), the session file, `sprint-status.yaml`.
-- [ ] Acceptance run, last, after review, the fixes and the full suite, on the local DB with the 2.1b rows present. Check the dump is intact first. Run `pnpm ingest --documents seed/document-run.json`. Record the counts per status and year in the PR. Take a new data-only dump, and keep the old one.
+- [x] Docs, `ai-log.md` (what could go wrong with the tolerances and the blocking rule), the session file, `sprint-status.yaml`.
+- [x] Acceptance run, last, after review, the fixes and the full suite, on the local DB with the 2.1b rows present. Check the dump is intact first. Run `pnpm ingest --documents seed/document-run.json`. Record the counts per status and year in the PR. Take a new data-only dump, and keep the old one.
 
 **Acceptance Criteria:** `epics.md` Story 2.2 and the matrix above. In addition: given the acceptance run, when it ends, then no stored document is still `extracted`, and no PDF was read for a document that was already stored.
 

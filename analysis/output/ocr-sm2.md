@@ -29,6 +29,11 @@ The transcriptions were corrected after the first measurement: a blind check aga
 | Older (2021–2022) | 8 | 3 | 0 |
 | All | 20 | 6 | 0 |
 
+- **Phantoms reach the engine too.** The headline counts misreads only; phantom figures in reconciled columns: recent (2023–2025) 0, older (2021–2022) 0, all 0 (after the corrections; 0 before).
+- **Prior columns overcount.** Of the headline cases, 2 of 6 before and 0 of 0 after the corrections are in a last-year column. Story 2.9 uses a last-year column only when that year has no document of its own, so the headline overcounts what reaches the engine by up to those.
+- **How the blind check chose its cells.** It re-read only the cells where OCR and the transcription disagreed in reconciled columns (the 6 headline cases before the corrections), mixed with control cells where they agreed. 6 of the 6 corrections set the transcription to the figure OCR read, so every correction moved towards OCR. The 3 misread figures in columns that did not reconcile were not re-checked, and neither were the not-read fields.
+- **Transcription error rate.** 6 errors were found by the within-document checks on the transcriptions alone (`analysis/ocr-reference/README.md`, "Transcription check") and 6 by the blind check, across 40 transcribed columns.
+
 ### After the corrections
 
 None.
@@ -48,16 +53,16 @@ None.
 
 ### The corrections
 
-Each was found by the blind check and confirmed against the PDF (`analysis/ocr-reference/README.md`).
+Each was found by the blind check and confirmed against the PDF (`analysis/ocr-reference/README.md`), blind except where the table says otherwise: blind-check cell 6 was re-read on prompting, after the build session said its first entry equalled the other column's figure, so its correction is not a blind result.
 
-| Date | Orgnr | Year | Column | Field | Transcribed | Corrected |
-|---|---|---|---|---|---|---|
-| 2026-10-23 | 995318733 | 2021 | this year | sum_eiendeler | 86 913 592 kr | 86 913 593 kr |
-| 2026-10-23 | 995318733 | 2021 | last year | sum_kortsiktig_gjeld | 19 339 152 kr | 37 849 846 kr |
-| 2026-10-23 | 995318733 | 2021 | this year | kundefordringer | 444 745 213 kr | 44 745 213 kr |
-| 2026-10-23 | 917526729 | 2025 | this year | sum_kortsiktig_gjeld | 3 398 859 kr | 5 619 383 kr |
-| 2026-10-23 | 922184534 | 2025 | this year | bankinnskudd | 429 329 kr | 9 429 329 kr |
-| 2026-10-23 | 917526729 | 2025 | last year | sum_kortsiktig_gjeld | 3 224 133 kr | 5 233 612 kr |
+| Date | Orgnr | Year | Column | Field | Transcribed | Corrected | Blind |
+|---|---|---|---|---|---|---|---|
+| 2026-10-23 | 995318733 | 2021 | this year | sum_eiendeler | 86 913 592 kr | 86 913 593 kr | yes |
+| 2026-10-23 | 995318733 | 2021 | last year | sum_kortsiktig_gjeld | 19 339 152 kr | 37 849 846 kr | no: re-read on prompting |
+| 2026-10-23 | 995318733 | 2021 | this year | kundefordringer | 444 745 213 kr | 44 745 213 kr | yes |
+| 2026-10-23 | 917526729 | 2025 | this year | sum_kortsiktig_gjeld | 3 398 859 kr | 5 619 383 kr | yes |
+| 2026-10-23 | 922184534 | 2025 | this year | bankinnskudd | 429 329 kr | 9 429 329 kr | yes |
+| 2026-10-23 | 917526729 | 2025 | last year | sum_kortsiktig_gjeld | 3 224 133 kr | 5 233 612 kr | yes |
 
 ## Every compared field, by class
 
@@ -66,13 +71,13 @@ Each was found by the blind check and confirmed against the PDF (`analysis/ocr-r
 - **misread**: both hold a figure, and they differ;
 - **phantom**: OCR holds a figure and the transcription is blank.
 
-A field neither holds is not a figure and is not counted. "Recovered exactly" is correct over counted.
+A field neither holds is not a figure and is not counted. "Recovered exactly" is correct over counted. "Not read" is split by what the transcription holds: a transcribed 0, or a non-zero figure.
 
-| Group | correct | not read | misread | phantom | Counted | Recovered exactly |
-|---|---|---|---|---|---|---|
-| Recent (2023–2025) | 414 | 61 | 1 | 0 | 476 | 87,0 % |
-| Older (2021–2022) | 231 | 60 | 2 | 0 | 293 | 78,8 % |
-| All | 645 | 121 | 3 | 0 | 769 | 83,9 % |
+| Group | correct | not read (transcribed 0) | not read (transcribed non-zero) | misread | phantom | Counted | Recovered exactly |
+|---|---|---|---|---|---|---|---|
+| Recent (2023–2025) | 414 | 13 | 48 | 1 | 0 | 476 | 87,0 % |
+| Older (2021–2022) | 231 | 29 | 31 | 2 | 0 | 293 | 78,8 % |
+| All | 645 | 42 | 79 | 3 | 0 | 769 | 83,9 % |
 
 ## Consistency of the reference filings
 
@@ -230,10 +235,22 @@ Story 2.2's `column_status` (c1–c5, within the document only: these columns ha
 
 ### The differences, column by column
 
+Each column is in exactly one line below, or among the passing columns that were not failing in the baseline. A column is evaluable when c1 and c3 both are; a failing check in a column that is not evaluable does not make it failing.
+
 - Failing in the baseline, passing now (6): 911586738/2021, this year; 933565831/2021, last year; 950308508/2022, this year; 950308508/2023, last year; 979775377/2021, this year; 987307749/2023, last year.
 - Failing in the baseline and now (0): none.
-- Failing in the baseline, not evaluable now (5): 874350672/2023, this year; 976570626/2022, this year; 976570626/2023, last year; 979775377/2022, last year; 979775377/2024, last year.
-- Failing now, not in the baseline's failure table (3): 987307749/2021, this year; 987307749/2021, last year; 996941566/2022, last year.
-- Not evaluable now (86): 816202612/2021, this year (c1 pass, c3 not_evaluable); 816202612/2021, last year (c1 pass, c3 not_evaluable); 816202612/2025, this year (c1 pass, c3 not_evaluable); 816202612/2025, last year (c1 not_evaluable, c3 not_evaluable); 834095742/2022, this year (c1 pass, c3 not_evaluable); 834095742/2022, last year (c1 pass, c3 not_evaluable); 834095742/2025, this year (c1 pass, c3 not_evaluable); 834095742/2025, last year (c1 pass, c3 not_evaluable); 874350672/2022, this year (c1 pass, c3 not_evaluable); 874350672/2022, last year (c1 pass, c3 not_evaluable); 874350672/2023, this year (c1 pass, c3 not_evaluable); 874350672/2023, last year (c1 pass, c3 not_evaluable); 874350672/2025, this year (c1 not_evaluable, c3 not_evaluable); 874350672/2025, last year (c1 pass, c3 not_evaluable); 911586738/2025, this year (c1 pass, c3 not_evaluable); 911586738/2025, last year (c1 pass, c3 not_evaluable); 916605617/2023, this year (c1 pass, c3 not_evaluable); 916605617/2023, last year (c1 pass, c3 not_evaluable); 916605617/2024, this year (c1 pass, c3 not_evaluable); 916605617/2024, last year (c1 pass, c3 not_evaluable); 931924672/2021, this year (c1 pass, c3 not_evaluable); 931924672/2021, last year (c1 pass, c3 not_evaluable); 931924672/2022, this year (c1 pass, c3 not_evaluable); 931924672/2022, last year (c1 pass, c3 not_evaluable); 931924672/2023, this year (c1 pass, c3 not_evaluable); 931924672/2023, last year (c1 pass, c3 not_evaluable); 931924672/2024, this year (c1 pass, c3 not_evaluable); 931924672/2024, last year (c1 pass, c3 not_evaluable); 931924672/2025, this year (c1 pass, c3 not_evaluable); 931924672/2025, last year (c1 pass, c3 not_evaluable); 942896204/2023, this year (c1 not_evaluable, c3 not_evaluable); 942896204/2023, last year (c1 pass, c3 not_evaluable); 942896204/2025, this year (c1 pass, c3 not_evaluable); 942896204/2025, last year (c1 pass, c3 not_evaluable); 950308508/2024, this year (c1 pass, c3 not_evaluable); 950308508/2024, last year (c1 pass, c3 not_evaluable); 950308508/2025, this year (c1 pass, c3 not_evaluable); 950308508/2025, last year (c1 pass, c3 not_evaluable); 976570626/2022, this year (c1 pass, c3 not_evaluable); 976570626/2022, last year (c1 pass, c3 not_evaluable); 976570626/2023, this year (c1 pass, c3 not_evaluable); 976570626/2023, last year (c1 pass, c3 not_evaluable); 979775377/2022, this year (c1 pass, c3 not_evaluable); 979775377/2022, last year (c1 pass, c3 not_evaluable); 979775377/2023, this year (c1 pass, c3 not_evaluable); 979775377/2023, last year (c1 pass, c3 not_evaluable); 979775377/2024, this year (c1 pass, c3 not_evaluable); 979775377/2024, last year (c1 pass, c3 not_evaluable); 979775377/2025, this year (c1 pass, c3 not_evaluable); 979775377/2025, last year (c1 pass, c3 not_evaluable); 980015033/2021, this year (c1 pass, c3 not_evaluable); 980015033/2021, last year (c1 pass, c3 not_evaluable); 980015033/2022, this year (c1 pass, c3 not_evaluable); 980015033/2022, last year (c1 pass, c3 not_evaluable); 980015033/2023, this year (c1 pass, c3 not_evaluable); 980015033/2023, last year (c1 pass, c3 not_evaluable); 980015033/2024, this year (c1 pass, c3 not_evaluable); 980015033/2024, last year (c1 pass, c3 not_evaluable); 980015033/2025, this year (c1 pass, c3 not_evaluable); 980015033/2025, last year (c1 pass, c3 not_evaluable); 987307749/2025, this year (c1 pass, c3 not_evaluable); 987307749/2025, last year (c1 pass, c3 not_evaluable); 991051228/2023, this year (c1 pass, c3 not_evaluable); 991051228/2023, last year (c1 pass, c3 not_evaluable); 991051228/2025, this year (c1 pass, c3 not_evaluable); 991051228/2025, last year (c1 pass, c3 not_evaluable); 996941566/2023, this year (c1 pass, c3 not_evaluable); 996941566/2023, last year (c1 pass, c3 not_evaluable); 996941566/2024, this year (c1 pass, c3 not_evaluable); 996941566/2024, last year (c1 pass, c3 not_evaluable); 996941566/2025, this year (c1 pass, c3 not_evaluable); 996941566/2025, last year (c1 pass, c3 not_evaluable); 997003543/2021, this year (c1 pass, c3 not_evaluable); 997003543/2021, last year (c1 pass, c3 not_evaluable); 997003543/2022, this year (c1 pass, c3 not_evaluable); 997003543/2022, last year (c1 pass, c3 not_evaluable); 997003543/2023, this year (c1 pass, c3 not_evaluable); 997003543/2023, last year (c1 pass, c3 not_evaluable); 997003543/2024, this year (c1 pass, c3 not_evaluable); 997003543/2024, last year (c1 pass, c3 not_evaluable); 997003543/2025, this year (c1 pass, c3 not_evaluable); 997003543/2025, last year (c1 pass, c3 not_evaluable); 997746848/2021, this year (c1 pass, c3 not_evaluable); 997746848/2021, last year (c1 pass, c3 not_evaluable); 997746848/2022, this year (c1 pass, c3 not_evaluable); 997746848/2022, last year (c1 pass, c3 not_evaluable).
+- Failing in the baseline, not evaluable now (5): 874350672/2023, this year (missing total); 976570626/2022, this year (missing total); 976570626/2023, last year (missing total); 979775377/2022, last year (missing total); 979775377/2024, last year (missing total).
+- Failing now, not in the baseline's failure table (3): 987307749/2021, this year (fails c1); 987307749/2021, last year (fails c1); 996941566/2022, last year (fails c1).
+- Not evaluable now, not in the baseline's failure table (81): 816202612/2021, this year (missing total); 816202612/2021, last year (missing total); 816202612/2025, this year (missing total); 816202612/2025, last year (c1 not evaluable); 834095742/2022, this year (missing total); 834095742/2022, last year (missing total); 834095742/2025, this year (missing total); 834095742/2025, last year (c3 and c5 not evaluable); 874350672/2022, this year (missing total); 874350672/2022, last year (missing total); 874350672/2023, last year (missing total); 874350672/2025, this year (c1 not evaluable); 874350672/2025, last year (c3 and c5 not evaluable); 911586738/2025, this year (missing total); 911586738/2025, last year (missing total); 916605617/2023, this year (missing total); 916605617/2023, last year (missing total); 916605617/2024, this year (missing total); 916605617/2024, last year (c3 and c5 not evaluable); 931924672/2021, this year (missing total); 931924672/2021, last year (missing total); 931924672/2022, this year (missing total); 931924672/2022, last year (missing total); 931924672/2023, this year (missing total); 931924672/2023, last year (missing total); 931924672/2024, this year (missing total); 931924672/2024, last year (missing total); 931924672/2025, this year (missing total); 931924672/2025, last year (missing total); 942896204/2023, this year (c1 not evaluable); 942896204/2023, last year (missing total); 942896204/2025, this year (missing total); 942896204/2025, last year (missing total); 950308508/2024, this year (missing total); 950308508/2024, last year (missing total); 950308508/2025, this year (missing total); 950308508/2025, last year (missing total); 976570626/2022, last year (missing total); 976570626/2023, this year (missing total); 979775377/2022, this year (missing total); 979775377/2023, this year (missing total); 979775377/2023, last year (missing total); 979775377/2024, this year (missing total); 979775377/2025, this year (missing total); 979775377/2025, last year (missing total); 980015033/2021, this year (missing total); 980015033/2021, last year (missing total); 980015033/2022, this year (missing total); 980015033/2022, last year (missing total); 980015033/2023, this year (missing total); 980015033/2023, last year (missing total); 980015033/2024, this year (missing total); 980015033/2024, last year (missing total); 980015033/2025, this year (missing total); 980015033/2025, last year (missing total); 987307749/2025, this year (missing total); 987307749/2025, last year (missing total); 991051228/2023, this year (missing total); 991051228/2023, last year (missing total); 991051228/2025, this year (missing total); 991051228/2025, last year (c3 and c5 not evaluable); 996941566/2023, this year (missing total); 996941566/2023, last year (missing total); 996941566/2024, this year (missing total); 996941566/2024, last year (missing total); 996941566/2025, this year (missing total); 996941566/2025, last year (c3 and c5 not evaluable); 997003543/2021, this year (c3 and c5 not evaluable); 997003543/2021, last year (c3 and c5 not evaluable); 997003543/2022, this year (c3 and c5 not evaluable); 997003543/2022, last year (c3 and c5 not evaluable); 997003543/2023, this year (c3 and c5 not evaluable); 997003543/2023, last year (c3 and c5 not evaluable); 997003543/2024, this year (c3 and c5 not evaluable); 997003543/2024, last year (c3 and c5 not evaluable); 997003543/2025, this year (c3 and c5 not evaluable); 997003543/2025, last year (c3 and c5 not evaluable); 997746848/2021, this year (missing total); 997746848/2021, last year (missing total); 997746848/2022, this year (missing total); 997746848/2022, last year (missing total).
+- Passing now, and not in the baseline's failure table: 83.
 
-The baseline report does not list its non-evaluable columns, so a change in the evaluable count cannot be traced column by column; the list above is every column not evaluable now. Of those, 71 have c3 not evaluable while c5 is evaluable: sum eiendeler was read, so the figure missing is "Sum egenkapital og gjeld", the fault Story 2.3b takes up.
+Why the 86 columns not evaluable now are not (the baseline report does not list its own non-evaluable columns, so the change cannot be traced column by column):
+
+| Cause | Columns |
+|---|---|
+| no column | 0 |
+| c1 not evaluable | 3 |
+| missing total | 68 |
+| c3 and c5 not evaluable | 15 |
+
+"missing total" is c3 not evaluable while c5 is: sum eiendeler, sum egenkapital and sum gjeld were read, so the one figure missing is "Sum egenkapital og gjeld", the fault Story 2.3b takes up. "c1 not evaluable" is a missing income-statement figure; "c3 and c5 not evaluable" a missing sum eiendeler, or the total and another balance figure; "no column" a document that gave none.

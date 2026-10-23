@@ -1,7 +1,8 @@
 // `pnpm ingest:document-set` (scripts/document-set.ts): the acceptance set
 // of Story 2.1b's document run, and the committed seed/document-run.json.
 // test/db/document-set.test.ts recomputes the set against the loaded seed.
-import { readFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
@@ -10,6 +11,7 @@ import {
   REFERENCE_RUN_FILE,
   documentRunJson,
   documentRunSet,
+  main,
   referenceRunSet,
 } from '../scripts/document-set.ts';
 import { REFERENCE_DRAW_FILE, compareBytes, parseDrawn } from '../scripts/seed-format.ts';
@@ -78,5 +80,40 @@ describe('the OCR reference run (--reference, Story 2.3)', () => {
     const text = readFileSync(path.join(root, REFERENCE_RUN_FILE), 'utf8');
     expect(text).toBe(documentRunJson(referenceRunSet(drawn)));
     expect(JSON.parse(text)).toHaveLength(20);
+  });
+});
+
+describe('main: the argument routing', () => {
+  // A scratch root holding only a copy of the committed draw: --reference
+  // must not need the database or anything else.
+  const scratchRoot = (): string => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'peerless-document-set-'));
+    mkdirSync(path.join(dir, 'analysis/ocr-reference'), { recursive: true });
+    mkdirSync(path.join(dir, 'seed'), { recursive: true });
+    cpSync(path.join(root, REFERENCE_DRAW_FILE), path.join(dir, REFERENCE_DRAW_FILE));
+    return dir;
+  };
+
+  it('writes the reference run from the draw with --reference, and nothing else', async () => {
+    const dir = scratchRoot();
+    try {
+      expect(await main(dir, ['--reference'])).toBe(0);
+      const drawn = parseDrawn(JSON.parse(readFileSync(path.join(dir, REFERENCE_DRAW_FILE), 'utf8')));
+      expect(readFileSync(path.join(dir, REFERENCE_RUN_FILE), 'utf8')).toBe(documentRunJson(referenceRunSet(drawn)));
+      expect(existsSync(path.join(dir, DOCUMENT_RUN_FILE))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses an unknown argument and writes nothing', async () => {
+    const dir = scratchRoot();
+    try {
+      expect(await main(dir, ['--x'])).toBe(1);
+      expect(readdirSync(path.join(dir, 'analysis/ocr-reference'))).toEqual(['drawn.json']);
+      expect(readdirSync(path.join(dir, 'seed'))).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

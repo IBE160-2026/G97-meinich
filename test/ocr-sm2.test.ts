@@ -17,6 +17,7 @@ import {
   type TranscribedColumn,
   baselineDiff,
   checkBaselineCoverage,
+  classesByField,
   classify,
   compareReference,
   consistencyDenominators,
@@ -25,13 +26,25 @@ import {
   groupOf,
   mismatches,
   misreadsReachingEngine,
+  newResults,
   parseCorrections,
   parseStoredColumns,
   parseTranscriptions,
   phantomsReachingEngine,
+  totalReadIn,
+  totalShownMissing,
+  totalShownRead,
   transcriptionsBefore,
 } from '../scripts/ocr-sm2-compare.ts';
-import { REPORT_FILE, classRow, readInputs, renderReport } from '../scripts/ocr-sm2.ts';
+import {
+  REPORT_FILE,
+  RUN_COUNTS_BEFORE_FILE,
+  classRow,
+  parseRunCounts,
+  readInputs,
+  renderBeforeAfter,
+  renderReport,
+} from '../scripts/ocr-sm2.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -429,5 +442,72 @@ describe('the baseline, column by column', () => {
     const inputs = readInputs(root);
     const short = { ...inputs, consistency: { ...inputs.consistency, filings: inputs.consistency.filings.slice(1) } };
     expect(() => renderReport(short, '2026-10-23')).toThrow(/holds 88 filings; the baseline has 89/);
+  });
+});
+
+describe('before and after Story 2.3b', () => {
+  const drawn = [{ orgnr: '921716257', year: 2021 }];
+  const transcribed = [
+    truth('921716257', 2021, 'current', { sum_eiendeler: 100n, sum_egenkapital_gjeld: 100n, bankinnskudd: 7n }),
+    truth('921716257', 2021, 'prior', { sum_eiendeler: 90n, sum_egenkapital_gjeld: 90n }),
+  ];
+
+  it('lists only the errors reaching the engine that are new after', () => {
+    // Before: the total not read. After: read, and bankinnskudd misread in
+    // the same reconciled column: one new misread, listed.
+    const beforeRun = compareReference(drawn, transcribed, [
+      read('921716257', 2021, 'current', { sum_eiendeler: 10000n, bankinnskudd: 700n }),
+      read('921716257', 2021, 'prior', { sum_eiendeler: 9000n, sum_egenkapital_gjeld: 9000n }),
+    ]).results;
+    const afterRun = compareReference(drawn, transcribed, [
+      read('921716257', 2021, 'current', { sum_eiendeler: 10000n, sum_egenkapital_gjeld: 10000n, bankinnskudd: 7000n }),
+      read('921716257', 2021, 'prior', { sum_eiendeler: 9000n, sum_egenkapital_gjeld: 9000n }),
+    ]).results;
+    const fresh = newResults(misreadsReachingEngine(beforeRun), misreadsReachingEngine(afterRun));
+    expect(fresh.map((r) => `${r.role}/${r.field}/${r.class}`)).toEqual(['current/bankinnskudd/misread']);
+    // A misread present before and after is not new.
+    expect(newResults(misreadsReachingEngine(afterRun), misreadsReachingEngine(afterRun))).toEqual([]);
+    const byField = new Map(classesByField(afterRun).map(({ field, counts }) => [field, counts]));
+    expect(byField.get('sum_egenkapital_gjeld')).toEqual({ correct: 2, 'not read': 0, misread: 0, phantom: 0 });
+    expect(new Map(classesByField(beforeRun).map(({ field, counts }) => [field, counts])).get('sum_egenkapital_gjeld')).toEqual({
+      correct: 1,
+      'not read': 1,
+      misread: 0,
+      phantom: 0,
+    });
+  });
+
+  it('counts the total read per role, and shows it read or missing from the checks alone', () => {
+    const columns = [
+      read('921716257', 2021, 'current', { sum_egenkapital_gjeld: 1n }),
+      read('921716257', 2022, 'current', {}),
+      read('921716257', 2022, 'prior', { sum_egenkapital_gjeld: 1n }),
+    ];
+    expect(totalReadIn(columns, 'current')).toEqual({ read: 1, columns: 2 });
+    expect(totalReadIn(columns, 'prior')).toEqual({ read: 1, columns: 1 });
+    const checked = (c3: 'pass' | 'not_evaluable', c4: 'pass' | 'not_evaluable', c5: 'pass' | 'not_evaluable'): CheckedColumn => ({
+      c1: 'pass',
+      c2: 'pass',
+      c3,
+      c4,
+      c5,
+      status: null,
+    });
+    expect(totalShownRead(checked('pass', 'not_evaluable', 'pass'))).toBe(true);
+    expect(totalShownRead(checked('not_evaluable', 'pass', 'not_evaluable'))).toBe(true);
+    expect(totalShownRead(checked('not_evaluable', 'not_evaluable', 'pass'))).toBe(false);
+    expect(totalShownMissing(checked('not_evaluable', 'not_evaluable', 'pass'))).toBe(true);
+    expect(totalShownMissing(checked('not_evaluable', 'not_evaluable', 'not_evaluable'))).toBe(false);
+  });
+
+  it('reads the 2.1b counts, and says when the after counts do not exist yet', () => {
+    const counts = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_FILE), 'utf8')), RUN_COUNTS_BEFORE_FILE);
+    expect(counts.currentColumns - counts.currentTotalRead).toBe(836);
+    expect(() => parseRunCounts({ columns: {} }, 'x.json')).toThrow(/x.json/);
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter({ ...inputs, before23b: { ...inputs.before23b, runAfter: null } }).join('\n');
+    // formatPercent puts a no-break space before the percent sign.
+    expect(section).toMatch(/\| Story 2\.1b run, local data \(this year\) \| 1946 \| 1110 of 1946 \(57,0\s%\) \| not yet counted \|/);
+    expect(section).toContain('local data');
   });
 });

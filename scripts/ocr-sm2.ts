@@ -18,7 +18,7 @@
 // comparison itself is in scripts/ocr-sm2-compare.ts.
 //
 // Run: node scripts/ocr-sm2.ts   (from the repository root)
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Decimal } from '../src/engine/decimal.ts';
@@ -42,6 +42,7 @@ import {
   type StoredDocument,
   baselineDiff,
   checkBaselineCoverage,
+  classesByField,
   compareReference,
   consistencyDenominators,
   countClasses,
@@ -49,11 +50,15 @@ import {
   groupOf,
   mismatches,
   misreadsReachingEngine,
+  newResults,
   parseCorrections,
   phantomsReachingEngine,
   parseStoredColumns,
   parseStoredDocuments,
   parseTranscriptions,
+  totalReadIn,
+  totalShownMissing,
+  totalShownRead,
   transcriptionsBefore,
 } from './ocr-sm2-compare.ts';
 import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, parseDrawn } from './seed-format.ts';
@@ -182,6 +187,63 @@ function resultRow(r: FieldResult): string {
   return `| ${r.orgnr} | ${r.filingYear} | ${ROLE_NAME[r.role]} | ${r.field} | ${kroner(r.expectedKr)} | ${ore(r.readOre)} | ${r.class} | ${r.columnStatus ?? 'no column'} |`;
 }
 
+// --- Before and after Story 2.3b -----------------------------------------------------
+
+// Story 2.3's step-1 output and consistency file, copied byte for byte before
+// any re-read (Story 2.3b), and the 2.1b run's counts before and after it.
+export const BEFORE_2_3B_DIR = 'analysis/output/ocr-sm2-before-2.3b';
+export const RUN_COUNTS_BEFORE_FILE = 'analysis/output/document-run-counts-before-2.3b.json';
+export const RUN_COUNTS_AFTER_FILE = 'analysis/output/document-run-counts-after-2.3b.json';
+
+/** What the report reads from a document-run-counts JSON (scripts/document-run-counts.ts). */
+export interface RunCounts {
+  documents: number;
+  currentColumns: number;
+  currentTotalRead: number;
+  priorColumns: number;
+  priorTotalRead: number;
+  currentReconciled: number;
+  readerCommits: Record<string, number>;
+}
+
+function count(value: unknown, file: string, where: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw new Error(`${file}: ${where} must be a count`);
+  return value;
+}
+
+export function parseRunCounts(json: unknown, file: string): RunCounts {
+  const at = (value: unknown, key: string, where: string): unknown => {
+    if (!isRecord(value)) throw new Error(`${file}: ${where} must be an object`);
+    return value[key];
+  };
+  const columns = at(json, 'columns', '.');
+  const role = (name: 'current' | 'prior') => at(columns, name, 'columns');
+  const total = (name: 'current' | 'prior') =>
+    count(at(at(role(name), 'non_null', `columns.${name}`), 'sum_egenkapital_gjeld', `columns.${name}.non_null`), file, `columns.${name}.non_null.sum_egenkapital_gjeld`);
+  const documents = at(json, 'documents', '.');
+  const commits = at(documents, 'reader_commit', 'documents');
+  if (!isRecord(commits)) throw new Error(`${file}: documents.reader_commit must be an object`);
+  return {
+    documents: count(at(documents, 'total', 'documents'), file, 'documents.total'),
+    currentColumns: count(at(role('current'), 'columns', 'columns.current'), file, 'columns.current.columns'),
+    currentTotalRead: total('current'),
+    priorColumns: count(at(role('prior'), 'columns', 'columns.prior'), file, 'columns.prior.columns'),
+    priorTotalRead: total('prior'),
+    currentReconciled: count(at(at(role('current'), 'status', 'columns.current'), 'reconciled', 'columns.current.status') ?? 0, file, 'columns.current.status.reconciled'),
+    readerCommits: Object.fromEntries(Object.entries(commits).map(([k, v]) => [k, count(v, file, `documents.reader_commit.${k}`)])),
+  };
+}
+
+export interface StoryBInputs {
+  /** The corrected transcriptions against Story 2.3's stored columns. */
+  comparison: Comparison;
+  stored: readonly StoredColumn[];
+  consistency: Consistency;
+  runBefore: RunCounts;
+  /** Null until the re-read of the 2.1b run has been counted. */
+  runAfter: RunCounts | null;
+}
+
 export interface ReportInputs {
   drawn: readonly DrawnFiling[];
   comparison: Comparison;
@@ -191,6 +253,114 @@ export interface ReportInputs {
   documents: readonly StoredDocument[];
   stored: readonly StoredColumn[];
   consistency: Consistency;
+  /** Story 2.3's output, for the section "Before and after Story 2.3b". */
+  before23b: StoryBInputs;
+}
+
+const ratio = (part: number, whole: number): string => `${part} of ${whole} (${share(part, whole)})`;
+
+/** The section "Before and after Story 2.3b" (the bold balance total). */
+export function renderBeforeAfter(inputs: ReportInputs): string[] {
+  const { comparison, stored, consistency, before23b: b } = inputs;
+  const before = b.comparison.results;
+  const after = comparison.results;
+  const lines: string[] = [];
+  const push = (...more: string[]) => lines.push(...more);
+  const refBefore = { current: totalReadIn(b.stored, 'current'), prior: totalReadIn(b.stored, 'prior') };
+  const refAfter = { current: totalReadIn(stored, 'current'), prior: totalReadIn(stored, 'prior') };
+  const spikeColumns = (c: Consistency) => c.filings.flatMap((f) => f.columns);
+  const spikeRead = (c: Consistency) => spikeColumns(c).filter(totalShownRead).length;
+  const spikeMissing = (c: Consistency) => spikeColumns(c).filter(totalShownMissing).length;
+  const spikeAll = (c: Consistency) => c.filings.length * 2;
+  const runAfter = b.runAfter;
+  const notYet = 'not yet counted';
+
+  push(
+    '## Before and after Story 2.3b',
+    '',
+    'Story 2.3b reads the bold "SUM EGENKAPITAL OG GJELD" row, which Tesseract reads as "50M EGENKAPITAL OG GJELD", with a second label fold (`layout.fold_mixed`), and re-reads every stored document (`pnpm ingest --reread`). ' +
+      `"Before" is Story 2.3's output, copied byte for byte into \`${BEFORE_2_3B_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_FILE}\`; "after" is the committed seed, \`${CONSISTENCY_FILE}\` and \`${RUN_COUNTS_AFTER_FILE}\`. ` +
+      'Both are compared with the corrected transcriptions.',
+    '',
+    '### "Sum egenkapital og gjeld" read',
+    '',
+    '| Data set | Columns | Before | After |',
+    '|---|---|---|---|',
+    `| Reference set, every stored document (this year) | ${refAfter.current.columns} | ${ratio(refBefore.current.read, refBefore.current.columns)} | ${ratio(refAfter.current.read, refAfter.current.columns)} |`,
+    `| Reference set, every stored document (last year) | ${refAfter.prior.columns} | ${ratio(refBefore.prior.read, refBefore.prior.columns)} | ${ratio(refAfter.prior.read, refAfter.prior.columns)} |`,
+    `| The spike's ${consistency.filings.length} filings, shown read (c3 or c4 evaluable) | ${spikeAll(consistency)} | ${ratio(spikeRead(b.consistency), spikeAll(b.consistency))} | ${ratio(spikeRead(consistency), spikeAll(consistency))} |`,
+    `| The spike's filings, shown missing (c3 not evaluable, c5 evaluable) | ${spikeAll(consistency)} | ${spikeMissing(b.consistency)} | ${spikeMissing(consistency)} |`,
+    `| Story 2.1b run, local data (this year) | ${b.runBefore.currentColumns} | ${ratio(b.runBefore.currentTotalRead, b.runBefore.currentColumns)} | ${runAfter === null ? notYet : ratio(runAfter.currentTotalRead, runAfter.currentColumns)} |`,
+    `| Story 2.1b run, local data (last year) | ${b.runBefore.priorColumns} | ${ratio(b.runBefore.priorTotalRead, b.runBefore.priorColumns)} | ${runAfter === null ? notYet : ratio(runAfter.priorTotalRead, runAfter.priorColumns)} |`,
+    '',
+    `- **The Story 2.1b run is local data.** Its ${b.runBefore.documents} documents are in the local database and a gitignored dump, not in the seed, until Story 5.4's allow-list; its counts come from \`pnpm analysis:document-run\` and cannot be reproduced from a fresh clone. ` +
+      `Reconciled current columns: ${b.runBefore.currentReconciled} before, ${runAfter === null ? notYet : runAfter.currentReconciled} after. Reader versions before: ${Object.entries(b.runBefore.readerCommits).map(([k, v]) => `${k.slice(0, 7)} ${v}`).join(', ')}` +
+      `${runAfter === null ? '' : `; after: ${Object.entries(runAfter.readerCommits).map(([k, v]) => `${k.slice(0, 7)} ${v}`).join(', ')}`}.`,
+    '- **The spike\'s filings hold no figures here**, only check results, so "shown read" is a lower bound: a total read beside a missing sum eiendeler and a missing sum egenkapital or sum gjeld shows in neither c3 nor c4.',
+    '',
+  );
+
+  const spikeBefore = consistencyDenominators(b.consistency.filings.length, spikeColumns(b.consistency));
+  const spikeNow = consistencyDenominators(consistency.filings.length, spikeColumns(consistency));
+  push(
+    '### The spike\'s filings: evaluable and passing',
+    '',
+    '| | Columns | Evaluable | Passing | Passing / evaluable | Reconciled (c1–c5) |',
+    '|---|---|---|---|---|---|',
+    `| Before | ${spikeBefore.all} | ${spikeBefore.evaluable} | ${spikeBefore.pass} | ${share(spikeBefore.pass, spikeBefore.evaluable)} | ${spikeBefore.reconciled} |`,
+    `| After | ${spikeNow.all} | ${spikeNow.evaluable} | ${spikeNow.pass} | ${share(spikeNow.pass, spikeNow.evaluable)} | ${spikeNow.reconciled} |`,
+    '',
+  );
+
+  push(
+    '### The reference set, every class',
+    '',
+    CLASS_TABLE_HEADER,
+    '|---|---|---|---|---|---|---|---|',
+    classRow('Before', before),
+    classRow('After', after),
+    '',
+    'Per field, before → after:',
+    '',
+    '| Field | correct | not read | misread | phantom |',
+    '|---|---|---|---|---|',
+    ...classesByField(before).map(({ field, counts }, i) => {
+      const now = classesByField(after)[i]?.counts ?? counts;
+      const cell = (name: keyof typeof counts) => (counts[name] === now[name] ? `${now[name]}` : `${counts[name]} → ${now[name]}`);
+      return `| ${field} | ${cell('correct')} | ${cell('not read')} | ${cell('misread')} | ${cell('phantom')} |`;
+    }),
+    '',
+  );
+
+  const misreadsBefore = misreadsReachingEngine(before);
+  const misreadsAfter = misreadsReachingEngine(after);
+  const phantomsBefore = phantomsReachingEngine(before);
+  const phantomsAfter = phantomsReachingEngine(after);
+  const fresh = [...newResults(misreadsBefore, misreadsAfter), ...newResults(phantomsBefore, phantomsAfter)];
+  push(
+    '### Errors that reach the engine, before and after',
+    '',
+    'More figures read must not be paid for with new errors. Misread and phantom figures in reconciled columns of the drawn filings:',
+    '',
+    '| | Before | After |',
+    '|---|---|---|',
+    `| Misread, reaching the engine | ${misreadsBefore.length} | ${misreadsAfter.length} |`,
+    `| Phantom, reaching the engine | ${phantomsBefore.length} | ${phantomsAfter.length} |`,
+    '',
+    'New ones (after, not before):',
+    '',
+  );
+  if (fresh.length === 0) {
+    push('None.', '');
+  } else {
+    push(
+      '| Orgnr | Year | Column | Field | Expected | Read | Class | Column status |',
+      '|---|---|---|---|---|---|---|---|',
+      ...fresh.map(resultRow),
+      '',
+    );
+  }
+  return lines;
 }
 
 /** The report, with `generated` (YYYY-MM-DD) as its only varying part. */
@@ -430,6 +600,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
       '"c1 not evaluable" is a missing income-statement figure; "c3 and c5 not evaluable" a missing sum eiendeler, or the total and another balance figure; "no column" a document that gave none.',
     '',
   );
+  push(...renderBeforeAfter(inputs));
   return lines.join('\n');
 }
 
@@ -441,6 +612,8 @@ export function readInputs(root: string): ReportInputs {
   const stored = parseStoredColumns(read(`${SEED_DIR}/document_column.csv`));
   const transcribed = parseTranscriptions(read(TRANSCRIPTIONS_FILE));
   const corrections = parseCorrections(read(CORRECTIONS_FILE));
+  const beforeStored = parseStoredColumns(read(`${BEFORE_2_3B_DIR}/document_column.csv`));
+  const afterFile = path.join(root, ...RUN_COUNTS_AFTER_FILE.split('/'));
   return {
     drawn,
     comparison: compareReference(drawn, transcribed, stored),
@@ -449,6 +622,15 @@ export function readInputs(root: string): ReportInputs {
     documents: parseStoredDocuments(read(`${SEED_DIR}/document.csv`)),
     stored,
     consistency: parseConsistency(JSON.parse(read(CONSISTENCY_FILE))),
+    before23b: {
+      comparison: compareReference(drawn, transcribed, beforeStored),
+      stored: beforeStored,
+      consistency: parseConsistency(JSON.parse(read(`${BEFORE_2_3B_DIR}/ocr-consistency-2026.json`))),
+      runBefore: parseRunCounts(JSON.parse(read(RUN_COUNTS_BEFORE_FILE)), RUN_COUNTS_BEFORE_FILE),
+      // Written by `pnpm analysis:document-run after-2.3b` once the 2.1b run
+      // is re-read; until then the report says "not yet counted".
+      runAfter: existsSync(afterFile) ? parseRunCounts(JSON.parse(read(RUN_COUNTS_AFTER_FILE)), RUN_COUNTS_AFTER_FILE) : null,
+    },
   };
 }
 

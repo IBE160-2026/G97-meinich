@@ -254,3 +254,76 @@ Why the 86 columns not evaluable now are not (the baseline report does not list 
 | c3 and c5 not evaluable | 15 |
 
 "missing total" is c3 not evaluable while c5 is: sum eiendeler, sum egenkapital and sum gjeld were read, so the one figure missing is "Sum egenkapital og gjeld", the fault Story 2.3b takes up. "c1 not evaluable" is a missing income-statement figure; "c3 and c5 not evaluable" a missing sum eiendeler, or the total and another balance figure; "no column" a document that gave none.
+
+## Before and after Story 2.3b
+
+Story 2.3b reads the bold "SUM EGENKAPITAL OG GJELD" row, which Tesseract reads as "50M EGENKAPITAL OG GJELD", with a second label fold (`layout.fold_mixed`), and re-reads every stored document (`pnpm ingest --reread`). "Before" is Story 2.3's output, copied byte for byte into `analysis/output/ocr-sm2-before-2.3b/` before any re-read, and `analysis/output/document-run-counts-before-2.3b.json`; "after" is the committed seed, `analysis/output/ocr-consistency-2026.json` and `analysis/output/document-run-counts-after-2.3b.json`. Both are compared with the corrected transcriptions.
+
+### "Sum egenkapital og gjeld" read
+
+| Data set | Columns | Before | After |
+|---|---|---|---|
+| Reference set, every stored document (this year) | 97 | 49 of 97 (50,5 %) | 49 of 97 (50,5 %) |
+| Reference set, every stored document (last year) | 97 | 47 of 97 (48,5 %) | 47 of 97 (48,5 %) |
+| The spike's 89 filings, shown read (c3 or c4 evaluable) | 178 | 102 of 178 (57,3 %) | 102 of 178 (57,3 %) |
+| The spike's filings, shown missing (c3 not evaluable, c5 evaluable) | 178 | 71 | 71 |
+| Story 2.1b run, local data (this year) | 1946 | 1110 of 1946 (57,0 %) | not yet counted |
+| Story 2.1b run, local data (last year) | 1946 | 1094 of 1946 (56,2 %) | not yet counted |
+
+- **The Story 2.1b run is local data.** Its 1947 documents are in the local database and a gitignored dump, not in the seed, until Story 5.4's allow-list; its counts come from `pnpm analysis:document-run` and cannot be reproduced from a fresh clone. Reconciled current columns: 1801 before, not yet counted after. Reader versions before: e09a413 1947.
+- **The spike's filings hold no figures here**, only check results, so "shown read" is a lower bound: a total read beside a missing sum eiendeler and a missing sum egenkapital or sum gjeld shows in neither c3 nor c4.
+
+### The spike's filings: evaluable and passing
+
+| | Columns | Evaluable | Passing | Passing / evaluable | Reconciled (c1–c5) |
+|---|---|---|---|---|---|
+| Before | 178 | 92 | 89 | 96,7 % | 157 |
+| After | 178 | 92 | 89 | 96,7 % | 157 |
+
+### The reference set, every class
+
+| Group | correct | not read (transcribed 0) | not read (transcribed non-zero) | misread | phantom | Counted | Recovered exactly |
+|---|---|---|---|---|---|---|---|
+| Before | 645 | 42 | 79 | 3 | 0 | 769 | 83,9 % |
+| After | 645 | 42 | 79 | 3 | 0 | 769 | 83,9 % |
+
+Per field, before → after:
+
+| Field | correct | not read | misread | phantom |
+|---|---|---|---|---|
+| salgsinntekt | 25 | 9 | 1 | 0 |
+| sum_driftsinntekter | 35 | 2 | 0 | 0 |
+| varekostnad | 28 | 2 | 0 | 0 |
+| lonnskostnad | 31 | 5 | 0 | 0 |
+| avskrivninger | 10 | 17 | 0 | 0 |
+| nedskrivninger | 4 | 0 | 0 | 0 |
+| annen_driftskostnad | 33 | 5 | 0 | 0 |
+| sum_driftskostnad | 36 | 1 | 1 | 0 |
+| driftsresultat | 36 | 2 | 0 | 0 |
+| netto_finans | 36 | 2 | 0 | 0 |
+| ordinaert_resultat_foer_skattekostnad | 37 | 3 | 0 | 0 |
+| aarsresultat | 33 | 7 | 0 | 0 |
+| sum_immaterielle_eiendeler | 13 | 10 | 0 | 0 |
+| sum_varige_driftsmidler | 24 | 4 | 0 | 0 |
+| varer | 9 | 2 | 0 | 0 |
+| kundefordringer | 29 | 5 | 0 | 0 |
+| bankinnskudd | 36 | 2 | 0 | 0 |
+| sum_eiendeler | 37 | 3 | 0 | 0 |
+| sum_egenkapital | 36 | 4 | 0 | 0 |
+| leverandorgjeld | 30 | 6 | 0 | 0 |
+| sum_kortsiktig_gjeld | 36 | 2 | 0 | 0 |
+| sum_gjeld | 36 | 4 | 0 | 0 |
+| sum_egenkapital_gjeld | 15 | 24 | 1 | 0 |
+
+### Errors that reach the engine, before and after
+
+More figures read must not be paid for with new errors. Misread and phantom figures in reconciled columns of the drawn filings:
+
+| | Before | After |
+|---|---|---|
+| Misread, reaching the engine | 0 | 0 |
+| Phantom, reaching the engine | 0 | 0 |
+
+New ones (after, not before):
+
+None.

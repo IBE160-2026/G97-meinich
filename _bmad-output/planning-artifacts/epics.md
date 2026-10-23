@@ -1380,6 +1380,31 @@ So that the claim about which document figures Peerless can offer rests on a mea
 **When** it finishes
 **Then** the report is written to `analysis/output/` with its generation date and the script that produced it, and makes no claim beyond what it measured (no numeric target is committed, NFR32)
 
+### Story 2.3b: Read the balance total ("SUM EGENKAPITAL OG GJELD")
+
+As a sensor assessing the project,
+I want the bold balance total read and every stored document re-read by the fixed reader, with the result measured before and after,
+So that more figures read is shown not to have been paid for with new errors.
+
+Split from Story 2.3 (Meinich, 2026-10-23; issue #38). Tesseract reads the bold "SUM" as "50M", and `layout.fold` drops digits, so `sum_egenkapital_gjeld` was NULL in 836 of 1 946 current columns of the 2.1b run.
+
+**Implements:** FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** issue #38, branch `story/2.3b-read-the-balance-total`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** every stored document re-read
+**When** the report is generated
+**Then** it gives, before and after: the `sum_egenkapital_gjeld` hit rate per data set (the reference set, the spike's 89 filings, and the 2.1b run, marked as local data that cannot be reproduced until Story 5.4); every class count on the reference set; and the misreads and the phantoms in reconciled columns (reaching the engine), with every new one listed
+**And** more fields read are not paid for with new errors
+
+**Given** the re-read is complete
+**When** the local database is queried
+**Then** every document has a 40-hex `reader_commit`, and each one that differs from the current version is listed as "not replaced" with its reason
+
+**Given** a fresh clone with the seed loaded
+**When** `pnpm analysis:sm2` runs
+**Then** it rewrites `ocr-sm2.md` byte for byte, apart from the generation date
+
 ### Story 2.4: Withdrawn companies disappear
 
 As the owner of Peerless,

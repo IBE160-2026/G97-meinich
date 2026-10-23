@@ -155,6 +155,56 @@ def test_digits_unused_outside_checks() -> None:
     assert checks_of(column) == ("pass", "pass", "pass", "pass")
 
 
+# A balance whose total is 14 066 151: sum egenkapital 7 764 189 plus sum
+# gjeld 6 301 962.
+BALANCE_14_ROWS = replace_row(
+    replace_row(
+        replace_row(
+            replace_row(BASE_ROWS, "SUM EIENDELER", current="14 066 151"),
+            "Sum gjeld",
+            current="6 301 962",
+        ),
+        "SUM EGENKAPITAL OG GJELD",
+        current="14 066 151",
+    ),
+    "Sum egenkapital",
+    current="7 764 189",
+)
+
+
+def test_bold_one_recovered_only_through_gate() -> None:
+    # Story 2.3b: a bold "1" read as "l" ("l4 066 151") makes the plain figure
+    # absent; "l" gets no rule of its own. The figure enters only through the
+    # digits-only gate.
+    plain = replace_row(BALANCE_14_ROWS, "SUM EGENKAPITAL OG GJELD", current="l4 066 151")
+    digits = digits_of(BALANCE_14_ROWS)  # the digits-only pass reads 14066151
+
+    # Confirmed: C3 passes against the plain sum eiendeler (and C4 against
+    # the plain sum egenkapital and sum gjeld). Kept, from the digits pass.
+    column = current_of(read(plain, digits))
+    assert column.figures["sum_egenkapital_gjeld"] == 14_066_151
+    assert column.digits_pass_fields == ("sum_egenkapital_gjeld",)
+    assert (column.c3, column.c4) == ("pass", "pass")
+
+    # Unconfirmed: sum eiendeler absent (and sum gjeld, so C4 cannot confirm
+    # it either): no passing check has a plain operand beside it. Absent.
+    unread = replace_row(replace_row(plain, "SUM EIENDELER", current="l4 066 151"), "Sum gjeld", current="6 3o1 962")
+    no_digits = replace_row(replace_row(digits, "SUM EIENDELER", current=""), "Sum gjeld", current="")
+    column = current_of(read(unread, no_digits))
+    assert column.figures["sum_egenkapital_gjeld"] is None
+    assert column.figures["sum_eiendeler"] is None
+    assert column.digits_pass_fields == ()
+    assert (column.c3, column.c4) == ("not_evaluable", "not_evaluable")
+
+    # A bold sum line in no check (sum kortsiktig gjeld): never confirmed,
+    # absent, even with every check passing.
+    rows = [*BALANCE_14_ROWS, ("Sum kortsiktig gjeld", "l8 676 023", "18 009 823")]
+    column = current_of(read(rows, digits_of([*BALANCE_14_ROWS, ("Sum kortsiktig gjeld", "18 676 023", "18 009 823")])))
+    assert column.figures["sum_kortsiktig_gjeld"] is None
+    assert column.digits_pass_fields == ()
+    assert checks_of(column) == ("pass", "pass", "pass", "pass")
+
+
 @pytest.mark.parametrize(
     ("unit_line", "unit_text"),
     [

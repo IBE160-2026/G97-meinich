@@ -213,3 +213,56 @@ def test_notes_page_after_the_balance_sheet_is_not_read() -> None:
     assert (page.kind, page.edges, page.rows) == ("other", None, [])
     assert "varer" not in layout.extract([previous, page])
 
+
+
+# --- The bold total row (Story 2.3b) -------------------------------------------------
+
+
+def test_bold_sum_misread_matches_total() -> None:
+    # Tesseract reads the bold "SUM" as "50M" (seven of seven documents probed
+    # in Story 2.3). `fold` drops the digits and matches nothing; `fold_mixed`
+    # reads them as letters inside the mixed word, and the length rule admits
+    # "somegenkapitaloggjeld" for "sumegenkapitaloggjeld".
+    label = "50M EGENKAPITAL OG GJELD"
+    assert layout.fold(label) == "megenkapitaloggjeld"
+    assert layout.fold_mixed(label) == "somegenkapitaloggjeld"
+    found = extract_one_page([("SUM EIENDELER", "33 855 462", "30 112 004"), (label, "33 855 462", "30 112 004")])
+    assert found["sum_egenkapital_gjeld"] == (33_855_462, 30_112_004)
+    assert found["sum_eiendeler"] == (33_855_462, 30_112_004)
+
+
+def test_digit_dropping_fold_still_matches() -> None:
+    # The old fuzzy case: `fold` gives "soomegenkapitaloggjeld", within one
+    # character. `fold_mixed` gives "ssoom…", two too long, so only `fold`
+    # matches it: the new fold is tried besides the old, never instead.
+    label = "S5O0M EGENKAPITAL OG GJELD"
+    assert layout.similar(layout.fold(label), "sumegenkapitaloggjeld")
+    assert not layout.similar(layout.fold_mixed(label), "sumegenkapitaloggjeld")
+    assert extract_one_page([(label, "31 073 544", "35 615 025")])["sum_egenkapital_gjeld"] == (31_073_544, 35_615_025)
+    assert layout.ends_balance(label)
+
+
+def test_bold_sum_closes_balance() -> None:
+    # The "50M" row ends the balance sheet: a following page with no year
+    # header of its own is the company's notes, kind "other" with no rows.
+    first = words(page_lines([("50M EGENKAPITAL OG GJELD", "31 073 544", "35 615 025")], heading="BALANSE"))
+    notes_lines = page_lines(
+        [("Varer", "1 000", "2 000")], heading="Klassifisering av balanseposter", years=None, unit_line=None
+    )
+    notes = words(notes_lines)
+    previous = layout.parse_page(first, first, "plain")
+    assert previous.balance_closed
+    page = layout.parse_page(notes, notes, "plain", previous)
+    assert (page.kind, page.edges, page.rows) == ("other", None, [])
+    assert "varer" not in layout.extract([previous, page])
+
+
+def test_note_number_not_folded_into_label() -> None:
+    # A word of digits only (a note number) is still dropped by `fold_mixed`;
+    # only a word that also holds a letter has its digits read as letters.
+    assert layout.fold_mixed("Sum eiendeler 5") == "sumeiendeler"
+    assert extract_one_page([("Sum eiendeler 5", "31 073 544", "35 615 025")])["sum_eiendeler"] == (31_073_544, 35_615_025)
+    # Bold and with a two-digit note: if the note's "15" were read as "ls",
+    # the label would be two characters too long to match.
+    assert layout.fold_mixed("50M EIENDELER 15") == "someiendeler"
+    assert extract_one_page([("50M EIENDELER 15", "31 073 544", "35 615 025")])["sum_eiendeler"] == (31_073_544, 35_615_025)

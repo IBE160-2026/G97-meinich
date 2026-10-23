@@ -48,7 +48,9 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 - `draw.py`: the draw.
 - `drawn.json`: the result, committed after the draw.
 - `transcriptions.csv`: the template, then the transcriptions.
-- `blind-check.csv`: the blind check of 20 cells against the PDFs (below).
+- `blind-check.csv`: the blind check of 20 cells against the PDFs (below), with the transcriber's values.
+- `blind-check-draw.ts`: the selection of those 20 cells (seed 20261023), reproduced from the transcriptions before the corrections (`node analysis/ocr-reference/blind-check-draw.ts`; `test/blind-check-draw.test.ts`).
+- `blind-check-key.csv`: written by `blind-check-draw.ts`; which of the 20 cells were the suspected ones.
 
 ## Transcription check
 
@@ -60,8 +62,10 @@ The first SM-2 report (Story 2.3) found six misread figures in reconciled column
 
 **Result:**
 - **The 14 control cells:** all agree with both the transcription and OCR.
-- **The six suspected cells:** all six were transcription errors.
-- **Cell 6:** the first value entered (45 622 466) was read from the 2021 column; re-read from the 2020 column, it is 37 849 846. This is noted in the file.
+- **The six suspected cells:** all six were transcription errors. Five of them were found blind.
+- **Cell 6 was not blind.** The first value entered (45 622 466) was read from the 2021 column. It was re-read only after the build session said that value equalled the other column's figure, so the correction to 37 849 846 (the 2020 column) was made on prompting, not blind. This is noted in the file.
+- **The selection.** Only cells where OCR and the transcription disagreed in reconciled columns were suspected, so every correction moved the transcription towards OCR; the three misread figures in columns that did not reconcile, and the not-read fields, were not re-checked.
+- **After the corrections**, the within-document checks c1–c4 (5 kr) were run again on every transcribed row by the review session: all 40 rows pass.
 
 `scripts/ocr-sm2.ts` reads the table below to report the headline before and after the corrections, so keep its columns as they are. `Column` is `current` or `prior`. The figures are whole kroner, as in `transcriptions.csv`.
 

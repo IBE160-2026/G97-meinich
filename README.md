@@ -82,7 +82,7 @@ pnpm ingest --documents seed/document-run.json   # reads only the filed document
 
 ```sh
 pnpm ingest:document-set --reference   # writes analysis/ocr-reference/document-run.json from drawn.json (no database)
-pnpm ingest --documents analysis/ocr-reference/document-run.json   # its 20 companies, every 2021–2025 year (about 90 documents)
+pnpm ingest --documents analysis/ocr-reference/document-run.json   # its 20 companies, every 2021–2025 year (97 documents)
 pnpm seed:export                       # commits their document rows; the reference orgnrs are on the allow-list
 ```
 
@@ -117,13 +117,19 @@ pnpm seed             # check everything, then truncate and replace every regist
 **Document rows of the acceptance run are not in the seed.** `pnpm seed` truncates every `register` table and `pnpm db:reset` recreates the database, so both delete the rows a `pnpm ingest --documents` run wrote to `register.document` and `register.document_column`. The committed seed holds only the OCR reference set's documents (Story 2.3); the acceptance run's 407 companies (`seed/document-run.json`) are not on the allow-list, and wait for Story 5.4, which lists the demo companies and their peers. Until then, keep that run's rows in a local, gitignored dump (data only) and restore it after a reset or a seed load:
 
 ```sh
-# after a documents run: dump the two tables (data only) under .local/ (gitignored)
-docker exec supabase_db_peerless pg_dump -U postgres --data-only -t register.document -t register.document_column postgres > .local/document-run-<commit>.sql
-# after pnpm seed or pnpm db:reset (+ pnpm db:roles, pnpm seed): restore them
-docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 < .local/document-run-<commit>.sql
+# after a documents run: dump the rows of every orgnr NOT on seed/allow-list.json (the seed holds the listed ones) under .local/ (gitignored)
+LISTED=$(node -e 'const l = JSON.parse(require("fs").readFileSync("seed/allow-list.json", "utf8")); console.log(l.map((e) => `'"'"'${e.orgnr}'"'"'`).join(",") || "'"''"'")')
+mkdir -p .local/document-run-<commit>
+for t in document document_column; do
+  docker exec supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "\copy (select * from register.$t where orgnr not in ($LISTED)) to stdout with (format csv, header)" > .local/document-run-<commit>/$t.csv
+done
+# after pnpm seed or pnpm db:reset (+ pnpm db:roles, pnpm seed): restore them, documents before their columns
+for t in document document_column; do
+  docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "\copy register.$t from stdin with (format csv, header)" < .local/document-run-<commit>/$t.csv
+done
 ```
 
-`supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first. The dump must hold only rows the seed does not: the pg_dump above copies every row of the two tables, so a dump taken after `pnpm seed` also holds the reference set's rows and fails on their keys when restored over the seed. The current dump, `.local/document-run-bd2ce3e.sql`, was taken before the reference rows were seeded, and its 407 orgnrs and the 20 reference orgnrs are disjoint, so it restores onto this seed.
+`supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first. The dump holds only rows the seed does not: the allow-listed orgnrs' rows are in the seed already, and restoring them again would fail on their keys. The existing dump, `.local/document-run-bd2ce3e.sql` (a pg_dump of both tables, taken before the reference rows were seeded), holds only the acceptance run's 407 orgnrs, which are disjoint from the 20 reference orgnrs, so it still restores onto this seed with `docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 < .local/document-run-bd2ce3e.sql`.
 
 **A new migration invalidates the seed.** The seed records the latest migration, and `pnpm seed` refuses a seed exported under an older one. The pull request that adds a migration therefore re-exports the seed in the same pull request, on a loaded database and without a reset:
 

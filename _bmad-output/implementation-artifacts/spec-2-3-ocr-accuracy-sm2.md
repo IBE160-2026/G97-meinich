@@ -2,7 +2,7 @@
 title: 'Story 2.3: Measure OCR accuracy (SM-2)'
 type: 'feature'
 created: '2026-10-23'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'b19b1fab9f9156584c47820cb10a530f47d79382'
 route: 'dispatch'
 review_loop_iteration: 0

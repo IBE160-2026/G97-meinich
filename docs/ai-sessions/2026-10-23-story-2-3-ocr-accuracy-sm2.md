@@ -3,7 +3,7 @@
 **Date:** 2026-10-23
 **Tool:** Claude Code (Opus 5.5), BMAD build session with an implementation subagent
 **Story / issue:** Story 2.3 (FR-28, NFR25, NFR15), issue #37; links issue #14 (the reference set). Story 2.3b: issue #38.
-**Result:** branch `story/2.3-ocr-accuracy-sm2`, PR [#39](https://github.com/IBE160-2026/G97-meinich/pull/39). Commits `4a3b3f0`…, listed below; status `review`.
+**Result:** [PR #39](https://github.com/IBE160-2026/G97-meinich/pull/39), merged 2026-10-23, from branch `story/2.3-ocr-accuracy-sm2`. Commits `4a3b3f0`…, listed below.
 
 ## Goal
 
@@ -48,3 +48,7 @@ Review fixes (each finding credited to the review layer that raised it, in `docs
 - `analysis/output/ocr-sm2.md`, `analysis/output/ocr-consistency-2026.json`
 - `docs/ai-log.md`, "Story 2.3: SM-2, the reader measured against a hand transcription"
 - `deferred-work.md`: the 2.3b entry and the dump entry (owner 5.4)
+
+## Merge
+
+CI on `a6846f3` was green, which included the seed round trip that was not run locally after the 2.1b rows were restored. The review was posted before merge as a GitHub review with five line comments, drafted by the review session and posted at the human's decision, as its summary says. The PR was merged at 12:46 UTC. The review session then closed issue #14 (all four items ticked) and set the spec and the story to done on `main`.

@@ -13,6 +13,7 @@ import {
   COVERAGE_FILE,
   LOADER_TABLES,
   MANIFEST_FILE,
+  REFERENCE_DRAW_FILE,
   SEED_DIR,
   SEED_TABLES,
   type SeedPaths,
@@ -21,15 +22,18 @@ import {
   compareBytes,
   defaultSeedPaths,
   parseCsv,
+  parseDrawn,
   prepareSeed,
   readCoverage,
   stableJson,
+  withReferenceOrgnrs,
 } from '../../scripts/seed-format.ts';
 import { assertTableSet, loadSeed, main as seedMain, registerTables } from '../../scripts/seed-load.ts';
 import { root, setting, supabaseDbUrl } from './db-env.ts';
 
 type Tx = postgres.TransactionSql;
 const fixtures = path.join(root, 'test/fixtures/seed');
+const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, REFERENCE_DRAW_FILE), 'utf8')));
 const ALL_TABLES = [...SEED_TABLES.map((t) => t.name), ...LOADER_TABLES];
 
 const loaderUrl = setting('LOADER_DATABASE_URL');
@@ -100,7 +104,7 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 557 companies, 22 354 filings, no document, the coverage rows and one dataset row', async () => {
+  it('loads 17 557 companies, 22 354 filings, the reference documents, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
       const [counts] = await tx<
@@ -112,10 +116,10 @@ describe('the committed seed', () => {
                (select count(*)::int from register.document) as document,
                (select count(*)::int from register.document_column) as document_column
       `;
-      // The document tables stay empty in the committed seed until Story
-      // 2.3's allow-list names the orgnrs whose document figures may be
-      // committed (Story 2.1b).
-      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 0, document_column: 0 });
+      // The committed seed holds the OCR reference set's documents only
+      // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
+      // each. The acceptance run's rows wait for Story 5.4's allow-list.
+      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 97, document_column: 194 });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;
       const declared = readCoverage(path.join(root, COVERAGE_FILE));
@@ -380,12 +384,14 @@ describe('the export and document figures', () => {
     expect(existsSync(out)).toBe(false);
   });
 
-  it('exports a listed orgnr, keeps the allow-list byte for byte, and names it in the manifest', async () => {
-    // A scratch root holding the migrations, coverage.json and an allow-list
-    // that names one orgnr with a reason.
+  it('exports a listed orgnr, keeps its entry, adds the reference draw, and names it in the manifest', async () => {
+    // A scratch root holding the migrations, coverage.json, the committed
+    // OCR reference draw and an allow-list that names one orgnr with a
+    // reason.
     const scratchRoot = path.join(scratch, 'listed-root');
     cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
     cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
+    cpSync(path.join(root, REFERENCE_DRAW_FILE), path.join(scratchRoot, REFERENCE_DRAW_FILE));
     const out = path.join(scratch, 'listed-out');
     let manifest: { document_figure_orgnrs: string[] } | undefined;
     let allowList = '';
@@ -393,8 +399,8 @@ describe('the export and document figures', () => {
       await loadSeed(tx, committed);
       const [company] = await tx<{ orgnr: string }[]>`select orgnr from register.company order by orgnr limit 1`;
       const orgnr = company?.orgnr ?? '';
-      allowList = stableJson([{ orgnr, reason: 'OCR-referansesett' }]);
-      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), allowList);
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr, reason: 'Testoppføring' }]));
+      allowList = stableJson(withReferenceOrgnrs([{ orgnr, reason: 'Testoppføring' }], drawn));
       await tx`
         insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset)
         values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full')`;
@@ -402,10 +408,24 @@ describe('the export and document figures', () => {
         insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
         values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
       manifest = await exportSeed(tx, scratchRoot, out);
-      expect(manifest.document_figure_orgnrs).toEqual([orgnr]);
+      // The committed seed already holds the 20 reference orgnrs' documents.
+      expect(manifest.document_figure_orgnrs).toContain(orgnr);
     });
-    expect(manifest?.document_figure_orgnrs).toHaveLength(1);
+    expect(manifest?.document_figure_orgnrs).toHaveLength(21);
     expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(allowList);
+    expect(JSON.parse(allowList)).toHaveLength(21);
+  });
+
+  it('refuses to export without the committed reference draw, writing nothing', async () => {
+    const scratchRoot = path.join(scratch, 'no-draw-root');
+    cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
+    cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
+    const out = path.join(scratch, 'no-draw-out');
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      await expect(exportSeed(tx, scratchRoot, out)).rejects.toThrow(`${REFERENCE_DRAW_FILE}: missing`);
+    });
+    expect(existsSync(out)).toBe(false);
   });
 });
 

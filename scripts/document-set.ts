@@ -19,15 +19,29 @@
 // runner, with `server-only` resolved to its server entry as in
 // vitest.db.config.ts, because src/ is written for the bundler.
 //
-// Run: node scripts/document-set.ts   (from the repository root)
-import { writeFileSync } from 'node:fs';
+// `--reference` (Story 2.3) writes analysis/ocr-reference/document-run.json
+// instead: the orgnrs of the committed OCR reference draw
+// (analysis/ocr-reference/drawn.json), for
+// `pnpm ingest --documents analysis/ocr-reference/document-run.json`. It
+// reads only the draw, never the database.
+//
+// Run: node scripts/document-set.ts [--reference]   (from the repository root)
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { setting } from './run-ingest.ts';
 import type { SubjectPool } from './document-set-compute.ts';
-import { compareBytes } from './seed-format.ts';
+import { type DrawnFiling, REFERENCE_DRAW_FILE, compareBytes, parseDrawn } from './seed-format.ts';
 
 export const DOCUMENT_RUN_FILE = 'seed/document-run.json';
+export const REFERENCE_RUN_FILE = 'analysis/ocr-reference/document-run.json';
+const REFERENCE = '--reference';
+
+// Every drawn orgnr once, in byte order. Step 1 reads every year in the
+// register's list for each of them; Story 2.3 compares only the drawn years.
+export function referenceRunSet(drawn: readonly DrawnFiling[]): string[] {
+  return [...new Set(drawn.map((filing) => filing.orgnr))].sort(compareBytes);
+}
 
 // Every subject and every company in its pool, once, in byte order.
 export function documentRunSet(groups: readonly SubjectPool[]): string[] {
@@ -45,7 +59,25 @@ export function documentRunJson(orgnrs: readonly string[]): string {
   return `[\n${orgnrs.map((orgnr) => `  ${JSON.stringify(orgnr)}`).join(',\n')}\n]\n`;
 }
 
-export async function main(root: string): Promise<number> {
+function writeReferenceRun(root: string): number {
+  try {
+    const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, ...REFERENCE_DRAW_FILE.split('/')), 'utf8')));
+    const orgnrs = referenceRunSet(drawn);
+    writeFileSync(path.join(root, ...REFERENCE_RUN_FILE.split('/')), documentRunJson(orgnrs));
+    process.stdout.write(`ingest:document-set: wrote ${REFERENCE_RUN_FILE} (${orgnrs.length} orgnrs)\n`);
+    return 0;
+  } catch (error) {
+    process.stderr.write(`ingest:document-set: ${(error as Error).message}\n`);
+    return 1;
+  }
+}
+
+export async function main(root: string, argv: readonly string[] = []): Promise<number> {
+  if (argv.length === 1 && argv[0] === REFERENCE) return writeReferenceRun(root);
+  if (argv.length > 0) {
+    process.stderr.write(`ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing or ${REFERENCE}\n`);
+    return 1;
+  }
   const url = setting(root, 'READER_DATABASE_URL');
   if (url === undefined) {
     process.stderr.write('ingest:document-set: READER_DATABASE_URL is not set; run `pnpm db:start` and `pnpm db:roles`.\n');
@@ -76,5 +108,5 @@ export async function main(root: string): Promise<number> {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  process.exitCode = await main(process.cwd());
+  process.exitCode = await main(process.cwd(), process.argv.slice(2));
 }

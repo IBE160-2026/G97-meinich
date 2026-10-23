@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 21-10-2026 21:00
+last_updated: 23-10-2026 12:20
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -55,7 +55,8 @@ development_status:
   2-1a-read-a-filed-document-ocr-library-and-image: done  # issue #31
   2-1b-store-the-filed-accounts-ocr-ingest: done  # issue #32; acceptance run done (1 947 documents)
   2-2-accept-only-figures-that-reconcile: done  # issue #35
-  2-3-measure-ocr-accuracy-sm-2: backlog
+  2-3-measure-ocr-accuracy-sm-2: review  # issue #37; links issue #14 (reference set)
+  2-3b-read-the-balance-total: backlog  # issue #38; split from 2.3 (Meinich, 2026-10-23): the bold SUM EGENKAPITAL OG GJELD row
   2-4-withdrawn-companies-disappear: backlog
   2-5-the-business-model-fingerprint-stage-4: backlog
   2-6-classification-stage-5: backlog

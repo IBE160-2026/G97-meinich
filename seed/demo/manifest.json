@@ -1,20 +1,41 @@
 {
   "dataset": "demo",
-  "document_figure_orgnrs": [],
+  "document_figure_orgnrs": [
+    "885583822",
+    "911561972",
+    "912197905",
+    "915338534",
+    "915648479",
+    "917397198",
+    "917526729",
+    "918618716",
+    "919470992",
+    "921716257",
+    "922184534",
+    "927533235",
+    "929151178",
+    "929481151",
+    "929821092",
+    "936252710",
+    "981564782",
+    "989081799",
+    "992036079",
+    "995318733"
+  ],
   "fetched_codes": [
     "62.100"
   ],
   "files": {
     "company.csv": "a7d5cefe09730a11d1d301897bb013337bc27ccbae4de115175f9b62c524600e",
-    "document.csv": "86034497a6eaadd85aa376034fb3030b942f4fa824b2a8c0fe3c21fa7a126ce8",
-    "document_column.csv": "90cce89d079b048373a5c892a8c5164083761273b6c129ae302b71dfec3d34e4",
+    "document.csv": "fb8141c79164347e0b89861875a3b86e89341d6cddded452b69628a753fa6d2a",
+    "document_column.csv": "cdeb48d833c17f8e233265db9e1f1598a6e8134272668495b0487857914d8d62",
     "filing.csv": "88bb7fd1a195f4cd46c3057c7ed1c677b51959e01ab6495c894dd94ee5bbf6b3",
     "key_figures.csv": "61ecab7b34fca9f8b041718a06d506e55c993cf017abea9f826345d932e1fe1c"
   },
   "format_version": 1,
   "migration_id": "20261021120000_document_reconciliation",
   "read_at": {
-    "max": "2026-10-11 13:36:34.74071+00",
+    "max": "2026-10-23 11:22:12.734584+00",
     "min": "2026-10-11 10:09:07.22884+00"
   }
 }

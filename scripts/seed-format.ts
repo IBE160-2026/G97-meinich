@@ -437,8 +437,13 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-// seed/allow-list.json: [{orgnr, reason}]. Returns the orgnrs.
-export function parseAllowList(json: unknown): string[] {
+export interface AllowListEntry {
+  orgnr: string;
+  reason: string;
+}
+
+// seed/allow-list.json: [{orgnr, reason}]. Returns the entries in file order.
+export function parseAllowListEntries(json: unknown): AllowListEntry[] {
   if (!Array.isArray(json)) throw new SeedRefusal(`${ALLOW_LIST_FILE}: must be an array`);
   return json.map((raw: unknown, index) => {
     if (
@@ -450,8 +455,78 @@ export function parseAllowList(json: unknown): string[] {
     ) {
       throw new SeedRefusal(`${ALLOW_LIST_FILE} entry ${index}: must be {orgnr, reason}`);
     }
-    return raw.orgnr;
+    return { orgnr: raw.orgnr, reason: raw.reason };
   });
+}
+
+// seed/allow-list.json: [{orgnr, reason}]. Returns the orgnrs.
+export function parseAllowList(json: unknown): string[] {
+  return parseAllowListEntries(json).map((entry) => entry.orgnr);
+}
+
+// --- The OCR reference set (Story 2.3) ----------------------------------------
+
+// The committed draw of the hand-transcribed OCR reference set (issue #14).
+export const REFERENCE_DRAW_FILE = 'analysis/ocr-reference/drawn.json';
+// The reason seed:export writes for each reference orgnr on the allow-list.
+export const REFERENCE_REASON = 'OCR-referansesett';
+
+/** One drawn filing: a company and the filing year of its document. */
+export interface DrawnFiling {
+  orgnr: string;
+  year: number;
+}
+
+// drawn.json: {cells: [{year, band, orgnr, …}], …}. Returns the drawn
+// filings in file order; refuses a cell without a nine-digit orgnr and a
+// whole year, and a filing drawn twice.
+export function parseDrawn(json: unknown): DrawnFiling[] {
+  if (!isRecord(json) || !Array.isArray(json.cells)) {
+    throw new SeedRefusal(`${REFERENCE_DRAW_FILE}: must be an object with a cells array`);
+  }
+  const seen = new Set<string>();
+  return json.cells.map((cell: unknown, index) => {
+    if (
+      !isRecord(cell) ||
+      typeof cell.orgnr !== 'string' ||
+      !/^\d{9}$/.test(cell.orgnr) ||
+      typeof cell.year !== 'number' ||
+      !Number.isInteger(cell.year)
+    ) {
+      throw new SeedRefusal(`${REFERENCE_DRAW_FILE} cell ${index}: must have a nine-digit orgnr and a whole year`);
+    }
+    const key = `${cell.orgnr}/${cell.year}`;
+    if (seen.has(key)) throw new SeedRefusal(`${REFERENCE_DRAW_FILE} cell ${index}: ${key} is drawn twice`);
+    seen.add(key);
+    return { orgnr: cell.orgnr, year: cell.year };
+  });
+}
+
+// The allow-list with every drawn orgnr on it (Story 2.3): a drawn orgnr
+// already listed with REFERENCE_REASON keeps its entry; one listed with any
+// other reason refuses, since the epics AC and test/allow-list.test.ts
+// require that reason for every reference orgnr. Each other drawn orgnr is
+// added once, with REFERENCE_REASON, after the existing entries and in byte
+// order. Existing entries keep their order, so a second export with the
+// same draw writes the same list.
+export function withReferenceOrgnrs(
+  allowList: readonly AllowListEntry[],
+  drawn: readonly DrawnFiling[],
+): AllowListEntry[] {
+  const listed = new Set(allowList.map((entry) => entry.orgnr));
+  const drawnOrgnrs = new Set(drawn.map((filing) => filing.orgnr));
+  for (const entry of allowList) {
+    if (drawnOrgnrs.has(entry.orgnr) && entry.reason !== REFERENCE_REASON) {
+      throw new SeedRefusal(
+        `${ALLOW_LIST_FILE}: ${entry.orgnr} is in ${REFERENCE_DRAW_FILE} but listed with reason ${JSON.stringify(entry.reason)}, not ${JSON.stringify(REFERENCE_REASON)}`,
+      );
+    }
+  }
+  const added = [...new Set(drawn.map((filing) => filing.orgnr))]
+    .filter((orgnr) => !listed.has(orgnr))
+    .sort(compareBytes)
+    .map((orgnr) => ({ orgnr, reason: REFERENCE_REASON }));
+  return [...allowList.map((entry) => ({ orgnr: entry.orgnr, reason: entry.reason })), ...added];
 }
 
 // A document figure is a row of register.document_column: a figure column

@@ -1374,7 +1374,7 @@ So that the claim about which document figures Peerless can offer rests on a mea
 **Given** the spike's baseline in `analysis/output/ocr-consistency.md` (Tesseract 5, combined read, 2021–2025)
 **When** consistency is re-measured with Tesseract 5.5 and `tessdata_best` on the same 2021–2025 filings
 **Then** the report gives both denominators: passing columns over all columns (two per filing) and passing columns over evaluable columns
-**And** passing / all columns is at least the baseline 156 of 178 (≈ 88 %), and passing / evaluable columns is at least the baseline 156 of 168 (93 %), or the report explains each difference
+**And** passing / all columns is at least the baseline 157 of 178 (≈ 88 %), and passing / evaluable columns is at least the baseline 157 of 168 (93 %), or the report explains each difference (the spike report states only "93 % of 168"; its failure table lists 11 failing 2021–2025 columns, so 157 pass; the earlier 156 matched 93 % of 168 rounded down; corrected in Story 2.3)
 
 **Given** the measurement
 **When** it finishes

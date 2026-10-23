@@ -48,7 +48,34 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 - `draw.py`: the draw.
 - `drawn.json`: the result, committed after the draw.
 - `transcriptions.csv`: the template, then the transcriptions.
+- `blind-check.csv`: the blind check of 20 cells against the PDFs (below), with the transcriber's values.
+- `blind-check-draw.ts`: the selection of those 20 cells (seed 20261023), reproduced from the transcriptions before the corrections (`node analysis/ocr-reference/blind-check-draw.ts`; `test/blind-check-draw.test.ts`).
+- `blind-check-key.csv`: written by `blind-check-draw.ts`; which of the 20 cells were the suspected ones.
 
 ## Transcription check
 
 Before the transcriptions were used, the review session ran the within-document checks c1–c4 (5 kr bound) on every transcribed row, without looking at any OCR output. Six of the 40 rows failed at first: 921716257/2021, 912197905/2022, 915338534/2023, 989081799/2025 (prior), 917526729/2025 and 922184534/2025 (prior). Each was a transcription error: a mistyped or dropped digit, wrong by 20 kr to about 8 mill. kr. The transcriber corrected every one against the PDF, and all 40 rows pass. The transcription dates were changed from DD.MM.YYYY to YYYY-MM-DD.
+
+## Blind check after the first measurement
+
+The first SM-2 report (Story 2.3) found six misread figures in reconciled columns: figures that would reach the engine. Five of them looked like transcription errors. One example: kundefordringer was transcribed as 444 745 213 against total assets of 86 913 592. So the transcriptions were checked again, blind. `blind-check.csv` lists 20 cells (orgnr, filing year, column, field) in random order (seed 20261023): the six suspected cells mixed with 14 cells drawn at random from the 639 where OCR and transcription agree. It shows no OCR value and no transcribed value, and does not say which cells are suspected. The transcriber read every cell from the PDF.
+
+**Result:**
+- **The 14 control cells:** all agree with both the transcription and OCR.
+- **The six suspected cells:** all six were transcription errors. Five of them were found blind.
+- **Cell 6 was not blind.** The first value entered (45 622 466) was read from the 2021 column. It was re-read only after the build session said that value equalled the other column's figure, so the correction to 37 849 846 (the 2020 column) was made on prompting, not blind. This is noted in the file.
+- **The selection.** Only cells where OCR and the transcription disagreed in reconciled columns were suspected, so every correction moved the transcription towards OCR; the three misread figures in columns that did not reconcile, and the not-read fields, were not re-checked.
+- **After the corrections**, the within-document checks c1–c4 (5 kr) were run again on every transcribed row by the review session: all 40 rows pass.
+
+`scripts/ocr-sm2.ts` reads the table below to report the headline before and after the corrections, so keep its columns as they are. `Column` is `current` or `prior`. The figures are whole kroner, as in `transcriptions.csv`.
+
+## Corrections
+
+| Date | Orgnr | Filing year | Column | Field | Old | New |
+|---|---|---|---|---|---|---|
+| 2026-10-23 | 995318733 | 2021 | current | sum_eiendeler | 86913592 | 86913593 |
+| 2026-10-23 | 995318733 | 2021 | prior | sum_kortsiktig_gjeld | 19339152 | 37849846 |
+| 2026-10-23 | 995318733 | 2021 | current | kundefordringer | 444745213 | 44745213 |
+| 2026-10-23 | 917526729 | 2025 | current | sum_kortsiktig_gjeld | 3398859 | 5619383 |
+| 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |
+| 2026-10-23 | 917526729 | 2025 | prior | sum_kortsiktig_gjeld | 3224133 | 5233612 |

@@ -20,8 +20,11 @@ import {
   exportPaths,
   latestMigrationId,
   orderByClause,
+  REFERENCE_REASON,
   parseAllowList,
+  parseAllowListEntries,
   parseCsv,
+  parseDrawn,
   prepareSeed,
   readCoverage,
   refuseUnlistedDocumentFigures,
@@ -29,6 +32,7 @@ import {
   stableJson,
   unlistedDocumentFigures,
   validateCoverage,
+  withReferenceOrgnrs,
 } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -333,6 +337,60 @@ describe('the allow-list check', () => {
     expect(parseAllowList([{ orgnr: '919951834', reason: 'OCR-referansesett' }])).toEqual(['919951834']);
     expect(refusal(() => parseAllowList([{ orgnr: '919951834' }]))).toMatch(/must be \{orgnr, reason\}/);
     expect(refusal(() => parseAllowList({}))).toMatch(/must be an array/);
+    expect(parseAllowListEntries([{ orgnr: '919951834', reason: 'x' }])).toEqual([{ orgnr: '919951834', reason: 'x' }]);
+  });
+});
+
+describe('the OCR reference orgnrs on the allow-list (Story 2.3)', () => {
+  // 20 distinct orgnrs, one filing each, as the committed draw holds.
+  const drawn = Array.from({ length: 20 }, (_, i) => ({ orgnr: String(900000000 + (19 - i) * 1001), year: 2021 + (i % 5) }));
+
+  it('adds the reference orgnrs', () => {
+    const existing = [
+      { orgnr: '979607008', reason: 'Demoselskap A' },
+      { orgnr: String(900000000 + 3 * 1001), reason: REFERENCE_REASON },
+    ];
+    const merged = withReferenceOrgnrs(existing, drawn);
+    // Existing entries kept first, unchanged, even one that is also drawn.
+    expect(merged.slice(0, 2)).toEqual(existing);
+    const added = merged.slice(2);
+    expect(added).toHaveLength(19);
+    expect(added.every((entry) => entry.reason === REFERENCE_REASON)).toBe(true);
+    expect(added.map((entry) => entry.orgnr)).toEqual(
+      drawn.map((d) => d.orgnr).filter((orgnr) => orgnr !== existing[1]?.orgnr).sort(),
+    );
+    // Each drawn orgnr once, however often it is drawn, and a second merge
+    // adds nothing: the export is stable.
+    expect(new Set(merged.map((entry) => entry.orgnr)).size).toBe(merged.length);
+    expect(withReferenceOrgnrs(merged, [...drawn, { orgnr: drawn[0]?.orgnr ?? '', year: 2020 }])).toEqual(merged);
+    expect(REFERENCE_REASON).toBe('OCR-referansesett');
+    expect(withReferenceOrgnrs([], [])).toEqual([]);
+  });
+
+  it('refuses a drawn orgnr listed with another reason', () => {
+    const orgnr = String(900000000 + 3 * 1001);
+    expect(refusal(() => withReferenceOrgnrs([{ orgnr, reason: 'Demoselskap B' }], drawn))).toBe(
+      `seed/allow-list.json: ${orgnr} is in analysis/ocr-reference/drawn.json but listed with reason "Demoselskap B", not "OCR-referansesett"`,
+    );
+  });
+
+  it('reads the draw and refuses a malformed cell', () => {
+    expect(parseDrawn({ seed: 1, cells: [{ year: 2021, band: 'A', orgnr: '921716257', skipped_no_document: [] }] })).toEqual([
+      { orgnr: '921716257', year: 2021 },
+    ]);
+    expect(refusal(() => parseDrawn({ cells: [{ year: 2021, orgnr: '92171625' }] }))).toMatch(/cell 0: must have/);
+    expect(refusal(() => parseDrawn({ cells: [{ year: '2021', orgnr: '921716257' }] }))).toMatch(/cell 0: must have/);
+    expect(refusal(() => parseDrawn([]))).toMatch(/must be an object with a cells array/);
+    expect(
+      refusal(() =>
+        parseDrawn({
+          cells: [
+            { year: 2021, orgnr: '921716257' },
+            { year: 2021, orgnr: '921716257' },
+          ],
+        }),
+      ),
+    ).toMatch(/921716257\/2021 is drawn twice/);
   });
 });
 

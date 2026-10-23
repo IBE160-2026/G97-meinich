@@ -18,7 +18,7 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from conftest import BASE_URL, BOUND_KR, RULES, FixtureTransport, aar_url, enhet_url, ingest_database_url, kopi_url, recorded, regnskap_url
+from conftest import BASE_URL, BOUND_KR, OLDER_READER_COMMIT, READER_COMMIT, RULES, FixtureTransport, aar_url, enhet_url, ingest_database_url, kopi_url, recorded, regnskap_url
 from document_fakes import DOCUMENTS, FakeRecognise, Recognised, generated, paper_top, pdf, recorded_979607008_2025
 from peerless_ingest import documents, ocr, parse, run, write
 from peerless_ingest.config import Config
@@ -59,7 +59,7 @@ def test_fetches_only_2021_2025_from_year_list(stored: psycopg.Connection, cfg: 
     responses |= {kopi_url(ORGNR, y): pdf(str(y)) for y in years}
     transport = FixtureTransport(responses)
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert kopi_requests(transport) == [kopi_url(ORGNR, y) for y in range(2021, 2026)]
     assert reader.calls == [pdf(str(y)) for y in range(2021, 2026)]
@@ -74,7 +74,7 @@ def test_year_mismatch_is_refused(stored: psycopg.Connection, cfg: Config, monke
     FakeRecognise(monkeypatch, {pdf("2024"): recorded_979607008_2025()})
     transport = FixtureTransport({aar_url(ORGNR): b'["2024"]', kopi_url(ORGNR, 2024): pdf("2024")})
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert documents_of(stored, ORGNR) == [(2024, "generated", "not_extracted", "year_mismatch", 0)]
     assert summary.documents.written == {(2024, "not_extracted"): 1}
@@ -97,7 +97,7 @@ def test_paper_never_read(stored: psycopg.Connection, cfg: Config, monkeypatch: 
     monkeypatch.setattr(ocr, "ocr_figure_pages", figure_pages)
     transport = FixtureTransport({aar_url(ORGNR): b'["2021"]', kopi_url(ORGNR, 2021): body})
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert tops == [body]
     assert documents_of(stored, ORGNR) == [(2021, "paper", "paper", None, 0)]
@@ -123,7 +123,7 @@ def test_refusal_and_ocr_error_store_not_extracted(
     responses |= {kopi_url(ORGNR, y): pdf(str(y)) for y in (2023, 2024, 2025)}
     transport = FixtureTransport(responses)
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     # The scaled unit is refused, the OCR error is stored and named, and the
     # run goes on to 2025.
@@ -168,13 +168,13 @@ def test_interrupted_run_resumes_without_redoing(
     # Stopped while fetching the third document: the first two are committed.
     first = InterruptingTransport(responses, interrupt_at=kopi_url(ORGNR, 2024))
     with pytest.raises(KeyboardInterrupt):
-        run.run_documents(stored, first, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+        run.run_documents(stored, first, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert [row[0] for row in documents_of(stored, ORGNR)] == [2022, 2023]
     assert count(stored, "select count(*) from register.document_column where orgnr = %s", ORGNR) == 4
 
     # The rerun fetches and reads only the other two.
     second = FixtureTransport(responses)
-    summary = run.run_documents(stored, second, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, second, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert kopi_requests(second) == [kopi_url(ORGNR, 2024), kopi_url(ORGNR, 2025)]
     assert summary.documents.skipped_stored == 2
     assert reader.calls == [pdf(str(y)) for y in years]  # each document read once
@@ -183,12 +183,12 @@ def test_interrupted_run_resumes_without_redoing(
 
 def test_stored_document_not_refetched(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
     outcome = write.document_outcome(2025, documents.read_words(*recorded_979607008_2025(), BOUND_KR), {}, RULES)
-    write.write_document(stored, ORGNR, 2025, outcome, None, READ_AT)
+    write.write_document(stored, ORGNR, 2025, outcome, None, READ_AT, READER_COMMIT)
     reader = FakeRecognise(monkeypatch, {})
     # No kopi URL for 2025: a request for it would fail the test.
     transport = FixtureTransport({aar_url(ORGNR): b'["2025"]'})
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert transport.requested == [aar_url(ORGNR)]
     assert reader.calls == []
@@ -230,7 +230,7 @@ def test_a_failed_document_fetch_costs_only_that_document(
             kopi_url(ORGNR, 2025): pdf("2025"),
         }
     )
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert [p.what for p in summary.failed] == ["document 2024: ValueError: document 979607008/2024: the body is not a PDF"]
     assert summary.needs_operator()
     # 2024 is not stored, so a rerun tries it again; 2025 is.
@@ -244,7 +244,7 @@ def test_a_listed_year_not_served_is_named_and_the_next_is_stored(
     transport = FixtureTransport(
         {aar_url(ORGNR): b'["2024", "2025"]', kopi_url(ORGNR, 2024): None, kopi_url(ORGNR, 2025): pdf("2025")}
     )
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert [p.what for p in summary.failed] == ["document 2024: listed in /aar but not served (404 or 410)"]
     assert summary.needs_operator()
     assert [row[0] for row in documents_of(stored, ORGNR)] == [2025]
@@ -260,7 +260,7 @@ def test_a_read_that_fails_otherwise_is_named_not_stored_and_the_run_goes_on(
     transport = FixtureTransport(
         {aar_url(ORGNR): b'["2024", "2025"]', kopi_url(ORGNR, 2024): pdf("2024"), kopi_url(ORGNR, 2025): pdf("2025")}
     )
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert [p.what for p in summary.failed] == ["document 2024: read failed: ValueError: something unexpected"]
     assert summary.needs_operator()
     # 2024 is not stored, so a rerun retries it.
@@ -272,7 +272,7 @@ def test_a_malformed_year_list_costs_that_company_only(
 ) -> None:
     reader = FakeRecognise(monkeypatch, {})
     transport = FixtureTransport({aar_url(ORGNR): b'{"years": ["2025"]}'})
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert [(p.orgnr, p.what) for p in summary.failed] == [
         (ORGNR, f"document years: ValueError: document years {ORGNR}: expected a JSON list of four-digit year strings")
     ]
@@ -286,7 +286,7 @@ def test_a_company_with_no_document_list_is_counted_and_named(
 ) -> None:
     FakeRecognise(monkeypatch, {})
     transport = FixtureTransport({aar_url(ORGNR): None})
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert summary.documents.no_document_list == [ORGNR]
     assert summary.failed == []
     lines = summary.lines()
@@ -326,7 +326,7 @@ def test_documents_mode_only_listed_orgnrs(db: psycopg.Connection, cfg: Config, 
         }
     )
 
-    summary = run.run_documents(db, transport, cfg, CODES, [ORGNR, unknown, other, uncovered], now=lambda: READ_AT)
+    summary = run.run_documents(db, transport, cfg, CODES, [ORGNR, unknown, other, uncovered], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert len(reader.calls) == 2
     assert summary.companies == 2
@@ -416,12 +416,12 @@ def test_stored_documents_reconciled_without_ocr(
     write.write_filing(stored, filing)
     for year, words in ((2025, recorded_979607008_2025()), (2022, generated(2022))):
         outcome = write.document_outcome(year, documents.read_words(*words, BOUND_KR), {}, RULES)
-        write.write_document(stored, ORGNR, year, outcome, None, READ_AT)
+        write.write_document(stored, ORGNR, year, outcome, None, READ_AT, READER_COMMIT)
         as_extracted(stored, ORGNR, year)
     reader = FakeRecognise(monkeypatch, {})
     transport = FixtureTransport({aar_url(ORGNR): b'["2022", "2025"]'})
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert kopi_requests(transport) == [] and reader.calls == []  # no PDF fetched, no OCR
     assert summary.failed == []
@@ -442,7 +442,7 @@ def test_stored_documents_reconciled_without_ocr(
 
     # Idempotent: a second run gives the same rows.
     before = column_reconciliation(stored, ORGNR)
-    run.run_documents(stored, FixtureTransport({aar_url(ORGNR): b'["2022", "2025"]'}), cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    run.run_documents(stored, FixtureTransport({aar_url(ORGNR): b'["2022", "2025"]'}), cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert column_reconciliation(stored, ORGNR) == before
 
     # A changed bound takes effect on the next run, from the stored figures:
@@ -450,7 +450,7 @@ def test_stored_documents_reconciled_without_ocr(
     # fails; the filing keeps its current column's status.
     tight = dataclasses.replace(cfg, within_document_bound_kr=0)
     transport = FixtureTransport({aar_url(ORGNR): b'["2022", "2025"]'})
-    summary = run.run_documents(stored, transport, tight, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, tight, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert reader.calls == []
     assert [row[2] for row in documents_of(stored, ORGNR)] == ["reconciled", "reconciled"]
     assert column_reconciliation(stored, ORGNR)[3] == (
@@ -515,7 +515,7 @@ def test_new_reads_are_compared_with_the_api_of_both_years(
     responses: dict[str, bytes | None] = {aar_url(ORGNR): b'["2023", "2025"]'}
     responses |= {kopi_url(ORGNR, y): pdf(str(y)) for y in (2023, 2025)}
 
-    summary = run.run_documents(stored, FixtureTransport(responses), cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, FixtureTransport(responses), cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert summary.failed == []
     assert api_columns(stored, ORGNR) == [
@@ -535,7 +535,7 @@ def test_new_reads_are_compared_with_the_api_of_both_years(
     # document again and its current column fails, naming the field.
     stored.execute("update register.key_figures set sum_gjeld_ore = sum_gjeld_ore + 100000 where brreg_id = 6984522")
     summary = run.run_documents(
-        stored, FixtureTransport({aar_url(ORGNR): b'["2023", "2025"]'}), cfg, CODES, [ORGNR], now=lambda: READ_AT
+        stored, FixtureTransport({aar_url(ORGNR): b'["2023", "2025"]'}), cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT
     )
     assert summary.failed == []
     assert api_columns(stored, ORGNR)[2] == (2025, "current", "fail", ["sum_gjeld"], "failed_reconciliation")
@@ -551,7 +551,7 @@ def test_a_stored_document_that_cannot_be_reconciled_is_named_and_the_run_goes_o
         outcome = write.document_outcome(year, documents.read_words(*generated(year), BOUND_KR), {}, RULES)
         if year == 2021:
             outcome = dataclasses.replace(outcome, columns=outcome.columns[1:])
-        write.write_document(stored, ORGNR, year, outcome, None, READ_AT)
+        write.write_document(stored, ORGNR, year, outcome, None, READ_AT, READER_COMMIT)
         as_extracted(stored, ORGNR, year)
     real_api_figures = write.api_figures
 
@@ -564,7 +564,7 @@ def test_a_stored_document_that_cannot_be_reconciled_is_named_and_the_run_goes_o
     FakeRecognise(monkeypatch, {})
     transport = FixtureTransport({aar_url(ORGNR): b'["2021", "2023", "2025"]'})
 
-    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert [p.what for p in summary.failed] == [
         "document 2021: not reconciled: a read document must have exactly one current column, got 0",
@@ -585,12 +585,172 @@ def test_documents_still_extracted_are_counted(
     for orgnr in (ORGNR, other):
         write.write_company(db, company(orgnr, "TEST AS"))
         outcome = write.document_outcome(2025, documents.read_words(*generated(2025), BOUND_KR), {}, RULES)
-        write.write_document(db, orgnr, 2025, outcome, None, READ_AT)
+        write.write_document(db, orgnr, 2025, outcome, None, READ_AT, READER_COMMIT)
         as_extracted(db, orgnr, 2025)
     FakeRecognise(monkeypatch, {})
 
-    summary = run.run_documents(db, FixtureTransport({aar_url(ORGNR): b'["2025"]'}), cfg, CODES, [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(db, FixtureTransport({aar_url(ORGNR): b'["2025"]'}), cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
 
     assert summary.still_extracted == before + 1
     assert f"  documents still extracted (not reconciled; not in this list): {before + 1}" in summary.lines()
     assert documents_of(db, other)[0][2] == "extracted"
+
+
+# --- Re-read mode (Story 2.3b) -----------------------------------------------------
+
+REREAD_AT = datetime(2026, 10, 24, 9, 0, tzinfo=UTC)
+
+# The check rows with the bold total read as Tesseract reads it ("50M"), and
+# the same statement as a reader before Story 2.3b stored it: no total row
+# matched, so sum egenkapital og gjeld absent.
+BOLD_ROWS = [("50M EGENKAPITAL OG GJELD", row[1], row[2]) if row[0] == "SUM EGENKAPITAL OG GJELD" else row for row in BASE_ROWS]
+NO_TOTAL_ROWS = [row for row in BASE_ROWS if row[0] != "SUM EGENKAPITAL OG GJELD"]
+
+
+def store_older(conn: psycopg.Connection, year: int) -> None:
+    """A document of ORGNR for `year` as an older reader version stored it."""
+    words = document(NO_TOTAL_ROWS, years=(str(year), str(year - 1)))
+    outcome = write.document_outcome(year, documents.read_words(*words, BOUND_KR), {}, RULES)
+    write.write_document(conn, ORGNR, year, outcome, None, READ_AT, OLDER_READER_COMMIT)
+
+
+def stored_rows(conn: psycopg.Connection, orgnr: str) -> list[tuple]:
+    """Each document's row and its columns' figures, as stored."""
+    figures = ", ".join(f"c.{column}" for column in write.FIGURE_COLUMNS)
+    return conn.execute(
+        f"""select d.filing_year, d.status, d.refusal, d.reader_commit, d.read_at, c.role, c.status, {figures}
+              from register.document d left join register.document_column c
+                on c.orgnr = d.orgnr and c.filing_year = d.filing_year
+             where d.orgnr = %s order by d.filing_year, c.role""",
+        (orgnr,),
+    ).fetchall()
+
+
+def test_reread_replaces_older_version(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    store_older(stored, 2025)
+    assert [row[3] for row in stored_rows(stored, ORGNR)] == [OLDER_READER_COMMIT] * 2
+    total = 7 + write.FIGURE_COLUMNS.index("sum_egenkapital_gjeld_ore")
+    assert [row[total] for row in stored_rows(stored, ORGNR)] == [None, None]
+    reader = FakeRecognise(monkeypatch, {pdf("2025"): document(BOLD_ROWS)})
+    # Only the stored year's document, by its path: no /aar list.
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+
+    summary = run.run_reread(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+
+    assert transport.requested == [kopi_url(ORGNR, 2025)]
+    assert reader.calls == [pdf("2025")]
+    assert summary.replaced == {(2025, "reconciled"): 1}
+    assert (summary.current, summary.not_replaced, summary.failed) == (0, [], [])
+    assert not summary.needs_operator()
+    rows = stored_rows(stored, ORGNR)
+    # Replaced: the current version, the new read time, and the total read.
+    assert [row[:7] for row in rows] == [
+        (2025, "reconciled", None, READER_COMMIT, REREAD_AT, "current", "reconciled"),
+        (2025, "reconciled", None, READER_COMMIT, REREAD_AT, "prior", "reconciled"),
+    ]
+    assert [row[total] for row in rows] == [3_107_354_400, 3_561_502_500]
+    # Reconciled with the configured rules: c3 and c4 now evaluable.
+    assert column_reconciliation(stored, ORGNR)[0][2:7] == ("pass", "pass", "pass", "pass", "pass")
+    assert "  replaced 1; already current, not fetched 0; not replaced 0" in summary.lines()
+
+
+def test_reread_skips_current_version(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2024 was re-read before the run was stopped; 2025 was not. The resumed
+    # run fetches and reads only 2025.
+    store_older(stored, 2024)
+    store_older(stored, 2025)
+    stored.execute(
+        "update register.document set reader_commit = %s where orgnr = %s and filing_year = 2024", (READER_COMMIT, ORGNR)
+    )
+    before_2024 = [row for row in stored_rows(stored, ORGNR) if row[0] == 2024]
+    reader = FakeRecognise(monkeypatch, {pdf("2025"): document(BOLD_ROWS)})
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+
+    summary = run.run_reread(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+
+    assert transport.requested == [kopi_url(ORGNR, 2025)]
+    assert reader.calls == [pdf("2025")]
+    assert (summary.current, sum(summary.replaced.values())) == (1, 1)
+    assert [row for row in stored_rows(stored, ORGNR) if row[0] == 2024] == before_2024
+    # A second run finds both current and fetches nothing.
+    again = FixtureTransport({})
+    summary = run.run_reread(stored, again, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+    assert again.requested == []
+    assert (summary.current, summary.replaced) == (2, {})
+
+
+def test_reread_fewer_columns_not_replaced(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2023: the re-read refuses (a scaled unit, no columns); 2024: Tesseract
+    # fails; 2025: not served. Each keeps its two stored columns, figures and
+    # old version, and is named. 2022, a paper filing stored with no
+    # columns, re-reads as paper: as many columns as stored, so replaced.
+    for year in (2023, 2024, 2025):
+        store_older(stored, year)
+    paper = write.DocumentOutcome("paper", "paper", None, None, None, ())
+    write.write_document(stored, ORGNR, 2022, paper, None, READ_AT, OLDER_READER_COMMIT)
+    before = [row for row in stored_rows(stored, ORGNR) if row[0] != 2022]
+
+    def tesseract_fails() -> Recognised:
+        raise ocr.OcrError("tesseract failed (plain pass, exit 1)", ["p2.png"], "Error in pixReadStream")
+
+    reader = FakeRecognise(
+        monkeypatch,
+        {
+            pdf("2022"): (paper_top(), []),
+            pdf("2023"): generated(2023, unit_line="Beløp i: NOK 1000"),
+            pdf("2024"): tesseract_fails,
+        },
+    )
+    responses: dict[str, bytes | None] = {kopi_url(ORGNR, y): pdf(str(y)) for y in (2022, 2023, 2024)}
+    responses[kopi_url(ORGNR, 2025)] = None
+    transport = FixtureTransport(responses)
+
+    summary = run.run_reread(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+
+    assert len(reader.calls) == 3
+    assert [row for row in stored_rows(stored, ORGNR) if row[0] != 2022] == before
+    assert [p.what for p in summary.not_replaced] == [
+        "document 2023: fewer columns: 0 read (not_extracted, reporting_unit), 2 stored",
+        "document 2024: OCR error: tesseract failed (plain pass, exit 1) on p2.png: Error in pixReadStream",
+        "document 2025: stored, but not served now (404 or 410)",
+    ]
+    assert summary.replaced == {(2022, "paper"): 1}
+    assert stored_rows(stored, ORGNR)[0][:5] == (2022, "paper", None, READER_COMMIT, REREAD_AT)
+    assert summary.failed == []
+    assert summary.needs_operator()  # main exits 1
+    text = "\n".join(summary.lines())
+    assert "  replaced 1; already current, not fetched 0; not replaced 3" in text
+    assert f"  not replaced, keeps its old figures and version: {ORGNR} document 2023: fewer columns" in text
+
+
+@pytest.mark.parametrize("mode", ["--documents", "--reread"])
+@pytest.mark.parametrize(
+    "commit",
+    [None, "", "e09a413", "E09A41345826D3B7DCBAE3A6D8E586E63E6F7D8D", "e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d\n"],
+)
+def test_reader_version_required(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, commit: str | None) -> None:
+    # Documents and re-read mode refuse, before any request or connection,
+    # without a full 40-hex reader version.
+    def no_network(*args: object, **kwargs: object) -> None:
+        raise AssertionError("nothing may be fetched without a reader version")
+
+    def no_database(*args: object, **kwargs: object) -> None:
+        raise AssertionError("no connection without a reader version")
+
+    monkeypatch.setattr(run.fetch, "UrllibTransport", no_network)
+    monkeypatch.setattr(run.write, "connect", no_database)
+    if commit is None:
+        monkeypatch.delenv(run.READER_COMMIT_ENV, raising=False)
+    else:
+        monkeypatch.setenv(run.READER_COMMIT_ENV, commit)
+    file = tmp_path / "documents.json"
+    file.write_text(f'["{ORGNR}"]', encoding="utf-8")
+    assert run.main([mode, str(file)]) == 2
+    assert run.reader_commit_of({run.READER_COMMIT_ENV: READER_COMMIT}) == READER_COMMIT
+
+
+def test_reread_mode_rejects_other_arguments(tmp_path: Path) -> None:
+    assert run.main(["--reread"]) == 2
+    assert run.main(["--reread", "a.json", "b.json"]) == 2
+    assert run.main(["--reread", "a.json", "--documents", "b.json"]) == 2
+    assert run.main(["--reread", str(tmp_path / "absent.json")]) == 2

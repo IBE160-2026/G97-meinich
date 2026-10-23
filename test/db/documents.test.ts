@@ -8,6 +8,7 @@ import { supabaseDbUrl } from './db-env.ts';
 
 const CHECK_VIOLATION = '23514';
 const ORGNR = '979607008';
+const READER_COMMIT = 'a'.repeat(40);
 
 const sql = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
 type Tx = postgres.TransactionSql;
@@ -46,8 +47,8 @@ async function attempt(tx: Tx, statement: string): Promise<string | undefined> {
 const quote = (value: string | null): string => (value === null ? 'null' : `'${value}'`);
 
 function insertDocument(year: number, status: string, layout: string | null, refusal: string | null, valuta: string | null): string {
-  return `insert into register.document (orgnr, filing_year, layout, status, refusal, valuta, unit_text, read_at, dataset)
-          values ('${ORGNR}', ${year}, ${quote(layout)}, '${status}', ${quote(refusal)}, ${quote(valuta)}, ${quote(valuta)}, now(), 'full')`;
+  return `insert into register.document (orgnr, filing_year, layout, status, refusal, valuta, unit_text, read_at, reader_commit, dataset)
+          values ('${ORGNR}', ${year}, ${quote(layout)}, '${status}', ${quote(refusal)}, ${quote(valuta)}, ${quote(valuta)}, now(), '${READER_COMMIT}', 'full')`;
 }
 
 async function withCompany(fn: (tx: Tx) => Promise<void>): Promise<void> {

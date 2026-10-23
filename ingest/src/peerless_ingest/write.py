@@ -8,6 +8,7 @@ both or neither; so is a filed document and its figure columns (Story 2.1b).
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -126,6 +127,11 @@ def write_filing(conn: psycopg.Connection, filing: Filing) -> None:
 
 # --- Filed documents (Story 2.1b) ---------------------------------------------------
 
+# The reader version (Story 2.3b): the full commit of the last change to
+# ingest/, as scripts/run-ingest.ts passes it in PEERLESS_READER_COMMIT. The
+# same CHECK is on register.document.reader_commit.
+READER_COMMIT = re.compile(r"[0-9a-f]{40}")
+
 # Step 1 writes the full dataset; `demo` rows exist only in a seed (AD-9).
 # The tag is provenance only.
 DATASET = "full"
@@ -141,6 +147,7 @@ DOCUMENT_COLUMNS = (
     "unit_text",
     "read_at",
     "dataset",
+    "reader_commit",
 )
 DOCUMENT_KEY = ("orgnr", "filing_year")
 FIGURE_COLUMNS = tuple(f"{field}_ore" for field in FIELDS)
@@ -253,6 +260,28 @@ def stored_document_years(conn: psycopg.Connection, orgnr: str) -> set[int]:
     return {int(row[0]) for row in rows}
 
 
+@dataclass(frozen=True)
+class StoredVersion:
+    """A stored document, as a re-read (Story 2.3b) sees it."""
+
+    filing_year: int
+    reader_commit: str  # the reader version that read it
+    columns: int  # how many figure columns are stored for it (0 or 2)
+
+
+def stored_document_versions(conn: psycopg.Connection, orgnr: str) -> list[StoredVersion]:
+    """Every stored document of `orgnr`, whatever its status, with the reader
+    version that read it and its number of stored columns, by filing year."""
+    rows = conn.execute(
+        """SELECT d.filing_year, d.reader_commit,
+                  (SELECT count(*) FROM register.document_column c
+                    WHERE c.orgnr = d.orgnr AND c.filing_year = d.filing_year)
+             FROM register.document d WHERE d.orgnr = %s ORDER BY d.filing_year""",
+        (orgnr,),
+    ).fetchall()
+    return [StoredVersion(int(row[0]), str(row[1]), int(row[2])) for row in rows]
+
+
 def filing_brreg_id(conn: psycopg.Connection, orgnr: str, filing_year: int) -> int | None:
     """The register id of the key-figures API filing for the same orgnr and
     year, when exactly one SELSKAP filing matches; None otherwise (the API
@@ -273,10 +302,17 @@ def write_document(
     outcome: DocumentOutcome,
     brreg_id: int | None,
     read_at: datetime,
+    reader_commit: str,
 ) -> None:
     """The document row and its columns, in one transaction: committed on its
     own, so a run stopped after it does not redo it. Figures go in as printed,
-    times 100; nothing is derived (AD-15)."""
+    times 100; nothing is derived (AD-15). `reader_commit` is the reader
+    version that read it (Story 2.3b); the columns, written in the same
+    transaction, carry it through their document row. An existing row and
+    its columns are replaced (a re-read); a stored column is never removed,
+    since `ingest` holds no DELETE."""
+    if not READER_COMMIT.fullmatch(reader_commit):
+        raise ValueError(f"reader_commit must be a full 40-hex commit, got {reader_commit!r}")
     with conn.transaction():
         conn.execute(
             UPSERT_DOCUMENT,
@@ -291,6 +327,7 @@ def write_document(
                 "unit_text": outcome.unit_text,
                 "read_at": read_at,
                 "dataset": DATASET,
+                "reader_commit": reader_commit,
             },
         )
         for item in outcome.columns:

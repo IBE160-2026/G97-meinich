@@ -348,7 +348,7 @@ describe('the OCR reference orgnrs on the allow-list (Story 2.3)', () => {
   it('adds the reference orgnrs', () => {
     const existing = [
       { orgnr: '979607008', reason: 'Demoselskap A' },
-      { orgnr: String(900000000 + 3 * 1001), reason: 'Demoselskap B' },
+      { orgnr: String(900000000 + 3 * 1001), reason: REFERENCE_REASON },
     ];
     const merged = withReferenceOrgnrs(existing, drawn);
     // Existing entries kept first, unchanged, even one that is also drawn.
@@ -365,6 +365,13 @@ describe('the OCR reference orgnrs on the allow-list (Story 2.3)', () => {
     expect(withReferenceOrgnrs(merged, [...drawn, { orgnr: drawn[0]?.orgnr ?? '', year: 2020 }])).toEqual(merged);
     expect(REFERENCE_REASON).toBe('OCR-referansesett');
     expect(withReferenceOrgnrs([], [])).toEqual([]);
+  });
+
+  it('refuses a drawn orgnr listed with another reason', () => {
+    const orgnr = String(900000000 + 3 * 1001);
+    expect(refusal(() => withReferenceOrgnrs([{ orgnr, reason: 'Demoselskap B' }], drawn))).toBe(
+      `seed/allow-list.json: ${orgnr} is in analysis/ocr-reference/drawn.json but listed with reason "Demoselskap B", not "OCR-referansesett"`,
+    );
   });
 
   it('reads the draw and refuses a malformed cell', () => {

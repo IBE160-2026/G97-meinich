@@ -502,8 +502,10 @@ export function parseDrawn(json: unknown): DrawnFiling[] {
   });
 }
 
-// The allow-list with every drawn orgnr on it (Story 2.3): an orgnr already
-// listed keeps its entry, whatever its reason; each other drawn orgnr is
+// The allow-list with every drawn orgnr on it (Story 2.3): a drawn orgnr
+// already listed with REFERENCE_REASON keeps its entry; one listed with any
+// other reason refuses, since the epics AC and test/allow-list.test.ts
+// require that reason for every reference orgnr. Each other drawn orgnr is
 // added once, with REFERENCE_REASON, after the existing entries and in byte
 // order. Existing entries keep their order, so a second export with the
 // same draw writes the same list.
@@ -512,6 +514,14 @@ export function withReferenceOrgnrs(
   drawn: readonly DrawnFiling[],
 ): AllowListEntry[] {
   const listed = new Set(allowList.map((entry) => entry.orgnr));
+  const drawnOrgnrs = new Set(drawn.map((filing) => filing.orgnr));
+  for (const entry of allowList) {
+    if (drawnOrgnrs.has(entry.orgnr) && entry.reason !== REFERENCE_REASON) {
+      throw new SeedRefusal(
+        `${ALLOW_LIST_FILE}: ${entry.orgnr} is in ${REFERENCE_DRAW_FILE} but listed with reason ${JSON.stringify(entry.reason)}, not ${JSON.stringify(REFERENCE_REASON)}`,
+      );
+    }
+  }
   const added = [...new Set(drawn.map((filing) => filing.orgnr))]
     .filter((orgnr) => !listed.has(orgnr))
     .sort(compareBytes)

@@ -1,0 +1,466 @@
+// The SM-2 measurement's pure parts (Story 2.3; NFR25, FR-28): reading the
+// hand transcriptions and the stored document rows, classifying every
+// compared field, and the consistency denominators. No file or database
+// access here; scripts/ocr-sm2.ts reads the committed files and writes the
+// report.
+//
+// Every amount is a bigint: stored figures in øre (parseOre), transcribed
+// figures in whole kroner, compared as øre = kroner × 100. A blank cell and a
+// NULL column are absent, never 0.
+import { parseOre } from '../src/engine/inputs.ts';
+import { type DrawnFiling, compareBytes, parseCsv } from './seed-format.ts';
+
+/** The 23 lines `read_document` targets (ingest/src/peerless_ingest/layout.py, TARGETS), in its order. */
+export const SM2_FIELDS = [
+  'salgsinntekt',
+  'sum_driftsinntekter',
+  'varekostnad',
+  'lonnskostnad',
+  'avskrivninger',
+  'nedskrivninger',
+  'annen_driftskostnad',
+  'sum_driftskostnad',
+  'driftsresultat',
+  'netto_finans',
+  'ordinaert_resultat_foer_skattekostnad',
+  'aarsresultat',
+  'sum_immaterielle_eiendeler',
+  'sum_varige_driftsmidler',
+  'varer',
+  'kundefordringer',
+  'bankinnskudd',
+  'sum_eiendeler',
+  'sum_egenkapital',
+  'leverandorgjeld',
+  'sum_kortsiktig_gjeld',
+  'sum_gjeld',
+  'sum_egenkapital_gjeld',
+] as const;
+export type Sm2Field = (typeof SM2_FIELDS)[number];
+
+export type Role = 'current' | 'prior';
+const ROLES: readonly Role[] = ['current', 'prior'];
+
+// --- Recent and older filings ------------------------------------------------
+
+// Decided before the comparison (Meinich, 2026-10-23): the key-figures API
+// holds filings from 2023 on, so a recent filing's current column can be
+// checked against the register and an older one's cannot.
+export const RECENT_FROM = 2023;
+export type Group = 'recent' | 'older';
+export const GROUPS: readonly Group[] = ['recent', 'older'];
+
+/** The group of a filing, by its filing year (the document's year, not a column's stated year). */
+export function groupOf(filingYear: number): Group {
+  return filingYear >= RECENT_FROM ? 'recent' : 'older';
+}
+
+// --- Reading -------------------------------------------------------------------
+
+/** One transcribed column: figures in whole kroner as printed, null for a blank cell. */
+export interface TranscribedColumn {
+  orgnr: string;
+  filingYear: number;
+  role: Role;
+  statedYear: number | null;
+  figuresKr: ReadonlyMap<Sm2Field, bigint | null>;
+}
+
+/** One stored column (register.document_column): figures in øre, null for NULL. */
+export interface StoredColumn {
+  orgnr: string;
+  filingYear: number;
+  role: Role;
+  statedYear: number | null;
+  status: string | null;
+  /** c1–c5 as stored; null on a row from before Story 2.2. */
+  checks: Readonly<Record<CheckName, CheckResult | null>>;
+  figuresOre: ReadonlyMap<Sm2Field, bigint | null>;
+}
+
+/** One stored document (register.document). */
+export interface StoredDocument {
+  orgnr: string;
+  filingYear: number;
+  layout: string;
+  status: string;
+  refusal: string | null;
+}
+
+export type CheckResult = 'pass' | 'fail' | 'not_evaluable';
+export const CHECK_NAMES = ['c1', 'c2', 'c3', 'c4', 'c5'] as const;
+export type CheckName = (typeof CHECK_NAMES)[number];
+
+/** A stored or exported check result; '' (NULL) is null. */
+export function checkResult(file: string, value: string, line: number): CheckResult | null {
+  if (value === '') return null;
+  if (value === 'pass' || value === 'fail' || value === 'not_evaluable') return value;
+  throw new Error(`${file} row ${line}: a check must be pass, fail or not_evaluable, got ${JSON.stringify(value)}`);
+}
+
+const WHOLE = /^-?\d+$/;
+const YEAR = /^\d{4}$/;
+
+// Semicolon-separated, as transcriptions.csv is (README, "Transcription"):
+// double quotes around a field, quotes doubled inside, LF or CRLF row ends.
+export function parseSemicolonCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  const body = text.startsWith('﻿') ? text.slice(1) : text;
+  for (let i = 0; i < body.length; i += 1) {
+    const ch = body[i];
+    if (quoted) {
+      if (ch === '"' && body[i + 1] === '"') {
+        field += '"';
+        i += 1;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === ';') {
+      row.push(field);
+      field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      if (ch === '\r' && body[i + 1] === '\n') i += 1;
+    } else {
+      field += ch;
+    }
+  }
+  if (quoted) throw new Error('transcriptions.csv: unterminated quoted field');
+  if (field !== '' || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter((r) => !(r.length === 1 && r[0] === ''));
+}
+
+// The index of each named column; a missing one refuses.
+function indexOf(file: string, header: readonly string[], names: readonly string[]): Map<string, number> {
+  const at = new Map<string, number>();
+  for (const name of names) {
+    const i = header.indexOf(name);
+    if (i === -1) throw new Error(`${file}: no column ${name}`);
+    if (header.indexOf(name, i + 1) !== -1) throw new Error(`${file}: column ${name} appears twice`);
+    at.set(name, i);
+  }
+  return at;
+}
+
+function cell(file: string, row: readonly string[], at: ReadonlyMap<string, number>, name: string, line: number): string {
+  const i = at.get(name);
+  const value = i === undefined ? undefined : row[i];
+  if (value === undefined) throw new Error(`${file} row ${line}: no value for ${name}`);
+  return value;
+}
+
+function role(file: string, value: string, line: number): Role {
+  if (value === 'current' || value === 'prior') return value;
+  throw new Error(`${file} row ${line}: column must be current or prior, got ${JSON.stringify(value)}`);
+}
+
+function year(file: string, value: string, line: number, name: string): number {
+  if (!YEAR.test(value)) throw new Error(`${file} row ${line}: ${name} must be a year, got ${JSON.stringify(value)}`);
+  return Number(value);
+}
+
+function orgnr(file: string, value: string, line: number): string {
+  if (!/^\d{9}$/.test(value)) throw new Error(`${file} row ${line}: orgnr must be nine digits, got ${JSON.stringify(value)}`);
+  return value;
+}
+
+/**
+ * transcriptions.csv, read by header name: columns that are not in
+ * SM2_FIELDS (the header's misspelt `finansielle_anleggsmider`,
+ * `andre_kortsiktige_fordringer`, the transcriber's name, notes) are ignored.
+ * A blank cell is null; a figure is whole kroner, digits with an optional
+ * minus; anything else refuses.
+ */
+export function parseTranscriptions(text: string): TranscribedColumn[] {
+  const file = 'transcriptions.csv';
+  const [header, ...rows] = parseSemicolonCsv(text);
+  if (header === undefined) throw new Error(`${file}: no header`);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'column', 'stated_year', ...SM2_FIELDS]);
+  const seen = new Set<string>();
+  return rows.map((row, index) => {
+    const line = index + 2;
+    const column: TranscribedColumn = {
+      orgnr: orgnr(file, cell(file, row, at, 'orgnr', line), line),
+      filingYear: year(file, cell(file, row, at, 'filing_year', line), line, 'filing_year'),
+      role: role(file, cell(file, row, at, 'column', line), line),
+      statedYear: ((value) => (value === '' ? null : year(file, value, line, 'stated_year')))(
+        cell(file, row, at, 'stated_year', line),
+      ),
+      figuresKr: new Map(
+        SM2_FIELDS.map((field) => {
+          const value = cell(file, row, at, field, line);
+          if (value === '') return [field, null] as const;
+          if (!WHOLE.test(value)) {
+            throw new Error(`${file} row ${line}: ${field} must be blank or whole kroner, got ${JSON.stringify(value)}`);
+          }
+          return [field, BigInt(value)] as const;
+        }),
+      ),
+    };
+    const key = `${column.orgnr}/${column.filingYear}/${column.role}`;
+    if (seen.has(key)) throw new Error(`${file} row ${line}: ${key} is transcribed twice`);
+    seen.add(key);
+    return column;
+  });
+}
+
+/** seed/demo/document_column.csv (COPY csv with header), read by header name. NULL is an empty unquoted field. */
+export function parseStoredColumns(text: string): StoredColumn[] {
+  const file = 'document_column.csv';
+  const [header, ...rows] = parseCsv(text);
+  if (header === undefined) throw new Error(`${file}: no header`);
+  const oreColumns = SM2_FIELDS.map((field) => `${field}_ore`);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'role', 'stated_year', 'status', ...CHECK_NAMES, ...oreColumns]);
+  return rows.map((row, index) => {
+    const line = index + 2;
+    const status = cell(file, row, at, 'status', line);
+    const stated = cell(file, row, at, 'stated_year', line);
+    return {
+      orgnr: orgnr(file, cell(file, row, at, 'orgnr', line), line),
+      filingYear: year(file, cell(file, row, at, 'filing_year', line), line, 'filing_year'),
+      role: role(file, cell(file, row, at, 'role', line), line),
+      statedYear: stated === '' ? null : year(file, stated, line, 'stated_year'),
+      status: status === '' ? null : status,
+      checks: {
+        c1: checkResult(file, cell(file, row, at, 'c1', line), line),
+        c2: checkResult(file, cell(file, row, at, 'c2', line), line),
+        c3: checkResult(file, cell(file, row, at, 'c3', line), line),
+        c4: checkResult(file, cell(file, row, at, 'c4', line), line),
+        c5: checkResult(file, cell(file, row, at, 'c5', line), line),
+      },
+      figuresOre: new Map(
+        SM2_FIELDS.map((field) => {
+          const value = cell(file, row, at, `${field}_ore`, line);
+          return [field, parseOre(value === '' ? null : value)] as const;
+        }),
+      ),
+    };
+  });
+}
+
+/** seed/demo/document.csv, read by header name. */
+export function parseStoredDocuments(text: string): StoredDocument[] {
+  const file = 'document.csv';
+  const [header, ...rows] = parseCsv(text);
+  if (header === undefined) throw new Error(`${file}: no header`);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'layout', 'status', 'refusal']);
+  return rows.map((row, index) => {
+    const line = index + 2;
+    const refusal = cell(file, row, at, 'refusal', line);
+    return {
+      orgnr: orgnr(file, cell(file, row, at, 'orgnr', line), line),
+      filingYear: year(file, cell(file, row, at, 'filing_year', line), line, 'filing_year'),
+      layout: cell(file, row, at, 'layout', line),
+      status: cell(file, row, at, 'status', line),
+      refusal: refusal === '' ? null : refusal,
+    };
+  });
+}
+
+// --- Classifying ---------------------------------------------------------------
+
+export const ORE_PER_KRONE = 100n;
+
+export type FieldClass = 'correct' | 'not read' | 'misread' | 'phantom';
+export const FIELD_CLASSES: readonly FieldClass[] = ['correct', 'not read', 'misread', 'phantom'];
+
+/**
+ * One field (approval, 2026-10-23): `correct` when both hold the same
+ * figure, `not read` when OCR is NULL and the transcription holds a figure,
+ * `misread` when both hold different figures, `phantom` when OCR holds a
+ * figure and the transcription is blank. Both blank is not a figure: null,
+ * never counted.
+ */
+export function classify(readOre: bigint | null, expectedKr: bigint | null): FieldClass | null {
+  if (readOre === null && expectedKr === null) return null;
+  if (readOre === null) return 'not read';
+  if (expectedKr === null) return 'phantom';
+  return readOre === expectedKr * ORE_PER_KRONE ? 'correct' : 'misread';
+}
+
+/** One compared field of a drawn filing. */
+export interface FieldResult {
+  orgnr: string;
+  filingYear: number;
+  group: Group;
+  role: Role;
+  field: Sm2Field;
+  expectedKr: bigint | null;
+  readOre: bigint | null;
+  class: FieldClass;
+  /** The stored column's status; null when no column was stored for it. */
+  columnStatus: string | null;
+}
+
+/** A drawn column the comparison could not pair as expected. */
+export interface ColumnNote {
+  orgnr: string;
+  filingYear: number;
+  role: Role;
+  note: string;
+}
+
+export interface Comparison {
+  results: FieldResult[];
+  notes: ColumnNote[];
+}
+
+const columnKey = (orgnr: string, filingYear: number, role: Role): string => `${orgnr}/${filingYear}/${role}`;
+
+/**
+ * Compares the stored columns with the transcriptions, field by field, for
+ * the (orgnr, filing year) pairs in the draw only: any other stored document
+ * of the same companies is left out (approval, 2026-10-23). A drawn column
+ * with no stored row compares as all NULL and is noted; a drawn column with
+ * no transcription refuses, since the reference set must cover the draw.
+ */
+export function compareReference(
+  drawn: readonly DrawnFiling[],
+  transcribed: readonly TranscribedColumn[],
+  stored: readonly StoredColumn[],
+): Comparison {
+  const transcriptions = new Map(transcribed.map((t) => [columnKey(t.orgnr, t.filingYear, t.role), t]));
+  const columns = new Map(stored.map((s) => [columnKey(s.orgnr, s.filingYear, s.role), s]));
+  const results: FieldResult[] = [];
+  const notes: ColumnNote[] = [];
+  const ordered = [...drawn].sort((a, b) => a.year - b.year || compareBytes(a.orgnr, b.orgnr));
+  for (const filing of ordered) {
+    for (const r of ROLES) {
+      const key = columnKey(filing.orgnr, filing.year, r);
+      const truth = transcriptions.get(key);
+      if (truth === undefined) throw new Error(`transcriptions.csv: no ${r} column for drawn filing ${filing.orgnr}/${filing.year}`);
+      const column = columns.get(key);
+      if (column === undefined) {
+        notes.push({ orgnr: filing.orgnr, filingYear: filing.year, role: r, note: 'no stored column: every field compares as NULL' });
+      } else if (column.statedYear !== truth.statedYear) {
+        notes.push({
+          orgnr: filing.orgnr,
+          filingYear: filing.year,
+          role: r,
+          note: `stated year read ${column.statedYear ?? 'NULL'}, transcribed ${truth.statedYear ?? 'blank'}`,
+        });
+      }
+      for (const field of SM2_FIELDS) {
+        const expectedKr = truth.figuresKr.get(field) ?? null;
+        const readOre = column?.figuresOre.get(field) ?? null;
+        const cls = classify(readOre, expectedKr);
+        if (cls === null) continue;
+        results.push({
+          orgnr: filing.orgnr,
+          filingYear: filing.year,
+          group: groupOf(filing.year),
+          role: r,
+          field,
+          expectedKr,
+          readOre,
+          class: cls,
+          columnStatus: column?.status ?? null,
+        });
+      }
+    }
+  }
+  return { results, notes };
+}
+
+export type ClassCounts = Record<FieldClass, number>;
+
+/** Counts per class over the given results. */
+export function countClasses(results: readonly FieldResult[]): ClassCounts {
+  const counts: ClassCounts = { correct: 0, 'not read': 0, misread: 0, phantom: 0 };
+  for (const r of results) counts[r.class] += 1;
+  return counts;
+}
+
+/** Every field that is not correct, in comparison order: each is listed in the report. */
+export function mismatches(results: readonly FieldResult[]): FieldResult[] {
+  return results.filter((r) => r.class !== 'correct');
+}
+
+/**
+ * The headline (approval, 2026-10-23): misread figures in columns that
+ * nevertheless reconciled. Only a reconciled column's figures reach the
+ * engine, so these are the wrong figures Peerless would use.
+ */
+export function misreadsReachingEngine(results: readonly FieldResult[]): FieldResult[] {
+  return results.filter((r) => r.class === 'misread' && r.columnStatus === 'reconciled');
+}
+
+// --- Consistency -----------------------------------------------------------------
+
+
+/** One column's within-document checks, and its Story 2.2 status. */
+export interface CheckedColumn {
+  c1: CheckResult;
+  c2: CheckResult;
+  c3: CheckResult;
+  c4: CheckResult;
+  c5: CheckResult;
+  status: string | null;
+}
+
+export interface Denominators {
+  /** Every column: two per filing, a refused or unread document's included. */
+  all: number;
+  /** c1 (income statement) and c3 (balance) both evaluable. */
+  evaluable: number;
+  /** Evaluable, and no check among c1–c4 fails. */
+  pass: number;
+  /** Story 2.2's column status (c1–c5): reconciled. */
+  reconciled: number;
+}
+
+/**
+ * The spike baseline's own definition (analysis/ocr/ocr_accuracy.py,
+ * `summarise`): a column is evaluable when c1 and c3 both are, and passes
+ * when it is evaluable and no check among c1–c4 fails (each within the 5 kr
+ * bound, applied where the checks were run). `all` counts two columns per
+ * filing: `filings` × 2, whether or not a column was read. Story 2.2's
+ * status is counted separately and never mixed in.
+ */
+export function consistencyDenominators(filings: number, columns: readonly CheckedColumn[]): Denominators {
+  if (columns.length > filings * 2) throw new Error(`${columns.length} columns for ${filings} filings`);
+  let evaluable = 0;
+  let pass = 0;
+  let reconciled = 0;
+  for (const c of columns) {
+    const isEvaluable = c.c1 !== 'not_evaluable' && c.c3 !== 'not_evaluable';
+    if (isEvaluable) evaluable += 1;
+    if (isEvaluable && ![c.c1, c.c2, c.c3, c.c4].includes('fail')) pass += 1;
+    if (c.status === 'reconciled') reconciled += 1;
+  }
+  return { all: filings * 2, evaluable, pass, reconciled };
+}
+
+/**
+ * The spike's baseline for 2021–2025 (analysis/output/ocr-consistency.md,
+ * combined read, Tesseract 5): 89 filings, 178 columns, 168 evaluable. The
+ * report gives only "93 % of 168"; its failure table lists 11 failing
+ * 2021–2025 columns, so 157 pass. These are those 11, as orgnr/year/role.
+ */
+export const BASELINE = { filings: 89, all: 178, evaluable: 168, pass: 157 } as const;
+export const BASELINE_FAILING: readonly string[] = [
+  '874350672/2023/current',
+  '911586738/2021/current',
+  '933565831/2021/prior',
+  '950308508/2022/current',
+  '950308508/2023/prior',
+  '976570626/2022/current',
+  '976570626/2023/prior',
+  '979775377/2021/current',
+  '979775377/2022/prior',
+  '979775377/2024/prior',
+  '987307749/2023/prior',
+];

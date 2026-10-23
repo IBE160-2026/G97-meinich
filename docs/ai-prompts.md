@@ -1196,6 +1196,138 @@ The review session checked the per-year counts against the database. It read the
 
 ---
 
+## The OCR reference set (#14, on `main`: `5fa7d23`, `f2ba21e`, `3afca4d`, `38f0d9a`, `b19b1fa`)
+
+### Prompts to the review session
+
+**2026-10-22**: asked whether to set up a template and choose which filings to include, the human answered `gjerne`. The review session followed issue #14's sampling rule. It committed the strata, the population and `draw.py` **before** running the draw (`5fa7d23`). Then it ran the draw: seed 20261022, 20 filings, one per filing year 2021–2025 × four size bands on 2023 revenue, with the 407 demo-set companies excluded. It committed the result and a transcription template (`f2ba21e`). The PDFs went to the gitignored `.local/ocr-reference/`.
+
+**2026-10-23**: during transcription the human added two lines that the reader does not target (`finansielle_anleggsmidler`, `andre_kortsiktige_fordringer`), and asked:
+```
+I årsregnskapene er det også noen andre kolonner som ikke er med i csv filen slik som andre kortsiktige fordringer feks og finansielle anleggsmidler - la til radene - men burde jeg ikke dette kanskje?
+```
+```
+Okei, men da får kanskje ikke OCR med seg alle tall og da vil kanskje ikke for eksempel balansen gå opp?
+```
+*Answered:* no. The checks c1–c5 compare printed totals only, so the balance needs no component lines. Extra columns were allowed but optional, and Story 2.3 must read the file by header name (`3afca4d`). The review session also pointed out that `varer` was 0 in every row, while an absent line must be left empty, not 0.
+
+**Checking the transcription before it became truth.** After each save (`Ser du at det er noen rader …`, `Sånn da har jeg gått gjennom alle radene, ser du?`, `nå da?`, `sjekk igjen` three times), the review session ran c1–c4 on every transcribed row, without looking at any OCR output. Six of the 40 rows failed at first:
+- 921716257/2021: 20 kr;
+- 912197905/2022: 10 000 kr;
+- 915338534/2023: several figures;
+- 989081799/2025 prior: 50 000 kr;
+- 917526729/2025: about 8 mill. kr;
+- 922184534/2025 prior: 450 000 kr.
+
+Each was a mistyped or dropped digit. For the last one, 915338534's costs, the review session pointed out that the component lines in the same row summed to 9 505 586, not the transcribed 9 595 586. The human corrected all six against the PDFs, and all 40 rows passed (`38f0d9a`). The dates were made ISO, and the check was recorded in the reference set's README (`b19b1fa`).
+
+**At the human's request** (`Kan du gjøre dette? … krysse av … kommentar med commit-lenkene`), the review session ticked issue #14's first three items and commented with the commit links.
+
+---
+
+## Story 2.3: measure OCR accuracy, SM-2 (#37, PR #39; #38 split out)
+
+### Prompts to the BMAD session
+
+**2026-10-23 09:38**
+```
+/bmad-build Story 2.3
+```
+
+**10:17**: three questions answered in the menu, as drafted by the review session (line breaks restored).
+```
+Fra meg: 1, del ut 2.3b. Diagnosen er endret: etiketten leses, det er de
+fete tallene i sumlinja som feiles. Rett beskrivelsen der den står
+(deferred-work-posten fra 2.2, og ai-log hvis den nevner etiketten), og
+la 2.3b-issuet beskrive den faktiske feilen. 2.3 lenker fortsatt issue #14.
+```
+```
+Fra meg: 1. Rapporten oppgir n per gruppe (8 og 12 i referansesettet) og
+trekker ikke konklusjoner om forskjeller mellom gruppene ut over det
+utvalget tåler.
+```
+The spec was kept whole. The split gives a clean before/after measurement: 2.3 measures today's reader, and Story 2.3b fixes it and measures again.
+
+**10:19**: approval, with two additions to the report from the review session.
+```
+Fra meg: godkjent, med to tillegg til rapporten:
+1. Hovedtallet er feilleste tall som likevel ble reconciled (de som kan nå
+   motoren), per gruppe og totalt, med hvert tilfelle listet.
+2. Hvert felt klassifiseres som riktig / ikke lest (OCR tom, avskrift har
+   tall) / feillest (begge har tall, ulike) / fantom (OCR har tall, avskrift
+   tom), med antall per kategori. Ingen samlet prosent uten denne
+   inndelingen.
+Sammenligningen gjelder bare (orgnr, år) fra drawn.json og leser
+transcriptions.csv etter kolonnenavn.
+Approve and continue.
+```
+*Changed:* a single accuracy percentage would have hidden the difference between a figure that is missing (harmless) and one that is wrong (dangerous). The headline counts only the wrong figures that can reach the engine.
+
+**10:48**: `husk å commite i omganger slik det står i agents.md`
+
+**11:06**: `jobber den fortsatt`
+
+**11:08**: the review session found that the database held only the reference documents. The verification had run `pnpm seed`, which deleted the 1 947 rows from 2.1b. It also saw that restoring them before the export would make `seed:export` refuse.
+```
+Fra meg: de 1 947 dokumentradene fra 2.1b er ikke i databasen nå (seed tømte
+dem). Gjenopprett fra .local/document-run-bd2ce3e.sql først ETTER at
+seed:export med referansesettet er kjørt og committet – ellers nekter
+eksporten. Bekreft radtallet (1 947 + referansedokumentene) etter
+gjenopprettingen.
+```
+
+**11:40**: two decisions. A probe had disproved the diagnosis given at 10:17: the fault is "SUM" folded to "50M", and "1" read as "l". It had also turned out that five of six headline misreads looked like transcription errors.
+```
+Fra meg: 1. Rettelsen i spec-en skal si at den forrige diagnosen
+("etiketten leses, tallene feiler") kom fra BMAD-sesjonens første
+undersøkelse og ble videreført i min beskjed – nå motbevist av proben.
+Issue 2.3b beskriver "SUM" → "50M" i tegnfoldingen og "1" → "l" i 2 av 7,
+med proben som bevis.
+```
+```
+Fra meg: 1, men blindet: lag en sjekkliste med 20 celler (orgnr, år,
+kolonne, felt) – de 6 mistenkte blandet med 14 tilfeldige der OCR og
+avskrift er enige, i tilfeldig rekkefølge, uten OCR-verdier og uten å
+markere hvilke som er mistenkte. Jeg sjekker alle mot PDF-ene. Hver
+rettelse logges i analysis/ocr-reference/README.md med gammel og ny
+verdi og dato. Rapporten viser hovedtallet både før og etter rettelsene.
+```
+*Changed:* correcting only the cells OCR disagreed with would have looked like fitting the truth to the OCR. The BMAD session made the check stricter than asked: the list showed neither the OCR value nor the earlier transcription. All 14 control cells agreed, and all 6 suspected cells were transcription errors.
+
+**11:58**: asked to re-read cell 6, the human answered `37849846 is the figure`. The README and the report record that this one cell was re-read on prompting, not blind.
+
+**11:53** and **12:08**:
+```
+Fra meg: blind-check.csv er ferdig utfylt og lagret, Excel er lukket.
+Datoene står som 23.10.2026 – gjør dem om til 2026-10-23. Fortsett med
+sammenligning, logging av rettelser i README, før/etter i rapporten og
+egne commits som avtalt.
+```
+`du sjekker nå?`
+
+**12:35**
+```
+Fra meg: opprett issuene for 2.3 og 2.3b, push og opprett PR-en (Closes
+2.3-issuet, lenker #14). Nevn i PR-en at seed-rundturen ikke er kjørt
+lokalt etter gjenopprettingen av 2.1b-radene, og at CI derfor er den
+kontrollen.
+```
+
+### Result
+
+Six misread figures reached the engine against the transcription as first written, and none after the blind corrections. Of 769 compared fields, 645 are correct, 121 not read, 3 misread (all in columns that failed reconciliation) and 0 phantom. The report says plainly that:
+- 0 of 20 proves little;
+- lines no check covers, such as `bankinnskudd` and `kundefordringer`, could still be misread and reach the engine;
+- every correction moved the transcription towards the OCR.
+
+In all, 12 transcription errors were found in 40 columns. The spike's consistency baseline was re-measured at 89 of 178 columns with today's reader: 68 columns miss only the balance total, which is Story 2.3b's work. Under Story 2.2's rules, 157 of 178 columns reconcile.
+
+### Checks before merging
+
+The review session confirmed that the committed seed holds only the 20 reference orgnrs' 97 documents, and that the export ran before the 2.1b rows were restored. CI on `a6846f3`, which included the seed round trip not run locally, was green. At the human's request ("ja"), the review session posted the GitHub review with five line comments. The PR was merged at 12:46 UTC. Then the review session closed issue #14 with all four items ticked ("du kan også fikse issue 14").
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

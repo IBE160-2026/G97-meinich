@@ -145,6 +145,19 @@ context:
 **Acceptance Criteria:** `epics.md` Story 2.3, and the matrix above. In addition:
 - Given a fresh clone with the seed loaded, when `pnpm analysis:sm2` runs, then it rewrites `ocr-sm2.md` byte for byte, apart from the generation date.
 
+## Spec Change Log
+
+- **2026-10-23, Meinich: the diagnosis in the Decisions is disproved.**
+  - **The old diagnosis.** "The label is read; the bold figures fail" came from the BMAD session's first investigation, which read the spike's Tesseract 5 TSVs (`analysis/.cache/ocr`), not step 1's current reader. It was carried into Meinich's planning answer and frozen.
+  - **What the probe showed.** The implementation probe ran `read_document`'s own OCR on 919062223/2021 and six random documents from the 836. In all seven, the bold "SUM" reads as "50M". `layout.fold` drops digits, so the label folds to "megenkapitaloggjeld" and matches no target. A bold "1" came back as "l" in 2 of the 7, which refuses that figure.
+  - **The 2.3b issue** describes the fold failure ("SUM" → "50M") and the "1" → "l" misreads, with the probe as evidence (`deferred-work.md`, the Story 2.3b entry).
+  - **KEEP:** the split to 2.3b, and this story measuring the reader as it is.
+- **2026-10-23, Meinich: suspected transcription errors are checked blind.**
+  - **The check.** `analysis/ocr-reference/blind-check.csv` holds 20 cells (orgnr, year, column, field) in random order (seed 20261023): the 6 misreads in reconciled columns, mixed with 14 random cells where OCR and transcription agree. It has no OCR values and does not mark which cells are suspected.
+  - **Meinich checks every cell against the PDFs.**
+  - **Each correction to `transcriptions.csv`** is logged in `analysis/ocr-reference/README.md` with its old value, new value and date.
+  - **`ocr-sm2.md`** shows the headline count both before and after the corrections.
+
 ## Verification
 
 **Commands:**

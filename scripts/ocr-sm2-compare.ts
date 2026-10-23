@@ -243,13 +243,15 @@ export function parseCorrections(readme: string): Correction[] {
   const lines = readme.split(/\r?\n/);
   const start = lines.indexOf(CORRECTIONS_HEADING);
   if (start === -1) throw new Error(`${file}: no "${CORRECTIONS_HEADING}" heading`);
-  const table: string[] = [];
-  for (const line of lines.slice(start + 1)) {
-    if (line.startsWith('|')) table.push(line);
+  // Each table row with its 1-based line number in the README, for refusals.
+  const table: { text: string; number: number }[] = [];
+  for (const [offset, line] of lines.slice(start + 1).entries()) {
+    if (line.startsWith('|')) table.push({ text: line, number: start + 2 + offset });
     else if (table.length > 0) break;
     else if (line.trim() !== '') throw new Error(`${file}: "${CORRECTIONS_HEADING}" must be followed by its table`);
   }
-  const [header, separator, ...rows] = table;
+  const [header, separator, ...rows] = table.map((row) => row.text);
+  const numbers = table.slice(2).map((row) => row.number);
   if (header !== CORRECTIONS_HEADER) throw new Error(`${file}: the corrections table header must be ${CORRECTIONS_HEADER}`);
   if (separator === undefined || !/^\|(-+\|)+$/.test(separator)) throw new Error(`${file}: the corrections table has no separator row`);
   const figure = (value: string, line: string): bigint | null => {
@@ -258,7 +260,8 @@ export function parseCorrections(readme: string): Correction[] {
     return BigInt(value);
   };
   const seen = new Set<string>();
-  return rows.map((line) => {
+  return rows.map((line, index) => {
+    const number = numbers[index] ?? 0;
     const cells = line.slice(1, -1).split('|').map((c) => c.trim());
     if (cells.length !== 7) throw new Error(`${file}: correction ${line}: expected 7 columns`);
     const [date = '', orgnrValue = '', yearValue = '', roleValue = '', fieldValue = '', oldValue = '', newValue = ''] = cells;
@@ -267,9 +270,9 @@ export function parseCorrections(readme: string): Correction[] {
     if (field === undefined) throw new Error(`${file}: correction ${line}: ${JSON.stringify(fieldValue)} is not a compared field`);
     const correction: Correction = {
       date,
-      orgnr: orgnr(file, orgnrValue, 0),
-      filingYear: year(file, yearValue, 0, 'filing year'),
-      role: role(file, roleValue, 0),
+      orgnr: orgnr(file, orgnrValue, number),
+      filingYear: year(file, yearValue, number, 'filing year'),
+      role: role(file, roleValue, number),
       field,
       oldKr: figure(oldValue, line),
       newKr: figure(newValue, line),
@@ -484,6 +487,18 @@ export function countClasses(results: readonly FieldResult[]): ClassCounts {
   return counts;
 }
 
+/** Not-read fields split by what the transcription holds: 0, or a non-zero figure. */
+export function countNotRead(results: readonly FieldResult[]): { zero: number; nonZero: number } {
+  const notRead = results.filter((r) => r.class === 'not read');
+  const zero = notRead.filter((r) => r.expectedKr === 0n).length;
+  return { zero, nonZero: notRead.length - zero };
+}
+
+/** Phantom figures in reconciled columns: they reach the engine too, though the headline counts misreads only. */
+export function phantomsReachingEngine(results: readonly FieldResult[]): FieldResult[] {
+  return results.filter((r) => r.class === 'phantom' && r.columnStatus === 'reconciled');
+}
+
 /** Every field that is not correct, in comparison order: each is listed in the report. */
 export function mismatches(results: readonly FieldResult[]): FieldResult[] {
   return results.filter((r) => r.class !== 'correct');
@@ -536,12 +551,118 @@ export function consistencyDenominators(filings: number, columns: readonly Check
   let pass = 0;
   let reconciled = 0;
   for (const c of columns) {
-    const isEvaluable = c.c1 !== 'not_evaluable' && c.c3 !== 'not_evaluable';
-    if (isEvaluable) evaluable += 1;
-    if (isEvaluable && ![c.c1, c.c2, c.c3, c.c4].includes('fail')) pass += 1;
+    if (isEvaluable(c)) evaluable += 1;
+    if (passes(c)) pass += 1;
     if (c.status === 'reconciled') reconciled += 1;
   }
   return { all: filings * 2, evaluable, pass, reconciled };
+}
+
+/** The baseline's evaluable: c1 (income statement) and c3 (balance) both evaluable. */
+export function isEvaluable(c: CheckedColumn): boolean {
+  return c.c1 !== 'not_evaluable' && c.c3 !== 'not_evaluable';
+}
+
+/** The checks among c1–c4 that fail, in order. */
+export function failedChecks(c: CheckedColumn): ('c1' | 'c2' | 'c3' | 'c4')[] {
+  return (['c1', 'c2', 'c3', 'c4'] as const).filter((name) => c[name] === 'fail');
+}
+
+/** The baseline's pass: evaluable, and no check among c1–c4 fails. */
+export function passes(c: CheckedColumn): boolean {
+  return isEvaluable(c) && failedChecks(c).length === 0;
+}
+
+/** Why a column is not evaluable now: the first cause that applies, in this order. */
+export type NotEvaluableCause = 'no column' | 'c1 not evaluable' | 'missing total' | 'c3 and c5 not evaluable';
+export const NOT_EVALUABLE_CAUSES: readonly NotEvaluableCause[] = [
+  'no column',
+  'c1 not evaluable',
+  'missing total',
+  'c3 and c5 not evaluable',
+];
+
+/**
+ * - `no column`: the document gave no column (refused or not read);
+ * - `c1 not evaluable`: an income-statement figure of c1 is missing;
+ * - `missing total`: c3 not evaluable while c5 is, so sum eiendeler, sum
+ *   egenkapital and sum gjeld were read and only "Sum egenkapital og gjeld"
+ *   is missing (Story 2.3b);
+ * - `c3 and c5 not evaluable`: sum eiendeler is missing, or the total and
+ *   another balance figure.
+ */
+export function notEvaluableCause(c: CheckedColumn | undefined): NotEvaluableCause {
+  if (c === undefined) return 'no column';
+  if (c.c1 === 'not_evaluable') return 'c1 not evaluable';
+  if (c.c3 !== 'not_evaluable') throw new Error('notEvaluableCause: the column is evaluable');
+  return c.c5 === 'not_evaluable' ? 'c3 and c5 not evaluable' : 'missing total';
+}
+
+/** One filing of the re-read, as the consistency file gives it. */
+export interface RereadFiling {
+  orgnr: string;
+  filingYear: number;
+  columns: readonly (CheckedColumn & { role: Role })[];
+}
+
+/** Each column of the re-read in exactly one bucket, against the baseline's failing columns. Keys are orgnr/year/role. */
+export interface BaselineDiff {
+  /** Failing in the baseline, passing now. */
+  fixed: string[];
+  /** Failing in the baseline, and evaluable and failing now. */
+  stillFailing: { key: string; checks: string[] }[];
+  /** Failing in the baseline, not evaluable now. */
+  failingToNotEvaluable: { key: string; cause: NotEvaluableCause }[];
+  /** Evaluable and failing now, not in the baseline's failure table. */
+  newlyFailing: { key: string; checks: string[] }[];
+  /** Not evaluable now, not in the baseline's failure table. */
+  notEvaluable: { key: string; cause: NotEvaluableCause }[];
+  /** Passing now and not in the baseline's failure table: a count only. */
+  passing: number;
+}
+
+/**
+ * The re-read against the spike's failure table, column by column, in
+ * orgnr and year order. Uses the predicates of `consistencyDenominators`
+ * (`isEvaluable`, `passes`), so the buckets add up to its counts; a role
+ * the document did not give is not evaluable (`no column`).
+ */
+export function baselineDiff(filings: readonly RereadFiling[], baselineFailing: readonly string[]): BaselineDiff {
+  const failingBefore = new Set(baselineFailing);
+  const diff: BaselineDiff = { fixed: [], stillFailing: [], failingToNotEvaluable: [], newlyFailing: [], notEvaluable: [], passing: 0 };
+  const sorted = [...filings].sort((a, b) => compareBytes(a.orgnr, b.orgnr) || a.filingYear - b.filingYear);
+  for (const f of sorted) {
+    for (const r of ROLES) {
+      const key = columnKey(f.orgnr, f.filingYear, r);
+      const c = f.columns.find((column) => column.role === r);
+      const was = failingBefore.has(key);
+      if (c !== undefined && passes(c)) {
+        if (was) diff.fixed.push(key);
+        else diff.passing += 1;
+      } else if (c !== undefined && isEvaluable(c)) {
+        (was ? diff.stillFailing : diff.newlyFailing).push({ key, checks: failedChecks(c) });
+      } else {
+        (was ? diff.failingToNotEvaluable : diff.notEvaluable).push({ key, cause: notEvaluableCause(c) });
+      }
+    }
+  }
+  return diff;
+}
+
+/**
+ * Refuses a re-read that does not hold exactly `expected` filings, or that
+ * lacks the filing of one of the baseline's failing columns: a missing
+ * filing would otherwise show as columns "not evaluable now".
+ */
+export function checkBaselineCoverage(filings: readonly RereadFiling[], expected: number, baselineFailing: readonly string[]): void {
+  if (filings.length !== expected) {
+    throw new Error(`the consistency file holds ${filings.length} filings; the baseline has ${expected}`);
+  }
+  const held = new Set(filings.map((f) => `${f.orgnr}/${f.filingYear}`));
+  for (const key of baselineFailing) {
+    const filing = key.split('/').slice(0, 2).join('/');
+    if (!held.has(filing)) throw new Error(`the consistency file lacks ${filing}, a filing in the baseline's failure table`);
+  }
 }
 
 /**

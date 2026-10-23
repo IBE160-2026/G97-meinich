@@ -10,23 +10,28 @@ import {
   BASELINE,
   BASELINE_FAILING,
   type CheckedColumn,
+  type RereadFiling,
   SM2_FIELDS,
   type Sm2Field,
   type StoredColumn,
   type TranscribedColumn,
+  baselineDiff,
+  checkBaselineCoverage,
   classify,
   compareReference,
   consistencyDenominators,
   countClasses,
+  countNotRead,
   groupOf,
   mismatches,
   misreadsReachingEngine,
   parseCorrections,
   parseStoredColumns,
   parseTranscriptions,
+  phantomsReachingEngine,
   transcriptionsBefore,
 } from '../scripts/ocr-sm2-compare.ts';
-import { REPORT_FILE, readInputs, renderReport } from '../scripts/ocr-sm2.ts';
+import { REPORT_FILE, classRow, readInputs, renderReport } from '../scripts/ocr-sm2.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -206,6 +211,13 @@ describe('the corrections log', () => {
     expect(() => parseCorrections(log(['| 2026-10-23 | 922184534 | 2025 | current | notes | 1 | 2 |']))).toThrow(/not a compared field/);
     const row = '| 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |';
     expect(() => parseCorrections(log([row, row]))).toThrow(/corrected twice/);
+    // A refusal names the README line of the row (the first row is line 7).
+    expect(() => parseCorrections(log(['| 2026-10-23 | 92218453 | 2025 | current | bankinnskudd | 1 | 2 |']))).toThrow(
+      /^README\.md row 7: orgnr must be nine digits/,
+    );
+    expect(() => parseCorrections(log([row, '| 2026-10-23 | 922184534 | 2025 | next | varer | 1 | 2 |']))).toThrow(
+      /^README\.md row 8: column must be current or prior/,
+    );
   });
 
   it('reconstructs the headline before the corrections', () => {
@@ -329,5 +341,93 @@ describe(REPORT_FILE, () => {
     const date = /^Generated (\d{4}-\d{2}-\d{2}) by /m.exec(committed)?.[1];
     expect(date).toBeDefined();
     expect(renderReport(readInputs(root), date ?? '')).toBe(committed);
+  });
+});
+
+describe('phantoms and not-read fields', () => {
+  it('counts phantoms in reconciled columns, which reach the engine too', () => {
+    const drawn = [
+      { orgnr: '921716257', year: 2021 },
+      { orgnr: '919470992', year: 2024 },
+    ];
+    const { results } = compareReference(
+      drawn,
+      [
+        truth('921716257', 2021, 'current', {}),
+        truth('921716257', 2021, 'prior', {}),
+        truth('919470992', 2024, 'current', {}),
+        truth('919470992', 2024, 'prior', {}),
+      ],
+      [
+        read('921716257', 2021, 'current', { varer: 100n }), // phantom, reconciled: counts
+        read('921716257', 2021, 'prior', { varer: 100n }, 'failed_reconciliation'), // phantom, never used
+        read('919470992', 2024, 'current', { varer: 100n }), // phantom, reconciled, recent
+        read('919470992', 2024, 'prior', {}),
+      ],
+    );
+    const phantoms = phantomsReachingEngine(results);
+    expect(phantoms.map((r) => `${r.orgnr}/${r.role}`)).toEqual(['921716257/current', '919470992/current']);
+    expect(phantoms.filter((r) => r.group === 'older')).toHaveLength(1);
+    expect(misreadsReachingEngine(results)).toEqual([]);
+  });
+
+  it('splits not-read fields into transcribed 0 and transcribed non-zero', () => {
+    const { results } = compareReference(
+      [{ orgnr: '921716257', year: 2021 }],
+      [truth('921716257', 2021, 'current', { varer: 0n, salgsinntekt: 5n, aarsresultat: -3n }), truth('921716257', 2021, 'prior', { varer: 0n })],
+      [read('921716257', 2021, 'current', {}), read('921716257', 2021, 'prior', { varer: 0n })],
+    );
+    expect(countNotRead(results)).toEqual({ zero: 1, nonZero: 2 });
+    expect(classRow('All', results)).toBe('| All | 1 | 1 | 2 | 0 | 0 | 4 | 25,0 % |');
+  });
+});
+
+describe('the baseline, column by column', () => {
+  const column = (role: 'current' | 'prior', c1: CheckedColumn['c1'], c3: CheckedColumn['c3'], c5: CheckedColumn['c5'] = 'pass', c4: CheckedColumn['c4'] = 'pass') => ({
+    role,
+    c1,
+    c2: 'pass' as const,
+    c3,
+    c4,
+    c5,
+    status: 'reconciled',
+  });
+  // One column per bucket, a missing role and a missing-total column.
+  const filings: RereadFiling[] = [
+    { orgnr: '900000001', filingYear: 2021, columns: [column('current', 'pass', 'pass'), column('prior', 'fail', 'pass')] },
+    { orgnr: '900000002', filingYear: 2022, columns: [column('current', 'pass', 'not_evaluable', 'pass', 'fail'), column('prior', 'fail', 'pass', 'pass', 'fail')] },
+    { orgnr: '900000003', filingYear: 2023, columns: [column('current', 'pass', 'pass'), column('prior', 'pass', 'not_evaluable', 'not_evaluable')] },
+    { orgnr: '900000004', filingYear: 2024, columns: [column('current', 'not_evaluable', 'pass')] },
+  ];
+  const failing = ['900000001/2021/current', '900000001/2021/prior', '900000002/2022/current'];
+
+  it('puts each column in exactly one bucket', () => {
+    const diff = baselineDiff(filings, failing);
+    expect(diff.fixed).toEqual(['900000001/2021/current']);
+    expect(diff.stillFailing).toEqual([{ key: '900000001/2021/prior', checks: ['c1'] }]);
+    // Failing c4 but not evaluable: not evaluable, never also failing.
+    expect(diff.failingToNotEvaluable).toEqual([{ key: '900000002/2022/current', cause: 'missing total' }]);
+    expect(diff.newlyFailing).toEqual([{ key: '900000002/2022/prior', checks: ['c1', 'c4'] }]);
+    expect(diff.notEvaluable).toEqual([
+      { key: '900000003/2023/prior', cause: 'c3 and c5 not evaluable' },
+      { key: '900000004/2024/current', cause: 'c1 not evaluable' },
+      { key: '900000004/2024/prior', cause: 'no column' },
+    ]);
+    expect(diff.passing).toBe(1);
+    // The buckets add up to the denominators.
+    const d = consistencyDenominators(filings.length, filings.flatMap((f) => f.columns));
+    const total = diff.fixed.length + diff.stillFailing.length + diff.failingToNotEvaluable.length + diff.newlyFailing.length + diff.notEvaluable.length + diff.passing;
+    expect(total).toBe(d.all);
+    expect(diff.fixed.length + diff.passing).toBe(d.pass);
+    expect(d.all - diff.failingToNotEvaluable.length - diff.notEvaluable.length).toBe(d.evaluable);
+  });
+
+  it('refuses a re-read that does not cover the baseline', () => {
+    expect(() => checkBaselineCoverage(filings, 4, failing)).not.toThrow();
+    expect(() => checkBaselineCoverage(filings.slice(1), 4, [])).toThrow(/holds 3 filings; the baseline has 4/);
+    expect(() => checkBaselineCoverage(filings, 4, ['900000009/2021/current'])).toThrow(/lacks 900000009\/2021/);
+    const inputs = readInputs(root);
+    const short = { ...inputs, consistency: { ...inputs.consistency, filings: inputs.consistency.filings.slice(1) } };
+    expect(() => renderReport(short, '2026-10-23')).toThrow(/holds 88 filings; the baseline has 89/);
   });
 });

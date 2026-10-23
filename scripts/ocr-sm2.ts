@@ -28,32 +28,35 @@ import {
   BASELINE_FAILING,
   type CheckResult,
   type CheckedColumn,
-  type ClassCounts,
   type Comparison,
   type Correction,
   CORRECTIONS_HEADING,
-  FIELD_CLASSES,
   type FieldResult,
   GROUPS,
   type Group,
+  NOT_EVALUABLE_CAUSES,
   ORE_PER_KRONE,
   RECENT_FROM,
   SM2_FIELDS,
   type StoredColumn,
   type StoredDocument,
+  baselineDiff,
+  checkBaselineCoverage,
   compareReference,
   consistencyDenominators,
   countClasses,
+  countNotRead,
   groupOf,
   mismatches,
   misreadsReachingEngine,
   parseCorrections,
+  phantomsReachingEngine,
   parseStoredColumns,
   parseStoredDocuments,
   parseTranscriptions,
   transcriptionsBefore,
 } from './ocr-sm2-compare.ts';
-import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, compareBytes, parseDrawn } from './seed-format.ts';
+import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, parseDrawn } from './seed-format.ts';
 
 export const TRANSCRIPTIONS_FILE = 'analysis/ocr-reference/transcriptions.csv';
 export const CORRECTIONS_FILE = 'analysis/ocr-reference/README.md';
@@ -152,10 +155,28 @@ function storedChecked(column: StoredColumn): CheckedColumn {
   return { c1: need('c1'), c2: need('c2'), c3: need('c3'), c4: need('c4'), c5: need('c5'), status: column.status };
 }
 
-function classRow(name: string, counts: ClassCounts): string {
-  const counted = FIELD_CLASSES.reduce((sum, c) => sum + counts[c], 0);
-  return `| ${name} | ${FIELD_CLASSES.map((c) => counts[c]).join(' | ')} | ${counted} | ${share(counts.correct, counted)} |`;
+// "not read" is split by what the transcription holds: a transcribed 0
+// (often a line the document prints as 0 or as a dash) or a real figure.
+export const CLASS_TABLE_HEADER =
+  '| Group | correct | not read (transcribed 0) | not read (transcribed non-zero) | misread | phantom | Counted | Recovered exactly |';
+
+export function classRow(name: string, results: readonly FieldResult[]): string {
+  const counts = countClasses(results);
+  const notRead = countNotRead(results);
+  const counted = results.length;
+  return `| ${name} | ${counts.correct} | ${notRead.zero} | ${notRead.nonZero} | ${counts.misread} | ${counts.phantom} | ${counted} | ${share(counts.correct, counted)} |`;
 }
+
+// Story 2.3, README "Transcription check": the within-document checks run on
+// the transcriptions alone found six transcription errors before the first
+// measurement. Not derivable from the committed files, so stated here.
+export const FIRST_CHECK_ERRORS = 6;
+
+// The one correction that was not blind (README, "Blind check"): blind-check
+// cell 6 was re-read after the build session said its first entry equalled
+// the other column's figure.
+export const PROMPTED_RECHECK = '995318733/2021/prior/sum_kortsiktig_gjeld';
+const correctionKey = (c: Correction) => `${c.orgnr}/${c.filingYear}/${c.role}/${c.field}`;
 
 function resultRow(r: FieldResult): string {
   return `| ${r.orgnr} | ${r.filingYear} | ${ROLE_NAME[r.role]} | ${r.field} | ${kroner(r.expectedKr)} | ${ore(r.readOre)} | ${r.class} | ${r.columnStatus ?? 'no column'} |`;
@@ -183,6 +204,16 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
   const drawnColumns = stored.filter((c) => drawnKeys.has(`${c.orgnr}/${c.filingYear}`));
   const headline = misreadsReachingEngine(results);
   const headlineBefore = misreadsReachingEngine(before.results);
+  const phantoms = phantomsReachingEngine(results);
+  const phantomsBefore = phantomsReachingEngine(before.results);
+  const misreadsElsewhereBefore = before.results.filter((r) => r.class === 'misread' && r.columnStatus !== 'reconciled');
+  const resultKey = (r: FieldResult) => `${r.orgnr}/${r.filingYear}/${r.role}/${r.field}`;
+  const readByKey = new Map(results.map((r) => [resultKey(r), r.readOre]));
+  const towardsOcr = corrections.filter((c) => {
+    const read = readByKey.get(correctionKey(c));
+    return read !== undefined && read !== null && c.newKr !== null && read === c.newKr * ORE_PER_KRONE;
+  }).length;
+  checkBaselineCoverage(consistency.filings, BASELINE.filings, BASELINE_FAILING);
   const lines: string[] = [];
   const push = (...more: string[]) => lines.push(...more);
 
@@ -231,6 +262,11 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     ),
     `| All | ${drawn.length} | ${headlineBefore.length} | ${headline.length} |`,
     '',
+    `- **Phantoms reach the engine too.** The headline counts misreads only; phantom figures in reconciled columns: ${GROUPS.map((g) => `${GROUP_NAME[g].toLowerCase()} ${phantoms.filter((r) => r.group === g).length}`).join(', ')}, all ${phantoms.length} (after the corrections; ${phantomsBefore.length} before).`,
+    `- **Prior columns overcount.** Of the headline cases, ${headlineBefore.filter((r) => r.role === 'prior').length} of ${headlineBefore.length} before and ${headline.filter((r) => r.role === 'prior').length} of ${headline.length} after the corrections are in a last-year column. Story 2.9 uses a last-year column only when that year has no document of its own, so the headline overcounts what reaches the engine by up to those.`,
+    `- **How the blind check chose its cells.** It re-read only the cells where OCR and the transcription disagreed in reconciled columns (the ${headlineBefore.length} headline cases before the corrections), mixed with control cells where they agreed. ${towardsOcr} of the ${corrections.length} corrections set the transcription to the figure OCR read, so every correction moved towards OCR. The ${misreadsElsewhereBefore.length} misread ${misreadsElsewhereBefore.length === 1 ? 'figure' : 'figures'} in columns that did not reconcile ${misreadsElsewhereBefore.length === 1 ? 'was' : 'were'} not re-checked, and neither were the not-read fields.`,
+    `- **Transcription error rate.** ${FIRST_CHECK_ERRORS} errors were found by the within-document checks on the transcriptions alone (\`${CORRECTIONS_FILE}\`, "Transcription check") and ${corrections.length} by the blind check, across ${drawn.length * 2} transcribed columns.`,
+    '',
     '### After the corrections',
     '',
   );
@@ -260,13 +296,14 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
   push(
     '### The corrections',
     '',
-    `Each was found by the blind check and confirmed against the PDF (\`${CORRECTIONS_FILE}\`).`,
+    `Each was found by the blind check and confirmed against the PDF (\`${CORRECTIONS_FILE}\`), blind except where the table says otherwise: ` +
+      'blind-check cell 6 was re-read on prompting, after the build session said its first entry equalled the other column\'s figure, so its correction is not a blind result.',
     '',
-    '| Date | Orgnr | Year | Column | Field | Transcribed | Corrected |',
-    '|---|---|---|---|---|---|---|',
+    '| Date | Orgnr | Year | Column | Field | Transcribed | Corrected | Blind |',
+    '|---|---|---|---|---|---|---|---|',
     ...corrections.map(
       (c) =>
-        `| ${c.date} | ${c.orgnr} | ${c.filingYear} | ${ROLE_NAME[c.role]} | ${c.field} | ${kroner(c.oldKr)} | ${kroner(c.newKr)} |`,
+        `| ${c.date} | ${c.orgnr} | ${c.filingYear} | ${ROLE_NAME[c.role]} | ${c.field} | ${kroner(c.oldKr)} | ${kroner(c.newKr)} | ${correctionKey(c) === PROMPTED_RECHECK ? 'no: re-read on prompting' : 'yes'} |`,
     ),
     '',
   );
@@ -279,12 +316,13 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     '- **misread**: both hold a figure, and they differ;',
     '- **phantom**: OCR holds a figure and the transcription is blank.',
     '',
-    'A field neither holds is not a figure and is not counted. "Recovered exactly" is correct over counted.',
+    'A field neither holds is not a figure and is not counted. "Recovered exactly" is correct over counted. ' +
+      '"Not read" is split by what the transcription holds: a transcribed 0, or a non-zero figure.',
     '',
-    `| Group | ${FIELD_CLASSES.join(' | ')} | Counted | Recovered exactly |`,
-    '|---|---|---|---|---|---|---|',
-    ...GROUPS.map((g) => classRow(GROUP_NAME[g], countClasses(inGroup(g)))),
-    classRow('All', countClasses(results)),
+    CLASS_TABLE_HEADER,
+    '|---|---|---|---|---|---|---|---|',
+    ...GROUPS.map((g) => classRow(GROUP_NAME[g], inGroup(g))),
+    classRow('All', results),
     '',
   );
 
@@ -339,39 +377,21 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     );
   }
 
-  // The spike's filings, read again.
+  // The spike's filings, read again. Each column in exactly one bucket of
+  // baselineDiff, under the same predicates as the denominators.
   const generatedFilings = consistency.filings;
   const columns = generatedFilings.flatMap((f) => f.columns);
   const now = consistencyDenominators(generatedFilings.length, columns);
-  const key = (f: ConsistencyFiling, role: 'current' | 'prior') => `${f.orgnr}/${f.filingYear}/${role}`;
-  const failingNow = new Set<string>();
-  const passingNow = new Set<string>();
-  for (const f of generatedFilings) {
-    for (const c of f.columns) {
-      const evaluable = c.c1 !== 'not_evaluable' && c.c3 !== 'not_evaluable';
-      const failed = [c.c1, c.c2, c.c3, c.c4].includes('fail');
-      if (failed) failingNow.add(key(f, c.role));
-      if (evaluable && !failed) passingNow.add(key(f, c.role));
-    }
-  }
-  const baselineFailing = new Set(BASELINE_FAILING);
-  const fixed = [...baselineFailing].filter((k) => passingNow.has(k)).sort(compareBytes);
-  const stillFailing = [...baselineFailing].filter((k) => failingNow.has(k)).sort(compareBytes);
-  const neither = [...baselineFailing].filter((k) => !passingNow.has(k) && !failingNow.has(k)).sort(compareBytes);
-  const newlyFailing = [...failingNow].filter((k) => !baselineFailing.has(k)).sort(compareBytes);
-  const notEvaluableNow = generatedFilings
-    .flatMap((f) => (['current', 'prior'] as const).map((role) => ({ f, role, c: f.columns.find((c) => c.role === role) })))
-    .filter(({ c }) => c === undefined || c.c1 === 'not_evaluable' || c.c3 === 'not_evaluable')
-    .map(({ f, role, c }) => ({
-      key: key(f, role),
-      why: c === undefined ? `${f.status}${f.refusal === null ? '' : `, ${f.refusal}`}` : `c1 ${c.c1}, c3 ${c.c3}`,
-    }))
-    .sort((a, b) => compareBytes(a.key, b.key));
-  const totalUnread = columns.filter((c) => c.c3 === 'not_evaluable' && c.c5 !== 'not_evaluable').length;
+  const diff = baselineDiff(generatedFilings, BASELINE_FAILING);
+  const notEvaluableAll = [...diff.failingToNotEvaluable, ...diff.notEvaluable];
   const describeKey = (k: string) => {
     const [o, y, r] = k.split('/');
     return `${o}/${y}, ${r === 'current' ? 'this year' : 'last year'}`;
   };
+  const list = <T>(items: readonly T[], show: (item: T) => string) =>
+    items.length === 0 ? 'none' : items.map(show).join('; ');
+  const withChecks = (item: { key: string; checks: string[] }) => `${describeKey(item.key)} (fails ${item.checks.join(', ')})`;
+  const withCause = (item: { key: string; cause: string }) => `${describeKey(item.key)} (${item.cause})`;
 
   push(
     '## Consistency re-measured on the spike\'s filings',
@@ -391,14 +411,23 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     '',
     '### The differences, column by column',
     '',
-    `- Failing in the baseline, passing now (${fixed.length}): ${fixed.length === 0 ? 'none' : fixed.map(describeKey).join('; ')}.`,
-    `- Failing in the baseline and now (${stillFailing.length}): ${stillFailing.length === 0 ? 'none' : stillFailing.map(describeKey).join('; ')}.`,
-    `- Failing in the baseline, not evaluable now (${neither.length}): ${neither.length === 0 ? 'none' : neither.map(describeKey).join('; ')}.`,
-    `- Failing now, not in the baseline's failure table (${newlyFailing.length}): ${newlyFailing.length === 0 ? 'none' : newlyFailing.map(describeKey).join('; ')}.`,
-    `- Not evaluable now (${notEvaluableNow.length}): ${notEvaluableNow.length === 0 ? 'none' : notEvaluableNow.map((n) => `${describeKey(n.key)} (${n.why})`).join('; ')}.`,
+    'Each column is in exactly one line below, or among the passing columns that were not failing in the baseline. A column is evaluable when c1 and c3 both are; a failing check in a column that is not evaluable does not make it failing.',
     '',
-    'The baseline report does not list its non-evaluable columns, so a change in the evaluable count cannot be traced column by column; the list above is every column not evaluable now. ' +
-      `Of those, ${totalUnread} ha${totalUnread === 1 ? 's' : 've'} c3 not evaluable while c5 is evaluable: sum eiendeler was read, so the figure missing is "Sum egenkapital og gjeld", the fault Story 2.3b takes up.`,
+    `- Failing in the baseline, passing now (${diff.fixed.length}): ${list(diff.fixed, describeKey)}.`,
+    `- Failing in the baseline and now (${diff.stillFailing.length}): ${list(diff.stillFailing, withChecks)}.`,
+    `- Failing in the baseline, not evaluable now (${diff.failingToNotEvaluable.length}): ${list(diff.failingToNotEvaluable, withCause)}.`,
+    `- Failing now, not in the baseline's failure table (${diff.newlyFailing.length}): ${list(diff.newlyFailing, withChecks)}.`,
+    `- Not evaluable now, not in the baseline's failure table (${diff.notEvaluable.length}): ${list(diff.notEvaluable, withCause)}.`,
+    `- Passing now, and not in the baseline's failure table: ${diff.passing}.`,
+    '',
+    `Why the ${notEvaluableAll.length} columns not evaluable now are not (the baseline report does not list its own non-evaluable columns, so the change cannot be traced column by column):`,
+    '',
+    '| Cause | Columns |',
+    '|---|---|',
+    ...NOT_EVALUABLE_CAUSES.map((cause) => `| ${cause} | ${notEvaluableAll.filter((n) => n.cause === cause).length} |`),
+    '',
+    '"missing total" is c3 not evaluable while c5 is: sum eiendeler, sum egenkapital and sum gjeld were read, so the one figure missing is "Sum egenkapital og gjeld", the fault Story 2.3b takes up. ' +
+      '"c1 not evaluable" is a missing income-statement figure; "c3 and c5 not evaluable" a missing sum eiendeler, or the total and another balance figure; "no column" a document that gave none.',
     '',
   );
   return lines.join('\n');

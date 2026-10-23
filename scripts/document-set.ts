@@ -64,12 +64,10 @@ function writeReferenceRun(root: string): number {
     const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, ...REFERENCE_DRAW_FILE.split('/')), 'utf8')));
     const orgnrs = referenceRunSet(drawn);
     writeFileSync(path.join(root, ...REFERENCE_RUN_FILE.split('/')), documentRunJson(orgnrs));
-    process.stdout.write(`ingest:document-set: wrote ${REFERENCE_RUN_FILE} (${orgnrs.length} orgnrs)
-`);
+    process.stdout.write(`ingest:document-set: wrote ${REFERENCE_RUN_FILE} (${orgnrs.length} orgnrs)\n`);
     return 0;
   } catch (error) {
-    process.stderr.write(`ingest:document-set: ${(error as Error).message}
-`);
+    process.stderr.write(`ingest:document-set: ${(error as Error).message}\n`);
     return 1;
   }
 }
@@ -77,8 +75,7 @@ function writeReferenceRun(root: string): number {
 export async function main(root: string, argv: readonly string[] = []): Promise<number> {
   if (argv.length === 1 && argv[0] === REFERENCE) return writeReferenceRun(root);
   if (argv.length > 0) {
-    process.stderr.write(`ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing or ${REFERENCE}
-`);
+    process.stderr.write(`ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing or ${REFERENCE}\n`);
     return 1;
   }
   const url = setting(root, 'READER_DATABASE_URL');

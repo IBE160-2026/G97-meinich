@@ -1,0 +1,2591 @@
+{
+  "api_check": "not_evaluable",
+  "filings": [
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "816202612",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "816202612",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "816202612",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "816202612",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "not_evaluable",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "816202612",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "834095742",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "834095742",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "834095742",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "834095742",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "834095742",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "874350672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "874350672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "874350672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "874350672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "not_evaluable",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "874350672",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "911586738",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "911586738",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "911586738",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "911586738",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "911586738",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "916605617",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "916605617",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "916605617",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "916605617",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "916605617",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "931924672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "931924672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "931924672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "931924672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "931924672",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "933565831",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "933565831",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "933565831",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "933565831",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "933565831",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "942896204",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "942896204",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "not_evaluable",
+          "c2": "not_evaluable",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "942896204",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "942896204",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "942896204",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "950308508",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "950308508",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "950308508",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "950308508",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "950308508",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "976570626",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "976570626",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "976570626",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "976570626",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "979775377",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "979775377",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "979775377",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "979775377",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "979775377",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "980015033",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "980015033",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "980015033",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "980015033",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "980015033",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "fail",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "fail",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "987307749",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "987307749",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "987307749",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "987307749",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "987307749",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "991051228",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "991051228",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "991051228",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "991051228",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "991051228",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "996941566",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "fail",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "996941566",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "996941566",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "996941566",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "996941566",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "997003543",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "997003543",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "997003543",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "997003543",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "pass",
+          "c5": "not_evaluable",
+          "column_status": "failed_reconciliation",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "997003543",
+      "refusal": null,
+      "status": "failed_reconciliation"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "997746848",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "not_evaluable",
+          "c4": "not_evaluable",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "997746848",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "997746848",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "997746848",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "997746848",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2021
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2020
+        }
+      ],
+      "filing_year": 2021,
+      "layout": "generated",
+      "orgnr": "998711282",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2022
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2021
+        }
+      ],
+      "filing_year": 2022,
+      "layout": "generated",
+      "orgnr": "998711282",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2023
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2022
+        }
+      ],
+      "filing_year": 2023,
+      "layout": "generated",
+      "orgnr": "998711282",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2024
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2023
+        }
+      ],
+      "filing_year": 2024,
+      "layout": "generated",
+      "orgnr": "998711282",
+      "refusal": null,
+      "status": "reconciled"
+    },
+    {
+      "columns": [
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "current",
+          "stated_year": 2025
+        },
+        {
+          "c1": "pass",
+          "c2": "pass",
+          "c3": "pass",
+          "c4": "pass",
+          "c5": "pass",
+          "column_status": "reconciled",
+          "role": "prior",
+          "stated_year": 2024
+        }
+      ],
+      "filing_year": 2025,
+      "layout": "generated",
+      "orgnr": "998711282",
+      "refusal": null,
+      "status": "reconciled"
+    }
+  ],
+  "generated": "2026-10-23",
+  "image": "peerless-ingest:local",
+  "script": "analysis/ocr/consistency.py",
+  "tesseract": "tesseract 5.5.0",
+  "within_document_bound_kr": 5
+}

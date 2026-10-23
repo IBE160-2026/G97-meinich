@@ -150,11 +150,13 @@ describe('the headline and the scope', () => {
         truth('921716257', 2021, 'prior', {}),
         // A transcription and stored rows for a year that was not drawn.
         truth('921716257', 2022, 'current', { varer: 5n }),
+        truth('921716257', 2022, 'prior', { varer: 5n }),
       ],
       [
         read('921716257', 2021, 'current', { varer: 100n }),
         read('921716257', 2021, 'prior', {}),
         read('921716257', 2022, 'current', { varer: 999n }),
+        read('921716257', 2022, 'prior', { varer: 999n }),
         read('921716257', 2023, 'current', { varer: 999n }),
       ],
     );

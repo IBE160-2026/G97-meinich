@@ -1,6 +1,6 @@
 # OCR accuracy against the hand-transcribed reference set (SM-2)
 
-Generated 2026-10-23 by `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`), with helpers in `scripts/ocr-sm2-compare.ts`. Inputs, all committed: `analysis/ocr-reference/drawn.json` and `analysis/ocr-reference/transcriptions.csv` (the reference set, issue #14); `seed/demo/document.csv` and `seed/demo/document_column.csv` (step 1's output, written by `pnpm ingest --documents analysis/ocr-reference/document-run.json` and committed by `pnpm seed:export`); `analysis/output/ocr-consistency-2026.json` (generated 2026-10-23 by `analysis/ocr/consistency.py` in step 1's image, tesseract 5.5.0).
+Generated 2026-10-23 by `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`), with helpers in `scripts/ocr-sm2-compare.ts`. Inputs, all committed: `analysis/ocr-reference/drawn.json` and `analysis/ocr-reference/transcriptions.csv` (the reference set, issue #14) and the corrections log in `analysis/ocr-reference/README.md`; `seed/demo/document.csv` and `seed/demo/document_column.csv` (step 1's output, written by `pnpm ingest --documents analysis/ocr-reference/document-run.json` and committed by `pnpm seed:export`); `analysis/output/ocr-consistency-2026.json` (generated 2026-10-23 by `analysis/ocr/consistency.py` in step 1's image, tesseract 5.5.0).
 
 This measures step 1 as it is: `read_document` (Tesseract 5.5, `nor` from `tessdata_best`) and Story 2.2's reconciliation. It states what was measured and commits to no numeric target (NFR32).
 
@@ -21,11 +21,21 @@ The boundary was set before the comparison was run: **recent** is filing years 2
 
 A misread figure in a column that nevertheless reconciled. Only a reconciled column's figures reach the engine, so these are wrong figures Peerless would use.
 
-| Group | Filings | Misread figures in reconciled columns |
-|---|---|---|
-| Recent (2023–2025) | 12 | 3 |
-| Older (2021–2022) | 8 | 3 |
-| All | 20 | 6 |
+The transcriptions were corrected after the first measurement: a blind check against the PDFs found 6 transcription errors (`analysis/ocr-reference/README.md`, "Corrections"). The headline is given against the transcriptions both before and after those corrections; every other section uses the corrected transcriptions.
+
+| Group | Filings | Before corrections | After corrections |
+|---|---|---|---|
+| Recent (2023–2025) | 12 | 3 | 0 |
+| Older (2021–2022) | 8 | 3 | 0 |
+| All | 20 | 6 | 0 |
+
+### After the corrections
+
+None.
+
+### Before the corrections
+
+"Expected" is the transcription as it stood before the corrections.
 
 | Orgnr | Year | Column | Field | Expected | Read | Class | Column status |
 |---|---|---|---|---|---|---|---|
@@ -35,6 +45,19 @@ A misread figure in a column that nevertheless reconciled. Only a reconciled col
 | 917526729 | 2025 | this year | sum_kortsiktig_gjeld | 3 398 859 kr | 5 619 383 kr | misread | reconciled |
 | 917526729 | 2025 | last year | sum_kortsiktig_gjeld | 3 224 133 kr | 5 233 612 kr | misread | reconciled |
 | 922184534 | 2025 | this year | bankinnskudd | 429 329 kr | 9 429 329 kr | misread | reconciled |
+
+### The corrections
+
+Each was found by the blind check and confirmed against the PDF (`analysis/ocr-reference/README.md`).
+
+| Date | Orgnr | Year | Column | Field | Transcribed | Corrected |
+|---|---|---|---|---|---|---|
+| 2026-10-23 | 995318733 | 2021 | this year | sum_eiendeler | 86 913 592 kr | 86 913 593 kr |
+| 2026-10-23 | 995318733 | 2021 | last year | sum_kortsiktig_gjeld | 19 339 152 kr | 37 849 846 kr |
+| 2026-10-23 | 995318733 | 2021 | this year | kundefordringer | 444 745 213 kr | 44 745 213 kr |
+| 2026-10-23 | 917526729 | 2025 | this year | sum_kortsiktig_gjeld | 3 398 859 kr | 5 619 383 kr |
+| 2026-10-23 | 922184534 | 2025 | this year | bankinnskudd | 429 329 kr | 9 429 329 kr |
+| 2026-10-23 | 917526729 | 2025 | last year | sum_kortsiktig_gjeld | 3 224 133 kr | 5 233 612 kr |
 
 ## Every compared field, by class
 
@@ -47,9 +70,9 @@ A field neither holds is not a figure and is not counted. "Recovered exactly" is
 
 | Group | correct | not read | misread | phantom | Counted | Recovered exactly |
 |---|---|---|---|---|---|---|
-| Recent (2023–2025) | 411 | 61 | 4 | 0 | 476 | 86,3 % |
-| Older (2021–2022) | 228 | 60 | 5 | 0 | 293 | 77,8 % |
-| All | 639 | 121 | 9 | 0 | 769 | 83,1 % |
+| Recent (2023–2025) | 414 | 61 | 1 | 0 | 476 | 87,0 % |
+| Older (2021–2022) | 231 | 60 | 2 | 0 | 293 | 78,8 % |
+| All | 645 | 121 | 3 | 0 | 769 | 83,9 % |
 
 ## Consistency of the reference filings
 
@@ -63,7 +86,7 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 
 ## Every mismatch
 
-130 fields are not correct. Expected is the transcription, read is step 1's stored figure, both in whole kroner.
+124 fields are not correct. Expected is the transcription, read is step 1's stored figure, both in whole kroner.
 
 | Orgnr | Year | Column | Field | Expected | Read | Class | Column status |
 |---|---|---|---|---|---|---|---|
@@ -85,11 +108,8 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 | 921716257 | 2021 | last year | sum_egenkapital | 0 kr | NULL | not read | failed_reconciliation |
 | 921716257 | 2021 | last year | sum_gjeld | 0 kr | NULL | not read | failed_reconciliation |
 | 995318733 | 2021 | this year | avskrivninger | 891 828 kr | NULL | not read | reconciled |
-| 995318733 | 2021 | this year | kundefordringer | 444 745 213 kr | 44 745 213 kr | misread | reconciled |
-| 995318733 | 2021 | this year | sum_eiendeler | 86 913 592 kr | 86 913 593 kr | misread | reconciled |
 | 995318733 | 2021 | this year | sum_egenkapital_gjeld | 86 913 593 kr | NULL | not read | reconciled |
 | 995318733 | 2021 | last year | avskrivninger | 815 697 kr | NULL | not read | reconciled |
-| 995318733 | 2021 | last year | sum_kortsiktig_gjeld | 19 339 152 kr | 37 849 846 kr | misread | reconciled |
 | 995318733 | 2021 | last year | sum_egenkapital_gjeld | 73 729 645 kr | NULL | not read | reconciled |
 | 885583822 | 2022 | this year | salgsinntekt | 60 863 322 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | this year | avskrivninger | 170 190 kr | NULL | not read | failed_reconciliation |
@@ -169,12 +189,10 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 | 981564782 | 2024 | last year | kundefordringer | 1 219 037 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | this year | salgsinntekt | 11 245 099 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | this year | kundefordringer | 864 869 kr | NULL | not read | reconciled |
-| 917526729 | 2025 | this year | sum_kortsiktig_gjeld | 3 398 859 kr | 5 619 383 kr | misread | reconciled |
 | 917526729 | 2025 | this year | sum_egenkapital_gjeld | 14 021 777 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | last year | salgsinntekt | 11 015 493 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | last year | annen_driftskostnad | 1 677 195 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | last year | kundefordringer | 1 831 373 kr | NULL | not read | reconciled |
-| 917526729 | 2025 | last year | sum_kortsiktig_gjeld | 3 224 133 kr | 5 233 612 kr | misread | reconciled |
 | 917526729 | 2025 | last year | sum_egenkapital_gjeld | 11 642 511 kr | NULL | not read | reconciled |
 | 918618716 | 2025 | this year | salgsinntekt | 1 733 466 kr | NULL | not read | reconciled |
 | 918618716 | 2025 | this year | avskrivninger | 64 200 kr | NULL | not read | reconciled |
@@ -183,7 +201,6 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 | 918618716 | 2025 | last year | sum_egenkapital_gjeld | 10 406 314 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | this year | salgsinntekt | 56 433 689 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | this year | avskrivninger | 59 405 139 kr | NULL | not read | reconciled |
-| 922184534 | 2025 | this year | bankinnskudd | 429 329 kr | 9 429 329 kr | misread | reconciled |
 | 922184534 | 2025 | this year | sum_egenkapital_gjeld | 195 262 950 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | last year | lonnskostnad | 31 286 483 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | last year | avskrivninger | 15 118 394 kr | NULL | not read | reconciled |

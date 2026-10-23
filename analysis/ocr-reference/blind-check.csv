@@ -1,0 +1,21 @@
+n;orgnr;filing_year;column;field;value_in_pdf_kr;checked_by;checked_on;notes
+1;936252710;2024;last year;annen_driftskostnad;3562079;Christian Meinich;2026-10-23;
+2;911561972;2024;this year;sum_immaterielle_eiendeler;19689267;Christian Meinich;2026-10-23;
+3;995318733;2021;this year;sum_eiendeler;86913593;Christian Meinich;2026-10-23;
+4;936252710;2024;last year;sum_driftsinntekter;60499679;Christian Meinich;2026-10-23;
+5;995318733;2021;this year;varekostnad;53951919;Christian Meinich;2026-10-23;
+6;995318733;2021;last year;sum_kortsiktig_gjeld;37849846;Christian Meinich;2026-10-23;re-checked 2026-10-23: first entered 45622466, read from the 2021 column
+7;995318733;2021;this year;lonnskostnad;42196919;Christian Meinich;2026-10-23;
+8;995318733;2021;this year;kundefordringer;44745213;Christian Meinich;2026-10-23;
+9;929151178;2023;this year;avskrivninger;5597;Christian Meinich;2026-10-23;
+10;917526729;2025;this year;sum_kortsiktig_gjeld;5619383;Christian Meinich;2026-10-23;
+11;929481151;2022;this year;sum_eiendeler;24429;Christian Meinich;2026-10-23;
+12;929481151;2022;this year;bankinnskudd;24429;Christian Meinich;2026-10-23;
+13;917397198;2021;this year;aarsresultat;660124;Christian Meinich;2026-10-23;
+14;927533235;2023;last year;ordinaert_resultat_foer_skattekostnad;-259864;Christian Meinich;2026-10-23;
+15;929151178;2023;last year;ordinaert_resultat_foer_skattekostnad;609885;Christian Meinich;2026-10-23;
+16;915338534;2023;this year;sum_egenkapital;1593502;Christian Meinich;2026-10-23;
+17;929151178;2023;last year;sum_driftsinntekter;1373223;Christian Meinich;2026-10-23;
+18;922184534;2025;this year;bankinnskudd;9429329;Christian Meinich;2026-10-23;
+19;919470992;2024;last year;annen_driftskostnad;38280;Christian Meinich;2026-10-23;
+20;917526729;2025;last year;sum_kortsiktig_gjeld;5233612;Christian Meinich;2026-10-23;

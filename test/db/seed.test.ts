@@ -104,7 +104,7 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 557 companies, 22 354 filings, no document, the coverage rows and one dataset row', async () => {
+  it('loads 17 557 companies, 22 354 filings, the reference documents, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
       const [counts] = await tx<
@@ -116,10 +116,10 @@ describe('the committed seed', () => {
                (select count(*)::int from register.document) as document,
                (select count(*)::int from register.document_column) as document_column
       `;
-      // The document tables stay empty in the committed seed until Story
-      // 2.3's allow-list names the orgnrs whose document figures may be
-      // committed (Story 2.1b).
-      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 0, document_column: 0 });
+      // The committed seed holds the OCR reference set's documents only
+      // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
+      // each. The acceptance run's rows wait for Story 5.4's allow-list.
+      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 97, document_column: 194 });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;
       const declared = readCoverage(path.join(root, COVERAGE_FILE));
@@ -408,9 +408,10 @@ describe('the export and document figures', () => {
         insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
         values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
       manifest = await exportSeed(tx, scratchRoot, out);
-      expect(manifest.document_figure_orgnrs).toEqual([orgnr]);
+      // The committed seed already holds the 20 reference orgnrs' documents.
+      expect(manifest.document_figure_orgnrs).toContain(orgnr);
     });
-    expect(manifest?.document_figure_orgnrs).toHaveLength(1);
+    expect(manifest?.document_figure_orgnrs).toHaveLength(21);
     expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(allowList);
     expect(JSON.parse(allowList)).toHaveLength(21);
   });

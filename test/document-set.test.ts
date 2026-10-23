@@ -5,8 +5,14 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
-import { DOCUMENT_RUN_FILE, documentRunJson, documentRunSet } from '../scripts/document-set.ts';
-import { compareBytes } from '../scripts/seed-format.ts';
+import {
+  DOCUMENT_RUN_FILE,
+  REFERENCE_RUN_FILE,
+  documentRunJson,
+  documentRunSet,
+  referenceRunSet,
+} from '../scripts/document-set.ts';
+import { REFERENCE_DRAW_FILE, compareBytes, parseDrawn } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -53,5 +59,24 @@ describe(DOCUMENT_RUN_FILE, () => {
     const demoC = /\[demo_company_c\][^[]*?orgnr\s*=\s*"(\d{9})"/.exec(config)?.[1];
     expect(demoC).toBe('967534579');
     expect(list).not.toContain(demoC);
+  });
+});
+
+describe('the OCR reference run (--reference, Story 2.3)', () => {
+  it('lists each drawn orgnr once, in byte order', () => {
+    expect(
+      referenceRunSet([
+        { orgnr: '929821092', year: 2022 },
+        { orgnr: '885583822', year: 2022 },
+        { orgnr: '929821092', year: 2021 },
+      ]),
+    ).toEqual(['885583822', '929821092']);
+  });
+
+  it(`commits ${REFERENCE_RUN_FILE} as the script writes it from the committed draw`, () => {
+    const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, REFERENCE_DRAW_FILE), 'utf8')));
+    const text = readFileSync(path.join(root, REFERENCE_RUN_FILE), 'utf8');
+    expect(text).toBe(documentRunJson(referenceRunSet(drawn)));
+    expect(JSON.parse(text)).toHaveLength(20);
   });
 });

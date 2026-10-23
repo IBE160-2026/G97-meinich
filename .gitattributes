@@ -4,6 +4,9 @@
 seed/** -text
 analysis/output/** -text
 test/fixtures/seed/** -text
+# The OCR reference run's orgnr list is compared byte for byte with what
+# `pnpm ingest:document-set --reference` writes (Story 2.3).
+analysis/ocr-reference/document-run.json -text
 
 # Step 1 runs in a Linux container: its files stay LF on every host, so no
 # script, config or fixture reaches the container with a carriage return

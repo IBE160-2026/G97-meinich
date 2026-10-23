@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 24 |
-| money | 18 |
-| parsing | 12 |
+| money | 19 |
+| parsing | 13 |
 | llm-boundary | 5 |
 | scope | 15 |
-| docs | 18 |
+| docs | 19 |
 
 ## Entry template
 
@@ -577,9 +577,25 @@ Demo company C is left out of the acceptance set by the human's decision (#21, `
 1. **A misread total is no longer caught where the total is absent.** When `sum_egenkapital_gjeld` is NULL, nothing checks it; it is not read, so no figure from it is used. But c5 holds over three figures only: one misread among sum eiendeler, sum egenkapital and sum gjeld fails it (`ingest/tests/test_reconcile.py::test_c5_fails_on_one_misread_figure`), while two misreads that cancel would pass. c3 with c4 had the same weakness with their operands.
 2. **c5 computed from a derived component** would let a value step 1 did not read confirm itself. c5 reads only the three stored figures and never derives the total or any part (AD-15); `test_c5_balances_without_total` asserts the total stays NULL.
 3. **c5 passing while c3 fails** would hide a misread total: any failing check among c1–c5 fails the column (`test_reconcile.py::test_core_check_must_be_evaluable`, the c5-fail assertion; `test/db/documents.test.ts`, "holds the status rule").
-4. **The fix hides the reading gap.** The label is still missed in about 836 current columns; c5 makes those filings usable, it does not read the total. Story 2.3 owns the label fix and a new reading of those documents (`deferred-work.md`).
+4. **The fix hides the reading gap.** The total is still not read in about 836 current columns; c5 makes those filings usable, it does not read the total. Story 2.3b owns reading that row and a new reading of those documents (`deferred-work.md`). (Corrected 2026-10-23: this item first said the label was missed. Story 2.3 probed seven of these documents: the bold "SUM" is read as "50M", so the folded label matches no target; the rest of the row is mostly read.)
 5. **c5 can fail on legitimate rounding while c3 and c4 pass.** c3 and c4 each allow 5 kr, so sum eiendeler and sum egenkapital + sum gjeld can lie 6–10 kr apart in a correct filing, and c5 then fails it. None of the 3 892 stored columns has this pattern (c3 and c4 pass, c5 fails) in the rolled-back reconciliation; it would show as a `failed_reconciliation` with every figure read.
 
 This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliation rules and the blocking rule": since c5, a column whose c3 is not evaluable is reconciled when c5 passes; only c1, and a balance passing by neither c3 nor c5, are required.
 **Caught by:** The rolled-back reconciliation over the stored rows (the BMAD session's measurement); the decision was the human's. Each new test was checked to fail with its guard removed (the c3-or-c5 rule, c5 in the fail set, the c5 arithmetic).
 **Outcome:** On the Story 2.1b rows, current columns reconciling rose from 1 031 to 1 801 of 1 946, both after the API check (`docs/data-sources-brreg.md`, "Reconciliation"). The commits are listed in the session file.
+
+### 2026-10-23 — Story 2.3: SM-2, the reader measured against a hand transcription
+**Tags:** money · parsing · docs
+**Tool:** Claude Code (BMAD dev subagent, Opus 5.5)
+**Asked:** Implement the Story 2.3 spec: put the 20 reference orgnrs on the allow-list from `drawn.json`, read their documents with step 1, compare every field with `transcriptions.csv`, re-measure the spike's consistency baseline with `read_document`, and write one report (`analysis/output/ocr-sm2.md`).
+**Got:** `withReferenceOrgnrs` in `scripts/seed-format.ts` and its use in `seed:export`; `pnpm ingest:document-set --reference`; `scripts/ocr-sm2-compare.ts` and `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`); `analysis/ocr/consistency.py`; the seed with 97 reference documents; the report.
+**Problem:** What could go wrong, and what was found:
+1. **A blank or NULL counted as 0** would score a not-read figure as correct wherever the transcription has 0. `classify` returns `not read` for NULL against 0 (`test/ocr-sm2.test.ts`, "NULL is not zero"); stored øre are parsed with `parseOre` and compared as bigint with kroner × 100, never as a float ("classifies a correct figure", "classifies a misread figure").
+2. **Reading the CSV by position** would shift every field after the misspelt `finansielle_anleggsmider` column. It is read by header name ("reads by header name": shuffled columns, extra columns, CRLF and a BOM give the same result).
+3. **Comparing documents outside the draw** would inflate the counts with years nobody transcribed ("compares only drawn filings").
+4. **The allow-list silently dropping a reference orgnr** would leave its figures out of the declared sample (NFR15): `test/allow-list.test.ts`, "lists every reference orgnr with the reason OCR-referansesett", reads the committed draw; `test/seed-format.test.ts`, "adds the reference orgnrs", checks the merge; `test/db/seed.test.ts` checks the export refuses without the draw.
+5. **The baseline was 156 in `epics.md`, but the spike's failure table gives 157.** 156 matches 93 % of 168 rounded down. Corrected in `epics.md` and `epic-2-context.md`; `test/ocr-sm2.test.ts`, "keeps the baseline the spike report shows", counts the failure table's 2021–2025 rows.
+6. **The diagnosis in the spec did not match the probe.** The spec's decision said the "SUM EGENKAPITAL OG GJELD" label is read and the bold figures fail. Running `read_document`'s OCR on seven documents with the total NULL showed the bold "SUM" read as "50M" in all seven, so the folded label matches no target; the figures were mostly read (a bold "1" read as "l" in two). The corrections in `deferred-work.md`, `docs/data-sources-brreg.md`, `epic-2-context.md`, the 2.2 spec's change log and the 2.2 entry above describe what the probe showed.
+7. **The headline includes likely transcription errors.** Of the 6 misread figures in reconciled columns, 3 are in 995318733/2021 (kundefordringer transcribed above total assets; sum eiendeler a krone off its own total) and 2 are 917526729/2025's sum kortsiktig gjeld, where the figure read equals the register's API. The transcription was not edited (the spec forbids it); the report states what was measured.
+**Caught by:** Items 1–4 by tests that fail with the guard removed; 5 by counting the spike report; 6 by probing the OCR; 7 by comparing the read figures with `register.key_figures`. Not yet reviewed.
+**Outcome:** 639 of 769 compared fields correct, 121 not read, 9 misread, 0 phantom; 6 misreads reach the engine. Consistency now 89 of 178 columns passing (89 of 92 evaluable) against 157 of 178 and 157 of 168; the drop is the missing balance total (Story 2.3b).

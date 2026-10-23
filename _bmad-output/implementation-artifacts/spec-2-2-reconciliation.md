@@ -157,6 +157,7 @@ context:
     - `test_reconcile.py::test_c5_balances_without_total` (the 919062223 pattern: total NULL, c3 and c4 `not_evaluable`, c5 pass, `reconciled`);
     - `test_reconcile.py::test_c5_fails_on_one_misread_figure` (each of sum eiendeler, sum egenkapital and sum gjeld misread in turn → c5 fail → `failed_reconciliation`).
   - **KEEP:** the two rules' values, the prior-column rule and `documentFigures`, unchanged.
+- **2026-10-23, Meinich (Story 2.3 spec): the cause of the NULL total was misdescribed.** "Because 2.1a misses the "SUM EGENKAPITAL OG GJELD" label" above is wrong as a diagnosis: the row is bold, and Tesseract reads its "SUM" as "50M" (seven of seven documents probed in Story 2.3), so the folded label matches no target while the rest of the row is mostly read. The fix moves from Story 2.3 to Story 2.3b (`deferred-work.md`). The counts above stand.
 
 ## Review Triage Log
 

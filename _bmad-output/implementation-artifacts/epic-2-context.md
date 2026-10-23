@@ -12,6 +12,7 @@ Make the peer group something the user can judge and adjust. Behind the page, ba
 - Story 2.1b: Store the filed accounts (OCR ingest)
 - Story 2.2: Accept only figures that reconcile
 - Story 2.3: Measure OCR accuracy (SM-2)
+- Story 2.3b: Read the balance total ("SUM EGENKAPITAL OG GJELD")
 - Story 2.4: Withdrawn companies disappear
 - Story 2.5: The business-model fingerprint (stage 4)
 - Story 2.6: Classification (stage 5)
@@ -23,7 +24,7 @@ Make the peer group something the user can judge and adjust. Behind the page, ba
 
 - **OCR is batch only**; nothing is fetched or read in a request. Match on orgnr only; never trust a requested year. Never repair an OCR digit: a non-digit token makes the figure absent.
 - **Reconciliation (settled):** within a document an absolute 5 kr bound (checks c1–c5 per column); between document and API max(5 kr, 0.001 % of the API figure). Never collapsed, never exact equality, values only in `ingest/config.toml`. A column is `reconciled` or `failed_reconciliation`; only a reconciled column's figures reach the engine. The quality flag derives from the checks only, never OCR confidence.
-- **SM-2:** compare step 1's output field by field with the reference set (20 filings, seeded stratified draw from all of 62.100, issue #14); state the recent/older boundary before comparing; list every mismatch; report both denominators against the baseline 156/178 and 156/168; no numeric target claimed. Reference orgnrs go on `seed/allow-list.json` with reason "OCR-referansesett", written by `seed:export` from the committed draw.
+- **SM-2:** compare step 1's output field by field with the reference set (20 filings, seeded stratified draw from all of 62.100, issue #14); state the recent/older boundary before comparing; list every mismatch; report both denominators against the baseline 157/178 and 157/168 (the spike's failure table; `epics.md` had 156, which matches the rounded 93 % of 168); no numeric target claimed. Reference orgnrs go on `seed/allow-list.json` with reason "OCR-referansesett", written by `seed:export` from the committed draw.
 - **Deletion:** only `410 Gone` deletes (cascade through every `register` table), never flags; any other answer deletes nothing and is written to step 1's run record. A deleted orgnr leaves every peer group, aggregate, seed file, the manifest and the allow-list; in `ekskl` it drops with the invalid-settings notice.
 - **Never select on a benchmarked measure.** No stage-1–5 function takes a margin, return or productivity figure; cost-of-goods and personnel-cost shares enter only as band ids. A 62.100 within-band spread test, measure and threshold fixed before running on data; a collapsed band is dropped and recorded.
 - **Classification:** the model sees only name, secondary codes, statement of purpose and description, and answers only in the fixed type set (no free text, nothing coerced: outside the set → `failed`). Unchanged text is not reclassified. Nothing to classify → `no_text`, still eligible on stages 1–4. Statuses `classified`, `no_text`, `failed`, `pending`; `seed:export` refuses while a covered-industry row is `failed` or `pending`. No key → stored responses, no network.
@@ -54,7 +55,8 @@ Make the peer group something the user can judge and adjust. Behind the page, ba
 
 ## Cross-Story Dependencies
 
-- 2.3 consumes the reference set (issue #14, transcribed) and the 2.1b run. It owns: fixing the "SUM EGENKAPITAL OG GJELD" label miss (~43 % of documents; hit rate before and after), and deciding which acceptance-run document rows (today only in the local DB and a gitignored dump) enter the committed seed, then dropping the dump step from the README.
+- 2.3 consumes the reference set (issue #14, transcribed) and the 2.1b run, and measures the reader as it is; that result is 2.3b's "before". It commits only the 20 reference orgnrs' document rows; the acceptance run's 407 orgnrs wait for Story 5.4's allow-list, so the README dump step stays until then.
+- 2.3b (split from 2.3, Meinich 2026-10-23) fixes the reading of the "SUM EGENKAPITAL OG GJELD" total (`sum_egenkapital_gjeld` NULL in ~43 % of documents) and re-reads the affected documents. The diagnosis changed: it is not a missing label variant but the bold total row. Tesseract reads its "SUM" as "50M" (7 of 7 sampled), so the folded label matches no target, while "EGENKAPITAL OG GJELD" and mostly the figures are read; a bold "1" read as "l" also refuses some figures (`deferred-work.md`, the 2.3b entry).
 - 2.4's deletion test is extended by 2.5 and 2.6; 2.5 fixes the business types that 2.6 reuses unchanged; 2.7 shows the result; 2.8 adjusts it; 2.9 adds absence reasons over 2.2's statuses.
 - 2.9 owns: årsverk absent (FTE figures #7, #8 shown absent with the right reason), the "revenue not stated" copy and a reason for an empty peer group from a failed comparability field, and choosing that year's own current column (a prior column only when the year has no document; a prior column with `api_check` fail never stands in). Before document figures become a second source, choose the subject's benchmark filing in the engine only.
 - Epic 3 renders the document rows; the explanation's adjusted-group state is Epic 4. Story 5.2 follows Epic 2 and measures each funnel layer; Story 5.4 writes the licence-gate file.

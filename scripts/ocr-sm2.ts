@@ -317,8 +317,11 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
   const notEvaluableNow = generatedFilings
     .flatMap((f) => (['current', 'prior'] as const).map((role) => ({ f, role, c: f.columns.find((c) => c.role === role) })))
     .filter(({ c }) => c === undefined || c.c1 === 'not_evaluable' || c.c3 === 'not_evaluable')
-    .map(({ f, role, c }) => `${key(f, role)}${c === undefined ? ` (${f.status}${f.refusal === null ? '' : `, ${f.refusal}`})` : ` (c1 ${c.c1}, c3 ${c.c3})`}`)
-    .sort(compareBytes);
+    .map(({ f, role, c }) => ({
+      key: key(f, role),
+      why: c === undefined ? `${f.status}${f.refusal === null ? '' : `, ${f.refusal}`}` : `c1 ${c.c1}, c3 ${c.c3}`,
+    }))
+    .sort((a, b) => compareBytes(a.key, b.key));
   const totalUnread = columns.filter((c) => c.c3 === 'not_evaluable' && c.c5 !== 'not_evaluable').length;
   const describeKey = (k: string) => {
     const [o, y, r] = k.split('/');
@@ -347,7 +350,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     `- Failing in the baseline and now (${stillFailing.length}): ${stillFailing.length === 0 ? 'none' : stillFailing.map(describeKey).join('; ')}.`,
     `- Failing in the baseline, not evaluable now (${neither.length}): ${neither.length === 0 ? 'none' : neither.map(describeKey).join('; ')}.`,
     `- Failing now, not in the baseline's failure table (${newlyFailing.length}): ${newlyFailing.length === 0 ? 'none' : newlyFailing.map(describeKey).join('; ')}.`,
-    `- Not evaluable now (${notEvaluableNow.length}): ${notEvaluableNow.length === 0 ? 'none' : notEvaluableNow.join('; ')}.`,
+    `- Not evaluable now (${notEvaluableNow.length}): ${notEvaluableNow.length === 0 ? 'none' : notEvaluableNow.map((n) => `${describeKey(n.key)} (${n.why})`).join('; ')}.`,
     '',
     'The baseline report does not list its non-evaluable columns, so a change in the evaluable count cannot be traced column by column; the list above is every column not evaluable now. ' +
       `Of those, ${totalUnread} ha${totalUnread === 1 ? 's' : 've'} c3 not evaluable while c5 is evaluable: sum eiendeler was read, so the figure missing is "Sum egenkapital og gjeld", the fault Story 2.3b takes up.`,

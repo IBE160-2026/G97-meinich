@@ -21,8 +21,10 @@ import {
   groupOf,
   mismatches,
   misreadsReachingEngine,
+  parseCorrections,
   parseStoredColumns,
   parseTranscriptions,
+  transcriptionsBefore,
 } from '../scripts/ocr-sm2-compare.ts';
 import { REPORT_FILE, readInputs, renderReport } from '../scripts/ocr-sm2.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
@@ -176,6 +178,58 @@ describe('the headline and the scope', () => {
 
   it('refuses a drawn filing with no transcription', () => {
     expect(() => compareReference([{ orgnr: '921716257', year: 2021 }], [], [])).toThrow(/no current column/);
+  });
+});
+
+describe('the corrections log', () => {
+  const log = (rows: string[]) =>
+    [
+      '# OCR reference set',
+      '',
+      '## Corrections',
+      '',
+      '| Date | Orgnr | Filing year | Column | Field | Old | New |',
+      '|---|---|---|---|---|---|---|',
+      ...rows,
+      '',
+      '## Next',
+    ].join('\r\n');
+
+  it('reads the table under the Corrections heading', () => {
+    expect(parseCorrections(log(['| 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |']))).toEqual([
+      { date: '2026-10-23', orgnr: '922184534', filingYear: 2025, role: 'current', field: 'bankinnskudd', oldKr: 429329n, newKr: 9429329n },
+    ]);
+  });
+
+  it('refuses a README without the heading, a field outside the comparison, and a cell corrected twice', () => {
+    expect(() => parseCorrections('# OCR reference set\n')).toThrow(/no "## Corrections" heading/);
+    expect(() => parseCorrections(log(['| 2026-10-23 | 922184534 | 2025 | current | notes | 1 | 2 |']))).toThrow(/not a compared field/);
+    const row = '| 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |';
+    expect(() => parseCorrections(log([row, row]))).toThrow(/corrected twice/);
+  });
+
+  it('reconstructs the headline before the corrections', () => {
+    const drawn = [{ orgnr: '922184534', year: 2025 }];
+    const corrected = [
+      truth('922184534', 2025, 'current', { bankinnskudd: 9429329n }),
+      truth('922184534', 2025, 'prior', {}),
+    ];
+    const stored = [read('922184534', 2025, 'current', { bankinnskudd: 942932900n }), read('922184534', 2025, 'prior', {})];
+    const corrections = parseCorrections(log(['| 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |']));
+    const after = misreadsReachingEngine(compareReference(drawn, corrected, stored).results);
+    const before = misreadsReachingEngine(compareReference(drawn, transcriptionsBefore(corrected, corrections), stored).results);
+    expect(after).toEqual([]);
+    expect(before).toEqual([expect.objectContaining({ field: 'bankinnskudd', expectedKr: 429329n, class: 'misread' })]);
+    // The corrected input is not changed in place.
+    expect(corrected[0]?.figuresKr.get('bankinnskudd')).toBe(9429329n);
+  });
+
+  it('refuses a log that transcriptions.csv does not match', () => {
+    const corrections = parseCorrections(log(['| 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |']));
+    expect(() => transcriptionsBefore([truth('922184534', 2025, 'current', { bankinnskudd: 1n })], corrections)).toThrow(
+      /does not hold the logged new value/,
+    );
+    expect(() => transcriptionsBefore([], corrections)).toThrow(/no column 922184534\/2025\/current/);
   });
 });
 

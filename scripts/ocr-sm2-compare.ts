@@ -217,6 +217,106 @@ export function parseTranscriptions(text: string): TranscribedColumn[] {
   });
 }
 
+/** One logged correction to transcriptions.csv: whole kroner, null for a blank cell. */
+export interface Correction {
+  date: string;
+  orgnr: string;
+  filingYear: number;
+  role: Role;
+  field: Sm2Field;
+  oldKr: bigint | null;
+  newKr: bigint | null;
+}
+
+export const CORRECTIONS_HEADING = '## Corrections';
+const CORRECTIONS_HEADER = '| Date | Orgnr | Filing year | Column | Field | Old | New |';
+
+/**
+ * The corrections log in analysis/ocr-reference/README.md: the table under
+ * "## Corrections", with exactly the columns of CORRECTIONS_HEADER. A README
+ * without the heading refuses rather than reading as "no corrections", so a
+ * renamed heading cannot silently drop the before/after comparison. The same
+ * cell corrected twice refuses.
+ */
+export function parseCorrections(readme: string): Correction[] {
+  const file = 'README.md';
+  const lines = readme.split(/\r?\n/);
+  const start = lines.indexOf(CORRECTIONS_HEADING);
+  if (start === -1) throw new Error(`${file}: no "${CORRECTIONS_HEADING}" heading`);
+  const table: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.startsWith('|')) table.push(line);
+    else if (table.length > 0) break;
+    else if (line.trim() !== '') throw new Error(`${file}: "${CORRECTIONS_HEADING}" must be followed by its table`);
+  }
+  const [header, separator, ...rows] = table;
+  if (header !== CORRECTIONS_HEADER) throw new Error(`${file}: the corrections table header must be ${CORRECTIONS_HEADER}`);
+  if (separator === undefined || !/^\|(-+\|)+$/.test(separator)) throw new Error(`${file}: the corrections table has no separator row`);
+  const figure = (value: string, line: string): bigint | null => {
+    if (value === '') return null;
+    if (!WHOLE.test(value)) throw new Error(`${file}: correction ${line}: figures must be blank or whole kroner`);
+    return BigInt(value);
+  };
+  const seen = new Set<string>();
+  return rows.map((line) => {
+    const cells = line.slice(1, -1).split('|').map((c) => c.trim());
+    if (cells.length !== 7) throw new Error(`${file}: correction ${line}: expected 7 columns`);
+    const [date = '', orgnrValue = '', yearValue = '', roleValue = '', fieldValue = '', oldValue = '', newValue = ''] = cells;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`${file}: correction ${line}: date must be YYYY-MM-DD`);
+    const field = SM2_FIELDS.find((f) => f === fieldValue);
+    if (field === undefined) throw new Error(`${file}: correction ${line}: ${JSON.stringify(fieldValue)} is not a compared field`);
+    const correction: Correction = {
+      date,
+      orgnr: orgnr(file, orgnrValue, 0),
+      filingYear: year(file, yearValue, 0, 'filing year'),
+      role: role(file, roleValue, 0),
+      field,
+      oldKr: figure(oldValue, line),
+      newKr: figure(newValue, line),
+    };
+    const key = `${correction.orgnr}/${correction.filingYear}/${correction.role}/${field}`;
+    if (seen.has(key)) throw new Error(`${file}: ${key} is corrected twice`);
+    seen.add(key);
+    return correction;
+  });
+}
+
+/**
+ * The transcriptions as they stood before the logged corrections: each
+ * corrected cell set back to its old value. A cell that does not now hold
+ * the logged new value refuses, so the log and transcriptions.csv cannot
+ * drift apart unnoticed.
+ */
+export function transcriptionsBefore(
+  transcribed: readonly TranscribedColumn[],
+  corrections: readonly Correction[],
+): TranscribedColumn[] {
+  const byColumn = new Map<string, Correction[]>();
+  for (const c of corrections) {
+    const key = columnKey(c.orgnr, c.filingYear, c.role);
+    byColumn.set(key, [...(byColumn.get(key) ?? []), c]);
+  }
+  const used = new Set<string>();
+  const before = transcribed.map((column) => {
+    const key = columnKey(column.orgnr, column.filingYear, column.role);
+    const fixes = byColumn.get(key);
+    if (fixes === undefined) return column;
+    used.add(key);
+    const figuresKr = new Map(column.figuresKr);
+    for (const fix of fixes) {
+      if ((figuresKr.get(fix.field) ?? null) !== fix.newKr) {
+        throw new Error(`transcriptions.csv: ${key} ${fix.field} does not hold the logged new value ${fix.newKr ?? 'blank'}`);
+      }
+      figuresKr.set(fix.field, fix.oldKr);
+    }
+    return { ...column, figuresKr };
+  });
+  for (const key of byColumn.keys()) {
+    if (!used.has(key)) throw new Error(`transcriptions.csv: no column ${key} for a logged correction`);
+  }
+  return before;
+}
+
 /** seed/demo/document_column.csv (COPY csv with header), read by header name. NULL is an empty unquoted field. */
 export function parseStoredColumns(text: string): StoredColumn[] {
   const file = 'document_column.csv';

@@ -4,7 +4,9 @@
 // the report byte for byte apart from its generation date:
 //
 // - analysis/ocr-reference/drawn.json and transcriptions.csv: the
-//   hand-transcribed reference set (issue #14);
+//   hand-transcribed reference set (issue #14), and README.md's
+//   "Corrections" log, from which the headline before the corrections is
+//   reconstructed;
 // - seed/demo/document.csv and document_column.csv: step 1's output for the
 //   reference filings, committed by `pnpm seed:export` (the reference orgnrs
 //   are on seed/allow-list.json);
@@ -28,6 +30,8 @@ import {
   type CheckedColumn,
   type ClassCounts,
   type Comparison,
+  type Correction,
+  CORRECTIONS_HEADING,
   FIELD_CLASSES,
   type FieldResult,
   GROUPS,
@@ -43,13 +47,16 @@ import {
   groupOf,
   mismatches,
   misreadsReachingEngine,
+  parseCorrections,
   parseStoredColumns,
   parseStoredDocuments,
   parseTranscriptions,
+  transcriptionsBefore,
 } from './ocr-sm2-compare.ts';
 import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, compareBytes, parseDrawn } from './seed-format.ts';
 
 export const TRANSCRIPTIONS_FILE = 'analysis/ocr-reference/transcriptions.csv';
+export const CORRECTIONS_FILE = 'analysis/ocr-reference/README.md';
 export const CONSISTENCY_FILE = 'analysis/output/ocr-consistency-2026.json';
 export const REPORT_FILE = 'analysis/output/ocr-sm2.md';
 
@@ -157,6 +164,9 @@ function resultRow(r: FieldResult): string {
 export interface ReportInputs {
   drawn: readonly DrawnFiling[];
   comparison: Comparison;
+  /** The same comparison against the transcriptions before the logged corrections. */
+  before: Comparison;
+  corrections: readonly Correction[];
   documents: readonly StoredDocument[];
   stored: readonly StoredColumn[];
   consistency: Consistency;
@@ -164,7 +174,7 @@ export interface ReportInputs {
 
 /** The report, with `generated` (YYYY-MM-DD) as its only varying part. */
 export function renderReport(inputs: ReportInputs, generated: string): string {
-  const { drawn, comparison, documents, stored, consistency } = inputs;
+  const { drawn, comparison, before, corrections, documents, stored, consistency } = inputs;
   const { results, notes } = comparison;
   const inGroup = (g: Group) => results.filter((r) => r.group === g);
   const drawnIn = (g: Group) => drawn.filter((d) => groupOf(d.year) === g);
@@ -172,6 +182,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
   const drawnDocuments = documents.filter((d) => drawnKeys.has(`${d.orgnr}/${d.filingYear}`));
   const drawnColumns = stored.filter((c) => drawnKeys.has(`${c.orgnr}/${c.filingYear}`));
   const headline = misreadsReachingEngine(results);
+  const headlineBefore = misreadsReachingEngine(before.results);
   const lines: string[] = [];
   const push = (...more: string[]) => lines.push(...more);
 
@@ -179,7 +190,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     '# OCR accuracy against the hand-transcribed reference set (SM-2)',
     '',
     `Generated ${generated} by \`scripts/ocr-sm2.ts\` (\`pnpm analysis:sm2\`), with helpers in \`scripts/ocr-sm2-compare.ts\`. ` +
-      `Inputs, all committed: \`${REFERENCE_DRAW_FILE}\` and \`${TRANSCRIPTIONS_FILE}\` (the reference set, issue #14); ` +
+      `Inputs, all committed: \`${REFERENCE_DRAW_FILE}\` and \`${TRANSCRIPTIONS_FILE}\` (the reference set, issue #14) and the corrections log in \`${CORRECTIONS_FILE}\`; ` +
       `\`${SEED_DIR}/document.csv\` and \`${SEED_DIR}/document_column.csv\` (step 1's output, written by \`pnpm ingest --documents analysis/ocr-reference/document-run.json\` and committed by \`pnpm seed:export\`); ` +
       `\`${CONSISTENCY_FILE}\` (generated ${consistency.generated} by \`${consistency.script}\` in step 1's image, ${consistency.tesseract}).`,
     '',
@@ -207,12 +218,20 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
   push(
     '## Headline: misread figures that reach the engine',
     '',
-    'A misread figure in a column that nevertheless reconciled. Only a reconciled column\'s figures reach the engine, so these are wrong figures Peerless would use.',
+    "A misread figure in a column that nevertheless reconciled. Only a reconciled column's figures reach the engine, so these are wrong figures Peerless would use.",
     '',
-    '| Group | Filings | Misread figures in reconciled columns |',
-    '|---|---|---|',
-    ...GROUPS.map((g) => `| ${GROUP_NAME[g]} | ${drawnIn(g).length} | ${headline.filter((r) => r.group === g).length} |`),
-    `| All | ${drawn.length} | ${headline.length} |`,
+    `The transcriptions were corrected after the first measurement: a blind check against the PDFs found ${corrections.length} transcription ${corrections.length === 1 ? 'error' : 'errors'} (\`${CORRECTIONS_FILE}\`, "${CORRECTIONS_HEADING.slice(3)}"). ` +
+      'The headline is given against the transcriptions both before and after those corrections; every other section uses the corrected transcriptions.',
+    '',
+    '| Group | Filings | Before corrections | After corrections |',
+    '|---|---|---|---|',
+    ...GROUPS.map(
+      (g) =>
+        `| ${GROUP_NAME[g]} | ${drawnIn(g).length} | ${headlineBefore.filter((r) => r.group === g).length} | ${headline.filter((r) => r.group === g).length} |`,
+    ),
+    `| All | ${drawn.length} | ${headlineBefore.length} | ${headline.length} |`,
+    '',
+    '### After the corrections',
     '',
   );
   if (headline.length === 0) {
@@ -225,6 +244,32 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
       '',
     );
   }
+  push('### Before the corrections', '');
+  if (headlineBefore.length === 0) {
+    push('None.', '');
+  } else {
+    push(
+      '"Expected" is the transcription as it stood before the corrections.',
+      '',
+      '| Orgnr | Year | Column | Field | Expected | Read | Class | Column status |',
+      '|---|---|---|---|---|---|---|---|',
+      ...headlineBefore.map(resultRow),
+      '',
+    );
+  }
+  push(
+    '### The corrections',
+    '',
+    `Each was found by the blind check and confirmed against the PDF (\`${CORRECTIONS_FILE}\`).`,
+    '',
+    '| Date | Orgnr | Year | Column | Field | Transcribed | Corrected |',
+    '|---|---|---|---|---|---|---|',
+    ...corrections.map(
+      (c) =>
+        `| ${c.date} | ${c.orgnr} | ${c.filingYear} | ${ROLE_NAME[c.role]} | ${c.field} | ${kroner(c.oldKr)} | ${kroner(c.newKr)} |`,
+    ),
+    '',
+  );
 
   push(
     '## Every compared field, by class',
@@ -365,9 +410,13 @@ export function readInputs(root: string): ReportInputs {
   const read = (relative: string) => readFileSync(path.join(root, ...relative.split('/')), 'utf8');
   const drawn = parseDrawn(JSON.parse(read(REFERENCE_DRAW_FILE)));
   const stored = parseStoredColumns(read(`${SEED_DIR}/document_column.csv`));
+  const transcribed = parseTranscriptions(read(TRANSCRIPTIONS_FILE));
+  const corrections = parseCorrections(read(CORRECTIONS_FILE));
   return {
     drawn,
-    comparison: compareReference(drawn, parseTranscriptions(read(TRANSCRIPTIONS_FILE)), stored),
+    comparison: compareReference(drawn, transcribed, stored),
+    before: compareReference(drawn, transcriptionsBefore(transcribed, corrections), stored),
+    corrections,
     documents: parseStoredDocuments(read(`${SEED_DIR}/document.csv`)),
     stored,
     consistency: parseConsistency(JSON.parse(read(CONSISTENCY_FILE))),

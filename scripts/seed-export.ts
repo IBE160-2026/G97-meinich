@@ -14,7 +14,10 @@
 //   seed/coverage.json.
 // - Refuses, before writing any file, a document figure (a row of
 //   register.document_column) for an orgnr not on seed/allow-list.json, and
-//   writes the allow-list back with the entries it read.
+//   writes the allow-list back with the entries it read plus every orgnr of
+//   the committed OCR reference draw (analysis/ocr-reference/drawn.json,
+//   Story 2.3), each added once with the reason "OCR-referansesett". The
+//   refusal checks that merged list.
 // - Running it twice on the same database gives byte-identical files.
 //
 // A later migration invalidates the seed: the PR that adds a migration runs
@@ -43,12 +46,15 @@ import {
   exportPaths,
   latestMigrationId,
   orderByClause,
-  parseAllowList,
+  REFERENCE_DRAW_FILE,
+  parseAllowListEntries,
+  parseDrawn,
   readCoverage,
   refuseUnlistedDocumentFigures,
   seedFileName,
   sha256,
   stableJson,
+  withReferenceOrgnrs,
 } from './seed-format.ts';
 
 type Sql = postgres.Sql | postgres.TransactionSql;
@@ -131,13 +137,21 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
     fetched.map((r) => r.code),
   );
   // A document figure is a row of register.document_column (Story 2.1b).
-  // None may be exported for an orgnr the allow-list does not name.
+  // None may be exported for an orgnr the allow-list does not name. The
+  // list is the one read plus the committed reference draw (Story 2.3); the
+  // draw is required, so a missing file refuses rather than dropping the
+  // reference orgnrs from the list.
   const allowListFile = path.join(root, ...ALLOW_LIST_FILE.split('/'));
   const allowListJson: unknown = existsSync(allowListFile) ? JSON.parse(readFileSync(allowListFile, 'utf8')) : [];
-  const allowList = parseAllowList(allowListJson);
+  const drawFile = path.join(root, ...REFERENCE_DRAW_FILE.split('/'));
+  if (!existsSync(drawFile)) throw new SeedRefusal(`${REFERENCE_DRAW_FILE}: missing`);
+  const allowList = withReferenceOrgnrs(
+    parseAllowListEntries(allowListJson),
+    parseDrawn(JSON.parse(readFileSync(drawFile, 'utf8'))),
+  );
   refuseUnlistedDocumentFigures(
     new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')])),
-    allowList,
+    allowList.map((entry) => entry.orgnr),
   );
   const documentFigures = await sql<{ orgnr: string }[]>`
     select distinct orgnr from register.document_column
@@ -165,7 +179,7 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
   const written = new Map<string, Buffer | string>();
   for (const [file, bytes] of outputs) written.set(`${SEED_DIR}/${file}`, bytes);
   written.set(`${SEED_DIR}/${MANIFEST_FILE}`, stableJson(manifest));
-  written.set(ALLOW_LIST_FILE, stableJson(allowListJson));
+  written.set(ALLOW_LIST_FILE, stableJson(allowList));
 
   const allowed = exportPaths();
   for (const relative of written.keys()) {

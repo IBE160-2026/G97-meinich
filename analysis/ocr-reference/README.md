@@ -48,3 +48,7 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 - `draw.py`: the draw.
 - `drawn.json`: the result, committed after the draw.
 - `transcriptions.csv`: the template, then the transcriptions.
+
+## Transcription check
+
+Before the transcriptions were used, the review session ran the within-document checks c1–c4 (5 kr bound) on every transcribed row, without looking at any OCR output. Six of the 40 rows failed at first: 921716257/2021, 912197905/2022, 915338534/2023, 989081799/2025 (prior), 917526729/2025 and 922184534/2025 (prior). Each was a transcription error: a mistyped or dropped digit, wrong by 20 kr to about 8 mill. kr. The transcriber corrected every one against the PDF, and all 40 rows pass. The transcription dates were changed from DD.MM.YYYY to YYYY-MM-DD.

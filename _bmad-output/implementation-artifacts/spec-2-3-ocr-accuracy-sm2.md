@@ -135,7 +135,7 @@ context:
   4. Run `pnpm seed:export` and commit the seed.
   5. Run `consistency.py`, then `pnpm analysis:sm2`, and commit the report.
   6. Restore the 2.1b dump.
-- [ ] Story 2.3b (all done except the GitHub issue, which is a remote operation and is opened with the PR):
+- [x] Story 2.3b (issue #38):
   - a GitHub issue with the actual fault and the evidence;
   - `sprint-status.yaml`: add `2-3b`;
   - `deferred-work.md`: add a split entry, and correct the 2.2 entry;

@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-23
 **Tool:** Claude Code (Opus 5.5), BMAD build session with an implementation subagent
-**Story / issue:** Story 2.3 (FR-28, NFR25, NFR15); links issue #14 (the reference set). The story issue and the 2.3b issue are not opened yet.
+**Story / issue:** Story 2.3 (FR-28, NFR25, NFR15), issue #37; links issue #14 (the reference set). Story 2.3b: issue #38.
 **Result:** branch `story/2.3-ocr-accuracy-sm2`, not pushed; PR to come. Commits `4a3b3f0`…, listed below; status `review`.
 
 ## Goal

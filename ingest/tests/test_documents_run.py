@@ -607,9 +607,9 @@ BOLD_ROWS = [("50M EGENKAPITAL OG GJELD", row[1], row[2]) if row[0] == "SUM EGEN
 NO_TOTAL_ROWS = [row for row in BASE_ROWS if row[0] != "SUM EGENKAPITAL OG GJELD"]
 
 
-def store_older(conn: psycopg.Connection, year: int) -> None:
+def store_older(conn: psycopg.Connection, year: int, rows: list[tuple[str, str, str]] = NO_TOTAL_ROWS) -> None:
     """A document of ORGNR for `year` as an older reader version stored it."""
-    words = document(NO_TOTAL_ROWS, years=(str(year), str(year - 1)))
+    words = document(rows, years=(str(year), str(year - 1)))
     outcome = write.document_outcome(year, documents.read_words(*words, BOUND_KR), {}, RULES)
     write.write_document(conn, ORGNR, year, outcome, None, READ_AT, OLDER_READER_COMMIT)
 
@@ -721,6 +721,66 @@ def test_reread_fewer_columns_not_replaced(stored: psycopg.Connection, cfg: Conf
     text = "\n".join(summary.lines())
     assert "  replaced 1; already current, not fetched 0; not replaced 3" in text
     assert f"  not replaced, keeps its old figures and version: {ORGNR} document 2023: fewer columns" in text
+
+
+def test_reread_reconciled_column_failing_not_replaced(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Meinich, 2026-10-25: a re-read that turns a reconciled column into
+    # failed_reconciliation is not replaced, like one with fewer columns.
+    # 2025: the current column; 2024: the prior column only. 2023 goes the
+    # other way, failed to reconciled, and is replaced.
+    store_older(stored, 2025, BASE_ROWS)
+    store_older(stored, 2024, BASE_ROWS)
+    store_older(stored, 2023, replace_row(BASE_ROWS, "Driftsresultat", current="1 122 003"))
+    assert [row[6] for row in stored_rows(stored, ORGNR)] == ["failed_reconciliation", "reconciled"] + ["reconciled"] * 4
+    before = [row for row in stored_rows(stored, ORGNR) if row[0] != 2023]
+    FakeRecognise(
+        monkeypatch,
+        {
+            pdf("2025"): document(replace_row(BASE_ROWS, "Driftsresultat", current="1 122 003")),
+            pdf("2024"): document(replace_row(BASE_ROWS, "Driftsresultat", prior="-1 969 111"), years=("2024", "2023")),
+            pdf("2023"): document(BASE_ROWS, years=("2023", "2022")),
+        },
+    )
+    transport = FixtureTransport({kopi_url(ORGNR, y): pdf(str(y)) for y in (2023, 2024, 2025)})
+
+    summary = run.run_reread(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+
+    assert [row for row in stored_rows(stored, ORGNR) if row[0] != 2023] == before
+    assert [p.what for p in summary.not_replaced] == [
+        "document 2024: reconciled column would fail reconciliation: prior",
+        "document 2025: reconciled column would fail reconciliation: current",
+    ]
+    assert summary.replaced == {(2023, "reconciled"): 1}
+    assert [row[3] for row in stored_rows(stored, ORGNR) if row[0] == 2023] == [READER_COMMIT] * 2
+    assert summary.needs_operator()
+
+
+def test_reread_lost_figure_replaced_and_listed(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Meinich, 2026-10-25: a figure a column still reconciled no longer holds
+    # is replaced, and listed per document with its column and field.
+    store_older(stored, 2025, BASE_ROWS)
+    FakeRecognise(monkeypatch, {pdf("2025"): document([row for row in BASE_ROWS if row[0] != "Varekostnad"])})
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+
+    summary = run.run_reread(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+
+    assert summary.replaced == {(2025, "reconciled"): 1}
+    assert summary.not_replaced == []
+    varekostnad = 7 + write.FIGURE_COLUMNS.index("varekostnad_ore")
+    assert [(row[3], row[6], row[varekostnad]) for row in stored_rows(stored, ORGNR)] == [
+        (READER_COMMIT, "reconciled", None),
+        (READER_COMMIT, "reconciled", None),
+    ]
+    assert [p.what for p in summary.lost_figures] == ["document 2025: current: varekostnad; prior: varekostnad"]
+    text = "\n".join(summary.lines())
+    assert "  replaced with a figure lost from a column still reconciled: 1 documents" in text
+    assert f"  figure lost, now NULL: {ORGNR} document 2025: current: varekostnad; prior: varekostnad" in text
+    # A replaced document with no figure lost is not listed.
+    assert not summary.needs_operator()
 
 
 @pytest.mark.parametrize("mode", ["--documents", "--reread"])

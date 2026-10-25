@@ -261,25 +261,42 @@ def stored_document_years(conn: psycopg.Connection, orgnr: str) -> set[int]:
 
 
 @dataclass(frozen=True)
+class StoredVersionColumn:
+    """A stored column, as a re-read compares it with what it reads."""
+
+    role: Role
+    status: str | None  # reconciled, failed_reconciliation; NULL before 2.2
+    present: frozenset[str]  # the fields holding a figure
+
+
+@dataclass(frozen=True)
 class StoredVersion:
     """A stored document, as a re-read (Story 2.3b) sees it."""
 
     filing_year: int
     reader_commit: str  # the reader version that read it
-    columns: int  # how many figure columns are stored for it (0 or 2)
+    columns: tuple[StoredVersionColumn, ...]  # its stored columns (0 or 2)
 
 
 def stored_document_versions(conn: psycopg.Connection, orgnr: str) -> list[StoredVersion]:
     """Every stored document of `orgnr`, whatever its status, with the reader
-    version that read it and its number of stored columns, by filing year."""
+    version that read it and its stored columns, by filing year."""
     rows = conn.execute(
-        """SELECT d.filing_year, d.reader_commit,
-                  (SELECT count(*) FROM register.document_column c
-                    WHERE c.orgnr = d.orgnr AND c.filing_year = d.filing_year)
-             FROM register.document d WHERE d.orgnr = %s ORDER BY d.filing_year""",
+        "SELECT filing_year, reader_commit FROM register.document WHERE orgnr = %s ORDER BY filing_year",
         (orgnr,),
     ).fetchall()
-    return [StoredVersion(int(row[0]), str(row[1]), int(row[2])) for row in rows]
+    present = sql.SQL(", ").join(
+        sql.SQL("CASE WHEN {} IS NOT NULL THEN {} END").format(sql.Identifier(f"{field}_ore"), sql.Literal(field))
+        for field in FIELDS
+    )
+    query = sql.SQL(
+        """SELECT filing_year, role, status, array_remove(ARRAY[{present}]::text[], NULL)
+             FROM register.document_column WHERE orgnr = %s ORDER BY filing_year, role"""
+    ).format(present=present)
+    columns: dict[int, list[StoredVersionColumn]] = {}
+    for row in conn.execute(query, (orgnr,)).fetchall():
+        columns.setdefault(int(row[0]), []).append(StoredVersionColumn(row[1], row[2], frozenset(row[3])))
+    return [StoredVersion(int(year), str(commit), tuple(columns.get(int(year), []))) for year, commit in rows]
 
 
 def filing_brreg_id(conn: psycopg.Connection, orgnr: str, filing_year: int) -> int | None:

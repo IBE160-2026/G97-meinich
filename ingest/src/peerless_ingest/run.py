@@ -45,9 +45,11 @@ version is not the current one, it fetches the document by its year's path,
 reads, reconciles and replaces it in one transaction with the current
 version. A document already at the current version is not fetched, so an
 interrupted re-read resumes where it stopped. A re-read that gives fewer
-columns than are stored (a refusal, a year mismatch), an OCR error or a
-failed fetch replaces nothing: the document keeps its old figures and
-version, is named as not replaced, and the run exits 1.
+columns than are stored (a refusal, a year mismatch), that turns a
+reconciled column into failed_reconciliation, an OCR error or a failed fetch
+replaces nothing: the document keeps its old figures and version, is named
+as not replaced, and the run exits 1. A figure that a column still
+reconciled no longer holds is replaced, and listed per document.
 
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
@@ -260,6 +262,9 @@ class RereadSummary:
     current: int = 0
     # Not replaced, with the reason: they keep their figures and old version.
     not_replaced: list[Problem] = field(default_factory=list)
+    # Replaced, but a column reconciled before and after lost a figure: the
+    # fields, per document and column (Meinich, 2026-10-25).
+    lost_figures: list[Problem] = field(default_factory=list)
     # A database error: named, nothing written for that document.
     failed: list[Problem] = field(default_factory=list)
     read_count: int = 0
@@ -289,6 +294,9 @@ class RereadSummary:
         )
         for problem in self.not_replaced:
             out.append(f"  not replaced, keeps its old figures and version: {problem.orgnr} {problem.what}")
+        out.append(f"  replaced with a figure lost from a column still reconciled: {len(self.lost_figures)} documents")
+        for problem in self.lost_figures:
+            out.append(f"  figure lost, now NULL: {problem.orgnr} {problem.what}")
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
         out.append(f"  read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
@@ -589,6 +597,29 @@ def _load_documents(
         progress(f"document {orgnr}/{year}: {outcome.status}{refusal}")
 
 
+def _downgraded_roles(document: write.StoredVersion, outcome: write.DocumentOutcome) -> list[str]:
+    """The roles of the stored columns that are reconciled and that the
+    re-read would make failed_reconciliation. Such a re-read is not replaced
+    (Meinich, 2026-10-25): the same principle as fewer columns."""
+    now = {c.role: c.reconciliation.status for c in outcome.columns}
+    return [c.role for c in document.columns if c.status == "reconciled" and now.get(c.role) == "failed_reconciliation"]
+
+
+def _lost_figures(document: write.StoredVersion, outcome: write.DocumentOutcome) -> list[str]:
+    """Per column reconciled both as stored and as re-read, the fields that
+    held a figure and are NULL now, as "role: field, field"."""
+    now = {c.role: c for c in outcome.columns}
+    lost: list[str] = []
+    for stored in document.columns:
+        column = now.get(stored.role)
+        if stored.status != "reconciled" or column is None or column.reconciliation.status != "reconciled":
+            continue
+        fields = [f for f in documents.FIELDS if f in stored.present and column.column.figures[f] is None]
+        if fields:
+            lost.append(f"{stored.role}: {', '.join(fields)}")
+    return lost
+
+
 def _reread_documents(
     conn: psycopg.Connection,
     transport: fetch.Transport,
@@ -607,8 +638,11 @@ def _reread_documents(
     document already at `reader_commit` is not fetched, so an interrupted
     re-read resumes where it stopped. A document is not replaced, and keeps
     its old figures and version, when the re-read gives fewer columns than
-    are stored (a refusal, a year mismatch), when Tesseract fails, or when it
-    is not fetched or not read; each is named in `summary.not_replaced`."""
+    are stored (a refusal, a year mismatch), when it turns a reconciled
+    column into failed_reconciliation, when Tesseract fails, or when it is
+    not fetched or not read; each is named in `summary.not_replaced`. A
+    document replaced although a column reconciled before and after lost a
+    figure is named in `summary.lost_figures`."""
     try:
         stored = write.stored_document_versions(conn, orgnr)
     except psycopg.Error as error:
@@ -638,14 +672,20 @@ def _reread_documents(
             except ValueError as error:
                 summary.not_replaced.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
                 continue
-            if len(outcome.columns) < document.columns:
+            if len(outcome.columns) < len(document.columns):
                 refusal = f", {outcome.refusal}" if outcome.refusal else ""
                 summary.not_replaced.append(
                     Problem(
                         orgnr,
                         f"document {year}: fewer columns: {len(outcome.columns)} read ({outcome.status}{refusal}),"
-                        f" {document.columns} stored",
+                        f" {len(document.columns)} stored",
                     )
+                )
+                continue
+            downgraded = _downgraded_roles(document, outcome)
+            if downgraded:
+                summary.not_replaced.append(
+                    Problem(orgnr, f"document {year}: reconciled column would fail reconciliation: {', '.join(downgraded)}")
                 )
                 continue
             brreg_id = write.filing_brreg_id(conn, orgnr, year)
@@ -655,6 +695,9 @@ def _reread_documents(
             _write_failed(conn, summary.failed, problem, error)
             continue
         summary.replaced[(year, outcome.status)] += 1
+        lost = _lost_figures(document, outcome)
+        if lost:
+            summary.lost_figures.append(Problem(orgnr, f"document {year}: {'; '.join(lost)}"))
         summary.prior_failed += sum(
             1 for c in outcome.columns if c.role == "prior" and c.reconciliation.status == "failed_reconciliation"
         )

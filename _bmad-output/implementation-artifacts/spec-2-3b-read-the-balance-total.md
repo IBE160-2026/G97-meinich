@@ -83,6 +83,8 @@ context:
 | Re-read replaces | stored document of an older version | rows replaced, current version, reconciled | `test_documents_run.py::test_reread_replaces_older_version` |
 | Resume | some documents already at the current version | not fetched | `test_documents_run.py::test_reread_skips_current_version` |
 | Fewer columns | stored has columns, the re-read refuses or hits an OCR error | unchanged, old version, counted, exit 1 | `test_documents_run.py::test_reread_fewer_columns_not_replaced` |
+| Reconciled column would fail (change log 2026-10-25) | a stored reconciled column, current or prior, re-reads as failed_reconciliation | unchanged, old version, counted, exit 1; failed → reconciled is replaced | `test_documents_run.py::test_reread_reconciled_column_failing_not_replaced` |
+| Figure lost (change log 2026-10-25) | a column reconciled before and after, a stored figure now NULL | replaced, listed per document with column and field | `test_documents_run.py::test_reread_lost_figure_replaced_and_listed` |
 | Dirty tree | `ingest/` modified | refused before any request | `test/run-ingest.test.ts` "refuses a dirty ingest tree" |
 | Version recorded | a new document | carries the current version | `test_documents_write.py::test_document_records_reader_version` |
 | Backfill | local rows before the migration | every row has a version: 1 947 `e09a413…`, 97 `901a78d…`, none NULL | `test/db/reader-commit-backfill.test.ts` (rolled-back insert of rows on both sides of the boundary) + the recorded count query in the session file |
@@ -166,9 +168,43 @@ context:
 
 ## Spec Change Log
 
+- **2026-10-25, Meinich (review decision D2): a re-read that turns a reconciled column into `failed_reconciliation` is not replaced.** The document keeps its figures and reader version and is counted as "not replaced", the same principle as "fewer columns". Figures that go from a value to NULL in a column that is still reconciled are replaced, but listed per document in the summary, and their number is given in the PR. Both are tested (the two new I/O matrix rows). The review found that the column-count guard alone let a re-read take figures away from the engine unseen (B4, E1, E9 in the Review Triage Log).
+
 - **2026-10-25, Meinich: the reference run's backfilled version is `901a78d`, not `cfecb1e`.** The reader version is defined as the last commit that changed `ingest/`. `cfecb1e` is the commit the reference run's image was built at, but it changed only `analysis/ocr/`; the last `ingest/` change before that run (read 2026-10-23 10:35–11:22 UTC) is `901a78d`. The approval addition, the I/O matrix row "Backfill" and the Code Map now say `901a78d`; the migration, `test/db/reader-commit-backfill.test.ts` and the 97 local rows were corrected to match.
 
 ## Review Triage Log
+
+Review pass 1, 2026-10-25. Four layers ran on the diff since `dcff3ab` (without the three byte-identical copies in `analysis/output/ocr-sm2-before-2.3b/`): blind (B), edge case (E), verification gap (V) and acceptance auditor (A).
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| B7, A1 | The migration lands without a seed re-export, so `seed-format.test.ts`, `test/db/seed.test.ts` and CI's `pnpm seed` fail | high | The manifest names `20261021120000`; `seed/demo/document.csv` has no `reader_commit` column, which is NOT NULL. The export needs the 2.1b rows deleted and restored. | decision: export now, or only in the acceptance run |
+| B4, E1, E9 | A re-read with as many columns as are stored replaces the document even when a reconciled column comes back `failed_reconciliation` or a stored figure comes back NULL; the summary does not show it | medium | `_reread_documents` guards only `len(outcome.columns) < document.columns` (`run.py:641`). `RereadSummary.replaced` counts by (year, new status). The 2.1b counts are per-field totals, where gains hide losses. | decision |
+| B1 | The committed report's "After" columns for the reference set and the spike equal "before", with no sign that the re-read has not run | medium | `analysis/output/ocr-sm2.md`: "49 of 97 → 49 of 97", "None." new errors. Only the 2.1b rows say "not yet counted". | decision |
+| V2, B2 | No test runs `main` with `--reread` past validation; dropping the `REREAD` branch sends `--reread` to `run_documents`, which re-reads nothing and exits 0 | medium | Every `run.main` call with a list expects exit 2 (`test_documents_run.py`). | patch |
+| V3, B6 | The re-read's error paths have no test: `ValueError` from `_outcome`, a psycopg error on write, a fetch exception | medium | The three re-read tests cover a refusal, an OCR error, a 404 and a replace. | patch |
+| V1 | `fold_mixed`'s "1" → "l" is never exercised | medium | Every tested mixed word holds only 5 and 0; deleting `"1": "l"` fails no test. | patch |
+| E7, A2 | A field misread before and misread to another value after is not listed as new | medium | `resultKey` (`ocr-sm2-compare.ts:696`) omits `readOre`. | patch |
+| A5 | A database error during a re-read is listed under "failed", not "not replaced" (AC 2) | low | `run.py:653-656` passes `summary.failed` to `_write_failed`. | patch |
+| B3, A6 | The session file's recorded backfill output still shows `cfecb1e` | low | The matrix row "Backfill" names that output as evidence; the recount at `901a78d` is prose only. | patch |
+| A8 | `epic-2-context.md` still says a stored document is never read again, and "2.3b is next" | low | Lines 7 and 59, in the diff that adds `--reread`. | patch |
+| A7b, B12 | `sprint-status.yaml` `last_updated` changed format and lost its time | low | `23-10-2026 12:20` → `2026-10-23`; `generated` keeps `DD-MM-YYYY HH:MM`. | patch |
+| B15 | AGENTS.md names only some not-replaced causes (not "read failed" or "not reconciled") | low | `_reread_documents` adds both to `not_replaced`. The fix edits AGENTS.md. | defer |
+| E2 | A malformed `reader_commit` raises `ValueError` mid-run | false | `main` validates it before any request (`reader_commit_of`); the only other callers are tests. | reject |
+| E3 | A gitignored file under `ingest/` reaches the image unseen by the dirty check | low | The image copies only `src` and `config.toml`, `__pycache__` is in `.dockerignore`; the fix must filter `.venv` and the like. Unlikely. | reject |
+| E4, B16 | The backfill labels any row read from 2026-10-22 with the reference run's version, on any database | false | On the only populated database, the 97 rows from that date are the reference run's; CI and a fresh clone migrate an empty table and load the seed after. | reject |
+| E5 | `document-run-counts.ts` reads its orgnr file outside the try | false | A missing file fails loudly; the file is written by `pnpm ingest:document-set`. | reject |
+| E6 | `spikeAll` assumes two columns per filing | false | All 89 filings in the consistency file have two columns. | reject |
+| E8 | `ends_balance` under `fold_mixed` can close the balance earlier and drop later rows | false | `fold_mixed` equals `fold` on a label without a mixed word, so only a mixed-word row matching the total closes newly. | reject |
+| B5 | `write_document` can leave columns of another reader under a new version | false | Its callers are `_load_documents` (unstored years only) and `_reread_documents` (guarded on column count). | reject |
+| B8 | `reader_commit` may not resolve after a squash merge | false | PRs merge with merge commits (#39, #36, #34); `901a78d` and `e09a413` are on `main`. | reject |
+| B9 | `deferred-work.md` closes the 2.3b entries before the re-read has run | low | The closures describe the merged state, which follows the acceptance run. | reject |
+| B10 | The README does not name the new dump | false | The dumps are gitignored local data a grader never has; the path is in the session file. | reject |
+| B11, A7a, A9 | Spec status `in-progress`; the Code Map says `-e NAME=value` where the code passes `--env NAME` | — | The fix edits the spec under review; the status is set when this review ends, and the `--env` choice is in the session file. | reject |
+| B13 | The counts script reads documents and columns in two snapshots | low | It runs after the re-read exits, by the documented order; the fix adds a transaction. | reject |
+| B14 | `?? counts` in the per-field table is a silent fallback | false | `classesByField` maps `SM2_FIELDS` in one order for both lists, so it is unreachable. | reject |
+| A3 | A wrong fuzzy match under `fold` blocks an exact match under `fold_mixed` | false | The spec requires it: the new fold is "tried as well, never instead". | reject |
+| A4 | An OCR error on a re-read is never written, even over a stored `ocr_error` row | — | Chosen so the next re-read retries it, recorded in the session file; the fix edits the spec. | reject |
 
 ## Design Notes
 

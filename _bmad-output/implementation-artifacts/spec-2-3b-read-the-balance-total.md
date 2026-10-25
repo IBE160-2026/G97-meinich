@@ -46,7 +46,7 @@ context:
 
 - **Approval additions (Meinich, 2026-10-23):**
   - The acceptance criteria state that phantoms and misreads reaching the engine are reported before and after on the reference set. More fields read must not be paid for with new errors.
-  - The `reader_commit` backfill is checked. A check shows every row gets a version, with 1 947 rows at `e09a413` and 97 at `cfecb1e`.
+  - The `reader_commit` backfill is checked. A check shows every row gets a version, with 1 947 rows at `e09a413` and 97 at `901a78d`.
   - The old dumps (`e09a413`, `bd2ce3e`) are kept. The new dump is placed beside them, including in `peerless-backups`.
 
 ## Boundaries & Constraints
@@ -85,7 +85,7 @@ context:
 | Fewer columns | stored has columns, the re-read refuses or hits an OCR error | unchanged, old version, counted, exit 1 | `test_documents_run.py::test_reread_fewer_columns_not_replaced` |
 | Dirty tree | `ingest/` modified | refused before any request | `test/run-ingest.test.ts` "refuses a dirty ingest tree" |
 | Version recorded | a new document | carries the current version | `test_documents_write.py::test_document_records_reader_version` |
-| Backfill | local rows before the migration | every row has a version: 1 947 `e09a413…`, 97 `cfecb1e…`, none NULL | `test/db/reader-commit-backfill.test.ts` (rolled-back insert of rows on both sides of the boundary) + the recorded count query in the session file |
+| Backfill | local rows before the migration | every row has a version: 1 947 `e09a413…`, 97 `901a78d…`, none NULL | `test/db/reader-commit-backfill.test.ts` (rolled-back insert of rows on both sides of the boundary) + the recorded count query in the session file |
 | Reader version malformed | not 40-hex | exit 2 | `test_documents_run.py::test_reader_version_required` |
 
 </frozen-after-approval>
@@ -101,7 +101,7 @@ context:
 - New migration: `register.document.reader_commit text`, CHECK `^[0-9a-f]{40}$`, NOT NULL.
   - Backfill existing rows by `read_at`:
     - before 2026-10-22 (the 2.1b run) → `e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d`;
-    - otherwise (the reference run) → `cfecb1e1f8d32f942034d1c0f3e69648272b7a94`.
+    - otherwise (the reference run) → `901a78dbee3081c1708f8d140b4e769e6e764abd`.
   - On CI's empty database this is a no-op.
   - Columns inherit the version, because `write_document` always writes them in the document's transaction.
   - Re-export the seed in the same PR.
@@ -165,6 +165,8 @@ context:
 ## Implementation Notes
 
 ## Spec Change Log
+
+- **2026-10-25, Meinich: the reference run's backfilled version is `901a78d`, not `cfecb1e`.** The reader version is defined as the last commit that changed `ingest/`. `cfecb1e` is the commit the reference run's image was built at, but it changed only `analysis/ocr/`; the last `ingest/` change before that run (read 2026-10-23 10:35–11:22 UTC) is `901a78d`. The approval addition, the I/O matrix row "Backfill" and the Code Map now say `901a78d`; the migration, `test/db/reader-commit-backfill.test.ts` and the 97 local rows were corrected to match.
 
 ## Review Triage Log
 

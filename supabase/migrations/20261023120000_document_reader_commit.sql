@@ -14,8 +14,12 @@
 -- column existed. On CI's freshly migrated database the table is empty here
 -- and this is a no-op; the seed then loads its rows with their version.
 --
---   before 2026-10-22 UTC   the Story 2.1b acceptance run, image at e09a413
---   from 2026-10-22 UTC     the Story 2.3 OCR reference run, image at cfecb1e
+--   before 2026-10-22 UTC   the Story 2.1b acceptance run, e09a413
+--   from 2026-10-22 UTC     the Story 2.3 OCR reference run, 901a78d
+--
+-- Each is the last commit that changed ingest/ before its run, the same
+-- definition new rows use. The reference run's image was built at cfecb1e,
+-- which changed only analysis/ocr/ (corrected 2026-10-25, Meinich).
 --
 -- test/db/reader-commit-backfill.test.ts runs this file again on rows on
 -- both sides of the boundary, in a transaction it rolls back.
@@ -29,7 +33,7 @@ ALTER TABLE register.document
 UPDATE register.document
    SET reader_commit = CASE
      WHEN read_at < timestamptz '2026-10-22 00:00:00+00' THEN 'e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d'
-     ELSE 'cfecb1e1f8d32f942034d1c0f3e69648272b7a94'
+     ELSE '901a78dbee3081c1708f8d140b4e769e6e764abd'
    END;
 
 ALTER TABLE register.document

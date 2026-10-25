@@ -13,7 +13,7 @@ import { root, supabaseDbUrl } from './db-env.ts';
 
 const MIGRATION = path.join(root, 'supabase/migrations/20261023120000_document_reader_commit.sql');
 const STORY_2_1B = 'e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d';
-const REFERENCE_RUN = 'cfecb1e1f8d32f942034d1c0f3e69648272b7a94';
+const REFERENCE_RUN = '901a78dbee3081c1708f8d140b4e769e6e764abd';
 const ORGNR = '979607008';
 
 const sql = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });

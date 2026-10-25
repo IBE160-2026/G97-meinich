@@ -265,7 +265,8 @@ class RereadSummary:
     # Replaced, but a column reconciled before and after lost a figure: the
     # fields, per document and column (Meinich, 2026-10-25).
     lost_figures: list[Problem] = field(default_factory=list)
-    # A database error: named, nothing written for that document.
+    # A company whose stored documents could not be read: named, nothing
+    # re-read for it. A database error on one document is not replaced.
     failed: list[Problem] = field(default_factory=list)
     read_count: int = 0
     read_seconds: float = 0.0
@@ -691,11 +692,12 @@ def _reread_documents(
             brreg_id = write.filing_brreg_id(conn, orgnr, year)
             write.write_document(conn, orgnr, year, outcome, brreg_id, read_at, reader_commit)
         except psycopg.Error as error:
+            # Nothing written: the document keeps its figures and version.
             problem = Problem(orgnr, f"document {year}: {error.__class__.__name__}: {str(error).strip()}")
-            _write_failed(conn, summary.failed, problem, error)
+            _write_failed(conn, summary.not_replaced, problem, error)
             continue
         summary.replaced[(year, outcome.status)] += 1
-        lost = _lost_figures(document, outcome)
+        lost =_lost_figures(document, outcome)
         if lost:
             summary.lost_figures.append(Problem(orgnr, f"document {year}: {'; '.join(lost)}"))
         summary.prior_failed += sum(

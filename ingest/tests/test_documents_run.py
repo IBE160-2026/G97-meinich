@@ -10,6 +10,7 @@ test runs inside a transaction that is rolled back (conftest `db`).
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 from datetime import UTC, date, datetime
@@ -781,6 +782,85 @@ def test_reread_lost_figure_replaced_and_listed(
     assert f"  figure lost, now NULL: {ORGNR} document 2025: current: varekostnad; prior: varekostnad" in text
     # A replaced document with no figure lost is not listed.
     assert not summary.needs_operator()
+
+
+class RaisingTransport(FixtureTransport):
+    """Raises a fetch error (an OSError, as a dropped connection) on one URL."""
+
+    def __init__(self, responses: dict[str, bytes | None], raise_at: str) -> None:
+        super().__init__(responses)
+        self.raise_at = raise_at
+
+    def get(self, url: str, accept: str) -> bytes | None:
+        if url == self.raise_at:
+            self.requested.append(url)
+            raise ConnectionResetError("connection reset by peer")
+        return super().get(url, accept)
+
+
+def test_reread_errors_named_not_replaced_and_the_run_goes_on(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2022: the fetch raises; 2023: the database fails while reconciling
+    # (its prior year's API figures, 2022); 2024: the read cannot be
+    # reconciled (ValueError). Each keeps its figures and old version and is
+    # named as not replaced; 2025 is replaced.
+    for year in (2022, 2023, 2024, 2025):
+        store_older(stored, year)
+    before = [row for row in stored_rows(stored, ORGNR) if row[0] != 2025]
+    real_outcome, real_api_figures = write.document_outcome, write.api_figures
+
+    def document_outcome(year: int, *args: object) -> write.DocumentOutcome:
+        if year == 2024:
+            raise ValueError("simulated")
+        return real_outcome(year, *args)  # type: ignore[arg-type]
+
+    def api_figures(conn: psycopg.Connection, orgnr: str, year: int) -> dict[str, int | None] | None:
+        if year == 2022:
+            raise psycopg.OperationalError("simulated")
+        return real_api_figures(conn, orgnr, year)
+
+    monkeypatch.setattr(write, "document_outcome", document_outcome)
+    monkeypatch.setattr(write, "api_figures", api_figures)
+    FakeRecognise(monkeypatch, {pdf(str(y)): document(BOLD_ROWS, years=(str(y), str(y - 1))) for y in (2023, 2024, 2025)})
+    responses: dict[str, bytes | None] = {kopi_url(ORGNR, y): pdf(str(y)) for y in (2023, 2024, 2025)}
+    transport = RaisingTransport(responses, kopi_url(ORGNR, 2022))
+
+    summary = run.run_reread(stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT)
+
+    assert [p.what for p in summary.not_replaced] == [
+        "document 2022: ConnectionResetError: connection reset by peer",
+        "document 2023: OperationalError: simulated",
+        "document 2024: not reconciled: simulated",
+    ]
+    assert summary.failed == []
+    assert [row for row in stored_rows(stored, ORGNR) if row[0] != 2025] == before
+    assert summary.replaced == {(2025, "reconciled"): 1}
+    assert summary.needs_operator()
+
+
+def test_main_reread_runs_the_reread(
+    stored: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `--reread <file>` reaches run_reread with the version from the
+    # environment: the stored document is fetched by its path, with no /aar
+    # list (documents mode would ask for /aar and skip the stored year).
+    store_older(stored, 2025)
+    FakeRecognise(monkeypatch, {pdf("2025"): document(BOLD_ROWS)})
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+    monkeypatch.setattr(run.fetch, "UrllibTransport", lambda *args: transport)
+    monkeypatch.setattr(run.write, "connect", lambda url: contextlib.nullcontext(stored))
+    monkeypatch.setattr(run.config_module, "load_config", lambda path: cfg)
+    monkeypatch.setattr(run.config_module, "load_coverage", lambda path: CODES)
+    monkeypatch.setenv("INGEST_DATABASE_URL", "postgresql://unused")
+    monkeypatch.setenv(run.READER_COMMIT_ENV, READER_COMMIT)
+    file = tmp_path / "documents.json"
+    file.write_text(f'["{ORGNR}"]', encoding="utf-8")
+
+    assert run.main(["--reread", str(file)]) == 0
+
+    assert transport.requested == [kopi_url(ORGNR, 2025)]
+    assert [row[3] for row in stored_rows(stored, ORGNR)] == [READER_COMMIT] * 2
 
 
 @pytest.mark.parametrize("mode", ["--documents", "--reread"])

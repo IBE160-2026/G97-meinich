@@ -231,6 +231,17 @@ def test_bold_sum_misread_matches_total() -> None:
     assert found["sum_eiendeler"] == (33_855_462, 30_112_004)
 
 
+def test_bold_l_misread_as_one_matches() -> None:
+    # A bold "l" read as "1" inside a label word: `fold_mixed` reads it back.
+    # Without the mapping, "somegenkapitaoggjed" is three off the target and
+    # `fold`'s "megenkapitaoggjed" further still, so only the mapping matches.
+    assert layout.fold_mixed("5UM GJE1D") == "sumgjeld"
+    label = "50M EGENKAPITA1 OG GJE1D"
+    assert layout.fold_mixed(label) == "somegenkapitaloggjeld"
+    found = extract_one_page([("SUM EIENDELER", "33 855 462", "30 112 004"), (label, "33 855 462", "30 112 004")])
+    assert found["sum_egenkapital_gjeld"] == (33_855_462, 30_112_004)
+
+
 def test_digit_dropping_fold_still_matches() -> None:
     # The old fuzzy case: `fold` gives "soomegenkapitaloggjeld", within one
     # character. `fold_mixed` gives "ssoom…", two too long, so only `fold`

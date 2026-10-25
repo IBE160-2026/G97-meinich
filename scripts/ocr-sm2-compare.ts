@@ -693,9 +693,13 @@ export function classesByField(results: readonly FieldResult[]): { field: Sm2Fie
   return SM2_FIELDS.map((field) => ({ field, counts: countClasses(results.filter((r) => r.field === field)) }));
 }
 
-const resultKey = (r: FieldResult): string => `${r.orgnr}/${r.filingYear}/${r.role}/${r.field}`;
+const resultKey = (r: FieldResult): string => `${r.orgnr}/${r.filingYear}/${r.role}/${r.field}/${r.readOre ?? 'null'}`;
 
-/** The results in `after` whose field is not in `before`: a new misread or phantom, when both are such lists. */
+/**
+ * The results in `after` not in `before`, by field and figure read: a new
+ * misread or phantom, when both are such lists. A field misread before and
+ * misread to another figure after is new.
+ */
 export function newResults(before: readonly FieldResult[], after: readonly FieldResult[]): FieldResult[] {
   const was = new Set(before.map(resultKey));
   return after.filter((r) => !was.has(resultKey(r)));

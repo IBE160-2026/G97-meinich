@@ -467,6 +467,14 @@ describe('before and after Story 2.3b', () => {
     expect(fresh.map((r) => `${r.role}/${r.field}/${r.class}`)).toEqual(['current/bankinnskudd/misread']);
     // A misread present before and after is not new.
     expect(newResults(misreadsReachingEngine(afterRun), misreadsReachingEngine(afterRun))).toEqual([]);
+    // A field misread before and misread to another figure after is new.
+    const otherMisread = compareReference(drawn, transcribed, [
+      read('921716257', 2021, 'current', { sum_eiendeler: 10000n, sum_egenkapital_gjeld: 10000n, bankinnskudd: 8000n }),
+      read('921716257', 2021, 'prior', { sum_eiendeler: 9000n, sum_egenkapital_gjeld: 9000n }),
+    ]).results;
+    expect(
+      newResults(misreadsReachingEngine(afterRun), misreadsReachingEngine(otherMisread)).map((r) => `${r.field}/${r.readOre}`),
+    ).toEqual(['bankinnskudd/8000']);
     const byField = new Map(classesByField(afterRun).map(({ field, counts }) => [field, counts]));
     expect(byField.get('sum_egenkapital_gjeld')).toEqual({ correct: 2, 'not read': 0, misread: 0, phantom: 0 });
     expect(new Map(classesByField(beforeRun).map(({ field, counts }) => [field, counts])).get('sum_egenkapital_gjeld')).toEqual({

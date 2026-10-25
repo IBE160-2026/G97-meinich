@@ -20,11 +20,11 @@ The human's prompts are in `docs/ai-prompts.md`, verbatim; the review session ad
 
 - **Implemented as specified:** `layout.fold_mixed` and its use in `extract` and `ends_balance`; the "l" cases through the existing gate; migration `20261023120000_document_reader_commit.sql`; `write.write_document(…, reader_commit)` and `stored_document_versions`; `run.run_reread` and `--reread`; `PEERLESS_READER_COMMIT` and the dirty-tree refusal in `scripts/run-ingest.ts`; `pnpm analysis:document-run`; the before inputs; the report section. Each matrix row's test was run with its guard removed and fails (`docs/ai-log.md`, Story 2.3b).
 - **The probe (no write).** `read_document` with the new fold, in the step-1 image built from this branch, on Story 2.3's seven probe documents (919062223/2021, 921600070/2024, 914000076/2022, 924895772/2024, 991939490/2024, 823980892/2023, 887217912/2021): every one prints the row as "50M EGENKAPITAL OG GJELD …"; the total is now read in both columns of all seven and equals sum eiendeler; c1–c4 pass in all fourteen columns. In 914000076/2022 and 991939490/2024 the current total was printed "l4 066 151" / "l2 853 098" and came from the digits-only pass, through the gate.
-- **The migration, applied locally without a reset** (`supabase migration up`), after a full data dump of both document tables (`.local/document-tables-before-2.3b-migration.sql`). The backfill check, recorded:
+- **The migration, applied locally without a reset** (`supabase migration up`), after a full data dump of both document tables (`.local/document-tables-before-2.3b-migration.sql`). The backfill check, recorded after the correction to `901a78d` below (2026-10-25; on 2026-10-23 the 97 rows showed `cfecb1e`):
 
   ```
-  select reader_commit, (read_at < '2026-10-22 00:00:00+00'), count(*) from register.document group by 1, 2;
-  cfecb1e1f8d32f942034d1c0f3e69648272b7a94 | false |   97   -- corrected 2026-10-25, see below
+  select reader_commit, (read_at < '2026-10-22 00:00:00+00'), count(*) from register.document group by 1, 2 order by 1;
+  901a78dbee3081c1708f8d140b4e769e6e764abd | false |   97
   e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d | true  | 1947
   select count(*) from register.document where reader_commit is null;   -- 0
   ```

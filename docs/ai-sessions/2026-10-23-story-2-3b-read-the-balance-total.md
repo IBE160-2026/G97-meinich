@@ -1,6 +1,6 @@
 # Story 2.3b: Read the balance total ("SUM EGENKAPITAL OG GJELD")
 
-**Date:** 2026-10-23
+**Date:** 2026-10-23, review 2026-10-25
 **Tool:** Claude Code (Opus 5.5), implementation subagent of the BMAD build session
 **Story / issue:** Story 2.3b (FR-28, NFR25), issue #38
 **Result:** branch `story/2.3b-read-the-balance-total`, not pushed; PR not opened yet. Commits listed below.
@@ -33,10 +33,22 @@ The human's prompts are in `docs/ai-prompts.md`, verbatim; the review session ad
 - **Noted for review:** `cfecb1e`, the backfilled version of the reference rows, did not touch `ingest/`; the last `ingest/` commit before it is `901a78d`. The spec decided `cfecb1e`; it differs from the current version either way, so the re-read is unaffected.
 - **Corrected (Meinich, 2026-10-25):** the reference rows' version is `901a78d`, the definition. The migration and `test/db/reader-commit-backfill.test.ts` now say `901a78d`; the migration had already run locally, so the 97 rows were updated in one transaction that refused any count but 97. Recount: 97 at `901a78d` (read from 2026-10-22), 1 947 at `e09a413` (before), 0 NULL; the backfill test passes. The pre-migration dump `.local/document-tables-before-2.3b-migration.sql` was also copied to `peerless-backups`, where it had been missing (sha256 equal to the original).
 
+## Review, pass 1 (2026-10-25)
+
+The session resumed after the PC restarted mid-verification (2026-10-23, 16:17). Meinich's first three tasks: check that the database still held the migration and all 2 044 documents (it did: 2 044 documents, 427 companies, 4 086 columns); copy `.local/document-tables-before-2.3b-migration.sql` to `peerless-backups` (done, sha256 equal); correct the backfill to `901a78d` (above, `9d2fcf9`). Before the acceptance run he also had `.local/document-run-e09a413-reader-commit/` copied there (sha256 of both files equal), as it is the restore source after `pnpm seed`.
+
+Verification in batches: lint, typecheck, `pnpm test`, `pnpm test:db`, `pnpm test:ingest` green except `seed-format.test.ts` and `test/db/seed.test.ts`, which fail on the manifest's migration id until the seed is exported; `pnpm analysis:sm2` changes only the date. The seed round trip was not run: it deletes the 2.1b rows.
+
+Four review layers (subagents of this session: blind, edge case, verification gap, acceptance auditor) ran on the diff since `dcff3ab`, without the three files in `analysis/output/ocr-sm2-before-2.3b/`, which are byte-identical (sha256) to `main`'s. Triage in the spec's Review Triage Log: 3 decisions, 8 patches, 1 deferred, the rest rejected with the evidence there. Each finding is credited to its layer in `docs/ai-log.md` (Story 2.3b).
+
+- **Decisions (Meinich):** D1, the seed is exported only in the acceptance run, with no push before it. D2, a re-read that turns a reconciled column into `failed_reconciliation` is not replaced, and a figure lost from a column still reconciled is replaced but listed per document, with its number in the PR (spec change log). D3, the report's "After" stays until the acceptance run regenerates it.
+- **Fixes:** `fb47a46` (D2, its two tests and the docs; B15 with it) and `2ce5a50` (the eight patches). Each new test was run with its guard removed and fails.
+- **Rejected:** 15, each with its refutation or reason in the triage log. Among them: the backfill labelling other databases' rows (only the local database has rows from that date, all the reference run's), squash merges orphaning `reader_commit` (PRs merge with merge commits; both commits are on `main`), and three findings whose fix would edit the spec under review.
+
 ## Not done
 
 - **The seed is not re-exported.** `pnpm seed:export` refuses while the 2.1b rows (not on the allow-list) are in the database. The README's route is to remove them and restore them from a dump; the delete was refused by the session's permission classifier, so it needs the human. The 2.1b rows, now with `reader_commit`, are dumped in the README's CSV form to `.local/document-run-e09a413-reader-commit/` (1 947 documents, 3 892 columns); the old dumps are untouched. Until the export, `test/seed-format.test.ts` ("passes every check against the repository") and `test/db/seed.test.ts` fail on the manifest's migration id.
-- **The acceptance run** (spec, "After review") has not run: dump and backup, `--reread` of the reference set and `seed:export`, `consistency.py`, `--reread` of `seed/document-run.json`, `pnpm analysis:document-run after-2.3b`, the report, the second dump. "Not replaced" is therefore not yet known.
+- **The acceptance run** (spec, "After review") has not run: dump and backup, `--reread` of the reference set and `seed:export`, `consistency.py`, `--reread` of `seed/document-run.json`, `pnpm analysis:document-run after-2.3b`, the report, the second dump. "Not replaced" (now also a reconciled column that would fail) and the number of documents with a lost figure, which the PR states (D2), are therefore not yet known. The seed export is part of this run (D1).
 
 ## Commits
 
@@ -46,4 +58,8 @@ The human's prompts are in `docs/ai-prompts.md`, verbatim; the review session ad
 - `1c657ce` `pnpm ingest` passes the reader version and refuses a dirty `ingest/`
 - `b581ff9` the before inputs
 - `1218b2c` the report's before-and-after section
-- docs (this file, AGENTS.md, README, `data-sources-brreg.md`, `epics.md`, `deferred-work.md`, `ai-log.md`)
+- `0bc1376` docs (this file, AGENTS.md, README, `data-sources-brreg.md`, `epics.md`, `deferred-work.md`, `ai-log.md`)
+- `9d2fcf9` the reference rows' backfilled version is `901a78d`
+- `fb47a46` review decision D2: a re-read that fails a reconciled column is not replaced
+- `2ce5a50` review fixes
+- the review record (this file, the AI log, the triage log's resolution, status)

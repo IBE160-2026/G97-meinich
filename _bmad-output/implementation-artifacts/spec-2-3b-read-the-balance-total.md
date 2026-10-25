@@ -2,7 +2,7 @@
 title: 'Story 2.3b: Read the balance total (SUM EGENKAPITAL OG GJELD)'
 type: 'bugfix'
 created: '2026-10-23'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'dcff3ab66372d203d1b27836e05894fe6968993c'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -205,6 +205,13 @@ Review pass 1, 2026-10-25. Four layers ran on the diff since `dcff3ab` (without 
 | B14 | `?? counts` in the per-field table is a silent fallback | false | `classesByField` maps `SM2_FIELDS` in one order for both lists, so it is unreachable. | reject |
 | A3 | A wrong fuzzy match under `fold` blocks an exact match under `fold_mixed` | false | The spec requires it: the new fold is "tried as well, never instead". | reject |
 | A4 | An OCR error on a re-read is never written, even over a stored `ocr_error` row | — | Chosen so the next re-read retries it, recorded in the session file; the fix edits the spec. | reject |
+
+Resolved 2026-10-25:
+- **B7, A1 (Meinich, D1):** the seed is exported only in the acceptance run. Nothing is pushed before then, so a second delete and restore of the 2.1b rows now would add risk and nothing else.
+- **B4, E1, E9 (Meinich, D2):** a new rule, in the change log above, with two tests: `fb47a46`.
+- **B1 (Meinich, D3):** left as it is; the acceptance run regenerates the report before merge.
+- **The eight patches:** `2ce5a50`. Each new test fails with its guard removed.
+- **B15:** fixed in `fb47a46` after all, since D2 rewrote the same sentence of AGENTS.md; it now names a failed read and a read that cannot be reconciled.
 
 ## Design Notes
 

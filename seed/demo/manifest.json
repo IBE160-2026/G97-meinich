@@ -27,15 +27,15 @@
   ],
   "files": {
     "company.csv": "a7d5cefe09730a11d1d301897bb013337bc27ccbae4de115175f9b62c524600e",
-    "document.csv": "fb8141c79164347e0b89861875a3b86e89341d6cddded452b69628a753fa6d2a",
-    "document_column.csv": "cdeb48d833c17f8e233265db9e1f1598a6e8134272668495b0487857914d8d62",
+    "document.csv": "b5e46978fd25522693eacaf277e59b29beec5846ccd73d191d07a9f8d25d287f",
+    "document_column.csv": "cc9c6cad3c13e7caecd7d693dc44f83d09726dc7e14d864cfebdb0ce430327eb",
     "filing.csv": "88bb7fd1a195f4cd46c3057c7ed1c677b51959e01ab6495c894dd94ee5bbf6b3",
     "key_figures.csv": "61ecab7b34fca9f8b041718a06d506e55c993cf017abea9f826345d932e1fe1c"
   },
   "format_version": 1,
-  "migration_id": "20261021120000_document_reconciliation",
+  "migration_id": "20261023120000_document_reader_commit",
   "read_at": {
-    "max": "2026-10-23 11:22:12.734584+00",
+    "max": "2026-10-27 17:41:52.940882+00",
     "min": "2026-10-11 10:09:07.22884+00"
   }
 }

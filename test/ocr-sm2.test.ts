@@ -233,6 +233,17 @@ describe('the corrections log', () => {
     );
   });
 
+  it('counts the blind check apart from a correction made later', () => {
+    // Only the six cells the blind check suspected (blind-check-key.csv) were
+    // checked blind; 915648479/2021 was corrected later, on prompting (2.3b).
+    const inputs = readInputs(root);
+    expect(inputs.laterCorrections.map((c) => `${c.orgnr}/${c.filingYear}/${c.role}/${c.field}`)).toEqual(['915648479/2021/prior/salgsinntekt']);
+    expect(inputs.corrections.length - inputs.laterCorrections.length).toBe(6);
+    const report = renderReport(inputs, '2026-10-28');
+    expect(report).toContain('a blind check against the PDFs found 6 transcription errors; 1 more was found later, on prompting');
+    expect(report).toContain('and 6 by the blind check, 1 later, across');
+  });
+
   it('reconstructs the headline before the corrections', () => {
     const drawn = [{ orgnr: '922184534', year: 2025 }];
     const corrected = [

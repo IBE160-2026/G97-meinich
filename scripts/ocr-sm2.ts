@@ -65,6 +65,9 @@ import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, parseDrawn } from './s
 
 export const TRANSCRIPTIONS_FILE = 'analysis/ocr-reference/transcriptions.csv';
 export const CORRECTIONS_FILE = 'analysis/ocr-reference/README.md';
+// Written by analysis/ocr-reference/blind-check-draw.ts: which cells the blind
+// check suspected. A correction of any other cell was made later.
+export const BLIND_CHECK_KEY_FILE = 'analysis/ocr-reference/blind-check-key.csv';
 export const CONSISTENCY_FILE = 'analysis/output/ocr-consistency-2026.json';
 export const REPORT_FILE = 'analysis/output/ocr-sm2.md';
 
@@ -237,6 +240,8 @@ export function parseRunCounts(json: unknown, file: string): RunCounts {
 export interface StoryBInputs {
   /** The corrected transcriptions against Story 2.3's stored columns. */
   comparison: Comparison;
+  /** The transcriptions before the logged corrections against the same: what the blind check's selection was made from. */
+  beforeCorrections: Comparison;
   stored: readonly StoredColumn[];
   consistency: Consistency;
   runBefore: RunCounts;
@@ -250,6 +255,8 @@ export interface ReportInputs {
   /** The same comparison against the transcriptions before the logged corrections. */
   before: Comparison;
   corrections: readonly Correction[];
+  /** The corrections of cells the blind check did not suspect: made later, on prompting. */
+  laterCorrections: readonly Correction[];
   documents: readonly StoredDocument[];
   stored: readonly StoredColumn[];
   consistency: Consistency;
@@ -365,7 +372,12 @@ export function renderBeforeAfter(inputs: ReportInputs): string[] {
 
 /** The report, with `generated` (YYYY-MM-DD) as its only varying part. */
 export function renderReport(inputs: ReportInputs, generated: string): string {
-  const { drawn, comparison, before, corrections, documents, stored, consistency } = inputs;
+  const { drawn, comparison, before, corrections, laterCorrections, documents, stored, consistency } = inputs;
+  const blindChecked = corrections.length - laterCorrections.length;
+  const later =
+    laterCorrections.length === 0
+      ? ''
+      : `; ${laterCorrections.length} more ${laterCorrections.length === 1 ? 'was' : 'were'} found later, on prompting, after the Story 2.3b report pointed to ${laterCorrections.length === 1 ? 'it' : 'them'}`;
   const { results, notes } = comparison;
   const inGroup = (g: Group) => results.filter((r) => r.group === g);
   const drawnIn = (g: Group) => drawn.filter((d) => groupOf(d.year) === g);
@@ -421,7 +433,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     '',
     "A misread figure in a column that nevertheless reconciled. Only a reconciled column's figures reach the engine, so these are wrong figures Peerless would use.",
     '',
-    `The transcriptions were corrected after the first measurement: a blind check against the PDFs found ${corrections.length} transcription ${corrections.length === 1 ? 'error' : 'errors'} (\`${CORRECTIONS_FILE}\`, "${CORRECTIONS_HEADING.slice(3)}"). ` +
+    `The transcriptions were corrected after the first measurement: a blind check against the PDFs found ${blindChecked} transcription ${blindChecked === 1 ? 'error' : 'errors'}${later} (\`${CORRECTIONS_FILE}\`, "${CORRECTIONS_HEADING.slice(3)}"). ` +
       'The headline is given against the transcriptions both before and after those corrections; every other section uses the corrected transcriptions.',
     '',
     '| Group | Filings | Before corrections | After corrections |',
@@ -434,8 +446,8 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     '',
     `- **Phantoms reach the engine too.** The headline counts misreads only; phantom figures in reconciled columns: ${GROUPS.map((g) => `${GROUP_NAME[g].toLowerCase()} ${phantoms.filter((r) => r.group === g).length}`).join(', ')}, all ${phantoms.length} (after the corrections; ${phantomsBefore.length} before).`,
     `- **Prior columns overcount.** Of the headline cases, ${headlineBefore.filter((r) => r.role === 'prior').length} of ${headlineBefore.length} before and ${headline.filter((r) => r.role === 'prior').length} of ${headline.length} after the corrections are in a last-year column. Story 2.9 uses a last-year column only when that year has no document of its own, so the headline overcounts what reaches the engine by up to those.`,
-    `- **How the blind check chose its cells.** It re-read only the cells where OCR and the transcription disagreed in reconciled columns (the ${headlineBefore.length} headline cases before the corrections), mixed with control cells where they agreed. ${towardsOcr} of the ${corrections.length} corrections set the transcription to the figure OCR read, so every correction moved towards OCR. The ${misreadsElsewhereBefore.length} misread ${misreadsElsewhereBefore.length === 1 ? 'figure' : 'figures'} in columns that did not reconcile ${misreadsElsewhereBefore.length === 1 ? 'was' : 'were'} not re-checked, and neither were the not-read fields.`,
-    `- **Transcription error rate.** ${FIRST_CHECK_ERRORS} errors were found by the within-document checks on the transcriptions alone (\`${CORRECTIONS_FILE}\`, "Transcription check") and ${corrections.length} by the blind check, across ${drawn.length * 2} transcribed columns.`,
+    `- **How the blind check chose its cells.** It re-read only the cells where OCR and the transcription disagreed in reconciled columns (the ${blindChecked} headline cases of the first measurement), mixed with control cells where they agreed. ${towardsOcr} of the ${corrections.length} corrections set the transcription to the figure OCR read, so every correction moved towards OCR. The ${misreadsElsewhereBefore.length} misread ${misreadsElsewhereBefore.length === 1 ? 'figure' : 'figures'} in columns that did not reconcile ${misreadsElsewhereBefore.length === 1 ? 'was' : 'were'} not re-checked, and neither were the not-read fields.`,
+    `- **Transcription error rate.** ${FIRST_CHECK_ERRORS} errors were found by the within-document checks on the transcriptions alone (\`${CORRECTIONS_FILE}\`, "Transcription check") and ${blindChecked} by the blind check${laterCorrections.length === 0 ? '' : `, ${laterCorrections.length} later`}, across ${drawn.length * 2} transcribed columns.`,
     '',
     '### After the corrections',
     '',
@@ -613,17 +625,28 @@ export function readInputs(root: string): ReportInputs {
   const transcribed = parseTranscriptions(read(TRANSCRIPTIONS_FILE));
   const corrections = parseCorrections(read(CORRECTIONS_FILE));
   const beforeStored = parseStoredColumns(read(`${BEFORE_2_3B_DIR}/document_column.csv`));
+  const transcribedBefore = transcriptionsBefore(transcribed, corrections);
+  const suspected = new Set(
+    read(BLIND_CHECK_KEY_FILE)
+      .split(/\r?\n/)
+      .slice(1)
+      .map((line) => line.split(';'))
+      .filter((cells) => cells[5] === 'yes')
+      .map(([, orgnr, year, role, field]) => `${orgnr}/${year}/${role}/${field}`),
+  );
   const afterFile = path.join(root, ...RUN_COUNTS_AFTER_FILE.split('/'));
   return {
     drawn,
     comparison: compareReference(drawn, transcribed, stored),
-    before: compareReference(drawn, transcriptionsBefore(transcribed, corrections), stored),
+    before: compareReference(drawn, transcribedBefore, stored),
     corrections,
+    laterCorrections: corrections.filter((c) => !suspected.has(`${c.orgnr}/${c.filingYear}/${c.role}/${c.field}`)),
     documents: parseStoredDocuments(read(`${SEED_DIR}/document.csv`)),
     stored,
     consistency: parseConsistency(JSON.parse(read(CONSISTENCY_FILE))),
     before23b: {
       comparison: compareReference(drawn, transcribed, beforeStored),
+      beforeCorrections: compareReference(drawn, transcribedBefore, beforeStored),
       stored: beforeStored,
       consistency: parseConsistency(JSON.parse(read(`${BEFORE_2_3B_DIR}/ocr-consistency-2026.json`))),
       runBefore: parseRunCounts(JSON.parse(read(RUN_COUNTS_BEFORE_FILE)), RUN_COUNTS_BEFORE_FILE),

@@ -4,10 +4,12 @@
 // The 20 cells of blind-check.csv are the six "suspected" cells, the misread
 // figures in reconciled columns of the first measurement, mixed with 14
 // "control" cells drawn from the cells where OCR and the transcription
-// agreed. Both come from the comparison against the transcriptions as they
-// stood *before* the corrections (`readInputs(root).before`, which undoes the
-// README's corrections log), because that is what the selection was made
-// from. A seeded mulberry32 shuffle (seed 20261023) draws the controls and
+// agreed. Both come from the comparison of the transcriptions as they
+// stood *before* the corrections (which undoes the README's corrections
+// log) with Story 2.3's stored columns, kept byte for byte in
+// analysis/output/ocr-sm2-before-2.3b/ (`readInputs(root).before23b
+// .beforeCorrections`), because that is what the selection was made from;
+// Story 2.3b's re-read changed the seed. A seeded mulberry32 shuffle (seed 20261023) draws the controls and
 // then orders all 20.
 //
 // Writes blind-check-key.csv (which cells were suspected). It never writes
@@ -18,11 +20,11 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { type Comparison, type FieldResult, misreadsReachingEngine } from '../../scripts/ocr-sm2-compare.ts';
-import { readInputs } from '../../scripts/ocr-sm2.ts';
+import { BLIND_CHECK_KEY_FILE, readInputs } from '../../scripts/ocr-sm2.ts';
 
 export const BLIND_CHECK_SEED = 20261023;
 export const BLIND_CHECK_FILE = 'analysis/ocr-reference/blind-check.csv';
-export const BLIND_CHECK_KEY_FILE = 'analysis/ocr-reference/blind-check-key.csv';
+export { BLIND_CHECK_KEY_FILE };
 const CONTROLS = 14;
 const SUSPECTED = 6;
 
@@ -87,7 +89,7 @@ export function blindCheckKeyCsv(cells: readonly BlindCell[]): string {
 
 export function main(root: string): number {
   try {
-    const cells = blindCheckCells(readInputs(root).before);
+    const cells = blindCheckCells(readInputs(root).before23b.beforeCorrections);
     writeFileSync(path.join(root, ...BLIND_CHECK_KEY_FILE.split('/')), blindCheckKeyCsv(cells));
     process.stdout.write(`blind-check-draw: wrote ${BLIND_CHECK_KEY_FILE} (${cells.length} cells, seed ${BLIND_CHECK_SEED})\n`);
     return 0;

@@ -17,7 +17,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const read = (relative: string) => readFileSync(path.join(root, ...relative.split('/')), 'utf8').replaceAll('\r\n', '\n');
 
 describe('the blind check draw', () => {
-  const cells = blindCheckCells(readInputs(root).before);
+  const cells = blindCheckCells(readInputs(root).before23b.beforeCorrections);
 
   it('selects the cells of blind-check.csv, in its order', () => {
     const [header, ...rows] = parseSemicolonCsv(read(BLIND_CHECK_FILE));
@@ -35,6 +35,6 @@ describe('the blind check draw', () => {
   });
 
   it('depends on the seed', () => {
-    expect(blindCheckKeyCsv(blindCheckCells(readInputs(root).before, 1))).not.toBe(blindCheckKeyCsv(cells));
+    expect(blindCheckKeyCsv(blindCheckCells(readInputs(root).before23b.beforeCorrections, 1))).not.toBe(blindCheckKeyCsv(cells));
   });
 });

@@ -67,6 +67,8 @@ The first SM-2 report (Story 2.3) found six misread figures in reconciled column
 - **The selection.** Only cells where OCR and the transcription disagreed in reconciled columns were suspected, so every correction moved the transcription towards OCR; the three misread figures in columns that did not reconcile, and the not-read fields, were not re-checked.
 - **After the corrections**, the within-document checks c1–c4 (5 kr) were run again on every transcribed row by the review session: all 40 rows pass.
 
+**A later correction, not blind (2026-10-28, Story 2.3b).** After the re-read of Story 2.3b, the report showed one new misread figure reaching the engine: 915648479/2021, 2020 column, salgsinntekt, transcribed 3 659 013 and read 3 657 114. The same figure was read before the re-read, but its column did not reconcile then; with the balance total now read, it does. The review session pointed out the cell after the new report showed the difference, and the transcriber (Meinich) then checked the PDF: Salgsinntekt 3 657 114, a separate line Annen driftsinntekt 1 899, and Sum inntekter 3 659 013. OCR read it right; the transcription had copied the sum into salgsinntekt. The correction is logged below, and it was made on prompting, not blind.
+
 `scripts/ocr-sm2.ts` reads the table below to report the headline before and after the corrections, so keep its columns as they are. `Column` is `current` or `prior`. The figures are whole kroner, as in `transcriptions.csv`.
 
 ## Corrections
@@ -79,3 +81,4 @@ The first SM-2 report (Story 2.3) found six misread figures in reconciled column
 | 2026-10-23 | 917526729 | 2025 | current | sum_kortsiktig_gjeld | 3398859 | 5619383 |
 | 2026-10-23 | 922184534 | 2025 | current | bankinnskudd | 429329 | 9429329 |
 | 2026-10-23 | 917526729 | 2025 | prior | sum_kortsiktig_gjeld | 3224133 | 5233612 |
+| 2026-10-28 | 915648479 | 2021 | prior | salgsinntekt | 3659013 | 3657114 |

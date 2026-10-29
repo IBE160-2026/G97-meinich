@@ -1,6 +1,6 @@
 # Story 2.3b: Read the balance total ("SUM EGENKAPITAL OG GJELD")
 
-**Date:** 2026-10-23, review 2026-10-25
+**Date:** 2026-10-23, review 2026-10-25, acceptance run 2026-10-25 to 2026-10-29
 **Tool:** Claude Code (Opus 5.5), implementation subagent of the BMAD build session
 **Story / issue:** Story 2.3b (FR-28, NFR25), issue #38
 **Result:** branch `story/2.3b-read-the-balance-total`, not pushed; PR not opened yet. Commits listed below.
@@ -35,7 +35,7 @@ The human's prompts are in `docs/ai-prompts.md`, verbatim; the review session ad
 
 ## Review, pass 1 (2026-10-25)
 
-The session resumed after the PC restarted mid-verification (2026-10-23, 16:17). Meinich's first three tasks: check that the database still held the migration and all 2 044 documents (it did: 2 044 documents, 427 companies, 4 086 columns); copy `.local/document-tables-before-2.3b-migration.sql` to `peerless-backups` (done, sha256 equal); correct the backfill to `901a78d` (above, `9d2fcf9`). Before the acceptance run he also had `.local/document-run-e09a413-reader-commit/` copied there (sha256 of both files equal), as it is the restore source after `pnpm seed`.
+The session resumed after the PC restarted mid-verification (2026-10-23, 16:17). Meinich's first three tasks: check that the database still held the migration and all 2 044 documents (it did: 2 044 documents, 427 companies, 4 086 columns); copy `.local/document-tables-before-2.3b-migration.sql` to `peerless-backups` (done, sha256 equal); correct the backfill to `901a78d` (above, `9d2fcf9`). Before the acceptance run Meinich also had `.local/document-run-e09a413-reader-commit/` copied there (sha256 of both files equal), as it is the restore source after `pnpm seed`.
 
 Verification in batches: lint, typecheck, `pnpm test`, `pnpm test:db`, `pnpm test:ingest` green except `seed-format.test.ts` and `test/db/seed.test.ts`, which fail on the manifest's migration id until the seed is exported; `pnpm analysis:sm2` changes only the date. The seed round trip was not run: it deletes the 2.1b rows.
 
@@ -45,10 +45,25 @@ Four review layers (subagents of this session: blind, edge case, verification ga
 - **Fixes:** `fb47a46` (D2, its two tests and the docs; B15 with it) and `2ce5a50` (the eight patches). Each new test was run with its guard removed and fails.
 - **Rejected:** 15, each with its refutation or reason in the triage log. Among them: the backfill labelling other databases' rows (only the local database has rows from that date, all the reference run's), squash merges orphaning `reader_commit` (PRs merge with merge commits; both commits are on `main`), and three findings whose fix would edit the spec under review.
 
-## Not done
+## Acceptance run (2026-10-25 to 2026-10-29)
 
-- **The seed is not re-exported.** `pnpm seed:export` refuses while the 2.1b rows (not on the allow-list) are in the database. The README's route is to remove them and restore them from a dump; the delete was refused by the session's permission classifier, so it needs the human. The 2.1b rows, now with `reader_commit`, are dumped in the README's CSV form to `.local/document-run-e09a413-reader-commit/` (1 947 documents, 3 892 columns); the old dumps are untouched. Until the export, `test/seed-format.test.ts` ("passes every check against the repository") and `test/db/seed.test.ts` fail on the manifest's migration id.
-- **The acceptance run** (spec, "After review") has not run: dump and backup, `--reread` of the reference set and `seed:export`, `consistency.py`, `--reread` of `seed/document-run.json`, `pnpm analysis:document-run after-2.3b`, the report, the second dump. "Not replaced" (now also a reconciled column that would fail) and the number of documents with a lost figure, which the PR states (D2), are therefore not yet known. The seed export is part of this run (D1).
+Run by this session on Meinich's instructions, with no push before it was done (D1). Reader version `2ce5a503d44bf6ab379cc3383fcefe1cc2734389`, the last commit touching `ingest/`; the image was built from `42b1c02`, and for the restart in step 4 from `0e9a4eb`, with the same `ingest/` tree.
+
+1. **Dump and backup.** Both document tables in full, in the README's CSV form, to `.local/document-tables-before-2.3b-reread/`, copied to `peerless-backups` (sha256 equal). The rows not on the allow-list were checked equal, sorted, to the restore source `.local/document-run-e09a413-reader-commit/`.
+2. **The reference set.** The first `--reread analysis/ocr-reference/document-run.json` got HTTP 503 on every fetch: the accounts register was down (`.local/reread-reference-2.3b-503.log`); it replaced nothing, as designed. The rerun replaced 97, not replaced 0, no reconciled column failing, 0 lost figures. Then, with Meinich's approval for this step only, the 2.1b rows were deleted in a checked transaction (3 892 columns, 1 947 documents), `pnpm seed:export` ran, `pnpm seed` loaded twice and the re-export was unchanged, and the 2.1b rows were restored and checked byte-identical (1 947 at `e09a413` + 97 at `2ce5a50`, 4 086 columns, 0 NULL): `5444765`.
+3. **`consistency.py`** in the step-1 image: `47c7b81`.
+4. **`--reread seed/document-run.json`**, 407 companies. The machine slept mid-run and the run hung after it woke (Known problem, below); it was stopped at 1 414 of 1 947 documents and restarted, and the restart re-read the remaining 533 (`.local/reread-2.1b-2.3b-container.log`, `.local/reread-2.1b-2.3b-resume.log`). Every document now has `reader_commit` `2ce5a50` (2 044).
+5. **`pnpm analysis:document-run after-2.3b` and the report:** `2d41750`.
+6. **The second dump**, the 2.1b rows after the re-read, in the README's CSV form: `.local/document-run-2ce5a50/` (1 947 documents, 3 892 columns), copied to `peerless-backups` (sha256 equal: `document.csv` `b7489f93…`, `document_column.csv` `1da6c7fe…`). It is the restore source after `pnpm seed` from now on; the older dumps are kept.
+7. **Not replaced and lost figures (D2).** Not replaced: 0, in both runs. Documents replaced with a figure lost from a column reconciled before and after: 0. The restart's summary gives 0 for its 533; the first run's summary was lost when it hung, so its 1 414 were checked from the two dumps: across the 3 892 columns of the 2.1b run, no column reconciled before is not reconciled after, and no column reconciled before and after has a figure before that is NULL after (script in the session's scratchpad, not committed). The reference set's 97 are in step 2's summary.
+
+**Result.** Sum egenkapital og gjeld read in the 2.1b run: 1 930 of 1 946 current columns (was 1 110) and 1 894 of 1 946 prior (was 1 094); reconciled current columns 1 801 → 1 834. On the reference set, 96 of 97 current and 93 of 97 prior (was 49 and 47); in the spike's filings, shown read in 178 of 178 columns (was 102). Misread and phantom figures reaching the engine on the reference set: 0 → 0.
+
+**One new misread, and a transcription corrected.** The first regenerated report listed one new misread reaching the engine: 915648479/2021, last-year column, salgsinntekt, transcribed 3 659 013, read 3 657 114. The review session pointed out the cell; Meinich checked the PDF and found OCR right (salgsinntekt 3 657 114, annen driftsinntekt 1 899). The transcription was corrected and logged as not blind (`77b51c9`). That broke two things, fixed in `2ac2cdb`: the report counted every correction as found by the blind check (it now counts only the cells `blind-check-key.csv` marks as suspected: 6 blind, 1 later), and `blind-check-draw.ts` no longer reproduced its key, because it compared against the current seed; it now compares against Story 2.3's stored columns in `analysis/output/ocr-sm2-before-2.3b/`, and writes the key byte-identical.
+
+**Memory.** Claude Code stopped several of this session's background shells because the machine was low on memory. The containers they started ran on, and their output was saved from `docker logs`; the restarted re-read in step 4 was launched as a separate Windows process.
+
+**Verification after the run:** `check:pins`, `check:env`, lint, typecheck, `pnpm test` (814), `pnpm test:db` (136), `pnpm test:ingest` (218), build, `check:routes`, `pnpm test:e2e` (116), all green. The seed round trip was not run again: `pnpm seed` deletes the 2.1b rows, and it ran in step 2 against the same seed; `seed/`, `supabase/` and `ingest/` have not changed since `5444765`.
 
 ## Known problem
 
@@ -66,4 +81,11 @@ Four review layers (subagents of this session: blind, edge case, verification ga
 - `9d2fcf9` the reference rows' backfilled version is `901a78d`
 - `fb47a46` review decision D2: a re-read that fails a reconciled column is not replaced
 - `2ce5a50` review fixes
-- the review record (this file, the AI log, the triage log's resolution, status)
+- `42b1c02` the review record (this file, the AI log, the triage log's resolution, status)
+- `5444765` the seed with `reader_commit`, the reference set re-read
+- `77b51c9` the reference set: 915648479/2021 salgsinntekt (2020) corrected
+- `2ac2cdb` the SM-2 report counts the blind check's corrections apart from a later one
+- `0e9a4eb` the fetch that hung after sleep, deferred
+- `47c7b81` the spike's consistency after the re-read
+- `2d41750` the SM-2 report after the acceptance re-read
+- the acceptance-run record (this file, the AI log)

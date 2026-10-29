@@ -50,6 +50,10 @@ Four review layers (subagents of this session: blind, edge case, verification ga
 - **The seed is not re-exported.** `pnpm seed:export` refuses while the 2.1b rows (not on the allow-list) are in the database. The README's route is to remove them and restore them from a dump; the delete was refused by the session's permission classifier, so it needs the human. The 2.1b rows, now with `reader_commit`, are dumped in the README's CSV form to `.local/document-run-e09a413-reader-commit/` (1 947 documents, 3 892 columns); the old dumps are untouched. Until the export, `test/seed-format.test.ts` ("passes every check against the repository") and `test/db/seed.test.ts` fail on the manifest's migration id.
 - **The acceptance run** (spec, "After review") has not run: dump and backup, `--reread` of the reference set and `seed:export`, `consistency.py`, `--reread` of `seed/document-run.json`, `pnpm analysis:document-run after-2.3b`, the report, the second dump. "Not replaced" (now also a reconciled column that would fail) and the number of documents with a lost figure, which the PR states (D2), are therefore not yet known. The seed export is part of this run (D1).
 
+## Known problem
+
+- **A fetch hung for about two hours after the machine woke.** In step 4 of the acceptance run the machine slept mid-run; after it woke, the re-read wrote 981479076/2022 at 15:48 UTC and then waited on an open HTTPS connection, at 0 % CPU, although the fetch has a 60 s timeout. The session stopped the container and restarted the re-read, which Meinich approved afterwards; it resumed from the documents still on the old version. A per-document time limit outside the network call is proposed in `deferred-work.md`; Meinich decided (2026-10-29) not to fix it in 2.3b. The PR lists it as a known problem.
+
 ## Commits
 
 - `0118e75` spec, epic context and sprint status

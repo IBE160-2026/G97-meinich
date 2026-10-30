@@ -579,10 +579,16 @@ def code_without_companies(s: run.Summary) -> None:
     s.codes["62.010"] = run.CodeSummary("62.010")
 
 
+def withdrawal_not_deleted(s: run.Summary) -> None:
+    # Story 2.4: a stored company absent from the bulk file that the unit
+    # endpoint did not answer 410 for needs a person.
+    s.withdrawal.failures.append(write.Failure("919951834", "withdrawal", "unit_not_found"))
+
+
 @pytest.mark.parametrize(
     "spoil",
-    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies],
-    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies"],
+    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies, withdrawal_not_deleted],
+    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies", "withdrawal-failure"],
 )
 def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: object) -> None:
     summary = clean_summary()
@@ -600,6 +606,8 @@ def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: obj
     monkeypatch.setattr(run.config_module, "load_coverage", lambda _path: list(summary.codes))
     monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run.write, "start_run", lambda *_args: 1)
+    monkeypatch.setattr(run.write, "end_run", lambda *_args: None)
     monkeypatch.setattr(run, "run", lambda *_args, **_kwargs: summary)
 
     assert run.main([]) == (0 if spoil is None else 1)
@@ -629,6 +637,8 @@ def test_main_selects_companies_only_mode(monkeypatch: pytest.MonkeyPatch, cfg: 
     monkeypatch.setattr(run.config_module, "load_coverage", no_coverage)
     monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run.write, "start_run", lambda *_args: 1)
+    monkeypatch.setattr(run.write, "end_run", lambda *_args: None)
     monkeypatch.setattr(run, "run", full)
     monkeypatch.setattr(run, "run_companies_only", companies_only)
 

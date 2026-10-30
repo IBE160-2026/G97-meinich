@@ -113,5 +113,5 @@
   evidence: Story 2.4 implementation. The spec's code map and tasks do not include it; `test/db/run-grants.test.ts` asserts loader has no privilege in `run`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
-  summary: A stored company absent from the bulk file whose unit endpoint answers 404 or 200 (not 410) is a failure on every plain run, so the run exits 1 every time until a person decides what to do with it. Decide whether such a company is retired another way, or whether a known, accepted absence stops counting as a failure.
-  evidence: Story 2.4 (`ingest/tests/test_run_record.py::test_absent_unit_404_deletes_nothing`, `::test_live_unit_absent_from_bulk_is_kept`). The spec allows only a 410 to delete; how often the other answers occur is first measured by the live run (D2).
+  summary: Decide whether a dissolved company (a stored `register.company.slettedato`, from a unit answering 200 with `slettedato` while absent from the bulk file) leaves the peer pool, and whether its filings still count in aggregates. Today nothing reads `slettedato`, so a dissolved company stays a candidate on its last filing.
+  evidence: Story 2.4 review pass 1, Q4a (Meinich, 2026-10-30): only 410 deletes; the read-only measurement that day found 48 stored companies dissolved in 2026 (`docs/data-sources-brreg.md`, "Dissolved is not withdrawn").

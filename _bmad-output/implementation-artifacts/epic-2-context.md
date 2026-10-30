@@ -4,7 +4,7 @@
 
 ## Goal
 
-Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores the figures as filed and accepts a column only when it reconciles. OCR accuracy is measured (SM-2) against a hand-transcribed reference set. A company the register withdraws (`410 Gone`) is deleted. Batch step 2 computes the business-model fingerprint (stage 4) and a model classification (stage 5). On the page, the Peers tab shows the five-stage funnel with counts, and "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" for each peer. The user can exclude a peer or widen the size band, and every figure is recomputed. Every missing figure states its reason. Status: 2.1a–2.3b are done (OCR library, ingest, reconciliation, SM-2, the balance-total fix and re-read). 2.4–2.9 are in backlog and come in that order.
+Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores the figures as filed and accepts a column only when it reconciles. OCR accuracy is measured (SM-2) against a hand-transcribed reference set. A company the register withdraws (`410 Gone`) is deleted. Batch step 2 computes the business-model fingerprint (stage 4) and a model classification (stage 5). On the page, the Peers tab shows the five-stage funnel with counts, and "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" for each peer. The user can exclude a peer or widen the size band, and every figure is recomputed. Every missing figure states its reason. Status: 2.1a–2.3b are done (OCR library, ingest, reconciliation, SM-2, the balance-total fix and re-read). 2.4 is in review; 2.5–2.9 are in backlog and come in that order.
 
 ## Stories
 

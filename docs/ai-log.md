@@ -16,7 +16,7 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 25 |
+| auth | 26 |
 | money | 19 |
 | parsing | 13 |
 | llm-boundary | 5 |
@@ -635,3 +635,36 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 6. **A withdrawn reference orgnr silently shrinks the SM-2 set.** `seed:export` refuses, naming it (`test/db/seed.test.ts`, "refuses a drawn orgnr that is not a stored company, naming it, and writes nothing"; `test/seed-format.test.ts`, "refuses a drawn orgnr that is not a stored company, naming each once"). Any other withdrawn allow-list entry is dropped and named on stderr ("leaves a company deleted after 410 out of every seed file, the manifest and the allow-list").
 **Caught by:** Each guard in items 1 and 4 was removed and its test failed (the share check, the record handler in `main`). Review is still to come.
 **Outcome:** Implemented in the Story 2.4 commits on `story/2.4-withdrawn-410`; the live run (D2) waits for review.
+
+### 2026-10-30 — Story 2.4, review pass 1: dissolved is not withdrawn, and when a run exits 1
+**Tags:** auth
+**Tool:** Claude Code (implementation subagent, Opus 5.5); findings from the review session, decisions by Meinich
+**Asked:** Amend Story 2.4 after review: Meinich's decisions Q4a, Q5a and Q6 (spec change log) and the review's patch findings.
+**Got:** Migration `20261030130000_company_slettedato.sql`; `write.store_slettedato`; the withdrawal check storing a dissolved unit's `slettedato`; an exit rule based on whether the check finished; run records that keep the failures collected before a crash; `delete_company` checking its run-record update.
+**Problem:** This entry corrects the entry above, "Story 2.4: step 1 deletes a company on 410 Gone, and records every run", where they differ.
+1. **The first build treated a dissolved company as live.** An ordinarily dissolved unit answers 200 with `slettedato`; 410 was observed only for deleted bankruptcy and forced-dissolution estates (`docs/data-sources-brreg.md`, "Dissolved is not withdrawn"). As built, each such company was a permanent failure, every plain run exited 1, and D5 counted them toward the limit, so normal churn would have tripped the guard. Now:
+   - a 200 with `slettedato` stores it and counts as dissolved (`ingest/tests/test_run_record.py::test_dissolved_unit_is_stored_not_a_failure`);
+   - a malformed one is a failure (`::test_malformed_slettedato_is_a_failure`);
+   - a company already stored as dissolved is neither counted in the D5 share nor looked up again (`::test_stored_slettedato_is_neither_counted_nor_asked`).
+2. **The exit rule (corrects item 2 above, where every failure exited 1).** Exit 1 comes only from:
+   - the D5 guard;
+   - a failed delete or write;
+   - a lookup that did not complete.
+
+   404 and a live unit stay in the record and exit 0 (`::test_exit_code_follows_whether_the_check_finished`, eight cases; `::test_absent_unit_404_deletes_nothing`, `::test_live_unit_absent_from_bulk_is_kept`).
+3. **Item 4 above claimed that a delete survives a crash, with no test behind it.** It is now tested: `::test_crash_after_a_delete_keeps_it_recorded` has the second lookup raise and asserts that `deleted` still holds the first orgnr and that `ended_at` is set.
+   - A crash also kept no failures, because the record was ended with `{}` and `[]`. It now keeps the partial summary's counts and failures (`::test_crash_keeps_failures_recorded_before_it`).
+   - A delete whose run-record update matches no row is rolled back (`::test_delete_without_its_record_is_rolled_back`).
+4. **Paths with no test before:**
+   - the failure stages per mode (`::test_plain_record_names_load_demo_and_withdrawal`, `::test_document_modes_record_refused`, `::test_reread_records_not_replaced`, `::test_companies_only_records_search_fields`);
+   - a failed delete (`::test_delete_error_is_a_failure_and_the_check_goes_on`);
+   - a lost connection (`::test_lost_connection_on_delete_ends_the_run`);
+   - a 410 with no row (`::test_gone_with_no_row_is_a_failure`);
+   - demo company C answering 410, now recorded once (`::test_withdrawn_demo_company_is_a_failure_not_a_crash`).
+**Caught by:** Review pass 1, and a live, read-only check of the unit endpoint (the review session, 2026-10-30). Each new guard was removed in turn, and its test failed:
+- the run-record rowcount check;
+- passing the partial summary;
+- the once-only demo failure;
+- the slettedato exclusion from the share;
+- 404 not counting as incomplete.
+**Outcome:** The `max_absent_share` value is unchanged (0.01) until Meinich has seen a measurement. The coordinator asked for the entry above to be edited where it describes exit codes and 200 answers. This file's rules allow only appending, so this entry corrects it instead.

@@ -2,10 +2,10 @@
 title: 'Story 2.4: Withdrawn companies disappear'
 type: 'feature'
 created: '2026-10-30'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'e5ad7467226ba5e68884cede54a7178b929f72d3'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
   - '{project-root}/docs/data-sources-brreg.md'
@@ -109,17 +109,18 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `fetch.py` + `test_fetch.py` -- Gone vs None -- the transport must tell 410 from 404 first
-- [ ] Migration + `write.py` + `test_write.py`/`test_documents_write.py` + both grants tests. Apply it locally with `pnpm exec supabase migration up` only: no reset, no `pnpm seed`, no export (D4). CI's seed check stays red on the migration id until step e below.
-- [ ] `run.py` deletion check and run record in every mode + `ingest/tests/test_run_record.py` (the matrix)
-- [ ] `seed-export.ts`/`seed-format.ts` + the export refusal test; `test/db/peers.test.ts` case
+- [x] `fetch.py` + `test_fetch.py` -- Gone vs None -- the transport must tell 410 from 404 first
+- [x] Migration + `write.py` + `test_write.py`/`test_documents_write.py` + both grants tests. Apply it locally with `pnpm exec supabase migration up` only: no reset, no `pnpm seed`, no export (D4). CI's seed check stays red on the migration id until step e below.
+- [x] `run.py` deletion check and run record in every mode + `ingest/tests/test_run_record.py` (the matrix)
+- [x] `seed-export.ts`/`seed-format.ts` + the export refusal test; `test/db/peers.test.ts` case
 - [ ] After review, the live run (D2):
   - a. Dump the document tables to `.local/`, copy the dump to `peerless-backups`, check the sha256, and record the row counts.
   - b. Announce the run with an estimate, then run `pnpm ingest`.
   - c. Write the deleted-orgnr table into the PR: document rows cascaded, and 2.1b set or reference set. If any orgnr is in `drawn.json`, stop and ask (D6).
   - d. Take a new dump, and point README "Seed" at it.
+  - d2. If a deleted orgnr is in `seed/document-run.json`, regenerate it with `pnpm ingest:document-set` (triage 21).
   - e. Run `pnpm seed:export` the way 2.3b did it, and commit the seed on its own. Run `pnpm seed` only with Meinich's yes; then restore from the newest dump and confirm the row counts (D4).
-- [ ] Docs:
+- [x] Docs:
   - `AGENTS.md`: step 1's one deletion, schema `run` and the run record, and "`--companies-only` … deleting nothing";
   - `technical-note-architecture.md` AD-2/AD-3: the record's schema;
   - `data-sources-brreg.md`: 410 handled;
@@ -142,7 +143,53 @@ context:
 
 ## Spec Change Log
 
+- **2026-10-30, Meinich (review pass 1, triage 1–3): a dissolved company is stored with its `slettedato`, not treated as a failure.** The review found, and a live check confirmed, that an ordinarily dissolved unit answers 200 with `slettedato` (930663530, 974676125 and 936651437, from the update feed's `Sletting`); 410 is only for removed units. As built, every dissolved stored company was a permanent failure, every plain run exited 1, and the D5 share counted them, so the guard would trip on normal churn.
+  - **Q4a:**
+    - A new migration adds `register.company.slettedato date`. The withdrawal check writes it when the unit answers 200 with `slettedato`, and the run record counts it as `dissolved`, not as a failure.
+    - Only 410 deletes.
+    - Whether dissolved companies leave the peer pool goes to `deferred-work.md`.
+  - **Q5a:**
+    - The D5 share counts only stored orgnrs that are absent from the bulk file and have no stored `slettedato`.
+    - Before the limit is set, a read-only measurement (the bulk file against the stored orgnrs, plus a sample of unit lookups) is shown to Meinich. The first real run has no stored `slettedato`, so every company dissolved since 1.3a counts toward it. The measurement must show whether that stays under the limit.
+  - **Q6:**
+    - 404, live and dissolved answers do not make the run exit 1.
+    - Exit 1 comes from the D5 guard, a failed delete, or a lookup that did not complete (5xx after retries, timeout, unparseable body), because the check was then not finished.
+    - 404 and live stay listed as failures in the record.
+  - **Known-bad state avoided:** every plain run exits 1, and the guard blocks every deletion.
+  - **KEEP:** the migration and the run schema, `fetch.Gone`, the run record in every mode, the seed-export refusal and prune, and the peers test. The code is amended where it stands, not reverted (Meinich).
+- **2026-10-30, review pass 1 (patch items):** the live run gains a step: regenerate `seed/document-run.json` with `pnpm ingest:document-set` after the run, if a listed orgnr was deleted (triage 21).
+
 ## Review Triage Log
+
+Pass 1 (2026-10-30). Layers: blind hunter (BH), edge-case hunter (EC), verification gap (VG).
+
+| # | Finding (layer) | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | A dissolved unit answers 200 with `slettedato`, not 410, so it is recorded as `absent_from_bulk_but_live` (BH, EC) | high | Checked live 2026-10-30: the update feed's `Sletting` units 930663530, 974676125 and 936651437 answer 200; 930663530 has `slettedato` 2026-10-20. Only "Fjernet" (legal removal) gives 410. Every dissolved stored company becomes a permanent failure, and every plain run exits 1. | intent_gap |
+| 2 | The 1 % absent-share guard (D5) trips on normal churn, so nothing is ever deleted (BH, EC) | high | Same root as 1: dissolved units are absent from the bulk file and count toward the share. A truncated download already fails JSON parsing in `iter_json_array`, so the share guards only a well-formed partial file. | intent_gap (with 1) |
+| 3 | Persistent 404/live failures make every plain run exit 1 and pile up toward the limit (EC; impl. note) | medium | `needs_operator` includes `withdrawal.failures`. | intent_gap (with 1) |
+| 4 | Demo company C answering 410 has no test (VG, BH) | medium | No test answers `enhet_url(DEMO)` with GONE; `Gone` is not in `FETCH_ERRORS`. | patch |
+| 5 | Run-record failures are not asserted per failure kind and mode (VG) | medium | Clean-path test expects `[]`; only the D5 failure is asserted. | patch |
+| 6 | `delete_failed`, `ConnectionLost` and `gone_but_no_row_to_delete` are untested (VG, BH) | medium | No test references these strings. | patch |
+| 7 | `_end_run_after_error` writes `{}`/`[]`, dropping failures collected before the crash (EC) | medium | It is called without the partial summary; this breaks the AC "every failure listed". | patch |
+| 8 | `delete_company` does not check that the run-record UPDATE matched a row (EC) | low | rowcount is unchecked; `run_id` always comes from `start_run`, so this is unlikely. | patch (direct check) |
+| 9 | `end_run` raising after a successful run leaves the summary unprinted (EC) | low | The record remains open, which the migration comment accepts. Unlikely. | reject |
+| 10 | `max_absent_share = inf/nan` raises ValueError, not ConfigError (EC) | low | Real, but nobody writes inf into the config. | reject |
+| 11 | A duplicate drawn orgnr breaks the refusal test's expected message (EC) | false | `drawn.json` holds one entry per orgnr (20 orgnrs, the allow-list test asserts once each). | reject |
+| 12 | Demo C 410 is recorded twice in failures (EC) | low | `failed` and `demo_company_c` both list it. | patch (with 4) |
+| 13 | Argument and config errors before `start_run` leave no record (EC) | false | These exit 2 before any run starts; the AC concerns runs. | reject |
+| 14 | AGENTS.md Toolchain sentence still says the allow-list is written back "as it read it" (BH) | medium | It contradicts the new pipeline text; the rule is that the file must match the code. | defer (agent-context file) |
+| 15 | I/O matrix rows name the wrong file or no test (BH) | low | The fix edits this spec. | reject |
+| 16 | D6 refusal DB tests cannot run in CI until step e (BH) | low | Known and planned; step e turns them green. To be stated in the PR as a merge condition. | reject |
+| 17 | ai-log item 4 claims "deleted survives a crash" without a test asserting it (BH) | medium | `test_gone_unit_is_deleted_everywhere` asserts only the normal path. | patch |
+| 18 | A killed run (SIGTERM) leaves `ended_at` NULL, undetected (BH) | medium | Python's default SIGTERM handler raises nothing. | defer |
+| 19 | Status mismatch between spec and sprint-status; epic context says 2.4 is backlog (BH) | low | Direct correction. | patch |
+| 20 | Session file lacks the issue/PR and two commits (BH) | low | Filled at PR time. | reject |
+| 21 | `seed/document-run.json` still lists a deleted peer, so the next `--documents`/`--reread` exits 1 (BH) | medium | Generated from demo pools; refused orgnrs exit 1. | patch (add regenerate to live-run step) |
+| 22 | Code Map `end_run(..., deleted, ...)` drifts from the code (BH) | low | The fix edits this spec. | reject |
+| 23 | `run.step1` CHECKs are weaker than the comments (BH) | low | Fix adds constraints; unlikely to matter. | reject |
+| 24 | The allow-list prune rests on absence, not on a 410 (BH) | maybe-false | Would need an export from a database missing allow-listed companies; the seed always holds them. | reject (low if true) |
+| 25 | The peers test's `ekskl` part checks `parse` against a pool the test built (VG) | low | The candidate assertions observe the cascade; `parse` needs nothing more. | reject |
 
 ## Design Notes
 

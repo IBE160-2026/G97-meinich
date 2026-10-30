@@ -1328,6 +1328,210 @@ The review session confirmed that the committed seed holds only the 20 reference
 
 ---
 
+## Story 2.3b: read the balance total (#38, PR #40)
+
+Every `Fra meg:` prompt below was drafted by the review session and then pasted by the human, who decided to send it. The one exception is the short reminder at 14:00. The menu answers lost their line breaks in the transcript; the breaks are restored here.
+
+### Prompts to the BMAD session
+
+**2026-10-23 12:51**
+```
+/bmad-build Story 2.3b, issue #38
+```
+
+**13:00**: four questions, answered in the menu.
+```
+Fra meg: 2, alle lagrede dokumenter. Feilen "1" → "l" gjelder fete tall,
+og alle sumlinjene er fete – ikke bare sum egenkapital og gjeld. Legg til
+en kolonne for hvilken leserversjon (image-commit) som leste hver rad, så
+ingen rad er uten opphav. Ny lesing velger rader med eldre versjon, så en
+avbrutt kjøring fortsetter der den slapp. Kjøringen skjer på endelig kode
+etter review, som i 2.1b, og dump + backup tas før og etter.
+```
+```
+Fra meg: 1. Et dokument som ikke erstattes beholder også sin gamle
+leserversjon. PR-en og session-fila oppgir hvor mange som ble "ikke
+erstattet" i akseptansekjøringen, og hvorfor.
+```
+```
+Fra meg: 1. Rapporten viser også feilleste tall som når motoren (fra 2.3)
+før og etter ny leser på referansesettet – flere leste tall skal ikke
+betales med nye feillesninger.
+```
+`Keep full spec (Recommended)`
+
+*Changed:* the plan was to re-read only the documents that missed the total. The answer widened it to every stored document, because every total row is bold. It also gave each row a reader version, so a re-read knows what is out of date and an interrupted run resumes.
+
+**13:40**: approval.
+```
+Fra meg: godkjent, med tre tillegg:
+1. Akseptansekriteriet sier eksplisitt at fantomtall og feilleste tall som
+   når motoren rapporteres før og etter på referansesettet – flere leste
+   felt skal ikke betales med nye feil.
+2. Backfill av reader_commit kontrolleres: en sjekk/test viser at hver rad
+   får en versjon og at fordelingen er 1 947 (e09a413) og 97 (cfecb1e).
+3. De gamle dumpene (e09a413, bd2ce3e) beholdes; den nye dumpen legges ved
+   siden av, også i peerless-backups.
+Approve and continue.
+```
+Item 2 named the wrong commit for the reference rows: the review session's error, corrected on 10-25 (below).
+
+**14:00**: `husk å legge ut flere commits underveis per story`
+
+**2026-10-25 17:15**: the PC had restarted in the middle of the verification.
+```
+Fra meg: PC-en startet på nytt midt i verifiseringen din (stoppet 23.10
+kl. 16:17). Docker og databasen er startet igjen. Gjør dette først:
+1. Sjekk at databasen fortsatt har migrasjonen og alle dokumentradene
+   (2 044 dokumenter), før noe annet.
+2. Kopier .local/document-tables-before-2.3b-migration.sql til
+   C:\Users\cmein\peerless-backups\ – den mangler der.
+3. Backfillen av reader_commit bruker cfecb1e for referanseradene, men
+   definisjonen er siste commit som endret ingest/, og det er 901a78d.
+   Rett migrasjonen og testen som sjekker fordelingen.
+Fortsett så verifiseringen i bolker og deretter review.
+```
+*Changed:* the review session found that its own 13:40 prompt was wrong. `cfecb1e` did not change `ingest/`, so it is not a reader version. Fixed in `9d2fcf9`.
+
+**17:30**
+```
+Fra meg: ja, start de fire review-lagene på hele diffen.
+Før akseptansekjøringen: kopier også .local/document-run-e09a413-reader-commit/
+til C:\Users\cmein\peerless-backups\ og sjekk sha256 – den er
+gjenopprettingskilden etter pnpm seed og finnes bare lokalt nå.
+```
+
+**17:52**: three review decisions.
+```
+Fra meg:
+D1: 2. Ingen push før akseptansekjøringen, så en ekstra slett-og-
+gjenopprett av 2.1b-radene nå gir bare risiko.
+D2: Ny regel (Spec Change Log, datert, min beslutning): en ny lesing som
+gjør en reconciled kolonne til failed_reconciliation erstatter ikke –
+dokumentet beholder tall og leserversjon og telles som "ikke erstattet"
+(samme prinsipp som "færre kolonner"). Tall som går fra verdi til NULL i
+en kolonne som fortsatt er reconciled, erstattes, men listes per dokument
+i oppsummeringen, og antallet står i PR-en. Test begge.
+D3: 1. Rapporten regenereres i akseptansekjøringen før merge.
+Bruk de 8 rettelsene i en egen commit.
+```
+*Changed:* the review layers found that a re-read could take figures away from the engine unseen when it gave as many columns as were stored (B4, E1, E9). D2 closes that gap. It is fixed in `fb47a46`, and the eight patches are in `2ce5a50`.
+
+**18:25**
+```
+Fra meg: ja, start akseptansekjøringen med steg 1 og 2. Jeg godkjenner at
+2.1b-radene slettes før seed:export i steg 2 – gjenopprettingskilden
+.local/document-run-e09a413-reader-commit/ finnes også i peerless-backups.
+Bekreft radtallene (1 947 + 97) etter gjenopprettingen før du går videre.
+Imaget skal bygges fra 42b1c02. Si fra før steg 4 (~11 t), så jeg holder
+maskinen våken.
+```
+The re-read of the reference set then fetched nothing: Brønnøysund answered 503 (Sunday 2026-10-25). The run replaced nothing, as designed.
+
+**2026-10-27 16:53**
+```
+Fra meg: Brønnøysund svarer 200 igjen (sjekket av review-sesjonen: /aar,
+dokument-PDF og nøkkeltall-API). Databasen er uendret: 1 947 rader på
+e09a413 og 97 på 901a78d. Gjenoppta akseptansekjøringen fra steg 2a:
+1. Sjekk selv at dokumentendepunktet svarer 200, og kjør den nye lesingen
+   av de 97 referansedokumentene med imaget fra 42b1c02.
+2. Stopp og vis oppsummeringen (erstattet / ikke erstattet med grunner /
+   tapte tall) før du sletter noe.
+3. Fortsett deretter steg 2 og 3 som planlagt, og si fra før steg 4.
+```
+
+**2026-10-28 19:06**
+```
+Fra meg: ja, fortsett med steg 2 som godkjent: slett 2.1b-radene,
+seed:export, pnpm seed, gjenopprett fra .local/document-run-e09a413-
+reader-commit/ og bekreft 1 947 + 97 før noe annet. Kjør så steg 3
+(consistency.py) og regenerer rapporten. Vis hovedtallet (feilleste tall
+som når motoren, før/etter på referansesettet) og stopp før steg 4.
+```
+
+**19:53**: the regenerated report showed one new misread reaching the engine. The review session pointed out the cell, and the human checked the PDF.
+```
+Fra meg: sjekket 915648479/2021 i PDF-en (2020-kolonnen): Salgsinntekt
+3 657 114, og en egen linje Annen driftsinntekt 1 899; Sum inntekter
+3 659 013. OCR leste riktig – det er en skrivefeil i avskriften.
+Rett transcriptions.csv (salgsinntekt, prior, 3659013 → 3657114) og
+logg den i Corrections-tabellen med dagens dato. Merk i README at denne
+rettelsen ikke var blind: review-sesjonen pekte ut cellen etter at den
+nye rapporten viste avviket, og jeg sjekket PDF-en. Egen commit.
+Start deretter steg 4.
+```
+*Changed:* the "new misread" was the transcription's error, not the reader's. The correction is logged as not blind (`77b51c9`). The report now counts it apart from the six blind corrections (`2ac2cdb`).
+
+**2026-10-29 05:39**: the human wanted to close the lid without stopping the container.
+```
+Fra meg: jeg lukker lokket og går på jobb. Maskinen går i dvale midt i
+steg 4. Hvis containeren avslutter etter dvale: ikke gå videre til steg 5.
+Sjekk først at ingen dokumenter står igjen med reader_commit e09a413 eller
+som "ikke erstattet" på grunn av nettverk – kjør i så fall --reread igjen.
+Vent på meg før steg 5.
+```
+After the machine woke, the re-read hung for about two hours on one fetch, although the fetch has a 60 s timeout. The BMAD session stopped the container and restarted the re-read, which resumed where it stopped. It did this without asking first. The human approved it afterwards:
+
+**17:55**
+```
+Fra meg: bra. Legg hengingen etter dvale inn som kjent problem i PR-en og
+som en deferred-post: fetch med 60 s timeout hang i ~2 t etter at maskinen
+våknet; foreslå en tidsgrense per dokument (watchdog) utenfor
+nettverkskallet. Ikke rett det i 2.3b.
+```
+
+**21:42**: after the review session had checked in the database that all 2 044 documents carried `2ce5a50`.
+```
+Fra meg: steg 4 er ferdig (exit 0). Alle 2 044 dokumenter har reader_commit
+2ce5a50, ingen ble ikke erstattet, og ingen tall gikk tapt. Fortsett med
+steg 5–7: pnpm analysis:document-run after-2.3b, generer rapporten på nytt,
+commit rapporten og ocr-consistency-2026.json i egne commits, ta den andre
+dumpen med kopi til peerless-backups (sjekk sha256), og kjør hele
+testsuiten i omganger. Ikke push eller opprett PR før jeg sier fra.
+```
+
+**2026-10-30 07:03**
+```
+Fra meg: godkjent. Push og opprett PR-en (Closes #38). PR-en skal ha
+før/etter-tabellen, si at 0 dokumenter ikke ble erstattet og 0 tall gikk
+tapt (første kjørings 1 414 dokumenter sjekket mot dumpene), liste
+henget etter dvale som kjent problem, si at seed-rundturen ikke er kjørt
+lokalt og at CI er kontrollen, og lenke sesjonsfila.
+```
+
+### Prompts to the review session
+
+Most were status questions during the long runs, such as `sjekk`, `hvor langt nå`, `nå?` and `hvor lang tid tar det`. The review session answered each one from the database: documents per reader version and status, and the latest `read_at`. These prompts shaped the run:
+- `pcen startet på nytt hvor var vi? … hva burde prompt være nå da?` (10-25): led to the 17:15 prompt and the `901a78d` correction.
+- `nå er det i morgen kan du gi meg en prompt` (10-27): the review session first checked that Brønnøysund answered 200 on `/aar`, the document PDF and the key-figures API, then drafted the 16:53 prompt.
+- `ønsker ikke å drepe conatiner - skrur ikke av pcen bare lukker lokket` (10-29): the human's decision. It led to the 05:39 prompt, which made a resumed `--reread` the recovery path instead of a stopped container.
+
+### Result
+
+"Sum egenkapital og gjeld" is read in:
+- the 2.1b run, this-year columns: 1 930 of 1 946, up from 1 110;
+- the 2.1b run, last-year columns: 1 894 of 1 946, up from 1 094;
+- the reference set: 96 of 97 this year and 93 of 97 last year, up from 49 and 47;
+- the spike's filings: 178 of 178, up from 102.
+
+Reconciled this-year columns in the 2.1b run went from 1 801 to 1 834. In the reference set, misread figures reaching the engine stayed at 0, and phantom figures at 0. No document was left unreplaced, and no figure was lost.
+
+The first run's summary was lost when it hung. Its 1 414 documents were therefore checked against the dumps taken before and after the re-read. That check used a script that is not committed.
+
+The rows after the re-read are dumped to `.local/document-run-2ce5a50/`. The copy in `peerless-backups` has the same sha256.
+
+### Checks before merging
+
+The review session checked these against the database and the repository:
+- every document carries `2ce5a50`;
+- the status counts and the before/after counts in `document-run-counts-*.json`;
+- the dump's row counts and its backup checksums;
+- that `seed/`, `supabase/` and `ingest/` are unchanged since `5444765`, so CI's seed round trip covers the round trip that was skipped locally.
+
+CI on `fc6f559` was green. At the human's request (`gjerne`), the review session posted the GitHub review with six line comments. The PR was merged at 07:15 UTC as `1dd628e`, with 19 commits from `a07089a` to `fc6f559`.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

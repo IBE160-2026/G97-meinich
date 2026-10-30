@@ -3,7 +3,7 @@
 **Date:** 2026-10-23, review 2026-10-25, acceptance run 2026-10-25 to 2026-10-29
 **Tool:** Claude Code (Opus 5.5), implementation subagent of the BMAD build session
 **Story / issue:** Story 2.3b (FR-28, NFR25), issue #38
-**Result:** branch `story/2.3b-read-the-balance-total`, PR [#40](https://github.com/IBE160-2026/G97-meinich/pull/40) (opened 2026-10-30). Commits listed below.
+**Result:** branch `story/2.3b-read-the-balance-total`, PR [#40](https://github.com/IBE160-2026/G97-meinich/pull/40), opened and merged 2026-10-30. Commits listed below.
 
 ## Goal
 
@@ -64,6 +64,8 @@ Run by this session on Meinich's instructions, with no push before it was done (
 **Memory.** Claude Code stopped several of this session's background shells because the machine was low on memory. The containers they started ran on, and their output was saved from `docker logs`; the restarted re-read in step 4 was launched as a separate Windows process.
 
 **Verification after the run:** `check:pins`, `check:env`, lint, typecheck, `pnpm test` (814), `pnpm test:db` (136), `pnpm test:ingest` (218), build, `check:routes`, `pnpm test:e2e` (116), all green. The seed round trip was not run again: `pnpm seed` deletes the 2.1b rows, and it ran in step 2 against the same seed; `seed/`, `supabase/` and `ingest/` have not changed since `5444765`.
+
+**Merge.** CI on `fc6f559` was green, including the seed round trip that was not run locally on the final tree. Before merging, the review session checked the run against the database (every document on `2ce5a50`, the status and before/after counts, the dump's row counts and backup checksums). The review was posted as a GitHub review with six line comments, drafted by the review session and posted at the human's decision. The PR was merged at 07:15 UTC as `1dd628e`. The review session then set the spec and the story to done on `main`.
 
 ## Known problem
 

@@ -2,7 +2,7 @@
 title: 'Story 2.3b: Read the balance total (SUM EGENKAPITAL OG GJELD)'
 type: 'bugfix'
 created: '2026-10-23'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'dcff3ab66372d203d1b27836e05894fe6968993c'
 route: 'dispatch'
 review_loop_iteration: 0

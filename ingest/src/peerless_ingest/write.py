@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 import psycopg
 from psycopg import sql
@@ -507,8 +507,23 @@ def delete_company(conn: psycopg.Connection, orgnr: str, run_id: int | None) -> 
         cursor = conn.execute("DELETE FROM register.company WHERE orgnr = %s", (orgnr,))
         deleted = cursor.rowcount == 1
         if deleted and run_id is not None:
-            conn.execute("UPDATE run.step1 SET deleted = array_append(deleted, %s) WHERE id = %s", (orgnr, run_id))
+            recorded = conn.execute(
+                "UPDATE run.step1 SET deleted = array_append(deleted, %s) WHERE id = %s", (orgnr, run_id)
+            )
+            if recorded.rowcount != 1:
+                # Raised inside the transaction: the delete is rolled back
+                # with it, so no delete is committed without its record.
+                raise ValueError(f"run record {run_id}: no row to record the deletion of {orgnr} in")
     return deleted
+
+
+def store_slettedato(conn: psycopg.Connection, orgnr: str, slettedato: date) -> bool:
+    """Stores the register's slettedato on a company whose unit answered 200
+    with one while absent from the bulk file: dissolved, not withdrawn (Story
+    2.4, Q4a). Nothing else changes. Returns whether a row was updated."""
+    with conn.transaction():
+        cursor = conn.execute("UPDATE register.company SET slettedato = %s WHERE orgnr = %s", (slettedato, orgnr))
+        return cursor.rowcount == 1
 
 
 @dataclass(frozen=True)

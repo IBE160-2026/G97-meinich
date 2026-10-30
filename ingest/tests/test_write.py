@@ -580,9 +580,9 @@ def code_without_companies(s: run.Summary) -> None:
 
 
 def withdrawal_not_deleted(s: run.Summary) -> None:
-    # Story 2.4: a stored company absent from the bulk file that the unit
-    # endpoint did not answer 410 for needs a person.
-    s.withdrawal.failures.append(write.Failure("919951834", "withdrawal", "unit_not_found"))
+    # Story 2.4, Q6: a withdrawal check that did not finish (here a lookup
+    # that timed out) needs a person; a 404 or a live unit does not.
+    s.withdrawal.fail(write.Failure("919951834", "withdrawal", "TimeoutError: timed out"), incomplete=True)
 
 
 @pytest.mark.parametrize(

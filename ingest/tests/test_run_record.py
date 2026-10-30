@@ -15,17 +15,19 @@ absent share is exact whatever the database already holds.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import json
 import urllib.error
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from email.message import Message
+from fractions import Fraction
 from io import BytesIO
 from pathlib import Path
 
 import psycopg
 import pytest
 
-from conftest import BOUND_KR, GONE, READER_COMMIT, RULES, Answer, FixtureTransport, enhet_url, recorded, regnskap_url
+from conftest import BOUND_KR, GONE, READER_COMMIT, RULES, Answer, FixtureTransport, enhet_url, kopi_url, recorded, regnskap_url
 from document_fakes import recorded_979607008_2025
 from peerless_ingest import documents, run, write
 from peerless_ingest.config import Config
@@ -177,7 +179,7 @@ def test_absent_unit_404_deletes_nothing(db: psycopg.Connection, cfg: Config) ->
     assert count(db, "select count(*) from register.company where orgnr = %s", target) == 1
     assert summary.withdrawal.deleted == []
     assert summary.withdrawal.failures == [write.Failure(target, "withdrawal", "unit_not_found")]
-    assert summary.needs_operator()
+    assert not summary.needs_operator()  # Q6: a 404 is recorded, the run does not exit 1
 
 
 @pytest.mark.parametrize(
@@ -206,6 +208,67 @@ def test_live_unit_absent_from_bulk_is_kept(db: psycopg.Connection, cfg: Config)
 
     assert count(db, "select count(*) from register.company where orgnr = %s", target) == 1
     assert summary.withdrawal.failures == [write.Failure(target, "withdrawal", "absent_from_bulk_but_live")]
+    assert not summary.needs_operator()  # Q6: recorded, but no exit 1
+
+
+def unit_with_slettedato(value: object) -> bytes:
+    unit = json.loads(recorded("enhet_967534579.json"))
+    unit["slettedato"] = value
+    return json.dumps(unit).encode("utf-8")
+
+
+def slettedato_of(conn: psycopg.Connection, orgnr: str) -> object:
+    row = conn.execute("select slettedato from register.company where orgnr = %s", (orgnr,)).fetchone()
+    assert row is not None
+    return row[0]
+
+
+# --- Q4a: 200 with slettedato is dissolved: stored, kept, not a failure --------
+
+
+def test_dissolved_unit_is_stored_not_a_failure(db: psycopg.Connection, cfg: Config) -> None:
+    _, fillers = stored_to_multiple(db)
+    target = fillers[0]
+    summary = run.run(
+        db, transport(db, {target}, {target: unit_with_slettedato("2026-09-01")}), cfg, CODES, now=lambda: READ_AT
+    )
+
+    assert slettedato_of(db, target) == date(2026, 9, 1)
+    assert count(db, "select count(*) from register.company where orgnr = %s", target) == 1
+    assert summary.withdrawal.dissolved == [target]
+    assert summary.withdrawal.failures == [] and summary.withdrawal.deleted == []
+    assert summary.record_counts()["dissolved"] == 1
+    assert not summary.needs_operator()
+
+
+@pytest.mark.parametrize("value", ["01.09.2026", "2026-13-01", "", None, 20260901])
+def test_malformed_slettedato_is_a_failure(db: psycopg.Connection, cfg: Config, value: object) -> None:
+    _, fillers = stored_to_multiple(db)
+    target = fillers[0]
+    summary = run.run(db, transport(db, {target}, {target: unit_with_slettedato(value)}), cfg, CODES, now=lambda: READ_AT)
+
+    assert slettedato_of(db, target) is None
+    assert summary.withdrawal.dissolved == []
+    assert summary.withdrawal.failures == [write.Failure(target, "withdrawal", f"malformed_slettedato: {value!r}")]
+    assert summary.needs_operator()  # the lookup did not complete
+
+
+def test_stored_slettedato_is_neither_counted_nor_asked(db: psycopg.Connection, cfg: Config) -> None:
+    # Q5a: one more than 1 % absent, but one of them is already stored as
+    # dissolved: the share is exactly 1 %, so the check runs, and the
+    # dissolved one is not looked up again.
+    total, fillers = stored_to_multiple(db)
+    absent = fillers[: total // 100 + 1]
+    dissolved, rest = absent[0], absent[1:]
+    db.execute("update register.company set slettedato = '2026-01-15' where orgnr = %s", (dissolved,))
+    t = transport(db, set(absent), dict.fromkeys(rest, None))
+    summary = run.run(db, t, cfg, CODES, now=lambda: READ_AT)
+
+    assert enhet_url(dissolved) not in t.requested
+    assert sorted(unit_requests(t)) == sorted(enhet_url(o) for o in rest)
+    assert (summary.withdrawal.absent, summary.withdrawal.absent_already_dissolved) == (len(rest), 1)
+    assert not any(f.reason.startswith("bulk_absent_share_exceeded") for f in summary.withdrawal.failures)
+    assert slettedato_of(db, dissolved) == date(2026, 1, 15)
 
 
 def test_stored_units_in_bulk_are_not_asked_about(db: psycopg.Connection, cfg: Config) -> None:
@@ -322,3 +385,230 @@ def test_crash_still_ends_record(db: psycopg.Connection, cfg: Config, monkeypatc
     mode, ended, _, failures, deleted, error = record(db, last_run_id(db))
     assert (mode, ended, failures, deleted) == ("plain", True, [], [])
     assert error == f"{raised.value.__class__.__name__}: {raised.value}"
+
+
+def stages_of(conn: psycopg.Connection) -> list[str]:
+    failures = record(conn, last_run_id(conn))[3]
+    return [failure["stage"] for failure in failures]
+
+
+def test_crash_keeps_failures_recorded_before_it(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The first absent orgnr answers 404 (a failure), the second's lookup
+    # raises an error no run catches: the record keeps the 404 and the
+    # counts collected before the exception.
+    _, fillers = stored_to_multiple(db)
+    first, second = fillers[0], fillers[1]
+    patch_main(monkeypatch, db, cfg, transport(db, {first, second}, {first: None, second: RuntimeError("boom")}))
+
+    with pytest.raises(RuntimeError, match="boom"):
+        run.main([])
+
+    _, ended, counts, failures, _, error = record(db, last_run_id(db))
+    assert ended and error == "RuntimeError: boom"
+    assert failures == [{"orgnr": first, "stage": "withdrawal", "reason": "unit_not_found"}]
+    assert (counts["absent_from_bulk"], counts["unit_checked"]) == (2, 2)
+
+
+def test_crash_after_a_delete_keeps_it_recorded(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The first absent orgnr answers 410 and is deleted; the second's lookup
+    # raises. The deletion stays committed and recorded, and the record is
+    # ended with the error.
+    _, fillers = stored_to_multiple(db)
+    first, second = fillers[0], fillers[1]
+    patch_main(monkeypatch, db, cfg, transport(db, {first, second}, {first: GONE, second: RuntimeError("boom")}))
+
+    with pytest.raises(RuntimeError):
+        run.main([])
+
+    _, ended, counts, _, deleted, error = record(db, last_run_id(db))
+    assert (ended, deleted, error) == (True, [first], "RuntimeError: boom")
+    assert counts["deleted"] == 1
+    assert count(db, "select count(*) from register.company where orgnr = %s", first) == 0
+
+
+# --- Q6: which withdrawal answers make main exit 1 ----------------------------
+
+
+@pytest.mark.parametrize(
+    ("answer", "exit_code"),
+    [
+        (GONE, 0),
+        (None, 0),
+        (b"live", 0),
+        (b"dissolved", 0),
+        (TimeoutError("timed out"), 1),
+        (http_error(503), 1),
+        (b"<html>", 1),
+        (b"malformed", 1),
+    ],
+    ids=["410", "404", "live", "dissolved", "timeout", "503", "not-json", "malformed-slettedato"],
+)
+def test_exit_code_follows_whether_the_check_finished(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch, answer: Answer, exit_code: int
+) -> None:
+    bodies: dict[object, Answer] = {
+        b"live": recorded("enhet_967534579.json"),
+        b"dissolved": unit_with_slettedato("2026-09-01"),
+        b"malformed": unit_with_slettedato("01.09.2026"),
+    }
+    _, fillers = stored_to_multiple(db)
+    target = fillers[0]
+    given = bodies.get(answer, answer) if isinstance(answer, bytes) else answer
+    patch_main(monkeypatch, db, cfg, transport(db, {target}, {target: given}))
+
+    assert run.main([]) == exit_code
+
+
+def test_withdrawn_demo_company_is_a_failure_not_a_crash(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Demo company C answering 410 at step 3: the run goes on to the
+    # withdrawal check, and the record names the cause once.
+    _, fillers = stored_to_multiple(db)
+    target = fillers[0]
+    t = transport(db, {target}, {target: GONE})
+    t.responses[enhet_url(DEMO)] = GONE  # type: ignore[index]
+    summary = run.run(db, t, cfg, CODES, now=lambda: READ_AT)
+
+    assert not summary.demo_found
+    assert summary.withdrawal.deleted == [target]  # the check still ran
+    demo = [f for f in summary.record_failures() if f.stage == "demo_company_c"]
+    assert demo == [write.Failure(DEMO, "demo_company_c", "demo company C: withdrawn (410 Gone)")]
+    assert summary.needs_operator()
+
+
+# --- The failure stages in the record, per mode --------------------------------
+
+
+def test_plain_record_names_load_demo_and_withdrawal(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, fillers = stored_to_multiple(db)
+    target = fillers[0]
+    t = transport(db, {target}, {target: None})
+    t.responses[regnskap_url(COVERED)] = b"<html>"  # type: ignore[index]
+    t.responses[enhet_url(DEMO)] = None  # type: ignore[index]
+    patch_main(monkeypatch, db, cfg, t)
+
+    assert run.main([]) == 1
+    assert sorted(stages_of(db)) == ["demo_company_c", "load", "withdrawal"]
+
+
+@pytest.mark.parametrize("mode", ["--documents", "--reread"])
+def test_document_modes_record_refused(
+    db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    patch_main(monkeypatch, db, cfg, FixtureTransport({}))
+    listed = tmp_path / "list.json"
+    listed.write_text('["999999999"]', encoding="utf-8")  # not a stored company
+
+    assert run.main([mode, str(listed)]) == 1
+    assert stages_of(db) == ["refused"]
+
+
+def test_reread_records_not_replaced(
+    db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A stored document read by another version whose re-fetch fails is not
+    # replaced, and the record names it.
+    orgnr = "979607008"
+    write.write_company(db, company(orgnr, "STATEMENT AS"))
+    write.write_document(db, orgnr, 2025, write.OCR_FAILED, None, READ_AT, "e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d")
+    patch_main(monkeypatch, db, cfg, FixtureTransport({kopi_url(orgnr, 2025): None}))
+    monkeypatch.setattr(run.config_module, "load_coverage", lambda path: ["69.202"])
+    listed = tmp_path / "list.json"
+    listed.write_text(f'["{orgnr}"]', encoding="utf-8")
+
+    assert run.main(["--reread", str(listed)]) == 1
+    assert stages_of(db) == ["not_replaced"]
+
+
+def test_companies_only_records_search_fields(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write.write_company(db, company(COVERED, "OLD NAME AS"))
+
+    def refuse(*_args: object) -> bool:
+        raise psycopg.errors.DataError("refused")
+
+    monkeypatch.setattr(run.write, "update_company_search_fields", refuse)
+    patch_main(monkeypatch, db, cfg, transport(db, stored_orgnrs(db) - {COVERED}))
+
+    assert run.main(["--companies-only"]) == 1
+    assert set(stages_of(db)) == {"search_fields"}
+
+
+# --- A delete that fails, a 410 with no row, a delete without its record --------
+
+
+def test_delete_error_is_a_failure_and_the_check_goes_on(
+    db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, fillers = stored_to_multiple(db)
+    first, second = fillers[0], fillers[1]
+    real_delete = write.delete_company
+
+    def delete(conn: psycopg.Connection, orgnr: str, run_id: int | None) -> bool:
+        if orgnr == first:
+            raise psycopg.errors.ForeignKeyViolation("still referenced")
+        return real_delete(conn, orgnr, run_id)
+
+    monkeypatch.setattr(run.write, "delete_company", delete)
+    patch_main(monkeypatch, db, cfg, transport(db, {first, second}, {first: GONE, second: GONE}))
+
+    assert run.main([]) == 1  # a failed delete leaves the check incomplete
+
+    _, _, _, failures, deleted, _ = record(db, last_run_id(db))
+    assert deleted == [second]
+    assert [(f["orgnr"], f["reason"]) for f in failures] == [(first, "delete_failed: ForeignKeyViolation: still referenced")]
+    assert count(db, "select count(*) from register.company where orgnr = %s", first) == 1
+
+
+def test_lost_connection_on_delete_ends_the_run(cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    class Closed:
+        closed = True
+
+    def delete(*_args: object) -> bool:
+        raise psycopg.OperationalError("connection lost")
+
+    monkeypatch.setattr(run.write, "delete_company", delete)
+    summary = run.WithdrawalSummary()
+    t = FixtureTransport({enhet_url("000000001"): GONE})
+    with pytest.raises(run.ConnectionLost):
+        run._check_withdrawn(
+            Closed(),  # type: ignore[arg-type]
+            t,
+            dataclasses.replace(cfg, max_absent_share=Fraction(1)),
+            {"000000001": None},
+            set(),
+            summary,
+            None,
+            lambda _message: None,
+        )
+    assert summary.incomplete
+    assert summary.failures[0].reason.startswith("delete_failed: OperationalError")
+
+
+def test_gone_with_no_row_is_a_failure(db: psycopg.Connection, cfg: Config) -> None:
+    # Stored when the run started, gone by the time the 410 came: nothing to
+    # delete, recorded, and the check finished.
+    summary = run.WithdrawalSummary()
+    t = FixtureTransport({enhet_url("000000001"): GONE})
+    run._check_withdrawn(
+        db, t, dataclasses.replace(cfg, max_absent_share=Fraction(1)), {"000000001": None}, set(), summary, None,
+        lambda _message: None,
+    )
+    assert summary.failures == [write.Failure("000000001", "withdrawal", "gone_but_no_row_to_delete")]
+    assert summary.deleted == [] and not summary.incomplete
+
+
+def test_delete_without_its_record_is_rolled_back(db: psycopg.Connection) -> None:
+    write.write_company(db, company("000000001", "WITHDRAWN AS"))
+    missing_run = last_run_id(db) + 1000
+    with pytest.raises(ValueError, match="no row to record"):
+        write.delete_company(db, "000000001", missing_run)
+    assert count(db, "select count(*) from register.company where orgnr = '000000001'") == 1

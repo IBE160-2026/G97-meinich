@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 30-10-2026 08:30
+last_updated: 30-10-2026 08:40
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -57,7 +57,7 @@ development_status:
   2-2-accept-only-figures-that-reconcile: done  # issue #35
   2-3-measure-ocr-accuracy-sm-2: done  # issue #37; links issue #14 (reference set)
   2-3b-read-the-balance-total: done  # issue #38; split from 2.3 (Meinich, 2026-10-23): the bold SUM EGENKAPITAL OG GJELD row
-  2-4-withdrawn-companies-disappear: backlog
+  2-4-withdrawn-companies-disappear: in-progress
   2-5-the-business-model-fingerprint-stage-4: backlog
   2-6-classification-stage-5: backlog
   2-7-the-peers-tab-shows-why: backlog

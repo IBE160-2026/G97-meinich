@@ -3,7 +3,7 @@
 **Date:** 2026-10-23, review 2026-10-25, acceptance run 2026-10-25 to 2026-10-29
 **Tool:** Claude Code (Opus 5.5), implementation subagent of the BMAD build session
 **Story / issue:** Story 2.3b (FR-28, NFR25), issue #38
-**Result:** branch `story/2.3b-read-the-balance-total`, not pushed; PR not opened yet. Commits listed below.
+**Result:** branch `story/2.3b-read-the-balance-total`, PR [#40](https://github.com/IBE160-2026/G97-meinich/pull/40) (opened 2026-10-30). Commits listed below.
 
 ## Goal
 
@@ -88,4 +88,5 @@ Run by this session on Meinich's instructions, with no push before it was done (
 - `0e9a4eb` the fetch that hung after sleep, deferred
 - `47c7b81` the spike's consistency after the re-read
 - `2d41750` the SM-2 report after the acceptance re-read
-- the acceptance-run record (this file, the AI log)
+- `4bf8a3a` the acceptance-run record (this file, the AI log)
+- the PR link (this file)

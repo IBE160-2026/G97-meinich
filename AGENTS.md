@@ -122,6 +122,8 @@ Do not OCR or fetch documents at query time. OCR takes seconds to tens of second
 
 **Prompts are saved verbatim.** The human's prompts — to the BMAD session and to the separate review session that checks its output — go into `docs/ai-prompts.md`, each with what it changed and the commit or PR it landed in. The review session adds a section on `main` when the human asks: after a story's PR is merged, or after planning or documentation work committed straight to `main`, where the section links the commits instead of a PR; the BMAD session never edits `docs/ai-prompts.md` and keeps writing its own session file. The prompts are extracted from the Claude Code transcripts, not retyped, and checked for secrets and personal data before commit. When a decision or correction came from the review session, the session file says so; do not credit it to the human's own reading.
 
+**Each session ends with a session log.** At the end of a task or session, before the closing summary, both sessions use the `sesjonslogg` skill (`.claude/skills/sesjonslogg/`, added by Bård Pettersen on 2026-10-26 in `1adcdf8` and `35a9590`). It writes task, plan, result and open items to `.logs/<user>/` and commits that file alone, without pushing. On a story branch, that commit goes into the PR. The log is short and complements `docs/ai-sessions/` rather than repeating it: it links the session file, issue, PR or commits. It follows the skill's format and is written in Norwegian, the one exception to English documentation. Open items are not kept in `.logs/<user>/issues.md`: deferred code work goes in `_bmad-output/implementation-artifacts/deferred-work.md`, and anything else in a GitHub issue. The log links the entry.
+
 ## What is graded
 
 The course grades the repository against seven criteria: process and AI steering (30 %), functionality and scope (20 %), quality assurance and testing (15 %), design and UX (10 %), code quality and architecture (10 %), README and runnability (10 %), and repository tidiness (5 %). In practice this means:
@@ -147,9 +149,3 @@ These rules come from the Epic 1 retrospective (`_bmad-output/implementation-art
 When you propose a change touching auth, data access or money handling, say what could go wrong with it. That reasoning goes into the project's AI log, `docs/ai-log.md`, following the rules at the top of that file.
 
 If a request conflicts with something in this file, say so rather than following it silently.
-
-
-
-## Sesjonslogg
-
-Når en oppgave eller økt avsluttes, før sluttoppsummeringen, bruk `sesjonslogg`-skillen: dokumenter Oppgave + Plan + Resultat + åpne punkter i `.logs/<bruker>/`, og før åpne punkter i `.logs/<bruker>/issues.md`. Skillen committer loggfila lokalt; push gjør du selv. Gruppens egne regler for commit og språk gjelder foran dette.

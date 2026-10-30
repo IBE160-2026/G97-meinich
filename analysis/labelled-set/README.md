@@ -25,15 +25,14 @@ The subjects are stratified by whether their description is informative. The des
 
 The word-list proxy in `analysis/industry_screening.py` is not used. It is generous: Nynorsk words, misspellings and boilerplate pass as distinguishing words.
 
-**How the strata are filled.** `draw.ts` shuffles the eligible subjects once (seed below) and writes them in that order to `subject-descriptions.csv`, with the description text only: no name, no website, no figures and no candidates. The labeller scores them in that order, `ja` or `nei`. The first 15 scored `ja` and the first 15 scored `nei` that have a pool of at least 30 become the subjects. A subject is scored before any of its candidates is seen, so the stratum cannot be fitted to the labels.
+**How the strata are filled.** `draw.ts` shuffles the eligible subjects once (seed below) and writes the first 150 with a pool of at least 30 to `subject-descriptions.csv`, in that order. The file holds the orgnr and the description text only: no name, no website, no figures and no candidates. The labeller scores them in that order, `ja` or `nei`, and stops when both strata are full. The first 15 scored `ja` and the first 15 scored `nei` become the subjects. A subject is scored before any of its candidates is seen, so the stratum cannot be fitted to the labels.
 
 ## The draw
 
 `draw.ts`, seed `SEED = 20261030`, run against the committed demo seed:
-1. It shuffles the eligible subjects (above) and writes `subject-descriptions.csv`.
-2. Once the descriptions are scored, it picks the 30 subjects in shuffled order. For each one it draws 30 candidates at random from its stages 1–3 pool, using its own seeded stream, so adding a subject does not change another's draw.
-3. It fetches each company's description and registered website (`hjemmeside`) from Enhetsregisteret.
-4. It writes `drawn.json` (subjects, candidates and every skipped subject with its reason) and the labelling sheets.
+1. `draw.ts descriptions` shuffles the eligible subjects (above) and walks them in that order. It skips a subject whose pool has fewer than 30 companies and records why. For each of the first 150 others, it draws 30 candidates at random from the stages 1–3 pool. Each subject has its own seeded stream (the seed plus its orgnr), so its draw does not depend on the subjects before it. The step writes `subjects.json` (the counts, the order, the skips and the candidates) and `subject-descriptions.csv`. The candidates are fixed here, before scoring, so a later change to the local database (a step-1 run, for example) cannot move them.
+2. Once the descriptions are scored, `draw.ts pairs` picks the 30 subjects in shuffled order, as above. It fetches each company's name, description and registered website (`hjemmeside`) from Enhetsregisteret.
+3. It writes `drawn.json` (the 30 subjects, their stratum, whether they are blind, and their candidates) and the labelling sheets.
 
 **Blind subsample.** 6 subjects, the first 3 of each stratum in shuffled order, about 180 pairs, are labelled **first**, from description and website only. Their sheet, `labels-blind.csv`, has no figures, and the labeller does not open accounts for those companies before the blind pairs are done. The pairs are marked `blind` in the data.
 
@@ -72,9 +71,10 @@ If a stratum ends below 15 subjects, or the labelling ends below about 900 pairs
 ## Files
 
 - `README.md`: these rules.
-- `draw.ts`: the draw.
+- `draw.ts`, `draw-compute.ts`: the draw. The second file reads the database through the analysis page's own reads and funnel.
+- `subjects.json`: the first step's result: the counts, the shuffled order, the skips and each subject's 30 candidates.
 - `subject-descriptions.csv`: the shuffled subjects' descriptions, then their `ja`/`nei` scores.
-- `drawn.json`: the result.
+- `drawn.json`: the 30 subjects and their candidates.
 - `labels-blind.csv`, `labels.csv`: the labelling sheets, then the labels (`subject_orgnr`, `candidate_orgnr`, `label`, `labelled_by`, `labelled_on`, `notes`).
 - `kappa.csv`: the 50 pairs of the second labeller.
 

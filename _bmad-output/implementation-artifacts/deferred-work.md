@@ -115,3 +115,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
   summary: Decide whether a dissolved company (a stored `register.company.slettedato`, from a unit answering 200 with `slettedato` while absent from the bulk file) leaves the peer pool, and whether its filings still count in aggregates. Today nothing reads `slettedato`, so a dissolved company stays a candidate on its last filing.
   evidence: Story 2.4 review pass 1, Q4a (Meinich, 2026-10-30): only 410 deletes; the read-only measurement that day found 48 stored companies dissolved in 2026 (`docs/data-sources-brreg.md`, "Dissolved is not withdrawn").
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
+  summary: Decide what happens to a stored `register.company.slettedato` when the company is in the bulk file again. Today the upsert from the bulk file does not touch the column, so the date stays; nothing reads it yet.
+  evidence: Story 2.4 review fixes (implementation report, 2026-10-30). Not observed in the 2026-10-30 measurement; raised by Meinich to be recorded.

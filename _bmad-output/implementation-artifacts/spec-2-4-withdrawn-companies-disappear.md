@@ -134,6 +134,12 @@ context:
 
 ## Implementation Notes
 
+- Run modes in `run.step1.mode`: `plain`, `companies_only`, `documents`, `reread`. Failures are `{orgnr, stage, reason}`; the D5 failure has `orgnr` null and reason `bulk_absent_share_exceeded: {n} of {total} …`.
+- Each deleted orgnr is appended to `run.step1.deleted` by `write.delete_company` in the deleting transaction, not by `end_run`, so a crash after a delete keeps it.
+- Withdrawal failures live in `Summary.withdrawal`, apart from `Summary.failed`; every one of them makes `main` exit 1.
+- `test/db/peers.test.ts` reads `CANDIDATES_SQL` (with `toCandidate`, now exported) inside the deleting transaction as the migration role: `postgres` cannot `SET ROLE ingest` locally, and `loadCandidates`'s reader connection cannot see an uncommitted delete.
+- The export tests for D6 and the dropped allow-list entry are in `test/db/seed.test.ts`; they need a seed exported at the new migration id (step e) to run in `pnpm test:db`.
+
 ## Spec Change Log
 
 ## Review Triage Log

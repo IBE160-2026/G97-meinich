@@ -16,7 +16,7 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 24 |
+| auth | 25 |
 | money | 19 |
 | parsing | 13 |
 | llm-boundary | 5 |
@@ -620,3 +620,18 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 - *Verification-gap review:* `fold_mixed`'s "1" → "l" was never exercised (V1: `test_layout.py::test_bold_l_misread_as_one_matches`); `main`'s `--reread` branch (V2); the fetch-exception, database-error and not-reconciled paths of the re-read (V3: `test_reread_errors_named_not_replaced_and_the_run_goes_on`).
 - *Acceptance audit:* a database error was listed as failed rather than not replaced, against AC 2 (A5: now not replaced, same test); `epic-2-context.md` still said a stored document is never read again (A8); the missing seed re-export (A1, with B7), left by Meinich to the acceptance run (D1).
 **Outcome:** Accepted after the acceptance run (2026-10-25 to 2026-10-29, session file): every document re-read at `2ce5a50`, not replaced 0, lost figures 0; the balance total read in 1 930 of 1 946 current columns of the 2.1b run (was 1 110); misread and phantom figures reaching the engine on the reference set 0 → 0 (`analysis/output/ocr-sm2.md`). The one new misread the first report showed was a transcription error, found on the review session's prompting and checked by Meinich against the PDF (`77b51c9`). A fetch hung after the machine slept; deferred (`deferred-work.md`).
+
+### 2026-10-30 — Story 2.4: step 1 deletes a company on 410 Gone, and records every run
+**Tags:** auth
+**Tool:** Claude Code (implementation subagent, Opus 5.5)
+**Asked:** Implement the Story 2.4 spec: delete a stored company the register answers 410 Gone for, with every row referencing it; record every step-1 run in a new schema `run`; keep a withdrawn orgnr out of the seed and the allow-list.
+**Got:** `fetch.Gone`; the migration `20261030120000_withdrawn_companies.sql` (cascades on `filing` and `key_figures`, `GRANT DELETE ON register.company TO ingest`, schema `run` with `run.step1`); `write.delete_company`, `start_run`, `end_run`; the withdrawal check in `run.run` and the record around every mode in `run.main`; `[withdrawal] max_absent_share`; `splitStoredAllowList` and `refuseUnstoredDrawn` in `seed:export`.
+**Problem:** What could go wrong with an automated delete (not yet reviewed):
+1. **A truncated bulk download makes thousands of companies look withdrawn.** Absence from the bulk file alone never deletes; each orgnr needs its own 410. Above 1 % absent, no unit is asked about and nothing is deleted, and the run exits 1 (D5): `ingest/tests/test_run_record.py::test_truncated_bulk_checks_and_deletes_nothing` (answers 410 for every absent orgnr, so it fails if the guard is removed) and `::test_absent_share_at_limit_is_checked` (exactly 1 % is checked).
+2. **Something other than an explicit 410 deletes.** `Gone` is raised only from the urllib `HTTPError.code == 410`, 404 stays `None` (`ingest/tests/test_fetch.py::test_gone_is_distinct_from_not_found`), and `Gone` is not one of the fetch errors a run catches. The fixture's 410 is the explicit `GONE` answer, so no other test double can stand for it. 404, 503, a timeout, a body that is not JSON and a live unit each delete nothing and are failures (`test_run_record.py::test_absent_unit_404_deletes_nothing`, `::test_unit_fetch_error_deletes_nothing`, `::test_live_unit_absent_from_bulk_is_kept`). The key-figures and document endpoints still answer a 410 as a 404 and delete nothing (`test_fetch.py::test_gone_filings_still_empty`).
+3. **A delete that leaves rows behind, or reaches too far.** The cascade is tested on every `register` table with an `orgnr` or `brreg_id` column, found from the catalog, and the filler companies are counted after (`test_run_record.py::test_gone_unit_is_deleted_everywhere`). `ingest` may delete from `register.company` and from no other table, and no other role may delete anywhere (`test/db/grants.test.ts`, "DELETE on every register relation"; `ingest/tests/test_write.py::test_ingest_deletes_only_companies_and_runs_no_ddl`).
+4. **A delete with no record.** The orgnr is appended to `run.step1.deleted` in the deleting transaction (`test_gone_unit_is_deleted_everywhere`), and a run that raises still ends its record with the error (`test_run_record.py::test_crash_still_ends_record`, which fails if the handler is removed). The record is closed to `reader`, `derive` and `loader` (`test/db/run-grants.test.ts`).
+5. **A cascade removes local 2.1b document rows that are in no dump.** Not guarded by code: the spec's live run (D2) dumps the document tables and checks the copy's sha256 before `pnpm ingest` runs.
+6. **A withdrawn reference orgnr silently shrinks the SM-2 set.** `seed:export` refuses, naming it (`test/db/seed.test.ts`, "refuses a drawn orgnr that is not a stored company, naming it, and writes nothing"; `test/seed-format.test.ts`, "refuses a drawn orgnr that is not a stored company, naming each once"). Any other withdrawn allow-list entry is dropped and named on stderr ("leaves a company deleted after 410 out of every seed file, the manifest and the allow-list").
+**Caught by:** Each guard in items 1 and 4 was removed and its test failed (the share check, the record handler in `main`). Review is still to come.
+**Outcome:** Implemented in the Story 2.4 commits on `story/2.4-withdrawn-410`; the live run (D2) waits for review.

@@ -159,7 +159,7 @@ export type Candidate = CandidateFiling & {
   readonly keyFigures: SubjectKeyFigures;
 };
 
-interface CandidateRow {
+export interface CandidateRow {
   orgnr: string;
   navn: string | null;
   organisasjonsform: string | null;
@@ -216,7 +216,7 @@ select c.orgnr,
  where c.naeringskode1 = $2::text
    and c.orgnr <> $1::char(9)`;
 
-function toCandidate(row: CandidateRow): Candidate {
+export function toCandidate(row: CandidateRow): Candidate {
   // brreg_id is int8 like the amounts: parseOre reads any int8 string
   // exactly, never through a JavaScript number.
   const brregId = parseOre(row.brreg_id);

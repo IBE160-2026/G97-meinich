@@ -6,23 +6,31 @@ import { readFileSync } from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
+import postgres from 'postgres';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { funnelSubject } from '../../src/analysis/view.ts';
+import { funnelSubject, urlContext } from '../../src/analysis/view.ts';
 import { DEMO_COMPANIES } from '../../src/demo-companies.ts';
 import { benchmarkApiFigures } from '../../src/engine/benchmark.ts';
 import { apiInputsFromRow } from '../../src/engine/inputs.ts';
 import { assemblePeerGroup } from '../../src/engine/peers.ts';
+import { defaultState, parse, serialize } from '../../src/url/analysis-state.ts';
 import { listRepositoryFiles } from '../../scripts/check-no-public-env.ts';
-import { root, setting } from './db-env.ts';
+import { root, setting, supabaseDbUrl } from './db-env.ts';
 
 const url = setting('READER_DATABASE_URL');
 if (url === undefined) throw new Error('READER_DATABASE_URL is not set; run `pnpm db:roles`');
 process.env.READER_DATABASE_URL = url;
 
 const { readerSql } = await import('../../src/server/db.ts');
-const { loadCandidates, loadSubject } = await import('../../src/server/analysis.ts');
+const { CANDIDATES_SQL, loadCandidates, loadSubject, toCandidate } = await import('../../src/server/analysis.ts');
+type CandidateRow = import('../../src/server/analysis.ts').CandidateRow;
+
+// The migration role, for the one test that deletes (Story 2.4), always in a
+// transaction it rolls back.
+const admin = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
 
 afterAll(async () => {
+  await admin.end();
   await readerSql().end();
   delete (globalThis as { peerlessReaderSql?: unknown }).peerlessReaderSql;
 });
@@ -122,6 +130,51 @@ describe("demo A's peer group", () => {
     expect(httpsSpy).not.toHaveBeenCalled();
     expect(httpGet).not.toHaveBeenCalled();
     expect(httpsGet).not.toHaveBeenCalled();
+  });
+});
+
+// Story 2.4: a company step 1 deletes after 410 Gone takes every register
+// row that references it with it, so it leaves the candidates, the peer
+// group and every aggregate over it, and an `ekskl` naming it is dropped
+// with the invalid-settings notice. The delete runs as the migration role
+// in a transaction that is rolled back; the candidate query is the one
+// loadCandidates runs, read in that transaction, since the reader's own
+// connection cannot see an uncommitted delete.
+describe('a peer deleted after 410 Gone', () => {
+  class Rollback extends Error {}
+
+  it('leaves the candidates and the peer group, and an ekskl naming it sets the notice', async () => {
+    const { funnel, group } = await groupForDemoA(0);
+    const peer = group.pool[0]?.orgnr;
+    if (peer === undefined || funnel.naeringskode1 === null) throw new Error("demo A's group is empty");
+    const candidatesIn = async (tx: postgres.TransactionSql) =>
+      (await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, [funnel.orgnr, funnel.naeringskode1, funnel.filingYear])).map(
+        toCandidate,
+      );
+
+    await expect(
+      admin.begin(async (tx) => {
+        expect((await candidatesIn(tx)).map((c) => c.orgnr)).toContain(peer);
+        await tx`delete from register.company where orgnr = ${peer}`;
+        const candidates = await candidatesIn(tx);
+        expect(candidates.map((c) => c.orgnr)).not.toContain(peer);
+        for (const band of [0, 1, 2] as const) {
+          const after = assemblePeerGroup(funnel, candidates, band);
+          expect(after.pool.map((p) => p.orgnr)).not.toContain(peer);
+        }
+        const pool = new Set(assemblePeerGroup(funnel, candidates, 0).pool.map((p) => p.orgnr));
+        const parsed = parse(serialize({ ...defaultState(funnel.orgnr), ekskl: [peer] }), urlContext(() => pool));
+        expect(parsed.kind).toBe('analysis');
+        if (parsed.kind !== 'analysis') return;
+        expect(parsed.invalidSettings).toBe(true);
+        expect(parsed.state.ekskl).toEqual([]);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+    // Rolled back: the peer is a candidate again.
+    expect((await loadCandidates(funnel.orgnr, funnel.naeringskode1, funnel.filingYear)).map((c) => c.orgnr)).toContain(
+      peer,
+    );
   });
 });
 

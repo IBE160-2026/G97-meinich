@@ -1,0 +1,82 @@
+{
+  "columns": {
+    "current": {
+      "columns": 1946,
+      "non_null": {
+        "aarsresultat": 1741,
+        "annen_driftskostnad": 1569,
+        "avskrivninger": 257,
+        "bankinnskudd": 1843,
+        "driftsresultat": 1922,
+        "kundefordringer": 1489,
+        "leverandorgjeld": 1585,
+        "lonnskostnad": 1398,
+        "nedskrivninger": 64,
+        "netto_finans": 1906,
+        "ordinaert_resultat_foer_skattekostnad": 1910,
+        "salgsinntekt": 1509,
+        "sum_driftsinntekter": 1912,
+        "sum_driftskostnad": 1918,
+        "sum_egenkapital": 1932,
+        "sum_egenkapital_gjeld": 1110,
+        "sum_eiendeler": 1890,
+        "sum_gjeld": 1931,
+        "sum_immaterielle_eiendeler": 1238,
+        "sum_kortsiktig_gjeld": 1933,
+        "sum_varige_driftsmidler": 1386,
+        "varekostnad": 1366,
+        "varer": 283
+      },
+      "status": {
+        "failed_reconciliation": 145,
+        "reconciled": 1801
+      }
+    },
+    "prior": {
+      "columns": 1946,
+      "non_null": {
+        "aarsresultat": 1711,
+        "annen_driftskostnad": 1429,
+        "avskrivninger": 246,
+        "bankinnskudd": 1668,
+        "driftsresultat": 1877,
+        "kundefordringer": 1362,
+        "leverandorgjeld": 1484,
+        "lonnskostnad": 1336,
+        "nedskrivninger": 55,
+        "netto_finans": 1838,
+        "ordinaert_resultat_foer_skattekostnad": 1878,
+        "salgsinntekt": 1452,
+        "sum_driftsinntekter": 1842,
+        "sum_driftskostnad": 1860,
+        "sum_egenkapital": 1814,
+        "sum_egenkapital_gjeld": 1094,
+        "sum_eiendeler": 1869,
+        "sum_gjeld": 1866,
+        "sum_immaterielle_eiendeler": 1162,
+        "sum_kortsiktig_gjeld": 1853,
+        "sum_varige_driftsmidler": 1321,
+        "varekostnad": 1223,
+        "varer": 239
+      },
+      "status": {
+        "failed_reconciliation": 236,
+        "reconciled": 1710
+      }
+    }
+  },
+  "documents": {
+    "reader_commit": {
+      "e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d": 1947
+    },
+    "status": {
+      "failed_reconciliation": 145,
+      "not_extracted": 1,
+      "reconciled": 1801
+    },
+    "total": 1947
+  },
+  "label": "before-2.3b",
+  "orgnrs": 407,
+  "source": "the local database: documents of the orgnrs in seed/document-run.json (Story 2.1b acceptance run; not reproducible from a fresh clone until Story 5.4)"
+}

@@ -685,3 +685,43 @@ export const BASELINE_FAILING: readonly string[] = [
   '979775377/2024/prior',
   '987307749/2023/prior',
 ];
+
+// --- Before and after Story 2.3b ---------------------------------------------------
+
+/** Each field's class counts, in SM2_FIELDS order. */
+export function classesByField(results: readonly FieldResult[]): { field: Sm2Field; counts: ClassCounts }[] {
+  return SM2_FIELDS.map((field) => ({ field, counts: countClasses(results.filter((r) => r.field === field)) }));
+}
+
+const resultKey = (r: FieldResult): string => `${r.orgnr}/${r.filingYear}/${r.role}/${r.field}/${r.readOre ?? 'null'}`;
+
+/**
+ * The results in `after` not in `before`, by field and figure read: a new
+ * misread or phantom, when both are such lists. A field misread before and
+ * misread to another figure after is new.
+ */
+export function newResults(before: readonly FieldResult[], after: readonly FieldResult[]): FieldResult[] {
+  const was = new Set(before.map(resultKey));
+  return after.filter((r) => !was.has(resultKey(r)));
+}
+
+/** Stored columns of `role` holding a "Sum egenkapital og gjeld" figure, of all stored columns of that role. */
+export function totalReadIn(columns: readonly StoredColumn[], role: Role): { read: number; columns: number } {
+  const ofRole = columns.filter((c) => c.role === role);
+  return { read: ofRole.filter((c) => (c.figuresOre.get('sum_egenkapital_gjeld') ?? null) !== null).length, columns: ofRole.length };
+}
+
+/**
+ * The consistency file holds checks, not figures. The total is shown read
+ * where c3 or c4 is evaluable (each needs it): a lower bound, since a total
+ * read beside a missing sum eiendeler and a missing sum egenkapital or sum
+ * gjeld shows in neither. It is shown missing ("missing total") where c3 is
+ * not evaluable and c5 is: the other three balance figures were read.
+ */
+export function totalShownRead(c: CheckedColumn): boolean {
+  return c.c3 !== 'not_evaluable' || c.c4 !== 'not_evaluable';
+}
+
+export function totalShownMissing(c: CheckedColumn): boolean {
+  return c.c3 === 'not_evaluable' && c.c5 !== 'not_evaluable';
+}

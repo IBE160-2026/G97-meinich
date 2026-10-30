@@ -21,9 +21,17 @@
 // - `--documents <file>` (Story 2.1b): the file, a JSON list of orgnrs, is
 //   mounted read-only at /run/peerless/documents.json and step 1 runs only
 //   the document pass for those orgnrs. Step 1 checks the file's contents.
+// - `--reread <file>` (Story 2.3b): the same list, mounted the same way;
+//   step 1 re-reads every stored document of those orgnrs that another
+//   reader version read.
+// - Both pass the reader version, the full commit of the last change to
+//   ingest/ (`git log -1 --format=%H -- ingest/`), as PEERLESS_READER_COMMIT
+//   (by name, like the database URL), and are refused before the image is
+//   built when ingest/ has uncommitted changes: the version must name the
+//   code that reads.
 // - No other argument is accepted.
 //
-// Run: node scripts/run-ingest.ts [--companies-only | --documents <file>]   (from the repository root)
+// Run: node scripts/run-ingest.ts [--companies-only | --documents <file> | --reread <file>]   (from the repository root)
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -35,31 +43,37 @@ const LOCAL_HOSTS: readonly string[] = ['127.0.0.1', 'localhost'];
 const CONTAINER_HOST = 'host.docker.internal';
 const COMPANIES_ONLY = '--companies-only';
 const DOCUMENTS = '--documents';
-// Where `--documents <file>` is mounted inside the container.
+const REREAD = '--reread';
+const LIST_MODES: readonly string[] = [DOCUMENTS, REREAD];
+// Where the `--documents` or `--reread` file is mounted inside the container.
 export const CONTAINER_DOCUMENTS_FILE = '/run/peerless/documents.json';
-const USAGE = `allowed: nothing, ${COMPANIES_ONLY}, or ${DOCUMENTS} <file>`;
+export const READER_COMMIT_ENV = 'PEERLESS_READER_COMMIT';
+const READER_COMMIT = /^[0-9a-f]{40}$/;
+const USAGE = `allowed: nothing, ${COMPANIES_ONLY}, ${DOCUMENTS} <file>, or ${REREAD} <file>`;
 
 export type StepArgs = {
   // What the container is given, after the image.
   args: string[];
-  // The host file for `--documents`, as given.
+  // The host file for `--documents` or `--reread`, as given.
   documentsFile?: string;
 };
 
 // The step-1 arguments, or an error naming what is not allowed: nothing,
-// exactly `--companies-only`, or exactly `--documents <file>`.
+// exactly `--companies-only`, or exactly `--documents <file>` or
+// `--reread <file>`.
 export function stepArgs(argv: readonly string[]): StepArgs | { error: string } {
   if (argv.length === 0) return { args: [] };
   if (argv.length === 1 && argv[0] === COMPANIES_ONLY) return { args: [COMPANIES_ONLY] };
-  if (argv[0] === DOCUMENTS) {
+  const mode = argv[0];
+  if (mode !== undefined && LIST_MODES.includes(mode)) {
     const file = argv[1];
     if (argv.length !== 2 || file === undefined || file === '' || file.startsWith('-')) {
-      return { error: `${DOCUMENTS} takes exactly one file; ${USAGE}` };
+      return { error: `${mode} takes exactly one file; ${USAGE}` };
     }
     // --mount is a comma-separated list: a comma or quote in the path would
     // change its meaning.
-    if (/[,"]/.test(file)) return { error: `${DOCUMENTS}: the file path may not contain a comma or a quote` };
-    return { args: [DOCUMENTS, CONTAINER_DOCUMENTS_FILE], documentsFile: file };
+    if (/[,"]/.test(file)) return { error: `${mode}: the file path may not contain a comma or a quote` };
+    return { args: [mode, CONTAINER_DOCUMENTS_FILE], documentsFile: file };
   }
   return { error: `unknown argument ${argv.join(' ')}; ${USAGE}` };
 }
@@ -99,6 +113,8 @@ export function dockerRunArgs(root: string, withBaseUrl: boolean, argv: readonly
     runArgs.push(
       '--mount',
       `type=bind,source=${path.resolve(root, checked.documentsFile)},target=${CONTAINER_DOCUMENTS_FILE},readonly`,
+      '--env',
+      READER_COMMIT_ENV,
     );
   }
   if (withBaseUrl) runArgs.push('--env', 'BRREG_API_BASE_URL');
@@ -122,18 +138,49 @@ function docker(args: string[], env: NodeJS.ProcessEnv = process.env): number {
   return result.status ?? 1;
 }
 
+// The output of a git command run in `root`, or undefined when it failed.
+function git(root: string, args: string[]): string | undefined {
+  const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  if (result.error !== undefined || result.status !== 0 || typeof result.stdout !== 'string') return undefined;
+  return result.stdout;
+}
+
+// The reader version for a documents or re-read run (Story 2.3b): the full
+// commit of the last change to ingest/. An error when ingest/ has
+// uncommitted changes (the version would not name the code that reads), or
+// when git fails or gives no full commit.
+export function readerCommit(root: string): { commit: string } | { error: string } {
+  const status = git(root, ['status', '--porcelain', '--', 'ingest/']);
+  if (status === undefined) return { error: 'git status failed, so the reader version cannot be checked' };
+  if (status.trim() !== '') {
+    return { error: `ingest/ has uncommitted changes; commit them first, so the reader version names the code that reads:\n${status}` };
+  }
+  const commit = git(root, ['log', '-1', '--format=%H', '--', 'ingest/'])?.trim();
+  if (commit === undefined || !READER_COMMIT.test(commit)) {
+    return { error: `the last commit to ingest/ is not a full 40-hex commit: ${JSON.stringify(commit)}` };
+  }
+  return { commit };
+}
+
 export function main(root: string, argv: readonly string[] = []): number {
   const checked = stepArgs(argv);
   if ('error' in checked) {
     process.stderr.write(`ingest: ${checked.error}\n`);
     return 2;
   }
+  let commit: string | undefined;
   if (checked.documentsFile !== undefined) {
     const file = path.resolve(root, checked.documentsFile);
     if (!existsSync(file) || !statSync(file).isFile()) {
-      process.stderr.write(`ingest: --documents: ${checked.documentsFile} is not a file\n`);
+      process.stderr.write(`ingest: ${checked.args[0]}: ${checked.documentsFile} is not a file\n`);
       return 2;
     }
+    const version = readerCommit(root);
+    if ('error' in version) {
+      process.stderr.write(`ingest: ${checked.args[0]} refused: ${version.error}\n`);
+      return 2;
+    }
+    commit = version.commit;
   }
   const url = setting(root, 'INGEST_DATABASE_URL');
   if (url === undefined) {
@@ -151,6 +198,7 @@ export function main(root: string, argv: readonly string[] = []): number {
   const baseUrl = setting(root, 'BRREG_API_BASE_URL');
   const env: NodeJS.ProcessEnv = { ...process.env, INGEST_DATABASE_URL: containerDatabaseUrl(url) };
   if (baseUrl !== undefined) env.BRREG_API_BASE_URL = baseUrl;
+  if (commit !== undefined) env[READER_COMMIT_ENV] = commit;
   return docker(dockerRunArgs(root, baseUrl !== undefined, argv), env);
 }
 

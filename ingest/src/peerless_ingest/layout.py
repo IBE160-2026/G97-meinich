@@ -16,6 +16,10 @@ from the spike:
   thousands spaces; `documents` decides whether such a figure is kept.
 - Every target field of the generated layout (`TARGETS`), not only the
   spike's nine check fields.
+- A second label fold, `fold_mixed` (Story 2.3b), reads 0, 1 and 5 as o, l
+  and s inside a word that mixes letters and digits, so the bold total row
+  "50M EGENKAPITAL OG GJELD" can match. It is tried after `fold`, never
+  instead of it, and only for a field `fold` matched nowhere.
 
 Nothing here computes anything: a figure is the digits as printed, or None.
 """
@@ -25,7 +29,7 @@ from __future__ import annotations
 import difflib
 import re
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -62,6 +66,30 @@ def fold(text: str) -> str:
     text = text.translate(LOOKALIKES)
     text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z]", "", text.lower())
+
+
+# Digits Tesseract can return for a letter in a bold label word: "SUM" read
+# as "50M" in the bold total rows (seven of seven documents probed in Story
+# 2.3), and "l"/"1" confused as in the bold figures. Applied only inside a
+# word that also holds a letter (Story 2.3b).
+MIXED_WORD_DIGITS = str.maketrans({"0": "o", "1": "l", "5": "s"})
+_LETTER = re.compile(r"[^\W\d_]")
+_DIGIT = re.compile(r"[0-9]")
+
+
+def fold_mixed(text: str) -> str:
+    """The second label fold (Story 2.3b): like `fold`, except that inside a
+    word holding both a letter and an ASCII digit, 0, 1 and 5 are read as o,
+    l and s first, so "50M EGENKAPITAL OG GJELD" folds to
+    "somegenkapitaloggjeld" where `fold` gives "megenkapitaloggjeld". A word
+    of digits only, such as a note number, is still dropped. For labels
+    only, never a figure, and tried besides `fold`, never instead of it."""
+    words = []
+    for word in text.split():
+        if _LETTER.search(word) and _DIGIT.search(word):
+            word = word.translate(MIXED_WORD_DIGITS)
+        words.append(word)
+    return fold(" ".join(words))
 
 
 # --- Page 1: which kind of filing --------------------------------------------
@@ -286,16 +314,20 @@ def similar(label: str, variant: str) -> bool:
 
 def ends_balance(label: str) -> bool:
     """The row that ends the generated balance sheet, matched like any label
-    (exact, or fuzzy within one character: "S5O0M EGENKAPITAL OG GJELD")."""
-    own = fold(label)
-    return any(own.endswith(v) or similar(own, v) for v in TARGETS["sum_egenkapital_gjeld"])
+    under either fold (exact, or fuzzy within one character: "S5O0M
+    EGENKAPITAL OG GJELD" under `fold`, the bold "50M EGENKAPITAL OG GJELD"
+    under `fold_mixed`)."""
+    return any(
+        own.endswith(v) or similar(own, v)
+        for own in (fold(label), fold_mixed(label))
+        for v in TARGETS["sum_egenkapital_gjeld"]
+    )
 
 
-def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
-    """(current, prior) per target field a row matched. Exact matches first,
-    over every page; a fuzzy match only for a field no row matched exactly,
-    and only against the row's own label. A field no row matched is left out."""
-    candidates: list[tuple[str, str, Row]] = []  # (joined label, own label, row)
+def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list[tuple[str, str, Row]]:
+    """(joined label, own label, row) for every row with a number on a
+    statement page, its labels folded by `fold_label`."""
+    candidates: list[tuple[str, str, Row]] = []
     for page in pages:
         if page.kind == "other":
             continue
@@ -303,16 +335,23 @@ def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
         for i, row in enumerate(rows):
             if not row.has_number:
                 continue
-            own = fold(row.label)
+            own = fold_label(row.label)
             joined = own
             j = i - 1
             while j >= 0 and not rows[j].has_number and i - j <= JOIN_LINES:
-                joined = fold(rows[j].label) + joined
+                joined = fold_label(rows[j].label) + joined
                 j -= 1
             candidates.append((joined, own, row))
+    return candidates
 
-    found: dict[str, tuple[int | None, int | None]] = {}
+
+def _match(candidates: list[tuple[str, str, Row]], found: dict[str, tuple[int | None, int | None]]) -> None:
+    """Fills `found` for each field not in it yet: exact matches first, over
+    every candidate; a fuzzy match only for a field no row matched exactly,
+    and only against the row's own label."""
     for key, variants in TARGETS.items():
+        if key in found:
+            continue
         for joined, _, row in candidates:
             if any(joined.endswith(v) for v in variants):
                 found[key] = (row.current, row.prior)
@@ -324,4 +363,16 @@ def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
             if any(similar(own, v) for v in variants):
                 found[key] = (row.current, row.prior)
                 break
+
+
+def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
+    """(current, prior) per target field a row matched. Under `fold` first,
+    exactly as before Story 2.3b: exact matches over every page, then a fuzzy
+    match only for a field no row matched exactly, and only against the
+    row's own label. Then the same two steps under `fold_mixed`, only for a
+    field `fold` matched nowhere, so every match `fold` makes stands. A
+    field no row matched is left out."""
+    found: dict[str, tuple[int | None, int | None]] = {}
+    _match(_candidates(pages, fold), found)
+    _match(_candidates(pages, fold_mixed), found)
     return found

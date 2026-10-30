@@ -7,6 +7,7 @@ in øre.
     python -m peerless_ingest                     (inside the image: `pnpm ingest`)
     python -m peerless_ingest --companies-only    (`pnpm ingest --companies-only`)
     python -m peerless_ingest --documents <file>  (`pnpm ingest --documents <file>`)
+    python -m peerless_ingest --reread <file>     (`pnpm ingest --reread <file>`)
 
 Prints a summary per industry code, or in documents mode per document status
 and year. Stores no ratio, distribution or derived amount (AD-1, AD-15): the
@@ -33,6 +34,23 @@ reconciled again from its stored figures under the configured rules (Story
 ingest/config.toml takes effect on the next run, except for the digits-only
 gate, which ran at read time under the bound then configured.
 
+Every document written carries the reader version that read it,
+`reader_commit` (Story 2.3b): the full commit of the last change to ingest/,
+passed in PEERLESS_READER_COMMIT. Documents and re-read mode refuse to start
+without a well-formed one.
+
+Re-read mode (Story 2.3b) takes the same orgnr list and refusals as
+documents mode. For each stored document of those companies whose reader
+version is not the current one, it fetches the document by its year's path,
+reads, reconciles and replaces it in one transaction with the current
+version. A document already at the current version is not fetched, so an
+interrupted re-read resumes where it stopped. A re-read that gives fewer
+columns than are stored (a refusal, a year mismatch), that turns a
+reconciled column into failed_reconciliation, an OCR error or a failed fetch
+replaces nothing: the document keeps its old figures and version, is named
+as not replaced, and the run exits 1. A figure that a column still
+reconciled no longer holds is replaced, and listed per document.
+
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
 no company, deletes none, touches no filing and leaves every other column,
@@ -48,10 +66,11 @@ import re
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Protocol
 
 import psycopg
 
@@ -227,6 +246,68 @@ class DocumentsOnlySummary:
 
 
 @dataclass
+class RereadSummary:
+    """Re-read mode (Story 2.3b): the stored documents of the listed
+    companies, re-read by the current reader version."""
+
+    listed: int
+    reader_commit: str
+    # Listed but not a stored company with a covered primary code: refused,
+    # never fetched.
+    refused: list[Problem] = field(default_factory=list)
+    companies: int = 0
+    # Re-read and replaced, per filing year and new status.
+    replaced: Counter[tuple[int, str]] = field(default_factory=Counter)
+    # Already read by the current version: not fetched (a resumed run).
+    current: int = 0
+    # Not replaced, with the reason: they keep their figures and old version.
+    not_replaced: list[Problem] = field(default_factory=list)
+    # Replaced, but a column reconciled before and after lost a figure: the
+    # fields, per document and column (Meinich, 2026-10-25).
+    lost_figures: list[Problem] = field(default_factory=list)
+    # A company whose stored documents could not be read: named, nothing
+    # re-read for it. A database error on one document is not replaced.
+    failed: list[Problem] = field(default_factory=list)
+    read_count: int = 0
+    read_seconds: float = 0.0
+    prior_failed: int = 0
+    wall_seconds: float = 0.0
+
+    def needs_operator(self) -> bool:
+        # A document not replaced still holds another version's figures.
+        return bool(self.failed or self.refused or self.not_replaced)
+
+    def lines(self) -> list[str]:
+        out = [
+            "Step 1 summary, re-read (stored documents of the listed companies, by the current reader version)",
+            f"  reader version: {self.reader_commit}",
+            f"  {self.listed} orgnrs listed: {self.companies} companies read, {len(self.refused)} refused",
+        ]
+        for problem in self.refused:
+            out.append(f"  refused, not fetched: {problem.orgnr} {problem.what}")
+        out.append("  replaced:")
+        for year in sorted({year for year, _ in self.replaced}):
+            counts = ", ".join(f"{status} {self.replaced[(year, status)]}" for status in STATUSES)
+            out.append(f"    {year}: {counts}")
+        out.append(
+            f"  replaced {sum(self.replaced.values())}; already current, not fetched {self.current};"
+            f" not replaced {len(self.not_replaced)}"
+        )
+        for problem in self.not_replaced:
+            out.append(f"  not replaced, keeps its old figures and version: {problem.orgnr} {problem.what}")
+        out.append(f"  replaced with a figure lost from a column still reconciled: {len(self.lost_figures)} documents")
+        for problem in self.lost_figures:
+            out.append(f"  figure lost, now NULL: {problem.orgnr} {problem.what}")
+        for problem in self.failed:
+            out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        out.append(f"  read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
+        out.append(f"  prior-year columns failed_reconciliation (the filing's status is its current column's): {self.prior_failed}")
+        out.append(f"  Wall time: {self.wall_seconds:.0f} s")
+        out.append("  No bulk download and no key figures fetched; stored as filed.")
+        return out
+
+
+@dataclass
 class CompaniesOnlySummary:
     in_database: int
     updated: int = 0
@@ -390,12 +471,76 @@ def _rereconcile(
         _count_prior_failed(columns, summary)
 
 
+class NotRead(Exception):
+    """A document that was not fetched or not read, and why. Nothing is
+    stored for it, so a later run tries it again."""
+
+
+class _Timed(Protocol):
+    read_count: int
+    read_seconds: float
+
+
+def _fetch_and_read(
+    transport: fetch.Transport,
+    base_url: str,
+    rules: reconcile.Rules,
+    orgnr: str,
+    year: int,
+    unserved: str,
+    timing: _Timed,
+    now: Callable[[], datetime],
+    clock: Callable[[], float],
+) -> tuple[documents.DocumentRead | ocr.OcrError, datetime]:
+    """Fetches the document of `orgnr` for `year` by the year in its path
+    and reads it (`documents.read_document`): the read, or the OcrError when
+    Tesseract failed, and when it was read. Raises NotRead for a fetch
+    error, a document not served (`unserved` says why that is a problem)
+    and any other failure of the read. KeyboardInterrupt is not an
+    Exception and still stops the run."""
+    try:
+        pdf = fetch.fetch_document(transport, base_url, orgnr, year)
+    except FETCH_ERRORS as error:
+        raise NotRead(f"{error.__class__.__name__}: {error}") from error
+    if pdf is None:
+        raise NotRead(unserved)
+    read_at = now()
+    started = clock()
+    try:
+        return documents.read_document(pdf, rules.within_document_bound_kr), read_at
+    except ocr.OcrError as error:
+        return error, read_at
+    except Exception as error:
+        # A PDF PyMuPDF cannot open, a bug: named, and the run goes on.
+        raise NotRead(f"read failed: {error.__class__.__name__}: {error}") from error
+    finally:
+        timing.read_count += 1
+        timing.read_seconds += clock() - started
+
+
+def _outcome(
+    conn: psycopg.Connection,
+    orgnr: str,
+    year: int,
+    read: documents.DocumentRead | ocr.OcrError,
+    rules: reconcile.Rules,
+) -> write.DocumentOutcome:
+    """What is stored for a read: reconciled before it is written, against
+    the API filings of both stated years (Story 2.2). An OCR error is stored
+    as not_extracted. Raises ValueError for a read the outcome cannot take."""
+    if isinstance(read, ocr.OcrError):
+        return write.OCR_FAILED
+    api_by_year = {y: write.api_figures(conn, orgnr, y) for y in (year, year - 1)}
+    return write.document_outcome(year, read, api_by_year, rules)
+
+
 def _load_documents(
     conn: psycopg.Connection,
     transport: fetch.Transport,
     base_url: str,
     rules: reconcile.Rules,
     orgnr: str,
+    reader_commit: str,
     summary: DocumentSummary,
     failed: list[Problem],
     now: Callable[[], datetime],
@@ -403,7 +548,7 @@ def _load_documents(
     progress: Callable[[str], None],
 ) -> None:
     """Fetches, reads and stores every filed 2021–2025 document of `orgnr`
-    that has no row yet, each committed on its own."""
+    that has no row yet, each committed on its own with `reader_commit`."""
     try:
         years = fetch.fetch_document_years(transport, base_url, orgnr)
     except FETCH_ERRORS as error:
@@ -421,49 +566,28 @@ def _load_documents(
             summary.skipped_stored += 1
             continue
         try:
-            pdf = fetch.fetch_document(transport, base_url, orgnr, year)
-        except FETCH_ERRORS as error:
-            failed.append(Problem(orgnr, f"document {year}: {error.__class__.__name__}: {error}"))
+            read, read_at = _fetch_and_read(
+                transport, base_url, rules, orgnr, year, "listed in /aar but not served (404 or 410)", summary, now, clock
+            )
+        except NotRead as error:
+            failed.append(Problem(orgnr, f"document {year}: {error}"))
             continue
-        if pdf is None:
-            failed.append(Problem(orgnr, f"document {year}: listed in /aar but not served (404 or 410)"))
-            continue
-        read_at = now()
-        started = clock()
-        try:
-            read = documents.read_document(pdf, rules.within_document_bound_kr)
-        except ocr.OcrError as error:
+        if isinstance(read, ocr.OcrError):
             # Tesseract failed: stored as not_extracted, so a rerun does not
-            # retry it, and named with its page and first stderr line.
-            summary.ocr_errors.append(Problem(orgnr, f"document {year}: {error}"))
-            progress(f"OCR error {orgnr}/{year}: {error}")
-            read = None
-        except Exception as error:
-            # Any other failure of the read (a PDF PyMuPDF cannot open, a
-            # bug): named, nothing stored, so a rerun tries it again, and
-            # the run goes on. KeyboardInterrupt is not an Exception and
-            # still stops the run.
-            failed.append(Problem(orgnr, f"document {year}: read failed: {error.__class__.__name__}: {error}"))
-            continue
-        finally:
-            summary.read_count += 1
-            summary.read_seconds += clock() - started
+            # retry it (a re-read does), and named with its page and first
+            # stderr line.
+            summary.ocr_errors.append(Problem(orgnr, f"document {year}: {read}"))
+            progress(f"OCR error {orgnr}/{year}: {read}")
         try:
-            if read is None:
-                outcome = write.OCR_FAILED
-            else:
-                # Reconciled before it is written, against the API filings of
-                # both stated years, and written with its status in one
-                # transaction (Story 2.2).
-                api_by_year = {y: write.api_figures(conn, orgnr, y) for y in (year, year - 1)}
-                try:
-                    outcome = write.document_outcome(year, read, api_by_year, rules)
-                except ValueError as error:
-                    # A read the outcome cannot take: named, nothing stored,
-                    # so a rerun tries it again.
-                    failed.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
-                    continue
-            write.write_document(conn, orgnr, year, outcome, write.filing_brreg_id(conn, orgnr, year), read_at)
+            try:
+                outcome = _outcome(conn, orgnr, year, read, rules)
+            except ValueError as error:
+                # A read the outcome cannot take: named, nothing stored, so
+                # a rerun tries it again.
+                failed.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
+                continue
+            brreg_id = write.filing_brreg_id(conn, orgnr, year)
+            write.write_document(conn, orgnr, year, outcome, brreg_id, read_at, reader_commit)
         except psycopg.Error as error:
             problem = Problem(orgnr, f"document {year}: {error.__class__.__name__}: {str(error).strip()}")
             _write_failed(conn, failed, problem, error)
@@ -472,6 +596,115 @@ def _load_documents(
         _count_prior_failed([(c.role, c.reconciliation) for c in outcome.columns], summary)
         refusal = f" ({outcome.refusal})" if outcome.refusal else ""
         progress(f"document {orgnr}/{year}: {outcome.status}{refusal}")
+
+
+def _downgraded_roles(document: write.StoredVersion, outcome: write.DocumentOutcome) -> list[str]:
+    """The roles of the stored columns that are reconciled and that the
+    re-read would make failed_reconciliation. Such a re-read is not replaced
+    (Meinich, 2026-10-25): the same principle as fewer columns."""
+    now = {c.role: c.reconciliation.status for c in outcome.columns}
+    return [c.role for c in document.columns if c.status == "reconciled" and now.get(c.role) == "failed_reconciliation"]
+
+
+def _lost_figures(document: write.StoredVersion, outcome: write.DocumentOutcome) -> list[str]:
+    """Per column reconciled both as stored and as re-read, the fields that
+    held a figure and are NULL now, as "role: field, field"."""
+    now = {c.role: c for c in outcome.columns}
+    lost: list[str] = []
+    for stored in document.columns:
+        column = now.get(stored.role)
+        if stored.status != "reconciled" or column is None or column.reconciliation.status != "reconciled":
+            continue
+        fields = [f for f in documents.FIELDS if f in stored.present and column.column.figures[f] is None]
+        if fields:
+            lost.append(f"{stored.role}: {', '.join(fields)}")
+    return lost
+
+
+def _reread_documents(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    base_url: str,
+    rules: reconcile.Rules,
+    orgnr: str,
+    reader_commit: str,
+    summary: RereadSummary,
+    now: Callable[[], datetime],
+    clock: Callable[[], float],
+    progress: Callable[[str], None],
+) -> None:
+    """Re-reads every stored document of `orgnr` whose reader version is not
+    `reader_commit` (Story 2.3b), through the same fetch, read, reconcile
+    and write as a new document, each replaced in its own transaction. A
+    document already at `reader_commit` is not fetched, so an interrupted
+    re-read resumes where it stopped. A document is not replaced, and keeps
+    its old figures and version, when the re-read gives fewer columns than
+    are stored (a refusal, a year mismatch), when it turns a reconciled
+    column into failed_reconciliation, when Tesseract fails, or when it is
+    not fetched or not read; each is named in `summary.not_replaced`. A
+    document replaced although a column reconciled before and after lost a
+    figure is named in `summary.lost_figures`."""
+    try:
+        stored = write.stored_document_versions(conn, orgnr)
+    except psycopg.Error as error:
+        problem = Problem(orgnr, f"stored documents not read: {error.__class__.__name__}: {str(error).strip()}")
+        _write_failed(conn, summary.failed, problem, error)
+        return
+    for document in stored:
+        year = document.filing_year
+        if document.reader_commit == reader_commit:
+            summary.current += 1
+            continue
+        try:
+            read, read_at = _fetch_and_read(
+                transport, base_url, rules, orgnr, year, "stored, but not served now (404 or 410)", summary, now, clock
+            )
+        except NotRead as error:
+            summary.not_replaced.append(Problem(orgnr, f"document {year}: {error}"))
+            continue
+        if isinstance(read, ocr.OcrError):
+            # Not replaced, so the next re-read tries it again.
+            summary.not_replaced.append(Problem(orgnr, f"document {year}: OCR error: {read}"))
+            progress(f"OCR error {orgnr}/{year}: {read}")
+            continue
+        try:
+            try:
+                outcome = _outcome(conn, orgnr, year, read, rules)
+            except ValueError as error:
+                summary.not_replaced.append(Problem(orgnr, f"document {year}: not reconciled: {error}"))
+                continue
+            if len(outcome.columns) < len(document.columns):
+                refusal = f", {outcome.refusal}" if outcome.refusal else ""
+                summary.not_replaced.append(
+                    Problem(
+                        orgnr,
+                        f"document {year}: fewer columns: {len(outcome.columns)} read ({outcome.status}{refusal}),"
+                        f" {len(document.columns)} stored",
+                    )
+                )
+                continue
+            downgraded = _downgraded_roles(document, outcome)
+            if downgraded:
+                summary.not_replaced.append(
+                    Problem(orgnr, f"document {year}: reconciled column would fail reconciliation: {', '.join(downgraded)}")
+                )
+                continue
+            brreg_id = write.filing_brreg_id(conn, orgnr, year)
+            write.write_document(conn, orgnr, year, outcome, brreg_id, read_at, reader_commit)
+        except psycopg.Error as error:
+            # Nothing written: the document keeps its figures and version.
+            problem = Problem(orgnr, f"document {year}: {error.__class__.__name__}: {str(error).strip()}")
+            _write_failed(conn, summary.not_replaced, problem, error)
+            continue
+        summary.replaced[(year, outcome.status)] += 1
+        lost =_lost_figures(document, outcome)
+        if lost:
+            summary.lost_figures.append(Problem(orgnr, f"document {year}: {'; '.join(lost)}"))
+        summary.prior_failed += sum(
+            1 for c in outcome.columns if c.role == "prior" and c.reconciliation.status == "failed_reconciliation"
+        )
+        refusal = f" ({outcome.refusal})" if outcome.refusal else ""
+        progress(f"re-read {orgnr}/{year}: {outcome.status}{refusal}")
 
 
 def run(
@@ -527,12 +760,35 @@ def run(
     return summary
 
 
+def _listed_companies(conn: psycopg.Connection, codes: list[str], orgnrs: list[str], refused: list[Problem]) -> set[str]:
+    """The listed orgnrs that are stored companies with a covered primary
+    code (`codes`, from seed/coverage.json). Each other one is named in
+    `refused`, and nothing is fetched for it."""
+    stored: dict[str, str | None] = {
+        row[0]: row[1]
+        for row in conn.execute(
+            "SELECT orgnr, naeringskode1 FROM register.company WHERE orgnr = ANY(%s)", (list(orgnrs),)
+        ).fetchall()
+    }
+    accepted: set[str] = set()
+    for orgnr in orgnrs:
+        if orgnr not in stored:
+            refused.append(Problem(orgnr, "not a stored company (register.company)"))
+        elif stored[orgnr] not in codes:
+            refused.append(Problem(orgnr, f"primary code {stored[orgnr]} is not covered (seed/coverage.json)"))
+        else:
+            accepted.add(orgnr)
+    return accepted
+
+
 def run_documents(
     conn: psycopg.Connection,
     transport: fetch.Transport,
     cfg: config_module.Config,
     codes: list[str],
     orgnrs: list[str],
+    *,
+    reader_commit: str,
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
@@ -545,28 +801,53 @@ def run_documents(
     started = clock()
     rules = rules_of(cfg)
     summary = DocumentsOnlySummary(listed=len(orgnrs))
-    stored: dict[str, str | None] = {
-        row[0]: row[1]
-        for row in conn.execute(
-            "SELECT orgnr, naeringskode1 FROM register.company WHERE orgnr = ANY(%s)", (list(orgnrs),)
-        ).fetchall()
-    }
+    accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
     for index, orgnr in enumerate(orgnrs, start=1):
-        if orgnr not in stored:
-            summary.refused.append(Problem(orgnr, "not a stored company (register.company)"))
-            continue
-        if stored[orgnr] not in codes:
-            summary.refused.append(Problem(orgnr, f"primary code {stored[orgnr]} is not covered (seed/coverage.json)"))
+        if orgnr not in accepted:
             continue
         summary.companies += 1
         _rereconcile(conn, orgnr, rules, summary.documents, summary.failed)
-        _load_documents(conn, transport, cfg.base_url, rules, orgnr, summary.documents, summary.failed, now, clock, progress)
+        _load_documents(
+            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress
+        )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
     try:
         summary.still_extracted = write.count_extracted_documents(conn)
     except psycopg.Error as error:
         _write_failed(conn, summary.failed, Problem("-", f"extracted count: {error.__class__.__name__}"), error)
+    summary.wall_seconds = clock() - started
+    return summary
+
+
+def run_reread(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    cfg: config_module.Config,
+    codes: list[str],
+    orgnrs: list[str],
+    *,
+    reader_commit: str,
+    now: Callable[[], datetime] = _now,
+    progress: Callable[[str], None] = lambda _message: None,
+    clock: Callable[[], float] = time.monotonic,
+) -> RereadSummary:
+    """Re-read mode (Story 2.3b): for each listed orgnr that is a stored
+    company with a covered primary code, every stored document whose
+    reader version is not `reader_commit` is fetched, read, reconciled and
+    replaced (`_reread_documents`). No year without a stored document is
+    fetched. Any other listed orgnr is refused and named."""
+    started = clock()
+    rules = rules_of(cfg)
+    summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit)
+    accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
+    for index, orgnr in enumerate(orgnrs, start=1):
+        if orgnr not in accepted:
+            continue
+        summary.companies += 1
+        _reread_documents(conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress)
+        if index % 25 == 0:
+            progress(f"{index} of {len(orgnrs)} listed orgnrs")
     summary.wall_seconds = clock() - started
     return summary
 
@@ -642,11 +923,25 @@ def _progress(message: str) -> None:
 
 
 ORGNR = re.compile(r"[0-9]{9}")
-USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file>]"
+USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file> | --reread <file>]"
+DOCUMENTS = "--documents"
+REREAD = "--reread"
+# The reader version, set by scripts/run-ingest.ts from `git log -1
+# --format=%H -- ingest/` (Story 2.3b). Required by documents and re-read mode.
+READER_COMMIT_ENV = "PEERLESS_READER_COMMIT"
+
+
+def reader_commit_of(env: Mapping[str, str]) -> str:
+    """The reader version from PEERLESS_READER_COMMIT, a full 40-hex commit.
+    Missing or malformed raises BadDocumentList, before any request."""
+    value = env.get(READER_COMMIT_ENV)
+    if value is None or not write.READER_COMMIT.fullmatch(value):
+        raise BadDocumentList(f"{READER_COMMIT_ENV} must be a full 40-hex commit, got {value!r}")
+    return value
 
 
 class BadDocumentList(Exception):
-    pass
+    """A bad --documents or --reread argument, or no reader version."""
 
 
 def read_document_list(path: Path) -> list[str]:
@@ -666,14 +961,17 @@ def read_document_list(path: Path) -> list[str]:
 def main(argv: Sequence[str] | None = None) -> int:
     """`argv` is the command line after the program name (sys.argv[1:] when
     None, as from the `peerless-ingest` script): empty for a normal run,
-    exactly `--companies-only`, or `--documents <file>`. Anything else, or a
-    file that is not a JSON list of nine-digit strings, exits 2 before any
-    request or connection."""
+    exactly `--companies-only`, `--documents <file>` or `--reread <file>`.
+    Anything else, a file that is not a JSON list of nine-digit strings, or,
+    for the last two, a missing or malformed PEERLESS_READER_COMMIT, exits 2
+    before any request or connection."""
     args = list(sys.argv[1:] if argv is None else argv)
     document_list: list[str] | None = None
-    if len(args) == 2 and args[0] == "--documents":
+    reader_commit = ""
+    if len(args) == 2 and args[0] in (DOCUMENTS, REREAD):
         try:
             document_list = read_document_list(Path(args[1]))
+            reader_commit = reader_commit_of(os.environ)
         except BadDocumentList as error:
             print(f"{USAGE}; {error}", file=sys.stderr)
             return 2
@@ -687,12 +985,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Companies-only mode fetches no industry: it never reads coverage.json.
     codes = [] if companies_only else config_module.load_coverage(coverage_path)
     transport = fetch.UrllibTransport(cfg.user_agent, cfg.request_pause_seconds)
-    summary: Summary | CompaniesOnlySummary | DocumentsOnlySummary
+    summary: Summary | CompaniesOnlySummary | DocumentsOnlySummary | RereadSummary
     with write.connect(config_module.database_url()) as conn:
         if companies_only:
             summary = run_companies_only(conn, transport, cfg, progress=_progress)
+        elif document_list is not None and args[0] == REREAD:
+            summary = run_reread(conn, transport, cfg, codes, document_list, reader_commit=reader_commit, progress=_progress)
         elif document_list is not None:
-            summary = run_documents(conn, transport, cfg, codes, document_list, progress=_progress)
+            summary = run_documents(conn, transport, cfg, codes, document_list, reader_commit=reader_commit, progress=_progress)
         else:
             summary = run(conn, transport, cfg, codes, progress=_progress)
     for line in summary.lines():

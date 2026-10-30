@@ -144,6 +144,11 @@ def kopi_url(orgnr: str, year: int) -> str:
 RULES = Rules(within_document_bound_kr=5, between_sources_floor_kr=5, between_sources_tolerance=Fraction(1, 100_000))
 BOUND_KR = RULES.within_document_bound_kr
 
+# A reader version for the document tests (Story 2.3b): any full 40-hex
+# commit; OLDER_READER_COMMIT stands for a document read by another version.
+READER_COMMIT = "a" * 40
+OLDER_READER_COMMIT = "e09a41345826d3b7dcbae3a6d8e586e63e6f7d8d"
+
 
 @pytest.fixture
 def cfg() -> Config:

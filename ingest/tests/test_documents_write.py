@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 import psycopg
 import pytest
 
-from conftest import BOUND_KR, RULES, FixtureTransport, aar_url, kopi_url, recorded
+from conftest import BOUND_KR, READER_COMMIT, RULES, FixtureTransport, aar_url, kopi_url, recorded
 from document_fakes import FakeRecognise, generated, pdf, recorded_979607008_2025
 from peerless_ingest import documents, parse, run, write
 from peerless_ingest.config import Config
@@ -101,7 +101,7 @@ def test_contract_979607008_2025_db(db: psycopg.Connection) -> None:
     read = documents.read_words(*recorded_979607008_2025(), BOUND_KR)
     api_by_year = {year: write.api_figures(db, ORGNR, year) for year in (2025, 2024)}
     assert api_by_year[2024] is None  # the recording holds only 2025
-    write.write_document(db, ORGNR, 2025, write.document_outcome(2025, read, api_by_year, RULES), 6984522, READ_AT)
+    write.write_document(db, ORGNR, 2025, write.document_outcome(2025, read, api_by_year, RULES), 6984522, READ_AT, READER_COMMIT)
 
     assert one(
         db,
@@ -180,7 +180,7 @@ def test_links_brreg_id_by_year(db: psycopg.Connection, cfg: Config, monkeypatch
             kopi_url(ORGNR, 2025): pdf("2025"),
         }
     )
-    summary = run.run_documents(db, transport, cfg, ["69.202"], [ORGNR], now=lambda: READ_AT)
+    summary = run.run_documents(db, transport, cfg, ["69.202"], [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
     assert summary.failed == [] and summary.refused == []
     rows = db.execute(
         "select filing_year, brreg_id, status from register.document where orgnr = %s order by filing_year", (ORGNR,)
@@ -203,7 +203,7 @@ def test_document_and_columns_are_written_together(db: psycopg.Connection) -> No
         (current, write.OutcomeColumn("prior", current.column, current.reconciliation)),  # prior stating 2025 breaks the year CHECK
     )
     with pytest.raises(psycopg.errors.CheckViolation):
-        write.write_document(db, ORGNR, 2025, broken, None, READ_AT)
+        write.write_document(db, ORGNR, 2025, broken, None, READ_AT, READER_COMMIT)
     assert write.stored_document_years(db, ORGNR) == set()
 
 
@@ -212,3 +212,27 @@ def test_ingest_cannot_delete_documents(db: psycopg.Connection) -> None:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with db.transaction():
                 db.execute(f"delete from {table}")
+
+
+def test_document_records_reader_version(db: psycopg.Connection) -> None:
+    # Story 2.3b: every document row carries the reader version that read it,
+    # a full 40-hex commit; the columns are written in the same transaction.
+    write.write_company(db, company(ORGNR, "STATEMENT AS"))
+    outcome = write.document_outcome(2025, documents.read_words(*recorded_979607008_2025(), BOUND_KR), {}, RULES)
+    write.write_document(db, ORGNR, 2025, outcome, None, READ_AT, READER_COMMIT)
+    assert one(db, "select reader_commit from register.document where orgnr = %s and filing_year = 2025", ORGNR) == (
+        READER_COMMIT,
+    )
+    # A short or upper-case commit is refused before anything is written.
+    for malformed in ("e09a413", "E09A41345826D3B7DCBAE3A6D8E586E63E6F7D8D", "", "g" * 40):
+        with pytest.raises(ValueError, match="reader_commit"):
+            write.write_document(db, ORGNR, 2024, write.OCR_FAILED, None, READ_AT, malformed)
+    assert write.stored_document_years(db, ORGNR) == {2025}
+    # And the database refuses one written past the writer.
+    with pytest.raises(psycopg.errors.CheckViolation):
+        with db.transaction():
+            db.execute(
+                """insert into register.document (orgnr, filing_year, status, read_at, dataset, reader_commit)
+                   values (%s, 2024, 'not_extracted', %s, 'full', 'e09a413')""",
+                (ORGNR, READ_AT),
+            )

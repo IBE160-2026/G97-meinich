@@ -372,8 +372,8 @@ describe('the export and document figures', () => {
       const [company] = await tx<{ orgnr: string }[]>`select orgnr from register.company order by orgnr limit 1`;
       const orgnr = company?.orgnr ?? '';
       await tx`
-        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset)
-        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full')`;
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
       await tx`
         insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
         values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
@@ -402,8 +402,8 @@ describe('the export and document figures', () => {
       writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr, reason: 'Testoppføring' }]));
       allowList = stableJson(withReferenceOrgnrs([{ orgnr, reason: 'Testoppføring' }], drawn));
       await tx`
-        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset)
-        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full')`;
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
       await tx`
         insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
         values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;

@@ -206,11 +206,34 @@ def test_atomic_write_leaves_no_filing_when_key_figures_fail(db: psycopg.Connect
     assert count(db, "select count(*) from register.key_figures where brreg_id = %s", filing.brreg_id) == 1
 
 
-def test_ingest_cannot_delete_or_run_ddl(db: psycopg.Connection) -> None:
-    for statement in ("delete from register.company", "create table register.ingest_was_here (id int)"):
+def register_tables(conn: psycopg.Connection) -> list[str]:
+    """Every table in schema register, as the catalog lists it."""
+    rows = conn.execute(
+        """select format('%I.%I', n.nspname, c.relname) from pg_catalog.pg_class c
+             join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'register' and c.relkind in ('r', 'p') order by 1"""
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def test_ingest_deletes_only_companies_and_runs_no_ddl(db: psycopg.Connection) -> None:
+    # Story 2.4: the one DELETE step 1 holds is on register.company (a
+    # withdrawn unit); every other register table refuses it, and DDL is
+    # refused everywhere.
+    write.write_company(db, company(ABSENT, "WITHDRAWN AS"))
+    with db.transaction():
+        assert db.execute("delete from register.company where orgnr = %s", (ABSENT,)).rowcount == 1
+    tables = register_tables(db)
+    assert "register.company" in tables and "register.filing" in tables
+    for table in tables:
+        if table == "register.company":
+            continue
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with db.transaction():
-                db.execute(statement)
+                db.execute(f"delete from {table}")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with db.transaction():
+            db.execute("create table register.ingest_was_here (id int)")
 
 
 # --- The run, end to end, against recorded responses ---------------------------

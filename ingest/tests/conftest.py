@@ -9,8 +9,8 @@
   tests/fixtures/recorded (Brønnøysundregistrene, NLOD 2.0), and the filed
   documents' `kopi` URLs (`aar_url`, `kopi_url`) from the bodies a test gives.
 - `db` is a connection as `ingest` (INGEST_DATABASE_URL) inside a transaction
-  that is always rolled back: the tests leave no rows behind, and `ingest`
-  never needs DELETE.
+  that is always rolled back: the tests leave no rows behind, a company a
+  test deletes (Story 2.4) included, and no run record survives.
 """
 
 from __future__ import annotations

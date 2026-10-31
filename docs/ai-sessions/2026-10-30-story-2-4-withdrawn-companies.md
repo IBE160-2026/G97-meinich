@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-30
 **Tool:** Claude Code (implementation subagent, Opus 5.5)
-**Story / issue:** Story 2.4 (FR-66), branch `story/2.4-withdrawn-410`; issue and PR to be linked
+**Story / issue:** Story 2.4 (FR-66), branch `story/2.4-withdrawn-410`, issue [#41](https://github.com/IBE160-2026/G97-meinich/issues/41), PR [#42](https://github.com/IBE160-2026/G97-meinich/pull/42)
 **Result:** commits `7755b2d`, `5248a74`, `697a058`, `5e79258`, `15d17c7`, `783eb6a`, and the docs commit
 
 ## Goal

@@ -1532,6 +1532,170 @@ CI on `fc6f559` was green. At the human's request (`gjerne`), the review session
 
 ---
 
+## The lecturer's session-log skill fitted in (on `main`: `d0c0983`, `ab96819`, `e5ad746`)
+
+The pull after PR #40 brought two commits from the course lecturer, Bård Pettersen (`1adcdf8`, `35a9590`, 2026-10-26). They added the `sesjonslogg` skill and a section at the end of AGENTS.md.
+
+### Prompts to the review session
+
+**2026-10-30 07:20**
+```
+kan vi rydde i repoet vedrørende sesjonlogg ferdigheten slik at det er ryddig?
+```
+The review session found that the skill was in the repository and that AGENTS.md referred to it, so it asked how to tidy it. The human chose `Behold og tilpass (Anbefalt)` in the menu.
+- **The skill file was left as it is.**
+- **The AGENTS.md section was rewritten in English and moved under Git workflow** (`d0c0983`). It now says:
+  - the log is short and links the session file instead of repeating it;
+  - it is written in Norwegian, the one exception to English documentation;
+  - open items go to `deferred-work.md` or a GitHub issue, not to a third list in `.logs/<user>/issues.md`.
+- **The first session log** was committed as `ab96819`.
+
+**07:24**
+```
+han er foreleser - er den ryddig nå?
+```
+AGENTS.md now names the lecturer as the skill's source (`e5ad746`). The review session also pruned 17 stale remote-tracking branches; this touched no file.
+
+*Corrected:* the review session pushed the log commit, although the skill says to commit it locally only. It said so in its reply.
+
+---
+
+## Story 2.4: withdrawn companies disappear (#41, PR #42)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-10-30 07:26**
+```
+/bmad-build Story 2.4
+```
+
+**07:37**: two decisions and a size check, answered in the menu.
+```
+Fra meg: 1a, 2a, keep – med disse tilleggene:
+1a: Det nye skjemaet run trenger sin egen grants-test som går gjennom
+alle roller: ingest kan skrive, derive og loader har ingen
+skrivetilgang, og reader har ingen tilgang med mindre noe faktisk
+trenger det. Testen skal løkke over alle relasjoner i run, slik
+grants.test.ts gjør for register. AGENTS.md og AD-2/AD-3 skal nevne
+skjemaet i samme PR.
+2a: Før kjøringen: ta dump av dokumenttabellene til .local/ og kopier
+den til peerless-backups (sjekk sha256). En 410 sletter med cascade
+også dokumentradene fra 2.1b, som bare finnes lokalt. PR-en skal liste
+hvert slettet orgnr, hvor mange dokumentrader som fulgte med, og om det
+var blant de 407 i 2.1b-settet eller i OCR-referansesettet. Etter
+kjøringen: ta en ny dump, som erstatter .local/document-run-2ce5a50/
+som gjenopprettingskilde. Den gamle har rader for slettede orgnr og vil
+feile på fremmednøkkelen. Oppdater README "Seed" til det. Seed-eksporten
+etter kjøringen skal ligge i en egen commit, så den oppdaterte
+nøkkeltallsdataen ikke blandes med koden. Si fra før kjøringen
+starter, og oppgi omtrent hvor lang tid den tar.
+```
+*Changed:* the run record moved to its own schema, `run`, with its own grants test. The live run got a dump before it and after it.
+
+**07:39**: approval, with three additions that the review session found in the spec.
+```
+Fra meg: godkjent, med tre tillegg i spec-en:
+1. Seed-eksport og pnpm seed: lokalt ligger 2.1b-radene for 407
+selskaper som ikke står på allow-listen, så seed:export nekter, og
+pnpm seed sletter dem. Gjør som i 2.3b: eksporten skjer bare i
+akseptansekjøringen (steg e). Ingen sletting av 2.1b-rader og ingen
+pnpm seed uten at jeg har sagt ja. Gjenopprett alltid fra den nyeste
+dumpen etterpå, og bekreft radtallene. Rett Tasks og Verification
+etter dette.
+2. Sperre mot avkortet bulk: hvis flere enn 1 % av de lagrede
+selskapene mangler i bulk-fila, kjøres ikke sletting og oppslag. Det
+skrives som feil i run-recorden, og kjøringen avslutter med 1. Lag en
+test for dette.
+3. Hvis et slettet orgnr er i OCR-referansesettet (drawn.json): stopp
+før seed:export og spør meg. SM-2-rapporten og testen som sjekker at
+den er byte-identisk, endres da.
+Approve and continue.
+```
+*Changed:* the spec's tasks would have run `seed:export` and `pnpm seed` during the build. The export refuses while the 2.1b rows are present, and `pnpm seed` deletes those rows. The other two additions became decisions D5 (the 1 % guard) and D6 (stop on a deleted reference orgnr).
+
+**08:17**: the BMAD session's review found that the spec's premise was wrong. An ordinarily dissolved company answers 200 with a `slettedato`, not 410. The review session checked this against the live register on the same three orgnrs before drafting the answer.
+```
+Fra meg: 4a, 5a, 6 med ett tillegg, og endre koden der den står.
+Q4a: lagre slettedato på register.company, tell "avviklet" i
+run-recorden, ikke som feil. Bare 410 sletter. Om avviklede selskaper
+skal ut av peer-puljen, legges inn i deferred-work.md.
+Q5a: kjør målingen (bulk mot lagrede orgnr, lesing bare, og et utvalg
+oppslag) og vis meg tallene før grensen settes. Første ekte kjøring har
+ingen lagret slettedato, så alle selskaper avviklet siden 1.3a teller
+med. Målingen må vise om det går under grensen.
+Q6: 404 og live/avviklet gir ikke exit 1. Exit 1 gis for sperren, for
+en sletting som feiler, og for nettverksfeil i oppslaget (5xx, timeout),
+fordi sjekken da ikke ble fullført.
+Ikke revert: endre koden der den står. Skriv beslutningene inn i
+spec-ens Spec Change Log med dato. Rett data-sources-brreg.md: et
+avviklet selskap svarer 200 med slettedato (verifisert 2026-10-30 på
+930663530, 974676125 og 936651437), og 410 gjelder bare fjernede enheter.
+```
+*Changed:* as first built, every dissolved company would have been a permanent failure, every plain run would have exited 1, and normal churn would have tripped the guard, so nothing would ever have been deleted. Dissolved companies are now kept, with their date. The BMAD session had proposed exit 1 only for the guard and a failed delete. The review session added a lookup that did not complete, because then the check is not finished.
+
+**08:28**
+```
+Fra meg: go a–d. Hold maskinen våken (jeg lar lokket være åpent).
+Stopp etter d og vis meg: radtallene før og etter, sha256 for begge
+dumpene og kopiene i peerless-backups, tabellen fra c, og hvor mange
+som ble avviklet, slettet og feilet i run-recorden. Steg e venter på
+eget ja fra meg. Legg "slettedato som kommer tilbake" inn i
+deferred-work.md hvis det ikke står der.
+```
+The live run took 2 h 42 min. It deleted the 8 bankruptcy and forced-dissolution estates the measurement had predicted, none with a document, and marked 48 companies dissolved. It had no failures.
+
+**2026-10-31 15:38**
+```
+Fra meg: go e. Bekreft radtallene etter gjenopprettingen (1 947 + 97
+dokumenter, 3 892 + 194 kolonner) før noe annet. Nevn i PR-en at
+dokumentet for 823633882/2025 nå peker på det nye regnskapet (7242006),
+men ble avstemt mot det gamle, og lenk til omleverings-saken i
+deferred-work.md.
+```
+
+**16:09**: the PR draft credited the three review layers to the review session. They were subagents of the BMAD session.
+```
+Fra meg: ja til push, issue og PR, men rett først krediteringen i
+PR-utkastet og sesjonsfila. De tre review-lagene var subagenter i
+BMAD-sesjonen, ikke review-sesjonen. Skriv det slik det står i 2.3b
+("subagents of this session"). Kreditér review-sesjonen for: sperren
+på 1 % (D5), stoppet ved et slettet referanse-orgnr (D6), dump før og
+etter kjøringen og eksport bare i akseptansekjøringen, og tillegget i
+Q6 om at et ufullført oppslag gir exit 1. Funnet om at avviklede
+selskaper svarer 200 med slettedato er BMAD-reviewens og BMADs egen
+live-sjekk. Commit rettingen i sesjonsfila før push.
+```
+*Changed:* the session file, the PR and a `deferred-work.md` entry with the same wrong credit (`6df9e52`).
+
+**16:26**: the session log (`81c77ad`) had been committed but not pushed, so it would have stayed behind when the branch was deleted.
+```
+Fra meg: push 81c77ad (sesjonsloggen) til PR-en nå, så den kommer med i merge.
+```
+
+### Prompts to the review session
+
+Most were status questions during the 2 h 42 min run, such as `kan du se hvor langt i prosessen den er?`, `sjekk igjen`, `nå da?` and `nå?`. The review session answered each one from the container log and the database. These prompts shaped the run:
+- `fikk ikke svar på bmad 2.4` (10-30): the review session's answer to the 07:37 questions had been written between tool calls and was not shown. It was given again.
+- `okei, men må dra om 7 - 8 min` and `men må lukke lokket - hvor lenge må jeg vente før jeg kan det` (10-30): the review session said to wait until the ingest container had ended. Steps c and d could be redone after sleep, but the run could hang as in Story 2.3b.
+
+### Result
+
+The live run (run record 229) found 56 of 17 557 stored companies absent from the bulk file (0.32 %). Of these, 48 are dissolved and kept, and 8 were deleted on 410. No document row was lost. The seed was re-exported on its own (`40295b5`), and the 2.1b rows were restored from the new dump `.local/document-run-2.4/`. The register replaced one filing during the run (823633882/2025). Its document now points to a filing it was not reconciled against; this is listed in the PR and in `deferred-work.md`.
+
+### Checks before merging
+
+The review session checked these against the database and the dumps:
+- run record 229;
+- the row counts after the run and after step e;
+- the sha256 of both dumps and their backup copies;
+- that 823633882/2025's document points to 7242006.
+
+CI was green on `664c275` and `81c77ad`. At the human's request (`ja post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 16:34 UTC as `e91327b`.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

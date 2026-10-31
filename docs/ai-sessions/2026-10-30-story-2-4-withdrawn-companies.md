@@ -52,7 +52,49 @@ The findings came from the review session, and the decisions Q4a, Q5a and Q6 fro
   - The epic context status line is updated.
 - **Not done, and why:** the earlier AI-log entry was not edited. `docs/ai-log.md` allows only appending, so a new entry corrects it.
 
+### Rejected and deferred findings (pass 1)
+
+All from the review session's layers (BH blind hunter, EC edge-case hunter, VG verification gap). The numbers refer to the spec's Review Triage Log.
+- **Rejected:**
+  - 9: `end_run` raising after a successful run (EC). Unlikely, and the record stays open as the migration comment accepts.
+  - 10: `inf`/`nan` as the share (EC).
+  - 11: a duplicate drawn orgnr (EC). False, because `drawn.json` holds each orgnr once.
+  - 13: no record before `start_run` (EC). False, because those exits happen before a run starts.
+  - 15 and 22: spec wording (BH). Fixed in the spec, not in code.
+  - 16: D6 tests red in CI until step e (BH). Planned, and named in the PR.
+  - 20: the session file lacks the PR (BH). Filled at PR time.
+  - 23: weak `run.step1` CHECKs (BH).
+  - 24: the allow-list prune rests on absence (BH). Would need a seed missing allow-listed companies.
+  - 25: the peers test's `ekskl` part (VG).
+- **Deferred:**
+  - 18: a killed run leaves `ended_at` NULL (BH). The entry was added to `deferred-work.md` only at step e (`b1dc586`).
+  - 14 was routed to defer but fixed anyway, in AGENTS.md.
+
+## Live run (D2) and seed re-export (step e)
+
+Meinich decided the live run's terms (D4: no deletion of 2.1b rows and no `pnpm seed` without a yes; restore from the newest dump and confirm the counts), gave "go a–d" and then "go e".
+
+- **a.** Both document tables were dumped in full to `.local/document-tables-before-2.4-run/` and copied to `peerless-backups`, sha256-checked. Before: company 17 557, filing 22 354, document 2 044, document_column 4 086.
+- **b.** A plain `pnpm ingest` ran as run record 229, from 08:28:57 to 11:11:01 UTC, and exited 0.
+  - Claude Code stopped the attached `pnpm` process when the machine ran low on memory, at 13 000 of 17 811 companies. The container ran on. Its log and exit code were saved with `docker logs -f` and `docker wait`.
+  - 56 stored companies were absent from the bulk file (0.32 %), and all were looked up. 48 were dissolved and kept with their `slettedato`, HEATEN AS 924830972 (5 documents) among them. 8 answered 410 and were deleted: the same eight estates as the measurement. There were 0 failures.
+  - After: company 17 883, filing 22 522, documents and columns unchanged.
+- **c.** None of the eight deleted orgnrs had a filing, a document or a column, and none was in `seed/document-run.json`, the reference draw or the allow-list.
+- **d.** The rows not on the allow-list were dumped to `.local/document-run-2.4/` and copied, sha256-checked.
+  - The column file is byte-identical to `2ce5a50`'s.
+  - One document row differs. The register replaced the 2025 filing of 823633882 under a new id (6816046 became 7242006), and the row followed by `ON UPDATE CASCADE`. The document was read and reconciled against the old filing and now points to the new one. This is the existing refiling item in `deferred-work.md`.
+  - Because of this, `2ce5a50` no longer restores, and the README names the new dump (`2196482`).
+- **e.**
+  - The 1 947 documents and 3 892 columns not on the allow-list were deleted in one transaction that checked both counts and the 97 + 194 left.
+  - `pnpm seed:export` was committed on its own (`40295b5`). `pnpm seed` ran twice with the same counts, and a re-export changed nothing.
+  - The restore from `.local/document-run-2.4/` gave 1 947 + 97 documents and 3 892 + 194 columns. A fresh dump of the restored rows equals the dump.
+  - **Found at step e:** `test/db/seed.test.ts` still expected the old counts, and its header regex expected `read_at` as the last company column, which the `slettedato` migration made false. Both went unseen while the test failed in setup (`a649010`). `pnpm ingest:document-set` now computes 412 orgnrs: the 407 plus five companies that entered the demo pools with the new filings, none of whose documents has been read (`f21cdc6`).
+
 ## Verification
+
+After step e: `pnpm typecheck` clean. `pnpm test` 816 of 816. `pnpm test:db` 147 of 147 (13 files). `pnpm test:ingest` 264 passed. `pnpm lint` reports problems only in the pre-existing `.local/wt-5.1`. The row counts still held after the test runs.
+
+Before the live run:
 
 - `pnpm test:ingest`: 237 passed against the local (2.1b) database.
 - `pnpm typecheck`; `eslint scripts test src`: clean.

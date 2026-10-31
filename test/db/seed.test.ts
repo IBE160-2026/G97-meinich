@@ -104,7 +104,7 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 557 companies, 22 354 filings, the reference documents, the coverage rows and one dataset row', async () => {
+  it('loads 17 883 companies, 22 522 filings, the reference documents, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
       const [counts] = await tx<
@@ -119,7 +119,7 @@ describe('the committed seed', () => {
       // The committed seed holds the OCR reference set's documents only
       // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
       // each. The acceptance run's rows wait for Story 5.4's allow-list.
-      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 97, document_column: 194 });
+      expect(counts).toEqual({ company: 17883, filing: 22522, key_figures: 22522, document: 97, document_column: 194 });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;
       const declared = readCoverage(path.join(root, COVERAGE_FILE));
@@ -323,7 +323,7 @@ describe('checks inside the load', () => {
     files.set('company.csv', Buffer.from([header.replace(',read_at', ''), ...rest].join('\n')));
     await rolledBack(loader, async (tx) => {
       await expect(tx.savepoint((sp) => loadSeed(sp, { ...committed, files }))).rejects.toThrow(
-        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at\)$/,
+        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at, .*slettedato\)$/,
       );
     });
   });

@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-30
 **Tool:** Claude Code (implementation subagent, Opus 5.5)
-**Story / issue:** Story 2.4 (FR-66), branch `story/2.4-withdrawn-410`, issue [#41](https://github.com/IBE160-2026/G97-meinich/issues/41), PR [#42](https://github.com/IBE160-2026/G97-meinich/pull/42)
+**Story / issue:** Story 2.4 (FR-66), branch `story/2.4-withdrawn-410`, issue [#41](https://github.com/IBE160-2026/G97-meinich/issues/41), PR [#42](https://github.com/IBE160-2026/G97-meinich/pull/42), merged 2026-10-31
 **Result:** commits `7755b2d`, `5248a74`, `697a058`, `5e79258`, `15d17c7`, `783eb6a`, and the docs commit
 
 ## Goal
@@ -108,6 +108,10 @@ Before the live run:
 - `pnpm typecheck`; `eslint scripts test src`: clean.
 - `pnpm test`: all pass except `test/seed-format.test.ts` "passes every check against the repository", which refuses the seed's migration id until step e re-exports it (expected by the spec).
 - `pnpm test:db`: all pass except `test/db/seed.test.ts`, whose `beforeAll` refuses the same migration id. Its three export tests that matter here were run with the new migration file moved aside (the database keeps it applied) and passed.
+
+## Merge
+
+CI was green on `664c275` and on `81c77ad`, the session log. Before merging, the review session checked the live run against the database (run record 229, the 8 deleted and 48 dissolved companies, the row counts after step e) and the dumps' checksums. The review was posted as a GitHub review with seven line comments, drafted by the review session and posted at the human's decision. The PR was merged at 16:34 UTC as `e91327b`. The review session then set the spec and the story to done on `main`.
 
 ## Links
 

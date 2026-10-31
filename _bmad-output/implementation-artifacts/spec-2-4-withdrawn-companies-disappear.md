@@ -2,7 +2,7 @@
 title: 'Story 2.4: Withdrawn companies disappear'
 type: 'feature'
 created: '2026-10-30'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'e5ad7467226ba5e68884cede54a7178b929f72d3'
 route: 'dispatch'
 review_loop_iteration: 1

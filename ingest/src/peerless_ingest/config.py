@@ -46,6 +46,9 @@ class Config:
     within_document_bound_kr: int
     between_sources_floor_kr: int
     between_sources_tolerance: Fraction
+    # [withdrawal] (Story 2.4, D5): above this share of stored companies
+    # absent from the bulk file, the withdrawal check is skipped.
+    max_absent_share: Fraction
 
 
 def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) -> Config:
@@ -66,6 +69,9 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
     reconciliation = data.get("reconciliation")
     if not isinstance(reconciliation, dict):
         raise ConfigError(f"{path}: the [reconciliation] table is missing")
+    withdrawal = data.get("withdrawal")
+    if not isinstance(withdrawal, dict):
+        raise ConfigError(f"{path}: the [withdrawal] table is missing")
     return Config(
         base_url=str(base_url).rstrip("/"),
         user_agent=str(register.get("user_agent", "Peerless")),
@@ -75,7 +81,20 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
         within_document_bound_kr=_kroner(path, reconciliation, "within_document_bound_kr"),
         between_sources_floor_kr=_kroner(path, reconciliation, "between_sources_floor_kr"),
         between_sources_tolerance=_fraction(path, reconciliation, "between_sources_tolerance"),
+        max_absent_share=_share(path, withdrawal, "max_absent_share"),
     )
+
+
+def _share(path: Path, table: dict[str, object], key: str) -> Fraction:
+    """A share from 0 to 1, written as a TOML number (0.01). Read exactly
+    from its decimal text, so 0.01 is exactly 1/100. Required: no default."""
+    value = table.get(key)
+    if type(value) not in (int, float):
+        raise ConfigError(f"{path}: withdrawal.{key} must be a number from 0 to 1, got {value!r}")
+    share = Fraction(str(value))
+    if not 0 <= share <= 1:
+        raise ConfigError(f"{path}: withdrawal.{key} must be a number from 0 to 1, got {value!r}")
+    return share
 
 
 def _kroner(path: Path, table: dict[str, object], key: str) -> int:

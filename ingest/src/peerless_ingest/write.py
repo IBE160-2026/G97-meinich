@@ -1,20 +1,27 @@
 """Writes step 1's rows as the `ingest` role (INGEST_DATABASE_URL).
 
-Upserts and column updates, no DDL and no DELETE: the tables come from
-supabase/migrations, and `ingest` holds SELECT, INSERT and UPDATE on them and
-nothing else. A filing and its key figures are written in one transaction,
-both or neither; so is a filed document and its figure columns (Story 2.1b).
+Upserts and column updates, no DDL, and one DELETE: the tables come from
+supabase/migrations, and `ingest` holds SELECT, INSERT and UPDATE on them,
+plus DELETE on register.company alone (Story 2.4). That one delete,
+`delete_company`, removes a company the register answered 410 Gone for; every
+register row that references it goes with it by ON DELETE CASCADE. A filing
+and its key figures are written in one transaction, both or neither; so is a
+filed document and its figure columns (Story 2.1b).
+
+Every run also writes its run record, run.step1 (Story 2.4): `start_run`
+when it starts, `end_run` when it ends, also when it ends in an exception.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 import psycopg
 from psycopg import sql
+from psycopg.types.json import Jsonb
 
 from .documents import FIELDS, Column, DocumentRead
 from .parse import KEY_FIGURE_COLUMNS, Company, Filing
@@ -326,8 +333,8 @@ def write_document(
     times 100; nothing is derived (AD-15). `reader_commit` is the reader
     version that read it (Story 2.3b); the columns, written in the same
     transaction, carry it through their document row. An existing row and
-    its columns are replaced (a re-read); a stored column is never removed,
-    since `ingest` holds no DELETE."""
+    its columns are replaced (a re-read); a stored column is never removed:
+    `ingest` holds no DELETE on the document tables."""
     if not READER_COMMIT.fullmatch(reader_commit):
         raise ValueError(f"reader_commit must be a full 40-hex commit, got {reader_commit!r}")
     with conn.transaction():
@@ -480,3 +487,90 @@ def update_reconciliation(
         )
         if cursor.rowcount != 1:
             raise ValueError(f"document {orgnr}/{filing_year}: no row to update")
+
+
+# --- Withdrawn companies and the run record (Story 2.4) ---------------------------
+
+# The modes of a step-1 run, as run.step1.mode's CHECK lists them.
+RUN_MODES = ("plain", "companies_only", "documents", "reread")
+
+
+def delete_company(conn: psycopg.Connection, orgnr: str, run_id: int | None) -> bool:
+    """Deletes the company `orgnr`, in its own transaction: the one DELETE
+    step 1 makes, and only after the register answered 410 Gone for the unit
+    (run.py). Every register row that references it (filings, key figures,
+    documents, document columns) goes with it by ON DELETE CASCADE. With a
+    `run_id`, the orgnr is appended to that run record's `deleted` in the
+    same transaction, so a delete is never committed without its record.
+    Returns whether a row was deleted."""
+    with conn.transaction():
+        cursor = conn.execute("DELETE FROM register.company WHERE orgnr = %s", (orgnr,))
+        deleted = cursor.rowcount == 1
+        if deleted and run_id is not None:
+            recorded = conn.execute(
+                "UPDATE run.step1 SET deleted = array_append(deleted, %s) WHERE id = %s", (orgnr, run_id)
+            )
+            if recorded.rowcount != 1:
+                # Raised inside the transaction: the delete is rolled back
+                # with it, so no delete is committed without its record.
+                raise ValueError(f"run record {run_id}: no row to record the deletion of {orgnr} in")
+    return deleted
+
+
+def store_slettedato(conn: psycopg.Connection, orgnr: str, slettedato: date) -> bool:
+    """Stores the register's slettedato on a company whose unit answered 200
+    with one while absent from the bulk file: dissolved, not withdrawn (Story
+    2.4, Q4a). Nothing else changes. Returns whether a row was updated."""
+    with conn.transaction():
+        cursor = conn.execute("UPDATE register.company SET slettedato = %s WHERE orgnr = %s", (slettedato, orgnr))
+        return cursor.rowcount == 1
+
+
+@dataclass(frozen=True)
+class Failure:
+    """One failure in a run record: the orgnr (None when it concerns the run,
+    not one company), the stage it happened in, and why."""
+
+    orgnr: str | None
+    stage: str
+    reason: str
+
+
+def start_run(conn: psycopg.Connection, mode: str, started_at: datetime) -> int:
+    """Inserts the run record of a run that starts now, committed at once so
+    it exists even if the run is killed. Returns its id."""
+    if mode not in RUN_MODES:
+        raise ValueError(f"unknown run mode {mode!r}")
+    with conn.transaction():
+        row = conn.execute(
+            "INSERT INTO run.step1 (mode, started_at) VALUES (%s, %s) RETURNING id", (mode, started_at)
+        ).fetchone()
+    if row is None:
+        raise RuntimeError("run.step1 returned no id")
+    return int(row[0])
+
+
+def end_run(
+    conn: psycopg.Connection,
+    run_id: int,
+    ended_at: datetime,
+    counts: Mapping[str, object],
+    failures: Sequence[Failure],
+    error: str | None,
+) -> None:
+    """Ends the run record: when, the counts per outcome, every failure, and
+    the exception that ended the run (None when it ended normally). The
+    deleted orgnrs are already there: `delete_company` appends each one."""
+    with conn.transaction():
+        cursor = conn.execute(
+            """UPDATE run.step1 SET ended_at = %s, counts = %s, failures = %s, error = %s WHERE id = %s""",
+            (
+                ended_at,
+                Jsonb(dict(counts)),
+                Jsonb([{"orgnr": f.orgnr, "stage": f.stage, "reason": f.reason} for f in failures]),
+                error,
+                run_id,
+            ),
+        )
+        if cursor.rowcount != 1:
+            raise ValueError(f"run record {run_id}: no row to end")

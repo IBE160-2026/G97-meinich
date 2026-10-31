@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import REPO_ROOT, RULES
+from conftest import MAX_ABSENT_SHARE, REPO_ROOT, RULES
 from peerless_ingest import config
 
 
@@ -58,6 +58,33 @@ def test_committed_reconciliation_values() -> None:
         RULES.between_sources_floor_kr,
         RULES.between_sources_tolerance,
     )
+
+
+def test_committed_withdrawal_limit() -> None:
+    # Story 2.4, D5 (Meinich, 2026-10-30): more than 1 % of the stored
+    # companies absent from the bulk file stops the withdrawal check. Read
+    # exactly: 0.01 is 1/100, not the binary float nearest it.
+    cfg = config.load_config(REPO_ROOT / "ingest" / "config.toml", env={})
+    assert cfg.max_absent_share == Fraction(1, 100) == MAX_ABSENT_SHARE
+    assert type(cfg.max_absent_share) is Fraction
+
+
+def _config_with_withdrawal(tmp_path: Path, withdrawal: str | None) -> Path:
+    base = (REPO_ROOT / "ingest" / "config.toml").read_text(encoding="utf-8")
+    start = base.index("[withdrawal]")
+    end = base.index("\n\n", start)
+    replacement = "" if withdrawal is None else f"[withdrawal]\nmax_absent_share = {withdrawal}"
+    path = tmp_path / "config.toml"
+    path.write_text(base[:start] + replacement + base[end:], encoding="utf-8")
+    return path
+
+
+def test_withdrawal_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_withdrawal(tmp_path, "0.02"), env={}).max_absent_share == Fraction(1, 50)
+    assert config.load_config(_config_with_withdrawal(tmp_path, "0"), env={}).max_absent_share == 0
+    for bad in (None, '"0.01"', "-0.01", "1.5", "true"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_withdrawal(tmp_path, bad), env={})
 
 
 VALID_RECONCILIATION = {

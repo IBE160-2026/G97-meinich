@@ -208,10 +208,15 @@ def test_document_and_columns_are_written_together(db: psycopg.Connection) -> No
 
 
 def test_ingest_cannot_delete_documents(db: psycopg.Connection) -> None:
+    # Story 2.4: ingest deletes only from register.company; a document goes
+    # only with its company, by the cascade.
     for table in ("register.document", "register.document_column"):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with db.transaction():
                 db.execute(f"delete from {table}")
+    write.write_company(db, company("000000000", "WITHDRAWN AS"))
+    with db.transaction():
+        assert db.execute("delete from register.company where orgnr = '000000000'").rowcount == 1
 
 
 def test_document_records_reader_version(db: psycopg.Connection) -> None:

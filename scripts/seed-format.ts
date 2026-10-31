@@ -529,6 +529,34 @@ export function withReferenceOrgnrs(
   return [...allowList.map((entry) => ({ orgnr: entry.orgnr, reason: entry.reason })), ...added];
 }
 
+// Story 2.4: a company step 1 deleted after 410 Gone leaves the allow-list.
+// Splits the entries into those whose orgnr is a stored company, kept in
+// their order, and those that are not, which the export names on stderr and
+// does not write back. Drawn orgnrs are not dropped here: a withdrawn
+// reference orgnr refuses the export (refuseUnstoredDrawn).
+export function splitStoredAllowList(
+  allowList: readonly AllowListEntry[],
+  stored: ReadonlySet<string>,
+): { kept: AllowListEntry[]; dropped: AllowListEntry[] } {
+  return {
+    kept: allowList.filter((entry) => stored.has(entry.orgnr)),
+    dropped: allowList.filter((entry) => !stored.has(entry.orgnr)),
+  };
+}
+
+// Story 2.4, D6: an OCR reference orgnr that is not a stored company (the
+// register withdrew it, and step 1 deleted it) stops the export, naming it,
+// before any file is written. The reference set, the SM-2 report and its
+// byte-identity test must then change, which is a decision for a person.
+export function refuseUnstoredDrawn(drawn: readonly DrawnFiling[], stored: ReadonlySet<string>): void {
+  const missing = [...new Set(drawn.map((filing) => filing.orgnr))].filter((orgnr) => !stored.has(orgnr)).sort(compareBytes);
+  if (missing.length > 0) {
+    throw new SeedRefusal(
+      `${REFERENCE_DRAW_FILE}: drawn orgnrs that are not stored companies (withdrawn?): ${missing.join(', ')}; stop and decide how the OCR reference set changes (Story 2.4, D6)`,
+    );
+  }
+}
+
 // A document figure is a row of register.document_column: a figure column
 // read from a filed document (Story 2.1b). Returns, sorted, the orgnrs that
 // have one and are not on the allow-list. files maps seed file name →

@@ -306,6 +306,17 @@ This matters because free retrieval of a filing is a right of *access*, and acce
 
 **Withdrawn entities must be dropped from stored copies.** From the Enhetsregisteret API documentation: an entity can be removed from the register, for instance for legal reasons, and then returns `410 Gone` — "Dette bør også anses som en forespørsel om at eventuelle kopier/cacher også fjerner den aktuelle enheten." Peerless stores register data permanently, so this is an obligation on the ingestion job rather than a caching detail.
 
+**Dissolved is not withdrawn.** An ordinarily dissolved company answers the unit endpoint with 200 and a `slettedato` (verified 2026-10-30 on 930663530, 974676125 and 936651437, found in the update feed as `Sletting`). 410 is what the API documentation describes for units removed from the register, and it is what we observed for deleted bankruptcy and forced-dissolution estates: a read-only measurement on 2026-10-30 found 56 of 17 557 stored orgnrs absent from the bulk file (1 179 751 units). 48 answered 200 with a `slettedato`, all in 2026. 8 answered 410, all estates ("… AS KONKURSBO", "… TVANGSAVVIKLINGSBO", for example 837060362 and 933544087), and their 410 body still carries `organisasjonsnummer` and `slettedato`.
+
+**How step 1 handles it (Story 2.4).** The bulk download holds every unit not deleted, so only a stored orgnr the whole bulk file does not hold can be dissolved or withdrawn. A plain `pnpm ingest` asks `GET /enhetsregisteret/api/enheter/{orgnr}` about each of those that has no stored `slettedato`:
+
+- **410** (`fetch.Gone`, raised only from the transport's `HTTPError.code == 410`): the company is deleted with one `DELETE FROM register.company WHERE orgnr = …`, in its own transaction, and every `register` row referencing it goes by `ON DELETE CASCADE`.
+- **200 with `slettedato`:** dissolved. The date is stored in `register.company.slettedato` as given, the run record counts it as `dissolved`, and the company is not looked up again. Whether a dissolved company leaves the peer pool is not decided yet (`deferred-work.md`).
+- **404, or 200 without `slettedato`:** nothing changes; a failure in `run.step1`, which does not make the run exit 1.
+- **A lookup that did not complete** (a 5xx after the retries, a timeout, a body that is not JSON, a malformed `slettedato`) **or a failed delete or write:** a failure, and the run exits 1, since the check did not finish.
+
+A 410 from the key-figures or document endpoints deletes nothing; they answer it as a 404. If more than 1 % of the stored companies (`[withdrawal] max_absent_share` in `ingest/config.toml`) are absent from the bulk file without a stored `slettedato`, the download is taken to be truncated: no unit is asked about, nothing is deleted, and the run exits 1. A deleted orgnr then leaves the seed and `seed/allow-list.json` on the next `pnpm seed:export`; a deleted OCR reference orgnr stops the export.
+
 **No contractual rate limit was found**, only a technical one: pagination cannot exceed `(page + 1) × size = 10 000` before the API returns HTTP 400. Nothing prohibits bulk retrieval — bulk download is offered outright.
 
 **Roles are constrained even though Peerless does not use them.** A person's registered role is open public data, but an overview of one person's roles across companies may show only roles tied to business activity (enhetsregisterloven §9-1). Peerless uses accounts and industry data, not role data, so this does not bind v1 — it would bind any later people-centred feature.

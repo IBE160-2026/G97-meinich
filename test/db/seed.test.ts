@@ -104,7 +104,7 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 557 companies, 22 354 filings, the reference documents, the coverage rows and one dataset row', async () => {
+  it('loads 17 883 companies, 22 522 filings, the reference documents, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
       const [counts] = await tx<
@@ -119,7 +119,7 @@ describe('the committed seed', () => {
       // The committed seed holds the OCR reference set's documents only
       // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
       // each. The acceptance run's rows wait for Story 5.4's allow-list.
-      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 97, document_column: 194 });
+      expect(counts).toEqual({ company: 17883, filing: 22522, key_figures: 22522, document: 97, document_column: 194 });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;
       const declared = readCoverage(path.join(root, COVERAGE_FILE));
@@ -323,7 +323,7 @@ describe('checks inside the load', () => {
     files.set('company.csv', Buffer.from([header.replace(',read_at', ''), ...rest].join('\n')));
     await rolledBack(loader, async (tx) => {
       await expect(tx.savepoint((sp) => loadSeed(sp, { ...committed, files }))).rejects.toThrow(
-        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at\)$/,
+        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at, .*slettedato\)$/,
       );
     });
   });
@@ -414,6 +414,74 @@ describe('the export and document figures', () => {
     expect(manifest?.document_figure_orgnrs).toHaveLength(21);
     expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(allowList);
     expect(JSON.parse(allowList)).toHaveLength(21);
+  });
+
+  // Story 2.4. These run as the migration role (admin), which may delete,
+  // standing in for step 1's delete after 410 Gone; the cascade is the
+  // database's, whichever role deletes.
+  function scratchExportRoot(name: string): string {
+    const scratchRoot = path.join(scratch, name);
+    cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
+    cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
+    cpSync(path.join(root, REFERENCE_DRAW_FILE), path.join(scratchRoot, REFERENCE_DRAW_FILE));
+    return scratchRoot;
+  }
+
+  it('refuses a drawn orgnr that is not a stored company, naming it, and writes nothing', async () => {
+    const scratchRoot = scratchExportRoot('withdrawn-drawn-root');
+    const out = path.join(scratch, 'withdrawn-drawn-out');
+    const withdrawn = drawn[0]?.orgnr ?? '';
+    await rolledBack(admin, async (tx) => {
+      await loadSeed(tx, committed);
+      await tx`delete from register.company where orgnr = ${withdrawn}`;
+      await expect(exportSeed(tx, scratchRoot, out, () => {})).rejects.toThrow(
+        `${REFERENCE_DRAW_FILE}: drawn orgnrs that are not stored companies (withdrawn?): ${withdrawn}`,
+      );
+    });
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('leaves a company deleted after 410 out of every seed file, the manifest and the allow-list', async () => {
+    const scratchRoot = scratchExportRoot('withdrawn-listed-root');
+    const out = path.join(scratch, 'withdrawn-listed-out');
+    const notices: string[] = [];
+    let manifest: { document_figure_orgnrs: string[] } | undefined;
+    let withdrawn = '';
+    await rolledBack(admin, async (tx) => {
+      await loadSeed(tx, committed);
+      // A company with filings and key figures, outside the reference draw,
+      // given a document and an allow-list entry, then deleted.
+      const [company] = await tx<{ orgnr: string }[]>`
+        select c.orgnr from register.company c
+         where exists (select 1 from register.filing f join register.key_figures k using (brreg_id) where f.orgnr = c.orgnr)
+           and c.orgnr <> all(${drawn.map((filing) => filing.orgnr)}::text[])
+         order by c.orgnr limit 1`;
+      withdrawn = company?.orgnr ?? '';
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr: withdrawn, reason: 'Testoppføring' }]));
+      await tx`
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+        values (${withdrawn}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+        values (${withdrawn}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
+      await tx`delete from register.company where orgnr = ${withdrawn}`;
+      manifest = await exportSeed(tx, scratchRoot, out, (line) => notices.push(line));
+    });
+    expect(withdrawn).toMatch(/^\d{9}$/);
+    expect(notices).toEqual([
+      `seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${withdrawn} (Testoppføring)`,
+    ]);
+    expect(manifest?.document_figure_orgnrs).not.toContain(withdrawn);
+    expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(stableJson(withReferenceOrgnrs([], drawn)));
+    for (const file of readdirSync(path.join(out, SEED_DIR)).filter((name) => name.endsWith('.csv'))) {
+      const [header = [], ...rows] = parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8'));
+      const at = header.indexOf('orgnr');
+      if (at === -1) continue;
+      expect(
+        rows.filter((row) => row[at] === withdrawn),
+        file,
+      ).toEqual([]);
+    }
   });
 
   it('refuses to export without the committed reference draw, writing nothing', async () => {

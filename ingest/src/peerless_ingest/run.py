@@ -53,8 +53,24 @@ reconciled no longer holds is replaced, and listed per document.
 
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
-no company, deletes none, touches no filing and leaves every other column,
-`navn` and `read_at` included, as it was.
+no company, deletes none (only a plain run deletes), touches no filing and
+leaves every other column, `navn` and `read_at` included, as it was.
+
+Withdrawn companies (Story 2.4). A plain run reads the stored orgnrs before
+the bulk download, and after loading asks the register's unit endpoint
+about each stored orgnr that is absent from the whole bulk file. Only an
+explicit 410 Gone deletes it (`write.delete_company`), and every register row
+that references it goes with it. 404, a 5xx, a timeout, a body that is not
+JSON, or a live unit deletes nothing and is a failure. If more than
+`[withdrawal] max_absent_share` of the stored companies are absent, the
+bulk file is taken to be truncated: no unit is asked about and nothing is
+deleted (D5). No other mode deletes.
+
+The run record (Story 2.4). Every mode's run is recorded in run.step1:
+inserted when it starts, updated when it ends with its counts per outcome
+and every failure, also when it ends in an exception, whose class and
+message are recorded before it is raised again. Each deleted orgnr is
+appended in the deleting transaction.
 """
 
 from __future__ import annotations
@@ -66,9 +82,10 @@ import re
 import sys
 import time
 from collections import Counter
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from fractions import Fraction
 from pathlib import Path
 from typing import Protocol
 
@@ -153,6 +170,63 @@ class DocumentSummary:
         return out
 
 
+# The stage of every failure the withdrawal check records (Story 2.4).
+WITHDRAWAL = "withdrawal"
+# How a failure fetching demo company C's unit is named in Summary.failed.
+DEMO_PREFIX = "demo company C: "
+
+
+@dataclass
+class WithdrawalSummary:
+    """The withdrawal check of a plain run (Story 2.4): the stored orgnrs
+    absent from the bulk file, and what the register's unit endpoint
+    answered for each."""
+
+    # Companies stored when the run started; how many of them the bulk file
+    # did not hold and have no stored slettedato (the D5 share's count), and
+    # how many it did not hold but are already stored as dissolved, which
+    # are not looked up again (Q5a).
+    stored: int = 0
+    absent: int = 0
+    absent_already_dissolved: int = 0
+    # Absent orgnrs asked about at the unit endpoint.
+    checked: int = 0
+    # Deleted after 410 Gone, with every row referencing them.
+    deleted: list[str] = field(default_factory=list)
+    # Answered 200 with a slettedato, now stored: dissolved, not withdrawn,
+    # and not a failure (Q4a).
+    dissolved: list[str] = field(default_factory=list)
+    # Not deleted, and why: 404, a live unit, a fetch error, a malformed
+    # slettedato, a failed write, or the whole check skipped for a
+    # truncated bulk file. All are in the run record.
+    failures: list[write.Failure] = field(default_factory=list)
+    # True when the check did not finish (Q6): the D5 guard, a failed
+    # delete or write, or a lookup that did not complete. Only this makes
+    # the run exit 1; 404 and a live unit are failures that do not.
+    incomplete: bool = False
+
+    def fail(self, failure: write.Failure, *, incomplete: bool) -> None:
+        self.failures.append(failure)
+        self.incomplete = self.incomplete or incomplete
+
+    def lines(self) -> list[str]:
+        out = [
+            f"  Withdrawn companies: {self.stored} stored, {self.absent} absent from the bulk file"
+            f" (and {self.absent_already_dissolved} already stored as dissolved), {self.checked} asked about,"
+            f" {len(self.deleted)} deleted (410 Gone), {len(self.dissolved)} dissolved (slettedato stored),"
+            f" {len(self.failures)} failures"
+        ]
+        for orgnr in self.deleted:
+            out.append(f"  deleted (410 Gone), with every row referencing it: {orgnr}")
+        for orgnr in self.dissolved:
+            out.append(f"  dissolved (200 with slettedato), kept: {orgnr}")
+        for failure in self.failures:
+            out.append(f"  not deleted: {failure.orgnr or '-'} {failure.reason}")
+        if self.incomplete:
+            out.append("  The withdrawal check did not finish: a person must look at the failures above.")
+        return out
+
+
 @dataclass
 class Summary:
     codes: dict[str, CodeSummary]
@@ -162,6 +236,7 @@ class Summary:
     demo_filings_written: int = 0
     rejected: list[Problem] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
+    withdrawal: WithdrawalSummary = field(default_factory=WithdrawalSummary)
     wall_seconds: float = 0.0
 
     def needs_operator(self) -> bool:
@@ -172,7 +247,57 @@ class Summary:
             or not self.demo_found
             or self.demo_filings_written == 0
             or self.codes_returning_nothing()
+            or self.withdrawal.incomplete
         )
+
+    def record_counts(self) -> dict[str, object]:
+        """The run record's counts per outcome."""
+        return {
+            "codes": {
+                code: {
+                    "companies": s.companies,
+                    "companies_with_filings": s.companies_with_filings,
+                    "filings_written": s.filings_written,
+                }
+                for code, s in self.codes.items()
+            },
+            "demo_found": self.demo_found,
+            "demo_filings_written": self.demo_filings_written,
+            "rejected": len(self.rejected),
+            "failed": len(self.failed),
+            "stored": self.withdrawal.stored,
+            "absent_from_bulk": self.withdrawal.absent,
+            "absent_already_dissolved": self.withdrawal.absent_already_dissolved,
+            "unit_checked": self.withdrawal.checked,
+            "deleted": len(self.withdrawal.deleted),
+            "dissolved": len(self.withdrawal.dissolved),
+            "withdrawal_failures": len(self.withdrawal.failures),
+            "withdrawal_incomplete": self.withdrawal.incomplete,
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        """Every failure, as the run record lists it, each once: those that
+        make `needs_operator` true, and the withdrawal check's 404 and live
+        answers, which do not."""
+        out = [
+            write.Failure(p.orgnr, "demo_company_c" if p.what.startswith(DEMO_PREFIX) else "load", p.what)
+            for p in self.failed
+        ]
+        out += [write.Failure(p.orgnr, "filing_rejected", p.what) for p in self.rejected]
+        demo_named = any(p.orgnr == self.demo_orgnr and p.what.startswith(DEMO_PREFIX) for p in self.failed)
+        # The demo and coverage checks judge a finished run: a run that
+        # raised before reaching them did not find them missing.
+        if finished:
+            if not self.demo_found:
+                if not demo_named:
+                    out.append(write.Failure(self.demo_orgnr, "demo_company_c", "not found in Enhetsregisteret"))
+            elif self.demo_filings_written == 0:
+                out.append(write.Failure(self.demo_orgnr, "demo_company_c", "no filing written"))
+            out += [
+                write.Failure(None, "coverage", f"{code}: no unit has it as naeringskode1")
+                for code in self.codes_returning_nothing()
+            ]
+        return out + list(self.withdrawal.failures)
 
     def codes_returning_nothing(self) -> list[str]:
         return [code for code, summary in self.codes.items() if summary.companies == 0]
@@ -200,6 +325,7 @@ class Summary:
             out.append(f"  rejected filing, not written: {problem.orgnr} {problem.what}")
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        out.extend(self.withdrawal.lines())
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
         out.append("  No filed document fetched (documents mode reads them: --documents <file>).")
         out.append("  Stored as filed: no ratio, distribution or derived amount was written.")
@@ -227,6 +353,33 @@ class DocumentsOnlySummary:
         # An OCR error is stored for good (a rerun skips it), so it needs a
         # person even though the run went on.
         return bool(self.failed or self.refused or self.documents.ocr_errors)
+
+    def record_counts(self) -> dict[str, object]:
+        d = self.documents
+        return {
+            "listed": self.listed,
+            "companies": self.companies,
+            "refused": len(self.refused),
+            "failed": len(self.failed),
+            "written": {status: sum(n for (_, s), n in d.written.items() if s == status) for status in STATUSES},
+            "rereconciled": {
+                status: sum(n for (_, s), n in d.rereconciled.items() if s == status) for status in RECONCILED_STATUSES
+            },
+            "skipped_stored": d.skipped_stored,
+            "outside_years": d.outside_years,
+            "no_document_list": len(d.no_document_list),
+            "read": d.read_count,
+            "ocr_errors": len(d.ocr_errors),
+            "prior_failed": d.prior_failed,
+            "still_extracted": self.still_extracted,
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        return (
+            [write.Failure(p.orgnr, "refused", p.what) for p in self.refused]
+            + [write.Failure(p.orgnr, "documents", p.what) for p in self.failed]
+            + [write.Failure(p.orgnr, "ocr", p.what) for p in self.documents.ocr_errors]
+        )
 
     def lines(self) -> list[str]:
         out = [
@@ -277,6 +430,27 @@ class RereadSummary:
         # A document not replaced still holds another version's figures.
         return bool(self.failed or self.refused or self.not_replaced)
 
+    def record_counts(self) -> dict[str, object]:
+        return {
+            "listed": self.listed,
+            "companies": self.companies,
+            "refused": len(self.refused),
+            "replaced": {status: sum(n for (_, s), n in self.replaced.items() if s == status) for status in STATUSES},
+            "current": self.current,
+            "not_replaced": len(self.not_replaced),
+            "lost_figures": len(self.lost_figures),
+            "failed": len(self.failed),
+            "read": self.read_count,
+            "prior_failed": self.prior_failed,
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        return (
+            [write.Failure(p.orgnr, "refused", p.what) for p in self.refused]
+            + [write.Failure(p.orgnr, "not_replaced", p.what) for p in self.not_replaced]
+            + [write.Failure(p.orgnr, "reread", p.what) for p in self.failed]
+        )
+
     def lines(self) -> list[str]:
         out = [
             "Step 1 summary, re-read (stored documents of the listed companies, by the current reader version)",
@@ -312,7 +486,8 @@ class CompaniesOnlySummary:
     in_database: int
     updated: int = 0
     # In register.company but absent from the bulk download: withdrawn units
-    # (deleting them is Story 2.4) or, in a test database, units outside it.
+    # (only a plain run deletes one, after 410 Gone) or, in a test database,
+    # units outside it.
     not_found: list[str] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
     # (orgnr, stored naeringskode1, bulk naeringskode1) where the register's
@@ -327,6 +502,18 @@ class CompaniesOnlySummary:
         bulk file is expected and left untouched, and a changed code is
         reported for the next full run."""
         return bool(self.failed)
+
+    def record_counts(self) -> dict[str, object]:
+        return {
+            "in_database": self.in_database,
+            "updated": self.updated,
+            "not_found_in_bulk": len(self.not_found),
+            "code_differs": len(self.code_differs),
+            "failed": len(self.failed),
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        return [write.Failure(p.orgnr, "search_fields", p.what) for p in self.failed]
 
     def lines(self) -> list[str]:
         out = [
@@ -343,6 +530,10 @@ class CompaniesOnlySummary:
             out.append(f"  failed write, rolled back: {problem.orgnr} {problem.what}")
         out.append("  No company added or deleted, no filing touched, navn and read_at unchanged.")
         return out
+
+
+# A run's summary, as the run record reads it (Story 2.4).
+RecordedSummary = Summary | CompaniesOnlySummary | DocumentsOnlySummary | RereadSummary
 
 
 class ConnectionLost(Exception):
@@ -707,6 +898,147 @@ def _reread_documents(
         progress(f"re-read {orgnr}/{year}: {outcome.status}{refusal}")
 
 
+def _percent(share: Fraction) -> str:
+    """A share as a percentage for the summary and run record, formatted
+    from the exact fraction."""
+    return f"{share * 100:.2f} %"
+
+
+def _check_withdrawn(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    cfg: config_module.Config,
+    stored: Mapping[str, date | None],
+    seen: set[str],
+    summary: WithdrawalSummary,
+    run_id: int | None,
+    progress: Callable[[str], None],
+) -> None:
+    """Asks the register's unit endpoint about every orgnr in `stored` (orgnr
+    to stored slettedato) that the bulk file did not hold (`seen`) and that
+    is not already stored as dissolved, and acts on the answer (Story 2.4):
+
+    - 410 Gone: the company is deleted, with every row referencing it;
+    - 200 with a slettedato: dissolved, its slettedato stored (Q4a);
+    - 404, or 200 without a slettedato: a failure, nothing changed;
+    - a lookup that did not complete, a malformed slettedato or a failed
+      write: a failure that leaves the check incomplete (Q6).
+
+    If the share of absent companies without a stored slettedato exceeds
+    `cfg.max_absent_share`, nothing is asked and nothing is changed: a
+    truncated bulk file would otherwise make thousands of companies look
+    withdrawn (D5, Q5a)."""
+    missing = sorted(set(stored) - seen)
+    absent = [orgnr for orgnr in missing if stored[orgnr] is None]
+    summary.stored = len(stored)
+    summary.absent = len(absent)
+    summary.absent_already_dissolved = len(missing) - len(absent)
+    if not absent:
+        return
+    share = Fraction(len(absent), len(stored))
+    if share > cfg.max_absent_share:
+        summary.fail(
+            write.Failure(
+                None,
+                WITHDRAWAL,
+                f"bulk_absent_share_exceeded: {len(absent)} of {len(stored)} stored companies absent from the bulk file"
+                f" ({_percent(share)}, limit {_percent(cfg.max_absent_share)}); no unit asked about, nothing deleted",
+            ),
+            incomplete=True,
+        )
+        progress(f"withdrawal check skipped: {len(absent)} of {len(stored)} stored companies absent from the bulk file")
+        return
+    progress(f"withdrawal check: {len(absent)} stored companies absent from the bulk file")
+    for orgnr in absent:
+        summary.checked += 1
+        try:
+            unit = fetch.fetch_unit(transport, cfg.base_url, orgnr)
+        except fetch.Gone:
+            _delete_withdrawn(conn, orgnr, summary, run_id, progress)
+            continue
+        except FETCH_ERRORS as error:
+            summary.fail(write.Failure(orgnr, WITHDRAWAL, f"{error.__class__.__name__}: {error}"), incomplete=True)
+            continue
+        if unit is None:
+            summary.fail(write.Failure(orgnr, WITHDRAWAL, "unit_not_found"), incomplete=False)
+        elif "slettedato" in unit:
+            _store_dissolved(conn, orgnr, unit["slettedato"], summary, progress)
+        else:
+            summary.fail(write.Failure(orgnr, WITHDRAWAL, "absent_from_bulk_but_live"), incomplete=False)
+
+
+def _delete_withdrawn(
+    conn: psycopg.Connection,
+    orgnr: str,
+    summary: WithdrawalSummary,
+    run_id: int | None,
+    progress: Callable[[str], None],
+) -> None:
+    """Deletes a company the register answered 410 Gone for. A failed delete
+    leaves the check incomplete; a closed connection ends the run."""
+    try:
+        deleted = write.delete_company(conn, orgnr, run_id)
+    except (psycopg.Error, ValueError) as error:
+        summary.fail(
+            write.Failure(orgnr, WITHDRAWAL, f"delete_failed: {error.__class__.__name__}: {str(error).strip()}"),
+            incomplete=True,
+        )
+        if conn.closed:
+            raise ConnectionLost(f"database connection closed after deleting: {orgnr}") from error
+        return
+    if deleted:
+        summary.deleted.append(orgnr)
+        progress(f"deleted (410 Gone): {orgnr}")
+    else:
+        # Stored when the run started, gone now: nothing to delete.
+        summary.fail(write.Failure(orgnr, WITHDRAWAL, "gone_but_no_row_to_delete"), incomplete=False)
+
+
+SLETTEDATO = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def _store_dissolved(
+    conn: psycopg.Connection,
+    orgnr: str,
+    value: object,
+    summary: WithdrawalSummary,
+    progress: Callable[[str], None],
+) -> None:
+    """A unit answering 200 with a slettedato is dissolved (Q4a): the date is
+    stored as the register gives it. A value that is not an ISO date is a
+    failure, never guessed at."""
+    slettedato: date | None = None
+    if isinstance(value, str) and SLETTEDATO.fullmatch(value):
+        try:
+            slettedato = date.fromisoformat(value)
+        except ValueError:
+            slettedato = None
+    if slettedato is None:
+        summary.fail(write.Failure(orgnr, WITHDRAWAL, f"malformed_slettedato: {value!r}"), incomplete=True)
+        return
+    try:
+        updated = write.store_slettedato(conn, orgnr, slettedato)
+    except psycopg.Error as error:
+        summary.fail(
+            write.Failure(orgnr, WITHDRAWAL, f"slettedato_not_stored: {error.__class__.__name__}: {str(error).strip()}"),
+            incomplete=True,
+        )
+        if conn.closed:
+            raise ConnectionLost(f"database connection closed after: {orgnr}") from error
+        return
+    if not updated:
+        summary.fail(write.Failure(orgnr, WITHDRAWAL, "dissolved_but_no_row_to_update"), incomplete=False)
+        return
+    summary.dissolved.append(orgnr)
+    progress(f"dissolved (slettedato {slettedato.isoformat()}): {orgnr}")
+
+
+def _stored_orgnrs(conn: psycopg.Connection) -> dict[str, date | None]:
+    """Every stored orgnr, with its stored slettedato (NULL: not known to be
+    dissolved)."""
+    return {str(row[0]): row[1] for row in conn.execute("SELECT orgnr, slettedato FROM register.company").fetchall()}
+
+
 def run(
     conn: psycopg.Connection,
     transport: fetch.Transport,
@@ -715,16 +1047,37 @@ def run(
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
+    run_id: int | None = None,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> Summary:
+    """The plain run: the bulk download, each covered company and its
+    filings, demo company C, then the withdrawal check (Story 2.4).
+    `run_id` is this run's record in run.step1, to which each deleted orgnr
+    is appended in the deleting transaction; None only in tests that do
+    not look at the record."""
     started = clock()
     summary = Summary(codes={code: CodeSummary(code) for code in codes}, demo_orgnr=cfg.demo_company_c.orgnr)
+    on_summary(summary)
+
+    # The companies stored before this run, read before the bulk download:
+    # each one the whole bulk file does not hold is checked in step 4.
+    stored = _stored_orgnrs(conn)
+    seen: set[str] = set()
+
+    def marking_seen(units: Iterator[dict]) -> Iterator[dict]:
+        for unit in units:
+            orgnr = unit.get("organisasjonsnummer")
+            if isinstance(orgnr, str):
+                seen.add(orgnr)
+            yield unit
 
     # 1. The bulk download, filtered on the primary code while streaming.
     # Collected before any key-figures request, so the long download is not
-    # held open across thousands of calls.
+    # held open across thousands of calls. Every unit's orgnr is marked
+    # seen, whatever its primary code.
     bulk_read_at = now()
     selected: list[tuple[str, parse.Company]] = []
-    for code, unit in parse.select_covered(fetch.iter_bulk_units(transport, cfg.base_url), codes):
+    for code, unit in parse.select_covered(marking_seen(fetch.iter_bulk_units(transport, cfg.base_url)), codes):
         try:
             selected.append((code, parse.parse_company(unit, bulk_read_at)))
         except ValueError as error:
@@ -749,13 +1102,21 @@ def run(
     try:
         unit = fetch.fetch_unit(transport, cfg.base_url, demo_orgnr)
         company = parse.parse_company(unit, now()) if unit is not None else None
+    except fetch.Gone:
+        # Withdrawn: not loaded. Step 4 deletes it if it is stored and absent
+        # from the bulk file.
+        summary.failed.append(Problem(demo_orgnr, f"{DEMO_PREFIX}withdrawn (410 Gone)"))
+        company = None
     except FETCH_ERRORS as error:
-        summary.failed.append(Problem(demo_orgnr, f"demo company C: {error.__class__.__name__}: {error}"))
+        summary.failed.append(Problem(demo_orgnr, f"{DEMO_PREFIX}{error.__class__.__name__}: {error}"))
         company = None
     if company is not None:
         summary.demo_found = True
         summary.demo_navn = company.navn
         summary.demo_filings_written = _load_company(conn, transport, cfg.base_url, company, summary, now)
+
+    # 4. Withdrawn companies: only a 410 Gone from the unit endpoint deletes.
+    _check_withdrawn(conn, transport, cfg, stored, seen, summary.withdrawal, run_id, progress)
     summary.wall_seconds = clock() - started
     return summary
 
@@ -792,6 +1153,7 @@ def run_documents(
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> DocumentsOnlySummary:
     """The document pass for each listed orgnr that is a stored company whose
     primary code is declared in seed/coverage.json (`codes`): first its stored
@@ -801,6 +1163,7 @@ def run_documents(
     started = clock()
     rules = rules_of(cfg)
     summary = DocumentsOnlySummary(listed=len(orgnrs))
+    on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
@@ -831,6 +1194,7 @@ def run_reread(
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> RereadSummary:
     """Re-read mode (Story 2.3b): for each listed orgnr that is a stored
     company with a covered primary code, every stored document whose
@@ -840,6 +1204,7 @@ def run_reread(
     started = clock()
     rules = rules_of(cfg)
     summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit)
+    on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
@@ -858,6 +1223,7 @@ def run_companies_only(
     cfg: config_module.Config,
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> CompaniesOnlySummary:
     """Fills forretningsadresse_kommunenummer, forretningsadresse_kommune,
     naeringskode1_beskrivelse and search_fields_read_at from the bulk
@@ -873,6 +1239,7 @@ def run_companies_only(
     }
     stored = set(stored_codes)
     summary = CompaniesOnlySummary(in_database=len(stored))
+    on_summary(summary)
 
     # Collected before any write, so the long download is not held open
     # across the updates.
@@ -903,8 +1270,9 @@ def run_companies_only(
                 raise ConnectionLost(f"database connection closed after: {company.orgnr}") from error
             continue
         if not matched:
-            # Stored at the start of the run, gone now: step 1 never deletes,
-            # so something else did. Not the same as absent from the bulk file.
+            # Stored at the start of the run, gone now: this mode deletes
+            # nothing, so another run or something else did. Not the same as
+            # absent from the bulk file.
             summary.failed.append(Problem(company.orgnr, "no row to update"))
             continue
         if company.orgnr not in seen:
@@ -958,6 +1326,26 @@ def read_document_list(path: Path) -> list[str]:
     return orgnrs
 
 
+def _end_run_after_error(
+    conn: psycopg.Connection, run_id: int, error: BaseException, partial: RecordedSummary | None
+) -> None:
+    """Ends the run record of a run that raised, with the exception's class
+    and message, and the counts and failures its summary held when it
+    raised (`partial`; None if it raised before making one). If even that
+    write fails (the connection is gone), says so on stderr; the caller
+    raises the run's own exception either way."""
+    counts: Mapping[str, object] = {} if partial is None else partial.record_counts()
+    failures: list[write.Failure] = [] if partial is None else partial.record_failures(finished=False)
+    try:
+        write.end_run(conn, run_id, _now(), counts, failures, f"{error.__class__.__name__}: {error}")
+    except (psycopg.Error, ValueError) as record_error:
+        print(
+            f"run record {run_id} not ended: {record_error.__class__.__name__}: {record_error}",
+            file=sys.stderr,
+            flush=True,
+        )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """`argv` is the command line after the program name (sys.argv[1:] when
     None, as from the `peerless-ingest` script): empty for a normal run,
@@ -985,16 +1373,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Companies-only mode fetches no industry: it never reads coverage.json.
     codes = [] if companies_only else config_module.load_coverage(coverage_path)
     transport = fetch.UrllibTransport(cfg.user_agent, cfg.request_pause_seconds)
+    if companies_only:
+        mode = "companies_only"
+    elif document_list is not None:
+        mode = "reread" if args[0] == REREAD else "documents"
+    else:
+        mode = "plain"
     summary: Summary | CompaniesOnlySummary | DocumentsOnlySummary | RereadSummary
     with write.connect(config_module.database_url()) as conn:
-        if companies_only:
-            summary = run_companies_only(conn, transport, cfg, progress=_progress)
-        elif document_list is not None and args[0] == REREAD:
-            summary = run_reread(conn, transport, cfg, codes, document_list, reader_commit=reader_commit, progress=_progress)
-        elif document_list is not None:
-            summary = run_documents(conn, transport, cfg, codes, document_list, reader_commit=reader_commit, progress=_progress)
-        else:
-            summary = run(conn, transport, cfg, codes, progress=_progress)
+        # The run record (Story 2.4): inserted now, ended below, also when
+        # the run ends in an exception.
+        run_id = write.start_run(conn, mode, _now())
+        print(f"run record: run.step1 id {run_id} ({mode})", file=sys.stderr, flush=True)
+        # The summary as the run builds it, so a run that raises still
+        # records the counts and failures collected before the exception.
+        partial: list[RecordedSummary] = []
+        try:
+            if mode == "companies_only":
+                summary = run_companies_only(conn, transport, cfg, progress=_progress, on_summary=partial.append)
+            elif mode == "reread" and document_list is not None:
+                summary = run_reread(
+                    conn, transport, cfg, codes, document_list,
+                    reader_commit=reader_commit, progress=_progress, on_summary=partial.append,
+                )
+            elif mode == "documents" and document_list is not None:
+                summary = run_documents(
+                    conn, transport, cfg, codes, document_list,
+                    reader_commit=reader_commit, progress=_progress, on_summary=partial.append,
+                )
+            else:
+                summary = run(conn, transport, cfg, codes, progress=_progress, run_id=run_id, on_summary=partial.append)
+        except BaseException as error:
+            _end_run_after_error(conn, run_id, error, partial[0] if partial else None)
+            raise
+        write.end_run(conn, run_id, _now(), summary.record_counts(), summary.record_failures(), None)
     for line in summary.lines():
         print(line)
     return 1 if summary.needs_operator() else 0

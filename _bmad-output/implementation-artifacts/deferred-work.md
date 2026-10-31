@@ -107,3 +107,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3b-read-the-balance-total.md`
   summary: A document fetch can hang well past its timeout, and the run then stalls with no error. Give each document a time limit (a watchdog) enforced outside the network call: when it expires, the document is listed as not fetched (not replaced, on a re-read) and the run goes on, or exits 1 so a rerun resumes. Not fixed in Story 2.3b (Meinich, 2026-10-29).
   evidence: Story 2.3b acceptance run, step 4 (`pnpm ingest --reread seed/document-run.json`). The machine slept during the run; after it woke, the re-read wrote 981479076/2022 at 15:48:34 UTC and then nothing for about two hours. The process was at 0 % CPU, blocked in `poll` (`/proc/1/wchan`: `do_sys_poll`) with an established port-443 connection and no data queued, and its database session had been idle since its last `COMMIT`. `UrllibTransport.get` (`ingest/src/peerless_ingest/fetch.py`) passes `timeout=60` to `urlopen`, which bounds each socket operation, not the request, and here did not fire at all. The cause is not verified (the suspended Docker VM is likely). The container was stopped by hand and the re-read restarted; it resumed from the documents still on the old `reader_commit`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
+  summary: `pnpm seed` does not print the latest run record of each step, as `epic-2-context.md` ("Two batch steps, one writer per table") says it should. Story 2.4 decided (D1) that `loader` and `reader` get no access to schema `run`, so the loader cannot read `run.step1`; printing it needs a grant decision, or a separate command run as `ingest`.
+  evidence: Story 2.4 implementation. The spec's code map and tasks do not include it; `test/db/run-grants.test.ts` asserts loader has no privilege in `run`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
+  summary: Decide whether a dissolved company (a stored `register.company.slettedato`, from a unit answering 200 with `slettedato` while absent from the bulk file) leaves the peer pool, and whether its filings still count in aggregates. Today nothing reads `slettedato`, so a dissolved company stays a candidate on its last filing.
+  evidence: Story 2.4 review pass 1, Q4a (Meinich, 2026-10-30): only 410 deletes; the read-only measurement that day found 48 stored companies dissolved in 2026 (`docs/data-sources-brreg.md`, "Dissolved is not withdrawn").
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
+  summary: Decide what happens to a stored `register.company.slettedato` when the company is in the bulk file again. Today the upsert from the bulk file does not touch the column, so the date stays; nothing reads it yet.
+  evidence: Story 2.4 review fixes (implementation report, 2026-10-30). Not observed in the 2026-10-30 measurement; raised by Meinich to be recorded.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
+  summary: A step-1 run killed by a signal (SIGTERM from `docker stop`, or SIGKILL) leaves its `run.step1` record with `ended_at` NULL and no error, and nothing reports such a record later. Python's default SIGTERM handler raises no exception, so the handler in `run.main` that ends the record never runs. Decide whether to turn SIGTERM into an exception that ends the record, and whether the next run lists records left open.
+  evidence: Story 2.4 review pass 1, finding 18 (blind hunter, a review subagent of the BMAD session), routed to defer. The deleted orgnrs are still recorded, because each delete appends to the record in its own transaction. Observed in the live run on 2026-10-30, not with a signal: the attached `pnpm ingest` was stopped and the container ran on and ended record 229 normally.

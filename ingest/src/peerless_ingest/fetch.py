@@ -37,9 +37,19 @@ YEAR = re.compile(r"[0-9]{4}")
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 
+class Gone(Exception):
+    """The register answered 410 Gone: the unit has been withdrawn (Story
+    2.4). Raised only for an explicit HTTP 410, never for 404, a 5xx, a
+    timeout or a body that cannot be parsed. The register asks that stored
+    copies of a withdrawn unit be removed (docs/data-sources-brreg.md,
+    "Withdrawn entities must be dropped"); only `fetch_unit` lets it reach
+    its caller, the withdrawal check in run.py."""
+
+
 class Transport(Protocol):
     def get(self, url: str, accept: str) -> bytes | None:
-        """The response body, or None when the register answers 404 or 410."""
+        """The response body, or None when the register answers 404. Raises
+        Gone when it answers 410."""
         ...
 
     def stream(self, url: str, accept: str) -> AbstractContextManager[BinaryIO]:
@@ -74,9 +84,11 @@ class UrllibTransport:
                     with urllib.request.urlopen(self._request(url, accept), timeout=self.timeout) as response:
                         return response.read()
                 except urllib.error.HTTPError as error:
-                    # 410 Gone is a withdrawn unit. Deleting it is Story 2.4;
-                    # here it is simply not loaded.
-                    if error.code in (404, 410):
+                    # 410 Gone is a withdrawn unit, told apart from 404 so
+                    # that only it can lead to a delete (Story 2.4).
+                    if error.code == 410:
+                        raise Gone(url) from error
+                    if error.code == 404:
                         return None
                     if error.code not in RETRY_STATUSES:
                         raise
@@ -124,7 +136,8 @@ def iter_bulk_units(transport: Transport, base_url: str) -> Iterator[dict]:
 
 
 def fetch_unit(transport: Transport, base_url: str, orgnr: str) -> dict | None:
-    """One unit from Enhetsregisteret, or None when the register has none."""
+    """One unit from Enhetsregisteret, or None when the register answers 404.
+    Raises Gone when it answers 410: the unit is withdrawn (Story 2.4)."""
     body = transport.get(f"{base_url}/enhetsregisteret/api/enheter/{orgnr}", ACCEPT_JSON)
     if body is None:
         return None
@@ -138,8 +151,12 @@ def fetch_filings(transport: Transport, base_url: str, orgnr: str) -> list[dict]
     """Every key-figures filing the register returns for `orgnr` (several
     years, SELSKAP and KONSERN). No year is requested: the register ignores
     the parameter, so each filing's year is read from its own
-    `regnskapsperiode`. An empty list when the register has none."""
-    body = transport.get(f"{base_url}/regnskapsregisteret/regnskap/{orgnr}", ACCEPT_JSON)
+    `regnskapsperiode`. An empty list when the register has none (404 or
+    410: a 410 here deletes nothing; only the unit endpoint decides that)."""
+    try:
+        body = transport.get(f"{base_url}/regnskapsregisteret/regnskap/{orgnr}", ACCEPT_JSON)
+    except Gone:
+        body = None
     if body is None:
         return []
     return parse.load_filings_json(body)
@@ -150,7 +167,10 @@ def fetch_document_years(transport: Transport, base_url: str, orgnr: str) -> lis
     gives them (`["2011", …, "2025"]`), sorted, or None when it answers 404
     or 410. Each year is the one used in that document's path; no year is
     ever sent as the `år` query parameter, which the register ignores."""
-    body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/aar", ACCEPT_JSON)
+    try:
+        body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/aar", ACCEPT_JSON)
+    except Gone:
+        body = None
     if body is None:
         return None
     years = json.loads(body)
@@ -162,7 +182,10 @@ def fetch_document_years(transport: Transport, base_url: str, orgnr: str) -> lis
 def fetch_document(transport: Transport, base_url: str, orgnr: str, year: int) -> bytes | None:
     """The filed document for `year` as PDF bytes, or None when the register
     answers 404 or 410. A body that is not a PDF raises ValueError."""
-    body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/{year}", ACCEPT_DOCUMENT)
+    try:
+        body = transport.get(f"{base_url}/{KOPI_PATH}/{orgnr}/{year}", ACCEPT_DOCUMENT)
+    except Gone:
+        body = None
     if body is None:
         return None
     if not body.startswith(b"%PDF-"):

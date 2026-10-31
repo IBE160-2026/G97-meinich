@@ -18,6 +18,10 @@
 //   the committed OCR reference draw (analysis/ocr-reference/drawn.json,
 //   Story 2.3), each added once with the reason "OCR-referansesett". The
 //   refusal checks that merged list.
+// - Story 2.4: drops each allow-list entry whose orgnr is not in
+//   register.company (a company deleted after 410 Gone), naming it on
+//   stderr, and refuses, naming it, a drawn reference orgnr that is not a
+//   stored company (D6), before writing any file.
 // - Running it twice on the same database gives byte-identical files.
 //
 // A later migration invalidates the seed: the PR that adds a migration runs
@@ -51,8 +55,10 @@ import {
   parseDrawn,
   readCoverage,
   refuseUnlistedDocumentFigures,
+  refuseUnstoredDrawn,
   seedFileName,
   sha256,
+  splitStoredAllowList,
   stableJson,
   withReferenceOrgnrs,
 } from './seed-format.ts';
@@ -112,8 +118,14 @@ async function copyOut(sql: Sql, table: SeedTable): Promise<Buffer> {
 
 // Writes the seed into outRoot (the repository root unless a test passes a
 // scratch directory). Reads coverage.json and the migrations from root.
-// sql must be a transaction: the settings are SET LOCAL.
-export async function exportSeed(sql: postgres.TransactionSql, root: string, outRoot: string = root): Promise<Manifest> {
+// sql must be a transaction: the settings are SET LOCAL. notice receives each
+// line meant for stderr (an allow-list entry dropped, Story 2.4).
+export async function exportSeed(
+  sql: postgres.TransactionSql,
+  root: string,
+  outRoot: string = root,
+  notice: (line: string) => void = (line) => process.stderr.write(`${line}\n`),
+): Promise<Manifest> {
   await sql.unsafe(`SET LOCAL TimeZone = 'UTC'`);
   await sql.unsafe(`SET LOCAL DateStyle = 'ISO, YMD'`);
   await sql.unsafe(`SET LOCAL client_encoding = 'UTF8'`);
@@ -145,10 +157,19 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
   const allowListJson: unknown = existsSync(allowListFile) ? JSON.parse(readFileSync(allowListFile, 'utf8')) : [];
   const drawFile = path.join(root, ...REFERENCE_DRAW_FILE.split('/'));
   if (!existsSync(drawFile)) throw new SeedRefusal(`${REFERENCE_DRAW_FILE}: missing`);
-  const allowList = withReferenceOrgnrs(
-    parseAllowListEntries(allowListJson),
-    parseDrawn(JSON.parse(readFileSync(drawFile, 'utf8'))),
+  // Story 2.4: a company deleted after 410 Gone is in no seed file, since
+  // the cascade removed its rows, and leaves the allow-list here, named on
+  // stderr. A drawn reference orgnr that is not stored refuses (D6).
+  const stored = new Set(
+    (await sql<{ orgnr: string }[]>`select orgnr from register.company`).map((row) => row.orgnr),
   );
+  const drawn = parseDrawn(JSON.parse(readFileSync(drawFile, 'utf8')));
+  refuseUnstoredDrawn(drawn, stored);
+  const { kept, dropped } = splitStoredAllowList(parseAllowListEntries(allowListJson), stored);
+  for (const entry of dropped) {
+    notice(`seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${entry.orgnr} (${entry.reason})`);
+  }
+  const allowList = withReferenceOrgnrs(kept, drawn);
   refuseUnlistedDocumentFigures(
     new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')])),
     allowList.map((entry) => entry.orgnr),

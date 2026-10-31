@@ -9,8 +9,8 @@
   tests/fixtures/recorded (Brønnøysundregistrene, NLOD 2.0), and the filed
   documents' `kopi` URLs (`aar_url`, `kopi_url`) from the bodies a test gives.
 - `db` is a connection as `ingest` (INGEST_DATABASE_URL) inside a transaction
-  that is always rolled back: the tests leave no rows behind, and `ingest`
-  never needs DELETE.
+  that is always rolled back: the tests leave no rows behind, a company a
+  test deletes (Story 2.4) included, and no run record survives.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import io
 import ipaddress
 import os
 import socket
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
@@ -29,6 +29,7 @@ from typing import BinaryIO
 import psycopg
 import pytest
 
+from peerless_ingest import fetch
 from peerless_ingest.config import Config, DemoCompany
 from peerless_ingest.reconcile import Rules
 
@@ -97,12 +98,27 @@ def recorded(name: str) -> bytes:
     return (RECORDED / name).read_bytes()
 
 
+class _Gone:
+    def __repr__(self) -> str:
+        return "GONE"
+
+
+# An answer for FixtureTransport: the register answers 410 Gone (Story 2.4).
+# Explicit, so no other answer a test gives (None for 404, an exception for
+# a failed fetch) can be taken for a withdrawal.
+GONE = _Gone()
+
+Answer = bytes | None | _Gone | Exception
+
+
 class FixtureTransport:
     """Serves recorded bodies by URL. An unexpected URL fails the test, so a
     request step 1 should not make (a secondary-code company's accounts, a
-    filed document) is caught."""
+    filed document) is caught. An answer is a body, None (404), GONE (410,
+    raised as fetch.Gone as UrllibTransport raises it) or an exception,
+    raised as a transport error that outlasted its retries would be."""
 
-    def __init__(self, responses: dict[str, bytes | None], bulk: bytes | None = None) -> None:
+    def __init__(self, responses: Mapping[str, Answer], bulk: bytes | None = None) -> None:
         self.responses = responses
         self.bulk = bulk
         self.requested: list[str] = []
@@ -111,7 +127,12 @@ class FixtureTransport:
         self.requested.append(url)
         if url not in self.responses:
             raise AssertionError(f"unexpected request: {url}")
-        return self.responses[url]
+        answer = self.responses[url]
+        if isinstance(answer, _Gone):
+            raise fetch.Gone(url)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
 
     @contextmanager
     def stream(self, url: str, accept: str) -> Iterator[BinaryIO]:
@@ -143,6 +164,8 @@ def kopi_url(orgnr: str, year: int) -> str:
 # ingest/config.toml holds).
 RULES = Rules(within_document_bound_kr=5, between_sources_floor_kr=5, between_sources_tolerance=Fraction(1, 100_000))
 BOUND_KR = RULES.within_document_bound_kr
+# The committed [withdrawal] limit (Story 2.4, D5): 1 % of stored companies.
+MAX_ABSENT_SHARE = Fraction(1, 100)
 
 # A reader version for the document tests (Story 2.3b): any full 40-hex
 # commit; OLDER_READER_COMMIT stands for a document read by another version.
@@ -160,6 +183,7 @@ def cfg() -> Config:
         within_document_bound_kr=RULES.within_document_bound_kr,
         between_sources_floor_kr=RULES.between_sources_floor_kr,
         between_sources_tolerance=RULES.between_sources_tolerance,
+        max_absent_share=MAX_ABSENT_SHARE,
     )
 
 

@@ -28,7 +28,9 @@ import {
   prepareSeed,
   readCoverage,
   refuseUnlistedDocumentFigures,
+  refuseUnstoredDrawn,
   sha256,
+  splitStoredAllowList,
   stableJson,
   unlistedDocumentFigures,
   validateCoverage,
@@ -371,6 +373,33 @@ describe('the OCR reference orgnrs on the allow-list (Story 2.3)', () => {
     const orgnr = String(900000000 + 3 * 1001);
     expect(refusal(() => withReferenceOrgnrs([{ orgnr, reason: 'Demoselskap B' }], drawn))).toBe(
       `seed/allow-list.json: ${orgnr} is in analysis/ocr-reference/drawn.json but listed with reason "Demoselskap B", not "OCR-referansesett"`,
+    );
+  });
+
+  // Story 2.4: a company deleted after 410 Gone leaves the allow-list; a
+  // drawn one stops the export (D6).
+  it('drops allow-list entries that are not stored companies, keeping the order of the rest', () => {
+    const entries = [
+      { orgnr: '979607008', reason: 'Demoselskap A' },
+      { orgnr: '919951834', reason: 'Testoppføring' },
+      { orgnr: '923609016', reason: 'Demoselskap B' },
+    ];
+    expect(splitStoredAllowList(entries, new Set(['923609016', '979607008']))).toEqual({
+      kept: [entries[0], entries[2]],
+      dropped: [entries[1]],
+    });
+    expect(splitStoredAllowList(entries, new Set())).toEqual({ kept: [], dropped: entries });
+  });
+
+  it('refuses a drawn orgnr that is not a stored company, naming each once', () => {
+    const stored = new Set(drawn.map((d) => d.orgnr));
+    expect(() => refuseUnstoredDrawn(drawn, stored)).not.toThrow();
+    const [first, second] = drawn;
+    stored.delete(first?.orgnr ?? '');
+    stored.delete(second?.orgnr ?? '');
+    const missing = [first?.orgnr ?? '', second?.orgnr ?? ''].sort();
+    expect(refusal(() => refuseUnstoredDrawn([...drawn, { orgnr: first?.orgnr ?? '', year: 2020 }], stored))).toBe(
+      `analysis/ocr-reference/drawn.json: drawn orgnrs that are not stored companies (withdrawn?): ${missing.join(', ')}; stop and decide how the OCR reference set changes (Story 2.4, D6)`,
     );
   });
 

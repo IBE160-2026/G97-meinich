@@ -351,10 +351,11 @@ describe('a table added to register later', () => {
 });
 
 // Story 1.3a: the three tables batch step 1 writes. ingest upserts (SELECT,
-// INSERT, UPDATE) and never deletes; derive gets nothing yet; reader keeps
-// SELECT through the default privileges. Story 1.3b: loader truncates and
-// replaces them (SELECT, INSERT, TRUNCATE). Story 2.1b adds the two
-// document tables with the same grants.
+// INSERT, UPDATE); derive gets nothing yet; reader keeps SELECT through the
+// default privileges. Story 1.3b: loader truncates and replaces them
+// (SELECT, INSERT, TRUNCATE). Story 2.1b adds the two document tables with
+// the same grants. Story 2.4: ingest may DELETE from register.company, and
+// from no other table; the cascades remove the rest as the table owner.
 describe('the step-1 tables', () => {
   const STEP1_TABLES = [
     'register.company',
@@ -375,7 +376,7 @@ describe('the step-1 tables', () => {
     expect(rows.map((r) => r.name)).toEqual(expect.arrayContaining([...STEP1_TABLES]));
   });
 
-  it('grant exactly reader SELECT, ingest SELECT, INSERT, UPDATE and loader SELECT, INSERT, TRUNCATE', async () => {
+  it('grant exactly reader SELECT, ingest SELECT, INSERT, UPDATE (and DELETE on company only) and loader SELECT, INSERT, TRUNCATE', async () => {
     for (const table of STEP1_TABLES) {
       const rows = await sql<{ grantee: string; privilege: string }[]>`
         select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
@@ -385,6 +386,7 @@ describe('the step-1 tables', () => {
         order by 1, 2
       `;
       expect(rows, table).toEqual([
+        ...(table === 'register.company' ? [{ grantee: 'ingest', privilege: 'DELETE' }] : []),
         { grantee: 'ingest', privilege: 'INSERT' },
         { grantee: 'ingest', privilege: 'SELECT' },
         { grantee: 'ingest', privilege: 'UPDATE' },
@@ -396,9 +398,9 @@ describe('the step-1 tables', () => {
     }
   });
 
-  it('give ingest no DELETE, TRUNCATE, REFERENCES or TRIGGER, and derive nothing', async () => {
+  it('give ingest no TRUNCATE, REFERENCES or TRIGGER, DELETE on company only, and derive nothing', async () => {
     for (const table of STEP1_TABLES) {
-      for (const privilege of ['DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) {
+      for (const privilege of ['TRUNCATE', 'REFERENCES', 'TRIGGER']) {
         const [row] = await sql<{ ok: boolean }[]>`
           select has_table_privilege('ingest', ${table}, ${privilege}) as ok
         `;
@@ -516,6 +518,31 @@ describe('loader on every register table', () => {
         `;
         const expected = ['SELECT', 'INSERT', 'TRUNCATE'].includes(privilege);
         expect(row?.ok, `loader ${privilege} on ${name}`).toBe(expected);
+      }
+    }
+  });
+});
+
+// Story 2.4: the one declared delete. ingest may delete from
+// register.company and from no other register relation; reader, derive and
+// loader may delete from none. Loops pg_class, so a table a later migration
+// adds is covered without editing this test.
+describe('DELETE on every register relation', () => {
+  it('is held by ingest on register.company only, and by no other Peerless role', async () => {
+    const tables = await sql<{ name: string }[]>`
+      select format('%I.%I', n.nspname, c.relname) as name
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'register' and c.relkind in ('r', 'p', 'v', 'm', 'f')
+      order by 1
+    `;
+    expect(tables.map((t) => t.name)).toContain('register.company');
+    for (const { name } of tables) {
+      for (const role of PEERLESS_ROLES) {
+        const [row] = await sql<{ ok: boolean }[]>`
+          select has_table_privilege(${role}, ${name}, 'DELETE') as ok
+        `;
+        expect(row?.ok, `${role} DELETE on ${name}`).toBe(role === 'ingest' && name === 'register.company');
       }
     }
   });

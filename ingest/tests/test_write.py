@@ -206,11 +206,34 @@ def test_atomic_write_leaves_no_filing_when_key_figures_fail(db: psycopg.Connect
     assert count(db, "select count(*) from register.key_figures where brreg_id = %s", filing.brreg_id) == 1
 
 
-def test_ingest_cannot_delete_or_run_ddl(db: psycopg.Connection) -> None:
-    for statement in ("delete from register.company", "create table register.ingest_was_here (id int)"):
+def register_tables(conn: psycopg.Connection) -> list[str]:
+    """Every table in schema register, as the catalog lists it."""
+    rows = conn.execute(
+        """select format('%I.%I', n.nspname, c.relname) from pg_catalog.pg_class c
+             join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'register' and c.relkind in ('r', 'p') order by 1"""
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def test_ingest_deletes_only_companies_and_runs_no_ddl(db: psycopg.Connection) -> None:
+    # Story 2.4: the one DELETE step 1 holds is on register.company (a
+    # withdrawn unit); every other register table refuses it, and DDL is
+    # refused everywhere.
+    write.write_company(db, company(ABSENT, "WITHDRAWN AS"))
+    with db.transaction():
+        assert db.execute("delete from register.company where orgnr = %s", (ABSENT,)).rowcount == 1
+    tables = register_tables(db)
+    assert "register.company" in tables and "register.filing" in tables
+    for table in tables:
+        if table == "register.company":
+            continue
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with db.transaction():
-                db.execute(statement)
+                db.execute(f"delete from {table}")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with db.transaction():
+            db.execute("create table register.ingest_was_here (id int)")
 
 
 # --- The run, end to end, against recorded responses ---------------------------
@@ -556,10 +579,16 @@ def code_without_companies(s: run.Summary) -> None:
     s.codes["62.010"] = run.CodeSummary("62.010")
 
 
+def withdrawal_not_deleted(s: run.Summary) -> None:
+    # Story 2.4, Q6: a withdrawal check that did not finish (here a lookup
+    # that timed out) needs a person; a 404 or a live unit does not.
+    s.withdrawal.fail(write.Failure("919951834", "withdrawal", "TimeoutError: timed out"), incomplete=True)
+
+
 @pytest.mark.parametrize(
     "spoil",
-    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies],
-    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies"],
+    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies, withdrawal_not_deleted],
+    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies", "withdrawal-failure"],
 )
 def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: object) -> None:
     summary = clean_summary()
@@ -577,6 +606,8 @@ def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: obj
     monkeypatch.setattr(run.config_module, "load_coverage", lambda _path: list(summary.codes))
     monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run.write, "start_run", lambda *_args: 1)
+    monkeypatch.setattr(run.write, "end_run", lambda *_args: None)
     monkeypatch.setattr(run, "run", lambda *_args, **_kwargs: summary)
 
     assert run.main([]) == (0 if spoil is None else 1)
@@ -606,6 +637,8 @@ def test_main_selects_companies_only_mode(monkeypatch: pytest.MonkeyPatch, cfg: 
     monkeypatch.setattr(run.config_module, "load_coverage", no_coverage)
     monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run.write, "start_run", lambda *_args: 1)
+    monkeypatch.setattr(run.write, "end_run", lambda *_args: None)
     monkeypatch.setattr(run, "run", full)
     monkeypatch.setattr(run, "run_companies_only", companies_only)
 

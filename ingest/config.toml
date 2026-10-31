@@ -39,6 +39,16 @@ request_pause_seconds = 0.15
 orgnr = "967534579"
 navn = "KANTALL AS"
 
+# Withdrawn companies (Story 2.4). A plain `pnpm ingest` asks the register's
+# unit endpoint about every stored orgnr absent from the bulk download, and
+# deletes the company only on 410 Gone. If more than this share of the
+# stored companies is absent from the bulk file, the download is taken to be
+# truncated: no unit is asked about, nothing is deleted, the run record names
+# the failure and the run exits 1 (D5, Meinich 2026-10-30). A share, not a
+# percentage: 0.01 is 1 %; read exactly, never compared as a float.
+[withdrawal]
+max_absent_share = 0.01
+
 # The two reconciliation rules of Story 2.2 (FR-57, FR-58). Each is set here
 # once, with its own key, and never combined with the other. The reasons and
 # the measurements behind them are in docs/data-sources-brreg.md,

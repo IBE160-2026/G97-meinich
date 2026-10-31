@@ -34,7 +34,15 @@ Implement `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-di
 
 ## Review pass 1 fixes (same day)
 
-The findings came from the review session, and the decisions Q4a, Q5a and Q6 from Meinich (spec change log). The commits are `058059d`, `131af9b` and the docs commit after them.
+Three review layers ran on the diff. They were subagents of this session: blind hunter, edge-case hunter and verification gap. Their findings are triaged in the spec's Review Triage Log. Meinich decided Q4a, Q5a and Q6 (spec change log). The commits are `058059d`, `131af9b` and the docs commit after them.
+
+**Who found what:**
+- **The review layers and this session's live check:** dissolved companies answer 200 with `slettedato`, not 410 (findings 1–3). This session confirmed it live on 930663530, 974676125 and 936651437.
+- **The separate review session**, which checks this session's output:
+  - the 1 % absent-share guard (D5);
+  - the stop before `seed:export` when a deleted orgnr is in the reference draw (D6);
+  - dumps before and after the live run, with the seed export done only in the acceptance run (D2, D4);
+  - the addition to Q6 that a lookup that did not complete makes the run exit 1.
 
 - **Q4a:** migration `20261030130000_company_slettedato.sql`, applied with `supabase migration up`. A unit that answers 200 with `slettedato` has the date stored and is counted as dissolved. A malformed `slettedato` is a failure.
 - **Q5a:** the D5 share counts only absent companies without a stored `slettedato`, and those companies are not looked up again.
@@ -54,7 +62,7 @@ The findings came from the review session, and the decisions Q4a, Q5a and Q6 fro
 
 ### Rejected and deferred findings (pass 1)
 
-All from the review session's layers (BH blind hunter, EC edge-case hunter, VG verification gap). The numbers refer to the spec's Review Triage Log.
+All from this session's review subagents (BH blind hunter, EC edge-case hunter, VG verification gap). The numbers refer to the spec's Review Triage Log.
 - **Rejected:**
   - 9: `end_run` raising after a successful run (EC). Unlikely, and the record stays open as the migration comment accepts.
   - 10: `inf`/`nan` as the share (EC).

@@ -119,3 +119,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
   summary: Decide what happens to a stored `register.company.slettedato` when the company is in the bulk file again. Today the upsert from the bulk file does not touch the column, so the date stays; nothing reads it yet.
   evidence: Story 2.4 review fixes (implementation report, 2026-10-30). Not observed in the 2026-10-30 measurement; raised by Meinich to be recorded.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-withdrawn-companies-disappear.md`
+  summary: A step-1 run killed by a signal (SIGTERM from `docker stop`, or SIGKILL) leaves its `run.step1` record with `ended_at` NULL and no error, and nothing reports such a record later. Python's default SIGTERM handler raises no exception, so the handler in `run.main` that ends the record never runs. Decide whether to turn SIGTERM into an exception that ends the record, and whether the next run lists records left open.
+  evidence: Story 2.4 review pass 1, finding 18 (blind hunter, review session), routed to defer. The deleted orgnrs are still recorded, because each delete appends to the record in its own transaction. Observed in the live run on 2026-10-30, not with a signal: the attached `pnpm ingest` was stopped and the container ran on and ended record 229 normally.

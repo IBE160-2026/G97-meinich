@@ -63,6 +63,17 @@ async function attemptAs(tx: Tx, role: string, statement: string): Promise<strin
   return undefined;
 }
 
+// The test connection holds ADMIN but not SET on ingest, derive and loader,
+// so a SET ROLE to them is refused with the same SQLSTATE as a missing table
+// privilege, and a refusal test would pass without reaching the privilege.
+// Inside a rolled-back transaction it grants itself SET first, so each
+// refusal is the table privilege's, and each success is real.
+async function settable(tx: Tx, roles: readonly string[]): Promise<void> {
+  for (const role of roles) {
+    await tx.unsafe(`grant ${quoteIdent(role)} to current_user with inherit false, set true`);
+  }
+}
+
 let migrationRole: string;
 
 beforeAll(async () => {
@@ -457,16 +468,6 @@ describe('the step-1 tables', () => {
 describe('the step-2 table', () => {
   const table = 'register.fingerprint';
 
-  // The test connection holds ADMIN but not SET on ingest and derive, so a
-  // SET ROLE to them is refused with the same SQLSTATE as a missing table
-  // privilege. Inside the rolled-back transaction it grants itself SET, so
-  // each refusal below is the table privilege's, and each success is real.
-  async function settable(tx: Tx, roles: readonly string[]): Promise<void> {
-    for (const role of roles) {
-      await tx.unsafe(`grant ${quoteIdent(role)} to current_user with inherit false, set true`);
-    }
-  }
-
   it('grants exactly derive and loader SELECT, INSERT, TRUNCATE and reader SELECT', async () => {
     const rows = await sql<{ grantee: string; privilege: string }[]>`
       select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
@@ -582,6 +583,7 @@ describe('the loader tables', () => {
 
   it('refuse ingest and derive writes on them', async () => {
     await rolledBack(async (tx) => {
+      await settable(tx, ['ingest', 'derive']);
       for (const table of LOADER_TABLES) {
         for (const role of ['ingest', 'derive']) {
           expect(await attemptAs(tx, role, `insert into ${table} default values`), `${role} INSERT ${table}`).toBe(

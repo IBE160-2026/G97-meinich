@@ -11,6 +11,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { funnelSubject, urlContext } from '../../src/analysis/view.ts';
 import { DEMO_COMPANIES } from '../../src/demo-companies.ts';
 import { benchmarkApiFigures } from '../../src/engine/benchmark.ts';
+import { fingerprintFromColumns } from '../../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../../src/engine/inputs.ts';
 import { assemblePeerGroup } from '../../src/engine/peers.ts';
 import { defaultState, parse, serialize } from '../../src/url/analysis-state.ts';
@@ -175,6 +176,88 @@ describe('a peer deleted after 410 Gone', () => {
     expect((await loadCandidates(funnel.orgnr, funnel.naeringskode1, funnel.filingYear)).map((c) => c.orgnr)).toContain(
       peer,
     );
+  });
+});
+
+// Story 2.5: stage 4 reads the stored fingerprint of the benchmark year.
+// The fingerprint and its document column are written as the migration role
+// in a transaction that is rolled back, and read with the query
+// loadCandidates runs, in that transaction. Synthetic categories only.
+describe('stage 4 against stored fingerprints', () => {
+  class Rollback extends Error {}
+
+  const CONSULTANCY = {
+    cost_of_goods_lo: 'low',
+    cost_of_goods_hi: 'low',
+    personnel_cost_lo: 'high',
+    personnel_cost_hi: 'high',
+    asset_intensity_lo: 'low',
+    asset_intensity_hi: 'low',
+    inventory: false,
+    capitalised_intangibles: false,
+  } as const;
+  const RESELLER = { ...CONSULTANCY, cost_of_goods_lo: 'high', cost_of_goods_hi: 'high', personnel_cost_lo: 'low', personnel_cost_hi: 'low', inventory: true } as const;
+
+  async function storeFingerprint(tx: postgres.TransactionSql, orgnr: string, year: number, columns: typeof CONSULTANCY | typeof RESELLER) {
+    await tx`
+      insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+      values (${orgnr}, ${year}, 'generated', 'reconciled', 'NOK', 'NOK', now(), 'full', ${'0'.repeat(40)})
+      on conflict (orgnr, filing_year) do nothing`;
+    await tx`
+      insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+      values (${orgnr}, ${year}, 'current', ${year}, 'not_evaluable', 'not_evaluable', 'not_evaluable', 'not_evaluable', '{}', 'full')
+      on conflict (orgnr, filing_year, role) do nothing`;
+    await tx`delete from register.fingerprint where orgnr = ${orgnr} and filing_year = ${year}`;
+    await tx`
+      insert into register.fingerprint ${tx({ orgnr, filing_year: year, role: 'current', ...columns, input_digest: '0'.repeat(64), dataset: 'full' })}`;
+  }
+
+  it('reads each candidate’s fingerprint for the benchmark year, removes another type from the group and keeps the pool', async () => {
+    const { funnel, group } = await groupForDemoA(0);
+    const [kept, removed] = group.pool;
+    if (kept === undefined || removed === undefined || funnel.naeringskode1 === null) {
+      throw new Error("demo A's pool has fewer than two peers");
+    }
+    const candidatesIn = async (tx: postgres.TransactionSql) =>
+      (await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, [funnel.orgnr, funnel.naeringskode1, funnel.filingYear])).map(
+        toCandidate,
+      );
+
+    await expect(
+      admin.begin(async (tx) => {
+        await storeFingerprint(tx, kept.orgnr, funnel.filingYear, CONSULTANCY);
+        await storeFingerprint(tx, removed.orgnr, funnel.filingYear, RESELLER);
+        const candidates = await candidatesIn(tx);
+        const byOrgnr = new Map(candidates.map((c) => [c.orgnr, c]));
+        expect(byOrgnr.get(kept.orgnr)?.fingerprint?.personnelCost).toEqual({ lo: 'high', hi: 'high' });
+        expect(byOrgnr.get(removed.orgnr)?.fingerprint?.costOfGoods).toEqual({ lo: 'high', hi: 'high' });
+
+        const subject = { ...funnel, fingerprint: fingerprintFromColumns(CONSULTANCY) };
+        const after = assemblePeerGroup(subject, candidates, 0);
+        expect(after.pool.map((p) => p.orgnr)).toEqual(group.pool.map((p) => p.orgnr));
+        expect(after.group.map((p) => p.orgnr)).toContain(kept.orgnr);
+        expect(after.group.map((p) => p.orgnr)).not.toContain(removed.orgnr);
+        expect(after.counts.stage4.businessModel).toBe(after.group.length);
+        expect(after.counts.stage3.legalForm).toBe(after.pool.length);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+  });
+
+  it('reads no fingerprint as null, and a subject without one keeps the whole pool', async () => {
+    const { funnel, candidates, group } = await groupForDemoA(0);
+    for (const candidate of candidates) {
+      expect(candidate.fingerprint === null || typeof candidate.fingerprint === 'object').toBe(true);
+    }
+    if (funnel.fingerprint === null) {
+      expect(group.group).toEqual(group.pool);
+      expect(group.counts.stage4.businessModel).toBe(group.counts.stage3.legalForm);
+    }
+  });
+
+  it('throws on a stored value outside a category’s set, never reads it as a default', () => {
+    const row = { ...CONSULTANCY, cost_of_goods_lo: 'medium' } as unknown as typeof CONSULTANCY;
+    expect(() => fingerprintFromColumns(row)).toThrow(TypeError);
   });
 });
 

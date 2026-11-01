@@ -1,9 +1,10 @@
 // The peer group as the analysis page shows it, and the subject's three API
-// figures benchmarked against it (Stories 1.7–1.8). Pure: the pool at the
-// URL's band, the `ekskl` list and the subject's filing in; the shown group
-// (the pool minus `ekskl`, the same group the Peers tab lists) and the
-// benchmark out. The subject's own `valuta` goes to the engine, which gives
-// no kroner amount for a filing not in NOK.
+// figures benchmarked against it (Stories 1.7–1.8, 2.5). Pure: the group at
+// the URL's band (the candidate pool after funnel stage 4), the `ekskl` list
+// and the subject's filing in; the shown group (that group minus `ekskl`,
+// the same group the Peers tab lists) and the benchmark out. The subject's
+// own `valuta` goes to the engine, which gives no kroner amount for a filing
+// not in NOK.
 import { benchmarkApiFigures, type ApiBenchmark } from '../engine/benchmark.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { withoutExcluded, type EmptyReason } from '../engine/peers.ts';
@@ -23,12 +24,12 @@ export type ShownGroup<P> = {
 };
 
 export function shownGroup<P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures }>(
-  pool: readonly P[],
+  group: readonly P[],
   ekskl: readonly string[],
   emptyReason: EmptyReason,
   filing: Pick<SubjectFiling, 'keyFigures' | 'valuta' | 'smaaForetak' | 'filingYear'>,
 ): ShownGroup<P> {
-  const peers = withoutExcluded(pool, ekskl);
+  const peers = withoutExcluded(group, ekskl);
   return {
     peers,
     benchmark: benchmarkApiFigures(

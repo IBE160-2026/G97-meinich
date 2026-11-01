@@ -78,7 +78,7 @@ describe('deriveFingerprints', () => {
       input('900000001', 2025, {}, { status: 'failed_reconciliation' }),
       input('900000002', 2025, {}, { status: null }),
       input('900000003', 2025, { sumDriftsinntekter: '0' }),
-      input('900000004', 2025, { sumDriftskostnad: '899999999' }),
+      input('900000004', 2025, { sumDriftskostnad: '899999499' }), // 5.01 kr over the read lines
       input('900000005', 2025, { varer: null }, { sum_omloepsmidler_ore: '1' }),
     ]);
     expect(rows).toEqual([]);

@@ -105,7 +105,7 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
   const group =
     at === null || parsed.kind !== 'analysis' || filing === null
       ? null
-      : shownGroup(at.group.group, parsed.state.ekskl, at.group.emptyReason, filing);
+      : shownGroup(at.group, parsed.state.ekskl, filing);
   return { parsed, subject, group, view: analysisView(subject, parsed, search) };
 }
 

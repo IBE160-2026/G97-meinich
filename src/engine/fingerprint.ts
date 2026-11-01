@@ -22,7 +22,7 @@
 //   cost lines      U = sum_driftskostnad − every cost line that was read
 //                   (varekostnad, lonnskostnad, avskrivninger, nedskrivninger,
 //                   annen_driftskostnad); unbounded when sum_driftskostnad is
-//                   empty. A negative U gives no fingerprint.
+//                   empty.
 //   intangibles,    sum_anleggsmidler (the key-figures API filing the document
 //   fixed assets    belongs to) − whichever of the two was read
 //   varer           sum_omloepsmidler (the same filing) − whichever of
@@ -30,8 +30,14 @@
 //
 // A NULL API subtotal is not 0: the bound is then the column's
 // sum_eiendeler minus every asset line that was read (unbounded if that is
-// empty too). A negative bound gives no fingerprint. The subtotals are only
-// ever upper bounds.
+// empty too). The subtotals are only ever upper bounds.
+//
+// A negative U or bound down to −5 kr is the register's rounding (it prints
+// whole kroner rounded from øre, so a stated total can be a krone or two off
+// its lines) and counts as 0; below −5 kr there is no fingerprint (Spec
+// Change Log, Meinich 2026-11-01). The 5 kr is within_document_bound_kr in
+// ingest/config.toml; test/engine/fingerprint-tolerance.test.ts fails if
+// ROUNDING_TOLERANCE_ORE differs from it.
 //
 // A category whose interval fits one band (or one answer) is known;
 // otherwise it is a band range, or null for yes/no. `businessType` runs the
@@ -122,8 +128,8 @@ export type FingerprintInputs = { readonly [F in FingerprintField]: bigint | nul
  * Why a reconciled-or-not column gives no fingerprint:
  * - `not_reconciled`: the column did not reconcile (or is not yet reconciled);
  * - `no_revenue`: sum_driftsinntekter is empty, zero or negative;
- * - `negative_unexplained`: the read cost lines exceed sum_driftskostnad;
- * - `negative_balance_remainder`: the bound for an empty balance line is negative.
+ * - `negative_unexplained`: the read cost lines exceed sum_driftskostnad by more than 5 kr;
+ * - `negative_balance_remainder`: the bound for an empty balance line is below −5 kr.
  */
 export type SkipReason = 'not_reconciled' | 'no_revenue' | 'negative_unexplained' | 'negative_balance_remainder';
 
@@ -136,6 +142,19 @@ type Interval = { readonly lo: bigint; readonly hi: bigint | null };
 
 const COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'nedskrivninger', 'annenDriftskostnad'] as const;
 const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer', 'kundefordringer', 'bankinnskudd'] as const;
+
+/**
+ * The register's rounding, in øre: within_document_bound_kr (5 kr) of
+ * ingest/config.toml, the same bound step 1 reconciles with. A remainder in
+ * [−this, 0) counts as 0.
+ */
+export const ROUNDING_TOLERANCE_ORE = 500n;
+
+/** A remainder within the rounding counts as 0; one below it is 'negative'; null (unbounded) stays null. */
+function settled(rest: bigint | null): bigint | null | 'negative' {
+  if (rest === null || rest >= 0n) return rest;
+  return rest >= -ROUNDING_TOLERANCE_ORE ? 0n : 'negative';
+}
 
 /** `total` minus every read amount; null (unbounded) when `total` is empty. */
 function remainder(total: bigint | null, read: readonly (bigint | null)[]): bigint | null {
@@ -203,11 +222,13 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
   if (revenue === null || revenue <= 0n) return { kind: 'skip', reason: 'no_revenue' };
 
   // Cost lines: an empty line lies in [0, U].
-  const unexplained = remainder(
-    values.sumDriftskostnad,
-    COST_LINES.map((line) => values[line]),
+  const unexplained = settled(
+    remainder(
+      values.sumDriftskostnad,
+      COST_LINES.map((line) => values[line]),
+    ),
   );
-  if (unexplained !== null && unexplained < 0n) return { kind: 'skip', reason: 'negative_unexplained' };
+  if (unexplained === 'negative') return { kind: 'skip', reason: 'negative_unexplained' };
 
   // Balance lines: an empty line lies in [0, bound]; the bound is computed
   // only for a line that is empty.
@@ -218,11 +239,14 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
     );
   const fixedBound = (other: bigint | null): bigint | null =>
     subtotals.sumAnleggsmidler !== null ? remainder(subtotals.sumAnleggsmidler, [other]) : allAssets();
-  const bounds: (bigint | null)[] = [];
+  let negativeBound = false;
   const bounded = (value: bigint | null, bound: () => bigint | null): Interval => {
     if (value !== null) return interval(value, null);
-    const upper = bound();
-    bounds.push(upper);
+    const upper = settled(bound());
+    if (upper === 'negative') {
+      negativeBound = true;
+      return interval(null, 0n);
+    }
     return interval(null, upper);
   };
   const intangibles = bounded(values.sumImmaterielleEiendeler, () => fixedBound(values.sumVarigeDriftsmidler));
@@ -232,7 +256,7 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
       ? remainder(subtotals.sumOmloepsmidler, [values.kundefordringer, values.bankinnskudd])
       : allAssets(),
   );
-  if (bounds.some((bound) => bound !== null && bound < 0n)) {
+  if (negativeBound) {
     return { kind: 'skip', reason: 'negative_balance_remainder' };
   }
 

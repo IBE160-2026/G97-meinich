@@ -228,10 +228,23 @@ describe('an empty cost line lies in [0, U] (D2)', () => {
   it('negative unexplained gives no fingerprint', () => {
     // Read lines 0 + 50 + 2 + 0 + 38 = 90 % against a stated 89 %.
     expect(fp({ sumDriftskostnad: pct(89) })).toEqual({ kind: 'skip', reason: 'negative_unexplained' });
-    // One øre over is enough: the rule is exact.
-    expect(fp({ sumDriftskostnad: pct(90) - 1n })).toEqual({ kind: 'skip', reason: 'negative_unexplained' });
+    // One øre beyond the 5 kr rounding is enough.
+    expect(fp({ sumDriftskostnad: pct(90) - 501n })).toEqual({ kind: 'skip', reason: 'negative_unexplained' });
     // Equal is U = 0, not negative.
     expect(fp({ sumDriftskostnad: pct(90) }).kind).toBe('fingerprint');
+  });
+
+  // Spec Change Log (Meinich, 2026-11-01): the register's rounding.
+  it('a negative unexplained cost of exactly −5 kr counts as 0, and −5.01 kr gives no fingerprint', () => {
+    // lonnskostnad empty; the read lines (0 + 2 + 0 + 88 %) exceed the stated 90 % by 5 kr.
+    const atBound = fp({ lonnskostnad: null, annenDriftskostnad: pct(88), sumDriftskostnad: pct(90) - 500n });
+    if (atBound.kind !== 'fingerprint') throw new Error(`expected a fingerprint, got skip ${atBound.reason}`);
+    // U = 0, so the empty line lies in [0, 0]: personnel cost is known low.
+    expect(atBound.fingerprint.personnelCost).toEqual(known('low'));
+    expect(fp({ lonnskostnad: null, annenDriftskostnad: pct(88), sumDriftskostnad: pct(90) - 501n })).toEqual({
+      kind: 'skip',
+      reason: 'negative_unexplained',
+    });
   });
 });
 
@@ -276,6 +289,21 @@ describe('an empty balance line is bounded by its API subtotal (D2)', () => {
     expect(
       fingerprint({ sumImmaterielleEiendeler: null, sumEiendeler: null }, { sumAnleggsmidler: null }).capitalisedIntangibles,
     ).toBeNull();
+  });
+
+  it('a balance remainder of exactly −5 kr counts as 0, and −5.01 kr gives no fingerprint', () => {
+    // sum_omloepsmidler − kundefordringer 15 % − bank 20 % = −5 kr: no stock.
+    expect(fingerprint({ varer: null }, { sumOmloepsmidler: pct(35) - 500n }).inventory).toBe(false);
+    expect(fp({ varer: null }, { sumOmloepsmidler: pct(35) - 501n })).toEqual({
+      kind: 'skip',
+      reason: 'negative_balance_remainder',
+    });
+    // The same for the fixed-asset bound: sum_anleggsmidler − fixed assets 2 %.
+    expect(fingerprint({ sumImmaterielleEiendeler: null }, { sumAnleggsmidler: pct(2) - 500n }).capitalisedIntangibles).toBe(false);
+    expect(fp({ sumImmaterielleEiendeler: null }, { sumAnleggsmidler: pct(2) - 501n })).toEqual({
+      kind: 'skip',
+      reason: 'negative_balance_remainder',
+    });
   });
 
   it('a negative balance remainder gives no fingerprint', () => {

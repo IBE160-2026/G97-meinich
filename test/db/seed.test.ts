@@ -128,9 +128,8 @@ describe('the committed seed', () => {
       // The committed seed holds the OCR reference set's documents only
       // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
       // each. The acceptance run's rows wait for Story 5.4's allow-list.
-      // Story 2.5: step 2 fingerprints 77 of their 97 current columns (11 not
-      // reconciled, 7 with a negative unexplained cost, 1 with a negative
-      // balance remainder, 1 without revenue), computed by the engine from the
+      // Story 2.5: step 2 fingerprints 85 of their 97 current columns (11 not
+      // reconciled, 1 without revenue), computed by the engine from the
       // committed figures before the re-export.
       expect(counts).toEqual({
         company: 17883,
@@ -138,7 +137,7 @@ describe('the committed seed', () => {
         key_figures: 22522,
         document: 97,
         document_column: 194,
-        fingerprint: 77,
+        fingerprint: 85,
       });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;

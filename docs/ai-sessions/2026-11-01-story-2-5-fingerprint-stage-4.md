@@ -49,6 +49,14 @@ D4 comes after review and is not part of this session: the seed re-export and th
   - Until D4, these fail: the committed-seed tests, `test/fingerprint-seed.test.ts`, `test/fingerprint-spread.test.ts` and CI's seed load.
   - `sprint-status.yaml` is at `review`, and the spec at `in-review`.
 
+## Review pass 1 fixes (same day)
+
+The review layers (blind hunter, edge-case hunter, verification gap) were subagents of the BMAD session; the triage and the amendment are the coordinator's and Meinich's (spec change log and Review Triage Log).
+
+- **The amendment (triage 1, 2, 20, 21; Meinich, option a):** the fingerprint references the company in a new migration, `pnpm ingest` ends with `pnpm derive` (four runner tests, each checked to fail with its call removed or changed), an open gate exports an unlisted fingerprint without its column (a whole-export test), and the seed recompute counts unlisted rows instead of skipping them.
+- **Patches:** `shownGroup` picks the stage-4 group (3); the subject join DB test (4); derive's rebuild equals the stored rows (5); the `fingerprintWhere` comment (7); the spread test per covered industry and with a measured band (12, 13); the digest ban for `.js` specifiers (16); `gateWith(null)` (18). Each new test was checked to fail with its guard removed.
+- **Deferred:** `SPREAD_SQL` untested (6), no run record for derive (27), and a killed run leaving fingerprints stale.
+
 ## Links
 
 - AI log: "2026-11-01 — Story 2.5: the business-model fingerprint and stage 4, and what could go wrong with banding and selection".

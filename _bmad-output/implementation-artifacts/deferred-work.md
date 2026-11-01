@@ -132,3 +132,14 @@
   summary: Proposed (D2): a separate story to read the cost lines, like 2.3b. Half of the fingerprints are undetermined, mostly because an empty `lonnskostnad` (or another empty cost line) leaves the personnel-cost band spanning low to high, so stage 4 removes less than it could. Reading the lines that are printed but come back empty would make more types known. Decided (Meinich, 2026-11-01): a separate story, done after Story 2.5 is merged and before the labelled-set document run (entry above), so the 741 companies of the labelled set without read documents (845 − 104) are not read twice.
   evidence: Story 2.5 local run of `pnpm derive` on the 2.1b rows, 2026-11-01, totals only, after the −5 kr rounding amendment: 1 876 fingerprints, 937 undetermined; per company at its newest fingerprinted year, 196 of 421 undetermined (produkt 58, konsulent 49, forhandler 105, annet 13). The review session measured `lonnskostnad` empty in 531 of 1 920 reconciled columns (spec D2).
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-the-business-model-fingerprint-stage-4.md`
+  summary: A step-1 run that is killed (Ctrl-C on the runner, `docker stop`, a crash of the runner itself) does not reach the `pnpm derive` that `scripts/run-ingest.ts` runs after the container, so the fingerprints stay stale until the next `pnpm derive`, and nothing reports it. Decide whether `pnpm seed`, the next run or the page should notice a fingerprint older than its column.
+  evidence: Story 2.5 review pass 1, spec change log ("the fingerprint references the company…", Meinich 2026-11-01). The README tells the operator to run `pnpm derive` after an interrupted run and after a restore.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-the-business-model-fingerprint-stage-4.md`
+  summary: `SPREAD_SQL` (`scripts/fingerprint-spread.ts`) is executed by no test. It runs once, in D4 step 5, and its output is reviewed by hand; a DB test that runs it on a rolled-back fixture would catch a wrong join before a later rerun.
+  evidence: Story 2.5 review pass 1, triage 6 (verification gap layer), routed to defer. Its only callers are `main` and the definition; it was checked with EXPLAIN only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-the-business-model-fingerprint-stage-4.md`
+  summary: `pnpm derive` writes no run record. Story 2.6 adds `run.step2`; until then a derive run, its counts and a failure leave nothing in the database.
+  evidence: Story 2.5 review pass 1, triage 27 (blind hunter), routed to defer; the epic context assigns `run.step2` to Story 2.6.

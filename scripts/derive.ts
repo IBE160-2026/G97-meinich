@@ -3,6 +3,8 @@
 // fingerprint of every filed document's current column and stores it in
 // register.fingerprint, which funnel stage 4 reads in the request path.
 //
+// - `pnpm ingest` (scripts/run-ingest.ts) runs it after every step-1 run
+//   that can change stored figures; run it by hand after a restore.
 // - Connects as `derive` (DERIVE_DATABASE_URL, from the environment, then
 //   .env) and runs no DDL. Never runs in a request.
 // - Reads every current register.document_column row, the document's

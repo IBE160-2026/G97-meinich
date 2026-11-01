@@ -5,7 +5,7 @@ created: '2026-11-01'
 status: 'in-review'
 baseline_commit: 'f7611482680a22e02c86ca49227abfb9a7f85488'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
   - '{project-root}/docs/key-figures.md'
@@ -176,7 +176,8 @@ context:
   - It prints counts of written, skipped by reason, undetermined, and each type. These are the D2 measurement.
   - The dataset tag is copied from the column.
 - **`supabase/migrations/20261101120000_fingerprint.sql` (new).**
-  - `register.fingerprint(orgnr, filing_year, role CHECK = 'current', …)`, with PK (orgnr, filing_year) and FK (orgnr, filing_year, role) → `document_column`, CASCADE.
+  - `register.fingerprint(orgnr, filing_year, …)`, with PK (orgnr, filing_year). As first built it had `role CHECK = 'current'` and FK (orgnr, filing_year, role) → `document_column`; `20261101130000_fingerprint_references_company.sql` (Spec Change Log, review pass 1) drops both and references `register.company (orgnr)` ON DELETE CASCADE ON UPDATE CASCADE.
+- **`scripts/run-ingest.ts`** (Spec Change Log, review pass 1): runs `scripts/derive.ts` after the step-1 container, after plain, `--documents` and `--reread`, never after `--companies-only`; step 1's non-zero code is kept, and a derive failure exits non-zero.
   - The band columns are `*_lo` and `*_hi` text, CHECK in the set, with lo ≤ hi.
   - `inventory` and `capitalised_intangibles` are nullable booleans.
   - `input_digest char(64)` and `dataset` CHECK in (demo, full).
@@ -233,6 +234,12 @@ Implementation subagent, 2026-11-01. Commits `b60d71b` (engine and spread test),
 - `ingest/tests/conftest.py` gets an `owner_db` fixture: the migration role acting as `ingest`. It lets the 410 test seed a fingerprint that only `derive` and the loader may write, in the same transaction.
 - The committed seed's expected fingerprint count, 85 of 97 current columns after the amendment (77 before it), was computed with the engine from the committed CSVs before the export. Before the amendment it was checked against a temporary export of the local allow-listed rows (77), and `test/fingerprint-seed.test.ts` passed on it.
 
+**Review pass 1 (2026-11-01).** The amendment and patches 3, 4, 5, 7, 12, 13, 16 and 18 are in their own commits after `a11db33`; 6 and 27 are in `deferred-work.md`.
+- The fingerprint references the company (new migration; the 2.5 migration is kept as committed). `derive` no longer writes `role`.
+- The gate's DB tests no longer store document rows, and a whole export with the gate open writes an unlisted fingerprint without its column. It deletes, in the rolled-back transaction, the document rows outside the allow-list that a local acceptance run leaves, since the export refuses those first.
+- `scripts/run-ingest.ts` runs `scripts/derive.ts` with its own Node (`process.execPath`), what `pnpm derive` runs, so no shell or package-manager lookup is involved on Windows.
+- `shownGroup(funnel, ekskl, filing)` takes the funnel result; `toSubject` and `SubjectRow` are exported for the DB test.
+
 **Failing until D4 (expected):** the committed-seed tests (`test/seed-format.test.ts`, "passes every check"; `test/allow-list.test.ts`, "reads the committed seed files"; all of `test/db/seed.test.ts`), `test/fingerprint-seed.test.ts` (no `fingerprint.csv`), `test/fingerprint-spread.test.ts` (no output) and CI's seed load. The e2e specs read `seed/demo/fingerprint.csv` and pass once it exists. Locally they passed (116) against a header-only file and an emptied local fingerprint table, which `pnpm derive` restored afterwards.
 
 ## Spec Change Log
@@ -246,8 +253,59 @@ Implementation subagent, 2026-11-01. Commits `b60d71b` (engine and spread test),
   - **The reason is the documented rounding, not the results.** The D2 measurement (63 of 84 negative-unexplained skips within 5 kr) is what brought the gap to light, not what decided it.
   - **Known-bad state avoided:** a company whose cost lines exactly explain the total, but whose rounding goes 1 kr the other way, gets no fingerprint.
   - **KEEP:** D1's thresholds and rule, the interval rule, and the decision that an unknown that decides the type gives no type.
+- **2026-11-01, Meinich (review pass 1, triage 1, 2, 20 and 21; option (a)): the fingerprint references the company, and step 1 is followed by a rebuild.** The code is amended where it stands, not reverted.
+  - **The defect.**
+    - The frozen Boundaries had `register.fingerprint` reference its document column. With the gate open, a fingerprint of a company outside the allow-list then needs that company's document column. `seed:export` refuses that column, and the loader would fail the FK, so the matrix row "open → all rows" could never hold.
+    - The technical note asks for fingerprints "never the document figures behind them". `epics.md:1469` already says the fingerprint table references the company. The spec drifted from that and is corrected back to it.
+    - Separately, a fingerprint outlived an in-place step-1 change to its column (`--documents` re-reconciling, `--reread`).
+  - **The amendment.**
+    - `register.fingerprint` references `register.company (orgnr) ON DELETE CASCADE ON UPDATE CASCADE`. The `role` column and the FK to `document_column` go. The 410 cascade test still covers the table.
+    - `scripts/run-ingest.ts` runs `pnpm derive` after the step-1 container ends, never from Python (AD-2). It does so after a plain run (which refreshes the API subtotals derive reads), `--documents` and `--reread`, but not after `--companies-only`.
+    - Derive also runs when step 1 exits 1, and step 1's exit code is kept.
+    - A failing derive is visible (named on stderr) and makes the runner exit non-zero. Its single transaction leaves the old rows standing.
+    - Each of these behaviours has a test that fails if the call is removed: run after each of the three modes; not run after `--companies-only`; run after an exit-1 step 1 with the code kept; a derive failure gives non-zero.
+    - A killed run leaves the fingerprints stale until the next derive. This goes to `deferred-work.md`, and the README says to run `pnpm derive` after restoring from a dump.
+  - **With the gate open,** the seed holds no figures behind the fingerprints of companies outside the allow-list. `test/fingerprint-seed.test.ts` therefore recomputes the allow-listed rows. It counts the others and names their count in the test output, rather than skipping them silently.
+  - **Known-bad states avoided:**
+    - an open gate that cannot export what it opens for;
+    - stage 4 deciding on categories from a column that has since failed, or has been re-read.
+  - **KEEP:** everything else in the code and tests as it stands, including the band ranges, the request-path type derivation, `pool`/`group`, the gate reader, the −5 kr rule and the grants.
 
 ## Review Triage Log
+
+Pass 1 (2026-11-01). Layers: blind hunter (BH), edge-case hunter (EC), verification gap (VG), all review subagents of the BMAD session.
+
+| # | Finding (layer) | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | A fingerprint outlives an in-place change to its column. `--documents` re-reconciles and can flip the status, and `--reread` replaces figures; the request path joins the fingerprint without checking the column (EC, BH) | medium | The FK cascades only on a key change. `SUBJECT_SQL` and `CANDIDATES_SQL` left-join `register.fingerprint` alone. A stale row decides stage 4 until the next `pnpm derive`. | intent_gap (with 2) |
+| 2 | An open licence gate cannot export an unlisted fingerprint (EC, BH, VG other) | medium | The frozen FK to `document_column` means an unlisted fingerprint needs an unlisted column. `refuseUnlistedDocumentFigures` refuses the export, and the loader would fail the FK. The matrix row "open → all rows" cannot hold, which contradicts the technical note's "fingerprint results for every 62.100 candidate … never the document figures behind them". | intent_gap |
+| 3 | The page's switch from `pool` to `group` is observed by no test; e2e is circular and demo A has no fingerprint (VG, BH) | medium | Reverting `analysis-page.tsx:108` to `.pool` fails nothing: A has no seed document, so `group === pool`. | patch |
+| 4 | The subject read's fingerprint join is verified only as source text (VG) | medium | No DB test stores a subject fingerprint and reads it through `SUBJECT_SQL`/`toSubject`. A wrong-year join, or a `toSubject` that drops the fingerprint, passes. | patch |
+| 5 | `DERIVE_SQL`'s output is checked only for internal consistency (VG) | medium | `test/db/derive.test.ts` asserts counts only. Swapping the subtotal aliases passes. | patch |
+| 6 | `SPREAD_SQL` is never executed by a test (VG) | medium | Its only callers are `main` and the definition. It runs once, in D4 step 5, and its output is reviewed by hand. | defer |
+| 7 | The `fingerprintWhere` comment says demo B shows separation with the gate closed (VG other, BH) | low | B (and A) is not on the allow-list and has no seed document. | patch |
+| 8 | `ekskl` can name a company stage 4 removed: accepted, invisible, no notice (EC, BH) | low | It follows the frozen rule that `ekskl` reads `pool`, and the UI never offers such a company. Only a hand-edited URL reaches it, and a notice would add a branch. | reject |
+| 9 | Stage 4 removing every candidate leaves `emptyReason` null (EC) | low | The empty group shows the below-floor state, as any empty group does. A new reason would add surface; the counts come in 2.7. | reject |
+| 10 | `TRUNCATE` holds ACCESS EXCLUSIVE, blocking page reads during `pnpm derive` (EC, BH) | low | Real, but locally it lasts seconds (about 2 000 rows). A staging swap would add complexity. Noted in the PR for stage 2. | reject |
+| 11 | The spread script exits 1 after writing earlier industries' files (EC, BH) | low | Only one industry is covered. | reject |
+| 12 | `test/fingerprint-spread.test.ts` hard-codes 62.100 (EC, BH) | medium | The intent is that the test runs again for each industry stage 3 adds. A second `coverage.json` industry would go unchecked. | patch |
+| 13 | The spread test passes when every band has n < 10 (BH) | medium | Every band with n < 10 returns early, and nothing asserts that any band was measured. A seed-only run passes everything (the L2 pattern). | patch |
+| 14 | A negative read cost line lands in `low` and widens U (EC) | low | This is the documented choice in the Implementation Notes, and the arithmetic matches the statement (total = sum of lines). | reject |
+| 15 | `readShare` counts a negative share in the low band's IQR (EC) | low | It is a read value of the line; dropping it would bias the measure the other way. | reject |
+| 16 | The ESLint digest ban misses `digest.js` import specifiers (EC) | low | The regex `(?:\.ts)?$` (eslint.config.mjs:36) does not match `.js`. A direct regex correction fixes it. | patch |
+| 17 | `readLicenceGate` accepts an empty assessment and an impossible date (EC, BH) | low | 5.4 writes the file by hand under review, and the fix would add guards. | reject |
+| 18 | `gateWith(null)` can read a file a previous case left (EC) | low | Today it is order-dependent only; the direct fix is an `rmSync` when the content is null. | patch |
+| 19 | The 410 test now runs through `owner_db`, not ingest's own login (EC) | low | `owner_db` acts as `ingest` by role, so ingest's privileges still apply. Only the login's connection settings differ, and the deletion does not depend on them. | reject |
+| 20 | Claim check: "open gate exports every row" (EC) | medium | Same defect as 2. | intent_gap (with 2) |
+| 21 | Claim check: stage 4 reads rows unconditionally (EC) | medium | Same defect as 1. | intent_gap (with 1) |
+| 22 | No engine version is recorded on a fingerprint row (BH) | low | AD-13 rebuilds every row on every run, and CI recomputes the seed's rows. A version column would be new surface. | reject |
+| 23 | Stage 4 passes through silently when the subject has no type (BH) | low | This is the frozen rule ("a missing signal never excludes"). It is visible in `counts.stage4`, which 2.7 shows. | reject |
+| 24 | D2's per-company count uses the newest fingerprinted year, not the benchmark year (BH) | low | True of the reported 47 %. Reported to Meinich with the caveat; it changes no code. | reject |
+| 25 | The grants test never tries ingest DELETE on `register.fingerprint` (BH) | false | `test/db/grants.test.ts:630-648` checks DELETE for every Peerless role on every register relation. | reject |
+| 26 | D4's seed and spread output are not in the branch, so CI is red (BH) | false | Planned: D4 lands in this PR before merge, and the spec's "Failing until D4" and the PR say so. | reject |
+| 27 | Step 2 writes no run record (BH) | low | Story 2.6 adds `run.step2` (epic context). Until then, derive runs go unrecorded. | defer |
+| 28 | Step-2 scripts import `setting` from step 1's runner (BH) | low | The coupling is only cosmetic; moving it is a refactor. | reject |
+| 29 | The spread report does not say how many shares were dropped as intervals (BH) | low | It would add output fields; the D2 totals already show the empty-line counts. | reject |
 
 ## Design Notes
 

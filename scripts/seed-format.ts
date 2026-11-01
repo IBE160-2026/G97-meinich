@@ -36,8 +36,8 @@ export interface SeedTable {
   primaryKey: readonly SortColumn[];
 }
 
-// The step-1 tables, in foreign-key order: each references only tables
-// before it.
+// The step-1 tables and step 2's fingerprints, in foreign-key order: each
+// references only tables before it.
 export const SEED_TABLES: readonly SeedTable[] = [
   { name: 'company', primaryKey: [{ name: 'orgnr', text: true }] },
   {
@@ -66,6 +66,14 @@ export const SEED_TABLES: readonly SeedTable[] = [
       { name: 'orgnr', text: true },
       { name: 'filing_year', text: false },
       { name: 'role', text: true },
+    ],
+  },
+  // Story 2.5: batch step 2's fingerprints, one per current document column.
+  {
+    name: 'fingerprint',
+    primaryKey: [
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
     ],
   },
 ];

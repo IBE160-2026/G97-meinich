@@ -94,7 +94,14 @@ function refusal(fn: () => unknown): string {
 
 describe('the seed tables', () => {
   it('lists the step-1 tables in foreign-key order and the loader tables apart', () => {
-    expect(SEED_TABLES.map((t) => t.name)).toEqual(['company', 'filing', 'key_figures', 'document', 'document_column']);
+    expect(SEED_TABLES.map((t) => t.name)).toEqual([
+      'company',
+      'filing',
+      'key_figures',
+      'document',
+      'document_column',
+      'fingerprint',
+    ]);
     expect(LOADER_TABLES).toEqual(['dataset', 'covered_industry']);
   });
 
@@ -127,6 +134,10 @@ describe('the seed tables', () => {
       { name: 'filing_year', text: false },
       { name: 'role', text: true },
     ]);
+    expect(key('fingerprint')).toEqual([
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
+    ]);
   });
 });
 
@@ -140,6 +151,7 @@ describe('the export', () => {
       'seed/demo/key_figures.csv',
       'seed/demo/document.csv',
       'seed/demo/document_column.csv',
+      'seed/demo/fingerprint.csv',
       'seed/demo/manifest.json',
       'seed/allow-list.json',
     ]);
@@ -164,6 +176,7 @@ describe('the manifest and files', () => {
       'key_figures.csv',
       'document.csv',
       'document_column.csv',
+      'fingerprint.csv',
     ]);
   });
 

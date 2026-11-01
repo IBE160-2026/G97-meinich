@@ -19,6 +19,8 @@ const API_ROLES = ['anon', 'authenticated', 'service_role'] as const;
 const TABLE_WRITES = ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] as const;
 const ALL_TABLE_PRIVILEGES = ['SELECT', ...TABLE_WRITES, 'REFERENCES', 'TRIGGER'] as const;
 const INSUFFICIENT_PRIVILEGE = '42501';
+// Story 2.5: the step-1 tables batch step 2 reads to derive fingerprints.
+const DERIVE_READS: readonly string[] = ['register.document', 'register.document_column', 'register.key_figures'];
 
 const sql = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
 type Tx = postgres.TransactionSql;
@@ -351,11 +353,13 @@ describe('a table added to register later', () => {
 });
 
 // Story 1.3a: the three tables batch step 1 writes. ingest upserts (SELECT,
-// INSERT, UPDATE); derive gets nothing yet; reader keeps SELECT through the
-// default privileges. Story 1.3b: loader truncates and replaces them
-// (SELECT, INSERT, TRUNCATE). Story 2.1b adds the two document tables with
-// the same grants. Story 2.4: ingest may DELETE from register.company, and
-// from no other table; the cascades remove the rest as the table owner.
+// INSERT, UPDATE); reader keeps SELECT through the default privileges.
+// Story 1.3b: loader truncates and replaces them (SELECT, INSERT,
+// TRUNCATE). Story 2.1b adds the two document tables with the same grants.
+// Story 2.4: ingest may DELETE from register.company, and from no other
+// table; the cascades remove the rest as the table owner. Story 2.5: derive
+// reads what step 2 derives fingerprints from (document, document_column and
+// key_figures) and nothing else of step 1's.
 describe('the step-1 tables', () => {
   const STEP1_TABLES = [
     'register.company',
@@ -376,7 +380,7 @@ describe('the step-1 tables', () => {
     expect(rows.map((r) => r.name)).toEqual(expect.arrayContaining([...STEP1_TABLES]));
   });
 
-  it('grant exactly reader SELECT, ingest SELECT, INSERT, UPDATE (and DELETE on company only) and loader SELECT, INSERT, TRUNCATE', async () => {
+  it('grant exactly reader SELECT, ingest SELECT, INSERT, UPDATE (and DELETE on company only), loader SELECT, INSERT, TRUNCATE and derive SELECT on what step 2 reads', async () => {
     for (const table of STEP1_TABLES) {
       const rows = await sql<{ grantee: string; privilege: string }[]>`
         select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
@@ -386,6 +390,7 @@ describe('the step-1 tables', () => {
         order by 1, 2
       `;
       expect(rows, table).toEqual([
+        ...(DERIVE_READS.includes(table) ? [{ grantee: 'derive', privilege: 'SELECT' }] : []),
         ...(table === 'register.company' ? [{ grantee: 'ingest', privilege: 'DELETE' }] : []),
         { grantee: 'ingest', privilege: 'INSERT' },
         { grantee: 'ingest', privilege: 'SELECT' },
@@ -398,7 +403,7 @@ describe('the step-1 tables', () => {
     }
   });
 
-  it('give ingest no TRUNCATE, REFERENCES or TRIGGER, DELETE on company only, and derive nothing', async () => {
+  it('give ingest no TRUNCATE, REFERENCES or TRIGGER, DELETE on company only, and derive SELECT on what step 2 reads and nothing else', async () => {
     for (const table of STEP1_TABLES) {
       for (const privilege of ['TRUNCATE', 'REFERENCES', 'TRIGGER']) {
         const [row] = await sql<{ ok: boolean }[]>`
@@ -410,7 +415,7 @@ describe('the step-1 tables', () => {
         const [row] = await sql<{ ok: boolean }[]>`
           select has_table_privilege('derive', ${table}, ${privilege}) as ok
         `;
-        expect(row?.ok, `derive ${privilege} on ${table}`).toBe(false);
+        expect(row?.ok, `derive ${privilege} on ${table}`).toBe(privilege === 'SELECT' && DERIVE_READS.includes(table));
       }
     }
   });
@@ -442,6 +447,99 @@ describe('the step-1 tables', () => {
         expect(await attemptAs(tx, 'reader', `select * from ${table} limit 1`), table).toBeUndefined();
       }
     });
+  });
+});
+
+// Story 2.5: the table batch step 2 writes. derive rebuilds it whole
+// (SELECT, INSERT, TRUNCATE: no UPDATE, no DELETE); loader truncates and
+// replaces it; reader reads it through the default privileges; ingest has
+// nothing.
+describe('the step-2 table', () => {
+  const table = 'register.fingerprint';
+
+  // The test connection holds ADMIN but not SET on ingest and derive, so a
+  // SET ROLE to them is refused with the same SQLSTATE as a missing table
+  // privilege. Inside the rolled-back transaction it grants itself SET, so
+  // each refusal below is the table privilege's, and each success is real.
+  async function settable(tx: Tx, roles: readonly string[]): Promise<void> {
+    for (const role of roles) {
+      await tx.unsafe(`grant ${quoteIdent(role)} to current_user with inherit false, set true`);
+    }
+  }
+
+  it('grants exactly derive and loader SELECT, INSERT, TRUNCATE and reader SELECT', async () => {
+    const rows = await sql<{ grantee: string; privilege: string }[]>`
+      select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
+             a.privilege_type as privilege
+      from pg_catalog.pg_class c, aclexplode(c.relacl) a
+      where c.oid = ${table}::regclass and a.grantee <> c.relowner
+      order by 1, 2
+    `;
+    expect(rows).toEqual([
+      { grantee: 'derive', privilege: 'INSERT' },
+      { grantee: 'derive', privilege: 'SELECT' },
+      { grantee: 'derive', privilege: 'TRUNCATE' },
+      { grantee: 'loader', privilege: 'INSERT' },
+      { grantee: 'loader', privilege: 'SELECT' },
+      { grantee: 'loader', privilege: 'TRUNCATE' },
+      { grantee: 'reader', privilege: 'SELECT' },
+    ]);
+  });
+
+  it('refuses derive UPDATE and DELETE, and ingest and reader every write', async () => {
+    await rolledBack(async (tx) => {
+      await settable(tx, ['derive', 'ingest']);
+      expect(await attemptAs(tx, 'derive', `update ${table} set inventory = null`)).toBe(INSUFFICIENT_PRIVILEGE);
+      expect(await attemptAs(tx, 'derive', `delete from ${table}`)).toBe(INSUFFICIENT_PRIVILEGE);
+      for (const role of ['ingest', 'reader']) {
+        expect(await attemptAs(tx, role, `insert into ${table} default values`), `${role} INSERT`).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await attemptAs(tx, role, `update ${table} set inventory = null`), `${role} UPDATE`).toBe(
+          INSUFFICIENT_PRIVILEGE,
+        );
+        expect(await attemptAs(tx, role, `truncate ${table}`), `${role} TRUNCATE`).toBe(INSUFFICIENT_PRIVILEGE);
+      }
+      expect(await attemptAs(tx, 'ingest', `select * from ${table} limit 1`)).toBe(INSUFFICIENT_PRIVILEGE);
+    });
+  });
+
+  it('lets derive truncate it and read what it derives from, and nothing else of step 1', async () => {
+    await rolledBack(async (tx) => {
+      await settable(tx, ['derive']);
+      expect(await attemptAs(tx, 'derive', `truncate ${table}`)).toBeUndefined();
+      for (const source of DERIVE_READS) {
+        expect(await attemptAs(tx, 'derive', `select * from ${source} limit 1`), source).toBeUndefined();
+      }
+      expect(await attemptAs(tx, 'derive', 'select * from register.company limit 1')).toBe(INSUFFICIENT_PRIVILEGE);
+      expect(await attemptAs(tx, 'derive', 'select * from register.filing limit 1')).toBe(INSUFFICIENT_PRIVILEGE);
+    });
+  });
+});
+
+// Story 2.5: derive's exact ACL on every register relation, so a grant to
+// derive that no story declared fails here. Loops pg_class, so a table a
+// later migration adds is covered without editing this test.
+describe("derive's privileges on every register relation", () => {
+  it('are SELECT on what step 2 reads, SELECT, INSERT and TRUNCATE on the fingerprint, and nothing else', async () => {
+    const tables = await sql<{ name: string }[]>`
+      select format('%I.%I', n.nspname, c.relname) as name
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'register' and c.relkind in ('r', 'p', 'v', 'm', 'f')
+      order by 1
+    `;
+    expect(tables.map((t) => t.name)).toEqual(expect.arrayContaining([...DERIVE_READS, 'register.fingerprint']));
+    for (const { name } of tables) {
+      const expected =
+        name === 'register.fingerprint' ? ['SELECT', 'INSERT', 'TRUNCATE'] : DERIVE_READS.includes(name) ? ['SELECT'] : [];
+      for (const privilege of ALL_TABLE_PRIVILEGES) {
+        const [row] = await sql<{ ok: boolean }[]>`
+          select has_table_privilege('derive', ${name}, ${privilege}) as ok
+        `;
+        expect(row?.ok, `derive ${privilege} on ${name}`).toBe(expected.includes(privilege));
+      }
+    }
   });
 });
 

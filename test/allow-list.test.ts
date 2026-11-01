@@ -34,6 +34,7 @@ describe('seed/allow-list.json', () => {
       'document.csv',
       'document_column.csv',
       'filing.csv',
+      'fingerprint.csv',
       'key_figures.csv',
     ]);
   });

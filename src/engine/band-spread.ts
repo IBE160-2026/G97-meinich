@@ -11,7 +11,9 @@ import { percentileInc } from './statistics.ts';
 
 export type BandSpread = {
   readonly n: number;
-  /** Q3 − Q1 of the shares × 100, exact; null when the band holds no share. */
+  /** Q3 − Q1 of the shares, a fraction, exact; null when the band holds no share. */
+  readonly iqr: Decimal | null;
+  /** The same in percentage points (× 100). */
   readonly iqrPercentagePoints: Decimal | null;
 };
 
@@ -23,13 +25,8 @@ export function bandSpread(points: readonly { readonly band: Band; readonly shar
       .filter((point) => point.band === band)
       .map((point) => point.share)
       .sort((a, b) => a.comparedTo(b));
-    spread[band] = {
-      n: sorted.length,
-      iqrPercentagePoints:
-        sorted.length === 0
-          ? null
-          : percentileInc(sorted, '0.75').minus(percentileInc(sorted, '0.25')).mul(new Decimal(100)),
-    };
+    const iqr = sorted.length === 0 ? null : percentileInc(sorted, '0.75').minus(percentileInc(sorted, '0.25'));
+    spread[band] = { n: sorted.length, iqr, iqrPercentagePoints: iqr === null ? null : iqr.mul(new Decimal(100)) };
   }
   return spread;
 }

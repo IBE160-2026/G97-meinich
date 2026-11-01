@@ -16,9 +16,10 @@ describe('bandSpread', () => {
     const spread = bandSpread(points);
     expect(spread.low.n).toBe(5);
     expect(spread.low.iqrPercentagePoints?.toString()).toBe('2');
+    expect(spread.low.iqr?.toString()).toBe('0.02');
     expect(spread.mid.n).toBe(2);
     expect(spread.mid.iqrPercentagePoints?.toString()).toBe('10');
-    expect(spread.high).toEqual({ n: 0, iqrPercentagePoints: null });
+    expect(spread.high).toEqual({ n: 0, iqr: null, iqrPercentagePoints: null });
   });
 
   it('gives a zero range for one share or identical shares', () => {

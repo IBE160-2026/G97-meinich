@@ -68,6 +68,10 @@ Judge the **revenue model**: what the customer pays for. Domain (health, finance
 
 If a stratum ends below 15 subjects, or the labelling ends below about 900 pairs, the counts actually achieved are reported. If either stratum has fewer than 10 subjects, the strata are pooled and the result is stated as one figure for 62.100, a smaller claim (technical note).
 
+## Labelling record
+
+**Blind subsample: done 2026-11-01,** 180 of 180 pairs: 45 `ja`, 134 `nei`, 1 `usikker`. It was finished before Story 2.5 started, so the labeller had not seen the fingerprint's business types or any fingerprint result. `labelled_on` is 2026-10-30 for the first 30 pairs and the day the sheet was finished for the other 150, which were labelled over 2026-10-30 to 2026-11-01. One typo was normalised (`ja'` to `ja`, row 55), and two labels were lower-cased.
+
 ## Files
 
 - `README.md`: these rules.

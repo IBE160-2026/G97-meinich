@@ -63,4 +63,28 @@ describe('pnpm derive', () => {
       expect(again?.rows).toBe(counts.written);
     });
   });
+
+  // Review pass 1 (triage 5): the rebuild reproduces what the table held
+  // before, categories and input digest included. In CI the table holds the
+  // seed's rows, which an earlier derive wrote and seed:export committed; a
+  // read that swaps an input (a subtotal alias, a figure column) changes a
+  // digest or a category and fails here. Compared without printing a row.
+  it('rebuilds exactly the rows the table held: categories, input digest and dataset', async () => {
+    await rolledBack(async (tx) => {
+      const snapshot = async () =>
+        (
+          await tx<{ line: string }[]>`
+            select concat_ws('|', orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
+                             personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory::text,
+                             capitalised_intangibles::text, input_digest, dataset) as line
+              from register.fingerprint order by orgnr collate "C", filing_year`
+        ).map((row) => row.line);
+      const before = await snapshot();
+      expect(before.length).toBeGreaterThan(0);
+      await rebuildFingerprints(tx);
+      const after = await snapshot();
+      const differing = before.filter((line, i) => after[i] !== line).length;
+      expect({ rows: after.length, differing }).toEqual({ rows: before.length, differing: 0 });
+    });
+  });
 });

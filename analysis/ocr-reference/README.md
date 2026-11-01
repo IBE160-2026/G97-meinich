@@ -37,7 +37,7 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 
 - One row per column: `current` (the filing year) and `prior` (the year before), with `stated_year` as printed in the column header.
 - Each figure is in **whole kroner, exactly as printed**: no spaces, a minus sign for negatives (also when the PDF shows parentheses), and the cell left **empty** when the line does not appear in the document. An empty cell is never 0, and a printed 0 is `0`.
-- The 23 field columns are the lines `read_document` targets (`ingest/src/peerless_ingest/layout.py`, `TARGETS`). Lines the document labels differently (for example "Sum inntekter" for `sum_driftsinntekter`) go in the same column.
+- The field columns are the lines `read_document` targets (`ingest/src/peerless_ingest/layout.py`, `TARGETS`): 23 from Story 2.3, and the four parts of intangible assets from Story 2.5b (below). Lines the document labels differently (for example "Sum inntekter" for `sum_driftsinntekter`) go in the same column.
 - `transcribed_by` and `transcribed_on` (YYYY-MM-DD) on every row; `notes` for anything unusual.
 - The file is semicolon-separated (`;`), UTF-8, so it opens column by column in a Norwegian Excel. Keep figures as plain digits: no thousands separator, no currency.
 - Extra columns for lines outside `TARGETS` (for example `finansielle_anleggsmidler`, `andre_kortsiktige_fordringer`) are allowed, but optional: the reconciliation checks compare printed totals only, so no extra line is needed for them. Story 2.3 must read the file **by header name, not by position**, and ignore columns that are not in `TARGETS`.
@@ -47,7 +47,7 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 - `README.md`: these rules.
 - `draw.py`: the draw.
 - `drawn.json`: the result, committed after the draw.
-- `transcriptions.csv`: the template, then the transcriptions.
+- `transcriptions.csv`: the template, then the transcriptions (the four parts of intangible assets added in Story 2.5b).
 - `blind-check.csv`: the blind check of 20 cells against the PDFs (below), with the transcriber's values.
 - `blind-check-draw.ts`: the selection of those 20 cells (seed 20261023), reproduced from the transcriptions before the corrections (`node analysis/ocr-reference/blind-check-draw.ts`; `test/blind-check-draw.test.ts`).
 - `blind-check-key.csv`: written by `blind-check-draw.ts`; which of the 20 cells were the suspected ones.
@@ -55,6 +55,44 @@ Fill in `transcriptions.csv` from the PDF, **without looking at any OCR output**
 ## Transcription check
 
 Before the transcriptions were used, the review session ran the within-document checks c1–c4 (5 kr bound) on every transcribed row, without looking at any OCR output. Six of the 40 rows failed at first: 921716257/2021, 912197905/2022, 915338534/2023, 989081799/2025 (prior), 917526729/2025 and 922184534/2025 (prior). Each was a transcription error: a mistyped or dropped digit, wrong by 20 kr to about 8 mill. kr. The transcriber corrected every one against the PDF, and all 40 rows pass. The transcription dates were changed from DD.MM.YYYY to YYYY-MM-DD.
+
+## Parts of intangible assets (Story 2.5b)
+
+Story 2.5b reads the four printed parts of "Sum immaterielle eiendeler" as fields of their own (Meinich, 2026-11-01, Q1 and Q2): `forskning_og_utvikling` (Forskning og utvikling), `konsesjoner_patenter` ("Konsesjoner, patenter …"), `goodwill` (Goodwill) and `utsatt_skattefordel` (Utsatt skattefordel). The four columns stand before `sum_immaterielle_eiendeler` in `transcriptions.csv`, in the order the balance prints them.
+
+They are transcribed by the same rules as every other field, **without looking at any OCR output**, before the probe's result is shown (approval change C1):
+
+- Fill the four columns for each of the 23 columns below, the ones whose `sum_immaterielle_eiendeler` is transcribed (not blank). The list names them from the transcribed total only; it shows no OCR value.
+- A part the document does not print stays **blank**; a printed 0 is `0`.
+- Every other row keeps the four columns blank: no total is printed there, so no part is.
+- Write the date of this transcription in `notes` (for example `deler 2026-11-02`), so `transcribed_on` keeps the date of the first transcription.
+- The review session then checks, without OCR output, that the printed parts of each column sum to its `sum_immaterielle_eiendeler` within 5 kr. The transcription is committed on its own.
+
+| Orgnr | Filing year | Column | Stated year | sum_immaterielle_eiendeler (transcribed) |
+|---|---|---|---|---|
+| 915648479 | 2021 | current | 2021 | 333000 |
+| 915648479 | 2021 | prior | 2020 | 476437 |
+| 995318733 | 2021 | current | 2021 | 910924 |
+| 929481151 | 2022 | current | 2022 | 0 |
+| 929481151 | 2022 | prior | 2021 | 0 |
+| 912197905 | 2022 | current | 2022 | 1395536 |
+| 912197905 | 2022 | prior | 2021 | 1491210 |
+| 927533235 | 2023 | current | 2023 | 154127 |
+| 927533235 | 2023 | prior | 2022 | 198899 |
+| 929151178 | 2023 | current | 2023 | 0 |
+| 929151178 | 2023 | prior | 2022 | 0 |
+| 915338534 | 2023 | current | 2023 | 0 |
+| 915338534 | 2023 | prior | 2022 | 0 |
+| 992036079 | 2023 | current | 2023 | 1162266 |
+| 992036079 | 2023 | prior | 2022 | 3046935 |
+| 911561972 | 2024 | current | 2024 | 19689267 |
+| 911561972 | 2024 | prior | 2023 | 21056735 |
+| 936252710 | 2024 | current | 2024 | 0 |
+| 936252710 | 2024 | prior | 2023 | 0 |
+| 989081799 | 2025 | current | 2025 | 0 |
+| 989081799 | 2025 | prior | 2024 | 0 |
+| 922184534 | 2025 | current | 2025 | 97042461 |
+| 922184534 | 2025 | prior | 2024 | 131784163 |
 
 ## Blind check after the first measurement
 

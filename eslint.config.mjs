@@ -33,7 +33,7 @@ const clientImportRestriction = {
   patterns: [
     ...serverImportRestriction.patterns,
     {
-      regex: /^(?:@\/engine\/digest|src\/engine\/digest|(?:\.{1,2}\/)+(?:[^/]+\/)*digest)(?:\.ts)?$/.source,
+      regex: /^(?:@\/engine\/digest|src\/engine\/digest|(?:\.{1,2}\/)+(?:[^/]+\/)*digest)(?:\.[cm]?[jt]s)?$/.source,
       message: 'src/engine/digest.ts uses node:crypto; a client module may not import it.',
     },
   ],

@@ -168,6 +168,9 @@ describe('restricted imports (AD-8, AD-19)', () => {
     "'use client';\nimport { digest } from '@/engine/digest';\nexport const d = digest;\n",
     "'use client';\nimport { digest } from '../engine/digest.ts';\nexport const d = digest;\n",
     "'use client';\nimport { digest } from '../../src/engine/digest';\nexport const d = digest;\n",
+    // Review pass 1 (triage 16): a .js-style specifier for the .ts file.
+    "'use client';\nimport { digest } from '../engine/digest.js';\nexport const d = digest;\n",
+    "'use client';\nimport { digest } from '@/engine/digest.mjs';\nexport const d = digest;\n",
   ])("rejects the engine digest in a 'use client' module: %j", async (code) => {
     expect(await inlineRuleIds(code, 'src/components/fixture.tsx')).toContain('local/client-restricted-imports');
   });

@@ -164,6 +164,21 @@ describe('restricted imports (AD-8, AD-19)', () => {
     expect(await inlineRuleIds(code, 'src/engine/fixture.ts')).toContain('no-restricted-imports');
   });
 
+  it.each([
+    "'use client';\nimport { digest } from '@/engine/digest';\nexport const d = digest;\n",
+    "'use client';\nimport { digest } from '../engine/digest.ts';\nexport const d = digest;\n",
+    "'use client';\nimport { digest } from '../../src/engine/digest';\nexport const d = digest;\n",
+  ])("rejects the engine digest in a 'use client' module: %j", async (code) => {
+    expect(await inlineRuleIds(code, 'src/components/fixture.tsx')).toContain('local/client-restricted-imports');
+  });
+
+  it('allows the engine digest in server code and scripts', async () => {
+    const code = "import { digest } from '@/engine/digest';\nexport const d = digest;\n";
+    expect(await inlineRuleIds(code, 'src/app/fixture-page.tsx')).toEqual([]);
+    const script = "import { digest } from '../src/engine/digest.ts';\nexport const d = digest;\n";
+    expect(await inlineRuleIds(script, 'scripts/fixture.ts')).toEqual([]);
+  });
+
   it("allows react-dom/server in a 'use client' module", async () => {
     const code =
       "'use client';\nimport { renderToString } from 'react-dom/server';\nexport const render = renderToString;\n";

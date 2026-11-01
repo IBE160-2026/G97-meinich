@@ -139,7 +139,7 @@ context:
 
 **Execution** (branch `story/2.5b-read-cost-lines`, issue #45; one commit per bullet or smaller, as the work proceeds; **stop and report at each Wait or Checkpoint**, and at the acceptance run, which needs Meinich's yes):
 - [x] Story 2.5b section in `epics.md`, `sprint-status.yaml` entry, GitHub issue
-- [ ] Before inputs committed: `analysis/output/ocr-sm2-before-2.5b/` and `document-run-counts-before-2.5b.json`, with the undetermined totals
+- [x] Before inputs committed: `analysis/output/ocr-sm2-before-2.5b/` and `document-run-counts-before-2.5b.json`, with the undetermined totals
 - [ ] Transcription template (C1): the four part columns in `transcriptions.csv`, the rows to fill named from the transcribed total only, no OCR value shown. **Wait: Meinich transcribes; the review session checks the sums; committed on its own**
 - [ ] Watchdog and its tests, its own commit (C3)
 - [ ] Probe script and its output, shown only after the transcription commit. **Checkpoint: Meinich approves the fix** (Spec Change Log)

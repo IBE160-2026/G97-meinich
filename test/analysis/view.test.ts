@@ -30,6 +30,7 @@ const filing = {
   smaaForetak: true,
   avviklingsregnskap: false,
   readAt: new Date('2026-10-11T13:36:34Z'),
+  fingerprint: null,
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',
@@ -247,7 +248,21 @@ describe('funnelSubject', () => {
       regnskapsregler: 'regnskapslovenAlminneligRegler',
       smaaForetak: true,
       avviklingsregnskap: false,
+      fingerprint: null,
     });
     expect(funnelSubject(noFiling)).toBeNull();
+  });
+
+  it('hands the engine the filing’s stored fingerprint', () => {
+    const fingerprint = {
+      costOfGoods: { lo: 'low', hi: 'low' },
+      personnelCost: { lo: 'mid', hi: 'high' },
+      assetIntensity: { lo: 'low', hi: 'low' },
+      inventory: null,
+      capitalisedIntangibles: false,
+    } as const;
+    const filing = covered.filing;
+    if (filing === null) throw new Error('covered has a filing');
+    expect(funnelSubject({ ...covered, filing: { ...filing, fingerprint } })?.fingerprint).toBe(fingerprint);
   });
 });

@@ -21,6 +21,7 @@
 // tabs, so its redirect to the bare path drops the tab, and the target shows
 // the notice only if its query has a fallback.
 import { formatOrgnr } from '../engine/format.ts';
+import type { Fingerprint } from '../engine/fingerprint.ts';
 import { parseOre, type KeyFiguresRow } from '../engine/inputs.ts';
 import { PEER_LEGAL_FORM, type SubjectFiling as FunnelSubject } from '../engine/peers.ts';
 import { t } from '../messages/index.ts';
@@ -93,6 +94,8 @@ export type SubjectFiling = {
   /** When step 1 read the filing from the register (AD-18). */
   readonly readAt: Date;
   readonly keyFigures: SubjectKeyFigures;
+  /** The stored fingerprint for `filingYear` (Story 2.5); null when there is none. */
+  readonly fingerprint: Fingerprint | null;
 };
 
 /** One company as the analysis reads it: register.company, its coverage and its newest filing. */
@@ -144,6 +147,7 @@ export function funnelSubject(subject: Subject): FunnelSubject | null {
     regnskapsregler: filing.regnskapsregler,
     smaaForetak: filing.smaaForetak,
     avviklingsregnskap: filing.avviklingsregnskap,
+    fingerprint: filing.fingerprint,
   };
 }
 

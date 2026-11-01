@@ -94,6 +94,8 @@ function toSubject(row: SubjectRow): Subject {
           smaaForetak: row.smaa_foretak,
           avviklingsregnskap: row.avviklingsregnskap,
           readAt: row.filing_read_at,
+          // Read from register.fingerprint once the table exists (Story 2.5).
+          fingerprint: null,
           keyFigures: {
             sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
             driftsresultat_ore: row.driftsresultat_ore,
@@ -237,6 +239,8 @@ export function toCandidate(row: CandidateRow): Candidate {
     smaaForetak: row.smaa_foretak,
     avviklingsregnskap: row.avviklingsregnskap,
     sumDriftsinntekter: parseOre(row.sum_driftsinntekter_ore),
+    // Read from register.fingerprint once the table exists (Story 2.5).
+    fingerprint: null,
     keyFigures: {
       sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
       driftsresultat_ore: row.driftsresultat_ore,

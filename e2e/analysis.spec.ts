@@ -127,6 +127,7 @@ function expectedGroup(orgnr: string, band: SizeBand) {
     naeringskode1: orNull(own.naeringskode1),
     filingYear: Number(filing.filing_year),
     sumDriftsinntekter: ore(keyFigures.get(filing.brreg_id ?? '')?.sum_driftsinntekter_ore),
+    fingerprint: null,
     ...comparability(filing),
   };
   const candidates: SeedCandidate[] = allFilings
@@ -142,6 +143,7 @@ function expectedGroup(orgnr: string, band: SizeBand) {
         brregId: BigInt(f.brreg_id ?? '0'),
         filingYear: Number(f.filing_year),
         sumDriftsinntekter: ore(keyFigures.get(f.brreg_id ?? '')?.sum_driftsinntekter_ore),
+        fingerprint: null,
         ...comparability(f),
       };
     });

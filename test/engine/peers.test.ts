@@ -3,6 +3,8 @@
 // candidate per stage-2 field, legal form, the benchmark filing, the
 // non-calendar and dormant subjects, dormant candidates — and the counts.
 import { describe, expect, it } from 'vitest';
+import type { Decimal } from '../../src/engine/decimal.ts';
+import type { BandRange, Fingerprint } from '../../src/engine/fingerprint.ts';
 import {
   SIZE_BANDS,
   assemblePeerGroup,
@@ -30,6 +32,7 @@ const subject: SubjectFiling = {
   regnskapsregler: 'regnskapslovenAlminneligRegler',
   smaaForetak: true,
   avviklingsregnskap: false,
+  fingerprint: null,
 };
 
 let nextId = 1n;
@@ -49,6 +52,7 @@ function candidate(orgnr: string, overrides: Partial<CandidateFiling> = {}): Can
     regnskapsregler: 'regnskapslovenAlminneligRegler',
     smaaForetak: true,
     avviklingsregnskap: false,
+    fingerprint: null,
     ...overrides,
   };
 }
@@ -120,7 +124,7 @@ describe('stage 1: the size band, both bounds included, exact to the øre', () =
       ];
       const group = assemblePeerGroup(dormant, candidates, band);
       expect(group.pool).toEqual([]);
-      expect(group.counts).toEqual({ stage1: 0, stage2: 0, stage3: { legalForm: 0 } });
+      expect(group.counts).toEqual({ stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 } });
       expect(group.emptyReason).toBe('subject_no_revenue');
     });
   });
@@ -143,7 +147,7 @@ describe('stage 2: comparability, one field at a time', () => {
   ] as const)('a candidate differing only on %s is out at stage 2', (_label, overrides) => {
     const group = assemblePeerGroup(subject, [candidate('900000001'), candidate('900000002', overrides)], 0);
     expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000001']);
-    expect(group.counts).toEqual({ stage1: 2, stage2: 1, stage3: { legalForm: 1 } });
+    expect(group.counts).toEqual({ stage1: 2, stage2: 1, stage3: { legalForm: 1 }, stage4: { businessModel: 1 } });
   });
 
   it('an unknown valuta matches nothing, not even itself, and is never read as NOK', () => {
@@ -177,7 +181,7 @@ describe('stage 2: comparability, one field at a time', () => {
       0,
     );
     expect(group.pool).toEqual([]);
-    expect(group.counts).toEqual({ stage1: 2, stage2: 0, stage3: { legalForm: 0 } });
+    expect(group.counts).toEqual({ stage1: 2, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 } });
     expect(group.emptyReason).toBe('subject_non_calendar');
   });
 
@@ -193,7 +197,7 @@ describe('stage 3: legal form', () => {
   it.each(['ASA', 'NUF', 'ENK', 'as', null])('a candidate with legal form %s is out at stage 3', (form) => {
     const group = assemblePeerGroup(subject, [candidate('900000001'), candidate('900000002', { organisasjonsform: form })], 0);
     expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000001']);
-    expect(group.counts).toEqual({ stage1: 2, stage2: 2, stage3: { legalForm: 1 } });
+    expect(group.counts).toEqual({ stage1: 2, stage2: 2, stage3: { legalForm: 1 }, stage4: { businessModel: 1 } });
   });
 });
 
@@ -208,14 +212,15 @@ describe('counts', () => {
       candidate('900000006', { sumDriftsinntekter: 1n, organisasjonsform: 'NUF' }), // out at 1
     ];
     const group = assemblePeerGroup(subject, candidates, 0);
-    expect(group.counts).toEqual({ stage1: 4, stage2: 2, stage3: { legalForm: 1 } });
+    expect(group.counts).toEqual({ stage1: 4, stage2: 2, stage3: { legalForm: 1 }, stage4: { businessModel: 1 } });
     expect(group.emptyReason).toBeNull();
   });
 
   it('reports no empty reason for a group emptied by its candidates', () => {
     expect(assemblePeerGroup(subject, [], 0)).toEqual({
       pool: [],
-      counts: { stage1: 0, stage2: 0, stage3: { legalForm: 0 } },
+      group: [],
+      counts: { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 } },
       emptyReason: null,
     });
   });
@@ -288,6 +293,82 @@ describe('the pool', () => {
   });
 });
 
+// Stage 4 (Story 2.5): the business type of each fingerprint. Synthetic
+// fingerprints; their types follow from the rule in src/engine/fingerprint.ts.
+const known = (band: BandRange['lo']): BandRange => ({ lo: band, hi: band });
+const KONSULENT: Fingerprint = {
+  costOfGoods: known('low'),
+  personnelCost: known('high'),
+  assetIntensity: known('low'),
+  inventory: false,
+  capitalisedIntangibles: false,
+};
+const FORHANDLER: Fingerprint = { ...KONSULENT, costOfGoods: known('high'), inventory: true };
+const PRODUKT: Fingerprint = { ...KONSULENT, capitalisedIntangibles: true };
+// Personnel cost low or high: annet or konsulent, so no type.
+const UNDETERMINED: Fingerprint = { ...KONSULENT, personnelCost: { lo: 'low', hi: 'high' } };
+
+describe('stage 4: business model', () => {
+  const candidates = () => [
+    candidate('900000001', { fingerprint: KONSULENT, sumDriftsinntekter: S + 3n }),
+    candidate('900000002', { fingerprint: FORHANDLER, sumDriftsinntekter: S + 2n }),
+    candidate('900000003', { fingerprint: PRODUKT, sumDriftsinntekter: S + 1n }),
+    candidate('900000004', { fingerprint: KONSULENT, sumDriftsinntekter: S }),
+  ];
+
+  it('stage 4 removes another type and leaves the pool', () => {
+    const group = assemblePeerGroup({ ...subject, fingerprint: KONSULENT }, candidates(), 0);
+    expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000001', '900000002', '900000003', '900000004']);
+    expect(group.group.map((peer) => peer.orgnr)).toEqual(['900000001', '900000004']);
+    expect(group.counts).toEqual({ stage1: 4, stage2: 4, stage3: { legalForm: 4 }, stage4: { businessModel: 2 } });
+  });
+
+  it('keeps each type with its own kind', () => {
+    const asReseller = assemblePeerGroup({ ...subject, fingerprint: FORHANDLER }, candidates(), 0);
+    expect(asReseller.group.map((peer) => peer.orgnr)).toEqual(['900000002']);
+    const asProduct = assemblePeerGroup({ ...subject, fingerprint: PRODUKT }, candidates(), 0);
+    expect(asProduct.group.map((peer) => peer.orgnr)).toEqual(['900000003']);
+  });
+
+  it('an undetermined candidate is kept', () => {
+    const group = assemblePeerGroup(
+      { ...subject, fingerprint: KONSULENT },
+      [
+        candidate('900000001', { fingerprint: UNDETERMINED }),
+        candidate('900000002', { fingerprint: null }),
+        candidate('900000003', { fingerprint: FORHANDLER }),
+      ],
+      0,
+    );
+    expect(group.group.map((peer) => peer.orgnr).sort()).toEqual(['900000001', '900000002']);
+    expect(group.counts.stage4.businessModel).toBe(2);
+  });
+
+  it.each([
+    ['no fingerprint', null],
+    ['a fingerprint without a type', UNDETERMINED],
+  ] as const)('a subject without a type leaves stage 4 equal to stage 3 (%s)', (_label, fingerprint) => {
+    const group = assemblePeerGroup({ ...subject, fingerprint }, candidates(), 0);
+    expect(group.group).toEqual(group.pool);
+    expect(group.counts.stage4.businessModel).toBe(group.counts.stage3.legalForm);
+    expect(group.counts.stage4.businessModel).toBe(4);
+  });
+
+  it('counts stage 4 on what survived stage 3, and the pool keeps every stage-3 survivor', () => {
+    const group = assemblePeerGroup(
+      { ...subject, fingerprint: KONSULENT },
+      [
+        candidate('900000001', { fingerprint: KONSULENT }),
+        candidate('900000002', { fingerprint: KONSULENT, organisasjonsform: 'NUF' }), // out at 3
+        candidate('900000003', { fingerprint: FORHANDLER }), // out at 4
+      ],
+      0,
+    );
+    expect(group.counts).toEqual({ stage1: 3, stage2: 3, stage3: { legalForm: 2 }, stage4: { businessModel: 1 } });
+    expect(group.pool.map((peer) => peer.orgnr).sort()).toEqual(['900000001', '900000003']);
+  });
+});
+
 describe('withoutExcluded', () => {
   it('removes the excluded peers and keeps the order', () => {
     const pool = [candidate('900000002'), candidate('900000001'), candidate('900000003')];
@@ -302,12 +383,33 @@ type Forbidden =
   | `${string}${'iendeler' | 'Eiendeler'}${string}`
   | `${string}${'nsatte' | 'Ansatte' | 'mployee'}${string}`
   | `${string}${'resultat' | 'Resultat' | 'margin' | 'Margin'}${string}`
-  | `${string}${'aarsverk' | 'Aarsverk'}${string}`;
+  | `${string}${'aarsverk' | 'Aarsverk'}${string}`
+  | `${string}${'share' | 'Share' | 'andel' | 'Andel' | 'ratio' | 'Ratio'}${string}`;
 type AssertNever<T extends never> = T;
 export type NoForbiddenSubjectField = AssertNever<Extract<keyof SubjectFiling, Forbidden>>;
 export type NoForbiddenCandidateField = AssertNever<Extract<keyof CandidateFiling, Forbidden>>;
+// Story 2.5: stage 4 reads a Fingerprint, whose fields are equally clean,
+// and benchmarked shares reach it only as band ids: no fingerprint field is
+// a number, a bigint, a string or a Decimal, and a band range holds bands.
+export type NoForbiddenFingerprintField = AssertNever<Extract<keyof Fingerprint, Forbidden>>;
+export type NoShareAsValue = AssertNever<Extract<Fingerprint[keyof Fingerprint], number | bigint | string | Decimal>>;
+export type BandRangeHoldsBands = AssertNever<Exclude<BandRange[keyof BandRange], 'low' | 'mid' | 'high'>>;
 
 it('the funnel inputs hold no assets, employee or performance field', () => {
-  const keys = [...Object.keys(subject), ...Object.keys(candidate('900000001'))];
-  expect(keys.filter((key) => /eiendeler|ansatte|employee|resultat|margin|aarsverk/i.test(key))).toEqual([]);
+  const keys = [
+    ...Object.keys(subject),
+    ...Object.keys(candidate('900000001')),
+    ...Object.keys(KONSULENT),
+  ];
+  expect(keys.filter((key) => /eiendeler|ansatte|employee|resultat|margin|aarsverk|share|andel|ratio/i.test(key))).toEqual([]);
+});
+
+it('a fingerprint reaches stage 4 as five categories, bands as band ids only', () => {
+  expect(Object.keys(KONSULENT).sort()).toEqual(
+    ['assetIntensity', 'capitalisedIntangibles', 'costOfGoods', 'inventory', 'personnelCost'].sort(),
+  );
+  for (const range of [KONSULENT.costOfGoods, KONSULENT.personnelCost, KONSULENT.assetIntensity]) {
+    expect(Object.keys(range).sort()).toEqual(['hi', 'lo']);
+    expect(['low', 'mid', 'high']).toEqual(expect.arrayContaining([range.lo, range.hi]));
+  }
 });

@@ -21,7 +21,7 @@ import type { CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
 
-interface SubjectRow extends SubjectKeyFigures, FingerprintColumns {
+export interface SubjectRow extends SubjectKeyFigures, FingerprintColumns {
   orgnr: string;
   navn: string | null;
   organisasjonsform: string | null;
@@ -91,7 +91,7 @@ select c.orgnr,
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
  where c.orgnr = $1::char(9)`;
 
-function toSubject(row: SubjectRow): Subject {
+export function toSubject(row: SubjectRow): Subject {
   const filing =
     row.filing_year === null ||
     row.filing_read_at === null ||

@@ -23,8 +23,11 @@ if (url === undefined) throw new Error('READER_DATABASE_URL is not set; run `pnp
 process.env.READER_DATABASE_URL = url;
 
 const { readerSql } = await import('../../src/server/db.ts');
-const { CANDIDATES_SQL, loadCandidates, loadSubject, toCandidate } = await import('../../src/server/analysis.ts');
+const { CANDIDATES_SQL, SUBJECT_SQL, loadCandidates, loadSubject, toCandidate, toSubject } = await import(
+  '../../src/server/analysis.ts'
+);
 type CandidateRow = import('../../src/server/analysis.ts').CandidateRow;
+type SubjectRow = import('../../src/server/analysis.ts').SubjectRow;
 
 // The migration role, for the one test that deletes (Story 2.4), always in a
 // transaction it rolls back.
@@ -245,6 +248,31 @@ describe('stage 4 against stored fingerprints', () => {
       expect(group.group).toEqual(group.pool);
       expect(group.counts.stage4.businessModel).toBe(group.counts.stage3.legalForm);
     }
+  });
+
+  // Review pass 1 (triage 4): the subject read's join, through SUBJECT_SQL
+  // and toSubject as the page runs them, in the rolled-back transaction.
+  it('reads the subject’s fingerprint for its benchmark year, and none stored only for another year', async () => {
+    const { funnel } = await groupForDemoA(0);
+    const subjectIn = async (tx: postgres.TransactionSql) => {
+      const [row] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [funnel.orgnr]);
+      if (row === undefined) throw new Error('demo A is not stored');
+      return toSubject(row);
+    };
+    await expect(
+      admin.begin(async (tx) => {
+        await tx`delete from register.fingerprint where orgnr = ${funnel.orgnr}`;
+        await storeFingerprint(tx, funnel.orgnr, funnel.filingYear, CONSULTANCY);
+        expect((await subjectIn(tx)).filing?.fingerprint).toEqual(fingerprintFromColumns(CONSULTANCY));
+
+        await tx`delete from register.fingerprint where orgnr = ${funnel.orgnr}`;
+        await storeFingerprint(tx, funnel.orgnr, funnel.filingYear - 1, RESELLER);
+        const other = await subjectIn(tx);
+        expect(other.filing?.filingYear).toBe(funnel.filingYear);
+        expect(other.filing?.fingerprint).toBeNull();
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
   });
 
   it('throws on a stored value outside a category’s set, never reads it as a default', () => {

@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-01
 **Tool:** Claude Code (BMAD coordinator session and its implementation and review subagents, Opus 5.5)
-**Story / issue:** Story 2.5 (FR-10, FR-13), branch `story/2.5-fingerprint-stage-4`, issue [#43](https://github.com/IBE160-2026/G97-meinich/issues/43), PR [#44](https://github.com/IBE160-2026/G97-meinich/pull/44)
+**Story / issue:** Story 2.5 (FR-10, FR-13), branch `story/2.5-fingerprint-stage-4`, issue [#43](https://github.com/IBE160-2026/G97-meinich/issues/43), PR [#44](https://github.com/IBE160-2026/G97-meinich/pull/44), merged 2026-11-01
 **Result:** commits `b60d71b`, `86090e0`, `47f63bd`, `aa38b13`, `47e8b5e`, `054b762`, `97d461e`, `13d6c22`, `375d199`, and the docs commit
 
 ## Goal
@@ -99,6 +99,10 @@ Meinich's separate review session, not this session, contributed:
 - the independent check of the dump rows in D4.
 
 The spec's Decisions and Spec Change Log credit each one.
+
+## Merge
+
+CI was green on `5d7e704`. Before merging, the review session checked the row counts, the seed's 85 fingerprints, the order of the spread test's commits, and that no demo company's orgnr appears in the changed documentation. The review was posted as a GitHub review with nine line comments, drafted by the review session and posted at the human's decision. The PR was merged at 20:38 UTC as `bc30267`. The review session then set the spec and the story to done on `main`.
 
 ## Links
 

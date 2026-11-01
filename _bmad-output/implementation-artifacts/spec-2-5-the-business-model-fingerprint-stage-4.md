@@ -2,7 +2,7 @@
 title: 'Story 2.5: The business-model fingerprint (stage 4)'
 type: 'feature'
 created: '2026-11-01'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'f7611482680a22e02c86ca49227abfb9a7f85488'
 route: 'dispatch'
 review_loop_iteration: 1

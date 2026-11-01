@@ -11,6 +11,7 @@ import { copyTable, exportSeed } from '../../scripts/seed-export.ts';
 import {
   ALLOW_LIST_FILE,
   COVERAGE_FILE,
+  LICENCE_GATE_FILE,
   LOADER_TABLES,
   MANIFEST_FILE,
   REFERENCE_DRAW_FILE,
@@ -489,6 +490,7 @@ describe('the export and document figures', () => {
     expect(withdrawn).toMatch(/^\d{9}$/);
     expect(notices).toEqual([
       `seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${withdrawn} (Testoppføring)`,
+      `seed:export: ${LICENCE_GATE_FILE} is absent; the licence gate is closed: fingerprints of allow-listed companies only`,
     ]);
     expect(manifest?.document_figure_orgnrs).not.toContain(withdrawn);
     expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(stableJson(withReferenceOrgnrs([], drawn)));

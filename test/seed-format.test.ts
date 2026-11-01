@@ -482,7 +482,8 @@ describe('the committed seed', () => {
 describe('the licence gate', () => {
   function gateWith(content: string | null): { open: boolean; notices: string[] } {
     const file = path.join(scratch, 'licence-gate.json');
-    if (content !== null) writeFileSync(file, content);
+    if (content === null) rmSync(file, { force: true });
+    else writeFileSync(file, content);
     const notices: string[] = [];
     const gate = readLicenceGate(file, (line) => notices.push(line));
     return { open: gate.open, notices };

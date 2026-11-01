@@ -1,18 +1,24 @@
 // The committed seed's fingerprints follow from its committed figures
 // (Story 2.5; technical note AD-9, AD-13). For every row of
-// seed/demo/fingerprint.csv the engine recomputes, from the seed's own
-// document column and the key-figures filing its document belongs to, the
-// input digest and the five categories, and both must equal what step 2
-// stored. And every current column in the seed that gives a fingerprint has
-// its row. A digest mismatch means a stored fingerprint no longer follows
-// from its inputs: rerun `pnpm derive` and re-export the seed.
+// seed/demo/fingerprint.csv of an allow-listed company, the engine
+// recomputes, from the seed's own document column and the key-figures
+// filing its document belongs to, the input digest and the five
+// categories, and both must equal what step 2 stored. And every current
+// column in the seed that gives a fingerprint has its row. A digest
+// mismatch means a stored fingerprint no longer follows from its inputs:
+// rerun `pnpm derive` and re-export the seed.
+//
+// With the licence gate open, the seed also holds fingerprints of companies
+// outside the allow-list, without the figures behind them (spec change
+// log, review pass 1). Those cannot be recomputed here; they are counted,
+// and the count is in a test's title, never skipped silently.
 //
 // Counts and mismatches only are reported; no company's categories are
 // printed.
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseCsv } from '../scripts/seed-format.ts';
+import { ALLOW_LIST_FILE, REFERENCE_DRAW_FILE, parseAllowList, parseCsv, parseDrawn } from '../scripts/seed-format.ts';
 import { digest } from '../src/engine/digest.ts';
 import { DOCUMENT_FIGURE_COLUMNS, type DocumentColumnRow, documentFigures } from '../src/engine/document-inputs.ts';
 import { type FingerprintColumns, apiSubtotalsFromRow, fingerprintFromColumns, fingerprintOf } from '../src/engine/fingerprint.ts';
@@ -62,7 +68,13 @@ function categories(row: Record<string, string>): FingerprintColumns {
 const key = (row: Record<string, string>) => `${row.orgnr ?? ''}/${row.filing_year ?? ''}`;
 
 describe('the committed seed’s fingerprints', () => {
-  const fingerprints = csv('fingerprint.csv');
+  const allowListed = new Set([
+    ...parseAllowList(JSON.parse(readFileSync(path.join(root, ALLOW_LIST_FILE), 'utf8'))),
+    ...parseDrawn(JSON.parse(readFileSync(path.join(root, REFERENCE_DRAW_FILE), 'utf8'))).map((d) => d.orgnr),
+  ]);
+  const all = csv('fingerprint.csv');
+  const fingerprints = all.filter((f) => allowListed.has(f.orgnr ?? ''));
+  const unlisted = all.length - fingerprints.length;
   const columns = new Map(csv('document_column.csv').filter((c) => c.role === 'current').map((c) => [key(c), c]));
   const documents = new Map(csv('document.csv').map((d) => [key(d), d]));
   const keyFigures = new Map(csv('key_figures.csv').map((k) => [k.brreg_id ?? '', k]));
@@ -78,10 +90,16 @@ describe('the committed seed’s fingerprints', () => {
     return fingerprintOf(documentFigures(columnRow(column)), subtotals);
   }
 
-  it('holds fingerprints, each of a current document column in the seed', () => {
+  it('holds allow-listed fingerprints, each of a current document column in the seed', () => {
     expect(fingerprints.length).toBeGreaterThan(0);
-    const orphans = fingerprints.filter((f) => f.role !== 'current' || !columns.has(key(f)));
+    const orphans = fingerprints.filter((f) => !columns.has(key(f)));
     expect(orphans.length).toBe(0);
+  });
+
+  it(`counts ${unlisted} fingerprint row(s) of companies outside the allow-list, which have no figures to recompute from`, () => {
+    // Only an open licence gate exports them; their document columns are never in the seed.
+    const withColumns = all.filter((f) => !allowListed.has(f.orgnr ?? '') && columns.has(key(f)));
+    expect(withColumns.length).toBe(0);
   });
 
   it('recomputes every stored digest and every stored category from the committed figures', () => {

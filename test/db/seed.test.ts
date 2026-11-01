@@ -557,16 +557,12 @@ describe('the licence gate', () => {
   async function withTwoFingerprints(tx: Tx): Promise<void> {
     for (const orgnr of [LISTED, UNLISTED]) {
       await tx`insert into register.company (orgnr, read_at) values (${orgnr}, now())`;
+      // A fingerprint references its company, not its document column
+      // (spec change log, review pass 1): none is stored here.
       await tx`
-        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
-        values (${orgnr}, 2025, 'generated', 'reconciled', 'NOK', 'NOK', now(), 'full', ${'0'.repeat(40)})`;
-      await tx`
-        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
-        values (${orgnr}, 2025, 'current', 2025, 'not_evaluable', 'not_evaluable', 'not_evaluable', 'not_evaluable', '{}', 'full')`;
-      await tx`
-        insert into register.fingerprint (orgnr, filing_year, role, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
+        insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
                personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory, capitalised_intangibles, input_digest, dataset)
-        values (${orgnr}, 2025, 'current', 'low', 'low', 'high', 'high', 'low', 'low', false, false, ${'0'.repeat(64)}, 'full')`;
+        values (${orgnr}, 2025, 'low', 'low', 'high', 'high', 'low', 'low', false, false, ${'0'.repeat(64)}, 'full')`;
     }
   }
 
@@ -601,6 +597,37 @@ describe('the licence gate', () => {
   it('open: exports every fingerprint, the allow-listed one included', async () => {
     const { orgnrs } = await exportedOrgnrs(JSON.stringify({ open: true, assessment: 'assessed', date: '2026-11-01' }));
     expect(orgnrs).toEqual([LISTED, UNLISTED]);
+  });
+
+  // Review pass 1 (triage 2): an open gate exports what it opens for. A
+  // whole export, with a fingerprint of a company outside the allow-list
+  // and no document column behind it, writes the fingerprint and no
+  // document figure. Document rows outside the allow-list (a local
+  // acceptance run's) are removed inside the rolled-back transaction, as
+  // the export would refuse them anyway.
+  it('open: a whole export writes an unlisted fingerprint without its document column', async () => {
+    const gateFile = path.join(scratch, 'licence-gate-open-export.json');
+    writeFileSync(gateFile, JSON.stringify({ open: true, assessment: 'assessed', date: '2026-11-01' }));
+    const out = path.join(scratch, 'open-gate-export');
+    const listed = JSON.parse(readFileSync(path.join(root, ALLOW_LIST_FILE), 'utf8')) as { orgnr: string }[];
+    const allowListed = [...listed.map((e) => e.orgnr), ...drawn.map((d) => d.orgnr)];
+    await rolledBack(admin, async (tx) => {
+      await tx`delete from register.document where not (orgnr = any(${allowListed}::text[]))`;
+      await tx`insert into register.company (orgnr, read_at) values (${UNLISTED}, now())`;
+      await tx`
+        insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
+               personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory, capitalised_intangibles, input_digest, dataset)
+        values (${UNLISTED}, 2025, 'low', 'low', 'high', 'high', 'low', 'low', false, false, ${'0'.repeat(64)}, 'full')`;
+      await exportSeed(tx, root, out, () => {}, gateFile);
+    });
+    const orgnrsIn = (file: string): string[] => {
+      const [header, ...rows] = parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8'));
+      const at = header?.indexOf('orgnr') ?? -1;
+      return rows.map((row) => row[at] ?? '');
+    };
+    expect(orgnrsIn('fingerprint.csv')).toContain(UNLISTED);
+    expect(orgnrsIn('document_column.csv')).not.toContain(UNLISTED);
+    expect(orgnrsIn('document.csv')).not.toContain(UNLISTED);
   });
 
   it('filters no other table', async () => {

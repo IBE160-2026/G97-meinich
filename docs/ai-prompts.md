@@ -1696,6 +1696,222 @@ CI was green on `664c275` and `81c77ad`. At the human's request (`ja post review
 
 ---
 
+## Story 2.5: the business-model fingerprint, stage 4 (#43, PR #44)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The prompts name no company's type: the licence gate keeps that out of the repository for companies outside the allow-list.
+
+### Prompts to the BMAD session
+
+**2026-11-01 18:15**
+```
+/bmad-build Story 2.5
+```
+Before this, the human finished the labelled set's blind subsample (180 pairs), so those labels could not follow the fingerprint's rule. Story 5.1's rubric was already committed (`737d089`), and its branch was pushed first.
+
+**18:39**: four questions. The BMAD session recommended treating an empty line as 0.
+```
+Fra meg: 1a, Q2 som under, 3a med stopp, Q4 som under, keep.
+Q1a: terskler og regel låses før spredningstesten kjøres, og justeres
+ikke etter data. PR-en sier at produktselskaper som kostnadsfører
+utviklingen blir konsulent, og at 5.2 måler det.
+Q2: ikke tom = 0. Målt lokalt: lønn er tom i 531 av 1 920 avstemte
+kolonner, bare 45 summerer til totalen, og medianen uforklart er 62 %
+av kostnadene. Referansesettet har 915338534/2023 og 936252710/2024 med
+lønn i millioner lest som tom. Regel: en tom kostnadslinje ligger i
+[0, total minus leste linjer]. Ligger hele intervallet i ett bånd, er
+båndet kjent. Ellers er kategorien ukjent. Negativt uforklart beløp gir
+ikke fingeravtrykk. Ukjent kategori som avgjør typen gir ingen type,
+ingen eksklusjon på trinn 4, og telles (ikke annet). Mål på lokale data
+hvor mange som får type, per type og ukjent, bare som samletall, og vis
+meg det før review. Er andelen høy, foreslår du en egen story for å
+lese kostnadslinjene, som 2.3b.
+Q3a: spredningen beregnes etter Q2-regelen. Feiler et bånd: stopp og
+vis meg tallene. Ikke dropp noe automatisk.
+Q4: ikke ja til alt nå. Etter review ber du om ett ja før pnpm seed,
+med dumpen sjekket mot databasen. Etter det: seed, steg 2, seed:export
+i egen commit, gjenopprett document-run-2.4 og bekreft radtallene, kjør
+steg 2 og spredningsskriptet. Stopp hvis noe avviker.
+Legg i deferred-work.md, kreditert review-sesjonen: bare 104 av 845
+selskaper i fasitsettet (drawn.json) har leste dokumenter, så 5.2 kan
+ikke måle fingeravtrykk-laget uten en dokumentkjøring for dem, rundt 26
+timer med alle år eller rundt 5 timer med bare referanseåret. Bør
+kjøres etter en eventuell leser-retting.
+```
+*Rejected:* "empty = 0". The review session measured it first: most empty cost lines are figures that were not read, so 0 would have given many companies the wrong type and excluded them from peer groups. The interval rule replaced it. The same check found that 741 of the labelled set's companies have no read document, which Story 5.2 needs.
+
+**18:53**: the BMAD session proposed total assets as the bound for empty balance lines.
+```
+Fra meg: approve and continue, med én endring i D2:
+Punkt 1: bruk en strammere øvre grense for tomme balanselinjer enn
+totalen. Immaterielle og varige driftsmidler ligger i
+[0, sumAnleggsmidler minus de av disse linjene som er lest], og varer i
+[0, sumOmloepsmidler minus de av disse linjene som er lest], begge fra
+key_figures. Er subtotalen NULL (et tomt element er ikke 0), brukes sum
+eiendeler som grense. Negativ rest gir ikke fingeravtrykk. Subtotalene
+brukes bare som øvre grense, aldri som trekk. Målt lokalt: av 431
+kolonner med tom immateriell linje blir 330 avgjort under 5 % med
+sumAnleggsmidler, mot 165 med sum eiendeler. Test begge grensene og
+NULL-tilfellet. Spørsmålet kom fra review-sesjonen, så krediter den.
+Punkt 2: ja, testen skal feile når fila mangler, ikke hoppes over.
+Husk små commits underveis, og ikke vis meg fingeravtrykk for orgnr i
+fasitsettet.
+```
+
+**19:35**: the first totals: 47 % of companies had no type, and 63 of 84 "negative" skips were within 5 kr.
+```
+Fra meg: start code review, med disse endringene først:
+1. Negativ rest: tillat grensen på 5 kr fra within_document_bound_kr
+   (register-avrunding, AGENTS.md). En rest fra -5 kr til 0 regnes som
+   0. Under -5 kr gir fortsatt ikke fingeravtrykk. Verdien skal settes
+   ett sted: ingen ny konstant uten en test som feiler hvis den avviker
+   fra ingest/config.toml. Skriv det i Spec Change Log, med dato og min
+   beslutning, og at utelatelsen kom fra review-sesjonens regeltekst.
+   Grunnen er dokumentert avrunding, ikke resultatene.
+2. Rett grants-testen "refuse ingest and derive writes on them" i egen
+   commit, slik de nye 2.5-testene gjør det, og bekreft at den feiler
+   når en ekstra skrivetilgang gis. Blir det stort: si fra, så blir den
+   i deferred-work.md.
+3. Kostnadslinje-storyen: ja, som egen story etter merge av 2.5. Skriv i
+   deferred-work.md at den kommer før dokumentkjøringen for fasitsettet,
+   så de 741 selskapene ikke må leses to ganger.
+4. Terskler og typeregel er låst (D1). Skriv i PR-en: forhandler er 105
+   av 223 med type. Mulige grunner er at forhandler kan avgjøres med
+   ukjente linjer, og at underleverandører føres som varekostnad, som
+   kan gjøre konsulentselskaper til forhandler. 5.2 måler det, ingen
+   justering nå.
+5. Vis antall før og etter stage 4 for demo A og B og om minstegruppen
+   på 10 holder, som samletall. Vis ingen resultater for orgnr i
+   fasitsettet.
+D4 venter fortsatt på eget ja fra meg etter review.
+```
+*Corrected:* the rule the review session drafted at 18:39 left out the register's rounding. The grants test, found by the BMAD session, passed whatever the grants were, because the test connection could not switch role (`a49a164`).
+
+**19:49**: the BMAD session's review found that a fingerprint tied to its document column could never leave the seed through an open licence gate, and that it could go stale.
+```
+Fra meg: (a), og endre koden der den står. Epics sier allerede at
+fingeravtrykket refererer selskapet (epics.md:1469), så spec-en rettes
+tilbake til det. Skriv det i Spec Change Log med dato og min beslutning.
+Tre presiseringer:
+1. derive kjøres fra scripts/run-ingest.ts etter at containeren er ferdig,
+   aldri fra Python (AD-2), etter plain, --documents og --reread. Plain er
+   med fordi den oppdaterer API-subtotalene derive leser.
+   --companies-only er ikke med.
+2. derive kjøres også når steg 1 avslutter med exit 1, og exit-koden fra
+   steg 1 beholdes. Feiler derive, er det synlig og gir exit ulik 0, og de
+   gamle radene står (én transaksjon). Test hver av disse, slik at testen
+   feiler hvis kallet fjernes.
+3. En drept kjøring lar fingeravtrykk stå utdatert til neste derive. Legg
+   det i deferred-work.md, og skriv i README at derive må kjøres etter
+   gjenoppretting fra dump.
+Når porten er åpen, finnes ikke tallene bak andre selskapers fingeravtrykk
+i seed. Testen som regner om fingeravtrykkene må derfor regne om de
+allow-listede, og telle og si fra om de andre, ikke hoppe over dem i
+stillhet.
+Triagen er godkjent. Vis meg også før D4, bare som samletall:
+- demo A og B før og etter stage 4, og om minstegruppen på 10 holder
+- andelen uten type i referanseåret, som er det stage 4 faktisk ser
+  (punkt 24)
+Ingen resultater for orgnr i fasitsettet. D4 venter på eget ja fra meg.
+```
+
+**20:05**: the BMAD session's plan began with `pnpm seed`, which refuses a seed with an older migration id.
+```
+Fra meg: go D4, men med denne rekkefølgen. pnpm seed nekter nå, fordi
+seed-en har en eldre migration_id. Gjør det som i 2.4:
+1. Sjekk .local/document-run-2.4/ mot databasen (radtall og sha256).
+   Stopp hvis noe avviker.
+2. Slett radene utenfor allow-listen i én transaksjon som sjekker antallet
+   (1 947 dokumenter, 3 892 kolonner, og 97 + 194 igjen).
+3. pnpm derive.
+4. pnpm seed:export, seed-en i egen commit.
+5. pnpm seed to ganger med samme tall, og ny eksport uendret.
+6. Gjenopprett .local/document-run-2.4/ og bekreft 1 947 + 97 og
+   3 892 + 194.
+7. pnpm derive, deretter pnpm analysis:spread. Feiler et bånd: stopp og
+   vis meg tallene.
+Kjør hele testsuiten etterpå. Skriv i PR-en, med eksakte tall, hvor mange
+i A og B sine grupper som bare er med fordi de mangler type eller
+fingeravtrykk, ikke fordi typen stemmer. Ikke push før jeg sier fra.
+```
+
+**20:07**: step 1 stopped: the column dump's sha256 differed from a fresh copy. The review session compared the rows itself and found the same rows in another physical order.
+```
+Fra meg: (a). Review-sesjonen har sammenlignet radene utenfor allow-listen
+med dumpen, uavhengig av deg: 3 892 rader, samme kolonner, sortert
+identisk. Fortsett med steg 2–7. I steg 6 er kontrollen radtall og sortert
+innhold mot dumpen, ikke sha256 av filene. Sha256 av selve dumpfilene skal
+fortsatt stemme med kopien i peerless-backups, så sjekk det før steg 2.
+Skriv avviket og forklaringen i sesjonsfila. Ikke push før jeg sier fra.
+```
+
+**20:17**: the PR draft still had the figure from before the 5 kr change (223).
+```
+Fra meg: go. Opprett issue, push og opprett PR-en. Bruk tallene fra etter
+5 kr-endringen: forhandler er 105 av 225 med type (ikke 223), og 196 uten
+type (47 %) per selskap ved nyeste år. Ta med tabellen over hvem som er med
+bare på grunn av manglende signal, og at terskeltesten (b60d71b) ble
+committet før dataene ble lest (714426f). Si også at
+stage 4 foreløpig bare skiller ut en liten del, og at kostnadslinje-storyen
+er neste. Push sesjonsloggen sammen med resten, så den er med før merge.
+```
+*Error in this prompt:* "bare skiller ut en liten del" was the review session's wording, and it was wrong. Corrected at 20:21.
+
+**20:21**
+```
+Fra meg: rett overskriften i PR-beskrivelsen. "Stage 4 currently removes
+only a small part of the group" er feil, og formuleringen kom fra
+review-sesjonen. Stage 4 fjerner 149 av 396 for A (38 %) og 147 av 398 for
+B (37 %) i standardbåndet, men rundt 80 % av dem som blir igjen er med bare
+fordi signalet mangler. Skriv det slik. Vis også, som samletall for A og B
+i standardbåndet, hvor mange av de fjernede som er forhandler, produkt og
+annet, og knytt det til risikoen for at underleverandører ført som
+varekostnad fjerner ekte konsulent-peers. Dette endrer bare PR-teksten:
+ingen commit, så CI kjører ikke på nytt. Rett det samme i sesjonsfila hvis
+formuleringen står der, i en egen commit.
+```
+
+**20:24**: the BMAD session stopped before publishing that breakdown. It would have revealed the type of two named companies outside the allow-list, and it pointed to a further risk in the `produkt` rule.
+```
+Fra meg: (c), med én endring: sesjonsfila og deferred-work.md er også
+offentlige, så typen til A og B skal ikke stå der heller. Ikke oppgi typen
+til noe navngitt selskap utenfor allow-listen noe sted i repoet.
+I PR-en, uten å navngi noen: rundt 63 % av de fjernede i standardbåndet er
+forhandler. To risikoer gjelder regelen:
+1. underleverandører ført som varekostnad kan gjøre konsulentselskaper til
+   forhandler
+2. sum_immaterielle_eiendeler inneholder også utsatt skattefordel og
+   goodwill, så et konsulentselskap kan bli produkt, og da fjernes alle
+   ekte konsulent-peers. Regelen skiller ikke dette i dag.
+5.2 måler begge. D1 er låst, så ingen justering nå.
+I deferred-work.md, kreditert BMAD-sesjonen for funnet og review-sesjonen
+for neste steg:
+- Kostnadslinje-storyen utvides til å lese delene av immaterielle
+  eiendeler (utsatt skattefordel, goodwill, FoU), så 5.2 kan vurdere en
+  regel som bare teller egenutvikling.
+- Story 5.4 må kontrollere demoselskapenes type mot hva de faktisk driver
+  med før de låses, lokalt, uten å publisere typen før lisensporten er åpen.
+Commit deferred-work.md alene. Ikke endre kode.
+```
+
+### Prompts to the review session
+
+```
+okei, kan man kjøre 2.5 før man gjør subject subscription?
+```
+(10-31; meaning the labelling.) The review session answered that only the rubric had to come before Story 2.5, but advised finishing the blind subsample first, because Story 2.5 shows how the fingerprint decides. The human chose that: `okei, da venter jeg til det er fullført`.
+
+`da er labels blind ferdig` (11-01): the review session validated the 180 labels, committed them on the Story 5.1 branch and pushed the branch.
+
+### Result
+
+Of 2 043 current columns, 1 876 have a fingerprint. Of the 421 companies, at each one's newest fingerprinted year: 58 produkt, 49 konsulent, 105 forhandler, 13 annet and 196 (47 %) without a type. Every spread band passed; the threshold test (`b60d71b`) was committed before the data was read (`714426f`). In the standard band stage 4 removes 149 of 396 candidates for A and 147 of 398 for B, but about 80 % of those who remain are in only because a signal is missing. The story to read the cost lines and the parts of intangibles is next, before the labelled set's document run.
+
+### Checks before merging
+
+The review session checked the row counts, the seed's 85 fingerprints, the order of the spread test's commits, and that no demo company's orgnr appears in the changed documentation. CI was green on `5d7e704`. At the human's request (`ja post review`), the review session posted the GitHub review with nine line comments. The PR was merged at 20:38 UTC as `bc30267`.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

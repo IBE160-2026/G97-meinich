@@ -38,7 +38,7 @@ D4 comes after review and is not part of this session: the seed re-export and th
   - a balance bound is checked only for an empty line;
   - the gate's DB cases test `copyTable`, since a whole export cannot show the filter.
 - **Corrected during the session, and how it was caught:**
-  - The grants test first failed on a TRUNCATE that `derive` is granted. The test connection cannot `SET ROLE derive` (it holds ADMIN, not SET), and the refusal has the same SQLSTATE as a missing privilege. The new tests grant SET inside the rolled-back transaction. An older test that passes vacuously for the same reason is listed in `deferred-work.md`.
+  - The grants test first failed on a TRUNCATE that `derive` is granted. The test connection cannot `SET ROLE derive` (it holds ADMIN, not SET), and the refusal has the same SQLSTATE as a missing privilege. The new tests grant SET inside the rolled-back transaction. An older test that passed vacuously for the same reason ("refuse ingest and derive writes on them") is fixed the same way: with an extra INSERT granted to `derive` inside it, it now fails (SQLSTATE 23502 instead of 42501), and before the fix it passed.
   - The first request-path commit broke `test/analysis/failed-read.test.ts`. Its mocked subject rows lack the join's columns, and the validator rightly throws on a partial row. The fixtures now carry them as all null (`054b762`). Caught by running the whole unit suite after the commit.
   - The spread script first named 62.100 as a literal, which `test/no-industry-literal.test.ts` forbids in code. It now reads the industries from `seed/coverage.json` (`375d199`). Caught by the full unit suite.
   - The 410 test runs as `ingest`, which may not write or read `register.fingerprint`. A new `owner_db` fixture runs as the migration role acting as `ingest`, and the fingerprint is seeded and counted as the owner.
@@ -52,7 +52,7 @@ D4 comes after review and is not part of this session: the seed re-export and th
 ## Links
 
 - AI log: "2026-11-01 — Story 2.5: the business-model fingerprint and stage 4, and what could go wrong with banding and selection".
-- Deferred work: the cost-line reading proposal, the rounding question, and the vacuous SET ROLE test.
+- Deferred work: the cost-line reading proposal (the rounding question is answered by the spec change log; the vacuous SET ROLE test is fixed).
 - Documents updated:
   - the technical note (AD-2, "Fingerprint shape", "Rules fixed by the stories", the combination paragraph);
   - `docs/key-figures.md` (stage 4);

@@ -16,11 +16,11 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 26 |
+| auth | 27 |
 | money | 19 |
 | parsing | 13 |
 | llm-boundary | 5 |
-| scope | 15 |
+| scope | 16 |
 | docs | 19 |
 
 ## Entry template
@@ -668,3 +668,24 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 - the slettedato exclusion from the share;
 - 404 not counting as incomplete.
 **Outcome:** The `max_absent_share` value is unchanged (0.01) until Meinich has seen a measurement. The coordinator asked for the entry above to be edited where it describes exit codes and 200 answers. This file's rules allow only appending, so this entry corrects it instead.
+
+### 2026-11-01 — Story 2.5: the business-model fingerprint and stage 4, and what could go wrong with banding and selection
+**Tags:** auth, scope
+**Tool:** Claude Code (implementation subagent, Opus 5.5)
+**Asked:** Implement Story 2.5 from its spec: the fingerprint in `src/engine`, the first step-2 script, `register.fingerprint`, stage 4 in the request path, the licence gate in the seed export and the within-band spread test. The PR must state what could go wrong with banding and with selection (`AGENTS.md`, data access).
+**Got:** `src/engine/fingerprint.ts`, `src/engine/digest.ts`, `src/engine/band-spread.ts`, `scripts/derive.ts`, `scripts/fingerprint-spread.ts`, migration `20261101120000_fingerprint.sql`, stage 4 in `src/engine/peers.ts`, the fingerprint joins in `src/server/analysis.ts`, the gate in `scripts/seed-export.ts`.
+**Problem:** What could go wrong, and the test behind each guard:
+1. **A share reaching selection as a value.** Selection would then read a benchmarked measure, and every gap in it would close. The funnel's inputs carry a `Fingerprint` whose fields are band ranges and yes/no only: a compile-time check fails if a fingerprint field is a number, bigint, string or Decimal, or has a forbidden name (`test/engine/peers.test.ts`, `NoShareAsValue`, `NoForbiddenFingerprintField`, `BandRangeHoldsBands`, and "a fingerprint reaches stage 4 as five categories, bands as band ids only").
+2. **A band edge compared as a float.** The band would flip on rounding. Edges are exact Decimals and the comparison is amount < edge × revenue, with no division (`test/engine/fingerprint.test.ts`, "band edges are inclusive below" at every edge and one øre below, and "compares edges exactly, not as floats").
+3. **An empty line read as 0.** Personnel costs in the millions are read as empty in some reconciled columns (D2), and as 0 they would make a consultancy look like `annet`. An empty line is an interval; a category spanning bands is unknown; a type decided by an unknown is none, and such a candidate is kept (`fingerprint.test.ts`, "an empty line spanning bands is unknown", "an unknown that decides the rule gives no type"; `peers.test.ts`, "an undetermined candidate is kept").
+4. **A missing signal excluding a company.** A candidate with no fingerprint or no type stays, and a subject with neither keeps the whole pool (`peers.test.ts`, "an undetermined candidate is kept", "a subject without a type leaves stage 4 equal to stage 3").
+5. **Stage 4 narrowing what other code checks against.** `pool` stays stages 1–3, so `ekskl` and the document set are unchanged; only the aggregates use `group` (`peers.test.ts`, "stage 4 removes another type and leaves the pool"; `test/db/peers.test.ts`, "reads each candidate’s fingerprint for the benchmark year, removes another type from the group and keeps the pool").
+6. **A stored value outside a category's set read as a default.** The one validator throws (`fingerprint.test.ts`, "stored categories" cases; `test/db/peers.test.ts`, "throws on a stored value outside a category’s set").
+7. **Step 2 writing or deleting beyond its table.** `derive`'s exact privileges on every `register` relation are asserted: SELECT on what it reads, SELECT, INSERT and TRUNCATE on `register.fingerprint`, nothing else, no UPDATE or DELETE (`test/db/grants.test.ts`, "derive's privileges on every register relation", "the step-2 table").
+8. **A fingerprint outliving its company.** It references its document column `ON DELETE CASCADE` (`ingest/tests/test_run_record.py::test_gone_unit_is_deleted_everywhere`, which now seeds a fingerprint first).
+9. **A committed fingerprint that no longer follows from its figures.** CI recomputes every committed row's digest and categories, and checks that every fingerprintable column has its row (`test/fingerprint-seed.test.ts`).
+10. **Categories of companies outside the allow-list committed before the licence gate opens.** Absent, closed or unreadable exports allow-listed rows only (`test/db/seed.test.ts`, "the licence gate", three cases; `test/seed-format.test.ts`, "the licence gate").
+11. **Banding that leaves nothing to benchmark within a band.** The spread test, with its threshold committed before any share was seen (`test/fingerprint-spread.test.ts`); it runs on data in the acceptance run (D4).
+12. **Not guarded by code:** a cost line misread but still reconciling moves a company into another type and out of the group (D2's interval catches only empty lines; Story 5.2 measures it). A product company that expenses its development has no capitalised intangibles and becomes `konsulent` (Story 5.2 measures it).
+**Caught by:** The local D2 measurement (totals only): of 1 812 fingerprints, 915 are undetermined (198 of 421 companies at their newest year), so stage 4 removes less than it could. Of the 84 columns skipped for a negative unexplained cost, 63 are within 5 kr, the register's rounding, which the locked rule does not admit: raised with Meinich, not changed. While writing the grants test, `SET ROLE derive` from the test connection turned out to be refused with the same SQLSTATE as a missing privilege, so a refusal test can pass without testing the privilege; the new tests grant SET inside the rolled-back transaction, and the older test that does the same is listed in `deferred-work.md`. Review is still to come.
+**Outcome:** Implemented in the Story 2.5 commits on `story/2.5-fingerprint-stage-4`; the seed re-export and the spread run (D4) wait for review and Meinich's yes.

@@ -2,7 +2,7 @@
 title: 'Story 2.5: The business-model fingerprint (stage 4)'
 type: 'feature'
 created: '2026-11-01'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'f7611482680a22e02c86ca49227abfb9a7f85488'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -196,15 +196,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution** (one commit per bullet or smaller; branch `story/2.5-fingerprint-stage-4`):
-- [ ] `fingerprint.ts`, `digest.ts` and their tests, plus `test/fingerprint-spread.test.ts` with its threshold, committed before any data is read (D1, D3).
-- [ ] `peers.ts` stage 4, with the `peers.test.ts` cases and the extended selection-ban test.
-- [ ] The migration and the grants and run-record tests. Apply with `pnpm exec supabase migration up` only.
-- [ ] `scripts/derive.ts` and `pnpm derive`. Run it locally and show Meinich the totals (D2) before review.
-- [ ] `analysis.ts` and `analysis-page.tsx`; the e2e and DB peers tests pass.
-- [ ] The seed-export gate, its tests and `test/fingerprint-seed.test.ts`.
-- [ ] `scripts/fingerprint-spread.ts`. It runs in D4 step 5.
+- [x] `fingerprint.ts`, `digest.ts` and their tests, plus `test/fingerprint-spread.test.ts` with its threshold, committed before any data is read (D1, D3).
+- [x] `peers.ts` stage 4, with the `peers.test.ts` cases and the extended selection-ban test.
+- [x] The migration and the grants and run-record tests. Apply with `pnpm exec supabase migration up` only.
+- [x] `scripts/derive.ts` and `pnpm derive`. Run it locally and show Meinich the totals (D2) before review.
+- [x] `analysis.ts` and `analysis-page.tsx`; the e2e and DB peers tests pass.
+- [x] The seed-export gate, its tests and `test/fingerprint-seed.test.ts`.
+- [x] `scripts/fingerprint-spread.ts`. It runs in D4 step 5.
 - [ ] After review, D4.
-- [ ] Docs:
+- [x] Docs:
   - the technical note: "Rules fixed by the stories" and AD-2;
   - `AGENTS.md`;
   - the README (`pnpm derive`, the seed sequence);
@@ -216,6 +216,24 @@ context:
 - Given the PR, then it states what could go wrong with banding and with selection, and that a product company which expenses its development becomes `konsulent`; `docs/ai-log.md` names the test behind each claim.
 
 ## Implementation Notes
+
+Implementation subagent, 2026-11-01. Commits `b60d71b` (engine and spread test), `86090e0` (stage 4), `47f63bd` (migration), `aa38b13` (derive), `47e8b5e` and `054b762` (request path), `97d461e` (gate and seed test), `13d6c22` and `375d199` (spread script; the second reads the industries from `seed/coverage.json`, since `test/no-industry-literal.test.ts` forbids the literal in code), then the docs commit. D4 is not done.
+
+**D2 measurement (local 2.1b rows, totals only).** `pnpm derive`: 2 043 current columns read, 1 812 fingerprints written. Skipped: not reconciled 123, no revenue 11, negative unexplained 84, negative balance remainder 13. Per fingerprint: produkt 226, konsulent 210, forhandler 419, annet 42, undetermined 915. Per company at its newest fingerprinted year (421): produkt 58, konsulent 48, forhandler 105, annet 12, undetermined 198 (47 %). The undetermined share is high, so a separate story to read the cost lines is proposed in `deferred-work.md`. Of the 84 negative-unexplained columns, 63 are within 5 kr (the register's rounding) and 83 have an empty cost line; that is raised with Meinich in `deferred-work.md`, and the rule is unchanged.
+
+**Choices the spec left open, made here:**
+- A negative U is checked whenever `sum_driftskostnad` is stated, also with every cost line read (the matrix: "read cost lines > `sum_driftskostnad`"). A balance bound is computed, and its sign checked, only for an empty line it bounds; with every asset line read, the subtotals are not read (`fingerprint.test.ts`, "uses a subtotal only to bound an empty line").
+- A NULL subtotal with an empty `sum_eiendeler` leaves the line unbounded. A reconciled column always has `sum_eiendeler` (c3 or c5 needs it), so this does not occur in data.
+- A negative read cost line is in the low band; `varer` ≤ 0 is no inventory.
+- The skip reasons are `not_reconciled`, `no_revenue`, `negative_unexplained` and `negative_balance_remainder`.
+- The digest covers the 13 document figures the fingerprint reads and the two subtotals, as `FingerprintInputs`. A bigint is written as its decimal string.
+- The spread script runs for every industry in `seed/coverage.json` and names its files after the code (`fingerprint-spread-62100.*` today). The measure counts each company once, at its newest fingerprinted year, and only shares read as a point. `band-spread.ts` gives the IQR as a fraction and in percentage points.
+- The view's `SubjectFiling` carries the fingerprint, and `funnelSubject` passes it on. `shownGroup`'s parameter is renamed `group`.
+- The gate's three DB cases call `copyTable`, the function `exportSeed` uses for every table. A whole export cannot show the filter: a fingerprint of a company outside the allow-list needs its document column, which the export refuses first.
+- `ingest/tests/conftest.py` gets an `owner_db` fixture: the migration role acting as `ingest`. It lets the 410 test seed a fingerprint that only `derive` and the loader may write, in the same transaction.
+- The committed seed's expected fingerprint count, 77 of 97 current columns, was computed with the engine from the committed CSVs before the export. Checked against a temporary export of the local allow-listed rows: 77, and `test/fingerprint-seed.test.ts` passes on it.
+
+**Failing until D4 (expected):** the committed-seed tests (`test/seed-format.test.ts`, "passes every check"; `test/allow-list.test.ts`, "reads the committed seed files"; all of `test/db/seed.test.ts`), `test/fingerprint-seed.test.ts` (no `fingerprint.csv`), `test/fingerprint-spread.test.ts` (no output) and CI's seed load. The e2e specs read `seed/demo/fingerprint.csv` and pass once it exists. Locally they passed (116) against a header-only file and an emptied local fingerprint table, which `pnpm derive` restored afterwards.
 
 ## Spec Change Log
 

@@ -630,8 +630,11 @@ export function readLicenceGate(file: string, notice: (line: string) => void): {
 
 // The rows of register.fingerprint the export writes: every row when the
 // gate is open, otherwise only the allow-listed companies' (Story 2.5).
-// Allow-listed companies always keep theirs, so demo B shows fingerprint
-// separation with the gate closed. Returns a WHERE clause for the COPY
+// Allow-listed companies always keep theirs. Today those are the OCR
+// reference set's companies only: demo A and B are not on the allow-list
+// and have no document in the seed, so with the gate closed the seed holds
+// no fingerprint for them (until Story 5.4's allow-list). Returns a WHERE
+// clause for the COPY
 // query; the orgnrs are checked to be nine digits, so they are safe to inline.
 export function fingerprintWhere(gate: { open: boolean }, allowList: readonly string[]): string {
   if (gate.open) return '';

@@ -1,18 +1,22 @@
 // `pnpm analysis:spread`: the within-band spread of the two banded cost
-// shares in 62.100 (Story 2.5, D3; FR-13). Cost of goods share and personnel
+// shares in each covered industry (Story 2.5, D3; FR-13). Cost of goods share and personnel
 // cost share select peers only as bands (D1) and are benchmarked within
 // their band; this measures whether they still spread inside each band.
 // test/fingerprint-spread.test.ts holds the threshold, fixed before this
 // script first ran: in every band with n >= 10, IQR >= 2 percentage points.
 //
+// - The industries are the ones declared in seed/coverage.json, never a
+//   literal: passing in one industry is not passing in another, so the
+//   measurement runs for each industry covered.
 // - Reads the local database as `reader` (READER_DATABASE_URL, from the
-//   environment, then .env), read-only: for each 62.100 company with a
-//   stored fingerprint, its newest fingerprinted year's current document
-//   column. Run after `pnpm derive`.
+//   environment, then .env), read-only: for each company of the industry
+//   with a stored fingerprint, its newest fingerprinted year's current
+//   document column. Run after `pnpm derive`.
 // - Counts only shares that were read (a point, not an interval): an empty
 //   cost line gives no share. Every share, band and range is computed by the
 //   engine (src/engine/fingerprint.ts readShare, src/engine/band-spread.ts).
-// - Writes analysis/output/fingerprint-spread-62100.{json,md}: aggregates
+// - Writes analysis/output/fingerprint-spread-<code without the dot>.{json,md}
+//   per industry: aggregates
 //   only, n and the interquartile range per band. No company, orgnr or
 //   individual share is written or printed. The files hold no date, so the
 //   same database gives the same bytes.
@@ -31,18 +35,20 @@ import { DOCUMENT_FIGURE_COLUMNS, type DocumentColumnRow, documentFigures } from
 import { BANDS, type Band, SPREAD_CATEGORIES, type SpreadCategory, readShare } from '../src/engine/fingerprint.ts';
 import { formatPercentagePoints } from '../src/engine/format.ts';
 import { setting } from './run-ingest.ts';
-import { REPORT_DIR, stableJson } from './seed-format.ts';
+import { COVERAGE_FILE, REPORT_DIR, readCoverage, stableJson } from './seed-format.ts';
 
-export const INDUSTRY = '62.100';
-export const SPREAD_JSON = `${REPORT_DIR}/fingerprint-spread-62100.json`;
-export const SPREAD_MD = `${REPORT_DIR}/fingerprint-spread-62100.md`;
+/** The report files of one industry: its code without the dot. */
+export function spreadFiles(code: string): { readonly json: string; readonly md: string } {
+  const base = `${REPORT_DIR}/fingerprint-spread-${code.replace('.', '')}`;
+  return { json: `${base}.json`, md: `${base}.md` };
+}
 
 const FIGURE_SELECT = Object.values(DOCUMENT_FIGURE_COLUMNS)
   .map((column) => `dc.${column}`)
   .join(', ');
 
-// Each 62.100 company's newest fingerprinted year, and that year's current
-// column. $1 is the industry code.
+// Each company of the industry ($1) with a fingerprint: its newest
+// fingerprinted year's current column.
 export const SPREAD_SQL = `
 select dc.status, ${FIGURE_SELECT}
   from register.company c
@@ -86,7 +92,11 @@ export function spreads(columns: readonly DocumentColumnRow[]): Record<SpreadCat
 }
 
 /** The committed JSON: aggregates only. */
-export function spreadOutput(companies: number, spread: Record<SpreadCategory, Record<Band, BandSpread>>): SpreadOutput {
+export function spreadOutput(
+  industry: string,
+  companies: number,
+  spread: Record<SpreadCategory, Record<Band, BandSpread>>,
+): SpreadOutput {
   const categories = {} as SpreadOutput['categories'];
   for (const category of SPREAD_CATEGORIES) {
     const bands = {} as Record<Band, BandEntry>;
@@ -97,7 +107,7 @@ export function spreadOutput(companies: number, spread: Record<SpreadCategory, R
     categories[category] = bands;
   }
   return {
-    industry: INDUSTRY,
+    industry,
     companies,
     measure:
       'interquartile range (PERCENTILE.INC Q3 - Q1) of the read share in each band, in percentage points; shares from empty lines are not counted',
@@ -106,13 +116,17 @@ export function spreadOutput(companies: number, spread: Record<SpreadCategory, R
 }
 
 /** The report: one table per category, percentage points to one decimal. */
-export function spreadMarkdown(companies: number, spread: Record<SpreadCategory, Record<Band, BandSpread>>): string {
+export function spreadMarkdown(
+  industry: string,
+  companies: number,
+  spread: Record<SpreadCategory, Record<Band, BandSpread>>,
+): string {
   const lines = [
-    `# Within-band spread, ${INDUSTRY}`,
+    `# Within-band spread, ${industry}`,
     '',
     'Story 2.5 (D3; FR-13). Written by `pnpm analysis:spread` (scripts/fingerprint-spread.ts); do not edit.',
     '',
-    `Each ${INDUSTRY} company with a stored fingerprint, at its newest fingerprinted year: ${companies} companies. ` +
+    `Each ${industry} company with a stored fingerprint, at its newest fingerprinted year: ${companies} companies. ` +
       'Only shares that were read count; an empty cost line gives no share. ' +
       'The test (test/fingerprint-spread.test.ts) asserts that in every band with n ≥ 10 the interquartile range is at least 2 percentage points; a band below n 10 is reported only.',
     '',
@@ -136,12 +150,16 @@ export async function main(root: string): Promise<number> {
   }
   const sql = postgres(url, { max: 1, onnotice: () => {}, connection: { default_transaction_read_only: true } });
   try {
-    const columns = await sql.unsafe<DocumentColumnRow[]>(SPREAD_SQL, [INDUSTRY]);
-    if (columns.length === 0) throw new Error(`no ${INDUSTRY} company has a stored fingerprint; run \`pnpm derive\``);
-    const spread = spreads(columns);
-    writeFileSync(path.join(root, ...SPREAD_JSON.split('/')), stableJson(spreadOutput(columns.length, spread)));
-    writeFileSync(path.join(root, ...SPREAD_MD.split('/')), spreadMarkdown(columns.length, spread));
-    process.stdout.write(`analysis:spread: wrote ${SPREAD_JSON} and ${SPREAD_MD} (${columns.length} companies)\n`);
+    const industries = readCoverage(path.join(root, ...COVERAGE_FILE.split('/'))).map((entry) => entry.code);
+    for (const industry of industries) {
+      const columns = await sql.unsafe<DocumentColumnRow[]>(SPREAD_SQL, [industry]);
+      if (columns.length === 0) throw new Error(`no ${industry} company has a stored fingerprint; run \`pnpm derive\``);
+      const spread = spreads(columns);
+      const files = spreadFiles(industry);
+      writeFileSync(path.join(root, ...files.json.split('/')), stableJson(spreadOutput(industry, columns.length, spread)));
+      writeFileSync(path.join(root, ...files.md.split('/')), spreadMarkdown(industry, columns.length, spread));
+      process.stdout.write(`analysis:spread: wrote ${files.json} and ${files.md} (${columns.length} companies)\n`);
+    }
     return 0;
   } catch (error) {
     process.stderr.write(`analysis:spread: ${(error as Error).message}\n`);

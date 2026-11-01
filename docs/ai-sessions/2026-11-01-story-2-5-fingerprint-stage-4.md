@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-01
 **Tool:** Claude Code (BMAD coordinator session and its implementation and review subagents, Opus 5.5)
-**Story / issue:** Story 2.5 (FR-10, FR-13), branch `story/2.5-fingerprint-stage-4`; issue and PR not yet opened
+**Story / issue:** Story 2.5 (FR-10, FR-13), branch `story/2.5-fingerprint-stage-4`, issue [#43](https://github.com/IBE160-2026/G97-meinich/issues/43); PR linked below once opened
 **Result:** commits `b60d71b`, `86090e0`, `47f63bd`, `aa38b13`, `47e8b5e`, `054b762`, `97d461e`, `13d6c22`, `375d199`, and the docs commit
 
 ## Goal

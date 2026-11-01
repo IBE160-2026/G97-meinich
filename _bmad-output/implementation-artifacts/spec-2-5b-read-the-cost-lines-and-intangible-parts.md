@@ -1,0 +1,175 @@
+---
+title: 'Story 2.5b: Read the cost lines and the parts of intangible assets'
+type: 'bugfix'
+created: '2026-11-01'
+status: 'in-progress'
+baseline_commit: 'db72a90382b3ccc8c6cfb37c2d2a2639789c1a67'
+route: 'dispatch'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
+  - '{project-root}/docs/data-sources-brreg.md'
+  - '{project-root}/_bmad-output/implementation-artifacts/spec-2-3b-read-the-balance-total.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:**
+- Half of the fingerprints are undetermined (Story 2.5, local 2.1b rows: 937 of 1 876; 196 of 421 companies at their newest year). Mostly an empty `lonnskostnad` or another empty cost line leaves the personnel band spanning low to high. `lonnskostnad` is empty in 531 of 1 920 reconciled columns. On the reference set, the cost lines are not read in 34 cases (`avskrivninger` 17, `lonnskostnad` 5, `annen_driftskostnad` 5, `varekostnad` 2), and `sum_immaterielle_eiendeler` in 10.
+- The cost lines are in no within-document check, so the digits pass can never fill one (`documents.combine`).
+- `sum_immaterielle_eiendeler` includes the deferred tax asset and goodwill. Story 5.2 cannot consider a rule that counts only capitalised own development, because the parts are not read (`deferred-work.md`, the two Story 2.5 entries).
+
+**Approach:**
+- **Probe first, as in 2.3.** Find out why the lines come out empty, with evidence from the documents, before anything is fixed.
+- Fix what the probe shows, on labels and gates only.
+- Read the printed parts of intangible assets as new stored fields.
+- Measure before and after on the reference set.
+- After a separate yes, re-read the stored documents.
+
+**Decisions (Meinich, 2026-11-01):**
+- **D1 (Story 2.5) is locked.** No change to band edges, the 5 % threshold, the type rule or `FINGERPRINT_FIELDS`. The new parts are stored and reach `documentFigures`, but the fingerprint does not read them.
+- **The report gives before and after on the reference set:**
+  - every class count per field;
+  - the misread figures and the phantoms that reach the engine, with each new one listed;
+  - the share of fingerprints and companies without a type, as totals.
+  - More figures read must not be paid for with new errors.
+- **No fingerprint result is shown for an orgnr in the labelled set** (`analysis/labelled-set/drawn.json`, branch `story/5.1-labelled-set`), in output, chat, tests or commits. Eight reference-set companies are in it, so fingerprint results are totals only.
+- **Re-read and the labelled-set document run start only after a separate yes from Meinich.** Each is asked for on its own.
+- **Q1, all four parts.** The fields are `forskning_og_utvikling`, `konsesjoner_patenter`, `goodwill` and `utsatt_skattefordel`. A parts-sum check (the four against `sum_immaterielle_eiendeler`, 5 kr) is a digits-pass gate for them, in `combine` only.
+- **Q2, Meinich transcribes the parts.** The columns are added to `transcriptions.csv` for every reference column with a non-blank `sum_immaterielle_eiendeler` (blank elsewhere, meaning not printed). The parts are measured like every other field, headline included. Before the transcription is committed, the 2.5b section is not generated.
+- **Q3, the cost-line sum gate is decided at the probe checkpoint.** It is built only if the probe shows refused figure tokens as a cause.
+- **Q4, the labelled-set document run is not in this story.** It follows the merge as its own step, after its own yes. This PR's acceptance run is the re-read of the reference set and of the 2.1b rows.
+
+**Approval changes (Meinich, 2026-11-01):**
+- **C1, the transcription comes before the probe.**
+  - The template is made first, from the transcribed `sum_immaterielle_eiendeler` only. It shows Meinich no OCR value.
+  - Meinich transcribes the parts, and the review session checks that they sum to the total.
+  - The probe's result is shown to Meinich only after the transcription is committed.
+- **C2, the seed and the re-read follow 2.5's order.** Nothing below runs without Meinich's yes: no `pnpm seed`, no deletion of 2.1b rows. `seed:export` cannot run while the 2.1b rows are in the database. After the yes, in this order, stopping at any deviation:
+  1. dump and back up;
+  2. `--reread` every stored document (the reference set's and the 2.1b rows);
+  3. a new dump;
+  4. delete the rows outside the allow-list in one controlled transaction, with the counts checked before COMMIT;
+  5. `pnpm derive`;
+  6. `pnpm seed:export`, committed on its own;
+  7. `pnpm seed` twice, then export again, unchanged;
+  8. restore from the new dump and confirm the row counts;
+  9. `pnpm derive`.
+  - **Restoring a dump without the new columns** (`.local/document-run-2.4/`) still works after the migration, before the re-read. This is tested.
+  - README "Seed" names the dump that applies.
+- **C3, a time limit per document (watchdog) is part of this story** (`deferred-work.md`, the hanging-fetch entry).
+  - It has a test, lands in its own commit, and comes before the re-read, because about 40 hours of OCR lie ahead.
+  - When the limit expires, the document is listed as not fetched (not replaced, on a re-read) and the run goes on.
+
+## Boundaries & Constraints
+
+**Always:**
+- **The probe comes before any fix.** It is read-only and runs in the step-1 image. It names, per empty line, the cause, with the OCR words as evidence. Its result is shown to Meinich, with the proposed fix, before `layout.py` or `documents.py` changes.
+- A figure is still the digits as printed, or None. A new gate admits a digits-pass figure only through a check that passes with a plain-pass figure among its other operands, as `combine` does today.
+- The fold and the matching that work today still match everything they match today.
+- A re-read follows 2.3b's rules: one transaction per document, a new `reader_commit`, and "not replaced" when columns are fewer or a reconciled column would fail.
+- The "before" inputs are committed before any re-read.
+- **The watchdog is enforced outside the network call.**
+  - The fetch runs where the run can stop waiting for it; `urlopen`'s socket timeout alone did not fire in 2.3b.
+  - The limit is one value in `ingest/config.toml`.
+  - An expired document is a failure in the run record (stage `documents` or `reread`, reason naming the limit), so the run exits 1 at the end and a rerun resumes.
+
+**Never:**
+- Repair a figure token, or use OCR confidence.
+- Change `column_status`, the reconciliation rules or their values in `ingest/config.toml`.
+- Change D1's thresholds, rule or fingerprint inputs.
+- Start a re-read, `pnpm seed`, a deletion of 2.1b rows, or the labelled-set document run, without its own yes.
+- Run `seed:export` with rows outside the allow-list in the database.
+- Read at query time.
+- Delete any dump in `.local/`.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected | Test that fails if deleted |
+|---|---|---|---|
+| Intangible parts | a balance with "Forskning og utvikling", "Konsesjoner, patenter…", "Goodwill", "Utsatt skattefordel" rows | each part stored; `sum_immaterielle_eiendeler` unchanged | `ingest/tests/test_layout.py::test_intangible_parts_read` |
+| Part vs total | "Sum immaterielle eiendeler" beside its parts | no part matches the sum row, nor the sum a part | `test_layout.py::test_intangible_part_not_sum` |
+| Parts gate | a part refused in plain, read in digits; the four parts sum to a plain `sum_immaterielle_eiendeler` | kept from the digits pass; if the sum fails or an operand is absent, it stays absent | `test_documents.py::test_intangible_part_recovered_only_through_gate` |
+| Cost gate (only if approved at the checkpoint, Q3) | a cost line refused in plain, read in digits; lines sum to `sum_driftskostnad` with a plain figure among them | kept; otherwise absent | `test_documents.py::test_cost_line_recovered_through_gate` |
+| Probe-specific fixes | one test per cause the probe names, chosen with the fix | as the fix decided | named in the Spec Change Log when the fix is approved |
+| New columns | migration on a database with rows | NULL in old rows; the `digits_pass_fields` CHECK admits the new names | `test/db/grants.test.ts` (the new columns), `test/db/document-columns.test.ts` |
+| Seed | the committed seed after re-export | loads, re-exports unchanged | CI `pnpm seed` + `git diff --exit-code seed/` |
+| Watchdog | a fetch that never returns (fake transport blocking past the limit), then a normal document | the first listed as not fetched with the limit as reason; the second read and written; exit 1 | `ingest/tests/test_documents_run.py::test_hung_fetch_is_abandoned_and_run_goes_on` |
+| Watchdog on re-read | the same hang during `--reread` | listed as not replaced; stored figures and version unchanged | `test_documents_run.py::test_hung_fetch_on_reread_not_replaced` |
+| Old dump restores | CSV rows with the pre-2.5b header, copied into the migrated tables with the column list read from the header | rows loaded, new columns NULL | `test/db/restore-old-dump.test.ts` (rolled back) |
+| Fingerprint unchanged | new parts present in figures | the digest and categories are unchanged | `test/engine/fingerprint.test.ts` "the intangible parts do not enter the fingerprint" |
+
+</frozen-after-approval>
+
+## Code Map
+
+- **The probe.** A committed, read-only probe, `analysis/ocr/empty_lines.py`. It is run like `consistency.py` (on the host with `uv run`, re-launched in `peerless-ingest:local` with `--in-image`).
+  - For given (orgnr, year) pairs, it runs `documents.recognise` and both `parse_pages` passes.
+  - Per target line, it records: no row matched (the nearest folded labels), matched but `parse_number` refused (the tokens), or read.
+  - Its input is the reference set's not-read cells (from `ocr-sm2-compare`) plus a seeded draw of empty `lonnskostnad` columns from the local 2.1b rows.
+  - Its output, `analysis/output/empty-lines-probe.md`, holds causes and OCR tokens, with no fingerprints.
+- `ingest/src/peerless_ingest/layout.py`:
+  - `TARGETS` (:275) gets the parts.
+  - `avskrivninger` and `nedskrivninger` (:280-281) are long whole-label variants that a wrap past `JOIN_LINES` (:302) or a split row cannot match. The probe will say whether they are the cause.
+  - `parse_number` (:182-208) is where tokens are refused.
+  - Matching is in `_candidates` (:327) and `_match` (:348).
+- `ingest/src/peerless_ingest/documents.py`:
+  - `CHECK_FIELDS` (:71-76) and `checks` (:120) hold c1-c4.
+  - The parts-sum gate check (and the cost-sum gate, if approved at the checkpoint) is added for `combine` (:138) only.
+  - `reconcile.within_document_checks` and `column_status` are unchanged.
+- `FIELDS` follows `TARGETS`, and so does `write.py`. Mind the column order of the SELECT at `write.py:431`.
+- **New migration** after `20261101130000_fingerprint_references_company.sql`:
+  - one `bigint` `<field>_ore` column per part, with a COMMENT;
+  - drop and re-add the `digits_pass_fields` CHECK from `20261020120000_register_document_tables.sql:120-128`.
+  - Apply it with `supabase migration up` only.
+- `src/engine/document-inputs.ts:29-53` `DOCUMENT_FIGURE_COLUMNS` gets the parts. `derive.ts`, `fingerprint-spread.ts` and `document-run-counts.ts` follow it. `fingerprint.ts` `FINGERPRINT_FIELDS` (:105) is not touched.
+- `scripts/ocr-sm2-compare.ts:15-38` `SM2_FIELDS` gets the four parts (Q2); `parseTranscriptions` then requires their columns. Add a "Before and after Story 2.5b" section, with the 2.3b section as the pattern. The undetermined share comes from `fingerprintOf` + `businessType` on the seed's reference columns, as totals.
+- **Test fixtures:**
+  - `ingest/tests/fixtures/documents/expected-979607008-{2025,2011}.json`;
+  - `test_documents_write.py:38-70`;
+  - `test/fixtures/seed/document-column-with-figure.csv`;
+  - `test/engine/document-inputs.test.ts:27` and `test/derive.test.ts:20`.
+- **Watchdog.** `fetch.fetch_document` (:182) and `UrllibTransport.get` (:80, `timeout=60` per socket operation). The deadline wraps the per-document fetch in `run.py`'s document and re-read loops (`_load_documents`, `_reread_documents`): a worker thread with a bounded wait, abandoned (daemon) on expiry. A new `[documents] fetch_deadline_s` in `ingest/config.toml`, read by `config.py`.
+- **README "Seed".** The restore command names the columns from the dump's own header line, so a dump taken before a nullable column was added still restores. The text names `.local/document-run-2.4/` before the re-read and the new dump after it.
+- **Reuse:** `tsv_builder.replace_row`, `document_fakes.FakeRecognise`, `conftest` `db`, and 2.3b's `--reread` path. `scripts/document-run-counts.ts` gives the 2.1b before and after.
+
+## Tasks & Acceptance
+
+**Execution** (branch `story/2.5b-read-cost-lines`, issue first):
+- [ ] Story 2.5b section in `epics.md`, `sprint-status.yaml` entry, GitHub issue
+- [ ] Before inputs committed: `analysis/output/ocr-sm2-before-2.5b/` and `document-run-counts-before-2.5b.json`, with the undetermined totals
+- [ ] Transcription template (C1): the four part columns in `transcriptions.csv`, the rows to fill named from the transcribed total only, no OCR value shown. **Wait: Meinich transcribes; the review session checks the sums; committed on its own**
+- [ ] Watchdog and its tests, its own commit (C3)
+- [ ] Probe script and its output, shown only after the transcription commit. **Checkpoint: Meinich approves the fix** (Spec Change Log)
+- [ ] `layout.py`/`documents.py` fixes and tests; the four parts in `TARGETS`, the parts-sum gate, `test_layout.py`/`test_documents.py`
+- [ ] Migration (applied with `supabase migration up`, 2.1b rows kept), `DOCUMENT_FIGURE_COLUMNS`, fixtures, DB tests; the old-dump restore test and README restore command
+- [ ] `ocr-sm2` before/after 2.5b section and tests
+- [ ] Docs: `AGENTS.md`, `data-sources-brreg.md`, `key-figures.md` if a field is named there, `ai-log.md`, the session file, `deferred-work.md` (close both entries)
+- [ ] After review and Meinich's yes: C2's nine steps; `pnpm analysis:document-run after-2.5b` runs between steps 2 and 4, because it reads the 2.1b rows in the local database. `pnpm analysis:sm2` runs after step 6, because it reads the committed seed.
+
+**Acceptance Criteria:**
+- Given every stored document re-read, when `pnpm analysis:sm2` runs, then the 2.5b section gives, before and after, the class counts per field, the misreads and phantoms reaching the engine with each new one listed, and the undetermined share as totals.
+- Given the re-read, when the counts run, then every document has the current `reader_commit` or is listed as not replaced with its reason.
+- Given C2 step 8, when the row counts are queried, then they equal the new dump's line counts, and `pnpm derive` then succeeds.
+- Given any committed file or PR text, then no fingerprint result is tied to an orgnr of the labelled set.
+
+## Implementation Notes
+
+## Spec Change Log
+
+## Review Triage Log
+
+## Design Notes
+
+**Why the gate and not a looser token rule.** A cost line refused in plain (for example a bold "l" or a split group) can only be trusted through arithmetic. The lines and `sum_driftskostnad` are all printed, and c1 already confirms `sum_driftskostnad`. A sum check with a 5 kr bound admits the right digits and catches a misread, which is wrong by orders of magnitude. It stays out of `column_status`, so no column changes status because of it.
+
+## Verification
+
+**Commands:**
+- `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db && pnpm test:ingest` -- all green
+- Before C2: no `pnpm seed`, no `seed:export` (the 2.1b rows are in the database). CI's seed steps fail until C2 step 6, as in 2.5.
+- C2 step 7: `pnpm seed` twice, `pnpm seed:export && git diff --exit-code seed/` -- no diff
+- C2 step 8: restored row counts equal the new dump's
+- `pnpm analysis:sm2 && git diff analysis/output/ocr-sm2.md` -- generation date only, after the acceptance run

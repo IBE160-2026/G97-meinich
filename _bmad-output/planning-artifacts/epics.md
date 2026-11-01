@@ -1491,6 +1491,34 @@ So that a reseller, a product company and a consultancy are not compared as if t
 **When** it is opened
 **Then** it states what could go wrong with banding and with selection (AGENTS.md Working style), and the reasoning is recorded in `docs/ai-log.md`
 
+### Story 2.5b: Read the cost lines and the parts of intangible assets
+
+As a sensor assessing the project,
+I want the cost lines that are printed but come back empty read, and the parts of intangible assets stored, with the result measured before and after,
+So that more companies get a business type without a single new misread reaching the engine.
+
+Split from Story 2.5 (Meinich, 2026-11-01; issue #45). Half of the fingerprints were undetermined, mostly because an empty `lonnskostnad` leaves the personnel-cost band spanning low to high, and `sum_immaterielle_eiendeler` holds the deferred tax asset and goodwill as well as capitalised development. D1 (Story 2.5) is unchanged.
+
+**Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** issue #45, branch `story/2.5b-read-cost-lines`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** every stored document re-read
+**When** `pnpm analysis:sm2` runs
+**Then** its Story 2.5b section gives, before and after on the reference set: the class counts per field, the four intangible parts included (transcribed by Meinich); the misreads and phantoms reaching the engine, with every new one listed; and the share of fingerprints without a type, as totals
+**And** more figures read are not paid for with new errors
+
+**Given** a document fetch that hangs
+**When** the per-document time limit expires
+**Then** the document is listed as not fetched (not replaced, on a re-read), and the run goes on
+
+**Given** the re-read is complete
+**When** the local database is queried
+**Then** every document has the current `reader_commit` or is listed as not replaced with its reason
+
+**Given** any committed file or PR text
+**Then** no fingerprint result is tied to an orgnr of the labelled set
+
 ### Story 2.6: Classification (stage 5)
 
 As Kari or Anders,

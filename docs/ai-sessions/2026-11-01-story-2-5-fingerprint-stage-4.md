@@ -44,7 +44,7 @@ D4 comes after review and is not part of this session: the seed re-export and th
   - The 410 test runs as `ingest`, which may not write or read `register.fingerprint`. A new `owner_db` fixture runs as the migration role acting as `ingest`, and the fingerprint is seeded and counted as the owner.
 - **Findings for Meinich (not changed, since the rules are locked):**
   - **47 % of companies are undetermined** at their newest year. A cost-line reading story is proposed in `deferred-work.md`, as D2 asks.
-  - **Rounding drops columns.** 63 of the 84 columns skipped for a negative unexplained cost are within 5 kr, which the register's rounding allows.
+  - **Rounding dropped columns.** 63 of the 84 columns skipped for a negative unexplained cost were within 5 kr, which the register's rounding allows. Meinich amended the rule before review (spec change log): a remainder down to −5 kr counts as 0. Rerun: 1 876 fingerprints.
 - **Not done here:** D4 (one yes before `pnpm seed`), and the PR with the issue.
   - Until D4, these fail: the committed-seed tests, `test/fingerprint-seed.test.ts`, `test/fingerprint-spread.test.ts` and CI's seed load.
   - `sprint-status.yaml` is at `review`, and the spec at `in-review`.

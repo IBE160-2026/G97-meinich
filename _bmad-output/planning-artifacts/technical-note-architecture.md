@@ -398,7 +398,7 @@ Each peer's inclusion reason is generated deterministically from the profile fie
 - **An empty line is not 0.** It lies in an interval, and a category is known only when its whole interval gives one band or one answer; otherwise it is a band range or, for yes/no, unknown.
   - An empty cost line lies in [0, U], where U is `sum_driftskostnad` minus the cost lines that were read (unbounded if `sum_driftskostnad` is empty).
   - An empty intangibles or fixed-assets line lies in [0, `sum_anleggsmidler` − the other of the two, if read]; empty `varer` in [0, `sum_omloepsmidler` − `kundefordringer` and `bankinnskudd`, if read]. Both subtotals come from the key-figures filing the document belongs to and are used only as upper bounds. A NULL subtotal is not 0: the bound is then the column's `sum_eiendeler` minus every asset line that was read.
-  - A negative U or a negative bound gives no fingerprint.
+  - A negative U or bound down to −5 kr is the register's rounding and counts as 0; below −5 kr there is no fingerprint (spec change log, Meinich 2026-11-01). The 5 kr is `within_document_bound_kr` in `ingest/config.toml`; the engine's copy, `ROUNDING_TOLERANCE_ORE`, is tested against it (`test/engine/fingerprint-tolerance.test.ts`).
 - **The rule**, first match wins:
   1. `forhandler`: cost of goods high, or cost of goods mid with inventory;
   2. `produkt`: capitalised intangibles;

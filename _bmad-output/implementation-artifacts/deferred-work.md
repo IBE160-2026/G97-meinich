@@ -133,9 +133,5 @@
   evidence: Story 2.5 local run of `pnpm derive` on the 2.1b rows, 2026-11-01, totals only: 1 812 fingerprints, 915 undetermined; per company at its newest fingerprinted year, 198 of 421 undetermined (produkt 58, konsulent 48, forhandler 105, annet 12). The review session measured `lonnskostnad` empty in 531 of 1 920 reconciled columns (spec D2).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-5-the-business-model-fingerprint-stage-4.md`
-  summary: Decide whether a negative unexplained cost within the register's rounding gives a fingerprint. D2 says a negative U gives none, and the rule is exact, so a column whose read cost lines exceed `sum_driftskostnad` by a krone, which the register's rounding of each printed line allows (`AGENTS.md`, "Reconcile with two rules"), gets no fingerprint. Not changed in Story 2.5: the rule was locked before data (D1, D2).
-  evidence: Story 2.5 local run, 2026-11-01, totals only: 84 reconciled current columns with revenue skipped as `negative_unexplained`; 63 of them are within 5 kr, 83 have at least one empty cost line, and 15 are more than 1 000 000 kr over.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-5-the-business-model-fingerprint-stage-4.md`
   summary: The refusal test "refuse ingest and derive writes on them" in `test/db/grants.test.ts` ("the loader tables") runs `SET ROLE ingest` or `SET ROLE derive` from the test connection, which holds ADMIN but not SET on those roles. The SET ROLE itself is refused with 42501, the same SQLSTATE as a missing table privilege, so it passes without reaching the privilege it claims to test. Story 2.5's new tests grant the connection SET inside the rolled-back transaction first; apply the same to it.
   evidence: Story 2.5 implementation: "lets derive truncate it and read what it derives from" failed with 42501 on a TRUNCATE derive is granted, until the connection was granted SET on derive.

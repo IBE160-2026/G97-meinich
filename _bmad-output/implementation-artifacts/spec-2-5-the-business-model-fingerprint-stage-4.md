@@ -219,10 +219,10 @@ context:
 
 Implementation subagent, 2026-11-01. Commits `b60d71b` (engine and spread test), `86090e0` (stage 4), `47f63bd` (migration), `aa38b13` (derive), `47e8b5e` and `054b762` (request path), `97d461e` (gate and seed test), `13d6c22` and `375d199` (spread script; the second reads the industries from `seed/coverage.json`, since `test/no-industry-literal.test.ts` forbids the literal in code), then the docs commit. D4 is not done.
 
-**D2 measurement (local 2.1b rows, totals only).** `pnpm derive`: 2 043 current columns read, 1 812 fingerprints written. Skipped: not reconciled 123, no revenue 11, negative unexplained 84, negative balance remainder 13. Per fingerprint: produkt 226, konsulent 210, forhandler 419, annet 42, undetermined 915. Per company at its newest fingerprinted year (421): produkt 58, konsulent 48, forhandler 105, annet 12, undetermined 198 (47 %). The undetermined share is high, so a separate story to read the cost lines is proposed in `deferred-work.md`. Of the 84 negative-unexplained columns, 63 are within 5 kr (the register's rounding) and 83 have an empty cost line; that is raised with Meinich in `deferred-work.md`, and the rule is unchanged.
+**D2 measurement (local 2.1b rows, totals only), rerun after the Spec Change Log amendment (2026-11-01).** `pnpm derive`: 2 043 current columns read, 1 876 fingerprints written. Skipped: not reconciled 123, no revenue 11, negative unexplained 21, negative balance remainder 12. Per fingerprint: produkt 229, konsulent 221, forhandler 446, annet 43, undetermined 937. Per company at its newest fingerprinted year (421): produkt 58, konsulent 49, forhandler 105, annet 13, undetermined 196 (47 %). Before the amendment: 1 812 fingerprints; negative unexplained 84 (63 of them within 5 kr), negative balance remainder 13; per company produkt 58, konsulent 48, forhandler 105, annet 12, undetermined 198. The undetermined share is high, so a separate story to read the cost lines is proposed in `deferred-work.md`.
 
 **Choices the spec left open, made here:**
-- A negative U is checked whenever `sum_driftskostnad` is stated, also with every cost line read (the matrix: "read cost lines > `sum_driftskostnad`"). A balance bound is computed, and its sign checked, only for an empty line it bounds; with every asset line read, the subtotals are not read (`fingerprint.test.ts`, "uses a subtotal only to bound an empty line").
+- A negative U (below the −5 kr rounding, Spec Change Log) is checked whenever `sum_driftskostnad` is stated, also with every cost line read (the matrix: "read cost lines > `sum_driftskostnad`"). A balance bound is computed, and its sign checked, only for an empty line it bounds; with every asset line read, the subtotals are not read (`fingerprint.test.ts`, "uses a subtotal only to bound an empty line").
 - A NULL subtotal with an empty `sum_eiendeler` leaves the line unbounded. A reconciled column always has `sum_eiendeler` (c3 or c5 needs it), so this does not occur in data.
 - A negative read cost line is in the low band; `varer` ≤ 0 is no inventory.
 - The skip reasons are `not_reconciled`, `no_revenue`, `negative_unexplained` and `negative_balance_remainder`.
@@ -231,11 +231,21 @@ Implementation subagent, 2026-11-01. Commits `b60d71b` (engine and spread test),
 - The view's `SubjectFiling` carries the fingerprint, and `funnelSubject` passes it on. `shownGroup`'s parameter is renamed `group`.
 - The gate's three DB cases call `copyTable`, the function `exportSeed` uses for every table. A whole export cannot show the filter: a fingerprint of a company outside the allow-list needs its document column, which the export refuses first.
 - `ingest/tests/conftest.py` gets an `owner_db` fixture: the migration role acting as `ingest`. It lets the 410 test seed a fingerprint that only `derive` and the loader may write, in the same transaction.
-- The committed seed's expected fingerprint count, 77 of 97 current columns, was computed with the engine from the committed CSVs before the export. Checked against a temporary export of the local allow-listed rows: 77, and `test/fingerprint-seed.test.ts` passes on it.
+- The committed seed's expected fingerprint count, 85 of 97 current columns after the amendment (77 before it), was computed with the engine from the committed CSVs before the export. Before the amendment it was checked against a temporary export of the local allow-listed rows (77), and `test/fingerprint-seed.test.ts` passed on it.
 
 **Failing until D4 (expected):** the committed-seed tests (`test/seed-format.test.ts`, "passes every check"; `test/allow-list.test.ts`, "reads the committed seed files"; all of `test/db/seed.test.ts`), `test/fingerprint-seed.test.ts` (no `fingerprint.csv`), `test/fingerprint-spread.test.ts` (no output) and CI's seed load. The e2e specs read `seed/demo/fingerprint.csv` and pass once it exists. Locally they passed (116) against a header-only file and an emptied local fingerprint table, which `pnpm derive` restored afterwards.
 
 ## Spec Change Log
+
+- **2026-11-01, Meinich (before review): a negative remainder down to −5 kr counts as 0.**
+  - **The gap.** D2 says "A negative U gives no fingerprint", and the same holds for a negative balance remainder. That wording came from the review session's rule text. It left out the register's documented rounding (AGENTS.md, "Reconcile with two rules"): the register prints whole kroner rounded from øre, so a stated total can be a krone or two off its components.
+  - **The amendment.**
+    - A remainder (cost U or balance bound) in [−5 kr, 0) is taken as 0.
+    - Below −5 kr, there is still no fingerprint.
+    - The 5 kr is `within_document_bound_kr` in `ingest/config.toml`. The engine's copy of the value has a test that fails when the two differ, so there is no second free constant.
+  - **The reason is the documented rounding, not the results.** The D2 measurement (63 of 84 negative-unexplained skips within 5 kr) is what brought the gap to light, not what decided it.
+  - **Known-bad state avoided:** a company whose cost lines exactly explain the total, but whose rounding goes 1 kr the other way, gets no fingerprint.
+  - **KEEP:** D1's thresholds and rule, the interval rule, and the decision that an unknown that decides the type gives no type.
 
 ## Review Triage Log
 

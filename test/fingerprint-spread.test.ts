@@ -54,6 +54,13 @@ describe.each(INDUSTRIES)('within-band spread, %s', (industry) => {
     expect(readOutput(industry).industry).toBe(industry);
   });
 
+  // Review pass 1 (triage 13): a measurement in which every band is below
+  // MIN_N would pass every band check above without testing anything.
+  it.each(CATEGORIES)(`%s: at least one band holds n ≥ ${MIN_N} read shares`, (category) => {
+    const measured = BANDS.filter((band) => entry(industry, category, band).n >= MIN_N);
+    expect(measured.length, `${category}: no band with n ≥ ${MIN_N}`).toBeGreaterThan(0);
+  });
+
   for (const category of CATEGORIES) {
     for (const band of BANDS) {
       it(`${category} ${band}: with n ≥ ${MIN_N}, the interquartile range is ≥ ${MIN_IQR_PP.toString()} percentage points`, () => {

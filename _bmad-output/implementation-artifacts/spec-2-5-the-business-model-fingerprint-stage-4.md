@@ -204,7 +204,7 @@ context:
 - [x] `analysis.ts` and `analysis-page.tsx`; the e2e and DB peers tests pass.
 - [x] The seed-export gate, its tests and `test/fingerprint-seed.test.ts`.
 - [x] `scripts/fingerprint-spread.ts`. It runs in D4 step 5.
-- [ ] After review, D4.
+- [x] After review, D4.
 - [x] Docs:
   - the technical note: "Rules fixed by the stories" and AD-2;
   - `AGENTS.md`;

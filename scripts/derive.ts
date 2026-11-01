@@ -54,7 +54,6 @@ export type DeriveInputRow = DocumentColumnRow & {
 export type FingerprintRow = FingerprintColumns & {
   readonly orgnr: string;
   readonly filing_year: number;
-  readonly role: 'current';
   readonly input_digest: string;
   readonly dataset: 'demo' | 'full';
 };
@@ -134,7 +133,6 @@ export function deriveFingerprints(input: readonly DeriveInputRow[]): { rows: Fi
     rows.push({
       orgnr: column.orgnr,
       filing_year: column.filing_year,
-      role: 'current',
       ...fingerprintColumns(result.fingerprint),
       input_digest: digest(result.inputs),
       dataset,

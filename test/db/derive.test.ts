@@ -44,7 +44,8 @@ describe('pnpm derive', () => {
                (select count(*)::int from register.document_column where role = 'current' and status = 'reconciled') as reconciled,
                (select count(*)::int
                   from register.fingerprint f
-                  join register.document_column dc using (orgnr, filing_year, role)
+                  left join register.document_column dc
+                    on dc.orgnr = f.orgnr and dc.filing_year = f.filing_year and dc.role = 'current'
                  where dc.status is distinct from 'reconciled') as unreconciled_rows
       `;
       expect(counts.written).toBe(stored?.rows);

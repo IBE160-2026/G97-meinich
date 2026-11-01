@@ -56,7 +56,6 @@ describe('deriveFingerprints', () => {
       {
         orgnr: '900000001',
         filing_year: 2025,
-        role: 'current',
         cost_of_goods_lo: 'low',
         cost_of_goods_hi: 'low',
         personnel_cost_lo: 'high',

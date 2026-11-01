@@ -180,7 +180,7 @@ describe('a peer deleted after 410 Gone', () => {
 });
 
 // Story 2.5: stage 4 reads the stored fingerprint of the benchmark year.
-// The fingerprint and its document column are written as the migration role
+// The fingerprint (it references the company) is written as the migration role
 // in a transaction that is rolled back, and read with the query
 // loadCandidates runs, in that transaction. Synthetic categories only.
 describe('stage 4 against stored fingerprints', () => {
@@ -199,17 +199,9 @@ describe('stage 4 against stored fingerprints', () => {
   const RESELLER = { ...CONSULTANCY, cost_of_goods_lo: 'high', cost_of_goods_hi: 'high', personnel_cost_lo: 'low', personnel_cost_hi: 'low', inventory: true } as const;
 
   async function storeFingerprint(tx: postgres.TransactionSql, orgnr: string, year: number, columns: typeof CONSULTANCY | typeof RESELLER) {
-    await tx`
-      insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
-      values (${orgnr}, ${year}, 'generated', 'reconciled', 'NOK', 'NOK', now(), 'full', ${'0'.repeat(40)})
-      on conflict (orgnr, filing_year) do nothing`;
-    await tx`
-      insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
-      values (${orgnr}, ${year}, 'current', ${year}, 'not_evaluable', 'not_evaluable', 'not_evaluable', 'not_evaluable', '{}', 'full')
-      on conflict (orgnr, filing_year, role) do nothing`;
     await tx`delete from register.fingerprint where orgnr = ${orgnr} and filing_year = ${year}`;
     await tx`
-      insert into register.fingerprint ${tx({ orgnr, filing_year: year, role: 'current', ...columns, input_digest: '0'.repeat(64), dataset: 'full' })}`;
+      insert into register.fingerprint ${tx({ orgnr, filing_year: year, ...columns, input_digest: '0'.repeat(64), dataset: 'full' })}`;
   }
 
   it('reads each candidate’s fingerprint for the benchmark year, removes another type from the group and keeps the pool', async () => {

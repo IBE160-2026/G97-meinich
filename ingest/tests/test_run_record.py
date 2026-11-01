@@ -147,14 +147,14 @@ def test_gone_unit_is_deleted_everywhere(owner_db: psycopg.Connection, cfg: Conf
     write.write_document(
         db, target, 2025, outcome, write.filing_brreg_id(db, target, 2025), READ_AT, READER_COMMIT
     )
-    # Story 2.5: a fingerprint of the document's current column, as step 2
-    # writes it (only derive and the loader may), so the cascade must reach it.
+    # Story 2.5: a fingerprint of the company, as step 2 writes it (only
+    # derive and the loader may), so the cascade from company must reach it.
     with as_owner(db):
         db.execute(
-            """insert into register.fingerprint (orgnr, filing_year, role, cost_of_goods_lo, cost_of_goods_hi,
+            """insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi,
                    personnel_cost_lo, personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory,
                    capitalised_intangibles, input_digest, dataset)
-               values (%s, 2025, 'current', 'low', 'low', 'mid', 'high', 'low', 'low', null, true, %s, 'full')""",
+               values (%s, 2025, 'low', 'low', 'mid', 'high', 'low', 'low', null, true, %s, 'full')""",
             (target, "0" * 64),
         )
     brreg_ids = [row[0] for row in db.execute("select brreg_id from register.filing where orgnr = %s", (target,))]

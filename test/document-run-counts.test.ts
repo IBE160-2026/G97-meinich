@@ -101,4 +101,15 @@ describe('documentRunCounts', () => {
     expect(before.columns.current.columns).toBe(1946);
   });
 
+  it('the committed before counts of Story 2.5b are the 2.1b rows after 2.3b, with their fingerprint totals', () => {
+    const before = JSON.parse(readFileSync(path.join(root, countsFile('before-2.5b')), 'utf8')) as ReturnType<
+      typeof documentRunCounts
+    >;
+    expect(before.documents.total).toBe(1947);
+    expect(before.documents.reader_commit).toEqual({ '2ce5a503d44bf6ab379cc3383fcefe1cc2734389': 1947 });
+    expect(before.columns.current.non_null.lonnskostnad).toBe(1398);
+    expect(before.fingerprints?.total).toBe(1791);
+    expect(before.fingerprints?.types.undetermined).toBe(893);
+    expect(before.fingerprints?.companies.undetermined).toBe(184);
+  });
 });

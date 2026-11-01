@@ -18,6 +18,9 @@ import {
   checkMeasured,
   defaultSeedPaths,
   exportPaths,
+  fingerprintWhere,
+  LICENCE_GATE_FILE,
+  readLicenceGate,
   latestMigrationId,
   orderByClause,
   REFERENCE_REASON,
@@ -471,5 +474,62 @@ describe('the committed seed', () => {
     const plan = prepareSeed(defaultSeedPaths(root));
     expect(plan.manifest.dataset).toBe('demo');
     expect(plan.manifest.migration_id).toBe(latestMigrationId(root));
+  });
+});
+
+// Story 2.5: the licence gate. Absent, unreadable or misshapen is closed and
+// says so; only a well-formed file with open: true opens it.
+describe('the licence gate', () => {
+  function gateWith(content: string | null): { open: boolean; notices: string[] } {
+    const file = path.join(scratch, 'licence-gate.json');
+    if (content !== null) writeFileSync(file, content);
+    const notices: string[] = [];
+    const gate = readLicenceGate(file, (line) => notices.push(line));
+    return { open: gate.open, notices };
+  }
+
+  it('is closed when the file is absent, and says so', () => {
+    const { open, notices } = gateWith(null);
+    expect(open).toBe(false);
+    expect(notices).toEqual([
+      `seed:export: ${LICENCE_GATE_FILE} is absent; the licence gate is closed: fingerprints of allow-listed companies only`,
+    ]);
+  });
+
+  it.each([
+    ['not JSON', '{open: true'],
+    ['an array', '[]'],
+    ['open as a string', JSON.stringify({ open: 'true', assessment: 'x', date: '2026-11-01' })],
+    ['a missing date', JSON.stringify({ open: true, assessment: 'x' })],
+    ['an extra key', JSON.stringify({ open: true, assessment: 'x', date: '2026-11-01', by: 'x' })],
+    ['a date that is not a date', JSON.stringify({ open: true, assessment: 'x', date: 'soon' })],
+  ])('is closed when the file is unreadable (%s), and says so', (_label, content) => {
+    const { open, notices } = gateWith(content);
+    expect(open).toBe(false);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatch(/the licence gate is closed$/);
+  });
+
+  it('is closed when the file records it closed, and open only when it records it open', () => {
+    expect(gateWith(JSON.stringify({ open: false, assessment: 'pending', date: '2026-11-01' }))).toEqual({
+      open: false,
+      notices: [],
+    });
+    expect(gateWith(JSON.stringify({ open: true, assessment: 'NLOD 2.0 permits it', date: '2026-11-01' }))).toEqual({
+      open: true,
+      notices: [],
+    });
+  });
+
+  it('filters fingerprints to the allow-list unless open', () => {
+    expect(fingerprintWhere({ open: true }, ['912197905'])).toBe('');
+    expect(fingerprintWhere({ open: false }, ['912197905', '885583822'])).toBe(
+      `WHERE "orgnr" IN ('885583822', '912197905')`,
+    );
+    expect(fingerprintWhere({ open: false }, [])).toBe('WHERE false');
+  });
+
+  it('refuses an allow-list entry that is not an orgnr rather than inlining it', () => {
+    expect(refusal(() => fingerprintWhere({ open: false }, ["1'); drop table x; --"]))).toMatch(/is not an orgnr/);
   });
 });

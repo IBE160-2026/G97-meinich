@@ -30,10 +30,11 @@
     "document.csv": "b5e46978fd25522693eacaf277e59b29beec5846ccd73d191d07a9f8d25d287f",
     "document_column.csv": "cc9c6cad3c13e7caecd7d693dc44f83d09726dc7e14d864cfebdb0ce430327eb",
     "filing.csv": "d10640e7476f75c41e776c0b1c90e8c1563bdf1c65a721df92ee0b5ccfd08285",
+    "fingerprint.csv": "40df7b3c06d32a24f71220354a8b33ca848e275294a73490e501bcab9cc2bce3",
     "key_figures.csv": "ab01a647bd4a50170009c8f21e459cbd245b8ef41e8c724cdff17651e4456b19"
   },
   "format_version": 1,
-  "migration_id": "20261030130000_company_slettedato",
+  "migration_id": "20261101130000_fingerprint_references_company",
   "read_at": {
     "max": "2026-10-30 11:10:40.289122+00",
     "min": "2026-10-11 10:09:07.22884+00"

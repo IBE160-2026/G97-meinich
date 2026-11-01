@@ -11,6 +11,11 @@
 - `db` is a connection as `ingest` (INGEST_DATABASE_URL) inside a transaction
   that is always rolled back: the tests leave no rows behind, a company a
   test deletes (Story 2.4) included, and no run record survives.
+- `owner_db` (Story 2.5) is a connection as the migration role
+  (SUPABASE_DB_URL) acting as `ingest` (SET LOCAL ROLE), in a transaction
+  that is always rolled back. `as_owner` switches back to the migration role
+  for a write only another step may make (a fingerprint, step 2's), so a
+  test can seed it in the same transaction it then runs step 1 in.
 """
 
 from __future__ import annotations
@@ -203,6 +208,36 @@ def _from_dotenv(name: str) -> str | None:
 
 def ingest_database_url() -> str | None:
     return os.environ.get("INGEST_DATABASE_URL") or _from_dotenv("INGEST_DATABASE_URL")
+
+
+# The local Supabase CLI default, as test/db/db-env.ts falls back to it.
+DEFAULT_SUPABASE_DB_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+
+
+def supabase_database_url() -> str:
+    return os.environ.get("SUPABASE_DB_URL") or _from_dotenv("SUPABASE_DB_URL") or DEFAULT_SUPABASE_DB_URL
+
+
+@pytest.fixture
+def owner_db() -> Iterator[psycopg.Connection]:
+    with psycopg.connect(supabase_database_url()) as conn:
+        with conn.transaction() as tx:
+            # The migration role holds ADMIN, not SET, on ingest (Story 1.2);
+            # the grant is rolled back with everything else.
+            conn.execute("grant ingest to current_user with inherit false, set true")
+            conn.execute("set local role ingest")
+            yield conn
+            raise psycopg.Rollback(tx)
+
+
+@contextmanager
+def as_owner(conn: psycopg.Connection) -> Iterator[None]:
+    """Runs the block as the migration role, then acts as ingest again."""
+    conn.execute("reset role")
+    try:
+        yield
+    finally:
+        conn.execute("set local role ingest")
 
 
 @pytest.fixture

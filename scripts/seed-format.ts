@@ -36,8 +36,8 @@ export interface SeedTable {
   primaryKey: readonly SortColumn[];
 }
 
-// The step-1 tables, in foreign-key order: each references only tables
-// before it.
+// The step-1 tables and step 2's fingerprints, in foreign-key order: each
+// references only tables before it.
 export const SEED_TABLES: readonly SeedTable[] = [
   { name: 'company', primaryKey: [{ name: 'orgnr', text: true }] },
   {
@@ -66,6 +66,14 @@ export const SEED_TABLES: readonly SeedTable[] = [
       { name: 'orgnr', text: true },
       { name: 'filing_year', text: false },
       { name: 'role', text: true },
+    ],
+  },
+  // Story 2.5: batch step 2's fingerprints, one per current document column.
+  {
+    name: 'fingerprint',
+    primaryKey: [
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
     ],
   },
 ];
@@ -576,6 +584,65 @@ export function unlistedDocumentFigures(files: ReadonlyMap<string, string>, allo
     if (!allowList.includes(orgnr)) unlisted.add(orgnr);
   }
   return [...unlisted].sort(compareBytes);
+}
+
+// --- The licence gate (Story 2.5) ----------------------------------------------
+
+// Written by Story 5.4 once the licence for committing derived categories
+// of companies outside the allow-list is assessed; absent until then.
+export const LICENCE_GATE_FILE = 'docs/licence-gate.json';
+
+/** docs/licence-gate.json: whether the gate is open, the assessment it rests on, and its date. */
+export interface LicenceGate {
+  open: boolean;
+  assessment: string;
+  date: string;
+}
+
+// The gate as the export reads it. Absent, unreadable or of another shape
+// is closed, and `notice` says which and why; only a well-formed file with
+// open: true opens it.
+export function readLicenceGate(file: string, notice: (line: string) => void): { open: boolean } {
+  if (!existsSync(file)) {
+    notice(`seed:export: ${LICENCE_GATE_FILE} is absent; the licence gate is closed: fingerprints of allow-listed companies only`);
+    return { open: false };
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    notice(`seed:export: ${LICENCE_GATE_FILE} cannot be read as JSON (${(error as Error).message}); the licence gate is closed`);
+    return { open: false };
+  }
+  if (
+    !isRecord(json) ||
+    Object.keys(json).sort().join(',') !== 'assessment,date,open' ||
+    typeof json.open !== 'boolean' ||
+    typeof json.assessment !== 'string' ||
+    typeof json.date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(json.date)
+  ) {
+    notice(`seed:export: ${LICENCE_GATE_FILE} is not {open, assessment, date}; the licence gate is closed`);
+    return { open: false };
+  }
+  return { open: json.open };
+}
+
+// The rows of register.fingerprint the export writes: every row when the
+// gate is open, otherwise only the allow-listed companies' (Story 2.5).
+// Allow-listed companies always keep theirs. Today those are the OCR
+// reference set's companies only: demo A and B are not on the allow-list
+// and have no document in the seed, so with the gate closed the seed holds
+// no fingerprint for them (until Story 5.4's allow-list). Returns a WHERE
+// clause for the COPY
+// query; the orgnrs are checked to be nine digits, so they are safe to inline.
+export function fingerprintWhere(gate: { open: boolean }, allowList: readonly string[]): string {
+  if (gate.open) return '';
+  for (const orgnr of allowList) {
+    if (!/^\d{9}$/.test(orgnr)) throw new SeedRefusal(`${ALLOW_LIST_FILE}: ${JSON.stringify(orgnr)} is not an orgnr`);
+  }
+  if (allowList.length === 0) return 'WHERE false';
+  return `WHERE "orgnr" IN (${[...allowList].sort(compareBytes).map((orgnr) => `'${orgnr}'`).join(', ')})`;
 }
 
 // The export's refusal: no document figure for an orgnr that is not on

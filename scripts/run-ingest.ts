@@ -30,6 +30,14 @@
 //   built when ingest/ has uncommitted changes: the version must name the
 //   code that reads.
 // - No other argument is accepted.
+// - Story 2.5 (spec change log, review pass 1): after the container ends,
+//   the runner runs `pnpm derive` (scripts/derive.ts, batch step 2, never
+//   from Python) to rebuild every fingerprint from the stored figures it may
+//   just have changed: after a plain run (which refreshes the API subtotals
+//   derive reads), `--documents` and `--reread`, never after
+//   `--companies-only`. It runs also when step 1 exits non-zero, and step
+//   1's exit code is kept. A failing derive is named on stderr and makes the
+//   runner exit non-zero; its one transaction leaves the old rows standing.
 //
 // Run: node scripts/run-ingest.ts [--companies-only | --documents <file> | --reread <file>]   (from the repository root)
 import { spawnSync } from 'node:child_process';
@@ -162,6 +170,23 @@ export function readerCommit(root: string): { commit: string } | { error: string
   return { commit };
 }
 
+// `pnpm derive`: the same script, run with the same Node as this runner, so
+// no shell or package-manager lookup is involved.
+function derive(root: string): number {
+  const result = spawnSync(process.execPath, [path.join(root, 'scripts', 'derive.ts')], { cwd: root, stdio: 'inherit' });
+  if (result.error !== undefined) {
+    process.stderr.write(`ingest: could not run pnpm derive: ${result.error.message}\n`);
+    return 1;
+  }
+  return result.status ?? 1;
+}
+
+// The runner's exit code from step 1's and derive's: step 1's when it
+// failed, otherwise derive's.
+export function combinedExit(step1: number, derived: number): number {
+  return step1 !== 0 ? step1 : derived;
+}
+
 export function main(root: string, argv: readonly string[] = []): number {
   const checked = stepArgs(argv);
   if ('error' in checked) {
@@ -199,7 +224,15 @@ export function main(root: string, argv: readonly string[] = []): number {
   const env: NodeJS.ProcessEnv = { ...process.env, INGEST_DATABASE_URL: containerDatabaseUrl(url) };
   if (baseUrl !== undefined) env.BRREG_API_BASE_URL = baseUrl;
   if (commit !== undefined) env[READER_COMMIT_ENV] = commit;
-  return docker(dockerRunArgs(root, baseUrl !== undefined, argv), env);
+  const step1 = docker(dockerRunArgs(root, baseUrl !== undefined, argv), env);
+  if (checked.args[0] === COMPANIES_ONLY) return step1;
+  const derived = derive(root);
+  if (derived !== 0) {
+    process.stderr.write(
+      `ingest: pnpm derive failed (exit ${derived}) after step 1 (exit ${step1}); the fingerprints from before this run stand. Run \`pnpm derive\` again.\n`,
+    );
+  }
+  return combinedExit(step1, derived);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

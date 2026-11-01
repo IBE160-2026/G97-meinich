@@ -4,7 +4,7 @@
 
 ## Goal
 
-Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores the figures as filed and accepts a column only when it reconciles. OCR accuracy is measured (SM-2) against a hand-transcribed reference set. A company the register withdraws (`410 Gone`) is deleted. Batch step 2 computes the business-model fingerprint (stage 4) and a model classification (stage 5). On the page, the Peers tab shows the five-stage funnel with counts, and "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" for each peer. The user can exclude a peer or widen the size band, and every figure is recomputed. Every missing figure states its reason. Status: 2.1a–2.3b are done (OCR library, ingest, reconciliation, SM-2, the balance-total fix and re-read). 2.4 is in review; 2.5–2.9 are in backlog and come in that order.
+Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores the figures as filed and accepts a column only when it reconciles. OCR accuracy is measured against a hand-transcribed reference set (SM-2), and a company the register withdraws (`410 Gone`) is deleted. Batch step 2 computes the business-model fingerprint (stage 4) and a model classification (stage 5). On the page, the Peers tab shows the five-stage funnel with counts, plus "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" for each peer. The user can exclude a peer or widen the size band, and every figure is recomputed. Every missing figure states its reason. Status: 2.1a–2.4 are done. 2.5 is next, and 2.5–2.9 are in backlog and come in that order.
 
 ## Stories
 
@@ -22,45 +22,84 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
 
 ## Requirements & Constraints
 
-- **OCR runs in batch only.** Nothing is fetched or read during a request. Match companies on orgnr only, and never trust a requested year. Never repair an OCR digit: a figure token with a non-digit makes the figure absent.
-- **Reconciliation is settled.** Within a document the bound is 5 kr absolute (checks c1–c5 per column). Between the document and the API it is max(5 kr, 0.001 % of the API figure). The two rules are never collapsed into one, neither is exact equality, and their values live only in `ingest/config.toml`. A column is `reconciled` or `failed_reconciliation`, and only a reconciled column's figures reach the engine. The quality flag comes from the checks alone, never from OCR confidence.
-- **Deletion (2.4).** Only `410 Gone` deletes a company, and it is deleted, never flagged; the delete cascades through every `register` table. Any other answer (404, 5xx, timeout) deletes nothing and is written to step 1's run record. A deleted orgnr leaves every peer group, aggregate, seed file, manifest list and `seed/allow-list.json`. If it appears in `ekskl`, it is dropped and the invalid-settings notice shows. Only `ingest` may delete from the company table.
-- **Never select on a benchmarked measure.** No function in stages 1–5 takes a margin, return or productivity figure as input. Cost-of-goods share and personnel-cost share enter selection only as band ids. A within-band spread test for 62.100 fixes its measure and threshold before it runs on data. If a band's spread collapses, the band is dropped and the drop is recorded.
-- **Classification (2.6).** The model sees only the name, secondary codes, statement of purpose and business description. It answers only in the fixed type set: the schema has no free-text field, and nothing is coerced, so an answer outside the set is `failed`. Unchanged text is not reclassified. A company with nothing to classify is `no_text` and stays eligible through stages 1–4. The statuses are `classified`, `no_text`, `failed` and `pending`. `seed:export` refuses while a covered-industry row is `failed` or `pending`. Without a key, the tests run on stored responses and no request goes to a model host.
-- **Peer adjustment (2.8).** The size band (0.5–2× → 0.33–3× → 0.25–4×) is the only criterion that can be loosened. No step admits a candidate that fails comparability, and no control loosens legal form or geography. Peer-group assembly runs in under 1 s (timed test), and the re-render time is measured and recorded in the PR. A figure can cross the 10-peer floor in either direction.
-- **Absence reasons (2.9).** Each figure is either a value or an absence with exactly one reason: undefined, failed reconciliation, not in this dataset (decided from the manifest, never from a missing row) or below the floor (with the count). If the subject's own filing failed reconciliation, it keeps its API figures, the kroner amount, its tabs and its peer group, and its twelve document figures are absent.
-- **Responsive.** Every Peers state works at 375 and 320 px with no horizontal body scroll. Tables and charts sit in their own scroll containers.
-- **Each PR** states what could go wrong and records it in `docs/ai-log.md`.
+- **The fingerprint (stage 4) is rules only.** It groups candidates by what kind of business their own accounts show: cost-of-goods share, whether they carry inventory, capitalised intangibles (such as self-developed software) and fixed-asset intensity, with cost-of-goods share and personnel-cost share in coarse bands. A reseller, a product company and a consultancy must separate, even when all three describe themselves as "Programvareutvikling" and share one industry code. The fingerprint applies to every company whose accounts are extracted.
+- **Never select on a benchmarked measure.** No function in stages 1–5 may take driftsmargin, EBITDA margin, totalkapitalrentabilitet, any productivity figure, or any other margin or return as input. Selection never reads total assets or the register's employee count. Cost-of-goods share (key figure 3) and personnel-cost share (key figure 4) are benchmarked as well as being business-model markers, so they reach selection only as band ids, never as values, and they are benchmarked within their band.
+- **Banding is proposed, not settled.** A within-band spread test runs for 62.100, the only industry in v1. It asserts non-trivial spread of each banded figure within its band. Its spread measure and threshold are written into the test before it runs on data. If spread collapses, the test fails and the band is dropped and recorded, not explained away. Passing in one industry does not count as passing in another, so the test runs again for each industry stage 3 adds. Story 5.2 later confirms or drops each band against the labelled set.
+- **Missing signals.** A candidate with no reconciled filing has no fingerprint and is not excluded at stage 4. A subject with no fingerprint leaves stage 4's count equal to stage 3's.
+- **OCR runs in batch only.** Nothing is fetched or read during a request. Companies are matched on orgnr only, and a requested year is never trusted. An OCR digit is never repaired: a figure token with a non-digit makes the figure absent.
+- **Reconciliation is settled.**
+  - Within a document the bound is 5 kr absolute, checks c1–c5 per column.
+  - Between the document and the API it is max(5 kr, 0.001 % of the API figure).
+  - The two rules are never collapsed into one, neither is exact equality, and both values live only in `ingest/config.toml`.
+  - Only a `reconciled` column's figures reach the engine.
+- **Deletion.** Only `410 Gone` deletes a company, and the delete cascades. Every new table that references a company, including step 2's, uses `ON DELETE CASCADE`, and Story 2.4's deletion test covers it.
+- **Classification (2.6).**
+  - The model sees only the name, secondary codes, statement of purpose and business description.
+  - It answers only from the fixed type set. The response schema has no free-text field, and nothing is coerced, so an answer outside the set is `failed`.
+  - Unchanged text is not reclassified.
+  - A company with no such text is `no_text` and stays eligible through stages 1–4.
+  - Without a key, the tests run on stored responses.
+- **Peer adjustment (2.8).** The size band (0.5–2× → 0.33–3× → 0.25–4×) is the only criterion the user can loosen. Comparability is never loosened. Assembling a peer group takes under 1 s (timed test).
+- **Absence reasons (2.9).** Each figure is a value or an absence with exactly one reason: undefined, failed reconciliation, not in this dataset (decided from the manifest) or below the floor.
+- **Every PR** states what could go wrong and records it in `docs/ai-log.md`. For 2.5 that means banding and selection.
 
 ## Technical Decisions
 
-- **Two batch steps, one writer per table.** Step 1 (Python, Docker) writes register data and documents as filed, and makes the one declared delete. Step 2 (Node) writes fingerprints and classifications through `DERIVE_DATABASE_URL`. Every ratio, band and type is computed in `src/engine`. Each step has its own run-record table, written only by its own role: 2.4 creates step 1's table and 2.6 creates step 2's. Every run writes a record, failures included, and `pnpm seed` prints the latest record of each step.
-- **Document storage (done).** `register.document` is keyed `(orgnr, filing_year)`. `register.document_column` is keyed `(orgnr, filing_year, role)`, where the role is `current` or `prior`. Figures are stored as `<field>_ore`: NULL is never stored as 0, and nothing derived is stored. Each row carries a `reader_commit`. A document's status is its current column's. A prior column is accepted on its own c1–c5, and its API comparison is information only. The engine gets its input through `documentFigures`.
-- **Schema.** DDL lives only in migrations. A new table needs grants and an entry in `SEED_TABLES` or `LOADER_TABLES`, and the seed is re-exported in the same PR. Step-2 tables reference the company `ON DELETE CASCADE`, and 2.4's deletion test covers them.
-- **Fingerprint (2.5).** One type in `src/engine/fingerprint.ts` holds five categories: inventory, cost-of-goods band, capitalised intangibles, asset-intensity band and personnel-cost band. A migration check mirrors the type. Each row stores the engine digest of its raw inputs and the dataset tag. Every run rebuilds all fingerprints, and CI recomputes the allow-listed ones. A candidate with no reconciled filing has no fingerprint and is not excluded at stage 4. Fingerprints for companies outside the allow-list are exported only when `docs/licence-gate.json` records the gate as open; if the file is absent or the gate is closed, only allow-listed companies are exported.
-- **Business types.** One shared set lives in `src/engine` (proposed: produkt, konsulent, forhandler, annet), and the model's response schema is generated from it. Story 2.5 fixes the set, what each type means, the rule that derives a type from the fingerprint, and the spread threshold. It records them in the technical note's funnel section, under "Rules fixed by the stories".
-- **Combination rule.** If both signals agree, they decide; two different types, neither the subject's, also remove the candidate. If they disagree, the candidate is kept and flagged "Usikker klassifisering", and the model never adjudicates. If only one signal is present, it decides. If neither is present, stages 1–3 decide alone. A signal missing for the subject counts as missing for every candidate. Stage 4 removes a candidate whose fingerprint gives another type, unless its text gives the subject's type. Stage 5 removes a candidate whose text gives another type and that has no fingerprint.
-- **Request path.** Stages 4 and 5 read stored rows only. Peer changes are `router.push` soft navigations to a URL built by `serialize` and rendered on the server, and nothing is written. The page payload carries no peer field beyond what the funnel, the list and the shown figures need.
-- **Engine absence type.** A discriminated union with an exhaustive switch to the EXPERIENCE states, so adding a reason without a state fails to compile.
+- **One engine (AD-1).** Every category, band, type and digest is computed in `src/engine`, which is pure TypeScript. Python computes none of them.
+- **Step 2 is Node scripts in this repository (AD-2).** Story 2.5 is the first step-2 code. Step 2:
+  - reads reconciled figures from Postgres (through `documentFigures`);
+  - writes through `DERIVE_DATABASE_URL` as the `derive` role;
+  - runs no DDL and never runs in a request.
+  - The fingerprint table is written only by step 2, and only the seed loader writes it as well.
+  - Step 2's run-record table (`run.step2`) arrives in Story 2.6, and every step-2 run then writes a record.
+- **Fingerprint shape.** One type in `src/engine/fingerprint.ts` holds five categories:
+  - inventory: yes or no;
+  - cost-of-goods band;
+  - capitalised intangibles: yes or no;
+  - asset-intensity band;
+  - personnel-cost band.
+
+  A migration check mirrors this type in the fingerprint table.
+- **Fingerprint inputs.** The document columns hold `varer_ore`, `sum_immaterielle_eiendeler_ore`, `sum_varige_driftsmidler_ore`, `varekostnad_ore`, `lonnskostnad_ore` and the revenue and asset totals. The planning docs do not fix which year's reconciled column feeds the fingerprint. Story 2.9 owns choosing each year's own current column, and the subject's benchmark filing is to be chosen in the engine alone.
+- **Digest and dataset tag (AD-9, AD-13).**
+  - Each fingerprint row stores a digest of its raw inputs, made by the one digest function in `src/engine`, which Story 2.5 introduces. The same function later serves classifications and explanations.
+  - Each row also stores the dataset tag.
+  - Every step-2 run rebuilds all fingerprints.
+  - A CI test recomputes the allow-listed companies' fingerprints from committed figures and fails on a digest mismatch.
+- **Schema (AD-3, AD-16).**
+  - DDL lives only in migrations.
+  - A new `register` table is granted SELECT, INSERT and TRUNCATE to `loader`, gets write grants for `derive` only, and is added to `SEED_TABLES` or `LOADER_TABLES`.
+  - The seed is re-exported in the same PR.
+- **Business types.** One shared set lives in `src/engine`. The proposed set is produkt, konsulent, forhandler and annet. Story 2.5 fixes four things:
+  - the final set;
+  - what each type means;
+  - the rule that derives a type from the five categories;
+  - the spread measure and its threshold.
+
+  It records them in the technical note, section "Peer group — a five-stage funnel", under "Rules fixed by the stories", in the same PR. Story 2.6 generates the model's response schema from the same set, unchanged.
+- **Stage 4 in the request path.** Stage 4 reads stored fingerprints only, derives a type for each and removes a candidate whose type differs from the subject's. Until 2.6, every text signal is absent, so the fingerprint decides alone.
+- **Combination rule (completed in 2.6).**
+  - **Both signals agree:** they decide. Two different types, neither of them the subject's, also remove the candidate.
+  - **The signals disagree:** the candidate is kept and flagged "Usikker klassifisering". The model never adjudicates.
+  - **One signal:** it decides.
+  - **No signal:** stages 1–3 decide alone.
+  - A signal missing for the subject counts as missing for every candidate.
+  - **In the counts:** stage 4 removes a candidate whose fingerprint gives another type, unless its text gives the subject's type. Stage 5 removes a candidate whose text gives another type and that has no fingerprint.
+- **Licence gate in `seed:export`.** The export reads `docs/licence-gate.json`, which Story 5.4 writes and which is absent until then.
+  - Allow-listed companies always keep their fingerprint categories, so demo B shows fingerprint separation with the gate closed.
+  - Other companies' categories are exported only when the file records the gate as open.
+  - When the file is absent, unreadable or closed, the seed carries allow-listed fingerprints only. There is one test each for absent, closed and open.
+- **Money and decimals (AD-8).** Shares are exact decimals from the one `src/engine/decimal.ts` constructor. `int8` and `numeric` are parsed with `parseOre` and `parseDecimal`, never `Number()`, and a band boundary comparison must never use a float.
 
 ## UX & Interaction Patterns
 
-- **Funnel.** "Bransje og størrelse → Sammenlignbart regnskap → Segment → Forretningsmodell → Klassifisering", with counts in tabular figures and an 8px navy-700 bar proportional to stage 1. The Segment stage states that v1 admits AS only. The funnel shows "✦ {n} med usikker klassifisering" and "{n} ekskludert av deg → {m} i analysen", and it is shown below the floor too. On a phone it is a vertical list.
-- **Peer list.** Columns: Selskap · Omsetning · Driftsmargin · Hvorfor med · Grunnlag for treff · flag, with the caption "✦ KI-generert". "Hvorfor med" is deterministic and carries no ✦. The basis is one of "Beskrivelse og regnskap" (✦), "Kun regnskap", "Kun beskrivelse" (✦) or "Kun bransje og størrelse". ✦ is `aria-hidden` and never sits on a number. On a phone each peer is a card, with "Vis alle {n}" and targets of at least 24 × 24 px.
-- **Exclude, restore and reset.** An excluded row stays in the list in slate, struck through, tagged "Ekskludert", with the action "Ta med igjen". Focus stays on the button, and live announcements give the name and count. Reset moves focus to the Peers `h2`. Each change is one history entry.
-- **Size band.** A `radiogroup` with roving tabindex and three steps, each showing its revenue range. Beyond Standard, an "Utvidet" State block offers "Tilbake til standard (0,5–2×)". A group that is too small gets a block with "Utvid størrelsesintervallet". With zero peers the page says "Fant ingen sammenlignbare selskaper."
-- **Pending and failure.** While a change is pending, regions carry `aria-busy` and keep the previous figures dimmed with "Oppdaterer …", with no animation. On failure, `role="alert"` shows "Kunne ikke oppdatere analysen. Prøv igjen.", and the last good state is kept.
-- **Failed subject filing.** The header gets a slate subline, "Regnskapet for {år} kunne ikke leses sikkert", with no badge.
+- **Funnel.** The stage labels are "Bransje og størrelse → Sammenlignbart regnskap → Segment → Forretningsmodell → Klassifisering", with counts. The funnel is always shown, including below the floor. Stage 4 is "Forretningsmodell". Rendering is Story 2.7's; Story 2.5 has no UX.
+- **Match basis.** Each peer shows exactly one basis: "Beskrivelse og regnskap" (✦), "Kun regnskap", "Kun beskrivelse" (✦) or "Kun bransje og størrelse". "Kun regnskap" means fingerprinted and unclassified, which is every fingerprinted peer until 2.6.
+- **Outside the demo set.** For a 62.100 company outside the demo set, stage 4 runs on committed fingerprint categories only if the gate is open. Otherwise those candidates have no fingerprint and stay in the group.
 
 ## Cross-Story Dependencies
 
-- **2.3b is done.** The bold "SUM" read as "50M" is now matched by a second label fold, and `pnpm ingest --reread` re-reads every stored document whose `reader_commit` is not the current one. The `sum_egenkapital_gjeld` hit rate rose from 57 % to 99 % on the 2.1b run, with no new misreads or phantoms reaching the engine. A refiling under an unchanged reader is still not detected.
-- **The 2.1b acceptance run is local data.** Its 1 947 documents (407 orgnrs) live only in the local database and a gitignored dump until Story 5.4's allow-list, so they must not be deleted, and the README's dump-restore step stays until then. Only the 20 OCR reference orgnrs' document rows are in the committed seed.
-- **Within the epic.** 2.5 and 2.6 extend 2.4's deletion test. 2.5 fixes the business types, and 2.6 reuses them unchanged. 2.7 shows the result, 2.8 adjusts it, and 2.9 adds absence reasons on top of 2.2's statuses.
-- **2.9 also owns:**
-  - showing årsverk-based figures #7 and #8 as absent, because årsverk is not read in Epic 2;
-  - the copy for "revenue not stated";
-  - a reason for an empty peer group caused by a failed comparability field;
-  - choosing each year's own current column. A prior column is used only when the year has no document, and a prior column whose `api_check` failed never stands in.
-  The subject's benchmark filing is to be chosen in the engine alone before document figures become a second source.
-- **Other epics.** Epic 3 renders the document rows, and Epic 4 owns the explanation's adjusted-group state. Story 5.2 measures each funnel layer, and Story 5.4 writes the licence-gate file.
+- **2.4 is done.** The deletion test must be extended to cover the fingerprint table (2.5) and the classification table (2.6).
+- **The 2.1b acceptance run is local data.** Its 1 947 documents (407 orgnrs: demo A and B and their standard-band pools) live only in the local database and a gitignored dump until Story 5.4. They must not be deleted. Only the 20 OCR reference orgnrs' document rows are in the committed seed, so the CI recompute and the seed's fingerprints cover allow-listed companies only.
+- **Within the epic.** 2.5 fixes the business types, and 2.6 reuses them and adds `run.step2` and the combination rule's text half. 2.7 shows the funnel and the match basis, 2.8 adjusts the group, and 2.9 adds absence reasons and filing-year selection.
+- **Other epics.** Story 5.2 measures each funnel layer against the labelled set and confirms or drops each band. Story 5.4 writes the licence-gate file and the full allow-list.

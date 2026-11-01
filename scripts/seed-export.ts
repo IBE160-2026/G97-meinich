@@ -9,7 +9,7 @@
 //   primary key with COLLATE "C" on text columns. TimeZone UTC and DateStyle
 //   ISO, YMD make read_at and the dates round-trip byte for byte. No value
 //   is parsed in JS.
-// - Writes seed/demo/{company,filing,key_figures,document,document_column}.csv,
+// - Writes seed/demo/{company,filing,key_figures,document,document_column,fingerprint}.csv,
 //   seed/demo/manifest.json and seed/allow-list.json, LF and UTF-8. Never
 //   seed/coverage.json.
 // - Refuses, before writing any file, a document figure (a row of
@@ -22,6 +22,10 @@
 //   register.company (a company deleted after 410 Gone), naming it on
 //   stderr, and refuses, naming it, a drawn reference orgnr that is not a
 //   stored company (D6), before writing any file.
+// - Story 2.5: writes register.fingerprint filtered by the licence gate
+//   (docs/licence-gate.json): only the allow-listed companies' rows unless
+//   the file records the gate as open. Absent or unreadable is closed, and
+//   stderr says so.
 // - Running it twice on the same database gives byte-identical files.
 //
 // A later migration invalidates the seed: the PR that adds a migration runs
@@ -50,10 +54,13 @@ import {
   exportPaths,
   latestMigrationId,
   orderByClause,
+  LICENCE_GATE_FILE,
   REFERENCE_DRAW_FILE,
+  fingerprintWhere,
   parseAllowListEntries,
   parseDrawn,
   readCoverage,
+  readLicenceGate,
   refuseUnlistedDocumentFigures,
   refuseUnstoredDrawn,
   seedFileName,
@@ -96,10 +103,12 @@ async function checkPrimaryKey(sql: Sql, table: SeedTable): Promise<void> {
   }
 }
 
-async function copyOut(sql: Sql, table: SeedTable): Promise<Buffer> {
+// `where` is a WHERE clause the caller built from checked values (only
+// fingerprintWhere's), or empty for every row.
+async function copyOut(sql: Sql, table: SeedTable, where = ''): Promise<Buffer> {
   await checkPrimaryKey(sql, table);
   const columns = (await columnsOf(sql, table.name)).map(quoteIdent).join(', ');
-  const query = `COPY (SELECT ${columns} FROM register.${quoteIdent(table.name)} ${orderByClause(table)}) TO STDOUT (FORMAT csv, HEADER)`;
+  const query = `COPY (SELECT ${columns} FROM register.${quoteIdent(table.name)} ${where} ${orderByClause(table)}) TO STDOUT (FORMAT csv, HEADER)`;
   const stream = await sql.unsafe(query).readable();
   // Flowing mode ('data' events), not for-await. postgres.js 3.4.9 pauses
   // the socket when a push into the readable reports backpressure and
@@ -116,15 +125,29 @@ async function copyOut(sql: Sql, table: SeedTable): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+// One seed table's file: register.fingerprint only the rows the licence gate
+// lets through (Story 2.5), every other table whole.
+export async function copyTable(
+  sql: Sql,
+  table: SeedTable,
+  gate: { open: boolean },
+  allowList: readonly string[],
+): Promise<Buffer> {
+  return copyOut(sql, table, table.name === 'fingerprint' ? fingerprintWhere(gate, allowList) : '');
+}
+
 // Writes the seed into outRoot (the repository root unless a test passes a
 // scratch directory). Reads coverage.json and the migrations from root.
 // sql must be a transaction: the settings are SET LOCAL. notice receives each
-// line meant for stderr (an allow-list entry dropped, Story 2.4).
+// line meant for stderr (an allow-list entry dropped, Story 2.4; the licence
+// gate read as closed, Story 2.5). gateFile is docs/licence-gate.json under
+// root unless a test passes another.
 export async function exportSeed(
   sql: postgres.TransactionSql,
   root: string,
   outRoot: string = root,
   notice: (line: string) => void = (line) => process.stderr.write(`${line}\n`),
+  gateFile: string = path.join(root, ...LICENCE_GATE_FILE.split('/')),
 ): Promise<Manifest> {
   await sql.unsafe(`SET LOCAL TimeZone = 'UTC'`);
   await sql.unsafe(`SET LOCAL DateStyle = 'ISO, YMD'`);
@@ -132,9 +155,6 @@ export async function exportSeed(
 
   const coverage = readCoverage(path.join(root, ...COVERAGE_FILE.split('/')));
   const migrationId = latestMigrationId(root);
-
-  const outputs = new Map<string, Buffer>();
-  for (const table of SEED_TABLES) outputs.set(seedFileName(table), await copyOut(sql, table));
 
   // The declared codes with at least one company whose primary industry is
   // that code. Demo company C's industry is not declared, so never included.
@@ -170,6 +190,21 @@ export async function exportSeed(
     notice(`seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${entry.orgnr} (${entry.reason})`);
   }
   const allowList = withReferenceOrgnrs(kept, drawn);
+
+  // Story 2.5: fingerprints are filtered by the licence gate.
+  const gate = readLicenceGate(gateFile, notice);
+  const outputs = new Map<string, Buffer>();
+  for (const table of SEED_TABLES) {
+    outputs.set(
+      seedFileName(table),
+      await copyTable(
+        sql,
+        table,
+        gate,
+        allowList.map((entry) => entry.orgnr),
+      ),
+    );
+  }
   refuseUnlistedDocumentFigures(
     new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')])),
     allowList.map((entry) => entry.orgnr),

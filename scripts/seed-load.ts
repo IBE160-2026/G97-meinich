@@ -182,6 +182,7 @@ export async function main(root: string): Promise<number> {
       union all select 'key_figures', count(*)::text from register.key_figures
       union all select 'document', count(*)::text from register.document
       union all select 'document_column', count(*)::text from register.document_column
+      union all select 'fingerprint', count(*)::text from register.fingerprint
       union all select 'covered_industry', count(*)::text from register.covered_industry
       union all select 'dataset', count(*)::text from register.dataset
     `;

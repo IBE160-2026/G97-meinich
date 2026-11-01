@@ -27,7 +27,19 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from conftest import BOUND_KR, GONE, READER_COMMIT, RULES, Answer, FixtureTransport, enhet_url, kopi_url, recorded, regnskap_url
+from conftest import (
+    BOUND_KR,
+    GONE,
+    READER_COMMIT,
+    RULES,
+    Answer,
+    FixtureTransport,
+    as_owner,
+    enhet_url,
+    kopi_url,
+    recorded,
+    regnskap_url,
+)
 from document_fakes import recorded_979607008_2025
 from peerless_ingest import documents, run, write
 from peerless_ingest.config import Config
@@ -125,7 +137,8 @@ def tables_with(conn: psycopg.Connection, column: str) -> list[str]:
 # --- Withdrawn: 410 Gone deletes the company and everything referencing it ----
 
 
-def test_gone_unit_is_deleted_everywhere(db: psycopg.Connection, cfg: Config) -> None:
+def test_gone_unit_is_deleted_everywhere(owner_db: psycopg.Connection, cfg: Config) -> None:
+    db = owner_db
     target = "979607008"
     write.write_company(db, company(target, "STATEMENT AS"))
     for filing in filings_of("regnskap_979607008.json", target):
@@ -134,6 +147,16 @@ def test_gone_unit_is_deleted_everywhere(db: psycopg.Connection, cfg: Config) ->
     write.write_document(
         db, target, 2025, outcome, write.filing_brreg_id(db, target, 2025), READ_AT, READER_COMMIT
     )
+    # Story 2.5: a fingerprint of the company, as step 2 writes it (only
+    # derive and the loader may), so the cascade from company must reach it.
+    with as_owner(db):
+        db.execute(
+            """insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi,
+                   personnel_cost_lo, personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory,
+                   capitalised_intangibles, input_digest, dataset)
+               values (%s, 2025, 'low', 'low', 'mid', 'high', 'low', 'low', null, true, %s, 'full')""",
+            (target, "0" * 64),
+        )
     brreg_ids = [row[0] for row in db.execute("select brreg_id from register.filing where orgnr = %s", (target,))]
     _, fillers = stored_to_multiple(db)
 
@@ -141,11 +164,19 @@ def test_gone_unit_is_deleted_everywhere(db: psycopg.Connection, cfg: Config) ->
     by_brreg_id = tables_with(db, "brreg_id")
     # The loop covers every table the cascade must reach, and each holds a
     # row of the target before the run.
-    assert {"register.company", "register.filing", "register.document", "register.document_column"} <= set(by_orgnr)
+    assert {
+        "register.company",
+        "register.filing",
+        "register.document",
+        "register.document_column",
+        "register.fingerprint",
+    } <= set(by_orgnr)
     assert {"register.key_figures", "register.document"} <= set(by_brreg_id)
-    for table in by_orgnr:
-        if table != "register.key_figures":
-            assert count(db, f"select count(*) from {table} where orgnr = %s", target) > 0, table
+    # Read as the migration role: ingest may not read register.fingerprint.
+    with as_owner(db):
+        for table in by_orgnr:
+            if table != "register.key_figures":
+                assert count(db, f"select count(*) from {table} where orgnr = %s", target) > 0, table
     assert count(db, "select count(*) from register.key_figures where brreg_id = any(%s)", brreg_ids) == 3
     assert count(db, "select count(*) from register.document where brreg_id = any(%s)", brreg_ids) == 1
 
@@ -156,8 +187,9 @@ def test_gone_unit_is_deleted_everywhere(db: psycopg.Connection, cfg: Config) ->
     assert summary.withdrawal.deleted == [target]
     assert summary.withdrawal.failures == []
     assert unit_requests(t) == [enhet_url(target)]
-    for table in by_orgnr:
-        assert count(db, f"select count(*) from {table} where orgnr = %s", target) == 0, table
+    with as_owner(db):
+        for table in by_orgnr:
+            assert count(db, f"select count(*) from {table} where orgnr = %s", target) == 0, table
     for table in by_brreg_id:
         assert count(db, f"select count(*) from {table} where brreg_id = any(%s)", brreg_ids) == 0, table
     # Nothing else was deleted.

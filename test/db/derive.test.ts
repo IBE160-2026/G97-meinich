@@ -1,0 +1,90 @@
+// Batch step 2 against the local database (Story 2.5): `pnpm derive`'s
+// rebuild, run as `derive` through DERIVE_DATABASE_URL inside a transaction
+// that is always rolled back, so the table is left as it was. Counts only:
+// no company's fingerprint is printed or asserted.
+import postgres from 'postgres';
+import { afterAll, describe, expect, it } from 'vitest';
+import { type DeriveCounts, rebuildFingerprints } from '../../scripts/derive.ts';
+import { setting } from './db-env.ts';
+
+const url = setting('DERIVE_DATABASE_URL');
+if (url === undefined) throw new Error('DERIVE_DATABASE_URL is not set; run `pnpm db:roles`');
+const derive = postgres(url, { max: 1, onnotice: () => {} });
+
+afterAll(async () => {
+  await derive.end();
+});
+
+class Rollback extends Error {}
+
+async function rolledBack(fn: (tx: postgres.TransactionSql) => Promise<void>): Promise<void> {
+  try {
+    await derive.begin(async (tx) => {
+      await fn(tx);
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (error instanceof Rollback) return;
+    throw error;
+  }
+}
+
+describe('pnpm derive', () => {
+  it('connects as derive', async () => {
+    const [row] = await derive<{ current_user: string }[]>`select current_user`;
+    expect(row?.current_user).toBe('derive');
+  });
+
+  it('rebuilds one fingerprint per fingerprinted current column, only from reconciled ones, and counts the rest', async () => {
+    await rolledBack(async (tx) => {
+      let counts: DeriveCounts = await rebuildFingerprints(tx);
+      const [stored] = await tx<{ rows: number; columns: number; reconciled: number; unreconciled_rows: number }[]>`
+        select (select count(*)::int from register.fingerprint) as rows,
+               (select count(*)::int from register.document_column where role = 'current') as columns,
+               (select count(*)::int from register.document_column where role = 'current' and status = 'reconciled') as reconciled,
+               (select count(*)::int
+                  from register.fingerprint f
+                  left join register.document_column dc
+                    on dc.orgnr = f.orgnr and dc.filing_year = f.filing_year and dc.role = 'current'
+                 where dc.status is distinct from 'reconciled') as unreconciled_rows
+      `;
+      expect(counts.written).toBe(stored?.rows);
+      expect(counts.columns).toBe(stored?.columns);
+      expect(stored?.unreconciled_rows).toBe(0);
+      expect(counts.columns - counts.skipped.not_reconciled).toBe(stored?.reconciled);
+      const skipped = Object.values(counts.skipped).reduce((sum, n) => sum + n, 0);
+      expect(counts.written + skipped).toBe(counts.columns);
+      const typed = Object.values(counts.types).reduce((sum, n) => sum + n, 0);
+      expect(typed).toBe(counts.written);
+
+      // A second run in the same transaction replaces, never adds.
+      counts = await rebuildFingerprints(tx);
+      const [again] = await tx<{ rows: number }[]>`select count(*)::int as rows from register.fingerprint`;
+      expect(again?.rows).toBe(counts.written);
+    });
+  });
+
+  // Review pass 1 (triage 5): the rebuild reproduces what the table held
+  // before, categories and input digest included. In CI the table holds the
+  // seed's rows, which an earlier derive wrote and seed:export committed; a
+  // read that swaps an input (a subtotal alias, a figure column) changes a
+  // digest or a category and fails here. Compared without printing a row.
+  it('rebuilds exactly the rows the table held: categories, input digest and dataset', async () => {
+    await rolledBack(async (tx) => {
+      const snapshot = async () =>
+        (
+          await tx<{ line: string }[]>`
+            select concat_ws('|', orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
+                             personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory::text,
+                             capitalised_intangibles::text, input_digest, dataset) as line
+              from register.fingerprint order by orgnr collate "C", filing_year`
+        ).map((row) => row.line);
+      const before = await snapshot();
+      expect(before.length).toBeGreaterThan(0);
+      await rebuildFingerprints(tx);
+      const after = await snapshot();
+      const differing = before.filter((line, i) => after[i] !== line).length;
+      expect({ rows: after.length, differing }).toEqual({ rows: before.length, differing: 0 });
+    });
+  });
+});

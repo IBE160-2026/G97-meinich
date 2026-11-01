@@ -109,9 +109,20 @@ docker build --tag peerless-ingest:local ingest
 docker run --rm --mount "type=bind,src=$PWD/ingest/tests/fixtures/documents,dst=/fixtures,ro"   --entrypoint /app/.venv/bin/python peerless-ingest:local -m peerless_ingest.image_check /fixtures
 ```
 
+### Batch step 2: fingerprints
+
+Step 2 derives what the funnel's stage 4 compares: the business-model fingerprint of every filed document's current column (Story 2.5). It runs as the `derive` role (`DERIVE_DATABASE_URL`, written by `pnpm db:roles`), reads only the stored figures, and needs no key, no network and no Docker beyond the local database.
+
+```sh
+pnpm derive            # rebuilds register.fingerprint from the reconciled document columns, as derive
+pnpm analysis:spread   # writes analysis/output/fingerprint-spread-62100.{json,md}, as reader
+```
+
+`pnpm derive` rebuilds the whole table in one transaction and prints totals only: columns read, fingerprints written, columns skipped by reason (not reconciled, no revenue, a negative unexplained cost, a negative balance remainder) and the business types per fingerprint and per company, undetermined included. An input it cannot read makes it exit 1 with nothing written. `pnpm ingest` now ends with `pnpm derive` after a plain run, `--documents` and `--reread` (not after `--companies-only`), also when step 1 fails; a failing derive makes `pnpm ingest` exit non-zero and leaves the fingerprints from before. Run `pnpm derive` yourself after restoring rows from a dump (below), after `pnpm seed`, and after a step-1 run that was stopped before it finished: until then the fingerprints are stale. `pnpm analysis:spread` measures the within-band spread of the two banded cost shares over the stored fingerprints; `test/fingerprint-spread.test.ts` checks its committed output.
+
 ### Seed
 
-The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`, and `document.csv` and `document_column.csv`, which hold only the OCR reference set's documents) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. `seed/coverage.json` declares the covered industries and is the only hand-edited file under `seed/`; `seed/allow-list.json` is written by the export, and names the orgnrs whose document figures the seed may hold, each with its reason.
+The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`, `document.csv` and `document_column.csv`, which hold only the OCR reference set's documents, and `fingerprint.csv`, step 2's fingerprints of those documents) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. `seed/coverage.json` declares the covered industries and is the only hand-edited file under `seed/`; `seed/allow-list.json` is written by the export, and names the orgnrs whose document figures the seed may hold, each with its reason.
 
 ```sh
 pnpm db:start && pnpm db:roles   # the database and LOADER_DATABASE_URL in .env
@@ -120,7 +131,7 @@ pnpm seed             # check everything, then truncate and replace every regist
 
 `pnpm seed` checks the manifest version, that the manifest's migration is the latest file in `supabase/migrations`, that every file in `seed/demo/` is listed with a matching checksum, the shape of `seed/coverage.json`, that every declared industry was fetched, and that a `measured: true` entry cites an existing report under `analysis/output/` with a matching SHA-256. Any failure exits non-zero, names the entry and the check, and loads nothing. Then it loads in one transaction, writes `register.covered_industry` from `seed/coverage.json` and stores the manifest in `register.dataset`. Running it twice leaves the same state. CI runs it twice on a freshly migrated database on every pull request.
 
-**Exporting.** After a step-1 run, `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json` from the local database as `reader`. It is deterministic: rows in primary-key order with `COLLATE "C"`, so the bytes never depend on the database's collation, and dates and `read_at` in UTC ISO form. Running it twice on the same database gives byte-identical files. It never writes `seed/coverage.json`. It refuses, before writing anything, when `register.document_column` holds a figure for an orgnr not on `seed/allow-list.json`. It writes the allow-list back as it read it, plus each orgnr of the committed OCR reference draw (`analysis/ocr-reference/drawn.json`) not already listed, with the reason "OCR-referansesett"; the refusal checks that merged list. Before exporting after the acceptance run, `pnpm seed` restores the committed state.
+**Exporting.** After a step-1 run, `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json` from the local database as `reader`. It is deterministic: rows in primary-key order with `COLLATE "C"`, so the bytes never depend on the database's collation, and dates and `read_at` in UTC ISO form. Running it twice on the same database gives byte-identical files. It never writes `seed/coverage.json`. It writes fingerprints only for the companies on the allow-list unless `docs/licence-gate.json` records the licence gate as open (Story 5.4 writes it; until then it is absent, and the export says on stderr that the gate is closed). It refuses, before writing anything, when `register.document_column` holds a figure for an orgnr not on `seed/allow-list.json`. It writes the allow-list back as it read it, plus each orgnr of the committed OCR reference draw (`analysis/ocr-reference/drawn.json`) not already listed, with the reason "OCR-referansesett"; the refusal checks that merged list. Before exporting after the acceptance run, `pnpm seed` restores the committed state.
 
 **Document rows of the acceptance run are not in the seed.** `pnpm seed` truncates every `register` table and `pnpm db:reset` recreates the database, so both delete the rows a `pnpm ingest --documents` run wrote to `register.document` and `register.document_column`. The committed seed holds only the OCR reference set's documents (Story 2.3); the acceptance run's 407 companies are not on the allow-list (`seed/document-run.json` has listed 412 since Story 2.4's re-export: five companies entered the demo pools with the run's new filings, and none of their documents has been read), and wait for Story 5.4, which lists the demo companies and their peers. Until then, keep that run's rows in a local, gitignored dump (data only) and restore it after a reset or a seed load:
 
@@ -137,6 +148,8 @@ for t in document document_column; do
 done
 ```
 
+After a restore, run `pnpm derive`: the restored documents have no fingerprints until it runs.
+
 `supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first. The dump holds only rows the seed does not: the allow-listed orgnrs' rows are in the seed already, and restoring them again would fail on their keys. The older dumps, `.local/document-run-e09a413.sql` and `.local/document-run-bd2ce3e.sql` (pg_dumps of both tables, taken before the reference rows were seeded), hold only the acceptance run's 407 orgnrs, but they restore only onto the schema before Story 2.3b's migration, which added the NOT NULL `register.document.reader_commit`: keep them, and restore a dump taken after that migration (in the CSV form above) onto the current schema. The dump to restore is `.local/document-run-2.4/`, taken after Story 2.4's plain run (2026-10-30), which deleted no document. The CSV dump before it, `.local/document-run-2ce5a50/`, holds the same rows, but in that run the register replaced the 2025 filing of 823633882 under a new id, and the document row followed it (`ON UPDATE CASCADE`), so the older dump no longer restores onto a seed exported after that run. Never delete the older dumps.
 
 **A new migration invalidates the seed.** The seed records the latest migration, and `pnpm seed` refuses a seed exported under an older one. The pull request that adds a migration therefore re-exports the seed in the same pull request, on a loaded database and without a reset:
@@ -144,6 +157,17 @@ done
 ```sh
 pnpm exec supabase migration up   # apply the new migration; the loaded data stays
 pnpm seed:export                  # commit the changed seed/demo/ with the migration
+```
+
+**The seed sequence with step 2 (Story 2.5).** The seed holds fingerprints, so they are derived from the seed's own documents before the export, and derived again once the acceptance run's rows are back:
+
+```sh
+pnpm seed               # the committed seed (removes the acceptance run's rows: dump them first, above)
+pnpm derive             # fingerprints of the seed's documents
+pnpm seed:export        # commit seed/demo/ on its own
+# restore .local/document-run-2.4/ (above) and check its row counts
+pnpm derive             # fingerprints of every stored document, the acceptance run's included
+pnpm analysis:spread    # the within-band spread over them
 ```
 
 **Recovering an empty local database without a new step-1 run.** If the seed matches the latest migration, `pnpm seed` restores the data. If a new migration is already in the tree and the seed has not been re-exported, load the old seed with the old loader on the old schema, then migrate and export:

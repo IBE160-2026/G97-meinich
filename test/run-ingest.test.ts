@@ -156,6 +156,21 @@ function fakeSpawn(gitStatus: string, gitLog: string = `${COMMIT}\n`): void {
   }) as unknown as typeof spawnSync);
 }
 
+// The calls to `pnpm derive`: Node running scripts/derive.ts.
+const deriveCalls = (): unknown[][] =>
+  vi
+    .mocked(spawnSync)
+    .mock.calls.filter((call) => call[0] === process.execPath && String((call[1] as string[])[0]).endsWith(path.join('scripts', 'derive.ts')));
+
+// spawnSync where `docker run` exits with `step1` and derive with `derived`.
+function fakeExits(step1: number, derived: number): void {
+  vi.mocked(spawnSync).mockImplementation(((command: string, args: readonly string[]) => {
+    if (command === 'git') return { status: 0, stdout: args[0] === 'status' ? '' : `${COMMIT}\n` };
+    if (command === 'docker') return { status: args[0] === 'run' ? step1 : 0 };
+    return { status: derived };
+  }) as unknown as typeof spawnSync);
+}
+
 const dockerCalls = (): string[][] =>
   vi
     .mocked(spawnSync)
@@ -252,5 +267,59 @@ describe('main', () => {
     expect(run).toContain(
       `type=bind,source=${path.join(dir, 'run.json')},target=${CONTAINER_DOCUMENTS_FILE},readonly`,
     );
+  });
+});
+
+// Story 2.5 (spec change log, review pass 1): every run that can change
+// stored figures ends with `pnpm derive`.
+describe('main runs pnpm derive after step 1', () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'run-ingest-derive-'));
+    writeFileSync(path.join(dir, 'run.json'), '["979607008"]\n');
+    vi.stubEnv('INGEST_DATABASE_URL', `postgresql://ingest:${PASSWORD}@127.0.0.1:54322/postgres`);
+    vi.stubEnv('BRREG_API_BASE_URL', '');
+    vi.mocked(spawnSync).mockClear();
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it.each([
+    ['a plain run', []],
+    ['--documents', ['--documents', 'run.json']],
+    ['--reread', ['--reread', 'run.json']],
+  ] as const)('after %s, once, after the container', (_label, argv) => {
+    fakeExits(0, 0);
+    expect(main(dir, argv)).toBe(0);
+    expect(deriveCalls()).toHaveLength(1);
+    const order = vi.mocked(spawnSync).mock.calls.map((call) => (call[0] === 'docker' ? (call[1] as string[])[0] : call[0]));
+    expect(order.indexOf(process.execPath)).toBeGreaterThan(order.indexOf('run'));
+    expect((deriveCalls()[0]?.[2] as { cwd: string }).cwd).toBe(dir);
+  });
+
+  it('never after --companies-only', () => {
+    fakeExits(0, 0);
+    expect(main(dir, ['--companies-only'])).toBe(0);
+    expect(deriveCalls()).toEqual([]);
+  });
+
+  it('also after a step 1 that exits 1, keeping its code', () => {
+    fakeExits(1, 0);
+    expect(main(dir, [])).toBe(1);
+    expect(deriveCalls()).toHaveLength(1);
+  });
+
+  it('a failing derive makes the runner exit non-zero, named on stderr, even after a step 1 that exits 0', () => {
+    fakeExits(0, 1);
+    expect(main(dir, ['--documents', 'run.json'])).not.toBe(0);
+    expect(vi.mocked(process.stderr.write).mock.calls.join(' ')).toContain('pnpm derive failed');
+    fakeExits(1, 1);
+    expect(main(dir, [])).toBe(1);
   });
 });

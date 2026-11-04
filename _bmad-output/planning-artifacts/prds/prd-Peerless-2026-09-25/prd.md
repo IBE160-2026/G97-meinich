@@ -1186,7 +1186,7 @@ This section exists because Peerless is coursework as well as a product, and the
 - **Filings reconciled: 17 of 20** — 12 of 12 recent, 5 of 8 older.
 - **What it does not show.** Twenty filings bound nothing tightly: a misread on a line no check covers can still reach the engine (FR-58), and the sample found none. Recent and older groups are too small to compare, so the split is reported, not interpreted.
 
-**Honest framing of the market claim.** No Norwegian product found assembles a matched peer group *and* converts deviations to kroner self-serve for the company itself; incumbents lead with credit-risk framing. But the gap sits between two well-funded adjacent categories rather than in an empty market, and the brief is candid that there is no moat: the data is public, the ratios are textbook, and the advantage is framing and execution only.
+**Honest framing of the market claim.** No Norwegian product found assembles a matched peer group *and* converts deviations to kroner self-serve for the company itself; incumbents lead with credit-risk framing. Re-checked 2026-11-04 against six further names (`research-landscape.md` §7): the closest, Empirion Performance, benchmarks public accounts self-serve against up to 250 comparable companies, but the user searches out the set and no kroner amount is described. But the gap sits between two well-funded adjacent categories rather than in an empty market, and the brief is candid that there is no moat: the data is public, the ratios are textbook, and the advantage is framing and execution only.
 
 ## 11. Open Questions
 

@@ -103,6 +103,25 @@ This surfaced an important, concrete finding with direct implications for Peerle
 
 ---
 
+## 7. Addendum 2026-11-04 — six further names, checked before use
+
+Meinich brought six competitors from an external AI analysis. Each was checked against the vendor's own pages (fetched 2026-11-04) before anything reached the brief or the PRD, as on 2026-09-23 (`docs/ai-log.md`). Same method limits as above: marketing pages, no trial.
+
+| Player | What its own pages say | Peer selection | Kroner? | Verdict |
+|---|---|---|---|---|
+| **Empirion Performance** | Self-service analysis per purchase: public accounts from Brønnøysundregistrene (plus paid Proff lookups), 2021–2025, 17 KPIs in six perspectives (the meta description says 15), "inntil 25 navngitte konkurrenter" and "inntil 250 sammenlignbare bedrifter", delivered as Excel, Power BI and an AI-written summary. Shows own value, industry average, position in the group and ranking per competitor. Price on a separate page, not read. | **User**: *"Dere søker selv på bransje, sted, omsetning og antall ansatte, eller på navn hvis dere allerede vet hvem dere vil måle dere mot."* | Not described | **Closest in form found so far**: same data, same years, self-serve, AI summary. Differs on the two points the brief rests on — who chooses the peers, and kroner. Added to the brief. |
+| **søkfirma (sokfirma.no, ooLabs AS)** | Free company search on Enhetsregisteret, paid alerts (Lite 99 kr/month); API and an MCP server for Claude and ChatGPT. "Sammenlign": *"Du kan sammenligne opptil fem selskaper side om side"* on accounts, employees, ownership and key figures, with *"persentil i egen bransje"*. | **User** (*"Søk opp selskaper og legg dem til sammenligningen"*), up to five | Not described | Lookup with side-by-side comparison, not peer benchmarking. The MCP server is a possible integration, not a competitor to the method. Not in the brief. |
+| **Econ Intel** | Four products on one data basis: Analytiker'n (explore industry and company data with own questions), Puls, Data og API, Rådgivning. Classifies companies **not by industry code** — *"Plasseringen bygger ikke på næringskoden"* — but from what each company says about itself (≈200 000 websites, job ads, patents, grants, stock-exchange releases), into 37 industries / 187 segments / 520 subsegments / 1 931 business areas. | None: the classification defines populations for industry and value-chain analysis | Not described | Not a peer-benchmarking competitor, but **independent support for Peerless's premise** that industry codes are too coarse — and a possible future reference for SM-1, since it is a text-based classification built by someone else. Not in the brief. |
+| **Biztrac** | "Innsikt i norske selskaper": search across ≈1.2 M companies, ownership map, filters on revenue, operating result and employees; "For analyse" lists *"Bransjer, topplister og sammenligning"*. Sources: Brønnøysundregistrene and Skatteetaten. | **Not verifiable**: the analysis page could not be fetched | Not described | Company intelligence with ownership focus. The "AI workbench" in the external analysis was not found on the pages read. Not in the brief. |
+| **FirmaIQ** | No page found by search; the external analysis itself calls it a static prototype. | — | — | **Unconfirmed.** Not used. |
+| **Proff Forvalt** | Already in §1–§5. The external analysis's "AI-based assessments" matches the phrase quoted in §4. | User (§2) | No | No change. |
+
+**Does the gap still hold?** Yes, but narrower. Comparing a company on public accounts is now available self-serve (Empirion, sold per analysis; its price was not read) and free (søkfirma, up to five companies), so §5's point 5 — nothing found is self-serve SME software — no longer holds for comparison as such. What none of the pages describes is the product choosing the peers for the subject, or a gap expressed in kroner.
+
+**Sources (2026-11-04):** [Empirion Performance](https://empirion.no/empirion-performance) · [søkfirma, Siste endringer](https://sokfirma.no/siste-endringer) · [søkfirma, Sammenlign](https://sokfirma.no/sammenlign) · [Econ Intel, Team](https://www.econintel.no/team) · [Econ Intel, Produkter og data](https://www.econintel.no/produkter-og-data) · [Econ Intel, Hvordan vi kategoriserer bedrifter](https://www.econintel.no/hvordan-vi-kategoriserer-bedrifter) · [Biztrac, Finn selskaper](https://search.biztrac.no/finn)
+
+---
+
 ## Sources
 
 - [Nøkkeltall | Proff® Forvalt](https://forvalt.no/Regnskap/Regnskap/Nokkeltall)

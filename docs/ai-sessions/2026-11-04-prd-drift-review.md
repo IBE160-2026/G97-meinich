@@ -3,7 +3,7 @@
 **Date:** 2026-11-04
 **Tool:** Claude (claude.ai, cloud session, Opus 5.5), with three review subagents and one independent fact-check subagent
 **Story / issue:** planning
-**Result:** commits `c4d93d6` (PRD and memlog), `4337261` (technical note), `8d46181` (AGENTS.md rule and PR template), `8d8ab3a` (fact-check fixes), `ede29b8` (competitors re-checked), this file and the AI-log entries — prepared in a cloud session without push access and applied on `main` from Meinich's machine as a patch series
+**Result:** commits `c4d93d6` (PRD and memlog), `4337261` (technical note), `8d46181` (AGENTS.md rule and PR template), `8d8ab3a` (fact-check fixes), `ede29b8` (competitors re-checked), `2b059c4` (FirmaIQ), this file and the AI-log entries — prepared in a cloud session without push access and applied on `main` from Meinich's machine as a patch series
 
 ## Goal
 Find where the PRD, last updated 2026-10-10, no longer matches what Epics 1–2 built and decided; bring it in line; and change the process so it does not drift again.
@@ -33,7 +33,7 @@ Meinich's prompts, verbatim: "Takk - fant også noen andre relevante konkurrente
 
 - **Advice given:** update now, but only with what is verified on the vendors' own pages — the practice from 2026-09-23 (`docs/ai-log.md`).
 - **Accepted:** Empirion Performance into the brief, as the closest competitor in form, with the difference stated (the user picks the comparison set; no kroner described); one sentence in PRD §10; all six in `research-landscape.md` §7 with a verdict and quotes (`ede29b8`).
-- **Corrected against the analysis:** Biztrac's "AI workbench" was on none of the pages read; FirmaIQ was not found and is recorded as unconfirmed; Econ Intel is a text-based industry classification, not a peer-benchmarking product — recorded as independent support for the premise that industry codes are too coarse.
+- **Corrected against the analysis:** Biztrac's "AI workbench" was on none of the pages read; FirmaIQ was not found by search and recorded as unconfirmed, then confirmed from the link Meinich sent — a static prototype with PDF extraction and source-linked analysis, no peer comparison (`2b059c4`); Econ Intel is a text-based industry classification, not a peer-benchmarking product — recorded as independent support for the premise that industry codes are too coarse.
 - **Corrected in the main session's own advice:** it first said Proff Forvalt's AI analyses were still unconfirmed. `research-landscape.md` §4 already quotes the phrase from forvalt.no (2026-09-25), so that was wrong; the research file says so.
 
 ## Links

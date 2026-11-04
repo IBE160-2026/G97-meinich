@@ -21,7 +21,7 @@ Routine work that went as expected is not logged.
 | parsing | 13 |
 | llm-boundary | 5 |
 | scope | 18 |
-| docs | 21 |
+| docs | 22 |
 
 ## Entry template
 
@@ -725,3 +725,13 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 **Problem:** The same risk as on 2026-09-23: unverified competitor claims reaching a graded document. Two descriptions overstated or could not be found. Empirion's own page shows the user choosing the comparison set and describes no kroner amount, so "very similar" holds for the form but not for the two points the brief rests on. Biztrac's "AI workbench" appears on none of the pages read, and its comparison page could not be fetched. FirmaIQ could not be found at all. Econ Intel turned out not to be a peer-benchmarking product but a text-based industry classification beyond NACE.
 **Caught by:** Verification against the vendors' pages (`_bmad-output/planning-artifacts/prds/prd-Peerless-2026-09-25/research-landscape.md` §7, with sources and quotes). No test backs a documentation claim.
 **Outcome:** Empirion added to the brief's "What exists commercially" with the difference stated; one sentence in PRD §10; all six recorded in the research file with a verdict each, FirmaIQ as unconfirmed. The brief's claim — no product chooses the peers for a Norwegian SME and turns each deviation into kroner — stands, narrower than in September: comparison on public accounts is now available self-serve.
+
+### 2026-11-04 — Correction: FirmaIQ found
+**Tags:** docs
+**Tool:** Claude (claude.ai cloud session, Opus 5.5), fetch of the vendor's page
+**Asked:** Check FirmaIQ from the link Meinich sent.
+**Got:** firmaiq.no: PDF extraction from Brønnøysund filings, ratios and trends, source-linked written analysis; footer *"Static product prototype"*; no peer comparison.
+**Problem:** This entry corrects the entry above, "Competitors from an external AI analysis, checked before use", which said FirmaIQ could not be found. It existed; web search had not surfaced it, and an unfound vendor was rightly kept out of the claims rather than described from the analysis.
+**Caught by:** The link from Meinich.
+**Outcome:** `research-landscape.md` §7 records it as a prototype close to Peerless's pipeline but not its product. The brief and the PRD are unchanged.
+

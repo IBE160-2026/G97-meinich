@@ -3,7 +3,7 @@
 **Date:** 2026-11-04
 **Tool:** Claude (claude.ai, cloud session, Opus 5.5), with three review subagents and one independent fact-check subagent
 **Story / issue:** planning
-**Result:** commits `c4d93d6` (PRD and memlog), `4337261` (technical note), `8d46181` (AGENTS.md rule and PR template), `8d8ab3a` (fact-check fixes), this file and the AI-log entry — prepared in a cloud session without push access and applied on `main` from Meinich's machine as a patch series
+**Result:** commits `c4d93d6` (PRD and memlog), `4337261` (technical note), `8d46181` (AGENTS.md rule and PR template), `8d8ab3a` (fact-check fixes), `ede29b8` (competitors re-checked), this file and the AI-log entries — prepared in a cloud session without push access and applied on `main` from Meinich's machine as a patch series
 
 ## Goal
 Find where the PRD, last updated 2026-10-10, no longer matches what Epics 1–2 built and decided; bring it in line; and change the process so it does not drift again.
@@ -27,9 +27,18 @@ Meinich's prompts, verbatim (Norwegian):
 - **Process fix (`8d46181`).** Root cause: `AGENTS.md` told every session to correct the four authoritative documents and frozen specs, but nothing told a story to correct the PRD. Added to "Specs, reviews and merging": a decision travels upstream in the PR that makes it (PRD with a `.memlog` line, technical note, `epics.md`); deferred v1 work that no story owns goes into `epics.md` or a PRD open question; the PR states "Planning documents:" and the review checks it; each epic retrospective checks the PRD against the epic's FRs. A PR template carries that line next to the fields `AGENTS.md` already requires. Considered and rejected: a CI test comparing spec change-log dates with the PRD's `updated:` date — it would fail on every change log that does not touch an FR and teach people to bump the date.
 - **Delivery.** The cloud session could read the repository but not push (the Claude GitHub App is not installed for the organisation). The commits were made there on a branch and handed over as a patch series, to be applied on `main` with `git am` from Meinich's machine; planning documents may go straight to `main` (`AGENTS.md`, Git workflow).
 
+## Follow-up the same day: competitors from an external analysis
+
+Meinich's prompts, verbatim: "Takk - fant også noen andre relevante konkurrenter i analysen om dette - burde man oppdatere dette nå eller ikke?" with a list of six (Empirion Performance, Proff Forvalt, Econ Intel – Analytiker'n, søkfirma.no, FirmaIQ, Biztrac) from an external AI analysis; then links to the søkfirma, Econ Intel and Biztrac pages.
+
+- **Advice given:** update now, but only with what is verified on the vendors' own pages — the practice from 2026-09-23 (`docs/ai-log.md`).
+- **Accepted:** Empirion Performance into the brief, as the closest competitor in form, with the difference stated (the user picks the comparison set; no kroner described); one sentence in PRD §10; all six in `research-landscape.md` §7 with a verdict and quotes (`ede29b8`).
+- **Corrected against the analysis:** Biztrac's "AI workbench" was on none of the pages read; FirmaIQ was not found and is recorded as unconfirmed; Econ Intel is a text-based industry classification, not a peer-benchmarking product — recorded as independent support for the premise that industry codes are too coarse.
+- **Corrected in the main session's own advice:** it first said Proff Forvalt's AI analyses were still unconfirmed. `research-landscape.md` §4 already quotes the phrase from forvalt.no (2026-09-25), so that was wrong; the research file says so.
+
 ## Links
 - PRD: `_bmad-output/planning-artifacts/prds/prd-Peerless-2026-09-25/prd.md`, `.memlog.md` (entries of 2026-11-04)
 - `AGENTS.md`, "Specs, reviews and merging"; `.github/pull_request_template.md`
-- `docs/ai-log.md`, entry "2026-11-04 — PRD drift after Epics 1–2, and an AI fact-check of the AI's own fix"
+- `docs/ai-log.md`, entries "2026-11-04 — PRD drift after Epics 1–2, and an AI fact-check of the AI's own fix" and "2026-11-04 — Competitors from an external AI analysis, checked before use"
 - `docs/ai-prompts.md` is not edited here: the review session adds the prompts when Meinich asks (`AGENTS.md`, Git workflow).
 - Session log: `.logs/christian-meinich/996-2026-11-04-11-13-29-prd-drift.md`

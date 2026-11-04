@@ -1479,7 +1479,7 @@ So that a reseller, a product company and a consultancy are not compared as if t
 **Given** the rule never to select on a benchmarked measure
 **When** the selection test runs
 **Then** it asserts that no stage-1-to-5 function takes driftsmargin, EBITDA-margin, totalkapitalrentabilitet, any productivity figure or any other margin or return as input, and that cost-of-goods and personnel-cost shares reach selection only as band ids
-**And** a per-industry within-band spread test runs for 62.100 and asserts non-trivial spread of each banded figure within its band, with the spread measure and threshold written in the test before it is run on data, and recorded in the technical note ("Rules fixed by the stories") in the same PR; if spread collapses, the test fails and the PR records that the band is dropped (FR-13); Story 5.2 then confirms or drops each band against the labelled set
+**And** a per-industry within-band spread test runs for 62.100 and asserts non-trivial spread of each banded figure within its band, with the spread measure and threshold written in the test before it is run on data, and recorded in the technical note ("Rules fixed by the stories") in the same PR; if spread collapses, the test fails and the band goes to Meinich, who decides whether it is dropped; nothing is dropped automatically (FR-13; Story 2.5 spec, D3, 2026-11-01); Story 5.2 then confirms or drops each band against the labelled set
 
 **Given** the licence-gate file `docs/licence-gate.json` (written by Story 5.4)
 **When** `pnpm seed:export` runs for the demo seed

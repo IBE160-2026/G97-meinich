@@ -129,7 +129,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Industry overview** — an aggregate picture of one covered industry. Never names a company. Stage 3.
 - **Portfolio** — a signed-in user's front page, listing every company they follow — that is, every company with a saved analysis in one of their workspaces (FR-63). Stage 2.
 - **Peer** — a company included in the subject's peer group. Named and visible, never anonymised.
-- **Peer group** — the set of peers assembled for a subject by the funnel (§4.2). Visible, adjustable, and never used for an aggregate below the minimum group size. Every aggregate uses the group after stage 4, less the user's exclusions.
+- **Peer group** — the set of peers assembled for a subject by the funnel (§4.2). Visible, adjustable, and never used for an aggregate below the minimum group size. Every aggregate uses the group the funnel leaves — today after stage 4, after stage 5 once Story 2.6 adds it — less the user's exclusions.
 - **Candidate pool** — the companies left after funnel stages 1–3, before the fingerprint. An exclusion in the URL is checked against the pool, and the labelled set's frame and the document run read it; aggregates never do. In the code the pool is `pool` and the peer group is `group` (`src/engine/peers.ts`).
 - **Covered industry** — an industry Peerless offers peer analysis for. An industry becomes covered only once its filings are extracted and reconciled **and** its peer selection has been measured against a labelled set. Unmeasured industries are not offered.
 - **Workspace** — the unit of saved work, typically one per company. Has one **owner** and any number of invited **viewers**. Workspaces, owners and viewers arrive in stage 2.
@@ -312,7 +312,7 @@ Candidates are grouped by what kind of business their own accounts say they are,
 - **A candidate whose type differs from the subject's is removed.** A candidate with no fingerprint or no type stays, and a subject with no fingerprint or no type keeps the whole candidate pool, so stage 4's count equals stage 3's.
 - **A fingerprint needs a reconciled current-year column with positive revenue.** A company without one has no fingerprint for that year and is never excluded for lacking one.
 - **An empty line is not zero.** It lies in an interval bounded by the stated subtotals, and a category is known only if its whole interval gives one answer. A remainder below −5 kr (beyond the register's rounding) gives no fingerprint.
-- **Undetermined is a result, not a gap to fill.** When an unknown category decides the rule, the company gets no type and is counted as undetermined, never as `annet`. Measured on the local 62.100 run (Story 2.5, 2026-11-01): 196 of 421 companies (47 %) are undetermined at their newest year, so stage 4 removes less than it could. A separate story to read the cost lines that come back empty was decided on 2026-11-01 (`deferred-work.md`).
+- **Undetermined is a result, not a gap to fill.** When an unknown category decides the rule, the company gets no type and is counted as undetermined, never as `annet`. Measured on the 421 `62.100` companies fingerprinted so far, the acceptance and reference sets (Story 2.5, 2026-11-01): 196 (47 %) are undetermined at their newest year, so stage 4 removes less than it could. A separate story to read the cost lines that come back empty was decided on 2026-11-01 (`deferred-work.md`).
 - **Known weakness:** capitalised intangibles include the deferred tax asset and goodwill, so a consultancy holding either can be typed `produkt`; and a product company that expenses its development is typed `konsulent`. The cost-line story also reads the parts of the intangibles, so that Story 5.2 can measure a rule counting only capitalised own development, rather than the rule being tuned now.
 - Applies to every company with a reconciled document column. With the licence gate closed (FR-73), the committed seed holds fingerprints for the allow-listed companies only.
 
@@ -340,7 +340,7 @@ No measure the product benchmarks may be used to select peers at its exact value
 - Selection uses no margin, return or productivity measure at all.
 - Cost of goods share and personnel cost share are both business-model markers and benchmarked ratios; where they enter selection they enter **only in coarse bands**, and are benchmarked within their band.
 - **The bands are fixed; whether each one earns its place is measured later.** The band edges were set before any share was seen (Story 2.5, Meinich 2026-11-01). Whether each band is kept or dropped is decided against the labelled set in Story 5.2 (§11, question 12).
-- A test asserts that the within-band spread of each banded figure is non-trivial — i.e. the gap has not been driven to zero by construction. It is measured across the whole industry, each company at its newest fingerprinted year: in every band with at least 10 read shares, the interquartile range is at least 2 percentage points (`test/fingerprint-spread.test.ts`, threshold committed before the script ran). Measured 2026-11-01 for `62.100`: every band passes, the lowest at 5.0 pp (`analysis/output/fingerprint-spread-62100.md`).
+- A test asserts that the within-band spread of each banded figure is non-trivial — i.e. the gap has not been driven to zero by construction. It is measured over every fingerprinted company of the industry, each at its newest fingerprinted year, not per peer group: in every cost-of-goods and personnel-cost band with at least 10 read shares, the interquartile range is at least 2 percentage points (`test/fingerprint-spread.test.ts`, threshold committed before the script ran). Measured 2026-11-01 for `62.100` on the 421 companies fingerprinted so far — the acceptance and reference sets, not the whole industry (FR-28): all six bands pass, the lowest at 5.0 pp (`analysis/output/fingerprint-spread-62100.md`). The test reruns when more documents are read.
 - A band that fails goes to the product owner for a decision; nothing is dropped automatically.
 - **The test runs per industry, and passing in one industry is not passing.** Where a band and a performance measure correlate, banding quietly selects on performance; `43.210` (stage 3) is the case where cost of goods share and margin are expected to move together, so a test aggregated across industries could pass while failing exactly where it matters. In v1 it runs for `62.100`, and it runs again for each industry stage 3 adds.
 
@@ -512,7 +512,9 @@ For each key figure the product shows the subject's value, the peer median, the 
 - The favourable quartile is the upper quartile where higher is better and the lower quartile where lower is better, by the direction declared for that figure.
 - Percentile is `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
 - Both the median and the favourable quartile are always shown where both exist. The median is context, and a marker on the closable-share control; it is never the target of the kroner arithmetic (FR-31).
-- **A figure with no declared direction gets no favourable quartile and no percentile**, because both are defined in the favourable direction and there is none. Those figures show the subject's value against the peer distribution and are never ranked: revenue growth, because fast growth often explains a weak margin; personnel cost per FTE and equity ratio, because the direction is genuinely arguable; total cost share, which is a check on the three cost shares (FR-21); and cash share, which is a diagnostic (FR-21).
+- **A figure with no declared direction gets no favourable quartile and no percentile**, because both are defined in the favourable direction and there is none. Those figures show the subject's value against the peer distribution and are never ranked: revenue growth, because fast growth often explains a weak margin; personnel cost per FTE and equity ratio, because the direction is genuinely arguable; and cash share, which is a diagnostic (FR-21).
+
+**Notes.** `[NOTE FOR PM]` Total cost share (6) is a check, not a benchmarking figure (FR-21). `docs/key-figures.md` gives it no direction in its table but leaves it out of the sentence listing the figures with none; which one is meant, and so whether it gets a favourable quartile, is for Story 3.1a to settle in both places.
 
 #### FR-28: Multi-year trend where available · Stage 2
 
@@ -523,7 +525,7 @@ Where filings allow, the product shows how the subject has moved against its pee
 - Development over time covers the last five years, 2021–2025. The spike measured about 88 % of columns reconciling (2026-09-26); the Story 2.1b run, re-read after Story 2.3b, reconciles 1 834 of 1 946 current columns, about 94 % (`analysis/output/document-run-counts-after-2.3b.json`). Paper filings are never read; older generated years are used only where they reconcile.
 - **A reconciled column is not a complete one.** Lines no check needs can be empty in a reconciled column: in the same run `lonnskostnad` is present in 1 398 of 1 946 current columns and `avskrivninger` in 257. Whether a figure is available is therefore per field, not per filing.
 - Every filed document of 2021–2025 is fetched and read, not every other year, although each document carries a prior-year column (Meinich, 2026-10-20, Story 2.1b); both columns of each document are stored.
-- **Status 2026-11-04: read for the acceptance set only.** Story 2.1b read the documents of demo A and B and their candidate pools (407 companies, 1 947 documents) and the 20 OCR reference companies. Reading the rest of `62.100` (about 33 000 documents, about 190 hours) was deferred by Meinich on 2026-10-20 and is recorded in `deferred-work.md`; a plain `pnpm ingest` reads no document. See FR-59.
+- **Status 2026-11-04: read for two samples only.** Story 2.1b read the documents of demo A and B and their candidate pools (407 companies, 1 947 documents); Story 2.3 read those of the 20 OCR reference companies. The run over all of `62.100` (about 8 400 companies, about 33 000 documents, about 190 hours) is what Story 2.1b's acceptance criterion asks for; Meinich deferred it on 2026-10-20 and closed the story on the acceptance run, and it is recorded in `deferred-work.md`. A plain `pnpm ingest` reads no document. See FR-59.
 - The full development-over-time view needs an account; a sparkline preview with the peer median is open to anyone (FR-42).
 
 ### 4.4 Gap quantification in kroner and the closable-share control
@@ -844,7 +846,7 @@ No document is fetched or OCR'd during a user request, for the subject or for an
 **Consequences (testable):**
 - Every document-derived figure served to a user comes from pre-warmed storage.
 - A covered industry is fully pre-warmed before it is offered.
-- **Not yet true for `62.100`** (2026-11-04): its documents are read for the Story 2.1b acceptance set and the OCR reference set only (FR-28). The full document run is recorded in `deferred-work.md` but owned by no story in `epics.md`. `62.100` is still declared `measured: false` (FR-3), so v1 is not complete until the run is done. `[NOTE FOR PM]` Assign the run to a story (§11, question 22).
+- **Not yet true for `62.100`** (2026-11-04): its documents are read for the Story 2.1b acceptance set and the Story 2.3 reference set only (FR-28). Story 2.1b's criterion asked for the full run, the story was closed with the run deferred (Meinich, 2026-10-20), and no open story in `epics.md` picks it up. Whether v1 needs it, or ships on the demo data of FR-73 with the full run left to `pnpm seed:full`, is undecided. `[NOTE FOR PM]` §11, question 22.
 
 #### FR-60: Traceability · v1
 
@@ -852,7 +854,7 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 
 **Consequences (testable):**
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
-- Filings that cannot be read reliably are reported as unavailable rather than estimated. Only 2021–2025 is fetched, and paper filings ended before that, so in practice this means a document that was refused at reading (`not_extracted`: a scaled reporting unit, an unreadable or mismatched year header, or an OCR error) or a column that failed reconciliation (FR-57).
+- Filings that cannot be read reliably are reported as unavailable rather than estimated. A paper filing is stored with status `paper` and never read; none was seen after 2013 in a 30-company sample (`docs/data-sources-brreg.md`), so in 2021–2025 they should be rare. A generated document is unavailable when it was refused at reading (`not_extracted`: an unknown layout, a scaled reporting unit, an unreadable or mismatched year header, or an OCR error) or when its column failed reconciliation (FR-57).
 
 #### FR-71: When the subject's own filing fails reconciliation · v1
 
@@ -875,7 +877,7 @@ Every figure, aggregate and industry overview states the filing year behind it a
 - A saved analysis shows the read date it was computed from, never today's.
 - A saved analysis is a record of what was computed on that date, with one exception: a company the register later withdraws is removed from it, as subject or as peer (FR-66).
 - The product makes no freshness guarantee. The batch refresh is triggered manually in v1 (§8), so the disclosed read date — not a promised interval — is what tells the user how current the figures are.
-- **A stored document is not fetched again** (Story 2.1b), so a company that refiles a year keeps the first filing's figures until a re-read. The read date is the date of that first read.
+- **A stored document is not fetched again** (Story 2.1b), so a company that refiles a year keeps the first filing's figures until a re-read. The read date is the date of the read that produced the stored figures.
 
 #### FR-65: Source credit under the register's licence · v1
 
@@ -979,7 +981,7 @@ Peerless runs from a fresh clone on a local database loaded with seed data, and 
   - **B** — a loss-making `62.100` product company with its peer group: the fingerprint separating a product company from consultancies, and a large gap.
   - **C** — a `69.202` bookkeeping firm: the uncovered-industry state (FR-4), from API figures alone, with no document figures needed.
 - **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full."*; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown, and so is the stored explanation, built from the API figures present; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene". *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. A `62.100` company in the register with no filed accounts in the loaded data has no benchmark year (FR-25) and is shown with identification only and *"Vi har ikke et levert regnskap for dette selskapet ennå."* The README says that `pnpm seed:full` restores the full set.
-- **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application and no change to what the schema holds. A performance-only migration, such as the index on `naeringskode1` planned for when a second industry is covered (`deferred-work.md`, Story 1.7), is allowed, and re-exports the seed in the same PR.
+- **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application or the schema. `[NOTE FOR PM]` `deferred-work.md` (Story 1.7) plans an index on `naeringskode1`, a migration, for when a second industry is covered; whether a performance-only migration counts as a schema change here is not decided.
 - **README.** A short, fixed sequence takes a fresh clone to a running app — `corepack enable`, `pnpm install --frozen-lockfile`, `pnpm db:start`, `pnpm db:roles`, `pnpm seed`, `pnpm build`, `pnpm start` — and a run from a fresh clone on a clean machine is part of v1's acceptance (SM-9). The app runs as a production build, never `next dev`, because the rate limit and every test assume it. The README lists the three demo organisation numbers and what each demonstrates.
 - No secret is needed to run v1, and nothing has to be typed in: `pnpm db:roles` generates the local role passwords and writes them, with the connection URLs, into the gitignored `.env`; every other value is a local default or optional.
 
@@ -1002,7 +1004,7 @@ Scope discipline is part of what is being graded. These are things Peerless is n
 **Not this data:**
 
 - **Entities outside the ordinary accounting layout, including banks and insurers.**
-- **Filings that cannot be read reliably** — paper-form scans, which v1 never fetches since it reads 2021–2025 only, and any document refused at reading or failing reconciliation (FR-60) — reported as unavailable, never estimated.
+- **Filings that cannot be read reliably** — paper-form scans, stored as `paper` and never read, and any document refused at reading or failing reconciliation (FR-60) — reported as unavailable, never estimated.
 - **Group consolidation across several legal entities.**
 - **Ownership and group structure mapping.**
 - **Cross-border comparison.**
@@ -1209,14 +1211,14 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 **Gated on measurement** (answers arrive from work already scheduled)
 
 11. **Target thresholds for precision, recall and OCR accuracy.** None stated anywhere. Whether v1 should commit to a threshold at all, or only to measuring, is a decision — and committing to one before the baseline exists would be guessing.
-12. **Which fingerprint features are used, and whether cost of goods share or personnel cost share enters selection at all.** The first half is answered (Story 2.5, Meinich 2026-11-01): five categories with fixed band edges and a fixed rule to a business type (FR-10), set before any share was seen. The within-band spread test passed for every band, the lowest at 5.0 pp (FR-13). What remains open is whether each band **earns its place**, which is measured against the labelled set in Story 5.2; a band that fails goes to the product owner rather than being dropped automatically.
+12. **Which fingerprint features are used, and whether cost of goods share or personnel cost share enters selection at all.** The first half is answered (Story 2.5, Meinich 2026-11-01): five categories with fixed band edges and a fixed rule to a business type (FR-10), set before any share was seen. The within-band spread test passed for all six cost-share bands on the 421 companies fingerprinted so far, the lowest at 5.0 pp (FR-13). What remains open is whether each band **earns its place**, which is measured against the labelled set in Story 5.2; a band that fails goes to the product owner rather than being dropped automatically.
 13. **How much autonomy the model has in accepting or rejecting a candidate.** The second half of this question is answered (2026-09-30): all six comparability fields are hard exclusions and none is loosenable (FR-8), and FR-18's loosening reaches the size band and segmentation only. Model autonomy at stage 5 remains open.
 14. **OCR field names.** All ten OCR-sourced field names in `docs/key-figures.md` are marked provisional until confirmed against a real filing.
 
 **Open from the build** (added 2026-11-04, when this PRD was brought in line with Epics 1–2)
 
 21. **Lines no reconciliation check covers.** A misread `bankinnskudd`, `kundefordringer`, `salgsinntekt` or `leverandorgjeld` can reach the engine in a reconciled column (FR-58). Guard them (for example with sub-total checks), or show them as unverified before the engine uses them? Recorded in `deferred-work.md` (Story 2.3, B9).
-22. **Two pieces of v1 work that no story owns.** The document run over all of `62.100` (FR-28, FR-59; about 190 hours) and reading `aarsverk` from the notes (§5; key figures 7 and 8). Both are in `deferred-work.md`; neither appears in `epics.md`, and v1 is not complete without the first.
+22. **Two pieces of work that no open story owns.** The document run over all of `62.100` (FR-28, FR-59; about 190 hours), which Story 2.1b's criterion asked for and which was deferred when the story closed; and reading `aarsverk` from the notes (§5; key figures 7 and 8). Both are in `deferred-work.md`. Open: which story owns each, and whether v1 needs the full run or ships on the demo data (FR-73).
 23. **Does a dissolved company stay a peer?** Nothing in the request path reads `slettedato` yet, so a dissolved company remains a candidate and its filings count in aggregates (FR-66; `deferred-work.md`, Story 2.4).
 24. **The match basis of an undetermined peer** — fingerprinted, but with no business type (FR-16, FR-10). To be settled before Story 2.7.
 

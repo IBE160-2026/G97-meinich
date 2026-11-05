@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import json
+import threading
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -894,3 +895,70 @@ def test_reread_mode_rejects_other_arguments(tmp_path: Path) -> None:
     assert run.main(["--reread", "a.json", "b.json"]) == 2
     assert run.main(["--reread", "a.json", "--documents", "b.json"]) == 2
     assert run.main(["--reread", str(tmp_path / "absent.json")]) == 2
+
+
+# --- The per-document fetch deadline (Story 2.5b, the watchdog) ------------------
+
+DEADLINE_SECONDS = 0.2
+
+
+class HangingTransport(FixtureTransport):
+    """A FixtureTransport whose answers for `hanging` URLs never come until
+    `release` is set: a fetch blocked past urlopen's timeout, as in Story
+    2.3b's re-read."""
+
+    def __init__(self, responses: dict[str, bytes | None], hanging: set[str]) -> None:
+        super().__init__(responses)
+        self.hanging = hanging
+        self.release = threading.Event()
+
+    def get(self, url: str, accept: str) -> bytes | None:
+        if url in self.hanging:
+            self.requested.append(url)
+            self.release.wait(30)
+            return None
+        return super().get(url, accept)
+
+
+def test_hung_fetch_is_abandoned_and_run_goes_on(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
+    transport = HangingTransport(
+        {aar_url(ORGNR): b'["2024", "2025"]', kopi_url(ORGNR, 2025): pdf("2025")}, hanging={kopi_url(ORGNR, 2024)}
+    )
+    try:
+        summary = run.run_documents(
+            stored, transport, dataclasses.replace(cfg, fetch_deadline_seconds=DEADLINE_SECONDS), CODES, [ORGNR],
+            reader_commit=READER_COMMIT, now=lambda: READ_AT,
+        )
+    finally:
+        transport.release.set()
+    assert [p.what for p in summary.failed] == [
+        "document 2024: not fetched: no answer within 0.2 s (the per-document fetch deadline)"
+    ]
+    # The run went on: 2025 is read and stored; 2024 is not, so a rerun tries it.
+    assert [row[0] for row in documents_of(stored, ORGNR)] == [2025]
+    assert summary.needs_operator()
+
+
+def test_hung_fetch_on_reread_not_replaced(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    for year in (2024, 2025):
+        store_older(stored, year)
+    before = [row for row in stored_rows(stored, ORGNR) if row[0] == 2024]
+    FakeRecognise(monkeypatch, {pdf("2025"): document(BOLD_ROWS)})
+    transport = HangingTransport({kopi_url(ORGNR, 2025): pdf("2025")}, hanging={kopi_url(ORGNR, 2024)})
+    try:
+        summary = run.run_reread(
+            stored, transport, dataclasses.replace(cfg, fetch_deadline_seconds=DEADLINE_SECONDS), CODES, [ORGNR],
+            reader_commit=READER_COMMIT, now=lambda: REREAD_AT,
+        )
+    finally:
+        transport.release.set()
+    assert [p.what for p in summary.not_replaced] == [
+        "document 2024: not fetched: no answer within 0.2 s (the per-document fetch deadline)"
+    ]
+    # 2024 keeps its figures and old version; the run went on and replaced 2025.
+    assert [row for row in stored_rows(stored, ORGNR) if row[0] == 2024] == before
+    assert summary.replaced == {(2025, "reconciled"): 1}
+    assert summary.needs_operator()

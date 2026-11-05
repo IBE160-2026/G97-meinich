@@ -49,6 +49,17 @@ navn = "KANTALL AS"
 [withdrawal]
 max_absent_share = 0.01
 
+# The time limit on fetching one filed document (Story 2.5b, the watchdog).
+# urlopen's timeout bounds each socket operation, not the request, and in
+# Story 2.3b's re-read a fetch hung for about two hours with no error. The
+# fetch therefore runs on a worker thread that the run stops waiting for
+# after this many seconds: the document is named as not fetched (not
+# replaced, on a re-read), the run goes on, and it exits 1 at the end so a
+# rerun tries it again. A legitimate fetch takes well under this: at most
+# five attempts of 60 s with 15 s of backoff between them (fetch.py).
+[documents]
+fetch_deadline_seconds = 600
+
 # The two reconciliation rules of Story 2.2 (FR-57, FR-58). Each is set here
 # once, with its own key, and never combined with the other. The reasons and
 # the measurements behind them are in docs/data-sources-brreg.md,

@@ -87,6 +87,29 @@ def test_withdrawal_config_validated(tmp_path: Path) -> None:
             config.load_config(_config_with_withdrawal(tmp_path, bad), env={})
 
 
+def test_committed_fetch_deadline() -> None:
+    # Story 2.5b: ten minutes, well above a legitimate fetch (five attempts
+    # of 60 s and 15 s of backoff).
+    assert config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).fetch_deadline_seconds == 600
+
+
+def _config_with_documents(tmp_path: Path, documents: str | None) -> Path:
+    base = (REPO_ROOT / "ingest" / "config.toml").read_text(encoding="utf-8")
+    start = base.index("[documents]")
+    end = base.index("\n\n", start)
+    replacement = "" if documents is None else f"[documents]\nfetch_deadline_seconds = {documents}"
+    path = tmp_path / "config.toml"
+    path.write_text(base[:start] + replacement + base[end:], encoding="utf-8")
+    return path
+
+
+def test_fetch_deadline_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_documents(tmp_path, "0.5"), env={}).fetch_deadline_seconds == 0.5
+    for bad in (None, "0", "-1", '"600"', "true"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_documents(tmp_path, bad), env={})
+
+
 VALID_RECONCILIATION = {
     "within_document_bound_kr": "5",
     "between_sources_floor_kr": "5",

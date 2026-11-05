@@ -80,6 +80,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from collections import Counter
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -667,6 +668,38 @@ class NotRead(Exception):
     stored for it, so a later run tries it again."""
 
 
+class FetchDeadline(Exception):
+    """The fetch of one document did not end within the deadline."""
+
+
+def _fetch_within(deadline_seconds: float, transport: fetch.Transport, base_url: str, orgnr: str, year: int) -> bytes | None:
+    """`fetch.fetch_document`, abandoned after `deadline_seconds` (Story
+    2.5b, the watchdog). The fetch runs on a daemon thread and the run stops
+    waiting for it, so a request that hangs past urlopen's per-operation
+    timeout (Story 2.3b's re-read) costs this document only. The abandoned
+    thread is left to end on its own; nothing it returns is used. Raises
+    FetchDeadline on expiry, and re-raises whatever the fetch raised."""
+    outcome: list[tuple[bool, object]] = []
+
+    def target() -> None:
+        try:
+            outcome.append((True, fetch.fetch_document(transport, base_url, orgnr, year)))
+        except BaseException as error:  # handed to the run's thread, never swallowed
+            outcome.append((False, error))
+
+    worker = threading.Thread(target=target, name=f"fetch {orgnr}/{year}", daemon=True)
+    worker.start()
+    worker.join(deadline_seconds)
+    if worker.is_alive() or not outcome:
+        raise FetchDeadline(f"no answer within {deadline_seconds:g} s (the per-document fetch deadline)")
+    done, value = outcome[0]
+    if not done:
+        assert isinstance(value, BaseException)
+        raise value
+    assert value is None or isinstance(value, bytes)
+    return value
+
+
 class _Timed(Protocol):
     read_count: int
     read_seconds: float
@@ -682,15 +715,19 @@ def _fetch_and_read(
     timing: _Timed,
     now: Callable[[], datetime],
     clock: Callable[[], float],
+    fetch_deadline_seconds: float,
 ) -> tuple[documents.DocumentRead | ocr.OcrError, datetime]:
     """Fetches the document of `orgnr` for `year` by the year in its path
     and reads it (`documents.read_document`): the read, or the OcrError when
     Tesseract failed, and when it was read. Raises NotRead for a fetch
     error, a document not served (`unserved` says why that is a problem)
-    and any other failure of the read. KeyboardInterrupt is not an
-    Exception and still stops the run."""
+    and any other failure of the read, and for a fetch that did not end
+    within `fetch_deadline_seconds` (Story 2.5b). KeyboardInterrupt is not
+    an Exception and still stops the run."""
     try:
-        pdf = fetch.fetch_document(transport, base_url, orgnr, year)
+        pdf = _fetch_within(fetch_deadline_seconds, transport, base_url, orgnr, year)
+    except FetchDeadline as error:
+        raise NotRead(f"not fetched: {error}") from error
     except FETCH_ERRORS as error:
         raise NotRead(f"{error.__class__.__name__}: {error}") from error
     if pdf is None:
@@ -737,9 +774,12 @@ def _load_documents(
     now: Callable[[], datetime],
     clock: Callable[[], float],
     progress: Callable[[str], None],
+    fetch_deadline_seconds: float,
 ) -> None:
     """Fetches, reads and stores every filed 2021–2025 document of `orgnr`
-    that has no row yet, each committed on its own with `reader_commit`."""
+    that has no row yet, each committed on its own with `reader_commit`. A
+    fetch past `fetch_deadline_seconds` is named in `failed` as not fetched,
+    and the next year is tried."""
     try:
         years = fetch.fetch_document_years(transport, base_url, orgnr)
     except FETCH_ERRORS as error:
@@ -758,7 +798,8 @@ def _load_documents(
             continue
         try:
             read, read_at = _fetch_and_read(
-                transport, base_url, rules, orgnr, year, "listed in /aar but not served (404 or 410)", summary, now, clock
+                transport, base_url, rules, orgnr, year, "listed in /aar but not served (404 or 410)", summary, now, clock,
+                fetch_deadline_seconds,
             )
         except NotRead as error:
             failed.append(Problem(orgnr, f"document {year}: {error}"))
@@ -823,6 +864,7 @@ def _reread_documents(
     now: Callable[[], datetime],
     clock: Callable[[], float],
     progress: Callable[[str], None],
+    fetch_deadline_seconds: float,
 ) -> None:
     """Re-reads every stored document of `orgnr` whose reader version is not
     `reader_commit` (Story 2.3b), through the same fetch, read, reconcile
@@ -832,7 +874,7 @@ def _reread_documents(
     its old figures and version, when the re-read gives fewer columns than
     are stored (a refusal, a year mismatch), when it turns a reconciled
     column into failed_reconciliation, when Tesseract fails, or when it is
-    not fetched or not read; each is named in `summary.not_replaced`. A
+    not fetched (also past `fetch_deadline_seconds`) or not read; each is named in `summary.not_replaced`. A
     document replaced although a column reconciled before and after lost a
     figure is named in `summary.lost_figures`."""
     try:
@@ -848,7 +890,8 @@ def _reread_documents(
             continue
         try:
             read, read_at = _fetch_and_read(
-                transport, base_url, rules, orgnr, year, "stored, but not served now (404 or 410)", summary, now, clock
+                transport, base_url, rules, orgnr, year, "stored, but not served now (404 or 410)", summary, now, clock,
+                fetch_deadline_seconds,
             )
         except NotRead as error:
             summary.not_replaced.append(Problem(orgnr, f"document {year}: {error}"))
@@ -1171,7 +1214,8 @@ def run_documents(
         summary.companies += 1
         _rereconcile(conn, orgnr, rules, summary.documents, summary.failed)
         _load_documents(
-            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress
+            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress,
+            cfg.fetch_deadline_seconds,
         )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
@@ -1210,7 +1254,9 @@ def run_reread(
         if orgnr not in accepted:
             continue
         summary.companies += 1
-        _reread_documents(conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress)
+        _reread_documents(
+            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress, cfg.fetch_deadline_seconds
+        )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
     summary.wall_seconds = clock() - started

@@ -49,6 +49,8 @@ class Config:
     # [withdrawal] (Story 2.4, D5): above this share of stored companies
     # absent from the bulk file, the withdrawal check is skipped.
     max_absent_share: Fraction
+    # [documents] (Story 2.5b): the per-document fetch deadline, in seconds.
+    fetch_deadline_seconds: float
 
 
 def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) -> Config:
@@ -72,6 +74,9 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
     withdrawal = data.get("withdrawal")
     if not isinstance(withdrawal, dict):
         raise ConfigError(f"{path}: the [withdrawal] table is missing")
+    documents = data.get("documents")
+    if not isinstance(documents, dict):
+        raise ConfigError(f"{path}: the [documents] table is missing")
     return Config(
         base_url=str(base_url).rstrip("/"),
         user_agent=str(register.get("user_agent", "Peerless")),
@@ -82,7 +87,17 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
         between_sources_floor_kr=_kroner(path, reconciliation, "between_sources_floor_kr"),
         between_sources_tolerance=_fraction(path, reconciliation, "between_sources_tolerance"),
         max_absent_share=_share(path, withdrawal, "max_absent_share"),
+        fetch_deadline_seconds=_seconds(path, documents, "fetch_deadline_seconds"),
     )
+
+
+def _seconds(path: Path, table: dict[str, object], key: str) -> float:
+    """A positive number of seconds: a duration, not money, so a float is
+    fine. Required: no default."""
+    value = table.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise ConfigError(f"{path}: documents.{key} must be a positive number of seconds, got {value!r}")
+    return float(value)
 
 
 def _share(path: Path, table: dict[str, object], key: str) -> Fraction:

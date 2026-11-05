@@ -189,6 +189,7 @@ def cfg() -> Config:
         between_sources_floor_kr=RULES.between_sources_floor_kr,
         between_sources_tolerance=RULES.between_sources_tolerance,
         max_absent_share=MAX_ABSENT_SHARE,
+        fetch_deadline_seconds=600,
     )
 
 

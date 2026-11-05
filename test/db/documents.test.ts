@@ -269,7 +269,7 @@ describe('register.document_column', () => {
        where a.attrelid = 'register.document_column'::regclass and a.attnum > 0 and not a.attisdropped
          and a.attname like '%\\_ore'
     `;
-    expect(rows).toHaveLength(23);
+    expect(rows).toHaveLength(27); // 23 (Story 2.1b) and the four parts of intangible assets (Story 2.5b)
     for (const row of rows) {
       expect(row.kind, row.name).toBe('bigint');
       expect(row.comment?.startsWith('øre (hundredths of document.valuta'), row.name).toBe(true);

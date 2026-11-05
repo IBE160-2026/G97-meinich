@@ -431,6 +431,36 @@ describe('the step-1 tables', () => {
     }
   });
 
+  it('cover the parts of intangible assets (Story 2.5b): no column grant narrows the table grants', async () => {
+    // The four columns 20261105120000_document_intangible_parts.sql adds get
+    // no grant of their own; each role reaches them through its table grant.
+    const parts = ['forskning_og_utvikling_ore', 'konsesjoner_patenter_ore', 'goodwill_ore', 'utsatt_skattefordel_ore'];
+    const expected: [string, string, boolean][] = [
+      ['reader', 'SELECT', true],
+      ['reader', 'UPDATE', false],
+      ['ingest', 'SELECT', true],
+      ['ingest', 'INSERT', true],
+      ['ingest', 'UPDATE', true],
+      ['loader', 'SELECT', true],
+      ['loader', 'INSERT', true],
+      ['derive', 'SELECT', true],
+      ['derive', 'INSERT', false],
+    ];
+    for (const column of parts) {
+      for (const [role, privilege, ok] of expected) {
+        const [row] = await sql<{ ok: boolean }[]>`
+          select has_column_privilege(${role}, 'register.document_column', ${column}, ${privilege}) as ok
+        `;
+        expect(row?.ok, `${role} ${privilege} on ${column}`).toBe(ok);
+      }
+      const [acl] = await sql<{ acl: string | null }[]>`
+        select attacl::text as acl from pg_attribute
+         where attrelid = 'register.document_column'::regclass and attname = ${column}
+      `;
+      expect(acl?.acl ?? null, column).toBeNull();
+    }
+  });
+
   it('refuse reader INSERT, UPDATE, DELETE and TRUNCATE on each of them', async () => {
     // Statements that would succeed with the privilege: INSERT DEFAULT
     // VALUES fails on the privilege check before any NOT NULL check, and

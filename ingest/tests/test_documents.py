@@ -598,3 +598,60 @@ def test_intangible_part_recovered_only_through_gate() -> None:
     assert column.figures["forskning_og_utvikling"] == 6_986_262
     assert column.figures["goodwill"] is None
     assert column.digits_pass_fields == ("forskning_og_utvikling",)
+
+
+# 994176021/2021, this year's column, as the probe's cached words read it:
+# "Lønnskostnad 2" is printed with no figure in either pass, and so is the
+# wrapped "Nedskrivning …" row. There the other lines sum exactly to sum
+# kostnader (1 365 321 + 3 781 795 + 8 373 426 = 13 520 542), so the blank
+# rows are 0 in fact. The risk the spec names (change log, 2026-11-05) is a
+# printed figure OCR did not see at all: the gate counts the blank row as 0.
+BLANK_LONN_ROWS: list[Row] = [
+    ("Sum inntekter", "14 028 370", "10 415 356"),
+    ("Varekostnad", "1 365 321", "996 371"),
+    ("Lønnskostnad 2", "", ""),
+    ("Avskrivning 3", "3 781 795", "2 869 057"),
+    ("Nedskrivning av varige", "", ""),
+    ("driftsmidler og", "", ""),
+    ("immaterielle eiendeler 3", "", ""),
+    ("Annen driftskostnad 2", "8 373 426", "6 246 567"),
+    ("Sun kostnader", "13 520 542", "10 111 995"),
+    ("Driftsresultat", "507 828", "303 361"),
+]
+
+
+def test_blank_printed_line_lets_the_gate_admit_nothing_unless_the_sum_holds() -> None:
+    def gated(rows: list[Row], digits: list[Row]) -> documents.Column:
+        top, pages = document_pages([("RESULTATREGNSKAP", rows, digits), ("BALANSE", BALANCE_ROWS, None)])
+        return current_of(documents.read_words(top, pages, BOUND_KR))
+
+    # Lønnskostnad's printed figure, 2 000 000, missing from both passes: sum
+    # kostnader and driftsresultat as printed then. Annen driftskostnad is
+    # refused in plain and read right by the digits pass, but with the blank
+    # row counted as 0 the lines are 2 000 000 short of the total: nothing is
+    # admitted (fails if the gate's sum check is removed).
+    missing = replace_row(
+        replace_row(replace_row(BLANK_LONN_ROWS, "Sun kostnader", current="15 520 542"), "Driftsresultat", current="-1 492 172"),
+        "Annen driftskostnad 2",
+        current="8 373 4z6",
+    )
+    column = gated(missing, digits_of(replace_row(missing, "Annen driftskostnad 2", current="8 373 426")))
+    assert column.c1 == "pass"
+    assert column.figures["annen_driftskostnad"] is None
+    assert column.figures["lonnskostnad"] is None
+    assert column.digits_pass_fields == ()
+
+    # As in the document, the blank rows being 0: the sum holds, and one
+    # operand from the digits pass is admitted.
+    one = replace_row(BLANK_LONN_ROWS, "Annen driftskostnad 2", current="8 373 4z6")
+    column = gated(one, digits_of(BLANK_LONN_ROWS))
+    assert column.figures["annen_driftskostnad"] == 8_373_426
+    assert column.digits_pass_fields == ("annen_driftskostnad",)
+    assert column.figures["lonnskostnad"] is None  # counted as 0 in the gate only, never stored
+
+    # Two operands from the digits pass, the sum holding: nothing is admitted
+    # (fails if the "at most one digits-pass operand" rule is removed).
+    two = replace_row(one, "Avskrivning 3", current="3 78l 795")
+    column = gated(two, digits_of(BLANK_LONN_ROWS))
+    assert (column.figures["annen_driftskostnad"], column.figures["avskrivninger"]) == (None, None)
+    assert column.digits_pass_fields == ()

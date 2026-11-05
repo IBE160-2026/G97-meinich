@@ -3,7 +3,7 @@
 **Date:** 2026-11-01 to 2026-11-05 (in progress)
 **Tool:** Claude Code (BMAD coordinator session and its implementation subagent, Opus 5.5)
 **Story / issue:** Story 2.5b (FR-10, FR-28 batch part, NFR25), branch `story/2.5b-read-cost-lines`, issue [#45](https://github.com/IBE160-2026/G97-meinich/issues/45); PR not yet opened
-**Result:** commits `a7fc2ee`, `2fea93b`, `e9444da` (before inputs and the transcription template), `6978bde` (watchdog), `bb9d4f4` (probe), `281f134`, `8c85ca8`, `bd94b80` (F1–F3), `b11b38b`, `4c6a1dc`, `9e60be3` (migration, DB tests, README restore), `5d2aad9` (SM-2 section), and the docs commit
+**Result:** commits `a7fc2ee`, `2fea93b`, `e9444da` (before inputs and the transcription template), `6978bde` (watchdog), `bb9d4f4` (probe), `281f134`, `8c85ca8`, `bd94b80` (F1–F3), `b11b38b`, `4c6a1dc`, `9e60be3` (migration, DB tests, README restore), `5d2aad9` (SM-2 section), `9069710` and `2c2445c` (planning documents and docs), `5cf12f5`, `5af1fb6`, `ff6ece6`, `37947ee` (the two additions), `3d32823` (the transcription check)
 
 ## Goal
 
@@ -23,8 +23,8 @@ Implement `_bmad-output/implementation-artifacts/spec-2-5b-read-the-cost-lines-a
   - The README restore names the columns from the dump's header, so `.local/document-run-2.4/` still restores; `test/db/restore-old-dump.test.ts`.
   - The report's section "Before and after Story 2.5b"; the Story 2.3b section's "after" is now the copy taken before Story 2.5b, so later re-reads do not move it.
 - **Choices the spec left open, flagged for review:**
-  - A label beyond F2's list, "Utvikling", for `forskning_og_utvikling`: the contract fixture 979607008/2025 and three probe documents print the first part that way. Checked against the fixture PDF; for Meinich to confirm or reject.
-  - A label printed with no figure is no candidate row, so it counts as 0 in a sum gate ("a line with no matching row"). The probe's 2.1b `nedskrivninger` rows are all of this kind; treating them as matched would leave the cost gate not evaluable in those documents.
+  - A label beyond F2's list, "Utvikling", for `forskning_og_utvikling`: the contract fixture 979607008/2025 and three probe documents print the first part that way. Checked against the fixture PDF. **Kept by Meinich** (2026-11-05, Spec Change Log).
+  - A label printed with no figure is no candidate row, so it counts as 0 in a sum gate ("a line with no matching row"). The probe's 2.1b `nedskrivninger` rows are all of this kind; treating them as matched would leave the cost gate not evaluable in those documents. **Accepted by Meinich with two additions:** (a) a test built on the probe's 994176021/2021 `lonnskostnad` row (`test_blank_printed_line_lets_the_gate_admit_nothing_unless_the_sum_holds`); (b) the report gives, as totals, the figures each gate admitted and how many rested on an operand counted as 0 (`scripts/sum-gates.ts`). In the real document that blank row is 0 (the other lines sum exactly to sum kostnader), so the test sets a printed figure there.
   - The parts are the last four fields of `TARGETS`, so `FIELDS` follows the table's column order (`test_documents_write.py::test_figure_columns_match_the_reading_library`).
   - An export from before the migration reads the parts as null, and the report says so (`lacksPartColumns`).
 - **Corrected during the session, and how it was caught:**
@@ -32,8 +32,16 @@ Implement `_bmad-output/implementation-artifacts/spec-2-5b-read-the-cost-lines-a
   - The first not-evaluable test case also passed with its guard removed (the unread line was non-zero, so the sum failed anyway); it now uses an unread printed 0.
   - A README edit was first staged with CRLF line ends, which showed the whole file as changed; caught in `git diff --cached --stat` and rewritten with LF.
 
+## Transcription check after the probe (no correction)
+
+The probe showed two cells where both OCR passes agree with each other but not with the transcription. Meinich checked both against the PDF on 2026-11-05. The check was not blind, because the probe had shown the OCR value. The transcription is right in both, and nothing is corrected (`analysis/ocr-reference/README.md`, "Check after the Story 2.5b probe", `3d32823`; not in the corrections table):
+
+- **922184534/2025, the 2024 column, `lonnskostnad`: 31 286 483.** The cost lines sum to 104 938 509 against "Sum kostnader" 104 938 508, which is 1 kr of rounding.
+- **927533235/2023, the 2023 column, `lonnskostnad`: 1 448 646.** The cost lines sum exactly to 2 280 576.
+
+OCR read a 6 as a 5 in both. With the OCR figure, the sum would be 999 kr and 100 kr off, so the cost-line gate would refuse both.
+
 ## Open
 
-- Meinich checks two transcription cells (922184534/2025 prior and 927533235/2023 current, `lonnskostnad`) before the measurement.
 - Review, then C2's nine steps after Meinich's yes; `pnpm analysis:document-run after-2.5b` between steps 2 and 4; `pnpm analysis:sm2` after step 6.
 - Expected failures until then: the seed checks (the manifest names the previous migration) and the committed SM-2 report test.

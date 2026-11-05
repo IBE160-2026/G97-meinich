@@ -209,6 +209,18 @@ context:
     - **Addition (a):** a test built on that case shows that the gate admits nothing when a printed line is missing.
     - **Addition (b):** the report after the re-read gives, as totals, how many figures the gates admitted, and how many of those rested on an operand counted as 0.
 
+- **2026-11-05, Meinich (review pass 1, triage 2): the run stops after three fetch deadlines in a row.**
+  - **The finding.** An abandoned fetch thread keeps running, so requests to the register can overlap. If the network or the Docker VM stalls, as in Story 2.3b, every remaining document waits the full deadline: about 2 000 documents is roughly 330 hours of "not fetched".
+  - **The amendment.**
+    - After one or two expired fetches the run goes on. After three in a row it stops and exits 1, and a new run resumes where it stopped.
+    - The count is one value in `ingest/config.toml`, `[documents]`.
+    - A fetch that succeeds resets the count.
+    - The stop is written to the run record with its reason.
+  - **(a)** An abandoned fetch never leads to a write. Its result is discarded, even if it completes later. A test lets a fetch complete after the deadline and shows that nothing is written.
+  - **(b)** The thread of an abandoned fetch never keeps the process from exiting (a daemon thread, or the like). The run can exit with code 1 while three fetches still hang. This is tested.
+  - **(c)** The stop is in `run.step1` with its reason, the count resets on success, and a new run resumes where it stopped. Each part is tested.
+  - **KEEP:** the per-document deadline and its two tests, and "not replaced" on a re-read.
+
 ## Review Triage Log
 
 Pass 1, 2026-11-05. The diff ran from the merge base with `main` (`f9249a6`) to `7b3907e`, without the copied seed CSVs and the probe's raw JSON. Three layers ran: blind hunter (BH), edge-case hunter (EC) and verification gap (VG).
@@ -216,7 +228,7 @@ Pass 1, 2026-11-05. The diff ran from the merge base with `main` (`f9249a6`) to 
 | # | Finding (layer) | Verdict | Evidence | Route |
 |---|---|---|---|---|
 | 1 | The fuzzy pass lets one row fill two fields: an unwrapped depreciation row is `similar()` to the write-down variants (≈0.95), and the reverse (EC) | high | Confirmed with `layout.similar` on "Avskrivning av driftsmidler og immaterielle eiendeler" against the new `nedskrivningav…` variant and the 2.3 `nedskrivningavvarige…` one. None of the 40 cached probe documents trips it (the one shared value, 929481151/2022, is two rows each printed 0). | patch |
-| 2 | An abandoned fetch thread keeps running: concurrent requests to the register, no cap, and a stalled network turns every remaining document into a 600 s failure (BH, EC) | medium | `_fetch_within` starts a daemon thread per document and never joins an expired one; the run goes on to the next fetch. | decision for Meinich (the frozen rule says the run goes on) |
+| 2 | An abandoned fetch thread keeps running: concurrent requests to the register, no cap, and a stalled network turns every remaining document into a 600 s failure (BH, EC) | medium | `_fetch_within` starts a daemon thread per document and never joins an expired one; the run goes on to the next fetch. | decision: Meinich, Spec Change Log (stop after three in a row) |
 | 3 | `_seconds` accepts `nan`/`inf` (BH, EC) | low | `nan <= 0` is False; `Thread.join(inf)` raises OverflowError. | patch |
 | 4 | The deadline comment claims a legitimate fetch takes "at most five attempts of 60 s", but 60 s bounds a socket operation (BH, EC) | low | `ingest/config.toml` [documents] comment; `UrllibTransport.get` also sleeps inside the deadline. | patch (comment) |
 | 5 | `combine(..., matched=None)` defaults to semantics production never uses (BH) | low | `read_words` always passes the set; a test or caller that omits it gets "every field matched". | patch |

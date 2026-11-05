@@ -2,7 +2,7 @@
 title: 'Story 2.5b: Read the cost lines and the parts of intangible assets'
 type: 'bugfix'
 created: '2026-11-01'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'db72a90382b3ccc8c6cfb37c2d2a2639789c1a67'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -210,6 +210,31 @@ context:
     - **Addition (b):** the report after the re-read gives, as totals, how many figures the gates admitted, and how many of those rested on an operand counted as 0.
 
 ## Review Triage Log
+
+Pass 1, 2026-11-05. The diff ran from the merge base with `main` (`f9249a6`) to `7b3907e`, without the copied seed CSVs and the probe's raw JSON. Three layers ran: blind hunter (BH), edge-case hunter (EC) and verification gap (VG).
+
+| # | Finding (layer) | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | The fuzzy pass lets one row fill two fields: an unwrapped depreciation row is `similar()` to the write-down variants (≈0.95), and the reverse (EC) | high | Confirmed with `layout.similar` on "Avskrivning av driftsmidler og immaterielle eiendeler" against the new `nedskrivningav…` variant and the 2.3 `nedskrivningavvarige…` one. None of the 40 cached probe documents trips it (the one shared value, 929481151/2022, is two rows each printed 0). | patch |
+| 2 | An abandoned fetch thread keeps running: concurrent requests to the register, no cap, and a stalled network turns every remaining document into a 600 s failure (BH, EC) | medium | `_fetch_within` starts a daemon thread per document and never joins an expired one; the run goes on to the next fetch. | decision for Meinich (the frozen rule says the run goes on) |
+| 3 | `_seconds` accepts `nan`/`inf` (BH, EC) | low | `nan <= 0` is False; `Thread.join(inf)` raises OverflowError. | patch |
+| 4 | The deadline comment claims a legitimate fetch takes "at most five attempts of 60 s", but 60 s bounds a socket operation (BH, EC) | low | `ingest/config.toml` [documents] comment; `UrllibTransport.get` also sleeps inside the deadline. | patch (comment) |
+| 5 | `combine(..., matched=None)` defaults to semantics production never uses (BH) | low | `read_words` always passes the set; a test or caller that omits it gets "every field matched". | patch |
+| 6 | A row printed in one column and blank in the other is "matched", so the gate is not evaluable for the blank column; not documented (BH, VG other) | low | `read_words` builds `matched` per document. This is conservative and consistent with Meinich's rule for a row whose figure was not read. | patch (docstring, data-sources note) |
+| 7 | The AI-log entry is stale and missing the watchdog risk; two claims rest on one-off runs (BH) | low | The Outcome still waits on the two cells (settled, `3d32823`); five commits are missing; the 1 486/1 486 and 2 044/4 086 claims name no test. | patch |
+| 8 | `epic-2-context.md` omits Story 2.5b and dropped constraints that later stories rely on (BH) | medium | The recompile (`d365404`) removed the batch-OCR, reconciliation, deletion and banding rules. | patch, `b496b30` |
+| 9 | The watchdog tests do not assert the `run.step1` row (BH) | low | Expired fetches go into `summary.failed`/`not_replaced`, which `record_failures` writes under stages `documents`/`reread`, a path `test_run_record.py` already covers. | reject |
+| 10 | The gate trusts a plain total that no check confirmed (BH) | low | It needs the sum to hold within 5 kr against that total; a misread total is wrong by orders of magnitude, so the sum cannot hold unless an offered figure compensates exactly. Meinich's conditions did not require a passing c1. The fix would edit this spec's Design Notes. | reject |
+| 11 | The regression check proves the old matches unchanged, not the new ones right (BH) | low | That is what the after measurement on the reference set measures (Story 2.5b section). | reject |
+| 12 | Spec metadata is stale (`fetch_deadline_s`, the notes' commit list) (BH) | low | The fix edits this spec. | reject |
+| 13 | The PR adds a migration without the seed re-export; the README names a dump that does not exist yet (BH) | false | Planned: C2 step 6 exports the seed in this PR before merge, and step 3 takes the dump, as in Story 2.5 (D4). | reject |
+| 14 | "5 kr" is repeated in the docs rather than naming the config key (BH) | low | AGENTS.md and the docs give the value throughout; changing it is a wider docs change. | reject |
+| 15 | A slow but healthy download is abandoned at 600 s on every rerun (EC) | low | 600 s for a PDF of a few MB; no fetch in the 2.1b or 2.3b runs came near it. | reject |
+| 16 | `parseKeyFigureSubtotals` overwrites a duplicate or blank `brreg_id` silently (EC) | false | `brreg_id` is the primary key of `register.key_figures`, and `seed:export` writes it from that table. | reject |
+| 17 | The TS gate counts and the Python gate could diverge (EC) | low | `test/sum-gates.test.ts` checks the TS operand list against `SUM_GATES` and `layout.PARTS`. | reject |
+| 18 | The SQL in `document-run-counts.ts` `main` (fingerprints, `digits_pass_fields`) is never run by a test (VG) | medium | Only the pure functions and the committed JSON are tested. | defer |
+| 19 | `restore-old-dump.test.ts` does not run the README's shell line (VG other) | low | Checked by hand on 2026-11-05: the README line, with its column list from `.local/document-run-2.4/`'s header, copied 1 947 documents and 3 892 columns into a rolled-back temp table shaped like today's. Recorded in the session file. | reject |
+
 
 ## Design Notes
 

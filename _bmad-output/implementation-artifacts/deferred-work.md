@@ -151,3 +151,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-5-the-business-model-fingerprint-stage-4.md`
   summary: `pnpm derive` writes no run record. Story 2.6 adds `run.step2`; until then a derive run, its counts and a failure leave nothing in the database.
   evidence: Story 2.5 review pass 1, triage 27 (blind hunter), routed to defer; the epic context assigns `run.step2` to Story 2.6.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5b-read-the-cost-lines-and-intangible-parts.md`
+  summary: The queries in `scripts/document-run-counts.ts` `main` (the fingerprints of the listed orgnrs, and `digits_pass_fields` for the gate counts) are never run by a test; add a `test/db/` case that inserts two companies' fingerprints and columns in a rolled-back transaction and checks only the listed one is counted and that `digits_pass_fields` arrives as an array.
+  evidence: Story 2.5b review pass 1, triage 18 (verification gap layer). Until then, the after-2.5b counts are checked by hand against a direct psql count in the acceptance run.

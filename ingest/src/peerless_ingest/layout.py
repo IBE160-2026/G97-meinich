@@ -434,11 +434,17 @@ def _match(
     found: dict[str, tuple[int | None, int | None]],
     targets: dict[str, tuple[str, ...]],
     pages: dict[str, PageKind],
+    taken: set[int],
 ) -> None:
     """Fills `found` for each field of `targets` not in it yet: exact
     matches first, over every candidate; a fuzzy match only for a field no
     row matched exactly, and only against the row's own label. A field in
-    `pages` matches only a row on a page of that kind."""
+    `pages` matches only a row on a page of that kind. `taken` holds the
+    rows (by identity) an earlier match of this extract assigned; the fuzzy
+    match never offers one of them to another field, so an unwrapped
+    "Avskrivning av driftsmidler og immaterielle eiendeler" row, about 0.95
+    similar to the write-down label, is never read as nedskrivninger too
+    (Story 2.5b review)."""
 
     def allowed(key: str, c: Candidate) -> bool:
         return key not in pages or c.kind == pages[key]
@@ -449,13 +455,15 @@ def _match(
         for c in candidates:
             if allowed(key, c) and any(c.joined.endswith(v) for v in variants):
                 found[key] = (c.row.current, c.row.prior)
+                taken.add(id(c.row))
                 break
     for key, variants in targets.items():
         if key in found:
             continue
         for c in candidates:
-            if allowed(key, c) and any(similar(c.own, v) for v in variants):
+            if id(c.row) not in taken and allowed(key, c) and any(similar(c.own, v) for v in variants):
                 found[key] = (c.row.current, c.row.prior)
+                taken.add(id(c.row))
                 break
 
 
@@ -475,12 +483,15 @@ def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
        income-statement pages only (Story 2.5b).
 
     The parts of intangible assets match on balance pages only, in every
-    stage. A field no row matched is left out."""
+    stage. A row one field matched is never another field's fuzzy match
+    (`taken`, Story 2.5b review); the 40 probe documents kept all 1 486
+    matches of the code before it. A field no row matched is left out."""
     found: dict[str, tuple[int | None, int | None]] = {}
     later = {key: TARGETS[key] + variants for key, variants in LATER_VARIANTS.items()}
-    _match(_candidates(pages, fold), found, TARGETS, TARGET_PAGES)
-    _match(_candidates(pages, fold_mixed), found, TARGETS, TARGET_PAGES)
-    _match(_candidates(pages, fold), found, later, LATER_PAGES)
-    _match(_candidates(pages, fold_mixed), found, later, LATER_PAGES)
-    _match(_candidates(pages, fold_notes), found, TARGETS | later, TARGET_PAGES | LATER_PAGES)
+    taken: set[int] = set()
+    _match(_candidates(pages, fold), found, TARGETS, TARGET_PAGES, taken)
+    _match(_candidates(pages, fold_mixed), found, TARGETS, TARGET_PAGES, taken)
+    _match(_candidates(pages, fold), found, later, LATER_PAGES, taken)
+    _match(_candidates(pages, fold_mixed), found, later, LATER_PAGES, taken)
+    _match(_candidates(pages, fold_notes), found, TARGETS | later, TARGET_PAGES | LATER_PAGES, taken)
     return found

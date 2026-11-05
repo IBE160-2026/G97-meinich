@@ -11,7 +11,7 @@ import pytest
 
 from conftest import BOUND_KR
 from peerless_ingest import documents, layout
-from tsv_builder import CURRENT_RIGHT, PITCH, GENERATED_TOP, figure_words, label_words, page_lines, words
+from tsv_builder import CURRENT_RIGHT, GENERATED_TOP, PITCH, PRIOR_RIGHT, figure_words, label_words, page_lines, words
 
 
 def extract_one_page(rows: list[tuple[str, str, str]], **page: object) -> dict[str, tuple[int | None, int | None]]:
@@ -463,3 +463,31 @@ def test_earlier_match_stands() -> None:
     # "lonnskostnadl" is within one character of the target: stage 1's fuzzy
     # match wins over stage 3's plural.
     assert found["lonnskostnad"] == (55_582_660, 52_967_147)
+
+
+@pytest.mark.parametrize(
+    ("label", "field", "other"),
+    [
+        ("Avskrivning av driftsmidler og immaterielle eiendeler", "avskrivninger", "nedskrivninger"),
+        ("Avskrivning på varige driftsmidler og immaterielle eiendeler", "avskrivninger", "nedskrivninger"),
+        ("Nedskrivning av varige driftsmidler og immaterielle eiendeler", "nedskrivninger", "avskrivninger"),
+    ],
+)
+def test_a_matched_row_is_no_other_fields_fuzzy_match(label: str, field: str, other: str) -> None:
+    # Story 2.5b review: the depreciation and write-down labels on one line
+    # are within the similarity bound of each other's variants. With only
+    # one of the two rows printed, the other field stays absent rather than
+    # copying its figure.
+    assert any(layout.similar(layout.fold(label), v) for v in layout.TARGETS[other] + layout.LATER_VARIANTS.get(other, ()))
+    # The whole label on one line: started further left than the builder's
+    # labels, so it ends before the figure zone (a narrower print).
+    lines = [
+        *page_lines([]),
+        label_words(label, 0) + figure_words("5 429 357", CURRENT_RIGHT) + figure_words("5 512 071", PRIOR_RIGHT),
+    ]
+    plain = words(lines)
+    page = layout.parse_page(plain, plain, "plain")
+    assert [r.label for r in page.rows if r.has_number][-1] == label
+    found = layout.extract([page])
+    assert found[field] == (5_429_357, 5_512_071)
+    assert other not in found

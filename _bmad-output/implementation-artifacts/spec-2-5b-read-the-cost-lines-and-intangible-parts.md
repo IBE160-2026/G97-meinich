@@ -144,10 +144,10 @@ context:
 - [x] Watchdog and its tests, its own commit (C3)
 - [x] Probe script and its output, shown only after the transcription commit. **Checkpoint: Meinich approves the fix** (Spec Change Log)
 - [x] `layout.py`/`documents.py` fixes and tests; the four parts in `TARGETS`, the parts-sum gate, `test_layout.py`/`test_documents.py`
-- [ ] Migration (applied with `supabase migration up`, 2.1b rows kept), `DOCUMENT_FIGURE_COLUMNS`, fixtures, DB tests; the old-dump restore test and README restore command
-- [ ] `ocr-sm2` before/after 2.5b section and tests
-- [ ] Docs: `AGENTS.md`, `data-sources-brreg.md`, `key-figures.md` if a field is named there, `ai-log.md`, the session file, `deferred-work.md` (close both entries)
-- [ ] Planning documents (AGENTS.md, "A decision travels upstream in the PR that makes it"): every decision of this story that makes the PRD, the technical note or `epics.md` wrong is written there in this PR, with a `(change)` line in the PRD's `.memlog.md` (the four new stored fields, the parts-sum gate, the per-document time limit, and whatever the probe checkpoint decides). The PR description has the line "Planning documents:" naming them, or "none affected"
+- [x] Migration (applied with `supabase migration up`, 2.1b rows kept), `DOCUMENT_FIGURE_COLUMNS`, fixtures, DB tests; the old-dump restore test and README restore command
+- [x] `ocr-sm2` before/after 2.5b section and tests
+- [x] Docs: `AGENTS.md`, `data-sources-brreg.md`, `key-figures.md` if a field is named there, `ai-log.md`, the session file, `deferred-work.md` (close both entries)
+- [x] Planning documents (AGENTS.md, "A decision travels upstream in the PR that makes it"): every decision of this story that makes the PRD, the technical note or `epics.md` wrong is written there in this PR, with a `(change)` line in the PRD's `.memlog.md` (the four new stored fields, the parts-sum gate, the per-document time limit, and whatever the probe checkpoint decides). The PR description has the line "Planning documents:" naming them, or "none affected"
 - [ ] After review and Meinich's yes: C2's nine steps; `pnpm analysis:document-run after-2.5b` runs between steps 2 and 4, because it reads the 2.1b rows in the local database. `pnpm analysis:sm2` runs after step 6, because it reads the committed seed.
 
 **Acceptance Criteria:**

@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 28 |
-| money | 19 |
-| parsing | 13 |
+| money | 20 |
+| parsing | 14 |
 | llm-boundary | 5 |
 | scope | 18 |
 | docs | 22 |
@@ -735,3 +735,17 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 **Caught by:** The link from Meinich.
 **Outcome:** `research-landscape.md` §7 records it as a prototype close to Peerless's pipeline but not its product. The brief and the PRD are unchanged.
 
+### 2026-11-05 — Story 2.5b: more cost lines read, the parts of intangible assets, and two sum gates
+**Tags:** money · parsing
+**Tool:** Claude Code (implementation subagent, Opus 5.5)
+**Asked:** Implement F1–F3 as approved at the probe checkpoint (Meinich, 2026-11-05), the migration for the four parts of intangible assets, and the SM-2 report's section "Before and after Story 2.5b", without running the measurement or the re-read.
+**Got:** Staged label matching in `layout.extract` (`LATER_VARIANTS` on income-statement pages, `fold_notes`, the parts on balance pages), `documents.SUM_GATES` with `gate_admits` in `combine`, migration `20261105120000_document_intangible_parts.sql`, `DOCUMENT_FIGURE_COLUMNS` with the four parts, the old-dump restore by header in the README, and the report section with the undetermined share as totals.
+**Problem:** What could go wrong (not yet reviewed):
+1. **A new label variant takes a row another field owns, or moves a value read today.** Each new stage fills only a field no earlier stage matched (`ingest/tests/test_layout.py::test_earlier_match_stands`); the depreciation variants match on income-statement pages only and the parts on balance pages only (`::test_balance_row_never_depreciation`, `::test_depreciation_row_never_intangibles`, each failing with its page restriction removed). Re-extracting the 40 documents cached by the probe with the code before and after: 1 486 of 1 486 matches the old code made have the same value, and no c1–c4 result changed (spec, Implementation Notes).
+2. **A sum gate admitting a wrong figure.** A gate admits at most one digits-only operand, needs a plain-pass total, and needs every matched line read; a matched line with no figure leaves it not evaluable, never 0 (`ingest/tests/test_documents.py::test_cost_line_recovered_through_gate`, `::test_intangible_part_recovered_only_through_gate`; each guard removed in turn fails one of them). The probe's three misgrouped tokens are refused in the first test. Residual: a line with no matching row counts as 0 in the gate, so a printed line whose label no variant matches and whose figure is wrong by exactly the right amount could pass; the 5 kr bound makes that a coincidence, not a mode of failure.
+3. **The gate changing which columns reach the engine.** It is not a check of the column: `column_status` and `reconcile.within_document_checks` are unchanged, and a failing c1–c4 still drops every digits-only figure (`test_cost_line_recovered_through_gate`, last case).
+4. **The parts leaking into the fingerprint (D1 is locked).** `FINGERPRINT_FIELDS` is unchanged; the digest and the categories are equal with and without the parts (`test/engine/fingerprint.test.ts`, "the intangible parts do not enter the fingerprint").
+5. **The migration losing the local 2.1b rows, or an old dump no longer restoring.** Applied with `supabase migration up`: 2 044 documents and 4 086 columns before and after, the new columns NULL. `test/db/document-columns.test.ts` runs the migration on rows written before it; `test/db/restore-old-dump.test.ts` restores rows in the pre-2.5b dump header with the header as the column list, as the README now does.
+6. **A fingerprint result tied to an orgnr of the labelled set.** The report's fingerprint table and the counts file carry totals only (`test/ocr-sm2.test.ts`, "renders every class per field…", asserts no nine-digit number in that table; `test/document-run-counts.test.ts`).
+**Caught by:** The tests above, each run with its guard removed; the regression check over the probe's cached words. The implementation agent added one label beyond F2's list, "Utvikling", after the contract fixture (979607008/2025) and three probe documents printed the first part that way; checked against the fixture PDF and flagged in the spec for Meinich.
+**Outcome:** Not yet reviewed; the acceptance run (C2) and the measurement wait for Meinich's yes and his check of two transcription cells. Commits `281f134`, `8c85ca8`, `b11b38b`, `4c6a1dc`, `9e60be3`, `5d2aad9`.

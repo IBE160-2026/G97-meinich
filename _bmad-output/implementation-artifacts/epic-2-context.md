@@ -4,7 +4,7 @@
 
 ## Goal
 
-Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores figures as filed and accepts a column only when it reconciles; OCR accuracy is measured (SM-2) and a company the register withdraws (`410 Gone`) is deleted. Batch step 2 derives a business-model fingerprint (stage 4) and a model classification (stage 5), both into one shared set of business types. On the page, the Peers tab shows the five-stage funnel and why each peer is in it, the user can exclude a peer or widen the size band with every figure recomputed, and every missing figure states its reason. Status: 2.1a–2.5 are done; 2.6 is next, then 2.7, 2.8, 2.9.
+Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores figures as filed and accepts a column only when it reconciles; OCR accuracy is measured (SM-2) and a company the register withdraws (`410 Gone`) is deleted. Batch step 2 derives a business-model fingerprint (stage 4) and a model classification (stage 5), both into one shared set of business types. On the page, the Peers tab shows the five-stage funnel and why each peer is in it, the user can exclude a peer or widen the size band with every figure recomputed, and every missing figure states its reason. Status: 2.1a–2.5 are done; 2.5b (the cost lines and the parts of intangible assets, issue #45) is in review; 2.6 is next, then 2.7, 2.8, 2.9.
 
 ## Stories
 
@@ -15,6 +15,7 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
 - Story 2.3b: Read the balance total ("SUM EGENKAPITAL OG GJELD")
 - Story 2.4: Withdrawn companies disappear
 - Story 2.5: The business-model fingerprint (stage 4)
+- Story 2.5b: Read the cost lines and the parts of intangible assets
 - Story 2.6: Classification (stage 5)
 - Story 2.7: The Peers tab shows why
 - Story 2.8: Adjust the peer group
@@ -23,6 +24,10 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
 ## Requirements & Constraints
 
 - **Never select on a benchmarked measure.** No stage 1–5 function takes a margin, return or productivity figure as input; cost-of-goods and personnel-cost shares reach selection only as band ids. Selection never reads total assets or the register's employee count.
+- **OCR runs in batch only.** Nothing is fetched or read during a request. Companies are matched on orgnr only, and a requested year is never trusted. An OCR digit is never repaired: a figure token with a non-digit makes the figure absent; a digits-only figure enters only through a passing check or sum gate (2.3b, 2.5b).
+- **Reconciliation is settled.** Within a document the bound is 5 kr absolute, checks c1–c5 per column; between the document and the API it is max(5 kr, 0.001 % of the API figure). The two rules are never collapsed into one, neither is exact equality, and both values live only in `ingest/config.toml`. Only a `reconciled` column's figures reach the engine.
+- **Deletion.** Only `410 Gone` deletes a company, and the delete cascades; every table that references a company uses `ON DELETE CASCADE`, covered by Story 2.4's deletion test.
+- **The fingerprint (stage 4) is rules only, and D1 is locked** (Story 2.5): its bands, thresholds and type rule are not adjusted after data; Story 5.2 confirms or drops each band against the labelled set.
 - **Business types are fixed** (one set in `src/engine`): `produkt` (own software, licence or subscription), `konsulent` (hours/projects by own staff, staffing included), `forhandler` (resells others' products), `annet` (operations, hosting, holding, or none of the above). Not adjusted after data. A fingerprint whose unknown categories allow more than one type is *undetermined*: no type, not excluded, not `annet`.
 - **Classification (2.6).**
   - The model sees only name, secondary industry codes, statement of purpose and business description.

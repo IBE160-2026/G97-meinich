@@ -1499,6 +1499,8 @@ So that more companies get a business type without a single new misread reaching
 
 Split from Story 2.5 (Meinich, 2026-11-01; issue #45). Half of the fingerprints were undetermined, mostly because an empty `lonnskostnad` leaves the personnel-cost band spanning low to high, and `sum_immaterielle_eiendeler` holds the deferred tax asset and goodwill as well as capitalised development. D1 (Story 2.5) is unchanged.
 
+Decided at the probe checkpoint (Meinich, 2026-11-05; spec change log): F1, later label variants for the cost lines on income-statement pages and a fold that drops trailing note references, with every earlier match kept; F2, the four parts of intangible assets — forskning og utvikling, konsesjoner og patenter, goodwill, utsatt skattefordel — stored as figures of their own, on balance pages only; F3, two sum gates for the digits-only read (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), in the reading library only, never in the column status. Each document fetch has a time limit, set once in `ingest/config.toml` (C3).
+
 **Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** issue #45, branch `story/2.5b-read-cost-lines`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
@@ -1507,6 +1509,10 @@ Split from Story 2.5 (Meinich, 2026-11-01; issue #45). Half of the fingerprints 
 **When** `pnpm analysis:sm2` runs
 **Then** its Story 2.5b section gives, before and after on the reference set: the class counts per field, the four intangible parts included (transcribed by Meinich); the misreads and phantoms reaching the engine, with every new one listed; and the share of fingerprints without a type, as totals
 **And** more figures read are not paid for with new errors
+
+**Given** a cost line or a part refused by the plain read and read by the digits-only read
+**When** the lines sum to their plain-read total within 5 kr, with at most one line from the digits-only read
+**Then** that figure is kept; otherwise it stays absent, and the column's status does not change either way
 
 **Given** a document fetch that hangs
 **When** the per-document time limit expires

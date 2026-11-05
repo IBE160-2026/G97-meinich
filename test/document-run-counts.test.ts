@@ -29,9 +29,9 @@ describe('documentRunCounts', () => {
         { status: 'paper', reader_commit: OLD },
       ],
       [
-        { role: 'current', status: 'reconciled', present: ['sum_eiendeler', 'sum_egenkapital_gjeld'] },
-        { role: 'current', status: 'failed_reconciliation', present: ['sum_eiendeler'] },
-        { role: 'prior', status: null, present: [] },
+        { role: 'current', status: 'reconciled', present: ['sum_eiendeler', 'sum_egenkapital_gjeld'], digits_pass_fields: [] },
+        { role: 'current', status: 'failed_reconciliation', present: ['sum_eiendeler'], digits_pass_fields: [] },
+        { role: 'prior', status: null, present: [], digits_pass_fields: [] },
       ],
     );
     expect(counts.documents).toEqual({
@@ -70,6 +70,26 @@ describe('documentRunCounts', () => {
     expect('fingerprints' in documentRunCounts('t', 0, [], [])).toBe(false);
   });
 
+  it('counts, per role, the figures each sum gate admitted and those resting on an operand counted as 0 (Story 2.5b)', () => {
+    const cost = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annen_driftskostnad', 'sum_driftskostnad'];
+    const counts = documentRunCounts('t', 1, [], [
+      // Every cost line held but nedskrivninger: lonnskostnad admitted on nedskrivninger counted as 0.
+      { role: 'current', status: 'reconciled', present: cost, digits_pass_fields: ['lonnskostnad'] },
+      // Every cost line held: admitted on no 0. A c1-c4 figure from the digits pass is no gate's.
+      { role: 'current', status: 'reconciled', present: [...cost, 'nedskrivninger'], digits_pass_fields: ['varekostnad', 'driftsresultat'] },
+      // A part admitted while another part is NULL.
+      { role: 'prior', status: 'reconciled', present: ['goodwill'], digits_pass_fields: ['goodwill'] },
+    ]);
+    expect(counts.columns.current.gates).toEqual({
+      cost_lines: { admitted: 2, operand_counted_as_zero: 1 },
+      intangible_parts: { admitted: 0, operand_counted_as_zero: 0 },
+    });
+    expect(counts.columns.prior.gates).toEqual({
+      cost_lines: { admitted: 0, operand_counted_as_zero: 0 },
+      intangible_parts: { admitted: 1, operand_counted_as_zero: 1 },
+    });
+  });
+
   it('refuses a stored fingerprint it cannot read', () => {
     const empty = {
       orgnr: '111111111', filing_year: 2025, cost_of_goods_lo: null, cost_of_goods_hi: null, personnel_cost_lo: null,
@@ -81,8 +101,8 @@ describe('documentRunCounts', () => {
   });
 
   it('refuses a field or role it does not know', () => {
-    expect(() => documentRunCounts('t', 0, [], [{ role: 'current', status: null, present: ['sum_alt'] }])).toThrow(/sum_alt/);
-    expect(() => documentRunCounts('t', 0, [], [{ role: 'middle', status: null, present: [] }])).toThrow(/middle/);
+    expect(() => documentRunCounts('t', 0, [], [{ role: 'current', status: null, present: ['sum_alt'], digits_pass_fields: [] }])).toThrow(/sum_alt/);
+    expect(() => documentRunCounts('t', 0, [], [{ role: 'middle', status: null, present: [], digits_pass_fields: [] }])).toThrow(/middle/);
   });
 
   it('refuses a missing or odd label before connecting', async () => {

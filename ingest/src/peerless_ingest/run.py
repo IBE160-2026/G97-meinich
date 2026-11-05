@@ -349,11 +349,14 @@ class DocumentsOnlySummary:
     # whole table: read but not reconciled, because their company was not
     # in this list (Story 2.2). None if the count could not be read.
     still_extracted: int | None = None
+    # Why the run stopped before its list ended (too many fetch deadlines in
+    # a row, Story 2.5b review), or None.
+    stopped: str | None = None
 
     def needs_operator(self) -> bool:
         # An OCR error is stored for good (a rerun skips it), so it needs a
         # person even though the run went on.
-        return bool(self.failed or self.refused or self.documents.ocr_errors)
+        return bool(self.failed or self.refused or self.documents.ocr_errors or self.stopped)
 
     def record_counts(self) -> dict[str, object]:
         d = self.documents
@@ -380,6 +383,7 @@ class DocumentsOnlySummary:
             [write.Failure(p.orgnr, "refused", p.what) for p in self.refused]
             + [write.Failure(p.orgnr, "documents", p.what) for p in self.failed]
             + [write.Failure(p.orgnr, "ocr", p.what) for p in self.documents.ocr_errors]
+            + ([] if self.stopped is None else [write.Failure(None, "documents", self.stopped)])
         )
 
     def lines(self) -> list[str]:
@@ -392,6 +396,8 @@ class DocumentsOnlySummary:
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
         out.extend(self.documents.lines())
+        if self.stopped is not None:
+            out.append(f"  STOPPED before the end of the list: {self.stopped}")
         shown = "unknown (count failed)" if self.still_extracted is None else str(self.still_extracted)
         out.append(f"  documents still extracted (not reconciled; not in this list): {shown}")
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
@@ -426,10 +432,13 @@ class RereadSummary:
     read_seconds: float = 0.0
     prior_failed: int = 0
     wall_seconds: float = 0.0
+    # Why the run stopped before its list ended (too many fetch deadlines in
+    # a row, Story 2.5b review), or None.
+    stopped: str | None = None
 
     def needs_operator(self) -> bool:
         # A document not replaced still holds another version's figures.
-        return bool(self.failed or self.refused or self.not_replaced)
+        return bool(self.failed or self.refused or self.not_replaced or self.stopped)
 
     def record_counts(self) -> dict[str, object]:
         return {
@@ -450,6 +459,7 @@ class RereadSummary:
             [write.Failure(p.orgnr, "refused", p.what) for p in self.refused]
             + [write.Failure(p.orgnr, "not_replaced", p.what) for p in self.not_replaced]
             + [write.Failure(p.orgnr, "reread", p.what) for p in self.failed]
+            + ([] if self.stopped is None else [write.Failure(None, "reread", self.stopped)])
         )
 
     def lines(self) -> list[str]:
@@ -475,6 +485,8 @@ class RereadSummary:
             out.append(f"  figure lost, now NULL: {problem.orgnr} {problem.what}")
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        if self.stopped is not None:
+            out.append(f"  STOPPED before the end of the list: {self.stopped}")
         out.append(f"  read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
         out.append(f"  prior-year columns failed_reconciliation (the filing's status is its current column's): {self.prior_failed}")
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
@@ -700,6 +712,31 @@ def _fetch_within(deadline_seconds: float, transport: fetch.Transport, base_url:
     return value
 
 
+@dataclass
+class DeadlineStreak:
+    """Fetch deadlines in a row, across one documents or re-read run (Story
+    2.5b review, Meinich 2026-11-05). After `limit` in a row the network or
+    the Docker VM has most likely stalled, and every further document would
+    wait the full deadline, so the run stops: no further document is
+    fetched, the stop is a failure in the run record, and the run exits 1.
+    A fetch that ends in any other way resets the count."""
+
+    limit: int
+    in_a_row: int = 0
+    stopped: str | None = None
+
+    def deadline(self) -> None:
+        self.in_a_row += 1
+        if self.in_a_row >= self.limit and self.stopped is None:
+            self.stopped = (
+                f"stopped after {self.in_a_row} fetch deadlines in a row (max_consecutive_deadlines = {self.limit});"
+                " no further document was fetched, and a new run resumes here"
+            )
+
+    def completed(self) -> None:
+        self.in_a_row = 0
+
+
 class _Timed(Protocol):
     read_count: int
     read_seconds: float
@@ -716,20 +753,25 @@ def _fetch_and_read(
     now: Callable[[], datetime],
     clock: Callable[[], float],
     fetch_deadline_seconds: float,
+    streak: DeadlineStreak,
 ) -> tuple[documents.DocumentRead | ocr.OcrError, datetime]:
     """Fetches the document of `orgnr` for `year` by the year in its path
     and reads it (`documents.read_document`): the read, or the OcrError when
     Tesseract failed, and when it was read. Raises NotRead for a fetch
     error, a document not served (`unserved` says why that is a problem)
     and any other failure of the read, and for a fetch that did not end
-    within `fetch_deadline_seconds` (Story 2.5b). KeyboardInterrupt is not
+    within `fetch_deadline_seconds` (Story 2.5b), which `streak` counts; a
+    fetch that ends in any other way resets it. KeyboardInterrupt is not
     an Exception and still stops the run."""
     try:
         pdf = _fetch_within(fetch_deadline_seconds, transport, base_url, orgnr, year)
     except FetchDeadline as error:
+        streak.deadline()
         raise NotRead(f"not fetched: {error}") from error
     except FETCH_ERRORS as error:
+        streak.completed()
         raise NotRead(f"{error.__class__.__name__}: {error}") from error
+    streak.completed()
     if pdf is None:
         raise NotRead(unserved)
     read_at = now()
@@ -775,11 +817,15 @@ def _load_documents(
     clock: Callable[[], float],
     progress: Callable[[str], None],
     fetch_deadline_seconds: float,
+    streak: DeadlineStreak,
 ) -> None:
     """Fetches, reads and stores every filed 2021–2025 document of `orgnr`
     that has no row yet, each committed on its own with `reader_commit`. A
     fetch past `fetch_deadline_seconds` is named in `failed` as not fetched,
-    and the next year is tried."""
+    and the next year is tried, unless `streak` has stopped the run: then
+    nothing more is fetched."""
+    if streak.stopped is not None:
+        return
     try:
         years = fetch.fetch_document_years(transport, base_url, orgnr)
     except FETCH_ERRORS as error:
@@ -796,10 +842,12 @@ def _load_documents(
         if year in stored:
             summary.skipped_stored += 1
             continue
+        if streak.stopped is not None:
+            return
         try:
             read, read_at = _fetch_and_read(
                 transport, base_url, rules, orgnr, year, "listed in /aar but not served (404 or 410)", summary, now, clock,
-                fetch_deadline_seconds,
+                fetch_deadline_seconds, streak,
             )
         except NotRead as error:
             failed.append(Problem(orgnr, f"document {year}: {error}"))
@@ -865,6 +913,7 @@ def _reread_documents(
     clock: Callable[[], float],
     progress: Callable[[str], None],
     fetch_deadline_seconds: float,
+    streak: DeadlineStreak,
 ) -> None:
     """Re-reads every stored document of `orgnr` whose reader version is not
     `reader_commit` (Story 2.3b), through the same fetch, read, reconcile
@@ -876,7 +925,8 @@ def _reread_documents(
     column into failed_reconciliation, when Tesseract fails, or when it is
     not fetched (also past `fetch_deadline_seconds`) or not read; each is named in `summary.not_replaced`. A
     document replaced although a column reconciled before and after lost a
-    figure is named in `summary.lost_figures`."""
+    figure is named in `summary.lost_figures`. Once `streak` has stopped the
+    run, nothing more is fetched."""
     try:
         stored = write.stored_document_versions(conn, orgnr)
     except psycopg.Error as error:
@@ -888,10 +938,12 @@ def _reread_documents(
         if document.reader_commit == reader_commit:
             summary.current += 1
             continue
+        if streak.stopped is not None:
+            return
         try:
             read, read_at = _fetch_and_read(
                 transport, base_url, rules, orgnr, year, "stored, but not served now (404 or 410)", summary, now, clock,
-                fetch_deadline_seconds,
+                fetch_deadline_seconds, streak,
             )
         except NotRead as error:
             summary.not_replaced.append(Problem(orgnr, f"document {year}: {error}"))
@@ -1208,17 +1260,23 @@ def run_documents(
     summary = DocumentsOnlySummary(listed=len(orgnrs))
     on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
+    streak = DeadlineStreak(cfg.max_consecutive_deadlines)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
             continue
+        if streak.stopped is not None:
+            break
         summary.companies += 1
         _rereconcile(conn, orgnr, rules, summary.documents, summary.failed)
         _load_documents(
             conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress,
-            cfg.fetch_deadline_seconds,
+            cfg.fetch_deadline_seconds, streak,
         )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    summary.stopped = streak.stopped
+    if streak.stopped is not None:
+        progress(f"STOPPED: {streak.stopped}")
     try:
         summary.still_extracted = write.count_extracted_documents(conn)
     except psycopg.Error as error:
@@ -1250,15 +1308,22 @@ def run_reread(
     summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit)
     on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
+    streak = DeadlineStreak(cfg.max_consecutive_deadlines)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
             continue
+        if streak.stopped is not None:
+            break
         summary.companies += 1
         _reread_documents(
-            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress, cfg.fetch_deadline_seconds
+            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress,
+            cfg.fetch_deadline_seconds, streak,
         )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    summary.stopped = streak.stopped
+    if streak.stopped is not None:
+        progress(f"STOPPED: {streak.stopped}")
     summary.wall_seconds = clock() - started
     return summary
 

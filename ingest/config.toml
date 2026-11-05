@@ -59,8 +59,16 @@ max_absent_share = 0.01
 # document's fetch, retries included: generous for a PDF of a few MB. It is
 # not derived from fetch.py's 60 s, which bounds one socket operation, not
 # the request.
+#
+# After this many fetch deadlines in a row (Story 2.5b review, Meinich
+# 2026-11-05), a documents or re-read run stops: the network or the Docker
+# VM has most likely stalled, and every further document would wait the
+# full deadline. The stop is a failure in the run record, the run exits 1,
+# and a new run resumes where it stopped. A fetch that ends in any other
+# way resets the count.
 [documents]
 fetch_deadline_seconds = 600
+max_consecutive_deadlines = 3
 
 # The two reconciliation rules of Story 2.2 (FR-57, FR-58). Each is set here
 # once, with its own key, and never combined with the other. The reasons and

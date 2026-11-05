@@ -190,6 +190,7 @@ def cfg() -> Config:
         between_sources_tolerance=RULES.between_sources_tolerance,
         max_absent_share=MAX_ABSENT_SHARE,
         fetch_deadline_seconds=600,
+        max_consecutive_deadlines=3,
     )
 
 

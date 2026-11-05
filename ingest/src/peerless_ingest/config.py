@@ -50,8 +50,10 @@ class Config:
     # [withdrawal] (Story 2.4, D5): above this share of stored companies
     # absent from the bulk file, the withdrawal check is skipped.
     max_absent_share: Fraction
-    # [documents] (Story 2.5b): the per-document fetch deadline, in seconds.
+    # [documents] (Story 2.5b): the per-document fetch deadline, in seconds,
+    # and how many deadlines in a row stop a documents or re-read run.
     fetch_deadline_seconds: float
+    max_consecutive_deadlines: int
 
 
 def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) -> Config:
@@ -89,7 +91,16 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
         between_sources_tolerance=_fraction(path, reconciliation, "between_sources_tolerance"),
         max_absent_share=_share(path, withdrawal, "max_absent_share"),
         fetch_deadline_seconds=_seconds(path, documents, "fetch_deadline_seconds"),
+        max_consecutive_deadlines=_count(path, documents, "max_consecutive_deadlines"),
     )
+
+
+def _count(path: Path, table: dict[str, object], key: str) -> int:
+    """A positive whole number (not a bool, not a float). Required: no default."""
+    value = table.get(key)
+    if type(value) is not int or value <= 0:
+        raise ConfigError(f"{path}: documents.{key} must be a positive whole number, got {value!r}")
+    return value
 
 
 def _seconds(path: Path, table: dict[str, object], key: str) -> float:

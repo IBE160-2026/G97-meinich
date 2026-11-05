@@ -94,6 +94,8 @@ They are transcribed by the same rules as every other field, **without looking a
 | 922184534 | 2025 | current | 2025 | 97042461 |
 | 922184534 | 2025 | prior | 2024 | 131784163 |
 
+**Transcribed 2026-11-05** by Meinich, without looking at any OCR output, in all 23 columns above; `notes` says `deler 2026-11-05`. The review session then checked that the printed parts of each column sum to its `sum_immaterielle_eiendeler`, without OCR output: all 23 agree exactly. In the ten columns with a total of 0, the total is printed as 0: in two of them all four parts are printed as 0, in two three parts are, and in six no part is printed. Excel had rewritten every `transcribed_on` as `23.10.2026`; the review session set them back to `2026-10-23` before the commit.
+
 ## Blind check after the first measurement
 
 The first SM-2 report (Story 2.3) found six misread figures in reconciled columns: figures that would reach the engine. Five of them looked like transcription errors. One example: kundefordringer was transcribed as 444 745 213 against total assets of 86 913 592. So the transcriptions were checked again, blind. `blind-check.csv` lists 20 cells (orgnr, filing year, column, field) in random order (seed 20261023): the six suspected cells mixed with 14 cells drawn at random from the 639 where OCR and transcription agree. It shows no OCR value and no transcribed value, and does not say which cells are suspected. The transcriber read every cell from the PDF.

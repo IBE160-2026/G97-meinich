@@ -88,8 +88,9 @@ def test_withdrawal_config_validated(tmp_path: Path) -> None:
 
 
 def test_committed_fetch_deadline() -> None:
-    # Story 2.5b: ten minutes, well above a legitimate fetch (five attempts
-    # of 60 s and 15 s of backoff).
+    # Story 2.5b: ten minutes, a chosen wall-time limit on one document's
+    # fetch, generous for a PDF of a few MB; not derived from the 60 s socket
+    # timeout, which bounds one socket operation, not the request.
     assert config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).fetch_deadline_seconds == 600
 
 
@@ -105,7 +106,7 @@ def _config_with_documents(tmp_path: Path, documents: str | None) -> Path:
 
 def test_fetch_deadline_config_validated(tmp_path: Path) -> None:
     assert config.load_config(_config_with_documents(tmp_path, "0.5"), env={}).fetch_deadline_seconds == 0.5
-    for bad in (None, "0", "-1", '"600"', "true"):
+    for bad in (None, "0", "-1", '"600"', "true", "nan", "inf", "-inf"):
         with pytest.raises(config.ConfigError):
             config.load_config(_config_with_documents(tmp_path, bad), env={})
 

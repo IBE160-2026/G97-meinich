@@ -4,6 +4,7 @@ environment. Reading only; nothing here touches the network or the database."""
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import tomllib
@@ -92,10 +93,10 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
 
 
 def _seconds(path: Path, table: dict[str, object], key: str) -> float:
-    """A positive number of seconds: a duration, not money, so a float is
-    fine. Required: no default."""
+    """A positive, finite number of seconds: a duration, not money, so a
+    float is fine. TOML's nan and inf are refused. Required: no default."""
     value = table.get(key)
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
         raise ConfigError(f"{path}: documents.{key} must be a positive number of seconds, got {value!r}")
     return float(value)
 

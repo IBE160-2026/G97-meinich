@@ -55,8 +55,10 @@ max_absent_share = 0.01
 # fetch therefore runs on a worker thread that the run stops waiting for
 # after this many seconds: the document is named as not fetched (not
 # replaced, on a re-read), the run goes on, and it exits 1 at the end so a
-# rerun tries it again. A legitimate fetch takes well under this: at most
-# five attempts of 60 s with 15 s of backoff between them (fetch.py).
+# rerun tries it again. 600 s is a chosen wall-time limit on one
+# document's fetch, retries included: generous for a PDF of a few MB. It is
+# not derived from fetch.py's 60 s, which bounds one socket operation, not
+# the request.
 [documents]
 fetch_deadline_seconds = 600
 

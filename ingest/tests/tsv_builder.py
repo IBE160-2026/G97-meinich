@@ -140,3 +140,17 @@ def replace_row(rows: Sequence[Row], label: str, current: str | None = None, pri
         out.append(row)
     assert any(r[0] == label for r in rows), label
     return out
+
+
+def document_pages(
+    pages: Sequence[tuple[str, Sequence[Row], Sequence[Row] | None]],
+) -> tuple[list[Word], list[PageWords]]:
+    """A generated document of several figure pages, each (heading, rows,
+    digits-only rows or None for the plain rows without spaces), each with
+    its own year header."""
+    out: list[PageWords] = []
+    for heading, rows, digits_rows in pages:
+        plain = words(page_lines(rows, heading=heading))
+        digits = words(page_lines(digits_rows if digits_rows is not None else digits_of(rows), heading=heading, figures_only=True))
+        out.append(PageWords(plain, digits))
+    return words(GENERATED_TOP), out

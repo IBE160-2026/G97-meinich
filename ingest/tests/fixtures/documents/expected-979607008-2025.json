@@ -18,6 +18,10 @@
       "netto_finans": -826511,
       "ordinaert_resultat_foer_skattekostnad": -704508,
       "aarsresultat": -1541009,
+      "forskning_og_utvikling": 6986262,
+      "konsesjoner_patenter": 36250,
+      "goodwill": 9000472,
+      "utsatt_skattefordel": 190261,
       "sum_immaterielle_eiendeler": 16213245,
       "sum_varige_driftsmidler": 1197768,
       "varer": null,
@@ -51,6 +55,10 @@
       "netto_finans": -1102745,
       "ordinaert_resultat_foer_skattekostnad": -2071857,
       "aarsresultat": -2611560,
+      "forskning_og_utvikling": 953319,
+      "konsesjoner_patenter": 60417,
+      "goodwill": 13500708,
+      "utsatt_skattefordel": 100560,
       "sum_immaterielle_eiendeler": 14615003,
       "sum_varige_driftsmidler": 2102723,
       "varer": null,
@@ -67,6 +75,8 @@
     "c2": "pass",
     "c3": "pass",
     "c4": "pass",
-    "digits_pass_fields": []
+    "digits_pass_fields": [
+      "goodwill"
+    ]
   }
 }

@@ -36,7 +36,10 @@ figure stays None, never 0.
    operand came from the digits-only pass, and the operands sum to the
    total within `bound`. A line with no matching row counts as 0 inside
    the gate only and is never stored as 0; a row that matched but whose
-   figure neither pass read leaves the gate not evaluable. The gates live
+   figure neither pass read leaves the gate not evaluable. A row printed with
+   a figure in one column and none in the other is matched, so the gate is
+   not evaluable for the column where it is blank; a label with no figure in
+   either column is no candidate row and counts as 0. The gates live
    here only: they are not checks of the column and never touch its
    status (`reconcile.column_status`). A failing c1-c4 still drops every
    digits-only figure of the column, gated or not.
@@ -194,12 +197,11 @@ def combine(
     plain: dict[str, int | None],
     digits: dict[str, int | None],
     bound: int,
-    matched: frozenset[str] | None = None,
+    matched: frozenset[str],
 ) -> tuple[dict[str, int | None], tuple[str, ...]]:
     """The column's figures and the fields taken from the digits-only pass,
     under the gate described in the module docstring. `matched` holds the
-    fields a row matched in the document; None means every field, so an
-    absent operand leaves a sum gate not evaluable."""
+    fields a row with a figure matched in the document, in either pass."""
     filled = dict(plain)
     offered = [k for k in FIELDS if plain[k] is None and digits[k] is not None]
     for k in offered:
@@ -217,9 +219,8 @@ def combine(
             for name in passing
         )
 
-    rows = frozenset(FIELDS) if matched is None else matched
     offered_digits = {k: digits[k] for k in offered}
-    gated = {gate_admits(gate, plain, offered_digits, rows, bound) for gate in SUM_GATES}
+    gated = {gate_admits(gate, plain, offered_digits, matched, bound) for gate in SUM_GATES}
     kept = tuple(k for k in offered if confirmed(k) or k in gated)
     figures = dict(plain)
     for k in kept:

@@ -20,6 +20,16 @@ from the spike:
   and s inside a word that mixes letters and digits, so the bold total row
   "50M EGENKAPITAL OG GJELD" can match. It is tried after `fold`, never
   instead of it, and only for a field `fold` matched nowhere.
+- Story 2.5b (probe checkpoint, Meinich 2026-11-05):
+  - the four printed parts of intangible assets are targets of their own,
+    matched on balance pages only (`TARGET_PAGES`);
+  - later variants for the cost lines (`LATER_VARIANTS`: the depreciation
+    wordings, plurals), matched on income-statement pages only and only
+    for a field the variants of `TARGETS` matched nowhere;
+  - a third label fold, `fold_notes`, drops trailing note references read
+    as letters ("Lønnskostnad ll, 2, 3"). It is tried after `fold` and
+    `fold_mixed`, never instead of them.
+  Every match the earlier stages make stands, with the same value.
 
 Nothing here computes anything: a figure is the digits as printed, or None.
 """
@@ -89,6 +99,26 @@ def fold_mixed(text: str) -> str:
         if _LETTER.search(word) and _DIGIT.search(word):
             word = word.translate(MIXED_WORD_DIGITS)
         words.append(word)
+    return fold(" ".join(words))
+
+
+# A note reference at the end of a label, as Tesseract reads it: digits, "l"
+# for a bold 1, and commas ("Lønnskostnad ll, 2, 3"). `fold` drops the
+# digits and commas but keeps the "l", so the label no longer ends with its
+# target (Story 2.5b probe).
+NOTE_REFERENCE = re.compile(r"^[0-9l,]+$")
+
+
+def fold_notes(text: str) -> str:
+    """The third label fold (Story 2.5b): like `fold`, after dropping the
+    label's trailing words made only of digits, "l" and commas, so
+    "Lønnskostnad ll, 2, 3" folds to "lonnskostnad" where `fold` gives
+    "lonnskostnadll". The first word is never dropped. For labels only,
+    never a figure, and tried after `fold` and `fold_mixed`, never instead
+    of them."""
+    words = text.split()
+    while len(words) > 1 and NOTE_REFERENCE.match(words[-1]):
+        words.pop()
     return fold(" ".join(words))
 
 
@@ -285,6 +315,22 @@ TARGETS: dict[str, tuple[str, ...]] = {
     "netto_finans": ("nettofinans", "nettofinansposter", "nettofinansresultat"),
     "ordinaert_resultat_foer_skattekostnad": ("ordinaertresultatforskattekostnad", "resultatforskattekostnad"),
     "aarsresultat": ("arsresultat",),
+    # The four printed parts of intangible assets (Story 2.5b, F2), from the
+    # labels the probe found (analysis/output/empty-lines-probe.md). The
+    # concessions row wraps: "Konsesjoner, patenter," / "lisenser,
+    # varemerker" (/ "og lignende rettigheter"), or is one line,
+    # "Konsesjoner, patenter o.l.". Balance pages only (TARGET_PAGES).
+    # 979607008/2025 prints the first part as "Utvikling" alone, under the
+    # heading "Immaterielle eiendeler" (the contract fixture).
+    "forskning_og_utvikling": ("forskningogutvikling", "utvikling"),
+    "konsesjoner_patenter": (
+        "konsesjonerpatenterol",
+        "konsesjonerpatenterlisenservaremerker",
+        "konsesjonerpatenterlisenservaremerkerol",
+        "konsesjonerpatenterlisenservaremerkeroglignenderettigheter",
+    ),
+    "goodwill": ("goodwill",),
+    "utsatt_skattefordel": ("utsattskattefordel",),
     "sum_immaterielle_eiendeler": ("sumimmaterielleeiendeler",),
     "sum_varige_driftsmidler": ("sumvarigedriftsmidler",),
     "varer": ("varer",),
@@ -297,6 +343,35 @@ TARGETS: dict[str, tuple[str, ...]] = {
     "sum_gjeld": ("sumgjeld",),
     "sum_egenkapital_gjeld": ("sumegenkapitaloggjeld",),
 }
+
+# The page kind a part of intangible assets must stand on: the balance
+# sheet, never the income statement, whose depreciation row ends in
+# "… immaterielle eiendeler". Fields not listed match on any statement
+# page, as before Story 2.5b.
+PARTS: tuple[str, ...] = ("forskning_og_utvikling", "konsesjoner_patenter", "goodwill", "utsatt_skattefordel")
+TARGET_PAGES: dict[str, PageKind] = dict.fromkeys(PARTS, "balanse")
+
+# Wordings of the cost lines that `TARGETS` misses (Story 2.5b, F1; the
+# probe's evidence). Tried only for a field no variant of `TARGETS` matched
+# under `fold` or `fold_mixed`, and only on income-statement pages, so a
+# balance row is never read as depreciation.
+LATER_VARIANTS: dict[str, tuple[str, ...]] = {
+    "lonnskostnad": ("lonnskostnader",),
+    "avskrivninger": (
+        "avskrivningavdriftsmidlerogimmaterielleeiendeler",
+        "avskrivningpadriftsmidlerogimmaterielleeiendeler",
+        "avskrivningpavarigedriftsmidler",
+        "avskrivningavdriftsmidler",
+        "avskrivninger",
+        "avskrivning",
+    ),
+    "nedskrivninger": (
+        "nedskrivningavdriftsmidlerogimmaterielleeiendeler",
+        "nedskrivningpavarigedriftsmidlerogimmaterielleeiendeler",
+    ),
+    "annen_driftskostnad": ("annendriftskostnader", "andredriftskostnader"),
+}
+LATER_PAGES: dict[str, PageKind] = dict.fromkeys(LATER_VARIANTS, "resultat")
 
 LABEL_SIMILARITY = 0.85  # tolerates OCR slips such as "Driftoreoultat" for "Driftsresultat"
 JOIN_LINES = 3  # at most this many label-only lines above a row join its label
@@ -324,10 +399,18 @@ def ends_balance(label: str) -> bool:
     )
 
 
-def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list[tuple[str, str, Row]]:
-    """(joined label, own label, row) for every row with a number on a
-    statement page, its labels folded by `fold_label`."""
-    candidates: list[tuple[str, str, Row]] = []
+@dataclass(frozen=True)
+class Candidate:
+    joined: str  # the row's label joined with the label-only lines above it, folded
+    own: str  # the row's own label, folded
+    row: Row
+    kind: PageKind
+
+
+def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list[Candidate]:
+    """Every row with a number on a statement page, its labels folded by
+    `fold_label`."""
+    candidates: list[Candidate] = []
     for page in pages:
         if page.kind == "other":
             continue
@@ -341,38 +424,62 @@ def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list
             while j >= 0 and not rows[j].has_number and i - j <= JOIN_LINES:
                 joined = fold_label(rows[j].label) + joined
                 j -= 1
-            candidates.append((joined, own, row))
+            candidates.append(Candidate(joined, own, row, page.kind))
     return candidates
 
 
-def _match(candidates: list[tuple[str, str, Row]], found: dict[str, tuple[int | None, int | None]]) -> None:
-    """Fills `found` for each field not in it yet: exact matches first, over
-    every candidate; a fuzzy match only for a field no row matched exactly,
-    and only against the row's own label."""
-    for key, variants in TARGETS.items():
+def _match(
+    candidates: list[Candidate],
+    found: dict[str, tuple[int | None, int | None]],
+    targets: dict[str, tuple[str, ...]],
+    pages: dict[str, PageKind],
+) -> None:
+    """Fills `found` for each field of `targets` not in it yet: exact
+    matches first, over every candidate; a fuzzy match only for a field no
+    row matched exactly, and only against the row's own label. A field in
+    `pages` matches only a row on a page of that kind."""
+
+    def allowed(key: str, c: Candidate) -> bool:
+        return key not in pages or c.kind == pages[key]
+
+    for key, variants in targets.items():
         if key in found:
             continue
-        for joined, _, row in candidates:
-            if any(joined.endswith(v) for v in variants):
-                found[key] = (row.current, row.prior)
+        for c in candidates:
+            if allowed(key, c) and any(c.joined.endswith(v) for v in variants):
+                found[key] = (c.row.current, c.row.prior)
                 break
-    for key, variants in TARGETS.items():
+    for key, variants in targets.items():
         if key in found:
             continue
-        for _, own, row in candidates:
-            if any(similar(own, v) for v in variants):
-                found[key] = (row.current, row.prior)
+        for c in candidates:
+            if allowed(key, c) and any(similar(c.own, v) for v in variants):
+                found[key] = (c.row.current, c.row.prior)
                 break
 
 
 def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
-    """(current, prior) per target field a row matched. Under `fold` first,
-    exactly as before Story 2.3b: exact matches over every page, then a fuzzy
-    match only for a field no row matched exactly, and only against the
-    row's own label. Then the same two steps under `fold_mixed`, only for a
-    field `fold` matched nowhere, so every match `fold` makes stands. A
-    field no row matched is left out."""
+    """(current, prior) per target field a row matched, in stages. Each
+    stage fills only a field no earlier stage matched, so every earlier
+    match stands with its value:
+
+    1. `TARGETS` under `fold`, exactly as before Story 2.3b: exact matches
+       over every page, then a fuzzy match only for a field no row matched
+       exactly, and only against the row's own label;
+    2. the same under `fold_mixed` (Story 2.3b);
+    3. the cost lines' `LATER_VARIANTS` with their `TARGETS` variants, on
+       income-statement pages only, under `fold` and then `fold_mixed`
+       (Story 2.5b);
+    4. every variant under `fold_notes`, the later variants still on
+       income-statement pages only (Story 2.5b).
+
+    The parts of intangible assets match on balance pages only, in every
+    stage. A field no row matched is left out."""
     found: dict[str, tuple[int | None, int | None]] = {}
-    _match(_candidates(pages, fold), found)
-    _match(_candidates(pages, fold_mixed), found)
+    later = {key: TARGETS[key] + variants for key, variants in LATER_VARIANTS.items()}
+    _match(_candidates(pages, fold), found, TARGETS, TARGET_PAGES)
+    _match(_candidates(pages, fold_mixed), found, TARGETS, TARGET_PAGES)
+    _match(_candidates(pages, fold), found, later, LATER_PAGES)
+    _match(_candidates(pages, fold_mixed), found, later, LATER_PAGES)
+    _match(_candidates(pages, fold_notes), found, TARGETS | later, TARGET_PAGES | LATER_PAGES)
     return found

@@ -277,3 +277,189 @@ def test_note_number_not_folded_into_label() -> None:
     # the label would be two characters too long to match.
     assert layout.fold_mixed("50M EIENDELER 15") == "someiendeler"
     assert extract_one_page([("50M EIENDELER 15", "31 073 544", "35 615 025")])["sum_eiendeler"] == (31_073_544, 35_615_025)
+
+
+# --- The cost lines and the parts of intangible assets (Story 2.5b) ------------------
+
+
+def extract_pages(*pages: tuple[str, list[tuple[str, str, str]]]) -> dict[str, tuple[int | None, int | None]]:
+    """The extract over several pages, each (heading, rows) with its own year header."""
+    parsed: list[layout.Page] = []
+    previous: layout.Page | None = None
+    for heading, rows in pages:
+        plain = words(page_lines(rows, heading=heading))
+        previous = layout.parse_page(plain, plain, "plain", previous)
+        parsed.append(previous)
+    return layout.extract(parsed)
+
+
+# The intangible assets of 979607008/2025 as printed (hand-checked), with the
+# wrapped concessions row.
+INTANGIBLE_ROWS = [
+    ("Immaterielle eiendeler", "", ""),
+    ("Utvikling 3", "6 986 262", "953 319"),
+    ("Konsesjoner, patenter,", "", ""),
+    ("lisenser, varemerker ol. 3", "36 250", "60 417"),
+    ("Utsatt skattefordel 4, 5", "190 261", "100 560"),
+    ("Goodwill 3", "9 000 472", "13 500 708"),
+    ("Sun immaterielle eiendeler", "16 213 245", "14 615 003"),
+]
+
+
+def test_intangible_parts_read() -> None:
+    # F2: each part is a field of its own; the sum is read as before.
+    found = extract_pages(("BALANSE", INTANGIBLE_ROWS))
+    assert found["forskning_og_utvikling"] == (6_986_262, 953_319)
+    assert found["konsesjoner_patenter"] == (36_250, 60_417)
+    assert found["utsatt_skattefordel"] == (190_261, 100_560)
+    assert found["goodwill"] == (9_000_472, 13_500_708)
+    assert found["sum_immaterielle_eiendeler"] == (16_213_245, 14_615_003)
+    # The other wordings the probe found: "Forskning og utvikling", the
+    # one-line "Konsesjoner, patenter o.l." (its bold "l" read as "l1"),
+    # and the three-line form ending "og lignende rettigheter".
+    found = extract_pages(
+        (
+            "BALANSE",
+            [
+                ("Forskning og utvikling", "333 000", "476 437"),
+                ("Konsesjoner, patenter o.l1.", "19 636 331", "21 026 514"),
+                ("Sum immaterielle eiendeler", "19 969 331", "21 502 951"),
+            ],
+        )
+    )
+    assert found["forskning_og_utvikling"] == (333_000, 476_437)
+    assert found["konsesjoner_patenter"] == (19_636_331, 21_026_514)
+    wrapped = [
+        ("Konsesjoner, patenter,", "", ""),
+        ("lisenser, varemerker og", "", ""),
+        ("lignende rettigheter 4", "1 000", "2 000"),
+    ]
+    assert extract_pages(("BALANSE", wrapped))["konsesjoner_patenter"] == (1_000, 2_000)
+
+
+def test_intangible_part_not_sum() -> None:
+    # No part matches the sum row, and the sum matches no part: with only the
+    # sum printed, every part is absent, and with only parts, the sum is.
+    only_sum = extract_pages(
+        ("BALANSE", [("Immaterielle eiendeler", "", ""), ("Sum immaterielle eiendeler", "500", "400")])
+    )
+    assert only_sum["sum_immaterielle_eiendeler"] == (500, 400)
+    assert not set(layout.PARTS) & set(only_sum)
+    only_parts = extract_pages(("BALANSE", INTANGIBLE_ROWS[:-1]))
+    assert set(layout.PARTS) <= set(only_parts)
+    assert "sum_immaterielle_eiendeler" not in only_parts
+    # The bold sum with its 0 read as "Ö" (the probe's ten reference
+    # cells): the row matches, and the figure is absent, never read as 0.
+    found = extract_pages(("BALANSE", [("Goodwill", "0", "0"), ("Sun immaterielle eiendeler", "Ö", "Ö")]))
+    assert found["sum_immaterielle_eiendeler"] == (None, None)
+    assert found["goodwill"] == (0, 0)
+
+
+# The wordings of the depreciation row the probe found (17 of 17 reference
+# cells unmatched), and "Ordinære avskrivninger" from its 2.1b draw.
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [("Avskrivning av", "", ""), ("driftsmidler og", "", ""), ("immaterielle eiendeler 5", "5 429 357", "5 512 071")],
+        [("Avskrivning på", "", ""), ("driftsmidler og", "", ""), ("immaterielle eiendeler 4", "5 429 357", "5 512 071")],
+        [("Avskrivning på varige", "", ""), ("driftsmidler 3", "5 429 357", "5 512 071")],
+        [("Avskrivning av driftsmidler 2", "5 429 357", "5 512 071")],
+        [("Avskrivning 3", "5 429 357", "5 512 071")],
+        [("Ordinære avskrivninger 4", "5 429 357", "5 512 071")],
+    ],
+)
+def test_depreciation_wordings(rows: list[tuple[str, str, str]]) -> None:
+    found = extract_pages(("RESULTATREGNSKAP", [("Lønnskostnad", "55 582 660", "52 967 147"), *rows]))
+    assert found["avskrivninger"] == (5_429_357, 5_512_071)
+    assert "sum_immaterielle_eiendeler" not in found
+    assert not set(layout.PARTS) & set(found)
+
+
+def test_depreciation_row_never_intangibles() -> None:
+    # F1's condition. The wrapped depreciation row ends in "immaterielle
+    # eiendeler"; each row is read only as itself, on its own kind of page.
+    found = extract_pages(
+        (
+            "RESULTATREGNSKAP",
+            [("Avskrivning av", "", ""), ("driftsmidler og", "", ""), ("immaterielle eiendeler 2", "5 429 357", "5 512 071")],
+        ),
+        ("BALANSE", INTANGIBLE_ROWS),
+    )
+    assert found["avskrivninger"] == (5_429_357, 5_512_071)
+    assert found["sum_immaterielle_eiendeler"] == (16_213_245, 14_615_003)
+    assert found["forskning_og_utvikling"] == (6_986_262, 953_319)
+    # A part's label on the income statement is not a part.
+    found = extract_pages(
+        ("RESULTATREGNSKAP", [("Goodwill", "1 000", "2 000"), ("Utsatt skattefordel", "3 000", "4 000")])
+    )
+    assert not set(layout.PARTS) & set(found)
+
+
+def test_balance_row_never_depreciation() -> None:
+    # F1's condition, the other way: the later depreciation variants match on
+    # an income-statement page only, so the same label on a balance page is
+    # not depreciation.
+    found = extract_pages(("BALANSE", [("Avskrivning 3", "5 429 357", "5 512 071"), *INTANGIBLE_ROWS]))
+    assert "avskrivninger" not in found
+    assert found["sum_immaterielle_eiendeler"] == (16_213_245, 14_615_003)
+
+
+def test_plural_cost_lines() -> None:
+    # "Lønnskostnader", "Andre driftskostnader" (the probe's 2.1b draw).
+    found = extract_pages(
+        (
+            "RESULTATREGNSKAP",
+            [("Lønnskostnader 3", "15 309 770", "12 736 165"), ("Andre driftskostnader", "3 625 900", "3 297 237")],
+        )
+    )
+    assert found["lonnskostnad"] == (15_309_770, 12_736_165)
+    assert found["annen_driftskostnad"] == (3_625_900, 3_297_237)
+    # Not on a balance page.
+    found = extract_pages(("BALANSE", [("Andre driftskostnader", "3 625 900", "3 297 237")]))
+    assert "annen_driftskostnad" not in found
+
+
+def test_note_reference_fold() -> None:
+    # F1: "Lønnskostnad ll, 2, 3" folds to "lonnskostnadll" under `fold` and
+    # `fold_mixed`, two characters past the target; `fold_notes` drops the
+    # trailing note references, so it matches.
+    label = "Lønnskostnad ll, 2, 3"
+    assert layout.fold(label) == "lonnskostnadll"
+    assert layout.fold_mixed(label) == "lonnskostnadll"
+    assert not layout.similar(layout.fold(label), "lonnskostnad")
+    assert layout.fold_notes(label) == "lonnskostnad"
+    found = extract_pages(("RESULTATREGNSKAP", [(label, "3 673 524", "3 231 782")]))
+    assert found["lonnskostnad"] == (3_673_524, 3_231_782)
+    # That label is also within one character of the plural "lonnskostnader"
+    # (stage 3). A line with no plural variant needs `fold_notes` alone.
+    other = "Varekostnad ll, 3"
+    assert not layout.similar(layout.fold(other), "varekostnad")
+    found = extract_pages(("RESULTATREGNSKAP", [(other, "1 327 425", "744 327")]))
+    assert found["varekostnad"] == (1_327_425, 744_327)
+    # Only trailing words of digits, "l" and commas go, and never the first word.
+    assert layout.fold_notes("Utsatt skattefordel 6, 7") == "utsattskattefordel"
+    assert layout.fold_notes("Sum varige driftsmidler 6") == "sumvarigedriftsmidler"
+    assert layout.fold_notes("Konsesjoner, patenter o.l1.") == "konsesjonerpatenterol"
+    assert layout.fold_notes("ll") == "ll"
+
+
+def test_earlier_match_stands() -> None:
+    # Story 2.5b's stages fill only a field no earlier stage matched: an old
+    # variant's row wins over a later variant's row, wherever it stands.
+    found = extract_pages(
+        (
+            "RESULTATREGNSKAP",
+            [
+                ("Avskrivning 3", "1 000", "2 000"),
+                ("Avskrivning på varige", "", ""),
+                ("driftsmidler og", "", ""),
+                ("immaterielle eiendeler", "5 429 357", "5 512 071"),
+                ("Lønnskostnader", "7 000", "8 000"),
+                ("Lønnskostnad l, 2", "55 582 660", "52 967 147"),
+            ],
+        )
+    )
+    assert found["avskrivninger"] == (5_429_357, 5_512_071)
+    # "lonnskostnadl" is within one character of the target: stage 1's fuzzy
+    # match wins over stage 3's plural.
+    assert found["lonnskostnad"] == (55_582_660, 52_967_147)

@@ -20,8 +20,8 @@ Routine work that went as expected is not logged.
 | money | 19 |
 | parsing | 13 |
 | llm-boundary | 5 |
-| scope | 17 |
-| docs | 19 |
+| scope | 18 |
+| docs | 22 |
 
 ## Entry template
 
@@ -705,3 +705,33 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 7. **The digest ban missed `.js` specifiers** (triage 16; `test/lint.test.ts`, "rejects the engine digest in a 'use client' module").
 **Caught by:** Review pass 1 (the layers named above). Each new guard was removed or mutated in turn and its test failed.
 **Outcome:** The review fix commits on `story/2.5-fingerprint-stage-4`; D4 still waits for Meinich's yes.
+
+### 2026-11-04 — PRD drift after Epics 1–2, and an AI fact-check of the AI's own fix
+**Tags:** docs · scope
+**Tool:** Claude (claude.ai cloud session, Opus 5.5): three review subagents, the main session, and one independent fact-check subagent
+**Asked:** Check the PRD (last updated 2026-10-10) against what Epics 1–2 built and decided, bring it in line, and propose how to stop it drifting again.
+**Got:** 31 findings, applied as edits to `prd.md` with `.memlog.md` entries (`c4d93d6`), one correction to the technical note (`4337261`), and a process rule in `AGENTS.md` with a PR template (`8d46181`).
+**Problem:** Two layers of AI error.
+1. **The PRD itself had drifted in 31 places**, because nothing told a story to carry a decision upstream: `AGENTS.md` covered the four authoritative documents and frozen specs, not the PRD. Three of the 31 had no recorded decision anywhere — FR-58 promised acceptance per figure while reconciliation decides per column (`ingest/src/peerless_ingest/reconcile.py`, `column_status`); FR-28/FR-59 promised a fully read industry while 407 + 20 companies are read (`analysis/output/document-run-counts-after-2.3b.json`); FR-73 described the reference set as filings while the allow-list is per company (`seed/allow-list.json`).
+2. **The fix contained 10 errors of its own**, found by a fact-check subagent that had not seen the work: the reference set credited to the wrong story; "v1 is not complete" resting on a flag that means something else (`seed/coverage.json`'s `measured` is the labelled-set measurement); the spread test described as industry-wide when it ran on the 421 fingerprinted companies (`analysis/output/fingerprint-spread-62100.md`); two edits that **made decisions instead of recording them** (FR-73 allowing a performance-only migration, FR-27 settling total cost share's direction, which `docs/key-figures.md` leaves inconsistent); paper filings said to be "never fetched" when step 1 stores them as `paper` (`ingest/src/peerless_ingest/write.py`, the `paper` outcome); and the read date said to be the first read when a re-read rewrites `read_at`. Earlier, the main session also rejected a review subagent's citation (`docs/key-figures.md:107` does not list total cost share) and its proposed "ten of fifteen" wording.
+**Caught by:** Verification against the source files named above; the independent fact-check for the second layer. No test backs a documentation claim; each statement in the PRD now names the file or spec it rests on.
+**Outcome:** All corrected (`8d8ab3a`); the two decisions the edit should not have made are raised as notes, and four open questions (§11, 21–24) left for Meinich. The process rule (`AGENTS.md`, "Specs, reviews and merging") makes a story's PR carry its decisions into the PRD, technical note and `epics.md`, and has each epic retrospective check the PRD. Lesson: a documentation sync is itself AI output and gets the same independent check as code; "record, don't decide" has to be checked statement by statement.
+
+### 2026-11-04 — Competitors from an external AI analysis, checked before use
+**Tags:** docs
+**Tool:** an external AI analysis (Meinich's); verified with Claude (claude.ai cloud session, Opus 5.5) web search and fetches of the vendors' own pages
+**Asked:** Whether six further competitors from the analysis — Empirion Performance, Proff Forvalt, Econ Intel, søkfirma, FirmaIQ and Biztrac — should go into the planning documents now.
+**Got:** The list, with descriptions such as Empirion being "very similar to Peerless" and "the most direct competitor", FirmaIQ reading PDF accounts with AI, and Biztrac offering an "AI workbench".
+**Problem:** The same risk as on 2026-09-23: unverified competitor claims reaching a graded document. Two descriptions overstated or could not be found. Empirion's own page shows the user choosing the comparison set and describes no kroner amount, so "very similar" holds for the form but not for the two points the brief rests on. Biztrac's "AI workbench" appears on none of the pages read, and its comparison page could not be fetched. FirmaIQ could not be found at all. Econ Intel turned out not to be a peer-benchmarking product but a text-based industry classification beyond NACE.
+**Caught by:** Verification against the vendors' pages (`_bmad-output/planning-artifacts/prds/prd-Peerless-2026-09-25/research-landscape.md` §7, with sources and quotes). No test backs a documentation claim.
+**Outcome:** Empirion added to the brief's "What exists commercially" with the difference stated; one sentence in PRD §10; all six recorded in the research file with a verdict each, FirmaIQ as unconfirmed. The brief's claim — no product chooses the peers for a Norwegian SME and turns each deviation into kroner — stands, narrower than in September: comparison on public accounts is now available self-serve.
+
+### 2026-11-04 — Correction: FirmaIQ found
+**Tags:** docs
+**Tool:** Claude (claude.ai cloud session, Opus 5.5), fetch of the vendor's page
+**Asked:** Check FirmaIQ from the link Meinich sent.
+**Got:** firmaiq.no: PDF extraction from Brønnøysund filings, ratios and trends, source-linked written analysis; footer *"Static product prototype"*; no peer comparison.
+**Problem:** This entry corrects the entry above, "Competitors from an external AI analysis, checked before use", which said FirmaIQ could not be found. It existed; web search had not surfaced it, and an unfound vendor was rightly kept out of the claims rather than described from the analysis.
+**Caught by:** The link from Meinich.
+**Outcome:** `research-landscape.md` §7 records it as a prototype close to Peerless's pipeline but not its product. The brief and the PRD are unchanged.
+

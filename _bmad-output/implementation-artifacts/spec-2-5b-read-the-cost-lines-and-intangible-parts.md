@@ -198,6 +198,13 @@ context:
   - **No figure is repaired.** `Ö` is never read as 0, and the line stays empty.
   - **The measurement waits.** Meinich checks two transcription cells against the PDF, not blind, because the probe showed the OCR value: 922184534/2025 prior `lonnskostnad` and 927533235/2023 current `lonnskostnad`. The before/after measurement is not run until that is settled.
 
+- **2026-11-05, Meinich (after F1–F3 were built): "Utvikling" kept; a blank row counts as 0 in the gates, with two additions.**
+  - **"Utvikling"** is kept as a variant of `forskning_og_utvikling`, on balance pages only. 979607008/2025 and at least three probe documents print the first part that way. The probe missed it because it listed only labels that fold to "forskning".
+  - **A label printed with no figure in either pass** (for example a blank `nedskrivninger` row) counts as "no row", that is 0 in the gate only.
+    - **The risk:** a figure that is printed but that OCR did not see at all. The probe found one such row: 994176021/2021 `lonnskostnad`.
+    - **Addition (a):** a test built on that case shows that the gate admits nothing when a printed line is missing.
+    - **Addition (b):** the report after the re-read gives, as totals, how many figures the gates admitted, and how many of those rested on an operand counted as 0.
+
 ## Review Triage Log
 
 ## Design Notes

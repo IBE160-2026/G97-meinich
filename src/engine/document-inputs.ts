@@ -23,8 +23,9 @@ export type ReconciliationStatus = 'reconciled' | 'failed_reconciliation';
 
 /**
  * Each figure column of `register.document_column` and its engine name,
- * which keeps the register's Norwegian. The 23 fields of the generated
- * layout, in table order.
+ * which keeps the register's Norwegian. The 27 fields of the generated
+ * layout, in table order: the 23 of Story 2.1b, then the four parts of
+ * intangible assets (Story 2.5b), which the fingerprint does not read.
  */
 export const DOCUMENT_FIGURE_COLUMNS = {
   salgsinntekt: 'salgsinntekt_ore',
@@ -50,6 +51,10 @@ export const DOCUMENT_FIGURE_COLUMNS = {
   sumKortsiktigGjeld: 'sum_kortsiktig_gjeld_ore',
   sumGjeld: 'sum_gjeld_ore',
   sumEgenkapitalGjeld: 'sum_egenkapital_gjeld_ore',
+  forskningOgUtvikling: 'forskning_og_utvikling_ore',
+  konsesjonerPatenter: 'konsesjoner_patenter_ore',
+  goodwill: 'goodwill_ore',
+  utsattSkattefordel: 'utsatt_skattefordel_ore',
 } as const;
 
 export type DocumentField = keyof typeof DOCUMENT_FIGURE_COLUMNS;

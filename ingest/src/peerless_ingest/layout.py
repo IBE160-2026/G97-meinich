@@ -315,7 +315,19 @@ TARGETS: dict[str, tuple[str, ...]] = {
     "netto_finans": ("nettofinans", "nettofinansposter", "nettofinansresultat"),
     "ordinaert_resultat_foer_skattekostnad": ("ordinaertresultatforskattekostnad", "resultatforskattekostnad"),
     "aarsresultat": ("arsresultat",),
-    # The four printed parts of intangible assets (Story 2.5b, F2), from the
+    "sum_immaterielle_eiendeler": ("sumimmaterielleeiendeler",),
+    "sum_varige_driftsmidler": ("sumvarigedriftsmidler",),
+    "varer": ("varer",),
+    "kundefordringer": ("kundefordringer",),
+    "bankinnskudd": ("sumbankinnskuddkontanteroglignende",),
+    "sum_eiendeler": ("sumeiendeler",),
+    "sum_egenkapital": ("sumegenkapital",),
+    "leverandorgjeld": ("leverandorgjeld",),
+    "sum_kortsiktig_gjeld": ("sumkortsiktiggjeld",),
+    "sum_gjeld": ("sumgjeld",),
+    "sum_egenkapital_gjeld": ("sumegenkapitaloggjeld",),
+    # The four printed parts of intangible assets (Story 2.5b, F2), last, as
+    # their columns in register.document_column. From the
     # labels the probe found (analysis/output/empty-lines-probe.md). The
     # concessions row wraps: "Konsesjoner, patenter," / "lisenser,
     # varemerker" (/ "og lignende rettigheter"), or is one line,
@@ -331,17 +343,6 @@ TARGETS: dict[str, tuple[str, ...]] = {
     ),
     "goodwill": ("goodwill",),
     "utsatt_skattefordel": ("utsattskattefordel",),
-    "sum_immaterielle_eiendeler": ("sumimmaterielleeiendeler",),
-    "sum_varige_driftsmidler": ("sumvarigedriftsmidler",),
-    "varer": ("varer",),
-    "kundefordringer": ("kundefordringer",),
-    "bankinnskudd": ("sumbankinnskuddkontanteroglignende",),
-    "sum_eiendeler": ("sumeiendeler",),
-    "sum_egenkapital": ("sumegenkapital",),
-    "leverandorgjeld": ("leverandorgjeld",),
-    "sum_kortsiktig_gjeld": ("sumkortsiktiggjeld",),
-    "sum_gjeld": ("sumgjeld",),
-    "sum_egenkapital_gjeld": ("sumegenkapitaloggjeld",),
 }
 
 # The page kind a part of intangible assets must stand on: the balance

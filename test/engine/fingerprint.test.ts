@@ -56,6 +56,11 @@ const BASE: Record<DocumentField, bigint | null> = {
   sumKortsiktigGjeld: pct(20),
   sumGjeld: pct(20),
   sumEgenkapitalGjeld: pct(40),
+  // The parts of intangible assets (Story 2.5b): stored, never read by the fingerprint.
+  forskningOgUtvikling: 0n,
+  konsesjonerPatenter: 0n,
+  goodwill: 0n,
+  utsattSkattefordel: 0n,
 };
 
 // The API subtotals of the same filing, consistent with BASE.
@@ -421,6 +426,29 @@ describe('the digest inputs', () => {
     };
     expect(inputs({}, { sumOmloepsmidler: pct(36) })).not.toBe(inputs({}));
     expect(inputs({ aarsresultat: 1n })).toBe(inputs({}));
+  });
+
+  it('the intangible parts do not enter the fingerprint', () => {
+    // Story 2.5b stores the four parts of intangible assets; D1 is locked, so
+    // neither the categories nor the digest change with them (spec I/O matrix).
+    const read = (figures: Figures) => {
+      const result = fp(figures);
+      if (result.kind !== 'fingerprint') throw new Error('expected a fingerprint');
+      return { fingerprint: result.fingerprint, digest: digest(result.inputs), keys: Object.keys(result.inputs) };
+    };
+    const parts = { sumImmaterielleEiendeler: pct(20) };
+    const without = read({ ...parts, forskningOgUtvikling: null, konsesjonerPatenter: null, goodwill: null, utsattSkattefordel: null });
+    const withParts = read({
+      ...parts,
+      forskningOgUtvikling: pct(1),
+      konsesjonerPatenter: pct(2),
+      goodwill: pct(15),
+      utsattSkattefordel: pct(2),
+    });
+    expect(withParts).toEqual(without);
+    for (const key of ['forskningOgUtvikling', 'konsesjonerPatenter', 'goodwill', 'utsattSkattefordel']) {
+      expect(withParts.keys).not.toContain(key);
+    }
   });
 
   it('parses the subtotals from a key-figures row exactly', () => {

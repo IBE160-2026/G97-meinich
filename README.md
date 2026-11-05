@@ -142,15 +142,17 @@ mkdir -p .local/document-run-<commit>
 for t in document document_column; do
   docker exec supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "\copy (select * from register.$t where orgnr not in ($LISTED)) to stdout with (format csv, header)" > .local/document-run-<commit>/$t.csv
 done
-# after pnpm seed or pnpm db:reset (+ pnpm db:roles, pnpm seed): restore them, documents before their columns
+# after pnpm seed or pnpm db:reset (+ pnpm db:roles, pnpm seed): restore them, documents before their columns,
+# naming the columns from the dump's own header line, so a dump taken before a nullable column was added still restores
 for t in document document_column; do
-  docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "\copy register.$t from stdin with (format csv, header)" < .local/document-run-<commit>/$t.csv
+  COLS=$(head -n 1 .local/document-run-<commit>/$t.csv | tr -d '\r')
+  docker exec -i supabase_db_peerless psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "\copy register.$t ($COLS) from stdin with (format csv, header)" < .local/document-run-<commit>/$t.csv
 done
 ```
 
 After a restore, run `pnpm derive`: the restored documents have no fingerprints until it runs.
 
-`supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first. The dump holds only rows the seed does not: the allow-listed orgnrs' rows are in the seed already, and restoring them again would fail on their keys. The older dumps, `.local/document-run-e09a413.sql` and `.local/document-run-bd2ce3e.sql` (pg_dumps of both tables, taken before the reference rows were seeded), hold only the acceptance run's 407 orgnrs, but they restore only onto the schema before Story 2.3b's migration, which added the NOT NULL `register.document.reader_commit`: keep them, and restore a dump taken after that migration (in the CSV form above) onto the current schema. The dump to restore is `.local/document-run-2.4/`, taken after Story 2.4's plain run (2026-10-30), which deleted no document. The CSV dump before it, `.local/document-run-2ce5a50/`, holds the same rows, but in that run the register replaced the 2025 filing of 823633882 under a new id, and the document row followed it (`ON UPDATE CASCADE`), so the older dump no longer restores onto a seed exported after that run. Never delete the older dumps.
+`supabase_db_peerless` is the local database container (`project_id` in `supabase/config.toml`); `<commit>` is the commit the step-1 image was built from. Restore only onto the seed the run was made against: each document row references its company, and its `brreg_id` a key-figures filing. While the rows are present, `pnpm seed:export` refuses (they are not on the allow-list); run `pnpm seed` first. The dump holds only rows the seed does not: the allow-listed orgnrs' rows are in the seed already, and restoring them again would fail on their keys. The older dumps, `.local/document-run-e09a413.sql` and `.local/document-run-bd2ce3e.sql` (pg_dumps of both tables, taken before the reference rows were seeded), hold only the acceptance run's 407 orgnrs, but they restore only onto the schema before Story 2.3b's migration, which added the NOT NULL `register.document.reader_commit`: keep them, and restore a dump taken after that migration (in the CSV form above) onto the current schema. The dump to restore is `.local/document-run-2.4/`, taken after Story 2.4's plain run (2026-10-30), which deleted no document. The CSV dump before it, `.local/document-run-2ce5a50/`, holds the same rows, but in that run the register replaced the 2025 filing of 823633882 under a new id, and the document row followed it (`ON UPDATE CASCADE`), so the older dump no longer restores onto a seed exported after that run. `.local/document-run-2.4/` is the dump to restore until Story 2.5b's re-read; from then it is `.local/document-run-2.5b/`, the dump taken right after that re-read (C2 step 3 of the story's spec). `.local/document-run-2.4/` predates Story 2.5b's migration, which added four nullable columns, the parts of intangible assets, to `register.document_column`: restored with the column list from its header, as above, those columns stay NULL until a re-read (`test/db/restore-old-dump.test.ts`). Never delete the older dumps.
 
 **A new migration invalidates the seed.** The seed records the latest migration, and `pnpm seed` refuses a seed exported under an older one. The pull request that adds a migration therefore re-exports the seed in the same pull request, on a loaded database and without a reset:
 
@@ -165,7 +167,7 @@ pnpm seed:export                  # commit the changed seed/demo/ with the migra
 pnpm seed               # the committed seed (removes the acceptance run's rows: dump them first, above)
 pnpm derive             # fingerprints of the seed's documents
 pnpm seed:export        # commit seed/demo/ on its own
-# restore .local/document-run-2.4/ (above) and check its row counts
+# restore the current dump (above: .local/document-run-2.4/, after Story 2.5b's re-read .local/document-run-2.5b/) and check its row counts
 pnpm derive             # fingerprints of every stored document, the acceptance run's included
 pnpm analysis:spread    # the within-band spread over them
 ```

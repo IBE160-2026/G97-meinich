@@ -96,6 +96,17 @@ They are transcribed by the same rules as every other field, **without looking a
 
 **Transcribed 2026-11-05** by Meinich, without looking at any OCR output, in all 23 columns above; `notes` says `deler 2026-11-05`. The review session then checked that the printed parts of each column sum to its `sum_immaterielle_eiendeler`, without OCR output: all 23 agree exactly. In the ten columns with a total of 0, the total is printed as 0: in two of them all four parts are printed as 0, in two three parts are, and in six no part is printed. Excel had rewritten every `transcribed_on` as `23.10.2026`; the review session set them back to `2026-10-23` before the commit.
 
+## Check after the Story 2.5b probe (no correction)
+
+The Story 2.5b probe (`analysis/output/empty-lines-probe.md`) showed two cells where both OCR passes agree with each other but not with the transcription. Meinich checked both against the PDF on 2026-11-05. The check was **not blind**, because the probe had shown the OCR value. The transcription is right in both, and nothing is corrected; this is therefore not in the corrections table below.
+
+| Orgnr | Filing year | Column | Field | Transcribed (confirmed) | OCR, both passes | The column's arithmetic |
+|---|---|---|---|---|---|---|
+| 922184534 | 2025 | prior (2024) | lonnskostnad | 31 286 483 | 31 285 483 | The cost lines sum to 104 938 509 against "Sum kostnader" 104 938 508 (1 kr rounding) |
+| 927533235 | 2023 | current (2023) | lonnskostnad | 1 448 646 | 1 448 546 | The cost lines sum exactly to 2 280 576 |
+
+OCR read a 6 as a 5 in both. With the OCR figure, the cost lines would be 999 kr and 100 kr off their total, so Story 2.5b's cost-line sum gate (5 kr) would refuse both.
+
 ## Blind check after the first measurement
 
 The first SM-2 report (Story 2.3) found six misread figures in reconciled columns: figures that would reach the engine. Five of them looked like transcription errors. One example: kundefordringer was transcribed as 444 745 213 against total assets of 86 913 592. So the transcriptions were checked again, blind. `blind-check.csv` lists 20 cells (orgnr, filing year, column, field) in random order (seed 20261023): the six suspected cells mixed with 14 cells drawn at random from the 639 where OCR and transcription agree. It shows no OCR value and no transcribed value, and does not say which cells are suspected. The transcriber read every cell from the PDF.

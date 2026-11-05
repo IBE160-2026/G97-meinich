@@ -11,6 +11,7 @@ import { DOCUMENT_FIGURE_COLUMNS, type DocumentColumnRow, documentFigures } from
 import { type ApiSubtotals, apiSubtotalsFromRow, businessType, fingerprintOf } from '../src/engine/fingerprint.ts';
 import { parseOre } from '../src/engine/inputs.ts';
 import { type DrawnFiling, compareBytes, parseCsv } from './seed-format.ts';
+import { parseTextArray } from './sum-gates.ts';
 
 /**
  * The 27 lines `read_document` targets (ingest/src/peerless_ingest/layout.py,
@@ -92,6 +93,8 @@ export interface StoredColumn {
   /** c1–c5 as stored; null on a row from before Story 2.2. */
   checks: Readonly<Record<CheckName, CheckResult | null>>;
   figuresOre: ReadonlyMap<Sm2Field, bigint | null>;
+  /** The fields taken from the digits-only pass, as stored. */
+  digitsPassFields: readonly string[];
 }
 
 /** One stored document (register.document). */
@@ -366,7 +369,7 @@ export function parseStoredColumns(text: string): StoredColumn[] {
   if (header === undefined) throw new Error(`${file}: no header`);
   const fields: readonly Sm2Field[] = lacksPartColumns(text) ? SM2_FIELDS_BEFORE_2_5B : SM2_FIELDS;
   const oreColumns = fields.map((field) => `${field}_ore`);
-  const at = indexOf(file, header, ['orgnr', 'filing_year', 'role', 'stated_year', 'status', ...CHECK_NAMES, ...oreColumns]);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'role', 'stated_year', 'status', 'digits_pass_fields', ...CHECK_NAMES, ...oreColumns]);
   return rows.map((row, index) => {
     const line = index + 2;
     const status = cell(file, row, at, 'status', line);
@@ -384,6 +387,7 @@ export function parseStoredColumns(text: string): StoredColumn[] {
         c4: checkResult(file, cell(file, row, at, 'c4', line), line),
         c5: checkResult(file, cell(file, row, at, 'c5', line), line),
       },
+      digitsPassFields: parseTextArray(cell(file, row, at, 'digits_pass_fields', line), `${file} row ${line} digits_pass_fields`),
       figuresOre: new Map(
         SM2_FIELDS.map((field) => {
           if (!fields.includes(field)) return [field, null] as const;

@@ -50,6 +50,7 @@ import {
   renderBeforeAfter,
   renderBeforeAfter25b,
   renderReport,
+  storedGateCounts,
 } from '../scripts/ocr-sm2.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 import { DOCUMENT_FIGURE_COLUMNS } from '../src/engine/document-inputs.ts';
@@ -83,6 +84,7 @@ const read = (
   status,
   checks: NO_CHECKS,
   figuresOre: figures(ore),
+  digitsPassFields: [],
 });
 
 describe('classifying a compared field', () => {
@@ -312,9 +314,9 @@ describe('reading the transcriptions', () => {
   });
 
   it('reads stored columns by header name, NULL as null', () => {
-    const csvHeader = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status', ...SM2_FIELDS.map((f) => `${f}_ore`)];
+    const csvHeader = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status', 'digits_pass_fields', ...SM2_FIELDS.map((f) => `${f}_ore`)];
     const values: Record<string, string> = {
-      orgnr: '921716257', filing_year: '2021', role: 'prior', stated_year: '2020',
+      orgnr: '921716257', filing_year: '2021', role: 'prior', stated_year: '2020', digits_pass_fields: '"{driftsresultat,goodwill}"',
       c1: 'pass', c2: 'pass', c3: 'not_evaluable', c4: 'not_evaluable', c5: 'pass', status: 'reconciled',
       varer_ore: '0', sum_eiendeler_ore: '14413500',
     };
@@ -325,6 +327,7 @@ describe('reading the transcriptions', () => {
     expect(column?.figuresOre.get('sum_eiendeler')).toBe(14413500n);
     expect(column?.figuresOre.get('salgsinntekt')).toBeNull();
     expect(column?.checks.c3).toBe('not_evaluable');
+    expect(column?.digitsPassFields).toEqual(['driftsresultat', 'goodwill']);
   });
 });
 
@@ -540,14 +543,14 @@ describe('before and after Story 2.3b', () => {
 });
 
 describe('before and after Story 2.5b', () => {
-  const header = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status'];
+  const header = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status', 'digits_pass_fields'];
   const csv = (fields: readonly string[], values: Record<string, string>) => {
     const names = [...header, ...fields.map((f) => `${f}_ore`)];
     return `${names.join(',')}\n${names.map((name) => values[name] ?? '').join(',')}\n`;
   };
   const values = {
     orgnr: '921716257', filing_year: '2021', role: 'current', stated_year: '2021',
-    c1: 'pass', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass', status: 'reconciled',
+    c1: 'pass', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass', status: 'reconciled', digits_pass_fields: '{}',
     sum_eiendeler_ore: '14413500', goodwill_ore: '500',
   };
 
@@ -644,6 +647,49 @@ describe('before and after Story 2.5b', () => {
     const misread = { ...fake, class: 'misread' as const, readOre: (fake.readOre ?? 0n) + 100n };
     const withNew = renderBeforeAfter25b({ ...inputs, comparison: { ...inputs.comparison, results: [...inputs.comparison.results, misread] } }).join('\n');
     expect(withNew).toContain(`| ${fake.orgnr} | ${fake.filingYear} |`);
+  });
+
+  it('counts the figures each gate admitted, and those resting on an operand counted as 0, totals only', () => {
+    const cost = { varekostnad: 1n, lonnskostnad: 2n, avskrivninger: 3n, annen_driftskostnad: 4n, sum_driftskostnad: 10n };
+    const columns: StoredColumn[] = [
+      // nedskrivninger NULL: lonnskostnad admitted on an operand counted as 0.
+      { ...read('921716257', 2021, 'current', cost), digitsPassFields: ['lonnskostnad'] },
+      // Every operand held; driftsresultat is c1's, no gate's.
+      { ...read('921716257', 2022, 'current', { ...cost, nedskrivninger: 0n }), digitsPassFields: ['annen_driftskostnad', 'driftsresultat'] },
+      // Every part held but one admitted.
+      {
+        ...read('921716257', 2022, 'prior', { forskning_og_utvikling: 1n, konsesjoner_patenter: 1n, goodwill: 1n, utsatt_skattefordel: 1n }),
+        digitsPassFields: ['goodwill'],
+      },
+    ];
+    expect(storedGateCounts(columns)).toEqual({
+      cost_lines: { admitted: 2, withOperandCountedAsZero: 1 },
+      intangible_parts: { admitted: 1, withOperandCountedAsZero: 0 },
+    });
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter25b({ ...inputs, before25b: { ...inputs.before25b, runAfter: null } }).join('\n');
+    const gates = section.slice(section.indexOf('### Figures the sum gates admitted'), section.indexOf('### The Story 2.1b run'));
+    expect(gates).toContain('an operand counted as 0 (a blank row or no row)');
+    expect(gates).toContain('cannot tell a row printed with no figure in either pass from a line the document does not print');
+    expect(gates).toMatch(/\| Cost lines against sum kostnader \| Story 2\.1b run, local data \| no gate then \| no gate then \| not yet counted \| not yet counted \|/);
+    expect(gates).not.toMatch(/\d{9}/);
+    // The section counts the stored columns it is given.
+    const counted = renderBeforeAfter25b({ ...inputs, stored: columns }).join('\n');
+    expect(counted).toMatch(/\| Cost lines against sum kostnader \| Reference set \| \d+ \| \d+ \| 2 \| 1 \|/);
+  });
+
+  it('reads the gate counts of the 2.1b rows, both roles together', () => {
+    const json = JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5B_FILE), 'utf8'));
+    expect(parseRunCounts(json, 'x.json').gates).toBeNull();
+    const gate = (admitted: number, zero: number) => ({ admitted, operand_counted_as_zero: zero });
+    json.columns.current.gates = { cost_lines: gate(5, 2), intangible_parts: gate(1, 0) };
+    json.columns.prior.gates = { cost_lines: gate(3, 1), intangible_parts: gate(0, 0) };
+    expect(parseRunCounts(json, 'x.json').gates).toEqual({
+      cost_lines: { admitted: 8, withOperandCountedAsZero: 3 },
+      intangible_parts: { admitted: 1, withOperandCountedAsZero: 0 },
+    });
+    delete json.columns.prior.gates.cost_lines;
+    expect(() => parseRunCounts(json, 'x.json')).toThrow(/x\.json/);
   });
 
   it('keeps the Story 2.3b section on the state Story 2.3b left, whatever the seed holds now', () => {

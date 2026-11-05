@@ -73,6 +73,7 @@ import {
   typeTotals,
 } from './ocr-sm2-compare.ts';
 import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, parseDrawn } from './seed-format.ts';
+import { type GateCounts, SUM_GATES, type SumGate, gateCounts } from './sum-gates.ts';
 
 export const TRANSCRIPTIONS_FILE = 'analysis/ocr-reference/transcriptions.csv';
 export const CORRECTIONS_FILE = 'analysis/ocr-reference/README.md';
@@ -237,6 +238,8 @@ export interface RunCounts {
   currentNonNull: Record<string, number>;
   /** Null in counts written before Story 2.5b, which hold no fingerprints. */
   types: RunTypeTotals | null;
+  /** What the sum gates admitted, both column roles together; null in counts written before Story 2.5b. */
+  gates: GateCounts | null;
 }
 
 function count(value: unknown, file: string, where: string): number {
@@ -281,7 +284,26 @@ export function parseRunCounts(json: unknown, file: string): RunCounts {
     readerCommits: Object.fromEntries(Object.entries(commits).map(([k, v]) => [k, count(v, file, `documents.reader_commit.${k}`)])),
     currentNonNull: Object.fromEntries(Object.entries(nonNull).map(([k, v]) => [k, count(v, file, `columns.current.non_null.${k}`)])),
     types: fingerprints === undefined ? null : types(),
+    gates: gatesOf(),
   };
+
+  function gatesOf(): GateCounts | null {
+    const byRole = (['current', 'prior'] as const).map((name) => at(role(name), 'gates', `columns.${name}`));
+    if (byRole.every((g) => g === undefined)) return null;
+    const out = {} as GateCounts;
+    for (const gate of SUM_GATES) {
+      let admitted = 0;
+      let zero = 0;
+      for (const [i, g] of byRole.entries()) {
+        const where = `columns.${i === 0 ? 'current' : 'prior'}.gates.${gate}`;
+        const one = at(g, gate, where.replace(`.${gate}`, ''));
+        admitted += count(at(one, 'admitted', where), file, `${where}.admitted`);
+        zero += count(at(one, 'operand_counted_as_zero', where), file, `${where}.operand_counted_as_zero`);
+      }
+      out[gate] = { admitted, withOperandCountedAsZero: zero };
+    }
+    return out;
+  }
 }
 
 /** Story 2.5b's inputs: the state after Story 2.3b, before any Story 2.5b re-read. */
@@ -442,6 +464,25 @@ export function renderBeforeAfter(inputs: ReportInputs): string[] {
   return lines;
 }
 
+const GATE_NAME: Record<SumGate, string> = {
+  cost_lines: 'Cost lines against sum kostnader',
+  intangible_parts: 'Parts against sum immaterielle eiendeler',
+};
+
+/** What the sum gates admitted in the stored columns, both roles. */
+export function storedGateCounts(columns: readonly StoredColumn[]): GateCounts {
+  return gateCounts(
+    columns.map((c) => ({
+      digitsPassFields: c.digitsPassFields,
+      hasFigure: (field: string) => {
+        const f = SM2_FIELDS.find((name) => name === field);
+        if (f === undefined) throw new Error(`${field}: not a compared field`);
+        return (c.figuresOre.get(f) ?? null) !== null;
+      },
+    })),
+  );
+}
+
 const COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'nedskrivninger', 'annen_driftskostnad'] as const;
 
 /** "n of m (p %)" for the undetermined share, or the reason there is none. */
@@ -549,6 +590,29 @@ export function renderBeforeAfter25b(inputs: ReportInputs): string[] {
     `| Reference set: companies undetermined at their newest fingerprinted year | ${undeterminedOf(refBefore.companiesUndetermined, refBefore.companies)} | ${undeterminedOf(refAfter.companiesUndetermined, refAfter.companies)} |`,
     `| Story 2.1b run, local data: fingerprints undetermined | ${runCell(runBefore, (t) => [t.undetermined, t.fingerprints])} | ${runCell(runAfter, (t) => [t.undetermined, t.fingerprints])} |`,
     `| Story 2.1b run, local data: companies undetermined at their newest fingerprinted year | ${runCell(runBefore, (t) => [t.companiesUndetermined, t.companies])} | ${runCell(runAfter, (t) => [t.companiesUndetermined, t.companies])} |`,
+    '',
+  );
+
+  const gatesBefore = storedGateCounts(b.stored);
+  const gatesAfter = storedGateCounts(stored);
+  const runGates = (counts: RunCounts | null, gate: SumGate, pick: 'admitted' | 'withOperandCountedAsZero'): string => {
+    if (counts === null) return notYet;
+    if (counts.gates === null) return 'no gate then';
+    return `${counts.gates[gate][pick]}`;
+  };
+  push(
+    '### Figures the sum gates admitted',
+    '',
+    'A figure the digits-only pass gave for a line the plain pass refused, admitted because the lines summed to their plain-pass total: a field in a column\'s `digits_pass_fields` that is an operand of a gate. ' +
+      'It **rested on an operand counted as 0 (a blank row or no row)** when another operand of the same gate is NULL in the stored column: the gate counted that line as 0. ' +
+      'The stored data cannot tell a row printed with no figure in either pass from a line the document does not print, so the two are counted together. Both column roles, totals only.',
+    '',
+    '| Gate | Data set | Before: admitted | Before: on an operand counted as 0 | After: admitted | After: on an operand counted as 0 |',
+    '|---|---|---|---|---|---|',
+    ...SUM_GATES.flatMap((gate) => [
+      `| ${GATE_NAME[gate]} | Reference set | ${gatesBefore[gate].admitted} | ${gatesBefore[gate].withOperandCountedAsZero} | ${gatesAfter[gate].admitted} | ${gatesAfter[gate].withOperandCountedAsZero} |`,
+      `| ${GATE_NAME[gate]} | Story 2.1b run, local data | ${runGates(b.runBefore, gate, 'admitted')} | ${runGates(b.runBefore, gate, 'withOperandCountedAsZero')} | ${runGates(b.runAfter, gate, 'admitted')} | ${runGates(b.runAfter, gate, 'withOperandCountedAsZero')} |`,
+    ]),
     '',
   );
 

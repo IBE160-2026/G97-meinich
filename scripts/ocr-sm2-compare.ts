@@ -7,10 +7,17 @@
 // Every amount is a bigint: stored figures in øre (parseOre), transcribed
 // figures in whole kroner, compared as øre = kroner × 100. A blank cell and a
 // NULL column are absent, never 0.
+import { DOCUMENT_FIGURE_COLUMNS, type DocumentColumnRow, documentFigures } from '../src/engine/document-inputs.ts';
+import { type ApiSubtotals, apiSubtotalsFromRow, businessType, fingerprintOf } from '../src/engine/fingerprint.ts';
 import { parseOre } from '../src/engine/inputs.ts';
 import { type DrawnFiling, compareBytes, parseCsv } from './seed-format.ts';
 
-/** The 23 lines `read_document` targets (ingest/src/peerless_ingest/layout.py, TARGETS), in its order. */
+/**
+ * The 27 lines `read_document` targets (ingest/src/peerless_ingest/layout.py,
+ * TARGETS), in its order: the 23 of Story 2.1a, then the four parts of
+ * intangible assets of Story 2.5b (Meinich, 2026-11-01, Q2: measured like
+ * every other field).
+ */
 export const SM2_FIELDS = [
   'salgsinntekt',
   'sum_driftsinntekter',
@@ -35,8 +42,17 @@ export const SM2_FIELDS = [
   'sum_kortsiktig_gjeld',
   'sum_gjeld',
   'sum_egenkapital_gjeld',
+  'forskning_og_utvikling',
+  'konsesjoner_patenter',
+  'goodwill',
+  'utsatt_skattefordel',
 ] as const;
 export type Sm2Field = (typeof SM2_FIELDS)[number];
+
+/** The four parts of intangible assets, stored since Story 2.5b's migration. */
+export const SM2_PARTS = ['forskning_og_utvikling', 'konsesjoner_patenter', 'goodwill', 'utsatt_skattefordel'] as const satisfies readonly Sm2Field[];
+/** The fields compared before Story 2.5b: the report's Story 2.3b section counts these only. */
+export const SM2_FIELDS_BEFORE_2_5B: readonly Sm2Field[] = SM2_FIELDS.filter((f) => !(SM2_PARTS as readonly string[]).includes(f));
 
 export type Role = 'current' | 'prior';
 const ROLES: readonly Role[] = ['current', 'prior'];
@@ -85,6 +101,8 @@ export interface StoredDocument {
   layout: string;
   status: string;
   refusal: string | null;
+  /** The key-figures filing the document belongs to, or null. */
+  brregId: string | null;
 }
 
 export type CheckResult = 'pass' | 'fail' | 'not_evaluable';
@@ -320,12 +338,34 @@ export function transcriptionsBefore(
   return before;
 }
 
-/** seed/demo/document_column.csv (COPY csv with header), read by header name. NULL is an empty unquoted field. */
+/**
+ * Whether a document_column.csv was exported before Story 2.5b's migration:
+ * its header has none of the four parts' columns. Some but not all of them
+ * refuses.
+ */
+export function lacksPartColumns(text: string): boolean {
+  const [header] = parseCsv(text);
+  if (header === undefined) throw new Error('document_column.csv: no header');
+  const present = SM2_PARTS.filter((field) => header.includes(`${field}_ore`));
+  if (present.length !== 0 && present.length !== SM2_PARTS.length) {
+    throw new Error(`document_column.csv: only some of the parts' columns: ${present.join(', ')}`);
+  }
+  return present.length === 0;
+}
+
+/**
+ * seed/demo/document_column.csv (COPY csv with header), read by header name.
+ * NULL is an empty unquoted field. An export from before Story 2.5b's
+ * migration has no columns for the four parts of intangible assets
+ * (`lacksPartColumns`): they read as null, as step 1 then did not read
+ * them, and the report says so. Any other missing column refuses.
+ */
 export function parseStoredColumns(text: string): StoredColumn[] {
   const file = 'document_column.csv';
   const [header, ...rows] = parseCsv(text);
   if (header === undefined) throw new Error(`${file}: no header`);
-  const oreColumns = SM2_FIELDS.map((field) => `${field}_ore`);
+  const fields: readonly Sm2Field[] = lacksPartColumns(text) ? SM2_FIELDS_BEFORE_2_5B : SM2_FIELDS;
+  const oreColumns = fields.map((field) => `${field}_ore`);
   const at = indexOf(file, header, ['orgnr', 'filing_year', 'role', 'stated_year', 'status', ...CHECK_NAMES, ...oreColumns]);
   return rows.map((row, index) => {
     const line = index + 2;
@@ -346,6 +386,7 @@ export function parseStoredColumns(text: string): StoredColumn[] {
       },
       figuresOre: new Map(
         SM2_FIELDS.map((field) => {
+          if (!fields.includes(field)) return [field, null] as const;
           const value = cell(file, row, at, `${field}_ore`, line);
           return [field, parseOre(value === '' ? null : value)] as const;
         }),
@@ -359,18 +400,42 @@ export function parseStoredDocuments(text: string): StoredDocument[] {
   const file = 'document.csv';
   const [header, ...rows] = parseCsv(text);
   if (header === undefined) throw new Error(`${file}: no header`);
-  const at = indexOf(file, header, ['orgnr', 'filing_year', 'layout', 'status', 'refusal']);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'layout', 'status', 'refusal', 'brreg_id']);
   return rows.map((row, index) => {
     const line = index + 2;
     const refusal = cell(file, row, at, 'refusal', line);
+    const brregId = cell(file, row, at, 'brreg_id', line);
+    if (brregId !== '' && !/^\d+$/.test(brregId)) throw new Error(`${file} row ${line}: brreg_id must be blank or digits`);
     return {
       orgnr: orgnr(file, cell(file, row, at, 'orgnr', line), line),
       filingYear: year(file, cell(file, row, at, 'filing_year', line), line, 'filing_year'),
       layout: cell(file, row, at, 'layout', line),
       status: cell(file, row, at, 'status', line),
       refusal: refusal === '' ? null : refusal,
+      brregId: brregId === '' ? null : brregId,
     };
   });
+}
+
+/** seed/demo/key_figures.csv, read by header name: the two API subtotals the fingerprint reads, by brreg_id. */
+export function parseKeyFigureSubtotals(text: string): Map<string, ApiSubtotals> {
+  const file = 'key_figures.csv';
+  const [header, ...rows] = parseCsv(text);
+  if (header === undefined) throw new Error(`${file}: no header`);
+  const at = indexOf(file, header, ['brreg_id', 'sum_anleggsmidler_ore', 'sum_omloepsmidler_ore']);
+  const out = new Map<string, ApiSubtotals>();
+  rows.forEach((row, index) => {
+    const line = index + 2;
+    const value = (name: string) => {
+      const v = cell(file, row, at, name, line);
+      return v === '' ? null : v;
+    };
+    out.set(
+      cell(file, row, at, 'brreg_id', line),
+      apiSubtotalsFromRow({ sum_anleggsmidler_ore: value('sum_anleggsmidler_ore'), sum_omloepsmidler_ore: value('sum_omloepsmidler_ore') }),
+    );
+  });
+  return out;
 }
 
 // --- Classifying ---------------------------------------------------------------
@@ -688,9 +753,17 @@ export const BASELINE_FAILING: readonly string[] = [
 
 // --- Before and after Story 2.3b ---------------------------------------------------
 
-/** Each field's class counts, in SM2_FIELDS order. */
-export function classesByField(results: readonly FieldResult[]): { field: Sm2Field; counts: ClassCounts }[] {
-  return SM2_FIELDS.map((field) => ({ field, counts: countClasses(results.filter((r) => r.field === field)) }));
+/** Each field's class counts, in SM2_FIELDS order, over `fields` (every compared field by default). */
+export function classesByField(
+  results: readonly FieldResult[],
+  fields: readonly Sm2Field[] = SM2_FIELDS,
+): { field: Sm2Field; counts: ClassCounts }[] {
+  return fields.map((field) => ({ field, counts: countClasses(results.filter((r) => r.field === field)) }));
+}
+
+/** The results for `fields` only. */
+export function onlyFields(results: readonly FieldResult[], fields: readonly Sm2Field[]): FieldResult[] {
+  return results.filter((r) => fields.includes(r.field));
 }
 
 const resultKey = (r: FieldResult): string => `${r.orgnr}/${r.filingYear}/${r.role}/${r.field}/${r.readOre ?? 'null'}`;
@@ -724,4 +797,71 @@ export function totalShownRead(c: CheckedColumn): boolean {
 
 export function totalShownMissing(c: CheckedColumn): boolean {
   return c.c3 === 'not_evaluable' && c.c5 !== 'not_evaluable';
+}
+
+// --- Before and after Story 2.5b: the undetermined share ------------------------------
+
+/** Business types over stored columns: totals only, never a company (the labelled set, Meinich 2026-11-01). */
+export interface TypeTotals {
+  /** Current columns. */
+  columns: number;
+  /** Columns that give a fingerprint. */
+  fingerprints: number;
+  /** Fingerprints whose unknown categories allow more than one type. */
+  undetermined: number;
+  /** Companies with a fingerprint, each at its newest fingerprinted year. */
+  companies: number;
+  companiesUndetermined: number;
+}
+
+/** A stored column as `documentFigures` takes it: its status and every figure column, as øre strings. */
+export function documentColumnRow(column: StoredColumn): DocumentColumnRow {
+  const figures = Object.fromEntries(
+    Object.values(DOCUMENT_FIGURE_COLUMNS).map((name) => {
+      const field = SM2_FIELDS.find((f) => `${f}_ore` === name);
+      if (field === undefined) throw new Error(`${name}: not a compared field`);
+      const value = column.figuresOre.get(field) ?? null;
+      return [name, value === null ? null : value.toString()];
+    }),
+  );
+  return { status: column.status, ...figures } as DocumentColumnRow;
+}
+
+/**
+ * Each current column's fingerprint, with the engine (fingerprintOf,
+ * businessType) and the API subtotals of the document's key-figures filing
+ * (none when the document has no brreg_id or the seed no such filing), as
+ * `pnpm derive` computes it. Totals only.
+ */
+export function typeTotals(
+  columns: readonly StoredColumn[],
+  documents: readonly StoredDocument[],
+  subtotals: ReadonlyMap<string, ApiSubtotals>,
+): TypeTotals {
+  const brregIds = new Map(documents.map((d) => [`${d.orgnr}/${d.filingYear}`, d.brregId]));
+  const none: ApiSubtotals = { sumAnleggsmidler: null, sumOmloepsmidler: null };
+  const newest = new Map<string, { year: number; undetermined: boolean }>();
+  let current = 0;
+  let fingerprints = 0;
+  let undetermined = 0;
+  for (const column of columns) {
+    if (column.role !== 'current') continue;
+    current += 1;
+    const id = brregIds.get(`${column.orgnr}/${column.filingYear}`) ?? null;
+    const result = fingerprintOf(documentFigures(documentColumnRow(column)), (id === null ? undefined : subtotals.get(id)) ?? none);
+    if (result.kind !== 'fingerprint') continue;
+    fingerprints += 1;
+    const isUndetermined = businessType(result.fingerprint) === null;
+    if (isUndetermined) undetermined += 1;
+    const seen = newest.get(column.orgnr);
+    if (seen === undefined || column.filingYear > seen.year) newest.set(column.orgnr, { year: column.filingYear, undetermined: isUndetermined });
+  }
+  const companies = [...newest.values()];
+  return {
+    columns: current,
+    fingerprints,
+    undetermined,
+    companies: companies.length,
+    companiesUndetermined: companies.filter((c) => c.undetermined).length,
+  };
 }

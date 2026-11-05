@@ -11,7 +11,10 @@
 //   reference filings, committed by `pnpm seed:export` (the reference orgnrs
 //   are on seed/allow-list.json);
 // - analysis/output/ocr-consistency-2026.json: the spike's 2021–2025
-//   filings read again by analysis/ocr/consistency.py in step 1's image.
+//   filings read again by analysis/ocr/consistency.py in step 1's image;
+// - seed/demo/key_figures.csv: the API subtotals the fingerprint reads, for
+//   the undetermined share of Story 2.5b's section;
+// - the before copies and run counts under analysis/output/ named below.
 //
 // Writes analysis/output/ocr-sm2.md. Amounts and percentages go through
 // src/engine/format.ts; every amount is a bigint, never a float. The
@@ -22,6 +25,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Decimal } from '../src/engine/decimal.ts';
+import type { ApiSubtotals } from '../src/engine/fingerprint.ts';
 import { formatKroner, formatPercent } from '../src/engine/format.ts';
 import {
   BASELINE,
@@ -38,8 +42,11 @@ import {
   ORE_PER_KRONE,
   RECENT_FROM,
   SM2_FIELDS,
+  SM2_FIELDS_BEFORE_2_5B,
+  SM2_PARTS,
   type StoredColumn,
   type StoredDocument,
+  type TypeTotals,
   baselineDiff,
   checkBaselineCoverage,
   classesByField,
@@ -48,10 +55,13 @@ import {
   countClasses,
   countNotRead,
   groupOf,
+  lacksPartColumns,
   mismatches,
   misreadsReachingEngine,
   newResults,
+  onlyFields,
   parseCorrections,
+  parseKeyFigureSubtotals,
   phantomsReachingEngine,
   parseStoredColumns,
   parseStoredDocuments,
@@ -60,6 +70,7 @@ import {
   totalShownMissing,
   totalShownRead,
   transcriptionsBefore,
+  typeTotals,
 } from './ocr-sm2-compare.ts';
 import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, parseDrawn } from './seed-format.ts';
 
@@ -198,6 +209,21 @@ export const BEFORE_2_3B_DIR = 'analysis/output/ocr-sm2-before-2.3b';
 export const RUN_COUNTS_BEFORE_FILE = 'analysis/output/document-run-counts-before-2.3b.json';
 export const RUN_COUNTS_AFTER_FILE = 'analysis/output/document-run-counts-after-2.3b.json';
 
+// Story 2.5b: the committed seed's document rows as they stood before any
+// Story 2.5b re-read (the state after Story 2.3b), copied byte for byte, and
+// the 2.1b run's counts before and after its re-read.
+export const BEFORE_2_5B_DIR = 'analysis/output/ocr-sm2-before-2.5b';
+export const RUN_COUNTS_BEFORE_2_5B_FILE = 'analysis/output/document-run-counts-before-2.5b.json';
+export const RUN_COUNTS_AFTER_2_5B_FILE = 'analysis/output/document-run-counts-after-2.5b.json';
+
+/** The stored fingerprints by business type, from a counts JSON written since Story 2.5b. */
+export interface RunTypeTotals {
+  fingerprints: number;
+  undetermined: number;
+  companies: number;
+  companiesUndetermined: number;
+}
+
 /** What the report reads from a document-run-counts JSON (scripts/document-run-counts.ts). */
 export interface RunCounts {
   documents: number;
@@ -207,6 +233,10 @@ export interface RunCounts {
   priorTotalRead: number;
   currentReconciled: number;
   readerCommits: Record<string, number>;
+  /** Non-NULL figures per field in the current columns; a field the counts predate is absent. */
+  currentNonNull: Record<string, number>;
+  /** Null in counts written before Story 2.5b, which hold no fingerprints. */
+  types: RunTypeTotals | null;
 }
 
 function count(value: unknown, file: string, where: string): number {
@@ -226,6 +256,21 @@ export function parseRunCounts(json: unknown, file: string): RunCounts {
   const documents = at(json, 'documents', '.');
   const commits = at(documents, 'reader_commit', 'documents');
   if (!isRecord(commits)) throw new Error(`${file}: documents.reader_commit must be an object`);
+  const nonNull = at(role('current'), 'non_null', 'columns.current');
+  if (!isRecord(nonNull)) throw new Error(`${file}: columns.current.non_null must be an object`);
+  const fingerprints = isRecord(json) ? json.fingerprints : undefined;
+  const typeCount = (group: unknown, key: string, where: string) => count(at(group, key, where), file, `${where}.${key}`);
+  const types = (): RunTypeTotals => {
+    const byType = at(fingerprints, 'types', 'fingerprints');
+    const companies = at(fingerprints, 'companies', 'fingerprints');
+    if (!isRecord(companies)) throw new Error(`${file}: fingerprints.companies must be an object`);
+    return {
+      fingerprints: count(at(fingerprints, 'total', 'fingerprints'), file, 'fingerprints.total'),
+      undetermined: typeCount(byType, 'undetermined', 'fingerprints.types'),
+      companies: Object.entries(companies).reduce((sum, [k, v]) => sum + count(v, file, `fingerprints.companies.${k}`), 0),
+      companiesUndetermined: typeCount(companies, 'undetermined', 'fingerprints.companies'),
+    };
+  };
   return {
     documents: count(at(documents, 'total', 'documents'), file, 'documents.total'),
     currentColumns: count(at(role('current'), 'columns', 'columns.current'), file, 'columns.current.columns'),
@@ -234,7 +279,22 @@ export function parseRunCounts(json: unknown, file: string): RunCounts {
     priorTotalRead: total('prior'),
     currentReconciled: count(at(at(role('current'), 'status', 'columns.current'), 'reconciled', 'columns.current.status') ?? 0, file, 'columns.current.status.reconciled'),
     readerCommits: Object.fromEntries(Object.entries(commits).map(([k, v]) => [k, count(v, file, `documents.reader_commit.${k}`)])),
+    currentNonNull: Object.fromEntries(Object.entries(nonNull).map(([k, v]) => [k, count(v, file, `columns.current.non_null.${k}`)])),
+    types: fingerprints === undefined ? null : types(),
   };
+}
+
+/** Story 2.5b's inputs: the state after Story 2.3b, before any Story 2.5b re-read. */
+export interface Story25bInputs {
+  /** The corrected transcriptions against the stored columns before Story 2.5b. */
+  comparison: Comparison;
+  stored: readonly StoredColumn[];
+  documents: readonly StoredDocument[];
+  /** The before copy was exported before Story 2.5b's migration: no part columns. */
+  lacksParts: boolean;
+  runBefore: RunCounts;
+  /** Null until the re-read of the 2.1b rows has been counted. */
+  runAfter: RunCounts | null;
 }
 
 export interface StoryBInputs {
@@ -262,15 +322,27 @@ export interface ReportInputs {
   consistency: Consistency;
   /** Story 2.3's output, for the section "Before and after Story 2.3b". */
   before23b: StoryBInputs;
+  /** The state before Story 2.5b: "after" of the Story 2.3b section, "before" of the Story 2.5b section. */
+  before25b: Story25bInputs;
+  /** The committed seed was exported before Story 2.5b's migration, so it holds no part columns. */
+  seedLacksParts: boolean;
+  /** The API subtotals by brreg_id (seed/demo/key_figures.csv), for the fingerprints. */
+  subtotals: ReadonlyMap<string, ApiSubtotals>;
 }
 
 const ratio = (part: number, whole: number): string => `${part} of ${whole} (${share(part, whole)})`;
 
-/** The section "Before and after Story 2.3b" (the bold balance total). */
+/**
+ * The section "Before and after Story 2.3b" (the bold balance total). Its
+ * "after" is the state Story 2.3b left, which Story 2.5b copied before its
+ * own re-read (`BEFORE_2_5B_DIR`), over the 23 fields compared then, so a
+ * later re-read does not move this section.
+ */
 export function renderBeforeAfter(inputs: ReportInputs): string[] {
-  const { comparison, stored, consistency, before23b: b } = inputs;
-  const before = b.comparison.results;
-  const after = comparison.results;
+  const { consistency, before23b: b, before25b } = inputs;
+  const stored = before25b.stored;
+  const before = onlyFields(b.comparison.results, SM2_FIELDS_BEFORE_2_5B);
+  const after = onlyFields(before25b.comparison.results, SM2_FIELDS_BEFORE_2_5B);
   const lines: string[] = [];
   const push = (...more: string[]) => lines.push(...more);
   const refBefore = { current: totalReadIn(b.stored, 'current'), prior: totalReadIn(b.stored, 'prior') };
@@ -286,8 +358,8 @@ export function renderBeforeAfter(inputs: ReportInputs): string[] {
     '## Before and after Story 2.3b',
     '',
     'Story 2.3b reads the bold "SUM EGENKAPITAL OG GJELD" row, which Tesseract reads as "50M EGENKAPITAL OG GJELD", with a second label fold (`layout.fold_mixed`), and re-reads every stored document (`pnpm ingest --reread`). ' +
-      `"Before" is Story 2.3's output, copied byte for byte into \`${BEFORE_2_3B_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_FILE}\`; "after" is the committed seed, \`${CONSISTENCY_FILE}\` and \`${RUN_COUNTS_AFTER_FILE}\`. ` +
-      'Both are compared with the corrected transcriptions.',
+      `"Before" is Story 2.3's output, copied byte for byte into \`${BEFORE_2_3B_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_FILE}\`; "after" is the seed as Story 2.3b left it, copied into \`${BEFORE_2_5B_DIR}/\` before Story 2.5b's re-read, \`${CONSISTENCY_FILE}\` and \`${RUN_COUNTS_AFTER_FILE}\`. ` +
+      `Both are compared with the corrected transcriptions, over the ${SM2_FIELDS_BEFORE_2_5B.length} fields compared then.`,
     '',
     '### "Sum egenkapital og gjeld" read',
     '',
@@ -318,6 +390,93 @@ export function renderBeforeAfter(inputs: ReportInputs): string[] {
     `| After | ${spikeNow.all} | ${spikeNow.evaluable} | ${spikeNow.pass} | ${share(spikeNow.pass, spikeNow.evaluable)} | ${spikeNow.reconciled} |`,
     '',
   );
+
+  push(
+    '### The reference set, every class',
+    '',
+    CLASS_TABLE_HEADER,
+    '|---|---|---|---|---|---|---|---|',
+    classRow('Before', before),
+    classRow('After', after),
+    '',
+    'Per field, before → after:',
+    '',
+    '| Field | correct | not read | misread | phantom |',
+    '|---|---|---|---|---|',
+    ...classesByField(before, SM2_FIELDS_BEFORE_2_5B).map(({ field, counts }, i) => {
+      const now = classesByField(after, SM2_FIELDS_BEFORE_2_5B)[i]?.counts ?? counts;
+      const cell = (name: keyof typeof counts) => (counts[name] === now[name] ? `${now[name]}` : `${counts[name]} → ${now[name]}`);
+      return `| ${field} | ${cell('correct')} | ${cell('not read')} | ${cell('misread')} | ${cell('phantom')} |`;
+    }),
+    '',
+  );
+
+  const misreadsBefore = misreadsReachingEngine(before);
+  const misreadsAfter = misreadsReachingEngine(after);
+  const phantomsBefore = phantomsReachingEngine(before);
+  const phantomsAfter = phantomsReachingEngine(after);
+  const fresh = [...newResults(misreadsBefore, misreadsAfter), ...newResults(phantomsBefore, phantomsAfter)];
+  push(
+    '### Errors that reach the engine, before and after',
+    '',
+    'More figures read must not be paid for with new errors. Misread and phantom figures in reconciled columns of the drawn filings:',
+    '',
+    '| | Before | After |',
+    '|---|---|---|',
+    `| Misread, reaching the engine | ${misreadsBefore.length} | ${misreadsAfter.length} |`,
+    `| Phantom, reaching the engine | ${phantomsBefore.length} | ${phantomsAfter.length} |`,
+    '',
+    'New ones (after, not before):',
+    '',
+  );
+  if (fresh.length === 0) {
+    push('None.', '');
+  } else {
+    push(
+      '| Orgnr | Year | Column | Field | Expected | Read | Class | Column status |',
+      '|---|---|---|---|---|---|---|---|',
+      ...fresh.map(resultRow),
+      '',
+    );
+  }
+  return lines;
+}
+
+const COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'nedskrivninger', 'annen_driftskostnad'] as const;
+
+/** "n of m (p %)" for the undetermined share, or the reason there is none. */
+const undeterminedOf = (part: number, whole: number): string => (whole === 0 ? 'none' : ratio(part, whole));
+
+/**
+ * The section "Before and after Story 2.5b" (the cost lines and the parts of
+ * intangible assets): every class per field, the errors that reach the
+ * engine with each new one listed, and the undetermined share of the
+ * fingerprints. Totals only: eight reference-set companies are in Story
+ * 5.1's labelled set, so no fingerprint result is tied to an orgnr.
+ */
+export function renderBeforeAfter25b(inputs: ReportInputs): string[] {
+  const { comparison, stored, documents, subtotals, before25b: b } = inputs;
+  const before = b.comparison.results;
+  const after = comparison.results;
+  const lines: string[] = [];
+  const push = (...more: string[]) => lines.push(...more);
+  const notYet = 'not yet counted';
+
+  push(
+    '## Before and after Story 2.5b',
+    '',
+    'Story 2.5b reads the cost lines in their other printed wordings (the depreciation row, plurals, note references read as letters), reads the four printed parts of intangible assets as fields of their own, ' +
+      'and admits a digits-only figure of a cost line or a part through a sum gate (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), then re-reads every stored document. ' +
+      `"Before" is the committed seed as Story 2.3b left it, copied byte for byte into \`${BEFORE_2_5B_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_2_5B_FILE}\`; "after" is the committed seed and \`${RUN_COUNTS_AFTER_2_5B_FILE}\`. ` +
+      'Both are compared with the corrected transcriptions, over every compared field.',
+    '',
+  );
+  if (b.lacksParts) {
+    push(
+      `- **The parts before.** The before copy was exported before Story 2.5b's migration and has no columns for ${SM2_PARTS.join(', ')}: step 1 did not read them, so every transcribed part counts as not read before.`,
+      '',
+    );
+  }
 
   push(
     '### The reference set, every class',
@@ -367,6 +526,48 @@ export function renderBeforeAfter(inputs: ReportInputs): string[] {
       '',
     );
   }
+
+  const refBefore: TypeTotals = typeTotals(b.stored, b.documents, subtotals);
+  const refAfter: TypeTotals = typeTotals(stored, documents, subtotals);
+  const runBefore = b.runBefore.types;
+  const runAfter = b.runAfter === null ? null : b.runAfter.types;
+  const runCell = (t: RunTypeTotals | null, pick: (t: RunTypeTotals) => [number, number]) => {
+    if (t === null) return notYet;
+    const [part, whole] = pick(t);
+    return undeterminedOf(part, whole);
+  };
+  push(
+    '### Fingerprints without a business type',
+    '',
+    'A fingerprint is undetermined when its unknown categories (an empty line spanning bands) allow more than one business type (Story 2.5). Totals only: no company is named. ' +
+      `The reference set's fingerprints are computed here from every stored current column of its companies, with the engine (\`fingerprintOf\`, \`businessType\`) and the API subtotals of \`${SEED_DIR}/key_figures.csv\`, as \`pnpm derive\` computes them; the Story 2.1b run's come from the counts files, read from \`register.fingerprint\`.`,
+    '',
+    '| | Before | After |',
+    '|---|---|---|',
+    `| Reference set: current columns | ${refBefore.columns} | ${refAfter.columns} |`,
+    `| Reference set: fingerprints undetermined | ${undeterminedOf(refBefore.undetermined, refBefore.fingerprints)} | ${undeterminedOf(refAfter.undetermined, refAfter.fingerprints)} |`,
+    `| Reference set: companies undetermined at their newest fingerprinted year | ${undeterminedOf(refBefore.companiesUndetermined, refBefore.companies)} | ${undeterminedOf(refAfter.companiesUndetermined, refAfter.companies)} |`,
+    `| Story 2.1b run, local data: fingerprints undetermined | ${runCell(runBefore, (t) => [t.undetermined, t.fingerprints])} | ${runCell(runAfter, (t) => [t.undetermined, t.fingerprints])} |`,
+    `| Story 2.1b run, local data: companies undetermined at their newest fingerprinted year | ${runCell(runBefore, (t) => [t.companiesUndetermined, t.companies])} | ${runCell(runAfter, (t) => [t.companiesUndetermined, t.companies])} |`,
+    '',
+  );
+
+  const runFields = [...COST_LINES, ...SM2_PARTS];
+  const nonNull = (counts: RunCounts | null, field: string): string => {
+    if (counts === null) return notYet;
+    const n = counts.currentNonNull[field];
+    return n === undefined ? 'not a field then' : ratio(n, counts.currentColumns);
+  };
+  push(
+    '### The Story 2.1b run, local data: cost lines and parts read',
+    '',
+    `Current columns holding a figure, of all current columns. The run's ${b.runBefore.documents} documents are in the local database and a gitignored dump, not in the seed, until Story 5.4's allow-list; these counts come from \`pnpm analysis:document-run\` and cannot be reproduced from a fresh clone.`,
+    '',
+    '| Field | Before | After |',
+    '|---|---|---|',
+    ...runFields.map((field) => `| ${field} | ${nonNull(b.runBefore, field)} | ${nonNull(b.runAfter, field)} |`),
+    '',
+  );
   return lines;
 }
 
@@ -417,6 +618,11 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     `- Each filing has two columns (this year, last year), and each column the ${SM2_FIELDS.length} lines \`read_document\` targets. ` +
       'Only the drawn (orgnr, filing year) pairs are compared; the other documents step 1 stored for the same companies are left out.',
     '- Stored øre are compared exactly with the transcribed kroner × 100. A blank cell or a NULL figure is absent, never 0.',
+    ...(inputs.seedLacksParts
+      ? [
+          `- **The committed seed predates Story 2.5b's migration**: it has no columns for ${SM2_PARTS.join(', ')}, so every transcribed part counts as not read in the sections below.`,
+        ]
+      : []),
     '',
     '## Recent and older filings',
     '',
@@ -613,6 +819,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
     '',
   );
   push(...renderBeforeAfter(inputs));
+  push(...renderBeforeAfter25b(inputs));
   return lines.join('\n');
 }
 
@@ -621,7 +828,11 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
 export function readInputs(root: string): ReportInputs {
   const read = (relative: string) => readFileSync(path.join(root, ...relative.split('/')), 'utf8');
   const drawn = parseDrawn(JSON.parse(read(REFERENCE_DRAW_FILE)));
-  const stored = parseStoredColumns(read(`${SEED_DIR}/document_column.csv`));
+  const storedText = read(`${SEED_DIR}/document_column.csv`);
+  const stored = parseStoredColumns(storedText);
+  const before25bText = read(`${BEFORE_2_5B_DIR}/document_column.csv`);
+  const before25bStored = parseStoredColumns(before25bText);
+  const after25bFile = path.join(root, ...RUN_COUNTS_AFTER_2_5B_FILE.split('/'));
   const transcribed = parseTranscriptions(read(TRANSCRIPTIONS_FILE));
   const corrections = parseCorrections(read(CORRECTIONS_FILE));
   const beforeStored = parseStoredColumns(read(`${BEFORE_2_3B_DIR}/document_column.csv`));
@@ -654,6 +865,18 @@ export function readInputs(root: string): ReportInputs {
       // is re-read; until then the report says "not yet counted".
       runAfter: existsSync(afterFile) ? parseRunCounts(JSON.parse(read(RUN_COUNTS_AFTER_FILE)), RUN_COUNTS_AFTER_FILE) : null,
     },
+    before25b: {
+      comparison: compareReference(drawn, transcribed, before25bStored),
+      stored: before25bStored,
+      documents: parseStoredDocuments(read(`${BEFORE_2_5B_DIR}/document.csv`)),
+      lacksParts: lacksPartColumns(before25bText),
+      runBefore: parseRunCounts(JSON.parse(read(RUN_COUNTS_BEFORE_2_5B_FILE)), RUN_COUNTS_BEFORE_2_5B_FILE),
+      // Written by `pnpm analysis:document-run after-2.5b` once the 2.1b rows
+      // are re-read; until then the report says "not yet counted".
+      runAfter: existsSync(after25bFile) ? parseRunCounts(JSON.parse(read(RUN_COUNTS_AFTER_2_5B_FILE)), RUN_COUNTS_AFTER_2_5B_FILE) : null,
+    },
+    seedLacksParts: lacksPartColumns(storedText),
+    subtotals: parseKeyFigureSubtotals(read(`${SEED_DIR}/key_figures.csv`)),
   };
 }
 

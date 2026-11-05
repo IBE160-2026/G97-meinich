@@ -143,7 +143,7 @@ context:
 - [x] Transcription template (C1): the four part columns in `transcriptions.csv`, the rows to fill named from the transcribed total only, no OCR value shown. **Wait: Meinich transcribes; the review session checks the sums; committed on its own**
 - [x] Watchdog and its tests, its own commit (C3)
 - [x] Probe script and its output, shown only after the transcription commit. **Checkpoint: Meinich approves the fix** (Spec Change Log)
-- [ ] `layout.py`/`documents.py` fixes and tests; the four parts in `TARGETS`, the parts-sum gate, `test_layout.py`/`test_documents.py`
+- [x] `layout.py`/`documents.py` fixes and tests; the four parts in `TARGETS`, the parts-sum gate, `test_layout.py`/`test_documents.py`
 - [ ] Migration (applied with `supabase migration up`, 2.1b rows kept), `DOCUMENT_FIGURE_COLUMNS`, fixtures, DB tests; the old-dump restore test and README restore command
 - [ ] `ocr-sm2` before/after 2.5b section and tests
 - [ ] Docs: `AGENTS.md`, `data-sources-brreg.md`, `key-figures.md` if a field is named there, `ai-log.md`, the session file, `deferred-work.md` (close both entries)
@@ -157,6 +157,18 @@ context:
 - Given any committed file or PR text, then no fingerprint result is tied to an orgnr of the labelled set.
 
 ## Implementation Notes
+
+- **F1–F3 as built** (`281f134`, `8c85ca8`).
+  - `layout.extract` runs in stages, each filling only a field no earlier stage matched: `TARGETS` under `fold`, then `fold_mixed` (unchanged); then the cost lines' `LATER_VARIANTS` with their old variants, on income-statement pages only, under `fold` and `fold_mixed`; then every variant under `fold_notes`. The parts match on balance pages only, in every stage. The old variants of `avskrivninger` and `nedskrivninger` keep matching on any statement page, as before, so nothing matched today can move.
+  - The gates are `documents.SUM_GATES` and `gate_admits`, called from `combine` only. "Matched" is a field some row with a number matched in either pass. A label printed with no figure in either column is no candidate row, so it counts as 0 in the gate (the probe's 2.1b `nedskrivninger` rows are all of this kind). A failing c1–c4 still drops every digits-only figure of the column, gated ones included.
+- **One label beyond F2's list: "Utvikling".** 979607008/2025 (the contract fixture) prints the first part as "Utvikling" under the heading "Immaterielle eiendeler", and so do at least three probe documents. The probe's label table missed it because it listed only labels folding to "forskning". `utvikling` is a variant of `forskning_og_utvikling`, balance pages only. Hand-checked against the fixture PDF on 2026-11-05: Utvikling 6 986 262 / 953 319, Konsesjoner 36 250 / 60 417, Utsatt skattefordel 190 261 / 100 560, Goodwill 9 000 472 / 13 500 708, Sum 16 213 245 / 14 615 003. Goodwill 2024 is refused in the plain pass and enters through the parts-sum gate. **For Meinich to confirm or reject** in review.
+- **Regression check (F1 condition).** All 40 documents cached by the probe (`analysis/.cache/ocr/probe/*.words.json`), read with the code at `68cffbb` (from `git archive`) and with the new code, on the host, no OCR:
+  - `layout.extract`, plain and digits pass: 1 486 field matches by the old code, 1 486 with the same value in the new;
+  - `read_words`: every figure the old read gave is the same in the new, and c1–c4 are unchanged in every column. 0 differences.
+  - Figures the new read adds (totals over the 40 documents, both columns): avskrivninger 31, utsatt_skattefordel 26 (2 through the gate), lonnskostnad 17 (6 through the gate), annen_driftskostnad 12 (5 through the gate), forskning_og_utvikling 11 (1), konsesjoner_patenter 11 (1), goodwill 8, varekostnad 1 (through the gate).
+  - Of the probe's three wrongly grouped tokens, none is admitted. Every gate-admitted figure in a reference cell equals the transcription; the measurement itself waits for Meinich's two cells.
+- **Tests.** The I/O rows: `test_layout.py::test_intangible_parts_read`, `::test_intangible_part_not_sum`, `test_documents.py::test_intangible_part_recovered_only_through_gate`, `::test_cost_line_recovered_through_gate`. Probe-specific: `test_layout.py::test_depreciation_wordings`, `::test_depreciation_row_never_intangibles`, `::test_balance_row_never_depreciation` (F1's condition, both ways), `::test_plural_cost_lines`, `::test_note_reference_fold`, `::test_earlier_match_stands`. Each was run with its guard removed and failed: the gate in `combine`, `len(from_digits) != 1`, the not-evaluable branch for a matched unread row, a plain-only total, `TARGET_PAGES`, `LATER_PAGES`, the `fold_notes` stage, and the `utvikling` variant.
+- **"Lønnskostnad ll, 2, 3"** is matched at stage 3 already, by the fuzzy rule against the plural "lonnskostnader" (one character off), before `fold_notes`. The value is the same; `test_note_reference_fold` uses "Varekostnad ll, 3", which only `fold_notes` matches.
 
 ## Spec Change Log
 

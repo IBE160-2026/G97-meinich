@@ -36,6 +36,25 @@ Meinich's prompts, verbatim: "Takk - fant også noen andre relevante konkurrente
 - **Corrected against the analysis:** Biztrac's "AI workbench" was on none of the pages read; FirmaIQ was not found by search and recorded as unconfirmed, then confirmed from the link Meinich sent — a static prototype with PDF extraction and source-linked analysis, no peer comparison (`2b059c4`); Econ Intel is a text-based industry classification, not a peer-benchmarking product — recorded as independent support for the premise that industry codes are too coarse.
 - **Corrected in the main session's own advice:** it first said Proff Forvalt's AI analyses were still unconfirmed. `research-landscape.md` §4 already quotes the phrase from forvalt.no (2026-09-25), so that was wrong; the research file says so.
 
+## Commit hashes on `main`
+
+The hashes in this file, in `docs/ai-log.md` and in the session log are those of the cloud session's commits, which were never pushed. The patch series was applied on `origin/main` (`ce493ea`) on 2026-11-05 by the review session, at Meinich's decision, with `git am --committer-date-is-author-date`, as the hand-over instructions said. Every commit got a different hash than the instructions listed. The review session did not find the cause. Every post-image blob named in the patches exists after applying, so the file contents are the ones the patches name. The old hashes are left as written, and this table gives each one's commit on `main`:
+
+| Cloud session | On `main` | Commit |
+|---|---|---|
+| `c4d93d6` | `21ae99e` | PRD: bring in line with what Epics 1-2 built and decided |
+| `4337261` | `05ff1a2` | Technical note: fingerprint banding is settled for the build |
+| `8d46181` | `e67851f` | AGENTS.md: decisions travel upstream to the PRD in the same PR |
+| `8d8ab3a` | `8204a0e` | PRD review fixes: ten corrections from an independent fact-check |
+| `3347f41` | `46006ee` | Session file and AI log: PRD drift review 2026-11-04 |
+| `a67b359` | `b33bf41` | Logg: prd-drift |
+| `ede29b8` | `6d69bbb` | Brief and PRD: competitors re-checked, Empirion added |
+| `f2cd990` | `3d5a68c` | Session file and AI log: competitors checked before use |
+| `f45d867` | `14c33a3` | Logg: prd-drift |
+| `2b059c4` | `49a18ad` | Research: FirmaIQ confirmed as a static prototype |
+| `9c7d952` | `5eabc2c` | Session file and AI log: FirmaIQ correction |
+| `ddb4006` | `165e1cf` | Logg: prd-drift |
+
 ## Links
 - PRD: `_bmad-output/planning-artifacts/prds/prd-Peerless-2026-09-25/prd.md`, `.memlog.md` (entries of 2026-11-04)
 - `AGENTS.md`, "Specs, reviews and merging"; `.github/pull_request_template.md`

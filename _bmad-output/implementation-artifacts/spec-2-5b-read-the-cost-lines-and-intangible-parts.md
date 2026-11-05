@@ -141,8 +141,8 @@ context:
 - [x] Story 2.5b section in `epics.md`, `sprint-status.yaml` entry, GitHub issue
 - [x] Before inputs committed: `analysis/output/ocr-sm2-before-2.5b/` and `document-run-counts-before-2.5b.json`, with the undetermined totals
 - [ ] Transcription template (C1): the four part columns in `transcriptions.csv`, the rows to fill named from the transcribed total only, no OCR value shown. **Wait: Meinich transcribes; the review session checks the sums; committed on its own**
-- [ ] Watchdog and its tests, its own commit (C3)
-- [ ] Probe script and its output, shown only after the transcription commit. **Checkpoint: Meinich approves the fix** (Spec Change Log)
+- [x] Watchdog and its tests, its own commit (C3)
+- [x] Probe script and its output, shown only after the transcription commit. **Checkpoint: Meinich approves the fix** (Spec Change Log)
 - [ ] `layout.py`/`documents.py` fixes and tests; the four parts in `TARGETS`, the parts-sum gate, `test_layout.py`/`test_documents.py`
 - [ ] Migration (applied with `supabase migration up`, 2.1b rows kept), `DOCUMENT_FIGURE_COLUMNS`, fixtures, DB tests; the old-dump restore test and README restore command
 - [ ] `ocr-sm2` before/after 2.5b section and tests
@@ -159,6 +159,32 @@ context:
 ## Implementation Notes
 
 ## Spec Change Log
+
+- **2026-11-05, Meinich (probe checkpoint): F1–F3 approved, with conditions.**
+  - **Evidence:** the probe's report is `analysis/output/empty-lines-probe.md` (`bb9d4f4`). Its causes:
+    - **Refused figure tokens** (Q3: yes, a cause). Reference set 11 of 18 empty cost cells; 2.1b draw 5 of 20 empty `lonnskostnad`. Examples: bold "1" read as "l" (`l4 481 267`), a junk prefix (`H5 260 438`), wrong grouping (`8 605 8349`). The digits pass is wrong by an order of magnitude in 3 of the 11.
+    - **The depreciation wording.** "Avskrivning av / driftsmidler og / immaterielle eiendeler", or "Avskrivning", against the target "… på varige …": 17 of 17 reference cells.
+    - **Note references read as letters.** "Lønnskostnad ll, 2, 3".
+    - **Plurals.** "Lønnskostnader", "Andre driftskostnader".
+    - **Not fixed.** The bold total "Sum immaterielle eiendeler" with 0 read as `Ö` (10 of 10 reference cells, all transcribed 0), and lines with no similar row (probably not printed).
+  - **F1, labels.**
+    - New variants for `avskrivninger`, `nedskrivninger`, `lonnskostnad` and `annen_driftskostnad`.
+    - A third label fold, tried after `fold` and `fold_mixed` and never instead of them, drops trailing note-reference tokens (`l`, `ll`, digits, with a comma).
+    - **Condition:** the wrapped depreciation label ("Avskrivning på varige driftsmidler og / immaterielle eiendeler", and the "av" and short forms) matches only as a continuation on an income-statement page. Tested both ways: the depreciation row is never read as intangible assets in the balance, and a balance intangibles row is never read as depreciation.
+    - **Condition:** today's matching still matches everything it matches today, with the same value. Checked by the existing tests and by re-extracting every document cached by the probe (`analysis/.cache/ocr/probe/*.words.json`): each field the old extract found gives the same value. The result is recorded in the Implementation Notes.
+  - **F2, the four parts** are new targets, written from the probe's labels: "Forskning og utvikling"; "Konsesjoner, patenter o.l." and its wrapped form; "Goodwill"; "Utsatt skattefordel". Balance pages only. The English layout is not read.
+  - **F3, two sum gates** for the digits pass, in `combine` only, never in `column_status`:
+    - the five cost lines against `sum_driftskostnad`;
+    - the four parts against `sum_immaterielle_eiendeler`.
+  - **When a gate admits a digits-pass figure.** All of these must hold:
+    - every operand is present (a line with no matching row in the document counts as 0, in the gate only, and is never stored as 0);
+    - the total is read in the plain pass;
+    - at most one operand comes from the digits pass;
+    - the sum holds within the configured 5 kr.
+  - **A row that matched but whose figure was not read leaves the gate not evaluable.**
+  - **Tests use the probe's cases.** `l4 481 267` (digits pass 4 481 267, correct 14 481 267), `8 605 8349` and `3 804 3836` are each refused, and one correct case is admitted.
+  - **No figure is repaired.** `Ö` is never read as 0, and the line stays empty.
+  - **The measurement waits.** Meinich checks two transcription cells against the PDF, not blind, because the probe showed the OCR value: 922184534/2025 prior `lonnskostnad` and 927533235/2023 current `lonnskostnad`. The before/after measurement is not run until that is settled.
 
 ## Review Triage Log
 

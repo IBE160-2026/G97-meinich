@@ -1,0 +1,4405 @@
+{
+  "cells": [
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Avskrivning på varige",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5205479452054794
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            287102,
+            229202
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "885583822",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 170190,
+      "year": 2022
+    },
+    {
+      "cause": "refused",
+      "digits": 4481267,
+      "field": "varekostnad",
+      "fold": "kostnadervarekostnad",
+      "label": "Varekostnad",
+      "orgnr": "885583822",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "l4",
+        "481",
+        "267"
+      ],
+      "transcribed_kr": 14481267,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Avskrivning på varige",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5205479452054794
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            287102,
+            229202
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "885583822",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 171463,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            19689267,
+            21056735
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler",
+          "plain": [
+            1390183,
+            1216410
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "911561972",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 1390183,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            19689267,
+            21056735
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler",
+          "plain": [
+            1390183,
+            1216410
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "911561972",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 1216410,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            1395536,
+            1491210
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 3",
+          "plain": [
+            109500,
+            182118
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 3",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "912197905",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 109500,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            1395536,
+            1491210
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 3",
+          "plain": [
+            109500,
+            182118
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 3",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "912197905",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 182118,
+      "year": 2022
+    },
+    {
+      "cause": "refused",
+      "digits": 5260438,
+      "field": "annen_driftskostnad",
+      "fold": "nedskrivningavvarigedriftsmidlerogimmaterielleeiendelerannendriftskostnad",
+      "label": "Annen driftskostnad 2",
+      "orgnr": "912197905",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "H5",
+        "260",
+        "438"
+      ],
+      "transcribed_kr": 5260438,
+      "year": 2022
+    },
+    {
+      "cause": "refused",
+      "digits": 86058349,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnadl",
+      "label": "Lønnskostnad l, 2",
+      "orgnr": "915338534",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "8",
+        "605",
+        "8349"
+      ],
+      "transcribed_kr": 8605849,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "915338534",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": 1740688,
+      "field": "varekostnad",
+      "fold": "kostnadervarekostnad",
+      "label": "Varekostnad",
+      "orgnr": "915338534",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "l",
+        "740",
+        "688"
+      ],
+      "transcribed_kr": 1740688,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "915338534",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Avskrivning av driftsmidler 2",
+          "plain": [
+            200052,
+            225747
+          ],
+          "ratio": 0.6329113924050633
+        },
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler 2",
+          "plain": [
+            333000,
+            476437
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "915648479",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 200052,
+      "year": 2021
+    },
+    {
+      "cause": "refused",
+      "digits": 1621328,
+      "field": "annen_driftskostnad",
+      "fold": "annendriftskostnad",
+      "label": "Annen driftskostnad",
+      "orgnr": "915648479",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "l",
+        "621",
+        "328"
+      ],
+      "transcribed_kr": 1621328,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Avskrivning av driftsmidler 2",
+          "plain": [
+            200052,
+            225747
+          ],
+          "ratio": 0.6329113924050633
+        },
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler 2",
+          "plain": [
+            333000,
+            476437
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "915648479",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 225747,
+      "year": 2021
+    },
+    {
+      "cause": "refused",
+      "digits": 1677195,
+      "field": "annen_driftskostnad",
+      "fold": "annendriftskostnad",
+      "label": "Annen driftskostnad",
+      "orgnr": "917526729",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "l",
+        "677",
+        "195"
+      ],
+      "transcribed_kr": 1677195,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            64200,
+            11938
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            768767,
+            382467
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "918618716",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 64200,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            64200,
+            11938
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            768767,
+            382467
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "918618716",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 11938,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            95575,
+            null
+          ],
+          "ratio": 0.8421052631578947
+        },
+        {
+          "has_number": true,
+          "label": "Finanskostnader",
+          "plain": [
+            1364,
+            null
+          ],
+          "ratio": 0.6060606060606061
+        },
+        {
+          "has_number": true,
+          "label": "Datakostnader",
+          "plain": [
+            7602,
+            null
+          ],
+          "ratio": 0.5806451612903226
+        }
+      ],
+      "orgnr": "921716257",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 95575,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            97042461,
+            131784163
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 5",
+          "plain": [
+            59405139,
+            15118394
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 5",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "922184534",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 59405139,
+      "year": 2025
+    },
+    {
+      "cause": "refused",
+      "digits": 31285483,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnad",
+      "label": "Lønnskostnad",
+      "orgnr": "922184534",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "3l",
+        "285",
+        "483"
+      ],
+      "transcribed_kr": 31286483,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            97042461,
+            131784163
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 5",
+          "plain": [
+            59405139,
+            15118394
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 5",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "922184534",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 15118394,
+      "year": 2025
+    },
+    {
+      "cause": "refused",
+      "digits": 1448546,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnad",
+      "label": "Lønnskostnad 2",
+      "orgnr": "927533235",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "l",
+        "448",
+        "546"
+      ],
+      "transcribed_kr": 1448646,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            154127,
+            198899
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            38685,
+            42614
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "927533235",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 67977,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            154127,
+            198899
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            38685,
+            42614
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "927533235",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 40981,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "929151178",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "929151178",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "929481151",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2022
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "929481151",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            4628,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler 2",
+          "plain": [
+            37026,
+            null
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "929821092",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 4628,
+      "year": 2022
+    },
+    {
+      "cause": "refused",
+      "digits": 11978000,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnadl",
+      "label": "Lønnskostnad l, 2",
+      "orgnr": "936252710",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "ll",
+        "978",
+        "000"
+      ],
+      "transcribed_kr": 11978000,
+      "year": 2024
+    },
+    {
+      "cause": "refused",
+      "digits": 38043836,
+      "field": "annen_driftskostnad",
+      "fold": "annendriftskostnad",
+      "label": "Annen driftskostnad 4",
+      "orgnr": "936252710",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "3",
+        "804",
+        "3836"
+      ],
+      "transcribed_kr": 3804886,
+      "year": 2024
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "936252710",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2024
+    },
+    {
+      "cause": "refused",
+      "digits": 13216966,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnadl",
+      "label": "Lønnskostnad l, 2",
+      "orgnr": "936252710",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "l3",
+        "216",
+        "966"
+      ],
+      "transcribed_kr": 13216966,
+      "year": 2024
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "936252710",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2024
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "989081799",
+      "plain": null,
+      "role": "current",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2025
+    },
+    {
+      "cause": "refused",
+      "digits": null,
+      "field": "sum_immaterielle_eiendeler",
+      "fold": "sunimmaterielleeiendeler",
+      "label": "Sun immaterielle eiendeler",
+      "orgnr": "989081799",
+      "plain": null,
+      "role": "prior",
+      "set": "reference",
+      "tokens": [
+        "Ö"
+      ],
+      "transcribed_kr": 0,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            910924,
+            null
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 5",
+          "plain": [
+            891828,
+            815697
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "995318733",
+      "role": "current",
+      "set": "reference",
+      "transcribed_kr": 891828,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            910924,
+            null
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 5",
+          "plain": [
+            891828,
+            815697
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "995318733",
+      "role": "prior",
+      "set": "reference",
+      "transcribed_kr": 815697,
+      "year": 2021
+    },
+    {
+      "cause": "refused",
+      "digits": 953633,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnad",
+      "label": "Lønnskostnad 4",
+      "orgnr": "911737671",
+      "plain": null,
+      "role": "current",
+      "set": "2.1b",
+      "tokens": [
+        "HB",
+        "953",
+        "633"
+      ],
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad 4",
+          "plain": [
+            1536280,
+            990110
+          ],
+          "ratio": 0.3888888888888889
+        },
+        {
+          "has_number": false,
+          "label": "BALANSE - EIENDELER",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.37142857142857144
+        }
+      ],
+      "orgnr": "911737671",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "BALANSE - EIENDELER",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.36619718309859156
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad 4",
+          "plain": [
+            1536280,
+            990110
+          ],
+          "ratio": 0.3561643835616438
+        }
+      ],
+      "orgnr": "911737671",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "refused",
+      "digits": 12521273,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnadl",
+      "label": "Lønnskostnad l, 2",
+      "orgnr": "912787281",
+      "plain": null,
+      "role": "current",
+      "set": "2.1b",
+      "tokens": [
+        "l2",
+        "521",
+        "273"
+      ],
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            29523,
+            29953
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler",
+          "plain": [
+            7096,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "912787281",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            29523,
+            29953
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler",
+          "plain": [
+            7096,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "912787281",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            600315,
+            407915
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            454864,
+            306408
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            282,
+            388
+          ],
+          "ratio": 0.7142857142857143
+        }
+      ],
+      "orgnr": "913425251",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Sun kostnader 3",
+          "plain": [
+            15013689,
+            10109690
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "913425251",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            952473,
+            52273
+          ],
+          "ratio": 0.5066666666666667
+        },
+        {
+          "has_number": false,
+          "label": "Varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "913425251",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            952473,
+            52273
+          ],
+          "ratio": 0.5
+        },
+        {
+          "has_number": false,
+          "label": "Varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.4931506849315068
+        }
+      ],
+      "orgnr": "913425251",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            282,
+            388
+          ],
+          "ratio": 0.8
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6060606060606061
+        },
+        {
+          "has_number": true,
+          "label": "Driftsresultat",
+          "plain": [
+            602717,
+            414806
+          ],
+          "ratio": 0.5625
+        }
+      ],
+      "orgnr": "913425251",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            7295353,
+            12044654
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            5616512,
+            9385474
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            21794,
+            8121
+          ],
+          "ratio": 0.7142857142857143
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnader 3",
+          "plain": [
+            15309770,
+            null
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            90399,
+            80360
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            71380,
+            154679
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            90399,
+            80360
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            71380,
+            154679
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            3625900,
+            3297237
+          ],
+          "ratio": 0.8421052631578947
+        },
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            21794,
+            8121
+          ],
+          "ratio": 0.8
+        },
+        {
+          "has_number": true,
+          "label": "Annen finanskostnad",
+          "plain": [
+            623686,
+            346592
+          ],
+          "ratio": 0.7777777777777778
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            9792,
+            21794
+          ],
+          "ratio": 0.7142857142857143
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7
+        },
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            3004175,
+            3625900
+          ],
+          "ratio": 0.6451612903225806
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnader 3",
+          "plain": [
+            12736165,
+            15309770
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            92668,
+            90399
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            52751,
+            71380
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            92668,
+            90399
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            52751,
+            71380
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            3004175,
+            3625900
+          ],
+          "ratio": 0.8421052631578947
+        },
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            9792,
+            21794
+          ],
+          "ratio": 0.8
+        },
+        {
+          "has_number": true,
+          "label": "Annen finanskostnad",
+          "plain": [
+            448535,
+            623686
+          ],
+          "ratio": 0.7777777777777778
+        }
+      ],
+      "orgnr": "914085837",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnad ll, 2, 3",
+          "plain": [
+            3673524,
+            3231782
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "918543198",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            159225,
+            247567
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "918543198",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnad ll, 2, 3",
+          "plain": [
+            17724818,
+            13633603
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "921673310",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            51219,
+            49077
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            112448,
+            121342
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "921673310",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": 1654507,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnad",
+      "label": "Lønnskostnad 1",
+      "orgnr": "922201080",
+      "plain": null,
+      "role": "current",
+      "set": "2.1b",
+      "tokens": [
+        "l",
+        "654",
+        "507"
+      ],
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            13034603,
+            7767631
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            null,
+            865992
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "922201080",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            13034603,
+            7767631
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            null,
+            865992
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "922201080",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad 3",
+          "plain": [
+            2295005,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "927901013",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            1825782,
+            null
+          ],
+          "ratio": 0.5066666666666667
+        },
+        {
+          "has_number": false,
+          "label": "Varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "927901013",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            1825782,
+            null
+          ],
+          "ratio": 0.5
+        },
+        {
+          "has_number": false,
+          "label": "Varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.4931506849315068
+        }
+      ],
+      "orgnr": "927901013",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad",
+          "plain": [
+            1164433,
+            5570
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "928414116",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad",
+          "plain": [
+            1164433,
+            5570
+          ],
+          "ratio": 0.3888888888888889
+        },
+        {
+          "has_number": false,
+          "label": "BALANSE - EIENDELER",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.37142857142857144
+        }
+      ],
+      "orgnr": "928414116",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "BALANSE - EIENDELER",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.36619718309859156
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad",
+          "plain": [
+            1164433,
+            5570
+          ],
+          "ratio": 0.3561643835616438
+        }
+      ],
+      "orgnr": "928414116",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            -2629272,
+            null
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            -2629272,
+            null
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7
+        }
+      ],
+      "orgnr": "929286022",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnad ll, 2, 3",
+          "plain": [
+            2490911,
+            null
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad",
+          "plain": [
+            528172,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "929286022",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            22627,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            178672,
+            null
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "929286022",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            22627,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            178672,
+            null
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "929286022",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2022
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad",
+          "plain": [
+            208597,
+            0
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "931695630",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "931695630",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "931695630",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "refused",
+      "digits": 10118908,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnad",
+      "label": "Lønnskostnad 3, 4",
+      "orgnr": "937199090",
+      "plain": null,
+      "role": "current",
+      "set": "2.1b",
+      "tokens": [
+        "l0",
+        "118",
+        "908"
+      ],
+      "transcribed_kr": null,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            17354,
+            31023
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            1017343,
+            1130825
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "937199090",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            17354,
+            31023
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            1017343,
+            1130825
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "937199090",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            -44241684,
+            -28438805
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            -44241684,
+            -28438805
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            398233,
+            214596
+          ],
+          "ratio": 0.7142857142857143
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Sun kostnader",
+          "plain": [
+            80345336,
+            66454534
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            30563791,
+            25265952
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            30563791,
+            25265952
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            398233,
+            214596
+          ],
+          "ratio": 0.8
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6060606060606061
+        },
+        {
+          "has_number": true,
+          "label": "Driftsresultat",
+          "plain": [
+            -47514219,
+            -29898848
+          ],
+          "ratio": 0.5625
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            383259,
+            398233
+          ],
+          "ratio": 0.7142857142857143
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6153846153846154
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Sun kostnader",
+          "plain": [
+            99360371,
+            80345336
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            34244757,
+            30563791
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            34244757,
+            30563791
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Annen rentekostnad",
+          "plain": [
+            383259,
+            398233
+          ],
+          "ratio": 0.8
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6060606060606061
+        },
+        {
+          "has_number": true,
+          "label": "Driftsresultat",
+          "plain": [
+            -59948108,
+            -47514219
+          ],
+          "ratio": 0.5625
+        }
+      ],
+      "orgnr": "983594123",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "refused",
+      "digits": 1743196,
+      "field": "lonnskostnad",
+      "fold": "lonnskostnadl",
+      "label": "Lønnskostnad l, 2",
+      "orgnr": "985874581",
+      "plain": null,
+      "role": "current",
+      "set": "2.1b",
+      "tokens": [
+        "l",
+        "743",
+        "196"
+      ],
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5066666666666667
+        }
+      ],
+      "orgnr": "985874581",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Sum varige driftsmidler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5
+        }
+      ],
+      "orgnr": "985874581",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2024
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnad ll, 2, 3",
+          "plain": [
+            9929981,
+            null
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "986051155",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            2500481,
+            1039117
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 4",
+          "plain": [
+            594570,
+            361801
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "986051155",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2025
+    },
+    {
+      "cause": "unmatched",
+      "field": "varekostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            3649157,
+            2980380
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": true,
+          "label": "skattekostnad",
+          "plain": [
+            2846342,
+            2324696
+          ],
+          "ratio": 0.75
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7
+        }
+      ],
+      "orgnr": "992097000",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Lønnskostnader 1",
+          "plain": [
+            19024235,
+            15742897
+          ],
+          "ratio": 0.9230769230769231
+        },
+        {
+          "has_number": false,
+          "label": "finans kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "992097000",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            2592,
+            6708
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            6276939,
+            5660657
+          ],
+          "ratio": 0.43243243243243246
+        }
+      ],
+      "orgnr": "992097000",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            2592,
+            6708
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            6276939,
+            5660657
+          ],
+          "ratio": 0.4
+        }
+      ],
+      "orgnr": "992097000",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "annen_driftskostnad",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Andre driftskostnader",
+          "plain": [
+            6276939,
+            5660657
+          ],
+          "ratio": 0.8421052631578947
+        },
+        {
+          "has_number": true,
+          "label": "Andre finanskostnader",
+          "plain": [
+            null,
+            3041
+          ],
+          "ratio": 0.6842105263157895
+        },
+        {
+          "has_number": true,
+          "label": "Lønnskostnader 1",
+          "plain": [
+            19024235,
+            15742897
+          ],
+          "ratio": 0.625
+        }
+      ],
+      "orgnr": "992097000",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "Lønnskostnad 2",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 1.0
+        },
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "994176021",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            8417065,
+            7985960
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 3",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "994176021",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            8417065,
+            7985960
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": false,
+          "label": "immaterielle eiendeler 3",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "994176021",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2021
+    },
+    {
+      "cause": "unmatched",
+      "field": "lonnskostnad",
+      "nearest": [
+        {
+          "has_number": false,
+          "label": "finanskostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.7407407407407407
+        },
+        {
+          "has_number": false,
+          "label": "Kostnader",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.6666666666666666
+        },
+        {
+          "has_number": true,
+          "label": "Annen driftskostnad 3",
+          "plain": [
+            841774,
+            158956
+          ],
+          "ratio": 0.6666666666666666
+        }
+      ],
+      "orgnr": "997780973",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "avskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            17041,
+            20911
+          ],
+          "ratio": 0.5897435897435898
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            4100,
+            4100
+          ],
+          "ratio": 0.56
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.56
+        }
+      ],
+      "orgnr": "997780973",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    },
+    {
+      "cause": "unmatched",
+      "field": "nedskrivninger",
+      "nearest": [
+        {
+          "has_number": true,
+          "label": "Sun immaterielle eiendeler",
+          "plain": [
+            17041,
+            20911
+          ],
+          "ratio": 0.5822784810126582
+        },
+        {
+          "has_number": true,
+          "label": "immaterielle eiendeler 2",
+          "plain": [
+            4100,
+            4100
+          ],
+          "ratio": 0.5526315789473685
+        },
+        {
+          "has_number": false,
+          "label": "Immaterielle eiendeler",
+          "plain": [
+            null,
+            null
+          ],
+          "ratio": 0.5526315789473685
+        }
+      ],
+      "orgnr": "997780973",
+      "role": "current",
+      "set": "2.1b",
+      "transcribed_kr": null,
+      "year": 2023
+    }
+  ],
+  "draw": {
+    "documents": 20,
+    "seed": 20261105
+  },
+  "generated": "2026-11-05",
+  "parts": [
+    {
+      "digits": [
+        19636331,
+        21026514
+      ],
+      "fold": "konsesjonerpatenterol",
+      "label": "Konsesjoner, patenter o.l1.",
+      "orgnr": "911561972",
+      "plain": [
+        19636331,
+        21026514
+      ],
+      "tokens": [
+        [
+          "19",
+          "636",
+          "331"
+        ],
+        [
+          "21",
+          "026",
+          "514"
+        ]
+      ],
+      "year": 2024
+    },
+    {
+      "digits": [
+        52936,
+        30221
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 2",
+      "orgnr": "911561972",
+      "plain": [
+        52936,
+        30221
+      ],
+      "tokens": [
+        [
+          "52",
+          "936"
+        ],
+        [
+          "30",
+          "221"
+        ]
+      ],
+      "year": 2024
+    },
+    {
+      "digits": [
+        1395536,
+        1411210
+      ],
+      "fold": "utsattskattefordela",
+      "label": "Utsatt skattefordel å",
+      "orgnr": "912197905",
+      "plain": [
+        1395536,
+        null
+      ],
+      "tokens": [
+        [
+          "1",
+          "395",
+          "536"
+        ],
+        [
+          "l",
+          "411",
+          "210"
+        ]
+      ],
+      "year": 2022
+    },
+    {
+      "digits": [
+        333000,
+        476437
+      ],
+      "fold": "forskningogutvikling",
+      "label": "Forskning og utvikling",
+      "orgnr": "915648479",
+      "plain": [
+        333000,
+        476437
+      ],
+      "tokens": [
+        [
+          "333",
+          "000"
+        ],
+        [
+          "476",
+          "437"
+        ]
+      ],
+      "year": 2021
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 2",
+      "orgnr": "917526729",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2025
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 4",
+      "orgnr": "918618716",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2025
+    },
+    {
+      "digits": [
+        11790539,
+        28949094
+      ],
+      "fold": "konsesjonerpatenterol",
+      "label": "Konsesjoner, patenter o.l1.",
+      "orgnr": "922184534",
+      "plain": [
+        null,
+        28949094
+      ],
+      "tokens": [
+        [
+          "l1",
+          "790",
+          "539"
+        ],
+        [
+          "28",
+          "949",
+          "094"
+        ]
+      ],
+      "year": 2025
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "konsesjonerpatenter",
+      "label": "Konsesjoner, patenter,",
+      "orgnr": "927533235",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "konsesjonerpatenter",
+      "label": "Konsesjoner, patenter,",
+      "orgnr": "929151178",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        0,
+        0
+      ],
+      "fold": "goodwill",
+      "label": "Goodwill 3",
+      "orgnr": "929151178",
+      "plain": [
+        0,
+        0
+      ],
+      "tokens": [
+        [
+          "0"
+        ],
+        [
+          "0"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        0,
+        0
+      ],
+      "fold": "forskningogutvikling",
+      "label": "Forskning og utvikling",
+      "orgnr": "929481151",
+      "plain": [
+        0,
+        0
+      ],
+      "tokens": [
+        [
+          "0"
+        ],
+        [
+          "0"
+        ]
+      ],
+      "year": 2022
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "konsesjonerpatenter",
+      "label": "Konsesjoner, patenter,",
+      "orgnr": "929481151",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2022
+    },
+    {
+      "digits": [
+        0,
+        0
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel",
+      "orgnr": "929481151",
+      "plain": [
+        0,
+        0
+      ],
+      "tokens": [
+        [
+          "0"
+        ],
+        [
+          "0"
+        ]
+      ],
+      "year": 2022
+    },
+    {
+      "digits": [
+        0,
+        0
+      ],
+      "fold": "goodwill",
+      "label": "Goodwill",
+      "orgnr": "929481151",
+      "plain": [
+        0,
+        0
+      ],
+      "tokens": [
+        [
+          "0"
+        ],
+        [
+          "0"
+        ]
+      ],
+      "year": 2022
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 3",
+      "orgnr": "981564782",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2024
+    },
+    {
+      "digits": [
+        928686,
+        2751068
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 8",
+      "orgnr": "992036079",
+      "plain": [
+        928686,
+        2751068
+      ],
+      "tokens": [
+        [
+          "928",
+          "686"
+        ],
+        [
+          "2",
+          "751",
+          "068"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        233580,
+        295867
+      ],
+      "fold": "goodwill",
+      "label": "Goodwill 10",
+      "orgnr": "992036079",
+      "plain": [
+        233580,
+        295867
+      ],
+      "tokens": [
+        [
+          "233",
+          "580"
+        ],
+        [
+          "295",
+          "867"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        335452,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 4",
+      "orgnr": "995318733",
+      "plain": [
+        335452,
+        null
+      ],
+      "tokens": [
+        [
+          "335",
+          "452"
+        ],
+        []
+      ],
+      "year": 2021
+    },
+    {
+      "digits": [
+        29523,
+        29953
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 4",
+      "orgnr": "912787281",
+      "plain": [
+        29523,
+        29953
+      ],
+      "tokens": [
+        [
+          "29",
+          "523"
+        ],
+        [
+          "29",
+          "953"
+        ]
+      ],
+      "year": 2022
+    },
+    {
+      "digits": [
+        90399,
+        80360
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 6",
+      "orgnr": "914085837",
+      "plain": [
+        90399,
+        80360
+      ],
+      "tokens": [
+        [
+          "90",
+          "399"
+        ],
+        [
+          "80",
+          "360"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        92668,
+        90399
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 6",
+      "orgnr": "914085837",
+      "plain": [
+        92668,
+        90399
+      ],
+      "tokens": [
+        [
+          "92",
+          "668"
+        ],
+        [
+          "90",
+          "399"
+        ]
+      ],
+      "year": 2024
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "konsesjonerpatenter",
+      "label": "Konsesjoner, patenter,",
+      "orgnr": "921673310",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        51219,
+        49077
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 6, 7",
+      "orgnr": "921673310",
+      "plain": [
+        null,
+        49077
+      ],
+      "tokens": [
+        [
+          "5l",
+          "219"
+        ],
+        [
+          "49",
+          "077"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "konsesjonerpatenterol",
+      "label": "Konsesjoner, patenter o.l1. 2",
+      "orgnr": "922201080",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 3",
+      "orgnr": "922201080",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "goodwill",
+      "label": "Goodwill 2",
+      "orgnr": "922201080",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        17354,
+        31023
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 7",
+      "orgnr": "937199090",
+      "plain": [
+        17354,
+        31023
+      ],
+      "tokens": [
+        [
+          "17",
+          "354"
+        ],
+        [
+          "31",
+          "023"
+        ]
+      ],
+      "year": 2021
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "concessionspatentsand",
+      "label": "Concessions, patents and",
+      "orgnr": "983594123",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 6",
+      "orgnr": "983594123",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "concessionspatentsand",
+      "label": "Concessions, patents and",
+      "orgnr": "983594123",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2024
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 6",
+      "orgnr": "983594123",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2024
+    },
+    {
+      "digits": [
+        null,
+        null
+      ],
+      "fold": "konsesjonerpatenter",
+      "label": "Konsesjoner, patenter,",
+      "orgnr": "986051155",
+      "plain": [
+        null,
+        null
+      ],
+      "tokens": [
+        [],
+        []
+      ],
+      "year": 2025
+    },
+    {
+      "digits": [
+        76336,
+        null
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 5, 6",
+      "orgnr": "986051155",
+      "plain": [
+        76336,
+        null
+      ],
+      "tokens": [
+        [
+          "76",
+          "336"
+        ],
+        [
+          "O"
+        ]
+      ],
+      "year": 2025
+    },
+    {
+      "digits": [
+        2592,
+        6708
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 2",
+      "orgnr": "992097000",
+      "plain": [
+        2592,
+        6708
+      ],
+      "tokens": [
+        [
+          "2",
+          "592"
+        ],
+        [
+          "6",
+          "708"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        160161,
+        16325
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel 8",
+      "orgnr": "994176021",
+      "plain": [
+        160161,
+        16325
+      ],
+      "tokens": [
+        [
+          "160",
+          "161"
+        ],
+        [
+          "16",
+          "325"
+        ]
+      ],
+      "year": 2021
+    },
+    {
+      "digits": [
+        358,
+        128
+      ],
+      "fold": "utsattskattefordel",
+      "label": "Utsatt skattefordel",
+      "orgnr": "997780973",
+      "plain": [
+        358,
+        128
+      ],
+      "tokens": [
+        [
+          "358"
+        ],
+        [
+          "128"
+        ]
+      ],
+      "year": 2023
+    },
+    {
+      "digits": [
+        16683,
+        20783
+      ],
+      "fold": "goodwill",
+      "label": "Goodwill 2",
+      "orgnr": "997780973",
+      "plain": [
+        16683,
+        20783
+      ],
+      "tokens": [
+        [
+          "16",
+          "683"
+        ],
+        [
+          "20",
+          "783"
+        ]
+      ],
+      "year": 2023
+    }
+  ],
+  "tesseract": "tesseract 5.5.0"
+}

@@ -4,7 +4,7 @@
 
 ## Goal
 
-Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores figures as filed and accepts a column only when it reconciles; OCR accuracy is measured (SM-2) and a company the register withdraws (`410 Gone`) is deleted. Batch step 2 derives a business-model fingerprint (stage 4) and a model classification (stage 5), both into one shared set of business types. On the page, the Peers tab shows the five-stage funnel and why each peer is in it, the user can exclude a peer or widen the size band with every figure recomputed, and every missing figure states its reason. Status: 2.1a–2.5 are done; 2.5b (the cost lines and the parts of intangible assets, issue #45) is in review; 2.6 is next, then 2.7, 2.8, 2.9.
+Make the peer group something the user can judge and adjust. Batch step 1 reads the filed 2021–2025 documents by OCR, stores figures as filed and accepts a column only when it reconciles; OCR accuracy is measured (SM-2) and a company the register withdraws (`410 Gone`) is deleted. Batch step 2 derives a business-model fingerprint (stage 4) and a model classification (stage 5), both into one shared set of business types. On the page, the Peers tab shows the five-stage funnel and why each peer is in it, the user can exclude a peer or widen the size band with every figure recomputed, and every missing figure states its reason. Status: 2.1a–2.5b are done; 2.5c (refuse a digit read as two, and cost lines that do not sum) is next, then 2.6, 2.7, 2.8, 2.9.
 
 ## Stories
 
@@ -16,6 +16,7 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
 - Story 2.4: Withdrawn companies disappear
 - Story 2.5: The business-model fingerprint (stage 4)
 - Story 2.5b: Read the cost lines and the parts of intangible assets
+- Story 2.5c: Refuse a digit read as two, and cost lines that do not sum
 - Story 2.6: Classification (stage 5)
 - Story 2.7: The Peers tab shows why
 - Story 2.8: Adjust the peer group
@@ -29,6 +30,8 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
 - **Deletion.** Only `410 Gone` deletes a company, and the delete cascades; every table that references a company uses `ON DELETE CASCADE`, covered by Story 2.4's deletion test.
 - **The fingerprint (stage 4) is rules only, and D1 is locked** (Story 2.5): its bands, thresholds and type rule are not adjusted after data; Story 5.2 confirms or drops each band against the labelled set.
 - **Business types are fixed** (one set in `src/engine`): `produkt` (own software, licence or subscription), `konsulent` (hours/projects by own staff, staffing included), `forhandler` (resells others' products), `annet` (operations, hosting, holding, or none of the above). Not adjusted after data. A fingerprint whose unknown categories allow more than one type is *undetermined*: no type, not excluded, not `annet`.
+- **OCR corrections (2.5c).** A figure token narrower than its digit count at the page's character pitch is refused, never repaired. The cause of columns whose cost lines sum *under* `sum_driftskostnad` is found from the documents before anything is fixed. A possible `src/engine` rule: when every cost line is read and they miss `sum_driftskostnad` by more than 5 kr, no fingerprint, counted under a named reason (no re-read needed). The spec also decides whether `bankinnskudd`, `kundefordringer`, `salgsinntekt` and `leverandorgjeld` — lines no in-document check covers — get a check or are shown as unverified. Any re-read needs Meinich's yes first; misreads and phantoms reaching the engine on the reference set must not rise (SM-2 before/after, non-summing columns as totals). Must land before the labelled-set document run, so those companies are read once by the corrected reader.
+- **Labelled set is blind.** No committed file or PR text ties a fingerprint result to an orgnr of the labelled set.
 - **Classification (2.6).**
   - The model sees only name, secondary industry codes, statement of purpose and business description.
   - Its response schema is generated from the shared type set and has no free-text field; an answer outside the set is never coerced — the row is `failed` and the failure goes into step 2's run record.
@@ -42,7 +45,7 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
   - One present → it decides. Neither → stages 1–3 decide.
   - A signal missing for the subject counts as missing for every candidate.
   - Counts: stage 4 removes a candidate whose fingerprint gives another type unless its text gives the subject's type; stage 5 removes one whose text gives another type and that has no fingerprint. A test per case, including the subject missing each signal.
-- **Peers tab (2.7).** Funnel always shown, also below the 10-peer floor. "Hvorfor med" is deterministic from shared profile fields and takes no model output. "Grunnlag for treff" is exactly one of four, from one `src/engine` function, exhaustive: classified+fingerprinted → "Beskrivelse og regnskap" (✦); fingerprinted only → "Kun regnskap"; classified only → "Kun beskrivelse" (✦); neither → "Kun bransje og størrelse". The page payload carries no peer field beyond what is shown.
+- **Peers tab (2.7).** Precondition: the match basis of an undetermined peer (fingerprinted, no business type) is settled and recorded in the PRD before the story starts. Funnel always shown, also below the 10-peer floor. "Hvorfor med" is deterministic from shared profile fields and takes no model output. "Grunnlag for treff" is exactly one of four, from one `src/engine` function, exhaustive: classified+fingerprinted → "Beskrivelse og regnskap" (✦); fingerprinted only → "Kun regnskap"; classified only → "Kun beskrivelse" (✦); neither → "Kun bransje og størrelse". The page payload carries no peer field beyond what is shown.
 - **Peer adjustment (2.8).** Only the size band is loosenable (0.5–2× → 0.33–3× → 0.25–4×, bounds inclusive); comparability, legal form and geography never. No widening step may admit a candidate failing any of the six comparability fields. Nothing is written to any table. Peer-group assembly under 1 s (timed test); a figure must be able to cross the 10-peer floor both ways. A failed change keeps the last good URL and figures.
 - **Absence reasons (2.9).** Each figure is a value or an absence with exactly one reason — undefined, failed reconciliation, not in this dataset, below the floor — mapped to its UI state by an exhaustive switch. Zero/negative denominators or underivable components are undefined, never zero. Missing components are derived from stated totals in `src/engine` only, never stored by step 1. "Not in this dataset" comes from the manifest, never inferred from a missing row. A subject whose own filing failed reconciliation keeps the three API figures, its peer group and tabs; the twelve document figures are absent with that reason, nothing estimated.
 - **Every PR** states what could go wrong in its area and records it in `docs/ai-log.md`.
@@ -70,5 +73,7 @@ Make the peer group something the user can judge and adjust. Batch step 1 reads 
 
 - **2.5 → 2.6:** 2.6 reuses the type set unchanged, generates its response schema from it, and completes stage 4/5's combination rule; until then every text signal is absent and the fingerprint decides alone.
 - **2.6 → 2.7:** match basis and flagged count need stored classifications. 2.7 builds on the simple Peers list from Story 1.7. 2.8 builds on 2.7's list and the URL module's `ekskl`/`band`. 2.9 owns choosing each year's current column and the subject's benchmark filing.
+- **2.5c before the labelled-set document run and before 2.6:** it changes what reaches the fingerprint. 2.5c's item 4 settles the unchecked-lines question; 2.7 waits on the undetermined-peer match basis.
+- **Open, not owned by a story:** whether a dissolved company (`slettedato` set) stays a peer — nothing in the request path reads it yet; and the full 62.100 document run (about 190 hours) — v1 may ship on the demo data.
 - **Local data:** the 2.1b acceptance run's documents live only in the local database and a gitignored dump until Story 5.4; never delete them. The committed seed holds document rows only for allow-listed (OCR reference) orgnrs.
 - **Other epics:** Epic 3 renders the document rows that show 2.9's reasons; the adjusted-group explanation state belongs to Epic 4; Story 5.2 measures each funnel layer and confirms or drops each band; Story 5.4 writes the licence-gate file and the full allow-list.

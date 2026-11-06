@@ -11,14 +11,18 @@
 //   key-figures filing (through register.document.brreg_id) for the two API
 //   subtotals, and computes each fingerprint with the engine
 //   (src/engine/fingerprint.ts) from what documentFigures passes: only a
-//   reconciled column's figures.
+//   reconciled column's figures, and of those not a kundefordringer or
+//   bankinnskudd above the API's sum_omloepsmidler + 5 kr (R3, Story 2.5c:
+//   guardCurrentAssets), which the fingerprint reads as an empty line.
 // - Rebuilds the table in one transaction: TRUNCATE, then INSERT. It deletes
 //   nothing anywhere else.
 // - Each row stores the digest of its raw inputs (src/engine/digest.ts) and
 //   the dataset tag copied from the column.
-// - Prints counts: written, skipped by reason, and by business type,
-//   undetermined included, per fingerprint and per company (its newest
-//   fingerprinted year). Totals only, never a company. An input it cannot
+// - Prints counts: written, skipped by reason (Story 2.5c's
+//   cost_lines_short_of_total with how many have nedskrivninger empty), the
+//   figures R3 emptied, and by business type, undetermined included, per
+//   fingerprint and per company (its newest fingerprinted year). Totals only,
+//   never a company. An input it cannot
 //   read (a figure that is not a whole number, an unknown status or dataset)
 //   makes it exit 1 with nothing written.
 //
@@ -29,7 +33,9 @@ import { digest } from '../src/engine/digest.ts';
 import {
   DOCUMENT_FIGURE_COLUMNS,
   type DocumentColumnRow,
+  GUARDED_CURRENT_ASSETS,
   documentFigures,
+  guardCurrentAssets,
 } from '../src/engine/document-inputs.ts';
 import {
   BUSINESS_TYPES,
@@ -60,13 +66,16 @@ export type FingerprintRow = FingerprintColumns & {
   readonly dataset: 'demo' | 'full';
 };
 
-const SKIP_REASONS: readonly SkipReason[] = [
+export const SKIP_REASONS: readonly SkipReason[] = [
   'not_reconciled',
   'no_revenue',
   'cost_lines_short_of_total',
   'negative_unexplained',
   'negative_balance_remainder',
 ];
+
+/** The current asset lines R3 can empty. */
+export type GuardedLine = (typeof GUARDED_CURRENT_ASSETS)[number];
 
 /** Business type counts, with `undetermined` for a fingerprint whose categories allow more than one type. */
 export type TypeCounts = Record<BusinessType | 'undetermined', number>;
@@ -76,6 +85,10 @@ export type DeriveCounts = {
   readonly columns: number;
   readonly written: number;
   readonly skipped: Record<SkipReason, number>;
+  /** Of the columns skipped as cost_lines_short_of_total, those whose nedskrivninger is empty (counted as 0). */
+  readonly shortOfTotalNedskrivningerEmpty: number;
+  /** Figures R3 emptied: above the API's sum_omloepsmidler + 5 kr. */
+  readonly emptiedAboveApiSubtotal: Record<GuardedLine, number>;
   /** Per fingerprint (company and filing year). */
   readonly types: TypeCounts;
   /** Per company, at its newest fingerprinted year. */
@@ -119,14 +132,26 @@ function emptyTypes(): TypeCounts {
 export function deriveFingerprints(input: readonly DeriveInputRow[]): { rows: FingerprintRow[]; counts: DeriveCounts } {
   const rows: FingerprintRow[] = [];
   const skipped = Object.fromEntries(SKIP_REASONS.map((reason) => [reason, 0])) as Record<SkipReason, number>;
+  const emptied = Object.fromEntries(GUARDED_CURRENT_ASSETS.map((line) => [line, 0])) as Record<GuardedLine, number>;
+  let shortNedskrivningerEmpty = 0;
   const types = emptyTypes();
   const newest = new Map<string, { readonly year: number; readonly type: BusinessType | null }>();
 
   for (const column of input) {
     const dataset = datasetOf(column.dataset);
-    const result = fingerprintOf(documentFigures(column), apiSubtotalsFromRow(column));
+    const subtotals = apiSubtotalsFromRow(column);
+    const stored = documentFigures(column);
+    const figures = guardCurrentAssets(stored, 'current', subtotals.sumOmloepsmidler);
+    for (const line of GUARDED_CURRENT_ASSETS) {
+      if (figures[line] !== stored[line]) emptied[line] += 1;
+    }
+    const result = fingerprintOf(figures, subtotals);
     if (result.kind === 'skip') {
       skipped[result.reason] += 1;
+      const nedskrivninger = figures.nedskrivninger;
+      if (result.reason === 'cost_lines_short_of_total' && nedskrivninger.kind === 'value' && nedskrivninger.ore === null) {
+        shortNedskrivningerEmpty += 1;
+      }
       continue;
     }
     const type = businessType(result.fingerprint);
@@ -144,7 +169,18 @@ export function deriveFingerprints(input: readonly DeriveInputRow[]): { rows: Fi
 
   const companies = emptyTypes();
   for (const { type } of newest.values()) companies[type ?? 'undetermined'] += 1;
-  return { rows, counts: { columns: input.length, written: rows.length, skipped, types, companies } };
+  return {
+    rows,
+    counts: {
+      columns: input.length,
+      written: rows.length,
+      skipped,
+      shortOfTotalNedskrivningerEmpty: shortNedskrivningerEmpty,
+      emptiedAboveApiSubtotal: emptied,
+      types,
+      companies,
+    },
+  };
 }
 
 /** The summary `pnpm derive` prints: totals only. */
@@ -155,6 +191,8 @@ export function summaryLines(counts: DeriveCounts): string[] {
   return [
     `derive: ${counts.columns} current document columns read, ${counts.written} fingerprints written`,
     `  skipped: ${SKIP_REASONS.map((reason) => `${reason} ${counts.skipped[reason]}`).join(', ')}`,
+    `  cost_lines_short_of_total with nedskrivninger empty: ${counts.shortOfTotalNedskrivningerEmpty}`,
+    `  emptied above the API sum_omloepsmidler: ${GUARDED_CURRENT_ASSETS.map((line) => `${line} ${counts.emptiedAboveApiSubtotal[line]}`).join(', ')}`,
     typeLine('fingerprints by type', counts.types),
     typeLine(`companies by type (newest fingerprinted year, ${companies} companies)`, counts.companies),
   ];

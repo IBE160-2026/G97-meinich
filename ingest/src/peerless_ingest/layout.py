@@ -30,6 +30,16 @@ from the spike:
     as letters ("Lønnskostnad ll, 2, 3"). It is tried after `fold` and
     `fold_mixed`, never instead of them.
   Every match the earlier stages make stands, with the same value.
+- Story 2.5c (Meinich, 2026-11-06):
+  - R1, the width rule: a digit token narrower than `MIN_DIGIT_WIDTH` (0.6)
+    times its digit count times the page's character pitch is refused, in
+    both passes. Tesseract adds a digit to a leading group it reads one
+    glyph wide ("2 375 956" read as "23 375 956"); the probe measured
+    correct tokens at 0.76 or more, the misreads at 0.34-0.36
+    (analysis/output/cost-sum-probe.md);
+  - R4: `varer` matches on balance pages only, so the income statement's
+    inventory-change row ("... og ferdig tilvirkede varer") is never read as
+    the balance's stock.
 
 Nothing here computes anything: a figure is the digits as printed, or None.
 """
@@ -209,15 +219,28 @@ def unit_text(label_words: Sequence[Word]) -> str | None:
     return None
 
 
+def too_narrow(tokens: Sequence[Word], pitch: float) -> bool:
+    """R1 (Story 2.5c): some digit token is narrower than `MIN_DIGIT_WIDTH`
+    times its digit count times `pitch`, a "1" counted as a full digit. A
+    leading minus is not a digit; a token that is not all ASCII digits is
+    left to the digit check."""
+    for t in tokens:
+        digits = t.text.lstrip("-")
+        if DIGITS.match(digits) and t.width < MIN_DIGIT_WIDTH * len(digits) * pitch:
+            return True
+    return False
+
+
 def parse_number(tokens: Sequence[Word], pitch: float, mode: Pass) -> int | None:
     """Join digit groups into one figure, or refuse. Never guess, never
     repair: a token holding anything but ASCII digits (after a leading minus)
-    gives None."""
+    gives None, and so does a digit token too narrow for its digits (R1,
+    `too_narrow`), in either pass."""
     if not tokens:
         return None
     # The digits-only pass drops the thousands spaces and returns one token.
     if mode == "digits" and len(tokens) == 1 and ONE_TOKEN.match(tokens[0].text):
-        return int(tokens[0].text)
+        return None if too_narrow(tokens, pitch) else int(tokens[0].text)
     words = list(tokens)
     text = [t.text for t in words]
     negative = False
@@ -227,6 +250,8 @@ def parse_number(tokens: Sequence[Word], pitch: float, mode: Pass) -> int | None
     elif text[0].startswith("-"):
         negative, text = True, [text[0][1:], *text[1:]]
     if not text or not all(DIGITS.match(t) for t in text):
+        return None
+    if too_narrow(words, pitch):
         return None
     # A leading group of 1-3 digits, then groups of exactly 3.
     if not (1 <= len(text[0]) <= 3) or not all(len(t) == 3 for t in text[1:]):
@@ -345,12 +370,15 @@ TARGETS: dict[str, tuple[str, ...]] = {
     "utsatt_skattefordel": ("utsattskattefordel",),
 }
 
-# The page kind a part of intangible assets must stand on: the balance
-# sheet, never the income statement, whose depreciation row ends in
-# "… immaterielle eiendeler". Fields not listed match on any statement
-# page, as before Story 2.5b.
+# The page kind a field must stand on. A part of intangible assets: the
+# balance sheet, never the income statement, whose depreciation row ends in
+# "… immaterielle eiendeler". `varer` (R4, Story 2.5c): the balance sheet,
+# never the income statement's inventory-change row "Endring i beholdning
+# av / varer under tilvirkning / og ferdig tilvirkede varer", which ends in
+# "varer" too and was stored as the stock. Fields not listed match on any
+# statement page, as before Story 2.5b.
 PARTS: tuple[str, ...] = ("forskning_og_utvikling", "konsesjoner_patenter", "goodwill", "utsatt_skattefordel")
-TARGET_PAGES: dict[str, PageKind] = dict.fromkeys(PARTS, "balanse")
+TARGET_PAGES: dict[str, PageKind] = {**dict.fromkeys(PARTS, "balanse"), "varer": "balanse"}
 
 # Wordings of the cost lines that `TARGETS` misses (Story 2.5b, F1; the
 # probe's evidence). Tried only for a field no variant of `TARGETS` matched
@@ -375,6 +403,12 @@ LATER_VARIANTS: dict[str, tuple[str, ...]] = {
 LATER_PAGES: dict[str, PageKind] = dict.fromkeys(LATER_VARIANTS, "resultat")
 
 LABEL_SIMILARITY = 0.85  # tolerates OCR slips such as "Driftoreoultat" for "Driftsresultat"
+# R1 (Story 2.5c; Meinich, 2026-11-06): a digit token narrower than this many
+# character pitches per digit is refused. Measured by the probe
+# (analysis/output/cost-sum-probe.md): correct tokens are 0.76 or more (a
+# lone "1"), 0.84 (two digits) and 0.91 (three) at the 1st percentile; a
+# digit read as two, 0.34-0.36. At 0.6 no correct reference figure is lost.
+MIN_DIGIT_WIDTH = 0.6
 JOIN_LINES = 3  # at most this many label-only lines above a row join its label
 
 
@@ -482,8 +516,8 @@ def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
     4. every variant under `fold_notes`, the later variants still on
        income-statement pages only (Story 2.5b).
 
-    The parts of intangible assets match on balance pages only, in every
-    stage. A row one field matched is never another field's fuzzy match
+    The parts of intangible assets and `varer` (Story 2.5c, R4) match on
+    balance pages only, in every stage. A row one field matched is never another field's fuzzy match
     (`taken`, Story 2.5b review); the 40 probe documents kept all 1 486
     matches of the code before it. A field no row matched is left out."""
     found: dict[str, tuple[int | None, int | None]] = {}

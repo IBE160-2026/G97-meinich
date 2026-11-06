@@ -11,7 +11,18 @@ import pytest
 
 from conftest import BOUND_KR
 from peerless_ingest import documents, layout
-from tsv_builder import CURRENT_RIGHT, GENERATED_TOP, PITCH, PRIOR_RIGHT, figure_words, label_words, page_lines, words
+from tsv_builder import (
+    CURRENT_RIGHT,
+    GENERATED_TOP,
+    PITCH,
+    PRIOR_RIGHT,
+    Placed,
+    figure_words,
+    label_words,
+    misread_leading,
+    page_lines,
+    words,
+)
 
 
 def extract_one_page(rows: list[tuple[str, str, str]], **page: object) -> dict[str, tuple[int | None, int | None]]:
@@ -99,6 +110,67 @@ def test_one_token_only_from_the_digits_pass() -> None:
     # whether such a figure is kept.
     assert figure("1327425", "digits") == 1_327_425
     assert figure("-969111", "digits") == -969_111
+
+
+# --- The width rule (Story 2.5c, R1) -------------------------------------------------
+
+# The probe's page pitch (analysis/output/cost-sum-probe.md: 38.8-39.5 px).
+PROBE_PITCH = 39.0
+
+
+def widths_figure(placed: list[Placed], mode: layout.Pass = "plain") -> int | None:
+    return layout.parse_number(words([placed]), PROBE_PITCH, mode)
+
+
+@pytest.mark.parametrize(
+    ("printed", "leading", "width"),
+    [
+        ("2 375 956", "23", 28),  # read as 23 375 956; the probe's "23", 28 px
+        ("12 847 287", "123", 58),  # read as 123 847 287; one and a half characters wide
+        ("9 094 303", "94", 28),  # read as 94 094 303
+    ],
+)
+def test_digit_read_as_two_refused(printed: str, leading: str, width: int) -> None:
+    # Tesseract adds a digit to the leading group and both passes agree. The
+    # token is far narrower than its digits at the page's pitch (0.34-0.50
+    # of it), so the figure is refused, never repaired to the printed one.
+    placed = misread_leading(printed, CURRENT_RIGHT, leading, width)
+    assert widths_figure(placed) is None
+    # The same digits at their printed width are read: only the width refuses.
+    wide = figure_words(leading + printed[len(printed.split()[0]) :], CURRENT_RIGHT)
+    assert widths_figure(wide) == int((leading + printed[len(printed.split()[0]) :]).replace(" ", ""))
+    # The digits-only pass too: one token as narrow as the misread group.
+    one = [(leading, CURRENT_RIGHT - 3 * PITCH, width)]
+    assert widths_figure(one, "digits") is None
+    assert layout.parse_number(words([[(leading, CURRENT_RIGHT - 3 * PITCH, int(len(leading) * PROBE_PITCH))]]), PROBE_PITCH, "digits") == int(leading)
+
+
+def test_digit_read_as_two_bound() -> None:
+    # The bound is 0.6 x digits x pitch: 46.8 px for two digits at 39 px.
+    at = [("23", CURRENT_RIGHT - 2 * PITCH, 47)]
+    below = [("23", CURRENT_RIGHT - 2 * PITCH, 46)]
+    assert layout.MIN_DIGIT_WIDTH == 0.6
+    assert widths_figure(at) == 23
+    assert widths_figure(below) is None
+
+
+def test_ones_not_refused() -> None:
+    # A "1" counts as a full digit, and its box is narrow: the probe's lone
+    # "1" is 0.76 of the pitch at the least, "11" and "111" one glyph less
+    # than their characters. None of them is refused.
+    right = CURRENT_RIGHT
+    ones: list[Placed] = [
+        ("11", right - 10 * PITCH, 68),  # (1 + 0.76) x 39
+        ("111", right - 7 * PITCH, 107),  # (2 + 0.76) x 39
+        ("111", right - 3 * PITCH, 107),
+    ]
+    assert widths_figure(ones) == 11_111_111
+    lone: list[Placed] = [("1", right - 9 * PITCH, 30), ("111", right - 7 * PITCH, 107), ("111", right - 3 * PITCH, 107)]
+    assert widths_figure(lone) == 1_111_111
+    assert widths_figure([("11111111", right - 8 * PITCH, 302)], "digits") == 11_111_111  # (7 + 0.76) x 39
+    # And through a page, at the tsv_builder widths.
+    found = extract_one_page([("Lønnskostnad", "11 111 111", "1 111 111")])
+    assert found["lonnskostnad"] == (11_111_111, 1_111_111)
 
 
 # --- Labels ------------------------------------------------------------------------
@@ -402,6 +474,29 @@ def test_balance_row_never_depreciation() -> None:
     found = extract_pages(("BALANSE", [("Avskrivning 3", "5 429 357", "5 512 071"), *INTANGIBLE_ROWS]))
     assert "avskrivninger" not in found
     assert found["sum_immaterielle_eiendeler"] == (16_213_245, 14_615_003)
+
+
+# The inventory-change row of an income statement, as printed (the probe's
+# 815244672/2023 wording), and the balance's stock.
+INVENTORY_CHANGE_ROWS = [
+    ("Endring i beholdning av", "", ""),
+    ("varer under tilvirkning", "", ""),
+    ("og ferdig tilvirkede varer", "-12 650 783", "3 104 220"),
+    ("Varekostnad 2", "16 634 458", "13 004 112"),
+]
+
+
+def test_varer_balance_only() -> None:
+    # R4 (Story 2.5c): `varer` is the balance's stock. The income
+    # statement's inventory-change row ends in "varer" too and was stored as
+    # the stock, negative or positive; it is never read as `varer` now.
+    found = extract_pages(("RESULTATREGNSKAP", INVENTORY_CHANGE_ROWS), ("BALANSE", [("Varer", "5 120 400", "4 860 118")]))
+    assert found["varer"] == (5_120_400, 4_860_118)
+    assert found["varekostnad"] == (16_634_458, 13_004_112)
+    # With no stock row on the balance, `varer` is not read at all.
+    found = extract_pages(("RESULTATREGNSKAP", INVENTORY_CHANGE_ROWS), ("BALANSE", [("Sum eiendeler", "31 073 544", "35 615 025")]))
+    assert "varer" not in found
+    assert layout.TARGET_PAGES["varer"] == "balanse"
 
 
 def test_plural_cost_lines() -> None:

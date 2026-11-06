@@ -1,0 +1,109 @@
+{
+ "new": "c716bbdf586acb8acb234b2c55cc0ee3d31e1f40",
+ "old": "e87f1663529b091fcd334d4072ab0c24d72bd06b",
+ "scopes": {
+  "Every cached document (363)": {
+   "columns": 726,
+   "columns_with_c1_c4_changed": 0,
+   "documents": 363,
+   "figures": {
+    "avskrivninger: refused": 13,
+    "forskning_og_utvikling: refused": 3,
+    "salgsinntekt: refused": 55,
+    "varekostnad: refused": 6,
+    "varer: changed": 9,
+    "varer: new": 2,
+    "varer: refused": 10
+   },
+   "figures_refused_not_varer": 77,
+   "varer": {
+    "not read before": 2,
+    "old figure from income statement row": 5,
+    "old figure from income statement row (negative)": 14
+   }
+  },
+  "The Story 2.5c probe's 344 documents": {
+   "columns": 688,
+   "columns_with_c1_c4_changed": 0,
+   "documents": 344,
+   "figures": {
+    "avskrivninger: refused": 13,
+    "forskning_og_utvikling: refused": 3,
+    "salgsinntekt: refused": 55,
+    "varekostnad: refused": 6,
+    "varer: changed": 9,
+    "varer: new": 2,
+    "varer: refused": 10
+   },
+   "figures_refused_not_varer": 77,
+   "varer": {
+    "not read before": 2,
+    "old figure from income statement row": 5,
+    "old figure from income statement row (negative)": 14
+   }
+  },
+  "The Story 2.5c probe's documents, set draw": {
+   "columns": 200,
+   "columns_with_c1_c4_changed": 0,
+   "documents": 100,
+   "figures": {
+    "avskrivninger: refused": 3,
+    "forskning_og_utvikling: refused": 1,
+    "varekostnad: refused": 2,
+    "varer: changed": 1,
+    "varer: refused": 3
+   },
+   "figures_refused_not_varer": 6,
+   "varer": {
+    "old figure from income statement row (negative)": 4
+   }
+  },
+  "The Story 2.5c probe's documents, set not_summing": {
+   "columns": 88,
+   "columns_with_c1_c4_changed": 0,
+   "documents": 44,
+   "figures": {
+    "avskrivninger: refused": 8,
+    "salgsinntekt: refused": 2,
+    "varekostnad: refused": 3,
+    "varer: changed": 2,
+    "varer: new": 1,
+    "varer: refused": 2
+   },
+   "figures_refused_not_varer": 13,
+   "varer": {
+    "not read before": 1,
+    "old figure from income statement row": 1,
+    "old figure from income statement row (negative)": 3
+   }
+  },
+  "The Story 2.5c probe's documents, set ordering": {
+   "columns": 360,
+   "columns_with_c1_c4_changed": 0,
+   "documents": 180,
+   "figures": {
+    "avskrivninger: refused": 2,
+    "forskning_og_utvikling: refused": 2,
+    "salgsinntekt: refused": 53,
+    "varekostnad: refused": 1,
+    "varer: changed": 6,
+    "varer: new": 1,
+    "varer: refused": 5
+   },
+   "figures_refused_not_varer": 58,
+   "varer": {
+    "not read before": 1,
+    "old figure from income statement row": 4,
+    "old figure from income statement row (negative)": 7
+   }
+  },
+  "The Story 2.5c probe's documents, set reference": {
+   "columns": 40,
+   "columns_with_c1_c4_changed": 0,
+   "documents": 20,
+   "figures": {},
+   "figures_refused_not_varer": 0,
+   "varer": {}
+  }
+ }
+}

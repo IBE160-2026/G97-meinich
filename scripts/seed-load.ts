@@ -89,7 +89,7 @@ async function checkHeader(tx: postgres.TransactionSql, file: string, table: str
   }
 }
 
-async function copyIn(tx: postgres.TransactionSql, table: string, columns: string[], bytes: Buffer): Promise<void> {
+export async function copyIn(tx: postgres.TransactionSql, table: string, columns: string[], bytes: Buffer): Promise<void> {
   const text = `COPY register.${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) FROM STDIN (FORMAT csv, HEADER MATCH)`;
   const query = tx.unsafe(text);
   // postgres.js 3.4.9 resolves the COPY query with the writable and, when

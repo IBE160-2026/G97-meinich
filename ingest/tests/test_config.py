@@ -87,6 +87,45 @@ def test_withdrawal_config_validated(tmp_path: Path) -> None:
             config.load_config(_config_with_withdrawal(tmp_path, bad), env={})
 
 
+def test_committed_fetch_deadline() -> None:
+    # Story 2.5b: ten minutes, a chosen wall-time limit on one document's
+    # fetch, generous for a PDF of a few MB; not derived from the 60 s socket
+    # timeout, which bounds one socket operation, not the request.
+    assert config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).fetch_deadline_seconds == 600
+
+
+def _config_with_documents(tmp_path: Path, documents: str | None, consecutive: str | None = "3") -> Path:
+    base = (REPO_ROOT / "ingest" / "config.toml").read_text(encoding="utf-8")
+    start = base.index("[documents]")
+    end = base.index("\n\n", start)
+    lines = [] if documents is None else ["[documents]", f"fetch_deadline_seconds = {documents}"]
+    if documents is not None and consecutive is not None:
+        lines.append(f"max_consecutive_deadlines = {consecutive}")
+    replacement = "\n".join(lines)
+    path = tmp_path / "config.toml"
+    path.write_text(base[:start] + replacement + base[end:], encoding="utf-8")
+    return path
+
+
+def test_fetch_deadline_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_documents(tmp_path, "0.5"), env={}).fetch_deadline_seconds == 0.5
+    for bad in (None, "0", "-1", '"600"', "true", "nan", "inf", "-inf"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_documents(tmp_path, bad), env={})
+
+
+def test_committed_max_consecutive_deadlines() -> None:
+    # Story 2.5b review (Meinich, 2026-11-05): three deadlines in a row stop the run.
+    assert config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).max_consecutive_deadlines == 3
+
+
+def test_max_consecutive_deadlines_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_documents(tmp_path, "600", "1"), env={}).max_consecutive_deadlines == 1
+    for bad in (None, "0", "-1", "2.0", "1.5", '"3"', "true", "nan", "inf"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_documents(tmp_path, "600", bad), env={})
+
+
 VALID_RECONCILIATION = {
     "within_document_bound_kr": "5",
     "between_sources_floor_kr": "5",

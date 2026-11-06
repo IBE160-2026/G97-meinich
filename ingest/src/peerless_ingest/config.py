@@ -4,6 +4,7 @@ environment. Reading only; nothing here touches the network or the database."""
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import tomllib
@@ -49,6 +50,10 @@ class Config:
     # [withdrawal] (Story 2.4, D5): above this share of stored companies
     # absent from the bulk file, the withdrawal check is skipped.
     max_absent_share: Fraction
+    # [documents] (Story 2.5b): the per-document fetch deadline, in seconds,
+    # and how many deadlines in a row stop a documents or re-read run.
+    fetch_deadline_seconds: float
+    max_consecutive_deadlines: int
 
 
 def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) -> Config:
@@ -72,6 +77,9 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
     withdrawal = data.get("withdrawal")
     if not isinstance(withdrawal, dict):
         raise ConfigError(f"{path}: the [withdrawal] table is missing")
+    documents = data.get("documents")
+    if not isinstance(documents, dict):
+        raise ConfigError(f"{path}: the [documents] table is missing")
     return Config(
         base_url=str(base_url).rstrip("/"),
         user_agent=str(register.get("user_agent", "Peerless")),
@@ -82,7 +90,26 @@ def load_config(path: Path = DEFAULT_CONFIG, env: dict[str, str] | None = None) 
         between_sources_floor_kr=_kroner(path, reconciliation, "between_sources_floor_kr"),
         between_sources_tolerance=_fraction(path, reconciliation, "between_sources_tolerance"),
         max_absent_share=_share(path, withdrawal, "max_absent_share"),
+        fetch_deadline_seconds=_seconds(path, documents, "fetch_deadline_seconds"),
+        max_consecutive_deadlines=_count(path, documents, "max_consecutive_deadlines"),
     )
+
+
+def _count(path: Path, table: dict[str, object], key: str) -> int:
+    """A positive whole number (not a bool, not a float). Required: no default."""
+    value = table.get(key)
+    if type(value) is not int or value <= 0:
+        raise ConfigError(f"{path}: documents.{key} must be a positive whole number, got {value!r}")
+    return value
+
+
+def _seconds(path: Path, table: dict[str, object], key: str) -> float:
+    """A positive, finite number of seconds: a duration, not money, so a
+    float is fine. TOML's nan and inf are refused. Required: no default."""
+    value = table.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        raise ConfigError(f"{path}: documents.{key} must be a positive number of seconds, got {value!r}")
+    return float(value)
 
 
 def _share(path: Path, table: dict[str, object], key: str) -> Fraction:

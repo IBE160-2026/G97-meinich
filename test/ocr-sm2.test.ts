@@ -12,6 +12,8 @@ import {
   type CheckedColumn,
   type RereadFiling,
   SM2_FIELDS,
+  SM2_FIELDS_BEFORE_2_5B,
+  SM2_PARTS,
   type Sm2Field,
   type StoredColumn,
   type TranscribedColumn,
@@ -24,6 +26,7 @@ import {
   countClasses,
   countNotRead,
   groupOf,
+  lacksPartColumns,
   mismatches,
   misreadsReachingEngine,
   newResults,
@@ -35,17 +38,23 @@ import {
   totalShownMissing,
   totalShownRead,
   transcriptionsBefore,
+  typeTotals,
 } from '../scripts/ocr-sm2-compare.ts';
 import {
   REPORT_FILE,
+  RUN_COUNTS_BEFORE_2_5B_FILE,
   RUN_COUNTS_BEFORE_FILE,
   classRow,
   parseRunCounts,
   readInputs,
   renderBeforeAfter,
+  renderBeforeAfter25b,
   renderReport,
+  storedGateCounts,
 } from '../scripts/ocr-sm2.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
+import { DOCUMENT_FIGURE_COLUMNS } from '../src/engine/document-inputs.ts';
+import { businessType, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -75,6 +84,7 @@ const read = (
   status,
   checks: NO_CHECKS,
   figuresOre: figures(ore),
+  digitsPassFields: [],
 });
 
 describe('classifying a compared field', () => {
@@ -304,9 +314,9 @@ describe('reading the transcriptions', () => {
   });
 
   it('reads stored columns by header name, NULL as null', () => {
-    const csvHeader = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status', ...SM2_FIELDS.map((f) => `${f}_ore`)];
+    const csvHeader = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status', 'digits_pass_fields', ...SM2_FIELDS.map((f) => `${f}_ore`)];
     const values: Record<string, string> = {
-      orgnr: '921716257', filing_year: '2021', role: 'prior', stated_year: '2020',
+      orgnr: '921716257', filing_year: '2021', role: 'prior', stated_year: '2020', digits_pass_fields: '"{driftsresultat,goodwill}"',
       c1: 'pass', c2: 'pass', c3: 'not_evaluable', c4: 'not_evaluable', c5: 'pass', status: 'reconciled',
       varer_ore: '0', sum_eiendeler_ore: '14413500',
     };
@@ -317,6 +327,7 @@ describe('reading the transcriptions', () => {
     expect(column?.figuresOre.get('sum_eiendeler')).toBe(14413500n);
     expect(column?.figuresOre.get('salgsinntekt')).toBeNull();
     expect(column?.checks.c3).toBe('not_evaluable');
+    expect(column?.digitsPassFields).toEqual(['driftsresultat', 'goodwill']);
   });
 });
 
@@ -528,5 +539,163 @@ describe('before and after Story 2.3b', () => {
     // formatPercent puts a no-break space before the percent sign.
     expect(section).toMatch(/\| Story 2\.1b run, local data \(this year\) \| 1946 \| 1110 of 1946 \(57,0\s%\) \| not yet counted \|/);
     expect(section).toContain('local data');
+  });
+});
+
+describe('before and after Story 2.5b', () => {
+  const header = ['orgnr', 'filing_year', 'role', 'stated_year', 'c1', 'c2', 'c3', 'c4', 'c5', 'status', 'digits_pass_fields'];
+  const csv = (fields: readonly string[], values: Record<string, string>) => {
+    const names = [...header, ...fields.map((f) => `${f}_ore`)];
+    return `${names.join(',')}\n${names.map((name) => values[name] ?? '').join(',')}\n`;
+  };
+  const values = {
+    orgnr: '921716257', filing_year: '2021', role: 'current', stated_year: '2021',
+    c1: 'pass', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass', status: 'reconciled', digits_pass_fields: '{}',
+    sum_eiendeler_ore: '14413500', goodwill_ore: '500',
+  };
+
+  it('compares the four parts like every other field, and the engine stores the same 27 figures', () => {
+    expect(SM2_PARTS).toEqual(['forskning_og_utvikling', 'konsesjoner_patenter', 'goodwill', 'utsatt_skattefordel']);
+    expect(SM2_FIELDS.slice(-4)).toEqual([...SM2_PARTS]);
+    expect(SM2_FIELDS_BEFORE_2_5B).toHaveLength(23);
+    expect(SM2_FIELDS.map((f) => `${f}_ore`)).toEqual(Object.values(DOCUMENT_FIGURE_COLUMNS));
+  });
+
+  it('reads an export from before the migration with the parts as null, and refuses one with only some of them', () => {
+    const old = csv(SM2_FIELDS_BEFORE_2_5B, values);
+    expect(lacksPartColumns(old)).toBe(true);
+    const [column] = parseStoredColumns(old);
+    expect(column?.figuresOre.get('goodwill')).toBeNull();
+    expect(column?.figuresOre.get('sum_eiendeler')).toBe(14413500n);
+    const now = csv(SM2_FIELDS, values);
+    expect(lacksPartColumns(now)).toBe(false);
+    expect(parseStoredColumns(now)[0]?.figuresOre.get('goodwill')).toBe(500n);
+    const some = csv([...SM2_FIELDS_BEFORE_2_5B, 'goodwill'], values);
+    expect(() => parseStoredColumns(some)).toThrow(/only some of the parts' columns: goodwill/);
+    // Any other missing column still refuses.
+    expect(() => parseStoredColumns(csv(SM2_FIELDS.filter((f) => f !== 'varer'), values))).toThrow(/no column varer_ore/);
+  });
+
+  it('counts undetermined fingerprints and companies at their newest year, totals only', () => {
+    const R = 1_000_000_000n;
+    // A consultancy, every line read: konsulent. The same company a year
+    // later with lonnskostnad empty and the rest of the costs leaving it
+    // anywhere from 0 to 60 %: undetermined.
+    const base: Partial<Record<Sm2Field, bigint>> = {
+      sum_driftsinntekter: R, varekostnad: 0n, lonnskostnad: 700_000_000n, avskrivninger: 20_000_000n, nedskrivninger: 0n,
+      annen_driftskostnad: 180_000_000n, sum_driftskostnad: 900_000_000n, sum_immaterielle_eiendeler: 0n,
+      sum_varige_driftsmidler: 20_000_000n, varer: 0n, kundefordringer: 150_000_000n, bankinnskudd: 200_000_000n, sum_eiendeler: 400_000_000n,
+    };
+    const open = { ...base, lonnskostnad: undefined };
+    const columns = [
+      read('921716257', 2021, 'current', base),
+      read('921716257', 2022, 'current', { ...open, annen_driftskostnad: 300_000_000n, sum_driftskostnad: 900_000_000n }),
+      read('921716257', 2022, 'prior', base),
+      read('912197905', 2022, 'current', base, 'failed_reconciliation'),
+    ];
+    const totals = typeTotals(columns, [], new Map());
+    expect(totals).toEqual({ columns: 3, fingerprints: 2, undetermined: 1, companies: 1, companiesUndetermined: 1 });
+  });
+
+  it('gives the seed the same fingerprints as pnpm derive stored in it', () => {
+    // Every committed fingerprint is the derivation of a seed column: the
+    // totals from the engine here equal the stored rows' totals.
+    const inputs = readInputs(root);
+    const totals = typeTotals(inputs.stored, inputs.documents, inputs.subtotals);
+    const [head, ...rows] = parseCsv(readFileSync(path.join(root, 'seed/demo/fingerprint.csv'), 'utf8'));
+    const at = (name: string) => head?.indexOf(name) ?? -1;
+    const cell = (row: string[], name: string) => {
+      const value = row[at(name)];
+      return value === undefined || value === '' ? null : value;
+    };
+    const flag = (value: string | null) => (value === null ? null : value === 't' || value === 'true');
+    const stored = rows.map((row) =>
+      fingerprintFromColumns({
+        cost_of_goods_lo: cell(row, 'cost_of_goods_lo'), cost_of_goods_hi: cell(row, 'cost_of_goods_hi'),
+        personnel_cost_lo: cell(row, 'personnel_cost_lo'), personnel_cost_hi: cell(row, 'personnel_cost_hi'),
+        asset_intensity_lo: cell(row, 'asset_intensity_lo'), asset_intensity_hi: cell(row, 'asset_intensity_hi'),
+        inventory: flag(cell(row, 'inventory')), capitalised_intangibles: flag(cell(row, 'capitalised_intangibles')),
+      }),
+    );
+    expect(totals.fingerprints).toBe(stored.length);
+    expect(totals.undetermined).toBe(stored.filter((f) => f !== null && businessType(f) === null).length);
+  });
+
+  it('reads the 2.1b fingerprint totals from counts written since Story 2.5b, and none from older counts', () => {
+    const before = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5B_FILE), 'utf8')), RUN_COUNTS_BEFORE_2_5B_FILE);
+    expect(before.types).toEqual({ fingerprints: 1791, undetermined: 893, companies: 401, companiesUndetermined: 184 });
+    expect(before.currentNonNull.lonnskostnad).toBe(1398);
+    expect(before.currentNonNull.goodwill).toBeUndefined();
+    const older = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_FILE), 'utf8')), RUN_COUNTS_BEFORE_FILE);
+    expect(older.types).toBeNull();
+    expect(() => parseRunCounts({ ...JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5B_FILE), 'utf8')), fingerprints: {} }, 'y.json')).toThrow(/y.json/);
+  });
+
+  it('renders every class per field, the new errors, and the undetermined share as totals; the 2.1b after says not yet counted', () => {
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter25b({ ...inputs, before25b: { ...inputs.before25b, runAfter: null } }).join('\n');
+    expect(section).toContain('## Before and after Story 2.5b');
+    for (const field of SM2_FIELDS) expect(section).toMatch(new RegExp(`^\\| ${field} \\|`, 'm'));
+    expect(section).toMatch(/\| Story 2\.1b run, local data: fingerprints undetermined \| 893 of 1791 \(49,9\s%\) \| not yet counted \|/);
+    expect(section).toMatch(/\| goodwill \| not a field then \| not yet counted \|/);
+    // No orgnr in the fingerprint table: totals only.
+    const types = section.slice(section.indexOf('### Fingerprints without a business type'), section.indexOf('### The Story 2.1b run'));
+    expect(types).not.toMatch(/\d{9}/);
+    // A new misread reaching the engine after is listed.
+    const fake = inputs.comparison.results.find((r) => r.class === 'correct' && r.columnStatus === 'reconciled');
+    if (fake === undefined) throw new Error('no correct field in a reconciled column');
+    const misread = { ...fake, class: 'misread' as const, readOre: (fake.readOre ?? 0n) + 100n };
+    const withNew = renderBeforeAfter25b({ ...inputs, comparison: { ...inputs.comparison, results: [...inputs.comparison.results, misread] } }).join('\n');
+    expect(withNew).toContain(`| ${fake.orgnr} | ${fake.filingYear} |`);
+  });
+
+  it('counts the figures each gate admitted, and those resting on an operand counted as 0, totals only', () => {
+    const cost = { varekostnad: 1n, lonnskostnad: 2n, avskrivninger: 3n, annen_driftskostnad: 4n, sum_driftskostnad: 10n };
+    const columns: StoredColumn[] = [
+      // nedskrivninger NULL: lonnskostnad admitted on an operand counted as 0.
+      { ...read('921716257', 2021, 'current', cost), digitsPassFields: ['lonnskostnad'] },
+      // Every operand held; driftsresultat is c1's, no gate's.
+      { ...read('921716257', 2022, 'current', { ...cost, nedskrivninger: 0n }), digitsPassFields: ['annen_driftskostnad', 'driftsresultat'] },
+      // Every part held but one admitted.
+      {
+        ...read('921716257', 2022, 'prior', { forskning_og_utvikling: 1n, konsesjoner_patenter: 1n, goodwill: 1n, utsatt_skattefordel: 1n }),
+        digitsPassFields: ['goodwill'],
+      },
+    ];
+    expect(storedGateCounts(columns)).toEqual({
+      cost_lines: { admitted: 2, withOperandCountedAsZero: 1 },
+      intangible_parts: { admitted: 1, withOperandCountedAsZero: 0 },
+    });
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter25b({ ...inputs, before25b: { ...inputs.before25b, runAfter: null } }).join('\n');
+    const gates = section.slice(section.indexOf('### Figures the sum gates admitted'), section.indexOf('### The Story 2.1b run'));
+    expect(gates).toContain('an operand counted as 0 (a blank row or no row)');
+    expect(gates).toContain('cannot tell a row printed with no figure in either pass from a line the document does not print');
+    expect(gates).toMatch(/\| Cost lines against sum kostnader \| Story 2\.1b run, local data \| no gate then \| no gate then \| not yet counted \| not yet counted \|/);
+    expect(gates).not.toMatch(/\d{9}/);
+    // The section counts the stored columns it is given.
+    const counted = renderBeforeAfter25b({ ...inputs, stored: columns }).join('\n');
+    expect(counted).toMatch(/\| Cost lines against sum kostnader \| Reference set \| \d+ \| \d+ \| 2 \| 1 \|/);
+  });
+
+  it('reads the gate counts of the 2.1b rows, both roles together', () => {
+    const json = JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5B_FILE), 'utf8'));
+    expect(parseRunCounts(json, 'x.json').gates).toBeNull();
+    const gate = (admitted: number, zero: number) => ({ admitted, operand_counted_as_zero: zero });
+    json.columns.current.gates = { cost_lines: gate(5, 2), intangible_parts: gate(1, 0) };
+    json.columns.prior.gates = { cost_lines: gate(3, 1), intangible_parts: gate(0, 0) };
+    expect(parseRunCounts(json, 'x.json').gates).toEqual({
+      cost_lines: { admitted: 8, withOperandCountedAsZero: 3 },
+      intangible_parts: { admitted: 1, withOperandCountedAsZero: 0 },
+    });
+    delete json.columns.prior.gates.cost_lines;
+    expect(() => parseRunCounts(json, 'x.json')).toThrow(/x\.json/);
+  });
+
+  it('keeps the Story 2.3b section on the state Story 2.3b left, whatever the seed holds now', () => {
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter(inputs).join('\n');
+    expect(renderBeforeAfter({ ...inputs, comparison: { results: [], notes: [] }, stored: [] }).join('\n')).toBe(section);
+    expect(section).not.toMatch(/goodwill/);
   });
 });

@@ -13,7 +13,13 @@
 // seed/document-run.json. Writes analysis/output/document-run-counts-<label>.json:
 // per document, the count by status and by reader version; per column role
 // (current, prior), the number of columns, of non-NULL figures per field and
-// of each column status. Nothing is computed from a figure; only NULLs are
+// of each column status; and (Story 2.5b) the stored fingerprints of those
+// orgnrs by business type, undetermined included, per fingerprint and per
+// company at its newest fingerprinted year; and, per column role, how many
+// figures each sum gate of the digits-only pass admitted and how many of those
+// rested on an operand counted as 0 (scripts/sum-gates.ts). Totals only, never
+// a company.
+// Nothing is computed from a figure; only NULLs and stored categories are
 // counted. The JSON holds no date, so the same database gives the same bytes.
 //
 // Run: node scripts/document-run-counts.ts <label>   (from the repository root)
@@ -22,8 +28,16 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
 import { DOCUMENT_FIGURE_COLUMNS } from '../src/engine/document-inputs.ts';
+import {
+  BUSINESS_TYPES,
+  type BusinessType,
+  type FingerprintColumns,
+  businessType,
+  fingerprintFromColumns,
+} from '../src/engine/fingerprint.ts';
 import { DOCUMENT_RUN_FILE } from './document-set.ts';
 import { setting } from './run-ingest.ts';
+import { type GateCounts, gateCounts } from './sum-gates.ts';
 import { REPORT_DIR, compareBytes, stableJson } from './seed-format.ts';
 
 const LABEL = /^[a-z0-9][a-z0-9.-]*$/;
@@ -38,13 +52,35 @@ export const COUNT_FIELDS: readonly string[] = Object.values(DOCUMENT_FIGURE_COL
 export const countsFile = (label: string): string => `${REPORT_DIR}/document-run-counts-${label}.json`;
 
 export type DocumentRow = { readonly status: string; readonly reader_commit: string };
-/** A column: its role, its status (null before reconciliation), and which fields hold a figure. */
-export type ColumnRow = { readonly role: string; readonly status: string | null; readonly present: readonly string[] };
+/** A column: its role, its status (null before reconciliation), which fields hold a figure, and which came from the digits-only pass. */
+export type ColumnRow = {
+  readonly role: string;
+  readonly status: string | null;
+  readonly present: readonly string[];
+  readonly digits_pass_fields: readonly string[];
+};
+
+/** A stored fingerprint: its company and year (never written out) and its categories. */
+export type FingerprintRow = FingerprintColumns & { readonly orgnr: string; readonly filing_year: number };
+
+/** Business type counts, with `undetermined` for a fingerprint whose categories allow more than one type. */
+export type TypeCounts = Record<BusinessType | 'undetermined', number>;
+
+export type FingerprintCounts = {
+  /** Fingerprints stored. */
+  total: number;
+  /** Per fingerprint (company and filing year). */
+  types: TypeCounts;
+  /** Per company, at its newest fingerprinted year. */
+  companies: TypeCounts;
+};
 
 export type RoleCounts = {
   columns: number;
   non_null: Record<string, number>;
   status: Record<string, number>;
+  /** Absent in the counts written before Story 2.5b. */
+  gates?: Record<keyof GateCounts, { admitted: number; operand_counted_as_zero: number }>;
 };
 
 export type DocumentRunCounts = {
@@ -53,6 +89,8 @@ export type DocumentRunCounts = {
   orgnrs: number;
   documents: { total: number; status: Record<string, number>; reader_commit: Record<string, number> };
   columns: Record<Role, RoleCounts>;
+  /** Absent in the counts written before Story 2.5b. */
+  fingerprints?: FingerprintCounts;
 };
 
 function tally(values: readonly string[]): Record<string, number> {
@@ -61,12 +99,39 @@ function tally(values: readonly string[]): Record<string, number> {
   return out;
 }
 
+function emptyTypes(): TypeCounts {
+  const out = { undetermined: 0 } as TypeCounts;
+  for (const type of BUSINESS_TYPES) out[type] = 0;
+  return out;
+}
+
+/**
+ * The stored fingerprints by business type, each typed by the engine
+ * (fingerprintFromColumns, businessType). Throws on a row it cannot read.
+ */
+export function fingerprintCounts(rows: readonly FingerprintRow[]): FingerprintCounts {
+  const types = emptyTypes();
+  const newest = new Map<string, { readonly year: number; readonly type: BusinessType | null }>();
+  for (const row of rows) {
+    const fingerprint = fingerprintFromColumns(row);
+    if (fingerprint === null) throw new Error('a stored fingerprint without categories');
+    const type = businessType(fingerprint);
+    types[type ?? 'undetermined'] += 1;
+    const seen = newest.get(row.orgnr);
+    if (seen === undefined || row.filing_year > seen.year) newest.set(row.orgnr, { year: row.filing_year, type });
+  }
+  const companies = emptyTypes();
+  for (const { type } of newest.values()) companies[type ?? 'undetermined'] += 1;
+  return { total: rows.length, types, companies };
+}
+
 /** The counts, from rows already read. Throws on a role or field it does not know. */
 export function documentRunCounts(
   label: string,
   orgnrs: number,
   documents: readonly DocumentRow[],
   columns: readonly ColumnRow[],
+  fingerprints?: readonly FingerprintRow[],
 ): DocumentRunCounts {
   const byRole = {} as Record<Role, RoleCounts>;
   for (const role of ROLES) {
@@ -78,7 +143,21 @@ export function documentRunCounts(
         nonNull[field] = (nonNull[field] ?? 0) + 1;
       }
     }
-    byRole[role] = { columns: rows.length, non_null: nonNull, status: tally(rows.map((r) => r.status ?? 'null')) };
+    const gates = gateCounts(
+      rows.map((r) => ({ digitsPassFields: r.digits_pass_fields, hasFigure: (field: string) => r.present.includes(field) })),
+    );
+    byRole[role] = {
+      columns: rows.length,
+      non_null: nonNull,
+      status: tally(rows.map((r) => r.status ?? 'null')),
+      gates: {
+        cost_lines: { admitted: gates.cost_lines.admitted, operand_counted_as_zero: gates.cost_lines.withOperandCountedAsZero },
+        intangible_parts: {
+          admitted: gates.intangible_parts.admitted,
+          operand_counted_as_zero: gates.intangible_parts.withOperandCountedAsZero,
+        },
+      },
+    };
   }
   const unknown = columns.find((c) => !(ROLES as readonly string[]).includes(c.role));
   if (unknown !== undefined) throw new Error(`unknown column role ${unknown.role}`);
@@ -92,6 +171,7 @@ export function documentRunCounts(
       reader_commit: tally(documents.map((d) => d.reader_commit)),
     },
     columns: byRole,
+    ...(fingerprints === undefined ? {} : { fingerprints: fingerprintCounts(fingerprints) }),
   };
 }
 
@@ -113,14 +193,13 @@ export async function main(root: string, argv: readonly string[]): Promise<numbe
       select status, reader_commit from register.document where orgnr = any(${orgnrs}::text[])`;
     const present = COUNT_FIELDS.map((field) => `case when ${field}_ore is not null then '${field}' end`).join(', ');
     const columns = await sql<ColumnRow[]>`
-      select role, status, array_remove(array[${sql.unsafe(present)}], null) as present
+      select role, status, array_remove(array[${sql.unsafe(present)}], null) as present, digits_pass_fields
         from register.document_column where orgnr = any(${orgnrs}::text[])`;
-    const counts = documentRunCounts(
-      label,
-      orgnrs.length,
-      documents,
-      columns,
-    );
+    const fingerprints = await sql<FingerprintRow[]>`
+      select orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo, personnel_cost_hi,
+             asset_intensity_lo, asset_intensity_hi, inventory, capitalised_intangibles
+        from register.fingerprint where orgnr = any(${orgnrs}::text[])`;
+    const counts = documentRunCounts(label, orgnrs.length, documents, columns, fingerprints);
     const file = countsFile(label);
     writeFileSync(path.join(root, ...file.split('/')), stableJson(counts));
     process.stdout.write(`analysis:document-run: wrote ${file} (${counts.documents.total} documents)\n`);

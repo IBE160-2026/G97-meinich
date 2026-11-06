@@ -1491,6 +1491,74 @@ So that a reseller, a product company and a consultancy are not compared as if t
 **When** it is opened
 **Then** it states what could go wrong with banding and with selection (AGENTS.md Working style), and the reasoning is recorded in `docs/ai-log.md`
 
+### Story 2.5b: Read the cost lines and the parts of intangible assets
+
+As a sensor assessing the project,
+I want the cost lines that are printed but come back empty read, and the parts of intangible assets stored, with the result measured before and after,
+So that more companies get a business type without a single new misread reaching the engine.
+
+Split from Story 2.5 (Meinich, 2026-11-01; issue #45). Half of the fingerprints were undetermined, mostly because an empty `lonnskostnad` leaves the personnel-cost band spanning low to high, and `sum_immaterielle_eiendeler` holds the deferred tax asset and goodwill as well as capitalised development. D1 (Story 2.5) is unchanged.
+
+Decided at the probe checkpoint (Meinich, 2026-11-05; spec change log): F1, later label variants for the cost lines on income-statement pages and a fold that drops trailing note references, with every earlier match kept; F2, the four parts of intangible assets — forskning og utvikling, konsesjoner og patenter, goodwill, utsatt skattefordel — stored as figures of their own, on balance pages only; F3, two sum gates for the digits-only read (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), in the reading library only, never in the column status. Each document fetch has a time limit, set once in `ingest/config.toml` (C3).
+
+**Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** issue #45, branch `story/2.5b-read-cost-lines`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** every stored document re-read
+**When** `pnpm analysis:sm2` runs
+**Then** its Story 2.5b section gives, before and after on the reference set: the class counts per field, the four intangible parts included (transcribed by Meinich); the misreads and phantoms reaching the engine, with every new one listed; and the share of fingerprints without a type, as totals
+**And** more figures read are not paid for with new errors
+
+**Given** a cost line or a part refused by the plain read and read by the digits-only read
+**When** the lines sum to their plain-read total within 5 kr, with at most one line from the digits-only read
+**Then** that figure is kept; otherwise it stays absent, and the column's status does not change either way
+
+**Given** a document fetch that hangs
+**When** the per-document time limit expires
+**Then** the document is listed as not fetched (not replaced, on a re-read), and the run goes on
+
+**Given** the re-read is complete
+**When** the local database is queried
+**Then** every document has the current `reader_commit` or is listed as not replaced with its reason
+
+**Given** any committed file or PR text
+**Then** no fingerprint result is tied to an orgnr of the labelled set
+
+### Story 2.5c: Refuse a digit read as two, and cost lines that do not sum
+
+As a sensor assessing the project,
+I want a figure misread by an extra digit refused, and a column whose cost lines do not add up kept out of the fingerprint,
+So that the cost lines Story 2.5b read do not give a company the wrong business type.
+
+Found after Story 2.5b's re-read (2026-11-06; `deferred-work.md`, `3d1a03d`). Tesseract read the printed "2" of a 7-digit depreciation figure as "23" in both passes, so the figure was 21 000 000 kr too high. The column still reconciled, because no check within the document sums the cost lines. Of 1 291 reconciled 2.1b columns that had `avskrivninger` for the first time and all four main cost lines, 48 do not sum to sum kostnader within 5 kr. Derive skips a column over the total. A column under the total is not stopped: all 17 current columns under the total have a fingerprint. Ordered by Meinich (2026-11-06): after Story 2.5b, and before the document run for the labelled set, so that the run's 741 companies are read once, by the corrected reader. D1 (Story 2.5) is unchanged.
+
+Scope (Meinich, 2026-11-06):
+1. Step 1 refuses a digit token that is narrower than its digit count at the page's character pitch (`3d1a03d`).
+2. Find the cause of the 17 current columns under the total, with evidence from the documents, before anything is fixed.
+3. Consider a rule in `src/engine`: when every cost line is read and the lines do not sum to `sum_driftskostnad` within 5 kr, the column is not used for a fingerprint, and the reason is recorded. This rule needs no re-read.
+
+Items 1 and 2 need a re-read and Meinich's yes before it starts.
+
+**Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5c-<slug>`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** a figure token narrower than its digit count at the page's pitch
+**When** step 1 reads it
+**Then** the figure is refused, never repaired
+
+**Given** a column whose cost lines are all read
+**When** they do not sum to `sum_driftskostnad` within 5 kr
+**Then**, if the rule is adopted, `pnpm derive` writes no fingerprint for it and counts it under a named reason
+
+**Given** every stored document re-read, after Meinich's yes
+**When** `pnpm analysis:sm2` runs
+**Then** misreads and phantoms reaching the engine on the reference set are no more than before, and the columns that do not sum are counted before and after, as totals
+
+**Given** any committed file or PR text
+**Then** no fingerprint result is tied to an orgnr of the labelled set
+
 ### Story 2.6: Classification (stage 5)
 
 As Kari or Anders,

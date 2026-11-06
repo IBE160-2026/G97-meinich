@@ -39,8 +39,9 @@ export type Absence =
   | { readonly reason: 'not_reconciled' }
   // A current asset line of a reconciled document column above the
   // key-figures API's sum_omloepsmidler of the same filing by more than 5 kr:
-  // a part cannot exceed its sum, so the figure is a misread (R3, Story 2.5c;
-  // `guardCurrentAssets`).
+  // a part cannot exceed its sum, so the figure or the register's subtotal is
+  // wrong (the probe: 6 of 8 a misread figure, 2 the subtotal) and the figure
+  // is not used (R3, Story 2.5c; `guardCurrentAssets`).
   | { readonly reason: 'exceeds_api_subtotal' };
 
 /** A single company's figure cannot be below the floor; that is a comparison's absence. */

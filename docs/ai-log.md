@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 28 |
-| money | 21 |
-| parsing | 15 |
+| money | 22 |
+| parsing | 16 |
 | llm-boundary | 5 |
 | scope | 18 |
 | docs | 22 |
@@ -765,3 +765,18 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 6. **A fingerprint result tied to an orgnr of the labelled set.** Every new count is a total; `test/ocr-sm2.test.ts` asserts no nine-digit number below the error list of the 2.5c section.
 **Caught by:** The tests above, each run with its guard removed; a rolled-back rebuild of `register.fingerprint` on the local database. `test/db/derive.test.ts` "rebuilds exactly the rows the table held" fails on the local database until `pnpm derive` runs (C2), because the stored table predates R2 and R3; the committed seed's fingerprints are unchanged (`test/fingerprint-seed.test.ts`), and so is the SM-2 report apart from the new section.
 **Outcome:** Commits `e87f166` (before seed copy), `2b88e3f` (R1, R4), `58c5b71` (R2, R3), `1b8337c` (derive), `57dd893` (counts, the before counts), `a088bb2` (SM-2 section), and the docs. The re-read (C2) and the after counts wait for Meinich's yes.
+
+### 2026-11-06 — Story 2.5c, review: what the first entry overstated, and three risks it left out
+**Tags:** money · parsing
+**Tool:** Claude Code (implementation subagent, Opus 5.5); findings from the BMAD coordinator's review
+**Asked:** Correct the Story 2.5c implementation and its documents after review.
+**Got:** Corrections to the entry above, which stays as written:
+1. **"R1 refuses in both passes" was too strong.** R1 checks every token in both passes, but the digits-only pass merges the groups into one wide token ("23375956", about 0.9 of its digits), which R1 does not refuse. There the sum gates and the checks keep the misread out (`ingest/tests/test_documents.py::test_digit_read_as_two_not_admitted_by_gate`). A merged misread in a line in no gate and no check stays out only because the digits pass fills no such line.
+2. **The regression check is now a committed script**, not a scratch run: `analysis/ocr/reader_regression.py`, output `analysis/output/reader-regression-2.5c.md`. Scopes as counted there: in the Story 2.5c probe's 344 documents (20 reference, 324 2.1b), 77 figures refused, all in the 2.1b documents; every cached document (363) gives the same counts. The first entry's "363 documents" mixed the two scopes.
+3. **R4 can lose a real stock.** A balance "Varer" row on a page step 1 classifies as something else (a continuation page that inherits the wrong kind) would no longer be read. In the regression check, of the 21 columns whose `varer` changed, the old figure came from the income statement's row in 19 (14 negative) and from a balance row in none; 2 were not read before.
+4. **R3 can empty a correct line.** A part above its sum means the line or the register's subtotal is wrong; in two of the probe's eight cases it was the subtotal, and R3 then drops a correct `kundefordringer`. R3 also checks no prior column, and not `kundefordringer` + `bankinnskudd` together above the subtotal while each is within it.
+5. **The SM-2 section counted errors reaching the engine without R3**, though it says the engine rules apply. It now leaves out a figure R3 empties (`test/ocr-sm2.test.ts`, "counts the current asset lines R3 keeps from the engine…"); `costSumCounts` takes the engine's bound and main lines and skips a column the engine stops at `no_revenue` ("counts the reconciled columns whose cost lines do not sum…").
+**Problem:** Overstated claims and unstated limits in documents a sensor reads as fact.
+**Caught by:** The BMAD coordinator's review of the implementation.
+**Outcome:** Corrected in the code, the docs and the planning documents in the commits after `c4cf8f4`; nothing here changes R1–R4.
+

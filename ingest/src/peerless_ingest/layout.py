@@ -32,9 +32,13 @@ from the spike:
   Every match the earlier stages make stands, with the same value.
 - Story 2.5c (Meinich, 2026-11-06):
   - R1, the width rule: a digit token narrower than `MIN_DIGIT_WIDTH` (0.6)
-    times its digit count times the page's character pitch is refused, in
-    both passes. Tesseract adds a digit to a leading group it reads one
-    glyph wide ("2 375 956" read as "23 375 956"); the probe measured
+    times its digit count times the page's character pitch is refused; the
+    rule applies to every digit token in both passes. Tesseract adds a digit
+    to a leading group it reads one glyph wide ("2 375 956" read as "23",
+    "375", "956"), and the plain pass refuses that narrow "23". The
+    digits-only pass merges the groups into one wide token ("23375956",
+    about 0.9 of its digits), which the rule does not refuse: there only
+    the sum gates and the checks keep the misread out. The probe measured
     correct tokens at 0.76 or more, the misreads at 0.34-0.36
     (analysis/output/cost-sum-probe.md);
   - R4: `varer` matches on balance pages only, so the income statement's
@@ -235,7 +239,9 @@ def parse_number(tokens: Sequence[Word], pitch: float, mode: Pass) -> int | None
     """Join digit groups into one figure, or refuse. Never guess, never
     repair: a token holding anything but ASCII digits (after a leading minus)
     gives None, and so does a digit token too narrow for its digits (R1,
-    `too_narrow`), in either pass."""
+    `too_narrow`), checked on every token in either pass. A digits-only
+    token merged from several groups is as wide as they are, so R1 rarely
+    refuses one."""
     if not tokens:
         return None
     # The digits-only pass drops the thousands spaces and returns one token.

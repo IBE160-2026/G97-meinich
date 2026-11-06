@@ -19,11 +19,25 @@
 // figures each sum gate of the digits-only pass admitted and how many of those
 // rested on an operand counted as 0 (scripts/sum-gates.ts). Totals only, never
 // a company.
-// Nothing is computed from a figure; only NULLs and stored categories are
-// counted. The JSON holds no date, so the same database gives the same bytes.
+//
+// Story 2.5c adds two counts:
+// - `engine`: what `pnpm derive` (scripts/derive.ts, `deriveFingerprints`)
+//   makes of the current columns as stored now, with the engine of this
+//   commit: the columns skipped by reason, R2's cost_lines_short_of_total
+//   with how many have nedskrivninger empty, and the figures R3 empties.
+//   Computed from the stored figures and API subtotals, nothing written.
+// - `varer_against_dump` (R4): per column role, the stored `varer` against
+//   the same column in the dump taken after Story 2.5b's re-read
+//   (.local/document-run-2.5b/document_column.csv, gitignored): the columns
+//   whose `varer` the re-read emptied or changed, positive values included,
+//   are those read from the income statement's inventory-change row. Null,
+//   said on stderr, when the dump is not there.
+// Apart from the engine counts, nothing is computed from a figure; only
+// NULLs, stored categories and equal or unequal figures are counted. The
+// JSON holds no date, so the same database gives the same bytes.
 //
 // Run: node scripts/document-run-counts.ts <label>   (from the repository root)
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
@@ -32,13 +46,15 @@ import {
   BUSINESS_TYPES,
   type BusinessType,
   type FingerprintColumns,
+  type SkipReason,
   businessType,
   fingerprintFromColumns,
 } from '../src/engine/fingerprint.ts';
+import { DERIVE_SQL, type DeriveInputRow, type GuardedLine, SKIP_REASONS, deriveFingerprints } from './derive.ts';
 import { DOCUMENT_RUN_FILE } from './document-set.ts';
 import { setting } from './run-ingest.ts';
 import { type GateCounts, gateCounts } from './sum-gates.ts';
-import { REPORT_DIR, compareBytes, stableJson } from './seed-format.ts';
+import { REPORT_DIR, compareBytes, parseCsv, stableJson } from './seed-format.ts';
 
 const LABEL = /^[a-z0-9][a-z0-9.-]*$/;
 const ROLES = ['current', 'prior'] as const;
@@ -83,6 +99,43 @@ export type RoleCounts = {
   gates?: Record<keyof GateCounts, { admitted: number; operand_counted_as_zero: number }>;
 };
 
+/** What derive's engine makes of the stored current columns (Story 2.5c). */
+export type EngineCounts = {
+  /** Current columns read. */
+  columns: number;
+  /** Fingerprints the engine gives them. */
+  fingerprints: number;
+  skipped: Record<SkipReason, number>;
+  /** Of the columns skipped as cost_lines_short_of_total, those with nedskrivninger empty. */
+  cost_lines_short_of_total_nedskrivninger_empty: number;
+  /** Figures R3 empties: above the API sum_omloepsmidler + 5 kr. */
+  emptied_above_api_subtotal: Record<GuardedLine, number>;
+};
+
+/** One role's stored `varer` against the dump (Story 2.5c, R4). */
+export type VarerRoleCounts = {
+  /** Columns in both the dump and the database. */
+  compared: number;
+  unchanged: number;
+  /** A figure in the dump, NULL now. */
+  emptied: number;
+  /** A figure in both, a different one. */
+  changed: number;
+  /** NULL in the dump, a figure now. */
+  newly_read: number;
+  /** Of the emptied and changed, the dump's figure negative. */
+  emptied_or_changed_negative_before: number;
+  /** Columns in the dump with a negative varer. */
+  negative_before: number;
+  /** Columns now with a negative varer. */
+  negative_after: number;
+  /** Columns in only one of the two. */
+  only_in_dump: number;
+  only_now: number;
+};
+
+export type VarerCounts = { dump: string; columns: Record<Role, VarerRoleCounts> };
+
 export type DocumentRunCounts = {
   label: string;
   source: string;
@@ -91,7 +144,14 @@ export type DocumentRunCounts = {
   columns: Record<Role, RoleCounts>;
   /** Absent in the counts written before Story 2.5b. */
   fingerprints?: FingerprintCounts;
+  /** Absent in the counts written before Story 2.5c. */
+  engine?: EngineCounts;
+  /** Absent in the counts written before Story 2.5c; null when the dump was not there. */
+  varer_against_dump?: VarerCounts | null;
 };
+
+/** The dump R4's count compares with: the 2.1b rows right after Story 2.5b's re-read (README, "Seed"). */
+export const VARER_DUMP_FILE = '.local/document-run-2.5b/document_column.csv';
 
 function tally(values: readonly string[]): Record<string, number> {
   const out: Record<string, number> = {};
@@ -125,6 +185,81 @@ export function fingerprintCounts(rows: readonly FingerprintRow[]): FingerprintC
   return { total: rows.length, types, companies };
 }
 
+/** What `pnpm derive` would make of these current columns now (Story 2.5c). Throws on an input it cannot read. */
+export function engineCounts(rows: readonly DeriveInputRow[]): EngineCounts {
+  const { counts } = deriveFingerprints(rows);
+  const skipped = {} as Record<SkipReason, number>;
+  for (const reason of SKIP_REASONS) skipped[reason] = counts.skipped[reason];
+  return {
+    columns: counts.columns,
+    fingerprints: counts.written,
+    skipped,
+    cost_lines_short_of_total_nedskrivninger_empty: counts.shortOfTotalNedskrivningerEmpty,
+    emptied_above_api_subtotal: { ...counts.emptiedAboveApiSubtotal },
+  };
+}
+
+/** A column's `varer` as stored: its key and the øre string, or null. */
+export type VarerRow = { readonly orgnr: string; readonly filing_year: number; readonly role: string; readonly varer_ore: string | null };
+
+/** The rows of a register.document_column CSV dump (COPY ... CSV HEADER), `varer` only. */
+export function parseVarerDump(text: string, file: string): VarerRow[] {
+  const [header, ...rows] = parseCsv(text);
+  if (header === undefined) throw new Error(`${file} is empty`);
+  const at = (name: string): number => {
+    const i = header.indexOf(name);
+    if (i < 0) throw new Error(`${file}: no column ${name}`);
+    return i;
+  };
+  const [orgnr, year, role, varer] = [at('orgnr'), at('filing_year'), at('role'), at('varer_ore')];
+  return rows.map((row, n) => {
+    const value = row[varer] ?? '';
+    const filingYear = Number.parseInt(row[year] ?? '', 10);
+    if (!Number.isInteger(filingYear) || (value !== '' && !/^-?\d+$/.test(value))) throw new Error(`${file}: row ${n + 2} unreadable`);
+    return { orgnr: row[orgnr] ?? '', filing_year: filingYear, role: row[role] ?? '', varer_ore: value === '' ? null : value };
+  });
+}
+
+const negative = (ore: string | null): boolean => ore !== null && ore.startsWith('-');
+
+/** Per role, the stored `varer` now against the dump's (Story 2.5c, R4). Figures compared as written, never parsed to a number. */
+export function varerAgainstDump(dump: string, before: readonly VarerRow[], after: readonly VarerRow[]): VarerCounts {
+  const key = (r: VarerRow) => `${r.orgnr}/${r.filing_year}/${r.role}`;
+  const columns = {} as Record<Role, VarerRoleCounts>;
+  for (const role of ROLES) {
+    const was = new Map(before.filter((r) => r.role === role).map((r) => [key(r), r.varer_ore]));
+    const now = new Map(after.filter((r) => r.role === role).map((r) => [key(r), r.varer_ore]));
+    const out: VarerRoleCounts = {
+      compared: 0,
+      unchanged: 0,
+      emptied: 0,
+      changed: 0,
+      newly_read: 0,
+      emptied_or_changed_negative_before: 0,
+      negative_before: [...was.values()].filter(negative).length,
+      negative_after: [...now.values()].filter(negative).length,
+      only_in_dump: [...was.keys()].filter((k) => !now.has(k)).length,
+      only_now: [...now.keys()].filter((k) => !was.has(k)).length,
+    };
+    for (const [k, old] of was) {
+      if (!now.has(k)) continue;
+      const value = now.get(k) ?? null;
+      out.compared += 1;
+      if (old === value) out.unchanged += 1;
+      else if (old === null) out.newly_read += 1;
+      else {
+        if (value === null) out.emptied += 1;
+        else out.changed += 1;
+        if (negative(old)) out.emptied_or_changed_negative_before += 1;
+      }
+    }
+    columns[role] = out;
+  }
+  const unknown = [...before, ...after].find((r) => !(ROLES as readonly string[]).includes(r.role));
+  if (unknown !== undefined) throw new Error(`unknown column role ${unknown.role}`);
+  return { dump, columns };
+}
+
 /** The counts, from rows already read. Throws on a role or field it does not know. */
 export function documentRunCounts(
   label: string,
@@ -132,6 +267,7 @@ export function documentRunCounts(
   documents: readonly DocumentRow[],
   columns: readonly ColumnRow[],
   fingerprints?: readonly FingerprintRow[],
+  since25c?: { readonly engine: EngineCounts; readonly varer: VarerCounts | null },
 ): DocumentRunCounts {
   const byRole = {} as Record<Role, RoleCounts>;
   for (const role of ROLES) {
@@ -172,6 +308,7 @@ export function documentRunCounts(
     },
     columns: byRole,
     ...(fingerprints === undefined ? {} : { fingerprints: fingerprintCounts(fingerprints) }),
+    ...(since25c === undefined ? {} : { engine: since25c.engine, varer_against_dump: since25c.varer }),
   };
 }
 
@@ -199,7 +336,20 @@ export async function main(root: string, argv: readonly string[]): Promise<numbe
       select orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo, personnel_cost_hi,
              asset_intensity_lo, asset_intensity_hi, inventory, capitalised_intangibles
         from register.fingerprint where orgnr = any(${orgnrs}::text[])`;
-    const counts = documentRunCounts(label, orgnrs.length, documents, columns, fingerprints);
+    const listed = new Set(orgnrs);
+    const engine = engineCounts((await sql.unsafe<DeriveInputRow[]>(DERIVE_SQL)).filter((row) => listed.has(row.orgnr)));
+    const dumpPath = path.join(root, ...VARER_DUMP_FILE.split('/'));
+    let varer: VarerCounts | null = null;
+    if (existsSync(dumpPath)) {
+      const now = await sql<VarerRow[]>`
+        select orgnr, filing_year, role, varer_ore::text as varer_ore
+          from register.document_column where orgnr = any(${orgnrs}::text[])`;
+      const dumped = parseVarerDump(readFileSync(dumpPath, 'utf8'), VARER_DUMP_FILE).filter((row) => listed.has(row.orgnr));
+      varer = varerAgainstDump(VARER_DUMP_FILE, dumped, now);
+    } else {
+      process.stderr.write(`analysis:document-run: ${VARER_DUMP_FILE} is not there; varer_against_dump is null\n`);
+    }
+    const counts = documentRunCounts(label, orgnrs.length, documents, columns, fingerprints, { engine, varer });
     const file = countsFile(label);
     writeFileSync(path.join(root, ...file.split('/')), stableJson(counts));
     process.stdout.write(`analysis:document-run: wrote ${file} (${counts.documents.total} documents)\n`);

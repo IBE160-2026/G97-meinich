@@ -1,13 +1,13 @@
 # OCR accuracy against the hand-transcribed reference set (SM-2)
 
-Generated 2026-10-29 by `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`), with helpers in `scripts/ocr-sm2-compare.ts`. Inputs, all committed: `analysis/ocr-reference/drawn.json` and `analysis/ocr-reference/transcriptions.csv` (the reference set, issue #14) and the corrections log in `analysis/ocr-reference/README.md`; `seed/demo/document.csv` and `seed/demo/document_column.csv` (step 1's output, written by `pnpm ingest --documents analysis/ocr-reference/document-run.json` and committed by `pnpm seed:export`); `analysis/output/ocr-consistency-2026.json` (generated 2026-10-28 by `analysis/ocr/consistency.py` in step 1's image, tesseract 5.5.0).
+Generated 2026-11-06 by `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`), with helpers in `scripts/ocr-sm2-compare.ts`. Inputs, all committed: `analysis/ocr-reference/drawn.json` and `analysis/ocr-reference/transcriptions.csv` (the reference set, issue #14) and the corrections log in `analysis/ocr-reference/README.md`; `seed/demo/document.csv` and `seed/demo/document_column.csv` (step 1's output, written by `pnpm ingest --documents analysis/ocr-reference/document-run.json` and committed by `pnpm seed:export`); `analysis/output/ocr-consistency-2026.json` (generated 2026-10-28 by `analysis/ocr/consistency.py` in step 1's image, tesseract 5.5.0).
 
 This measures step 1 as it is: `read_document` (Tesseract 5.5, `nor` from `tessdata_best`) and Story 2.2's reconciliation. It states what was measured and commits to no numeric target (NFR32).
 
 ## The sample
 
 - 20 filings, one per cell of a seeded draw stratified by filing year (2021–2025) and by 2023 revenue band, from every company in the covered industry with positive 2023 revenue (`analysis/ocr-reference/README.md`). The sample is the whole industry, not the demo companies and their peers: those 407 companies were excluded before the draw.
-- Each filing has two columns (this year, last year), and each column the 23 lines `read_document` targets. Only the drawn (orgnr, filing year) pairs are compared; the other documents step 1 stored for the same companies are left out.
+- Each filing has two columns (this year, last year), and each column the 27 lines `read_document` targets. Only the drawn (orgnr, filing year) pairs are compared; the other documents step 1 stored for the same companies are left out.
 - Stored øre are compared exactly with the transcribed kroner × 100. A blank cell or a NULL figure is absent, never 0.
 
 ## Recent and older filings
@@ -77,9 +77,9 @@ A field neither holds is not a figure and is not counted. "Recovered exactly" is
 
 | Group | correct | not read (transcribed 0) | not read (transcribed non-zero) | misread | phantom | Counted | Recovered exactly |
 |---|---|---|---|---|---|---|---|
-| Recent (2023–2025) | 431 | 13 | 31 | 1 | 0 | 476 | 90,5 % |
-| Older (2021–2022) | 238 | 29 | 25 | 1 | 0 | 293 | 81,2 % |
-| All | 669 | 42 | 56 | 2 | 0 | 769 | 87,0 % |
+| Recent (2023–2025) | 459 | 15 | 21 | 1 | 0 | 496 | 92,5 % |
+| Older (2021–2022) | 264 | 29 | 14 | 1 | 0 | 308 | 85,7 % |
+| All | 723 | 44 | 35 | 2 | 0 | 804 | 89,9 % |
 
 ## Consistency of the reference filings
 
@@ -93,37 +93,27 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 
 ## Every mismatch
 
-100 fields are not correct. Expected is the transcription, read is step 1's stored figure, both in whole kroner.
+81 fields are not correct. Expected is the transcription, read is step 1's stored figure, both in whole kroner.
 
 | Orgnr | Year | Column | Field | Expected | Read | Class | Column status |
 |---|---|---|---|---|---|---|---|
-| 915648479 | 2021 | this year | avskrivninger | 200 052 kr | NULL | not read | reconciled |
-| 915648479 | 2021 | this year | annen_driftskostnad | 1 621 328 kr | NULL | not read | reconciled |
 | 915648479 | 2021 | this year | aarsresultat | 1 501 123 kr | NULL | not read | reconciled |
-| 915648479 | 2021 | last year | avskrivninger | 225 747 kr | NULL | not read | reconciled |
 | 915648479 | 2021 | last year | bankinnskudd | 1 366 565 kr | NULL | not read | reconciled |
 | 917397198 | 2021 | this year | salgsinntekt | 5 661 887 kr | NULL | not read | reconciled |
-| 921716257 | 2021 | this year | annen_driftskostnad | 95 575 kr | NULL | not read | reconciled |
 | 921716257 | 2021 | this year | kundefordringer | 132 559 kr | NULL | not read | reconciled |
 | 921716257 | 2021 | this year | leverandorgjeld | 87 800 kr | NULL | not read | reconciled |
 | 921716257 | 2021 | last year | ordinaert_resultat_foer_skattekostnad | 0 kr | NULL | not read | failed_reconciliation |
 | 921716257 | 2021 | last year | aarsresultat | 0 kr | NULL | not read | failed_reconciliation |
 | 921716257 | 2021 | last year | sum_egenkapital | 0 kr | NULL | not read | failed_reconciliation |
 | 921716257 | 2021 | last year | sum_gjeld | 0 kr | NULL | not read | failed_reconciliation |
-| 995318733 | 2021 | this year | avskrivninger | 891 828 kr | NULL | not read | reconciled |
-| 995318733 | 2021 | last year | avskrivninger | 815 697 kr | NULL | not read | reconciled |
+| 995318733 | 2021 | this year | konsesjoner_patenter | 575 472 kr | NULL | not read | reconciled |
 | 885583822 | 2022 | this year | salgsinntekt | 60 863 322 kr | NULL | not read | failed_reconciliation |
-| 885583822 | 2022 | this year | avskrivninger | 170 190 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | this year | sum_driftskostnad | 56 922 303 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | last year | varekostnad | 14 481 267 kr | NULL | not read | failed_reconciliation |
-| 885583822 | 2022 | last year | avskrivninger | 171 463 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | last year | driftsresultat | 1 721 957 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | last year | ordinaert_resultat_foer_skattekostnad | 1 373 242 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | last year | leverandorgjeld | 1 662 590 kr | NULL | not read | failed_reconciliation |
 | 885583822 | 2022 | last year | sum_egenkapital_gjeld | 19 349 861 kr | 19 349 361 kr | misread | failed_reconciliation |
-| 912197905 | 2022 | this year | avskrivninger | 109 500 kr | NULL | not read | reconciled |
-| 912197905 | 2022 | last year | avskrivninger | 182 118 kr | NULL | not read | reconciled |
-| 912197905 | 2022 | last year | annen_driftskostnad | 5 260 438 kr | NULL | not read | reconciled |
 | 912197905 | 2022 | last year | leverandorgjeld | 1 518 435 kr | NULL | not read | reconciled |
 | 929481151 | 2022 | this year | sum_driftsinntekter | 0 kr | NULL | not read | failed_reconciliation |
 | 929481151 | 2022 | this year | netto_finans | 0 kr | NULL | not read | failed_reconciliation |
@@ -145,7 +135,6 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 | 929481151 | 2022 | last year | sum_kortsiktig_gjeld | 0 kr | NULL | not read | failed_reconciliation |
 | 929481151 | 2022 | last year | sum_gjeld | 0 kr | NULL | not read | failed_reconciliation |
 | 929481151 | 2022 | last year | sum_egenkapital_gjeld | 0 kr | NULL | not read | failed_reconciliation |
-| 929821092 | 2022 | this year | avskrivninger | 4 628 kr | NULL | not read | failed_reconciliation |
 | 929821092 | 2022 | last year | ordinaert_resultat_foer_skattekostnad | 0 kr | NULL | not read | failed_reconciliation |
 | 929821092 | 2022 | last year | aarsresultat | 0 kr | NULL | not read | failed_reconciliation |
 | 929821092 | 2022 | last year | sum_eiendeler | 0 kr | NULL | not read | failed_reconciliation |
@@ -156,17 +145,14 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 | 915338534 | 2023 | this year | lonnskostnad | 8 605 849 kr | NULL | not read | reconciled |
 | 915338534 | 2023 | this year | sum_immaterielle_eiendeler | 0 kr | NULL | not read | reconciled |
 | 915338534 | 2023 | this year | varer | 0 kr | NULL | not read | reconciled |
-| 915338534 | 2023 | last year | varekostnad | 1 740 688 kr | NULL | not read | reconciled |
 | 915338534 | 2023 | last year | aarsresultat | 1 554 617 kr | NULL | not read | reconciled |
 | 915338534 | 2023 | last year | sum_immaterielle_eiendeler | 0 kr | NULL | not read | reconciled |
 | 915338534 | 2023 | last year | varer | 0 kr | NULL | not read | reconciled |
 | 927533235 | 2023 | this year | lonnskostnad | 1 448 646 kr | NULL | not read | reconciled |
-| 927533235 | 2023 | this year | avskrivninger | 67 977 kr | NULL | not read | reconciled |
-| 927533235 | 2023 | last year | avskrivninger | 40 981 kr | NULL | not read | reconciled |
 | 929151178 | 2023 | this year | sum_immaterielle_eiendeler | 0 kr | NULL | not read | reconciled |
+| 929151178 | 2023 | this year | konsesjoner_patenter | 0 kr | NULL | not read | reconciled |
 | 929151178 | 2023 | last year | sum_immaterielle_eiendeler | 0 kr | NULL | not read | reconciled |
-| 911561972 | 2024 | this year | avskrivninger | 1 390 183 kr | NULL | not read | reconciled |
-| 911561972 | 2024 | last year | avskrivninger | 1 216 410 kr | NULL | not read | reconciled |
+| 929151178 | 2023 | last year | konsesjoner_patenter | 0 kr | NULL | not read | reconciled |
 | 919470992 | 2024 | this year | salgsinntekt | 1 030 166 kr | NULL | not read | reconciled |
 | 936252710 | 2024 | this year | lonnskostnad | 11 978 000 kr | NULL | not read | reconciled |
 | 936252710 | 2024 | this year | annen_driftskostnad | 3 804 886 kr | NULL | not read | reconciled |
@@ -181,15 +167,10 @@ Two definitions, never mixed. **Passing** is the spike baseline's: a column is e
 | 917526729 | 2025 | this year | salgsinntekt | 11 245 099 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | this year | kundefordringer | 864 869 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | last year | salgsinntekt | 11 015 493 kr | NULL | not read | reconciled |
-| 917526729 | 2025 | last year | annen_driftskostnad | 1 677 195 kr | NULL | not read | reconciled |
 | 917526729 | 2025 | last year | kundefordringer | 1 831 373 kr | NULL | not read | reconciled |
 | 918618716 | 2025 | this year | salgsinntekt | 1 733 466 kr | NULL | not read | reconciled |
-| 918618716 | 2025 | this year | avskrivninger | 64 200 kr | NULL | not read | reconciled |
-| 918618716 | 2025 | last year | avskrivninger | 11 938 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | this year | salgsinntekt | 56 433 689 kr | NULL | not read | reconciled |
-| 922184534 | 2025 | this year | avskrivninger | 59 405 139 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | last year | lonnskostnad | 31 286 483 kr | NULL | not read | reconciled |
-| 922184534 | 2025 | last year | avskrivninger | 15 118 394 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | last year | kundefordringer | 1 557 335 kr | NULL | not read | reconciled |
 | 922184534 | 2025 | last year | leverandorgjeld | 4 829 528 kr | NULL | not read | reconciled |
 | 989081799 | 2025 | this year | sum_immaterielle_eiendeler | 0 kr | NULL | not read | reconciled |
@@ -235,7 +216,7 @@ Why the 13 columns not evaluable now are not (the baseline report does not list 
 
 ## Before and after Story 2.3b
 
-Story 2.3b reads the bold "SUM EGENKAPITAL OG GJELD" row, which Tesseract reads as "50M EGENKAPITAL OG GJELD", with a second label fold (`layout.fold_mixed`), and re-reads every stored document (`pnpm ingest --reread`). "Before" is Story 2.3's output, copied byte for byte into `analysis/output/ocr-sm2-before-2.3b/` before any re-read, and `analysis/output/document-run-counts-before-2.3b.json`; "after" is the committed seed, `analysis/output/ocr-consistency-2026.json` and `analysis/output/document-run-counts-after-2.3b.json`. Both are compared with the corrected transcriptions.
+Story 2.3b reads the bold "SUM EGENKAPITAL OG GJELD" row, which Tesseract reads as "50M EGENKAPITAL OG GJELD", with a second label fold (`layout.fold_mixed`), and re-reads every stored document (`pnpm ingest --reread`). "Before" is Story 2.3's output, copied byte for byte into `analysis/output/ocr-sm2-before-2.3b/` before any re-read, and `analysis/output/document-run-counts-before-2.3b.json`; "after" is the seed as Story 2.3b left it, copied into `analysis/output/ocr-sm2-before-2.5b/` before Story 2.5b's re-read, `analysis/output/ocr-consistency-2026.json` and `analysis/output/document-run-counts-after-2.3b.json`. Both are compared with the corrected transcriptions, over the 23 fields compared then.
 
 ### "Sum egenkapital og gjeld" read
 
@@ -305,3 +286,103 @@ More figures read must not be paid for with new errors. Misread and phantom figu
 New ones (after, not before):
 
 None.
+
+## Before and after Story 2.5b
+
+Story 2.5b reads the cost lines in their other printed wordings (the depreciation row, plurals, note references read as letters), reads the four printed parts of intangible assets as fields of their own, and admits a digits-only figure of a cost line or a part through a sum gate (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), then re-reads every stored document. "Before" is the committed seed as Story 2.3b left it, copied byte for byte into `analysis/output/ocr-sm2-before-2.5b/` before any re-read, and `analysis/output/document-run-counts-before-2.5b.json`; "after" is the committed seed and `analysis/output/document-run-counts-after-2.5b.json`. Both are compared with the corrected transcriptions, over every compared field.
+
+- **The parts before.** The before copy was exported before Story 2.5b's migration and has no columns for forskning_og_utvikling, konsesjoner_patenter, goodwill, utsatt_skattefordel: step 1 did not read them, so every transcribed part counts as not read before.
+
+### The reference set, every class
+
+| Group | correct | not read (transcribed 0) | not read (transcribed non-zero) | misread | phantom | Counted | Recovered exactly |
+|---|---|---|---|---|---|---|---|
+| Before | 669 | 56 | 77 | 2 | 0 | 804 | 83,2 % |
+| After | 723 | 44 | 35 | 2 | 0 | 804 | 89,9 % |
+
+Per field, before → after:
+
+| Field | correct | not read | misread | phantom |
+|---|---|---|---|---|
+| salgsinntekt | 26 | 9 | 0 | 0 |
+| sum_driftsinntekter | 35 | 2 | 0 | 0 |
+| varekostnad | 28 → 29 | 2 → 1 | 0 | 0 |
+| lonnskostnad | 31 | 5 | 0 | 0 |
+| avskrivninger | 10 → 27 | 17 → 0 | 0 | 0 |
+| nedskrivninger | 4 | 0 | 0 | 0 |
+| annen_driftskostnad | 33 → 37 | 5 → 1 | 0 | 0 |
+| sum_driftskostnad | 36 | 1 | 1 | 0 |
+| driftsresultat | 36 | 2 | 0 | 0 |
+| netto_finans | 36 | 2 | 0 | 0 |
+| ordinaert_resultat_foer_skattekostnad | 37 | 3 | 0 | 0 |
+| aarsresultat | 33 | 7 | 0 | 0 |
+| sum_immaterielle_eiendeler | 13 | 10 | 0 | 0 |
+| sum_varige_driftsmidler | 24 | 4 | 0 | 0 |
+| varer | 9 | 2 | 0 | 0 |
+| kundefordringer | 29 | 5 | 0 | 0 |
+| bankinnskudd | 36 | 2 | 0 | 0 |
+| sum_eiendeler | 38 | 2 | 0 | 0 |
+| sum_egenkapital | 37 | 3 | 0 | 0 |
+| leverandorgjeld | 30 | 6 | 0 | 0 |
+| sum_kortsiktig_gjeld | 36 | 2 | 0 | 0 |
+| sum_gjeld | 36 | 4 | 0 | 0 |
+| sum_egenkapital_gjeld | 36 | 3 | 1 | 0 |
+| forskning_og_utvikling | 0 → 9 | 9 → 0 | 0 | 0 |
+| konsesjoner_patenter | 0 → 8 | 11 → 3 | 0 | 0 |
+| goodwill | 0 → 6 | 6 → 0 | 0 | 0 |
+| utsatt_skattefordel | 0 → 9 | 9 → 0 | 0 | 0 |
+
+### Errors that reach the engine, before and after
+
+More figures read must not be paid for with new errors. Misread and phantom figures in reconciled columns of the drawn filings:
+
+| | Before | After |
+|---|---|---|
+| Misread, reaching the engine | 0 | 0 |
+| Phantom, reaching the engine | 0 | 0 |
+
+New ones (after, not before):
+
+None.
+
+### Fingerprints without a business type
+
+A fingerprint is undetermined when its unknown categories (an empty line spanning bands) allow more than one business type (Story 2.5). Totals only: no company is named. The reference set's fingerprints are computed here from every stored current column of its companies, with the engine (`fingerprintOf`, `businessType`) and the API subtotals of `seed/demo/key_figures.csv`, as `pnpm derive` computes them; the Story 2.1b run's come from the counts files, read from `register.fingerprint`.
+
+| | Before | After |
+|---|---|---|
+| Reference set: current columns | 97 | 97 |
+| Reference set: fingerprints undetermined | 44 of 85 (51,8 %) | 41 of 86 (47,7 %) |
+| Reference set: companies undetermined at their newest fingerprinted year | 12 of 20 (60,0 %) | 10 of 20 (50,0 %) |
+| Story 2.1b run, local data: fingerprints undetermined | 893 of 1791 (49,9 %) | 751 of 1779 (42,2 %) |
+| Story 2.1b run, local data: companies undetermined at their newest fingerprinted year | 184 of 401 (45,9 %) | 165 of 400 (41,3 %) |
+
+### Figures the sum gates admitted
+
+A figure the digits-only pass gave for a line the plain pass refused, admitted because the lines summed to their plain-pass total: a field in a column's `digits_pass_fields` that is an operand of a gate. It **rested on an operand counted as 0 (a blank row or no row)** when another operand of the same gate is NULL in the stored column: the gate counted that line as 0. The stored data cannot tell a row printed with no figure in either pass from a line the document does not print, so the two are counted together. Both column roles, totals only.
+
+| Gate | Data set | Before: admitted | Before: on an operand counted as 0 | After: admitted | After: on an operand counted as 0 |
+|---|---|---|---|---|---|
+| Cost lines against sum kostnader | Reference set | 0 | 0 | 29 | 29 |
+| Cost lines against sum kostnader | Story 2.1b run, local data | no gate then | no gate then | 626 | 601 |
+| Parts against sum immaterielle eiendeler | Reference set | 0 | 0 | 10 | 9 |
+| Parts against sum immaterielle eiendeler | Story 2.1b run, local data | no gate then | no gate then | 210 | 210 |
+
+### The Story 2.1b run, local data: cost lines and parts read
+
+Current columns holding a figure, of all current columns. The run's 1947 documents are in the local database and a gitignored dump, not in the seed, until Story 5.4's allow-list; these counts come from `pnpm analysis:document-run` and cannot be reproduced from a fresh clone.
+
+| Field | Before | After |
+|---|---|---|
+| varekostnad | 1366 of 1946 (70,2 %) | 1389 of 1946 (71,4 %) |
+| lonnskostnad | 1398 of 1946 (71,8 %) | 1602 of 1946 (82,3 %) |
+| avskrivninger | 257 of 1946 (13,2 %) | 1409 of 1946 (72,4 %) |
+| nedskrivninger | 64 of 1946 (3,3 %) | 66 of 1946 (3,4 %) |
+| annen_driftskostnad | 1569 of 1946 (80,6 %) | 1713 of 1946 (88,0 %) |
+| forskning_og_utvikling | not a field then | 566 of 1946 (29,1 %) |
+| konsesjoner_patenter | not a field then | 201 of 1946 (10,3 %) |
+| goodwill | not a field then | 79 of 1946 (4,1 %) |
+| utsatt_skattefordel | not a field then | 653 of 1946 (33,6 %) |
+
+- **Not every new depreciation figure is right.** Checked by hand after the re-read, totals only. 1 291 reconciled columns hold `avskrivninger` for the first time and all four main cost lines. In 48 of them, the lines do not sum to sum kostnader within 5 kr: 27 columns in 19 companies are over the total and 21 columns in 19 companies are under it. Across all 2 044 documents, 10 columns in 7 companies are exactly 21 000 000 kr over. In 9 of them, `avskrivninger` is read as 23.x million in the last-year column. The check of one PDF shows the cause: Tesseract reads the leading digit "2" as "23" in both passes, a token one character wide. No sum covers the cost lines, so the column reconciled.
+- **An over-read is stopped and an under-read is not.** `pnpm derive` skips a column over the total (`negative_unexplained`, 21 → 35), so none of the 12 current columns over the total has a fingerprint. All 17 current columns under the total have one, with the missing amount counted as unexplained. The fix needs a re-read and is deferred (`_bmad-output/implementation-artifacts/deferred-work.md`, Story 2.5b, "Tesseract reads one printed digit as two").

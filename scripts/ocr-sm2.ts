@@ -632,6 +632,16 @@ export function renderBeforeAfter25b(inputs: ReportInputs): string[] {
     ...runFields.map((field) => `| ${field} | ${nonNull(b.runBefore, field)} | ${nonNull(b.runAfter, field)} |`),
     '',
   );
+  if (b.runAfter !== null) {
+    // Checked by hand after the Story 2.5b re-read (2026-11-06), against the
+    // local database and .local/document-run-2.4/; not computed from the
+    // committed inputs, so stated here as found. Totals only.
+    push(
+      '- **Not every new depreciation figure is right.** Checked by hand after the re-read, totals only. 1 291 reconciled columns hold `avskrivninger` for the first time and all four main cost lines. In 48 of them, the lines do not sum to sum kostnader within 5 kr: 27 columns in 19 companies are over the total and 21 columns in 19 companies are under it. Across all 2 044 documents, 10 columns in 7 companies are exactly 21 000 000 kr over. In 9 of them, `avskrivninger` is read as 23.x million in the last-year column. The check of one PDF shows the cause: Tesseract reads the leading digit "2" as "23" in both passes, a token one character wide. No sum covers the cost lines, so the column reconciled.',
+      '- **An over-read is stopped and an under-read is not.** `pnpm derive` skips a column over the total (`negative_unexplained`, 21 → 35), so none of the 12 current columns over the total has a fingerprint. All 17 current columns under the total have one, with the missing amount counted as unexplained. The fix needs a re-read and is deferred (`_bmad-output/implementation-artifacts/deferred-work.md`, Story 2.5b, "Tesseract reads one printed digit as two").',
+      '',
+    );
+  }
   return lines;
 }
 

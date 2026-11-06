@@ -1555,6 +1555,14 @@ Decided at the probe checkpoint (Meinich, 2026-11-06; probe `analysis/output/cos
 **When** step 1 reads it
 **Then** the figure is refused, never repaired
 
+**Given** any digit token in either pass, a "1" counted as a full digit
+**When** its width is below 0.6 × its digits × the page's pitch (`layout.MIN_DIGIT_WIDTH`)
+**Then** the figure it belongs to is refused, and a correct figure printed at its width, "11 111 111" included, is read (R1)
+
+**Given** an income statement with the inventory-change row ("… og ferdig tilvirkede varer") and a balance with "Varer"
+**When** step 1 reads the document
+**Then** `varer` comes from the balance only, and after the re-read the counts give, against the dump taken after Story 2.5b's re-read, the columns whose `varer` was emptied or changed, positive values included (R4)
+
 **Given** a column whose four main cost lines are read
 **When** they fall short of `sum_driftskostnad` by more than 5 kr
 **Then** `pnpm derive` writes no fingerprint for it and counts it as `cost_lines_short_of_total` (R2)
@@ -1838,6 +1846,7 @@ So that every figure the table will show can be traced to a formula and a hand c
 **Given** a current column whose `kundefordringer` or `bankinnskudd` is above the key-figures API's `sumOmloepsmidler` of the same filing + 5 kr (Story 2.5c, R3)
 **When** the engine reads the document figures, through `documentFigures` and then `guardCurrentAssets`
 **Then** that line is absent with the reason `exceeds_api_subtotal`, and a figure that needs it — receivable days (9), operating-asset turnover (11) — is undefined for that company, never computed from the stored figure (test)
+**And** the absent figure is shown with its reason in Story 2.9's copy (`src/messages/nb.json`), as every other absence is
 
 **Given** the PR
 **When** it is opened

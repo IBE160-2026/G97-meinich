@@ -1217,10 +1217,10 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 
 **Open from the build** (added 2026-11-04, when this PRD was brought in line with Epics 1–2)
 
-21. **Lines no reconciliation check covers.** A misread `bankinnskudd`, `kundefordringer`, `salgsinntekt` or `leverandorgjeld` can reach the engine in a reconciled column (FR-58). Guard them (for example with sub-total checks), or show them as unverified before the engine uses them? Recorded in `deferred-work.md` (Story 2.3, B9).
+21. **Lines no reconciliation check covers.** A misread `bankinnskudd`, `kundefordringer`, `salgsinntekt` or `leverandorgjeld` can reach the engine in a reconciled column (FR-58). Guard them (for example with sub-total checks), or show them as unverified before the engine uses them? Recorded in `deferred-work.md` (Story 2.3, B9). Taken into Story 2.5c's scope in `epics.md` (2026-11-06), together with the cost lines that do not sum.
 22. **Two pieces of work that no open story owns.** The document run over all of `62.100` (FR-28, FR-59; about 190 hours), which Story 2.1b's criterion asked for and which was deferred when the story closed; and reading `aarsverk` from the notes (§5; key figures 7 and 8). Both are in `deferred-work.md`. Open: which story owns each, and whether v1 needs the full run or ships on the demo data (FR-73).
 23. **Does a dissolved company stay a peer?** Nothing in the request path reads `slettedato` yet, so a dissolved company remains a candidate and its filings count in aggregates (FR-66; `deferred-work.md`, Story 2.4).
-24. **The match basis of an undetermined peer** — fingerprinted, but with no business type (FR-16, FR-10). To be settled before Story 2.7.
+24. **The match basis of an undetermined peer** — fingerprinted, but with no business type (FR-16, FR-10). To be settled before Story 2.7, which now names it as a precondition in `epics.md` (2026-11-06).
 
 **Pre-deployment gates** (not v1 requirements; blocking before anything is public)
 

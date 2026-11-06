@@ -1537,6 +1537,7 @@ Scope (Meinich, 2026-11-06):
 1. Step 1 refuses a digit token that is narrower than its digit count at the page's character pitch (`3d1a03d`).
 2. Find the cause of the 17 current columns under the total, with evidence from the documents, before anything is fixed.
 3. Consider a rule in `src/engine`: when every cost line is read and the lines do not sum to `sum_driftskostnad` within 5 kr, the column is not used for a fingerprint, and the reason is recorded. This rule needs no re-read.
+4. PRD open question 21 is the same kind of error: a misread line that no check within the document covers can reach the engine in a reconciled column. The spec decides, with item 3, whether `bankinnskudd`, `kundefordringer`, `salgsinntekt` and `leverandorgjeld` get a check (for example against a sub-total) or are shown as unverified before the engine uses them (Meinich, 2026-11-06).
 
 Items 1 and 2 need a re-read and Meinich's yes before it starts.
 
@@ -1624,6 +1625,8 @@ I want to see how the peer group narrowed at each stage and why each peer is in 
 So that I can judge the group myself before I trust any comparison.
 
 This story builds on the simple Peers list from Story 1.7.
+
+**Before this story starts:** PRD open question 24, the match basis of a peer that has a fingerprint but no business type, is settled and recorded in the PRD (Meinich, 2026-11-06). The four bases below assume an answer.
 
 **Implements:** FR-9 (the "AS only" wording), FR-14 (flagged count shown), FR-15, FR-16 · **Invariants:** AD-1, AD-4 · **UX:** UX-DR23, UX-DR25, UX-DR32, UX-DR33, UX-DR37, UX-DR68, UX-DR69, UX-DR70, UX-DR76 · **Issue / branch / PR:** one issue, branch `story/2.7-peers-why`, one PR (AGENTS.md Git workflow)
 

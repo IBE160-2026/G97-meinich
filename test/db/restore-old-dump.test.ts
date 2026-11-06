@@ -1,6 +1,6 @@
 // Restoring a dump taken before Story 2.5b's migration (README, "Seed"). The
 // acceptance run's rows live in CSV dumps under .local/ (gitignored) until
-// Story 5.4; the newest, .local/document-run-2.4/, was taken before
+// Story 5.4; the newest before the migration, .local/document-run-2.4/, was taken before
 // 20261105120000_document_intangible_parts.sql added four nullable columns
 // at the end of register.document_column. The README's restore names the
 // columns from the dump's own header line, so such a dump still loads, with

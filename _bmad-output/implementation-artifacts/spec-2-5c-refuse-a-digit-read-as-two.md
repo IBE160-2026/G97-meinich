@@ -2,7 +2,7 @@
 title: 'Story 2.5c: Refuse a digit read as two, and cost lines that do not sum'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'e6c1cdeacac341fc91d735af2a3576fb8a87e68d'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -121,7 +121,43 @@ context:
 
 ## Spec Change Log
 
+- **2026-11-06, Meinich (review pass 1, triage 1): R1 counts a leading minus as a character.** This supersedes "its digit count" in R1 above.
+  - **The finding.** The minus glyph is inside the token's box but was not counted, so a narrow negative misread ("-23") had about one pitch of slack.
+  - **Measured first, as Meinich asked**, on the 363 cached words files (`analysis/.cache/ocr/probe/`), with no OCR, by the BMAD session (scratch script, recorded in the session file): counting the minus changes 0 figures and 0 c1–c4 results; the reference set loses 0 correct figures. Correct negative tokens, minus counted: at least 0.80 (one digit), 0.89 (two), 0.67 (three; 0.94 at the 1st percentile). A misread "-23" is about 0.5.
+  - **The amendment.** A token with a leading minus needs 0.6 × (its digits + 1) × pitch. A test covers "-23" for "-2 375 956".
+  - **KEEP:** R1's bound (0.6), a "1" as a full digit, both passes.
+
+- **2026-11-06, Meinich (review pass 1, triage 19): R3 uses the between-sources rule.** This supersedes "+ 5 kr" in R3 and its I/O row.
+  - **The finding.** R3 compares a document figure with an API figure. AGENTS.md requires the between-sources rule for that, max(5 kr, 0.001 % of the API figure), never collapsed with the within-document bound. At 5 kr, a line equal to nearly all current assets could exceed a rounded API total and be emptied.
+  - **The amendment.** R3 empties a current `kundefordringer` or `bankinnskudd` only above `sumOmloepsmidler` + max(5 kr, 0.001 % of `sumOmloepsmidler`). The two values are set once in `src/engine`, with a test that fails if they differ from `[reconciliation]` in `ingest/config.toml`.
+  - **KEEP:** R3's reason `exceeds_api_subtotal`, the current column only, `salgsinntekt` and `leverandorgjeld` unchecked.
+
 ## Review Triage Log
+
+Pass 1, 2026-11-06. The diff ran from `e6c1cde` to `c4cf8f4`, without the copied seed CSVs, the counts JSON, the regenerated `ocr-sm2.md` and this spec (the probe and its output were committed in `e6c1cde` and shown at the checkpoint). Three layers ran: blind hunter (BH), edge-case hunter (EC) and verification gap (VG).
+
+| # | Finding (layer) | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | A narrow negative misread ("-23") passes R1: the box includes the minus glyph, the count excludes it (EC, BH) | low | `too_narrow` uses `len(t.text.lstrip("-"))` against `t.width`; the font is monospaced, so the minus takes about one pitch and gives the misread that much slack. Negative cost lines are rare (inventory change, gains). | reject (the fix changes R1's frozen definition, "its digit count"); put to Meinich at the presentation |
+| 2 | R1 is said to refuse the misread "in both passes"; the digits pass merges the groups into one wide token that R1 never refuses (BH, EC) | low | Confirmed: "23375956" spans the printed width, ratio about 0.9. `test_digit_read_as_two_not_admitted_by_gate` shows the gate keeps it out. The docs overclaim; the code is as decided. | patch (wording in `layout.py`, `documents.py`, AGENTS.md, `data-sources-brreg.md`, PRD) |
+| 3 | An inflated pitch could refuse correct figures silently (EC) | low | Pre-existing reliance on `Edges.pitch` (the gap check); the probe found no correct reference figure lost at 0.6 on 20 documents and 77 refusals, all of the misread pattern, on 344. | reject |
+| 4 | `varer` on a page classified otherwise (combined page, a balance continuation) is now never read, and the dump count cannot tell a removed inventory-change row from lost stock (EC, BH) | maybe-false | The regression over the cached words changed `varer` in 21 columns; whether any was real balance stock is not shown. | patch: split the 21 by where the old value came from, report it, and name the risk in the AI log |
+| 5 | `parseVarerDump` accepts a malformed year; duplicate keys overwrite silently (EC) | false | The dump is written by `COPY` from a table whose primary key is (orgnr, filing_year, role); a malformed year cannot occur. | reject |
+| 6 | The reviewed diff leaves out the probe and other evidence (BH) | false | Excluded by design and listed above; the probe was committed and shown to Meinich at the checkpoint. | reject |
+| 7 | Document counts disagree: "344 2.1b documents" includes the 20 reference documents; elsewhere 363 (BH) | low | Confirmed: 344 = 20 + 44 + 180 + 100; 363 is every cached words file, the 2.5b probe's included. | patch (wording) |
+| 8 | R3 is described as always a misread; 2 of the 8 cases were the API's (BH) | low | Confirmed in `types.ts` and `key-figures.md`; the data-sources note says 2 of 8 are API-side. | patch (wording: the figure or the subtotal is wrong; AI-log risk) |
+| 9 | The SM-2 2.5c section shows an "After" for the reference set equal to "Before" before any re-read (BH) | low | The section is regenerated after C2 step 6, before merge (Tasks). | reject |
+| 10 | The SM-2 "errors reaching the engine" ignore R3 although the section says the engine rules apply (BH) | low | Confirmed: `misreadsReachingEngine` filters on column status only (`ocr-sm2-compare.ts:587`). R3 empties no reference figure today. | patch: apply `guardCurrentAssets` there |
+| 11 | `costSumCounts` keeps its own 5 kr and main-line list, tied to neither the engine nor the config; it also ignores `no_revenue` (VG, BH) | medium | Confirmed (`ocr-sm2-compare.ts:883-909`). | patch: import `ROUNDING_TOLERANCE_ORE` and `MAIN_COST_LINES`, and count "under" only where the engine would reach R2 |
+| 12 | R4 and R1's bound have no acceptance criterion in `epics.md` (BH) | low | Confirmed: the new criteria cover R2 and R3. | patch |
+| 13 | R3's limits are not written down: the prior column, and the two lines together above the subtotal (BH) | low | True as limits; the prior column reaches no engine code today. | patch (one sentence in FR-58, the technical note, the AI log) |
+| 14 | `exceeds_api_subtotal` has no planned user-facing reason (BH) | low | Story 3.1a's new criterion names no copy; AGENTS.md's no-silent-fallback rule. | patch (Story 3.1a criterion: the reason is shown, Story 2.9) |
+| 15 | `deferred-work.md` closes the entry before the re-read (BH) | low | Confirmed. | patch ("fixed in code; re-read pending") |
+| 16 | R3's emptied count compares object identity (BH) | low | Confirmed in `derive.ts` and `currentAssetsEmptied`; correct today. | patch (compare kind and reason) |
+| 17 | FR-58's "Known limit, not yet guarded" heading and the memlog's "the four unguarded lines get the width rule" no longer match (BH) | low | Confirmed (`prd.md:834`, `.memlog.md`). | patch (wording; R1 applies to every figure) |
+| 18 | The regression check behind R1 (77 refused, c1–c4 unchanged, `varer` in 21) rests on a scratch run (BH) | medium | AGENTS.md: a claim in the AI log names what backs it. | patch: commit it as a mode of `analysis/ocr/cost_sum.py` with its recorded output |
+| 19 | R3 compares a document figure with an API figure at 5 kr; AGENTS.md's between-sources rule is max(5 kr, 0.001 % of the API figure) (VG) | low | Real: a line equal to all current assets could exceed a rounded API total by up to 0.001 % and be emptied. The frozen R3 says "+ 5 kr"; changing it edits the frozen intent. | reject (spec edit); put to Meinich at the presentation |
+| 20 | `pnpm test:db`: nine seed-export tests time out at 60 s in the full run (the build session's own run) | false | `test/db/seed.test.ts` passes alone in 0.4 s; the full run is rerun after the patches. | reject, rerun |
 
 ## Verification
 

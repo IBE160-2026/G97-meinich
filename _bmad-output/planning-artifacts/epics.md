@@ -1541,6 +1541,12 @@ Scope (Meinich, 2026-11-06):
 
 Items 1 and 2 need a re-read and Meinich's yes before it starts.
 
+Decided at the probe checkpoint (Meinich, 2026-11-06; probe `analysis/output/cost-sum-probe.md`, spec `spec-2-5c-refuse-a-digit-read-as-two.md`):
+- **R1.** A digit token narrower than 0.6 × its digit count × the page's pitch (a "1" a full digit) is refused in both passes. The cause of the columns under the total (item 2) is one digit of a cost line read as another of the same width (8 as 3, 6 as 5), which R1 does not catch.
+- **R2, adopted (item 3).** When the four main cost lines are read and, `nedskrivninger` empty counted as 0, fall short of `sum_driftskostnad` by more than 5 kr, derive writes no fingerprint and counts it as `cost_lines_short_of_total`. A column with a main line empty keeps the interval rule; lines over the total stay `negative_unexplained`.
+- **R3 (item 4).** A current `kundefordringer` or `bankinnskudd` above the API's `sumOmloepsmidler` + 5 kr is absent in the engine as `exceeds_api_subtotal`; `salgsinntekt` and `leverandorgjeld` get only R1. PRD open question 21 is answered.
+- **R4.** `varer` is read from balance pages only: the income statement's inventory-change row was stored as the stock.
+
 **Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5c-<slug>`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
@@ -1549,9 +1555,13 @@ Items 1 and 2 need a re-read and Meinich's yes before it starts.
 **When** step 1 reads it
 **Then** the figure is refused, never repaired
 
-**Given** a column whose cost lines are all read
-**When** they do not sum to `sum_driftskostnad` within 5 kr
-**Then**, if the rule is adopted, `pnpm derive` writes no fingerprint for it and counts it under a named reason
+**Given** a column whose four main cost lines are read
+**When** they fall short of `sum_driftskostnad` by more than 5 kr
+**Then** `pnpm derive` writes no fingerprint for it and counts it as `cost_lines_short_of_total` (R2)
+
+**Given** a current `kundefordringer` or `bankinnskudd` above the API's `sumOmloepsmidler` + 5 kr
+**When** the engine reads the column
+**Then** the figure is absent with the reason `exceeds_api_subtotal` and the fingerprint treats it as empty (R3)
 
 **Given** every stored document re-read, after Meinich's yes
 **When** `pnpm analysis:sm2` runs
@@ -1824,6 +1834,10 @@ So that every figure the table will show can be traced to a formula and a hand c
 **Given** a document figure the subject has and fewer than 10 peers have from the same source
 **When** its comparison is requested
 **Then** the engine returns the below-floor absence with the count, and no comparison and no kroner (FR-22, FR-24)
+
+**Given** a current column whose `kundefordringer` or `bankinnskudd` is above the key-figures API's `sumOmloepsmidler` of the same filing + 5 kr (Story 2.5c, R3)
+**When** the engine reads the document figures, through `documentFigures` and then `guardCurrentAssets`
+**Then** that line is absent with the reason `exceeds_api_subtotal`, and a figure that needs it — receivable days (9), operating-asset turnover (11) — is undefined for that company, never computed from the stored figure (test)
 
 **Given** the PR
 **When** it is opened

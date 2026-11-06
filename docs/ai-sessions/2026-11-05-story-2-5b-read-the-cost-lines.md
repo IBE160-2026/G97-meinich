@@ -57,7 +57,10 @@ Meinich ran keep-awake and both re-reads in their own PowerShell windows, after 
   - After the restore, the database holds 2 044 documents and 4 086 columns. Derive wrote 1 865 fingerprints, equal by row and `input_digest` to the dump taken after the re-read.
 - **Corrected during the run.** `test/db/seed.test.ts` hard-coded 85 seed fingerprints; the re-read makes 86 (`27a9743`).
 
+## Merge
+
+CI was green on `b363a6e`. Before merging, the review session checked the re-read against the database and `.local/document-run-2.4/` (no figure lost or changed, no column from reconciled to failed), the new dump's sha256 and its backup, that the restore dump holds no allow-listed row and equals the database, the counts after steps 4–9, that the seed commit holds only the seed files, and that the PR text names no orgnr. The review was posted as a GitHub review with seven line comments, drafted by the review session and posted at the human's decision. The PR was merged at 10:33 UTC as `e30ba6d`. The review session then set the spec and the story to done on `main`.
+
 ## Open
 
-- Meinich's GitHub review of PR #46 and the merge after green CI.
 - The misread fix is Story 2.5c in `epics.md` (Meinich, 2026-11-06), ordered after 2.5b and before the document run for the labelled set. Its scope is three items: refuse a digit token narrower than its digit count; find the cause of the 17 current columns under the total; and consider an engine rule that gives no fingerprint to a column whose read cost lines do not sum. `deferred-work.md` points to it.

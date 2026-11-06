@@ -2,7 +2,7 @@
 title: 'Story 2.5b: Read the cost lines and the parts of intangible assets'
 type: 'bugfix'
 created: '2026-11-01'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'db72a90382b3ccc8c6cfb37c2d2a2639789c1a67'
 route: 'dispatch'
 review_loop_iteration: 0

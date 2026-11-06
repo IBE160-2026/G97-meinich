@@ -38,7 +38,8 @@ export type Absence =
   // checked (a row restored from a dump made before Story 2.2).
   | { readonly reason: 'not_reconciled' }
   // A current asset line of a reconciled document column above the
-  // key-figures API's sum_omloepsmidler of the same filing by more than 5 kr:
+  // key-figures API's sum_omloepsmidler of the same filing by more than the
+  // between-sources rule, max(5 kr, 0.001 % of the subtotal):
   // a part cannot exceed its sum, so the figure or the register's subtotal is
   // wrong (the probe: 6 of 8 a misread figure, 2 the subtotal) and the figure
   // is not used (R3, Story 2.5c; `guardCurrentAssets`).

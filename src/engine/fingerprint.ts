@@ -51,7 +51,7 @@
 //       column with a main line empty keeps the interval rule. Lines over
 //       the total stay `negative_unexplained`.
 //   R3  A current column's kundefordringer or bankinnskudd above the API's
-//       sum_omloepsmidler + 5 kr is absent (`guardCurrentAssets` in
+//       sum_omloepsmidler + max(5 kr, 0.001 % of it) is absent (`guardCurrentAssets` in
 //       document-inputs.ts) and read here as an empty line, so the inputs
 //       and their digest hold it as null.
 //

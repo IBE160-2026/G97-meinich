@@ -389,7 +389,7 @@ Current columns holding a figure, of all current columns. The run's 1947 documen
 
 ## Before and after Story 2.5c
 
-Story 2.5c refuses a digit token narrower than 0.6 of its digits at the page's character pitch (R1: Tesseract reads a printed "2" as "23" in a box one glyph wide, and both passes agree), reads `varer` from the balance sheet only (R4: the income statement's inventory-change row ends in "varer" too), and re-reads every stored document. Two engine rules need no re-read: no fingerprint when the four main cost lines are read and fall short of sum kostnader by more than 5 kr (R2, `cost_lines_short_of_total`), and a current `kundefordringer` or `bankinnskudd` above the API's sum omløpsmidler + 5 kr is not used (R3). "Before" is the committed seed as Story 2.5b left it, copied byte for byte into `analysis/output/ocr-sm2-before-2.5c/` before any re-read, and `analysis/output/document-run-counts-before-2.5c.json`; "after" is the committed seed and `analysis/output/document-run-counts-after-2.5c.json`. Both are compared with the corrected transcriptions, over every compared field. The engine rules are applied to both with this commit's engine, so "before" and "after" differ only by the re-read.
+Story 2.5c refuses a digit token narrower than 0.6 of its digits at the page's character pitch (R1: Tesseract reads a printed "2" as "23" in a box one glyph wide, and both passes agree), reads `varer` from the balance sheet only (R4: the income statement's inventory-change row ends in "varer" too), and re-reads every stored document. Two engine rules need no re-read: no fingerprint when the four main cost lines are read and fall short of sum kostnader by more than 5 kr (R2, `cost_lines_short_of_total`), and a current `kundefordringer` or `bankinnskudd` above the API's sum omløpsmidler + max(5 kr, 0.001 % of it) is not used (R3). "Before" is the committed seed as Story 2.5b left it, copied byte for byte into `analysis/output/ocr-sm2-before-2.5c/` before any re-read, and `analysis/output/document-run-counts-before-2.5c.json`; "after" is the committed seed and `analysis/output/document-run-counts-after-2.5c.json`. Both are compared with the corrected transcriptions, over every compared field. The engine rules are applied to both with this commit's engine, so "before" and "after" differ only by the re-read.
 
 ### The reference set, every class
 
@@ -460,7 +460,7 @@ Reconciled columns with positive sum driftsinntekter whose four main cost lines 
 
 ### Current asset lines above the API subtotal (R3)
 
-Current columns whose `kundefordringer` or `bankinnskudd` is above the API's sum omløpsmidler of the same filing + 5 kr: the figure is stored, and the engine does not use it. `salgsinntekt` and `leverandorgjeld` get only R1. Totals only.
+Current columns whose `kundefordringer` or `bankinnskudd` is above the API's sum omløpsmidler of the same filing + max(5 kr, 0.001 % of it): the figure is stored, and the engine does not use it. `salgsinntekt` and `leverandorgjeld` get only R1. Totals only.
 
 | Data set | Line | Before | After |
 |---|---|---|---|

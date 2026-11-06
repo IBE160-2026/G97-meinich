@@ -12,7 +12,7 @@
 //   subtotals, and computes each fingerprint with the engine
 //   (src/engine/fingerprint.ts) from what documentFigures passes: only a
 //   reconciled column's figures, and of those not a kundefordringer or
-//   bankinnskudd above the API's sum_omloepsmidler + 5 kr (R3, Story 2.5c:
+//   bankinnskudd above the API's sum_omloepsmidler + max(5 kr, 0.001 % of it) (R3, Story 2.5c:
 //   guardCurrentAssets), which the fingerprint reads as an empty line.
 // - Rebuilds the table in one transaction: TRUNCATE, then INSERT. It deletes
 //   nothing anywhere else.
@@ -88,7 +88,7 @@ export type DeriveCounts = {
   readonly skipped: Record<SkipReason, number>;
   /** Of the columns skipped as cost_lines_short_of_total, those whose nedskrivninger is empty (counted as 0). */
   readonly shortOfTotalNedskrivningerEmpty: number;
-  /** Figures R3 emptied: above the API's sum_omloepsmidler + 5 kr. */
+  /** Figures R3 emptied: above the API's sum_omloepsmidler + max(5 kr, 0.001 % of it). */
   readonly emptiedAboveApiSubtotal: Record<GuardedLine, number>;
   /** Per fingerprint (company and filing year). */
   readonly types: TypeCounts;

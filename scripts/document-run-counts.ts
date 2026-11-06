@@ -108,7 +108,7 @@ export type EngineCounts = {
   skipped: Record<SkipReason, number>;
   /** Of the columns skipped as cost_lines_short_of_total, those with nedskrivninger empty. */
   cost_lines_short_of_total_nedskrivninger_empty: number;
-  /** Figures R3 empties: above the API sum_omloepsmidler + 5 kr. */
+  /** Figures R3 empties: above the API sum_omloepsmidler + max(5 kr, 0.001 % of it). */
   emptied_above_api_subtotal: Record<GuardedLine, number>;
 };
 

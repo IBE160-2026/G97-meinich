@@ -1,6 +1,6 @@
 # The reader before and after Story 2.5c, on cached words
 
-Written by `analysis/ocr/reader_regression.py`: every document whose recognised words the probes cached, read with `ingest/src` at `e87f166` and at `c716bbd` (the last commit to `ingest/`), on the host, no OCR. Totals only.
+Written by `analysis/ocr/reader_regression.py`: every document whose recognised words the probes cached, read with `ingest/src` at `e87f166` and at `b57aaba` (the last commit to `ingest/`), on the host, no OCR. Totals only.
 
 `varer` origin: where the old figure came from, found by running the old reader's `layout.extract` on its income-statement pages alone and on its balance pages alone. A changed `varer` whose old figure came from a balance row is a real stock the new reader lost.
 

@@ -1912,6 +1912,257 @@ The review session checked the row counts, the seed's 85 fingerprints, the order
 
 ---
 
+## The PRD drift series brought onto `main` (`21ae99e` to `165e1cf`, `4e1b9d7`)
+
+A Claude Desktop session on 2026-11-04 reviewed the PRD against what Epics 1–2 built (`docs/ai-sessions/2026-11-04-prd-drift-review.md`). The session saved its work as a patch series, with instructions, in the human's Downloads folder. Its own prompts are not in this log: that transcript is not in Claude Code.
+
+### Prompts to the review session
+
+**2026-11-05 19:40**
+```
+Kan du se på denne fra chat med claude i desktop - er lagt til filer for endringer som gjelder prd og konkurrenter:
+```
+The review session found that the 12 patches applied without conflict, changed no code, and held no secret or demo orgnr. Every commit hash differed from the instructions, so it did not push. The instructions said not to push if the hashes did not match.
+
+**19:43**
+```
+ja gjør det du anbefaler
+```
+The series landed on `main` from `21ae99e` to `165e1cf`, and was pushed with the 2.5 session log (`f9249a6`). The new hashes still differ, for a cause the review session did not find. `4e1b9d7` adds a table from the old hashes to the new ones, because the documents cite the old ones. The series brought the AGENTS.md rule "A decision travels upstream in the PR that makes it", so the review session drafted the prompt that merged `main` into the 2.5b branch (below, 19:51).
+
+`hvordan blir dette bli ferdig med 2.6 først - også merges de?` (19:46): the review session explained that 2.5b is finished and merged first, and 2.6 starts from `main` after that.
+
+*Open:* the four new open questions in PRD §11 (21–24) are not GitHub issues yet.
+
+---
+
+## Story 2.5b: read the cost lines and the parts of intangible assets (#45, PR #46)
+
+Every `Fra meg:` prompt and menu answer below was drafted by the review session and pasted or chosen by the human, who made the decisions in it. Fingerprint results are given as totals only: eight of the reference set's companies are also in the labelled set.
+
+### Prompts to the BMAD session
+
+**2026-11-01 21:41**
+```
+/bmad-build Story 2.5b: les kostnadslinjene og delene av immaterielle
+eiendeler (deferred-work.md, de to postene fra Story 2.5). Opprett
+storyen og issuet først. Start med en probe, som i 2.3: finn ut hvorfor
+linjene kommer ut tomme, med bevis fra dokumentene, før noe rettes. Mål
+før og etter på referansesettet, med feilleste tall som når motoren og
+andelen uten type. Flere leste tall skal ikke betales med nye feil.
+D1 er låst: ingen endring i terskler eller typeregel. Vis ingen
+fingeravtrykk-resultater for orgnr i fasitsettet. Omlesing og
+dokumentkjøringen for fasitsettet starter bare etter eget ja fra meg.
+```
+
+**21:52**: four questions in the menu. The human chose the recommended option in each:
+- "All four lines", meaning every printed part of intangible assets becomes a field;
+- "You transcribe them": the human transcribes the parts in the reference set;
+- "Decide after probe" for a cost-line sum gate;
+- "No, after merge" for the labelled set's document run.
+
+**21:53**
+```
+Fra meg: approve and continue, med tre endringer. Skriv dem inn i spec-en
+før du starter:
+1. Avskriften av de fire delene kommer før proben. Lag malen først, uten
+   å vise meg noen OCR-verdier. Jeg skriver av, og review-sesjonen sjekker
+   at delene summerer til totalen. Vis meg proben først etter at avskriften
+   er committet.
+2. Seed og omlesing følger rekkefølgen fra 2.5. Ingen pnpm seed og ingen
+   sletting av 2.1b-rader uten mitt ja. Rett Tasks og Verification:
+   seed:export kan ikke kjøres med 2.1b-radene i databasen. Rekkefølge etter
+   ja: dump og backup; --reread av alle lagrede dokumenter; ny dump; slett
+   radene utenfor allow-listen i én kontrollert transaksjon; pnpm derive;
+   seed:export i egen commit; pnpm seed to ganger og ny eksport uendret;
+   gjenopprett fra den nye dumpen og bekreft radtallene; pnpm derive.
+   Gjenoppretting fra en dump uten de nye kolonnene må fortsatt virke før
+   omlesingen: test det, og README "Seed" må si hvilken dump som gjelder.
+3. Legg inn tidsgrensen per dokument (watchdog) fra deferred-work.md i
+   denne storyen, med test, i egen commit og før omlesingen, fordi rundt
+   40 timer OCR venter. Når den utløper, listes dokumentet som ikke hentet,
+   og kjøringen går videre.
+```
+*Changed:*
+- **The transcription came before the probe**, so the human's reading of the parts could not follow the OCR. The template is `e9444da`.
+- **The seed steps were reordered.** The spec would have run `seed:export` while the 2.1b rows were in the database, and the export refuses them.
+- **The watchdog came into the story.** The 2.3b re-read had hung on a fetch.
+
+**2026-11-05 19:51**: after the PRD drift series landed on `main` (above).
+```
+Fra meg: main er oppdatert med PRD-rettelsene (f9249a6), også AGENTS.md.
+Hent origin/main inn i story/2.5b-read-cost-lines nå, og les den nye regelen
+"A decision travels upstream in the PR that makes it". PR-en for 2.5b skal
+ha linjen "Planning documents:".
+Bygg deretter tidsgrensen per dokument, i egen commit. Jeg redigerer
+analysis/ocr-reference/transcriptions.csv i arbeidstreet imens. Ikke rør
+den fila, ikke bytt gren, og stage bare de filene du endrer selv, ingen
+git add -A. Ikke kjør proben, og ikke vis meg OCR-verdier før avskriften
+er committet.
+```
+The merge is `7174937`, and the watchdog is `6978bde`.
+
+**20:17**
+```
+Fra meg: avskriften av de fire delene er committet (8e97232). Review-sesjonen
+sjekket uten OCR-verdier at delene summerer til totalen i alle 23 kolonner.
+Der totalen er 0, står den trykt som 0. Kjør proben nå (read-only, i
+step-1-imaget), og stopp ved sjekkpunktet: vis meg årsakene per tom linje med
+OCR-ordene som bevis, og foreslått retting, før layout.py eller documents.py
+endres. Ta også med om nektede tall-tokens er en årsak, siden det avgjør
+Q3. Ikke vis fingeravtrykk for orgnr i fasitsettet.
+```
+The probe is `bb9d4f4` (`analysis/output/empty-lines-probe.md`). It found four causes:
+- refused figure tokens ("l" for 1);
+- depreciation in other wordings;
+- note references read as letters;
+- plurals.
+
+**20:48**: the checkpoint, answered in the menu.
+```
+Fra meg: godkjent F1–F3, med disse vilkårene (skriv dem i Spec Change Log):
+F3: et tall fra sifferpasset slippes bare inn når alle operandene i
+sjekken finnes, totalen (sum_driftskostnad eller sum_immaterielle_eiendeler)
+er lest i vanlig pass, høyst ett operand kommer fra sifferpasset, og
+summen stemmer innen 5 kr. Testene skal bruke probe-tilfellene:
+l4 481 267 (sifferpasset gir 4 481 267, riktig 14 481 267), 8 605 8349
+og 3 804 3836 skal alle nektes, og ett riktig tilfelle slippes inn.
+Ingen reparasjon av tall: Ö skal ikke leses som 0, og linja forblir tom.
+F1: den brutte etiketten "Avskrivning på varige driftsmidler og /
+immaterielle eiendeler" matches bare som fortsettelse i
+resultatregnskapet. Test begge veier: avskrivningslinja leses aldri som
+immaterielle eiendeler i balansen, og omvendt.
+Dagens matching skal fortsatt matche alt den matcher i dag. Kjør testene
+for det.
+Jeg sjekker to celler i avskriften mot PDF, ikke blindt, fordi proben
+viste OCR-verdien: 922184534/2025 prior lønnskostnad og 927533235/2023
+current lønnskostnad. Vent med målingen til det er avklart.
+```
+In the same menu, the human chose "Som 0, bare i sperren" for a line that was neither read nor offered.
+
+*Changed:* the BMAD session proposed a sum gate for the digits pass. The conditions made it unable to admit a wrong figure:
+- the total must come from the plain pass;
+- at most one operand may come from the digits pass;
+- the probe's three misreads must be refused, by test.
+
+The regression check that every old match still holds became part of F1. That check is the 1 486 matches, all unchanged. The fixes are `281f134`, `8c85ca8` and `bd94b80`.
+
+**21:06**: a follow-up question, answered "Uten rad regnes som 0". The review session's reasoning was that a missing line counted as 0 can never make a wrong figure pass: the sum then does not add up, and nothing is admitted. A row that matched but could not be read leaves the gate not evaluable.
+
+**21:41**: two questions in the menu. "Utvikling" as a variant of research and development was kept ("Ja, behold"). For a blank printed row:
+```
+1, som 0 i sperren, med to tillegg: (a) en test med 994176021/2021-tilfellet
+som viser at sperren ikke slipper inn noe når en trykt linje mangler,
+(b) rapporten etter omlesingen oppgir hvor mange tall sperren slapp inn,
+og hvor mange av dem som bygde på en blank rad regnet som 0, som samletall.
+```
+*Changed:* the gate's report counts what it admitted and how many of those rested on an operand counted as 0 (`1514ef5`, `scripts/sum-gates.ts`).
+
+**21:45**
+```
+Fra meg: begge avskriftscellene er sjekket mot PDF-en, ikke blindt, fordi
+proben hadde vist OCR-verdien. Avskriften stemmer i begge, og ingenting
+rettes:
+- 922184534/2025, kolonnen for 2024, lønnskostnad: 31 286 483. Kostnadene
+  summerer til 104 938 509 mot "Sum kostnader" 104 938 508 (1 kr avrunding).
+- 927533235/2023, kolonnen for 2023, lønnskostnad: 1 448 646. Kostnadene
+  summerer nøyaktig til 2 280 576.
+OCR leste 6 som 5 i begge. Med OCR-tallet ville summen vært 999 kr og
+100 kr feil, så sperren ville nektet. Skriv dette i sesjonsfila og i
+README-en for referansesettet, som en kontroll uten rettelse. Det skal
+ikke inn i rettelsestabellen. Fortsett med målingen og kodegjennomgangen.
+Omlesingen starter først etter ja fra meg.
+```
+The check is `3d32823`.
+
+**21:57**: the BMAD session's review found that an abandoned fetch keeps running. If the network hung, every remaining document would wait 600 s, about 330 hours in all.
+```
+1, stopp etter 3 utløpte hentinger på rad, med tre presiseringer:
+(a) En forlatt henting skal aldri føre til en skriving. Resultatet kastes
+selv om den blir ferdig senere. Lag en test der hentingen fullføres etter
+tidsgrensen og ingenting skrives.
+(b) Tråden for en forlatt henting må ikke hindre prosessen i å avslutte
+(daemon eller tilsvarende). Kjøringen skal kunne avslutte med kode 1 selv
+om tre hentinger fortsatt henger.
+(c) Stoppen skrives i run-recorden med grunn, og telleren nullstilles når
+en henting lykkes. En ny kjøring fortsetter der den slapp.
+```
+The stop is `89f45f7` and `19b541b`, with a test for each of (a) to (c).
+
+**22:13**
+```
+Fra meg: ja til C2, med to endringer:
+0. Først: supabase migration up (ingen reset). De fire nye kolonnene
+   finnes ikke lokalt nå, så omlesingen ville feilet. Bekreft at
+   radtallene er uendret (2 044 dokumenter, 4 086 kolonner, 1 876
+   fingeravtrykk) og at kolonnene finnes. Ta dumpen i steg 1 etter dette.
+2. Anslaget: 40 timer var omlesing pluss fasitsett til sammen. Mål tiden
+   på de første 20 dokumentene og gi meg et ekte anslag. Hold maskinen
+   våken gjennom hele kjøringen, ikke bare 4 timer.
+Ellers som du skrev, med de ni stegene. Stopp og vis meg tallene etter
+steg 2 (erstattet, ikke erstattet med grunn, tapte tall, og hva sperrene
+slapp inn), før noe slettes i steg 4. Ingen push før jeg sier fra.
+```
+*Corrected afterwards:* item 0 rested on a mistake by the review session. It searched for the new columns without the `_ore` ending, found none, and said the migration was not applied. It was applied. The review session said so during the run; the extra step did no harm.
+
+*Changed:* the BMAD session had read "about 40 hours" as the re-read alone. That figure was the review session's, for the re-read and the labelled-set run together. The measured estimate was 20–23 hours; the 2.1b re-read took 11 h 44 min.
+
+**22:46**
+```
+Fra meg: (a). Jeg kjører keep-awake og omlesingen av 2.1b-radene i mine
+egne PowerShell-vinduer. Omlesingen venter til referansesettet er ferdig,
+og loggen går til .local\reread-2.1b-2.5b.log. Ikke start noe selv. Når
+jeg sier at kjøringen er ferdig, sjekker du run.step1 for begge kjøringene,
+at alle dokumenter har ny reader_commit, og at pnpm derive har kjørt, og
+viser meg tallene fra steg 2 før noe slettes.
+```
+Claude Code had stopped the BMAD session's three background commands because the machine was low on memory. The human ran the re-read in their own windows from then on.
+
+**2026-11-06 10:55**: the review session's check of the finished re-read found the misread.
+```
+Fra meg: Kjøringen er ferdig, og review-sesjonen har sjekket den mot databasen og .local/document-run-2.4/. 1 947 dokumenter er erstattet, ingen tall er tapt eller endret, og 2 941 tall er lagt til. Ett funn som skal med i rapporten og PR-en: av 1 291 kolonner der avskrivninger er nytt og alle kostnadslinjene finnes, summerer 48 ikke til sum_driftskostnad innenfor 5 kr. 36 kolonner i 25 selskaper overstiger totalen (negative_unexplained gikk fra 21 til 35), og 10 av dem i 8 selskaper ligger nøyaktig 21 000 000 kr over, med avskrivninger lest som omtrent 23 mill. Undersøk ett av de åtte selskapene lokalt i PDF-en og si hvorfor: hvilken linje og hvilket siffer. Ikke endre noe i ingest/ nå, for det krever en ny omlesing. Legg rettingen inn i deferred-work.md med tallene, totaler uten orgnr. Vis meg så punkt 3 og 4, med sperrenes tall. Før steg 4: ta en ny dump av dokumenttabellene etter omlesingen til .local/ og en kopi til peerless-backups, og sjekk sha256. Den erstatter .local/document-run-2.4/ som kilde for gjenoppretting. Oppdater README «Seed» til det. Stopp og vis meg sha256 og radtallene (2 044 dokumenter, 4 086 kolonner) før du sletter noe.
+```
+*Found:* in one PDF, the BMAD session showed that Tesseract reads the leading "2" of a seven-digit depreciation figure as "23" in both passes. That is 21 000 000 kr too much. The column still reconciles, because no check within a document sums the cost lines. Before 2.5b this line was never matched. The BMAD session's count was 7 companies, not 8: the review session had used a looser bound. It also found something more important: all 17 current columns under the total have a fingerprint. The entry is `3d1a03d`, and the new restore source is `.local/document-run-2.5b/` (`970d572`).
+
+**11:04**
+```
+Fra meg: ja til steg 4–9. Review-sesjonen har sjekket dumpene (sha256 er lik i peerless-backups, og ingen rader i document-run-2.5b/ er på allow-listen) og at document_column i dumpen er identisk med databasen. Kjør slettingen i én kontrollert transaksjon, deretter derive, seed:export i en egen commit, pnpm seed to ganger med uendret re-eksport, gjenoppretting fra .local/document-run-2.5b/, og derive til slutt. Bekreft etter gjenopprettingen: 1 947 + 97 dokumenter, 3 892 + 194 kolonner, og 1 865 fingeravtrykk som er like dem i document-tables-after-2.5b-reread/fingerprint.csv (sammenlign input_digest). Skriv rapporten og PR-utkastet, og ta med: 21-millionersfunnet med lenke til 3d1a03d, de 17 innværende kolonnene under totalen som har fått fingeravtrykk, og linjen «Planning documents:». Stopp før push og vis meg utkastet.
+```
+The seed is `9b82409`. `test/db/seed.test.ts` hard-coded 85 seed fingerprints, but the re-read makes 86 (`27a9743`).
+
+**11:14**: the BMAD session pointed out that AGENTS.md wants deferred v1 work that no story owns to be a story in `epics.md`, not only an entry in `deferred-work.md`.
+```
+Fra meg: Story 2.5c i epics.md, ordnet etter 2.5b og før dokumentkjøringen for fasitsettet. Omfang: (1) nekt et siffertoken som er smalere enn antall sifre tilsier (3d1a03d); (2) finn årsaken til de 17 innværende kolonnene som summerer under totalen; (3) vurder en regel i src/engine: når alle kostnadslinjene er lest og ikke summerer til sum_driftskostnad innenfor 5 kr, brukes ikke kolonnen til fingeravtrykk, og grunnen registreres. Denne regelen krever ingen omlesing. Rett «Planning documents:» i PR-utkastet så den nevner 2.5c, og pek oppføringen i deferred-work.md til storyen. Commit det, og push deretter branchen og opprett PR-en. Gi meg lenken, og si fra når CI er grønn.
+```
+*Changed:* item 3 came from the review session. The digit-width rule catches only this one kind of error, while an engine rule also covers the 17 columns under the total, and needs no re-read. Story 2.5c comes before the labelled set's document run, so its 741 companies are read once, by a fixed reader (`3834156`).
+
+### Prompts to the review session
+
+- `tenkte ikke at jeg trengte labels.csv før story 5.1?` (11-01): the review session confirmed that the 720 remaining pairs are needed only before Story 5.2.
+- `hva skal jeg nå da , på 2.5 er det csv` and `hvilke rader skal vi fylle ut` (11-05): the review session listed the 23 columns to transcribe and the rules: empty when a line is not printed, `0` when 0 is printed.
+- `Ser du hva som er lagret nå? Har lagt inn for alle - markert i grønt er fordi det ikke står 0 - er tom`, `Står faktisk immatrielle eiendeler og 0 her` and `Ja gjør det nå` (11-05): the review session checked that the parts summed to the total in all 23 columns, with 0 kr off. It reverted Excel's rewrite of every `transcribed_on` date, and committed the transcription as `8e97232`.
+- `står dette på den første:` and `Dette på den andre:` (11-05, with screenshots of the two PDFs): the review session confirmed both transcribed cells against the screenshots and drafted the 21:45 prompt.
+- `kan jeg få det til powershell slik at maskinen ikke sovner` (11-05): the review session gave a keep-awake command for the human's own window, which ends when no ingest container is running.
+- `sjekk` (11-06, four times): the review session followed the re-read from the log and the database. It compared every column with the dump taken before the re-read, which found the overshoot and drafted the 10:55 prompt.
+
+### Result
+
+All 2 044 documents are read by `19b541b`. Nothing was left not replaced, no figure was lost or changed, and no deadline ran out. The 2.1b re-read took 11 h 44 min. The reference set recovers 89,9 % of its figures exactly, up from 83,2 %, with depreciation right in 27 of 27 columns, up from 10. No misread figure reaches the engine from the reference set. The 2.1b fingerprints without a type fell from 49,9 % to 42,2 %. The misread found after the re-read is Story 2.5c.
+
+### Checks before merging
+
+The review session checked these against the database and the dumps:
+- the re-read, column by column;
+- the new dump's sha256 and its backup copy;
+- that the restore dump holds no allow-listed row and equals the database;
+- the counts after steps 4–9;
+- that the seed commit holds only seed files and the seed's fingerprints only allow-listed companies;
+- that the PR text names no orgnr.
+
+CI was green on `b363a6e`. At the human's request (`ja post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 10:33 UTC as `e30ba6d`.
+
+---
+
 ## Going forward
 
 After each merged story, and after planning or documentation work committed straight to `main`, the prompts from both sessions are added here in the same form: verbatim, with what changed and the commit or PR it landed in.

@@ -18,12 +18,15 @@
 //
 // `guardCurrentAssets` (R3, Story 2.5c; Meinich 2026-11-06) applies to a
 // current column's figures, after `documentFigures`: a `kundefordringer` or
-// `bankinnskudd` above the filing's API `sum_omloepsmidler` + 5 kr is absent
-// with reason `exceeds_api_subtotal`. No within-document check covers these
+// `bankinnskudd` above the filing's API `sum_omloepsmidler` by more than the
+// between-sources rule, max(5 kr, 0.001 % of the subtotal), is absent with
+// reason `exceeds_api_subtotal` (review triage 19: a document figure against
+// an API figure takes the between-sources rule, never the within-document
+// bound). No within-document check covers these
 // two lines, and the probe found such figures to be a digit read as two
 // (analysis/output/cost-sum-probe.md). The stored figure is unchanged; the
 // engine only does not use it.
-import { ROUNDING_TOLERANCE_ORE } from './fingerprint.ts';
+import { Decimal } from './decimal.ts';
 import { parseOre } from './inputs.ts';
 import type { Absence } from './types.ts';
 
@@ -127,13 +130,31 @@ export function exceedsApiSubtotal(figure: DocumentFigure): boolean {
   return figure.kind === 'absent' && figure.absence.reason === 'exceeds_api_subtotal';
 }
 
+/**
+ * The between-sources rule of `[reconciliation]` in ingest/config.toml:
+ * `between_sources_floor_kr` in øre and `between_sources_tolerance` as an
+ * exact decimal. test/engine/between-sources-tolerance.test.ts fails if
+ * either differs from the config.
+ */
+export const BETWEEN_SOURCES_FLOOR_ORE = 500n;
+export const BETWEEN_SOURCES_TOLERANCE = new Decimal('0.00001');
+
+/** `line` above `subtotal` by more than max(floor, tolerance × |subtotal|), exactly. */
+function aboveSubtotal(line: bigint, subtotal: bigint): boolean {
+  const excess = line - subtotal;
+  if (excess <= BETWEEN_SOURCES_FLOOR_ORE) return false;
+  const magnitude = subtotal < 0n ? -subtotal : subtotal;
+  return new Decimal(excess.toString()).gt(BETWEEN_SOURCES_TOLERANCE.mul(new Decimal(magnitude.toString())));
+}
+
 /** The current asset lines R3 checks against the API's sum_omloepsmidler. */
 export const GUARDED_CURRENT_ASSETS = ['kundefordringer', 'bankinnskudd'] as const satisfies readonly DocumentField[];
 
 /**
  * R3 (Story 2.5c): a current column's `kundefordringer` or `bankinnskudd`
  * above `sumOmloepsmidler` (the key-figures API filing the document belongs
- * to) by more than 5 kr is absent with reason `exceeds_api_subtotal`. Every
+ * to) by more than max(5 kr, 0.001 % of it) is absent with reason
+ * `exceeds_api_subtotal`: the line or the subtotal is wrong. Every
  * other figure, a prior column, an API subtotal that is NULL, and a column
  * that passes no value are returned unchanged. `salgsinntekt` and
  * `leverandorgjeld` are not checked: a revenue line can exceed its total
@@ -148,7 +169,7 @@ export function guardCurrentAssets(
   const out: Record<DocumentField, DocumentFigure> = { ...figures };
   for (const field of GUARDED_CURRENT_ASSETS) {
     const figure = figures[field];
-    if (figure.kind === 'value' && figure.ore !== null && figure.ore > sumOmloepsmidler + ROUNDING_TOLERANCE_ORE) {
+    if (figure.kind === 'value' && figure.ore !== null && aboveSubtotal(figure.ore, sumOmloepsmidler)) {
       out[field] = { kind: 'absent', absence: { reason: 'exceeds_api_subtotal' } };
     }
   }

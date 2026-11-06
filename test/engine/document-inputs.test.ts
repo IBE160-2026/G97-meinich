@@ -118,9 +118,23 @@ describe('guardCurrentAssets', () => {
     expect(exceedsApiSubtotal(documentFigures(row('failed_reconciliation')).kundefordringer)).toBe(false);
   });
 
-  it('a current asset line above the API subtotal is empty only beyond 5 kr', () => {
-    expect(guardCurrentAssets(reconciled, 'current', 842189300n - 500n).kundefordringer).toEqual({ kind: 'value', ore: 842189300n });
-    expect(guardCurrentAssets(reconciled, 'current', 842189300n - 501n).kundefordringer).toEqual(absent);
+  it('a current asset line above the API subtotal is empty only beyond the 5 kr floor, where 0.001 % is less', () => {
+    // sum_omloepsmidler 100 000 kr: 0.001 % is 1 kr, so the 5 kr floor applies.
+    const subtotal = 10_000_000n;
+    const line = (ore: bigint) => documentFigures(row('reconciled', { ...FIGURES, kundefordringer: ore.toString() }));
+    expect(guardCurrentAssets(line(subtotal + 500n), 'current', subtotal).kundefordringer).toEqual({ kind: 'value', ore: subtotal + 500n });
+    expect(guardCurrentAssets(line(subtotal + 501n), 'current', subtotal).kundefordringer).toEqual(absent);
+  });
+
+  it('a current asset line above the API subtotal is empty only beyond max(5 kr, 0.001 % of it)', () => {
+    // sum_omloepsmidler 100 000 000 kr: 0.001 % is 1 000 kr (100 000 øre), above the 5 kr floor.
+    const subtotal = 10_000_000_000n;
+    const line = (ore: bigint) => documentFigures(row('reconciled', { ...FIGURES, kundefordringer: ore.toString() }));
+    const kept = guardCurrentAssets(line(subtotal + 100_000n), 'current', subtotal);
+    expect(kept.kundefordringer).toEqual({ kind: 'value', ore: subtotal + 100_000n });
+    // 6 kr over: past the floor, inside the proportional term, kept.
+    expect(guardCurrentAssets(line(subtotal + 600n), 'current', subtotal).kundefordringer.kind).toBe('value');
+    expect(guardCurrentAssets(line(subtotal + 100_001n), 'current', subtotal).kundefordringer).toEqual(absent);
   });
 
   it('leaves the figures unchanged with no API figure, in the prior column, or for a line not read', () => {

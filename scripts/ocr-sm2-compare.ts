@@ -7,7 +7,12 @@
 // Every amount is a bigint: stored figures in øre (parseOre), transcribed
 // figures in whole kroner, compared as øre = kroner × 100. A blank cell and a
 // NULL column are absent, never 0.
-import { DOCUMENT_FIGURE_COLUMNS, type DocumentColumnRow, documentFigures } from '../src/engine/document-inputs.ts';
+import {
+  DOCUMENT_FIGURE_COLUMNS,
+  type DocumentColumnRow,
+  documentFigures,
+  guardCurrentAssets,
+} from '../src/engine/document-inputs.ts';
 import { type ApiSubtotals, apiSubtotalsFromRow, businessType, fingerprintOf } from '../src/engine/fingerprint.ts';
 import { parseOre } from '../src/engine/inputs.ts';
 import { type DrawnFiling, compareBytes, parseCsv } from './seed-format.ts';
@@ -852,7 +857,8 @@ export function typeTotals(
     if (column.role !== 'current') continue;
     current += 1;
     const id = brregIds.get(`${column.orgnr}/${column.filingYear}`) ?? null;
-    const result = fingerprintOf(documentFigures(documentColumnRow(column)), (id === null ? undefined : subtotals.get(id)) ?? none);
+    const api = (id === null ? undefined : subtotals.get(id)) ?? none;
+    const result = fingerprintOf(guardCurrentAssets(documentFigures(documentColumnRow(column)), 'current', api.sumOmloepsmidler), api);
     if (result.kind !== 'fingerprint') continue;
     fingerprints += 1;
     const isUndetermined = businessType(result.fingerprint) === null;

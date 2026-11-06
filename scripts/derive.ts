@@ -63,6 +63,7 @@ export type FingerprintRow = FingerprintColumns & {
 const SKIP_REASONS: readonly SkipReason[] = [
   'not_reconciled',
   'no_revenue',
+  'cost_lines_short_of_total',
   'negative_unexplained',
   'negative_balance_remainder',
 ];

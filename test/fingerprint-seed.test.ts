@@ -20,7 +20,12 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ALLOW_LIST_FILE, REFERENCE_DRAW_FILE, parseAllowList, parseCsv, parseDrawn } from '../scripts/seed-format.ts';
 import { digest } from '../src/engine/digest.ts';
-import { DOCUMENT_FIGURE_COLUMNS, type DocumentColumnRow, documentFigures } from '../src/engine/document-inputs.ts';
+import {
+  DOCUMENT_FIGURE_COLUMNS,
+  type DocumentColumnRow,
+  documentFigures,
+  guardCurrentAssets,
+} from '../src/engine/document-inputs.ts';
 import { type FingerprintColumns, apiSubtotalsFromRow, fingerprintFromColumns, fingerprintOf } from '../src/engine/fingerprint.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -87,7 +92,8 @@ describe('the committed seed’s fingerprints', () => {
       sum_anleggsmidler_ore: orNull(filing?.sum_anleggsmidler_ore),
       sum_omloepsmidler_ore: orNull(filing?.sum_omloepsmidler_ore),
     });
-    return fingerprintOf(documentFigures(columnRow(column)), subtotals);
+    // As `pnpm derive` computes it: R3 (Story 2.5c) on the current column, then the fingerprint.
+    return fingerprintOf(guardCurrentAssets(documentFigures(columnRow(column)), 'current', subtotals.sumOmloepsmidler), subtotals);
   }
 
   it('holds allow-listed fingerprints, each of a current document column in the seed', () => {

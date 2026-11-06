@@ -36,7 +36,12 @@ export type Absence =
   | { readonly reason: 'failed_reconciliation' }
   // A document column with no reconciliation status yet: read, not yet
   // checked (a row restored from a dump made before Story 2.2).
-  | { readonly reason: 'not_reconciled' };
+  | { readonly reason: 'not_reconciled' }
+  // A current asset line of a reconciled document column above the
+  // key-figures API's sum_omloepsmidler of the same filing by more than 5 kr:
+  // a part cannot exceed its sum, so the figure is a misread (R3, Story 2.5c;
+  // `guardCurrentAssets`).
+  | { readonly reason: 'exceeds_api_subtotal' };
 
 /** A single company's figure cannot be below the floor; that is a comparison's absence. */
 export type FigureAbsence = Exclude<Absence, { readonly reason: 'below_floor' }>;

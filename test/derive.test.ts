@@ -99,7 +99,7 @@ describe('deriveFingerprints', () => {
     expect(counts.companies).toEqual({ produkt: 0, konsulent: 1, forhandler: 0, annet: 0, undetermined: 1 });
     expect(summaryLines(counts)).toEqual([
       'derive: 3 current document columns read, 3 fingerprints written',
-      '  skipped: not_reconciled 0, no_revenue 0, negative_unexplained 0, negative_balance_remainder 0',
+      '  skipped: not_reconciled 0, no_revenue 0, cost_lines_short_of_total 0, negative_unexplained 0, negative_balance_remainder 0',
       '  fingerprints by type: produkt 0, konsulent 1, forhandler 0, annet 0, undetermined 2',
       '  companies by type (newest fingerprinted year, 2 companies): produkt 0, konsulent 1, forhandler 0, annet 0, undetermined 1',
     ]);

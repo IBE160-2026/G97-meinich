@@ -60,4 +60,4 @@ Meinich ran keep-awake and both re-reads in their own PowerShell windows, after 
 ## Open
 
 - The PR, Meinich's GitHub review and merge. Nothing is pushed yet.
-- The misread fix (`deferred-work.md`) needs a story or a PRD open question (AGENTS.md, "A decision travels upstream"); Meinich decides which.
+- The misread fix is Story 2.5c in `epics.md` (Meinich, 2026-11-06), ordered after 2.5b and before the document run for the labelled set. Its scope is three items: refuse a digit token narrower than its digit count; find the cause of the 17 current columns under the total; and consider an engine rule that gives no fingerprint to a column whose read cost lines do not sum. `deferred-work.md` points to it.

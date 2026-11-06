@@ -1525,6 +1525,40 @@ Decided at the probe checkpoint (Meinich, 2026-11-05; spec change log): F1, late
 **Given** any committed file or PR text
 **Then** no fingerprint result is tied to an orgnr of the labelled set
 
+### Story 2.5c: Refuse a digit read as two, and cost lines that do not sum
+
+As a sensor assessing the project,
+I want a figure misread by an extra digit refused, and a column whose cost lines do not add up kept out of the fingerprint,
+So that the cost lines Story 2.5b read do not give a company the wrong business type.
+
+Found after Story 2.5b's re-read (2026-11-06; `deferred-work.md`, `3d1a03d`). Tesseract read the printed "2" of a 7-digit depreciation figure as "23" in both passes, so the figure was 21 000 000 kr too high. The column still reconciled, because no check within the document sums the cost lines. Of 1 291 reconciled 2.1b columns that had `avskrivninger` for the first time and all four main cost lines, 48 do not sum to sum kostnader within 5 kr. Derive skips a column over the total. A column under the total is not stopped: all 17 current columns under the total have a fingerprint. Ordered by Meinich (2026-11-06): after Story 2.5b, and before the document run for the labelled set, so that the run's 741 companies are read once, by the corrected reader. D1 (Story 2.5) is unchanged.
+
+Scope (Meinich, 2026-11-06):
+1. Step 1 refuses a digit token that is narrower than its digit count at the page's character pitch (`3d1a03d`).
+2. Find the cause of the 17 current columns under the total, with evidence from the documents, before anything is fixed.
+3. Consider a rule in `src/engine`: when every cost line is read and the lines do not sum to `sum_driftskostnad` within 5 kr, the column is not used for a fingerprint, and the reason is recorded. This rule needs no re-read.
+
+Items 1 and 2 need a re-read and Meinich's yes before it starts.
+
+**Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5c-<slug>`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** a figure token narrower than its digit count at the page's pitch
+**When** step 1 reads it
+**Then** the figure is refused, never repaired
+
+**Given** a column whose cost lines are all read
+**When** they do not sum to `sum_driftskostnad` within 5 kr
+**Then**, if the rule is adopted, `pnpm derive` writes no fingerprint for it and counts it under a named reason
+
+**Given** every stored document re-read, after Meinich's yes
+**When** `pnpm analysis:sm2` runs
+**Then** misreads and phantoms reaching the engine on the reference set are no more than before, and the columns that do not sum are counted before and after, as totals
+
+**Given** any committed file or PR text
+**Then** no fingerprint result is tied to an orgnr of the labelled set
+
 ### Story 2.6: Classification (stage 5)
 
 As Kari or Anders,

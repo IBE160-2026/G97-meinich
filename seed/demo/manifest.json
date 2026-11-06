@@ -27,16 +27,16 @@
   ],
   "files": {
     "company.csv": "1e94bb223669a9150fe6f7b85bd72a0b7dcd241c5b8b7447509679e827f0d687",
-    "document.csv": "b5e46978fd25522693eacaf277e59b29beec5846ccd73d191d07a9f8d25d287f",
-    "document_column.csv": "cc9c6cad3c13e7caecd7d693dc44f83d09726dc7e14d864cfebdb0ce430327eb",
+    "document.csv": "059efad7027c3c615873a925aa5ce6d8f744d0e874dfaea1146ebf11c4cc3172",
+    "document_column.csv": "861ff6d2bbb04449e464ca43ffaa675e0f28b671ea5ca926b1e251d0c41926ee",
     "filing.csv": "d10640e7476f75c41e776c0b1c90e8c1563bdf1c65a721df92ee0b5ccfd08285",
-    "fingerprint.csv": "40df7b3c06d32a24f71220354a8b33ca848e275294a73490e501bcab9cc2bce3",
+    "fingerprint.csv": "9c20c384dc9d8acb1ead7e7adfbe4e91d618330aa7e10fd25c36806922827c7b",
     "key_figures.csv": "ab01a647bd4a50170009c8f21e459cbd245b8ef41e8c724cdff17651e4456b19"
   },
   "format_version": 1,
-  "migration_id": "20261101130000_fingerprint_references_company",
+  "migration_id": "20261105120000_document_intangible_parts",
   "read_at": {
-    "max": "2026-10-30 11:10:40.289122+00",
+    "max": "2026-11-05 22:03:56.5243+00",
     "min": "2026-10-11 10:09:07.22884+00"
   }
 }

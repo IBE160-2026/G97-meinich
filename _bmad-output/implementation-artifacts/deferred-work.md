@@ -155,3 +155,16 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-5b-read-the-cost-lines-and-intangible-parts.md`
   summary: The queries in `scripts/document-run-counts.ts` `main` (the fingerprints of the listed orgnrs, and `digits_pass_fields` for the gate counts) are never run by a test; add a `test/db/` case that inserts two companies' fingerprints and columns in a rolled-back transaction and checks only the listed one is counted and that `digits_pass_fields` arrives as an array.
   evidence: Story 2.5b review pass 1, triage 18 (verification gap layer). Until then, the after-2.5b counts are checked by hand against a direct psql count in the acceptance run.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-5b-read-the-cost-lines-and-intangible-parts.md`
+  summary: Tesseract reads one printed digit as two, and both passes agree, so `layout.parse_number` accepts the figure. Checked in one filing's PDF (2026-11-06; the BMAD session ran `recognise` in the step-1 image): in the prior-year column, the depreciation line prints "2 375 956", and both the plain pass ("23", "375", "956") and the digits-only pass ("23375956") read 23 375 956. The "23" token is 28 px wide; the "1" on the same row is 30 px and "375" is 113 px, so the token is one character wide. The same filing's current column, and the year before's filing, read the same figure correctly. A leading group of 1–3 digits is allowed, the gap check passes, and the column stays `reconciled`, because the within-document checks never sum the cost lines. Before Story 2.5b the line was never matched, so the misread did not reach the database. Fix, after review: refuse a digit token that is much narrower than its digit count at the page's character pitch (`Edges.pitch`). Also consider refusing a plain-pass cost line that takes the lines more than 5 kr over a plain-pass `sum_driftskostnad`. Either fix needs a re-read; nothing in `ingest/` is changed in Story 2.5b. D1 is unaffected.
+  evidence: |
+    After the Story 2.5b re-read, counted against `.local/document-run-2.4/`, totals only. All the figures below come from the local database.
+    - Base: 1 291 reconciled 2.1b columns where `avskrivninger` is new and `varekostnad`, `lonnskostnad`, `avskrivninger` and `annen_driftskostnad` are all read.
+    - In 48 of them, the cost lines do not sum to `sum_driftskostnad` within 5 kr. These figures were reproduced by the BMAD session.
+    - In the review session's count, 36 columns in 25 companies exceed the total. Under the definition above, the BMAD session counts 27 columns in 19 companies over and 21 columns in 19 companies under.
+    - Derive's `negative_unexplained` skips went from 21 to 35.
+    - Across all 2 044 documents, 10 columns in 7 companies are exactly 21 000 000 kr over. In 9 of them, `avskrivninger` is read as 23.x million and the column is the prior year. The review session counted 8 companies.
+    - An over-read column gets no fingerprint: derive skips it as `negative_unexplained`, and none of the 12 current columns over the total has one.
+    - An under-read column does reach the engine: all 17 current columns under the total have a fingerprint, with the missing amount in the unexplained remainder.
+    - None of the 7 companies is in the OCR reference set.

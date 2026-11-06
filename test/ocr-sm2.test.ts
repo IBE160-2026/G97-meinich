@@ -28,6 +28,8 @@ import {
   countClasses,
   countNotRead,
   currentAssetsEmptied,
+  r3Emptied,
+  withoutR3Emptied,
   groupOf,
   lacksPartColumns,
   mismatches,
@@ -728,6 +730,8 @@ describe('before and after Story 2.5c', () => {
       read('921716257', 2023, 'prior', { ...cost, nedskrivninger: 0n, sum_driftskostnad: 800_000_000n }), // over
       read('921716257', 2024, 'current', { ...cost, lonnskostnad: undefined, sum_driftskostnad: 990_000_000n }), // a main line empty
       read('921716257', 2025, 'current', { ...cost, sum_driftskostnad: 1n }, 'failed_reconciliation'),
+      // No revenue: the engine skips it as no_revenue before R2, so it is not counted.
+      read('921716257', 2026, 'current', { ...cost, sum_driftsinntekter: 0n, sum_driftskostnad: 900_050_000n }),
     ];
     expect(costSumCounts(columns)).toEqual({
       current: { evaluable: 3, under: 1, over: 0 },
@@ -742,6 +746,13 @@ describe('before and after Story 2.5c', () => {
     expect(currentAssetsEmptied([column], documents, subtotals)).toEqual({ kundefordringer: 1, bankinnskudd: 0 });
     expect(currentAssetsEmptied([{ ...column, role: 'prior' }], documents, subtotals)).toEqual({ kundefordringer: 0, bankinnskudd: 0 });
     expect(currentAssetsEmptied([column], documents, new Map())).toEqual({ kundefordringer: 0, bankinnskudd: 0 });
+    // A misread R3 empties does not reach the engine; any other field still does.
+    const emptied = r3Emptied([column], documents, subtotals);
+    expect([...emptied]).toEqual(['921716257/2025/current/kundefordringer']);
+    const misread = (field: Sm2Field) =>
+      ({ orgnr: '921716257', filingYear: 2025, role: 'current', field, class: 'misread', columnStatus: 'reconciled' }) as unknown as Parameters<typeof withoutR3Emptied>[0][number];
+    const results = [misread('kundefordringer'), misread('bankinnskudd')];
+    expect(misreadsReachingEngine(withoutR3Emptied(results, emptied)).map((r) => r.field)).toEqual(['bankinnskudd']);
   });
 
   it('reads the engine and varer counts from counts written since Story 2.5c, and none from older counts', () => {

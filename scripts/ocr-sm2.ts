@@ -56,6 +56,8 @@ import {
   countClasses,
   countNotRead,
   currentAssetsEmptied,
+  r3Emptied,
+  withoutR3Emptied,
   groupOf,
   lacksPartColumns,
   mismatches,
@@ -792,15 +794,18 @@ export function renderBeforeAfter25c(inputs: ReportInputs): string[] {
     '',
   );
 
-  const misreadsBefore = misreadsReachingEngine(before);
-  const misreadsAfter = misreadsReachingEngine(after);
-  const phantomsBefore = phantomsReachingEngine(before);
-  const phantomsAfter = phantomsReachingEngine(after);
+  // R3 applies: a figure the engine does not use does not reach it.
+  const usedBefore = withoutR3Emptied(before, r3Emptied(b.stored, b.documents, subtotals));
+  const usedAfter = withoutR3Emptied(after, r3Emptied(stored, documents, subtotals));
+  const misreadsBefore = misreadsReachingEngine(usedBefore);
+  const misreadsAfter = misreadsReachingEngine(usedAfter);
+  const phantomsBefore = phantomsReachingEngine(usedBefore);
+  const phantomsAfter = phantomsReachingEngine(usedAfter);
   const fresh = [...newResults(misreadsBefore, misreadsAfter), ...newResults(phantomsBefore, phantomsAfter)];
   push(
     '### Errors that reach the engine, before and after',
     '',
-    'Refusing a token must not let a new error in. Misread and phantom figures in reconciled columns of the drawn filings:',
+    'Refusing a token must not let a new error in. Misread and phantom figures in reconciled columns of the drawn filings, less a current `kundefordringer` or `bankinnskudd` that R3 keeps from the engine:',
     '',
     '| | Before | After |',
     '|---|---|---|',
@@ -830,7 +835,7 @@ export function renderBeforeAfter25c(inputs: ReportInputs): string[] {
   push(
     '### Cost lines that do not sum',
     '',
-    'Reconciled columns whose four main cost lines (varekostnad, lønnskostnad, avskrivninger, annen driftskostnad) and sum kostnader are read, nedskrivninger counted as 0 when empty; "under" and "over" are the lines short of the total or above it by more than 5 kr. ' +
+    'Reconciled columns with positive sum driftsinntekter whose four main cost lines (varekostnad, lønnskostnad, avskrivninger, annen driftskostnad) and sum kostnader are read, nedskrivninger counted as 0 when empty; "under" and "over" are the lines short of the total or above it by more than 5 kr. ' +
       'Under is what R2 keeps from a fingerprint in a current column; over is `negative_unexplained`, as before. The Story 2.1b run\'s come from `pnpm analysis:document-run` (current columns only, with this commit\'s engine). Totals only.',
     '',
     '| Data set | Before | After |',

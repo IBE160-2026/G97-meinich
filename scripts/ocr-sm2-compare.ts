@@ -12,9 +12,17 @@ import {
   type DocumentColumnRow,
   GUARDED_CURRENT_ASSETS,
   documentFigures,
+  exceedsApiSubtotal,
   guardCurrentAssets,
 } from '../src/engine/document-inputs.ts';
-import { type ApiSubtotals, apiSubtotalsFromRow, businessType, fingerprintOf } from '../src/engine/fingerprint.ts';
+import {
+  type ApiSubtotals,
+  MAIN_COST_LINES,
+  ROUNDING_TOLERANCE_ORE,
+  apiSubtotalsFromRow,
+  businessType,
+  fingerprintOf,
+} from '../src/engine/fingerprint.ts';
 import { parseOre } from '../src/engine/inputs.ts';
 import { type DrawnFiling, compareBytes, parseCsv } from './seed-format.ts';
 import { parseTextArray } from './sum-gates.ts';
@@ -879,19 +887,24 @@ export function typeTotals(
 
 // --- Story 2.5c ------------------------------------------------------------------
 
-/** The bound of R2 and the within-document checks, in øre: 5 kr (within_document_bound_kr). */
-const BOUND_ORE = 500n;
-const MAIN_COST_FIELDS = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annen_driftskostnad'] as const satisfies readonly Sm2Field[];
+/** The engine's main cost lines (R2), by their stored names. */
+const MAIN_COST_FIELDS: readonly Sm2Field[] = MAIN_COST_LINES.map((line) => {
+  const field = SM2_FIELDS.find((f) => f === line.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`));
+  if (field === undefined) throw new Error(`${line}: not a compared field`);
+  return field;
+});
 
 /** Per role, reconciled columns whose cost lines can be summed, and those under or over the total by more than 5 kr. */
 export type CostSumCounts = Record<Role, { evaluable: number; under: number; over: number }>;
 
 /**
  * The reconciled columns whose four main cost lines and sum_driftskostnad
- * are read, and of those the ones whose lines (nedskrivninger empty counted
- * as 0, as R2 counts it) fall short of the total or exceed it by more than
- * 5 kr. Under is what R2 skips in a current column; over is
- * negative_unexplained.
+ * are read and whose sum_driftsinntekter is positive (the engine skips
+ * the others earlier, as not_reconciled or no_revenue), and of those the
+ * ones whose lines (nedskrivninger empty counted as 0, as R2 counts it)
+ * fall short of the total or exceed it by more than the engine's
+ * ROUNDING_TOLERANCE_ORE. Under is what R2 skips in a current column; over
+ * is negative_unexplained.
  */
 export function costSumCounts(columns: readonly StoredColumn[]): CostSumCounts {
   const out: CostSumCounts = { current: { evaluable: 0, under: 0, over: 0 }, prior: { evaluable: 0, under: 0, over: 0 } };
@@ -899,36 +912,62 @@ export function costSumCounts(columns: readonly StoredColumn[]): CostSumCounts {
     if (column.status !== 'reconciled') continue;
     const total = column.figuresOre.get('sum_driftskostnad') ?? null;
     const lines = MAIN_COST_FIELDS.map((f) => column.figuresOre.get(f) ?? null);
-    if (total === null || lines.some((v) => v === null)) continue;
+    const revenue = column.figuresOre.get('sum_driftsinntekter') ?? null;
+    if (total === null || lines.some((v) => v === null) || revenue === null || revenue <= 0n) continue;
     const sum = [...lines, column.figuresOre.get('nedskrivninger') ?? null].reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
     const counts = out[column.role];
     counts.evaluable += 1;
-    if (total - sum > BOUND_ORE) counts.under += 1;
-    if (sum - total > BOUND_ORE) counts.over += 1;
+    if (total - sum > ROUNDING_TOLERANCE_ORE) counts.under += 1;
+    if (sum - total > ROUNDING_TOLERANCE_ORE) counts.over += 1;
   }
   return out;
 }
 
+type GuardedLine = (typeof GUARDED_CURRENT_ASSETS)[number];
+
+/** The stored field name of an R3 line. */
+const GUARDED_FIELD: Readonly<Record<GuardedLine, Sm2Field>> = { kundefordringer: 'kundefordringer', bankinnskudd: 'bankinnskudd' };
+
 /**
- * The figures R3 empties in the current columns: kundefordringer or
- * bankinnskudd above the API sum_omloepsmidler of the document's filing + 5
- * kr (`guardCurrentAssets`, as `pnpm derive` applies it). Totals only.
+ * The figures R3 empties, as `orgnr/filing year/current/field` keys: a
+ * current column's kundefordringer or bankinnskudd that `guardCurrentAssets`
+ * makes absent as `exceeds_api_subtotal` against the API sum_omloepsmidler
+ * of the document's filing, as `pnpm derive` applies it.
  */
-export function currentAssetsEmptied(
+export function r3Emptied(
   columns: readonly StoredColumn[],
   documents: readonly StoredDocument[],
   subtotals: ReadonlyMap<string, ApiSubtotals>,
-): Record<(typeof GUARDED_CURRENT_ASSETS)[number], number> {
+): Set<string> {
   const brregIds = new Map(documents.map((d) => [`${d.orgnr}/${d.filingYear}`, d.brregId]));
-  const out = { kundefordringer: 0, bankinnskudd: 0 };
+  const out = new Set<string>();
   for (const column of columns) {
     if (column.role !== 'current') continue;
     const id = brregIds.get(`${column.orgnr}/${column.filingYear}`) ?? null;
     const api = (id === null ? undefined : subtotals.get(id)) ?? null;
     if (api === null) continue;
-    const stored = documentFigures(documentColumnRow(column));
-    const guarded = guardCurrentAssets(stored, 'current', api.sumOmloepsmidler);
-    for (const line of GUARDED_CURRENT_ASSETS) if (guarded[line] !== stored[line]) out[line] += 1;
+    const guarded = guardCurrentAssets(documentFigures(documentColumnRow(column)), 'current', api.sumOmloepsmidler);
+    for (const line of GUARDED_CURRENT_ASSETS) {
+      if (exceedsApiSubtotal(guarded[line])) out.add(`${column.orgnr}/${column.filingYear}/current/${GUARDED_FIELD[line]}`);
+    }
   }
   return out;
+}
+
+/** The figures R3 empties in the current columns, per line. Totals only. */
+export function currentAssetsEmptied(
+  columns: readonly StoredColumn[],
+  documents: readonly StoredDocument[],
+  subtotals: ReadonlyMap<string, ApiSubtotals>,
+): Record<GuardedLine, number> {
+  const keys = [...r3Emptied(columns, documents, subtotals)];
+  return {
+    kundefordringer: keys.filter((k) => k.endsWith('/kundefordringer')).length,
+    bankinnskudd: keys.filter((k) => k.endsWith('/bankinnskudd')).length,
+  };
+}
+
+/** The results whose figure the engine uses: those R3 empties (`r3Emptied`) left out. */
+export function withoutR3Emptied(results: readonly FieldResult[], emptied: ReadonlySet<string>): FieldResult[] {
+  return results.filter((r) => !emptied.has(`${r.orgnr}/${r.filingYear}/${r.role}/${r.field}`));
 }

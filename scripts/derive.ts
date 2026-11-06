@@ -35,6 +35,7 @@ import {
   type DocumentColumnRow,
   GUARDED_CURRENT_ASSETS,
   documentFigures,
+  exceedsApiSubtotal,
   guardCurrentAssets,
 } from '../src/engine/document-inputs.ts';
 import {
@@ -143,7 +144,7 @@ export function deriveFingerprints(input: readonly DeriveInputRow[]): { rows: Fi
     const stored = documentFigures(column);
     const figures = guardCurrentAssets(stored, 'current', subtotals.sumOmloepsmidler);
     for (const line of GUARDED_CURRENT_ASSETS) {
-      if (figures[line] !== stored[line]) emptied[line] += 1;
+      if (exceedsApiSubtotal(figures[line])) emptied[line] += 1;
     }
     const result = fingerprintOf(figures, subtotals);
     if (result.kind === 'skip') {

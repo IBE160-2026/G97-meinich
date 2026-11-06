@@ -122,6 +122,11 @@ export function documentFigures(column: DocumentColumnRow): DocumentFigures {
   }
 }
 
+/** Whether R3 made this figure absent: above the API subtotal (`exceeds_api_subtotal`). */
+export function exceedsApiSubtotal(figure: DocumentFigure): boolean {
+  return figure.kind === 'absent' && figure.absence.reason === 'exceeds_api_subtotal';
+}
+
 /** The current asset lines R3 checks against the API's sum_omloepsmidler. */
 export const GUARDED_CURRENT_ASSETS = ['kundefordringer', 'bankinnskudd'] as const satisfies readonly DocumentField[];
 

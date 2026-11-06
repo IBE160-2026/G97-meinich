@@ -7,6 +7,7 @@ import {
   type DocumentField,
   GUARDED_CURRENT_ASSETS,
   documentFigures,
+  exceedsApiSubtotal,
   guardCurrentAssets,
 } from '../../src/engine/document-inputs.ts';
 
@@ -113,6 +114,8 @@ describe('guardCurrentAssets', () => {
     const both = guardCurrentAssets(reconciled, 'current', 200000000n);
     expect([both.kundefordringer, both.bankinnskudd]).toEqual([absent, absent]);
     expect([...GUARDED_CURRENT_ASSETS]).toEqual(['kundefordringer', 'bankinnskudd']);
+    expect([exceedsApiSubtotal(both.kundefordringer), exceedsApiSubtotal(reconciled.kundefordringer)]).toEqual([true, false]);
+    expect(exceedsApiSubtotal(documentFigures(row('failed_reconciliation')).kundefordringer)).toBe(false);
   });
 
   it('a current asset line above the API subtotal is empty only beyond 5 kr', () => {

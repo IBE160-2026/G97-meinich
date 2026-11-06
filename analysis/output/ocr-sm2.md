@@ -432,7 +432,7 @@ Per field, before → after:
 
 ### Errors that reach the engine, before and after
 
-Refusing a token must not let a new error in. Misread and phantom figures in reconciled columns of the drawn filings:
+Refusing a token must not let a new error in. Misread and phantom figures in reconciled columns of the drawn filings, less a current `kundefordringer` or `bankinnskudd` that R3 keeps from the engine:
 
 | | Before | After |
 |---|---|---|
@@ -445,7 +445,7 @@ None.
 
 ### Cost lines that do not sum
 
-Reconciled columns whose four main cost lines (varekostnad, lønnskostnad, avskrivninger, annen driftskostnad) and sum kostnader are read, nedskrivninger counted as 0 when empty; "under" and "over" are the lines short of the total or above it by more than 5 kr. Under is what R2 keeps from a fingerprint in a current column; over is `negative_unexplained`, as before. The Story 2.1b run's come from `pnpm analysis:document-run` (current columns only, with this commit's engine). Totals only.
+Reconciled columns with positive sum driftsinntekter whose four main cost lines (varekostnad, lønnskostnad, avskrivninger, annen driftskostnad) and sum kostnader are read, nedskrivninger counted as 0 when empty; "under" and "over" are the lines short of the total or above it by more than 5 kr. Under is what R2 keeps from a fingerprint in a current column; over is `negative_unexplained`, as before. The Story 2.1b run's come from `pnpm analysis:document-run` (current columns only, with this commit's engine). Totals only.
 
 | Data set | Before | After |
 |---|---|---|

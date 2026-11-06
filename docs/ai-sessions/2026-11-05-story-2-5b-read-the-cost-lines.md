@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-01 to 2026-11-06
 **Tool:** Claude Code (BMAD coordinator session and its implementation subagent, Opus 5.5)
-**Story / issue:** Story 2.5b (FR-10, FR-28 batch part, NFR25), branch `story/2.5b-read-cost-lines`, issue [#45](https://github.com/IBE160-2026/G97-meinich/issues/45); PR not yet opened
+**Story / issue:** Story 2.5b (FR-10, FR-28 batch part, NFR25), branch `story/2.5b-read-cost-lines`, issue [#45](https://github.com/IBE160-2026/G97-meinich/issues/45), PR [#46](https://github.com/IBE160-2026/G97-meinich/pull/46)
 **Result:** commits `a7fc2ee`, `2fea93b`, `e9444da` (before inputs and the transcription template), `6978bde` (watchdog), `bb9d4f4` (probe), `281f134`, `8c85ca8`, `bd94b80` (F1–F3), `b11b38b`, `4c6a1dc`, `9e60be3` (migration, DB tests, README restore), `5d2aad9` (SM-2 section), `9069710` and `2c2445c` (planning documents and docs), `5cf12f5`, `5af1fb6`, `ff6ece6`, `37947ee` (the two additions), `3d32823` (the transcription check), `6978bde`, `60b5af3`, `89f45f7`, `19b541b` (the fetch deadline and the stop after three), review fixes `901f859`, `26c074d`, `e652570`, `b496b30`; acceptance run `bb10497` (2.1b counts after), `970d572` (README restore), `3d1a03d` (deferred misread), `9b82409` (seed re-export), `27a9743`, `a696c6a` (SM-2 report)
 
 ## Goal
@@ -59,5 +59,5 @@ Meinich ran keep-awake and both re-reads in their own PowerShell windows, after 
 
 ## Open
 
-- The PR, Meinich's GitHub review and merge. Nothing is pushed yet.
+- Meinich's GitHub review of PR #46 and the merge after green CI.
 - The misread fix is Story 2.5c in `epics.md` (Meinich, 2026-11-06), ordered after 2.5b and before the document run for the labelled set. Its scope is three items: refuse a digit token narrower than its digit count; find the cause of the 17 current columns under the total; and consider an engine rule that gives no fingerprint to a column whose read cost lines do not sum. `deferred-work.md` points to it.

@@ -32,7 +32,8 @@ from the spike:
   Every match the earlier stages make stands, with the same value.
 - Story 2.5c (Meinich, 2026-11-06):
   - R1, the width rule: a digit token narrower than `MIN_DIGIT_WIDTH` (0.6)
-    times its digit count times the page's character pitch is refused; the
+    times its digit count (plus one for a leading minus) times the page's
+    character pitch is refused; the
     rule applies to every digit token in both passes. Tesseract adds a digit
     to a leading group it reads one glyph wide ("2 375 956" read as "23",
     "375", "956"), and the plain pass refuses that narrow "23". The
@@ -225,12 +226,14 @@ def unit_text(label_words: Sequence[Word]) -> str | None:
 
 def too_narrow(tokens: Sequence[Word], pitch: float) -> bool:
     """R1 (Story 2.5c): some digit token is narrower than `MIN_DIGIT_WIDTH`
-    times its digit count times `pitch`, a "1" counted as a full digit. A
-    leading minus is not a digit; a token that is not all ASCII digits is
-    left to the digit check."""
+    times its characters times `pitch`: its digits, a "1" counted as a full
+    digit, plus one for a leading minus, whose glyph is inside the box
+    (Meinich, 2026-11-06, review triage 1). A token that is not all ASCII
+    digits after the minus is left to the digit check."""
     for t in tokens:
         digits = t.text.lstrip("-")
-        if DIGITS.match(digits) and t.width < MIN_DIGIT_WIDTH * len(digits) * pitch:
+        characters = len(digits) + (1 if t.text.startswith("-") else 0)
+        if DIGITS.match(digits) and t.width < MIN_DIGIT_WIDTH * characters * pitch:
             return True
     return False
 
@@ -410,7 +413,7 @@ LATER_PAGES: dict[str, PageKind] = dict.fromkeys(LATER_VARIANTS, "resultat")
 
 LABEL_SIMILARITY = 0.85  # tolerates OCR slips such as "Driftoreoultat" for "Driftsresultat"
 # R1 (Story 2.5c; Meinich, 2026-11-06): a digit token narrower than this many
-# character pitches per digit is refused. Measured by the probe
+# character pitches per digit (a leading minus counted as one more) is refused. Measured by the probe
 # (analysis/output/cost-sum-probe.md): correct tokens are 0.76 or more (a
 # lone "1"), 0.84 (two digits) and 0.91 (three) at the 1st percentile; a
 # digit read as two, 0.34-0.36. At 0.6 no correct reference figure is lost.

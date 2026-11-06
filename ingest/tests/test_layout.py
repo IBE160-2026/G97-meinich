@@ -145,6 +145,18 @@ def test_digit_read_as_two_refused(printed: str, leading: str, width: int) -> No
     assert layout.parse_number(words([[(leading, CURRENT_RIGHT - 3 * PITCH, int(len(leading) * PROBE_PITCH))]]), PROBE_PITCH, "digits") == int(leading)
 
 
+def test_negative_digit_read_as_two_refused() -> None:
+    # A leading minus counts as a character (Meinich, 2026-11-06): "-23"
+    # read for a printed "-2 375 956", its box one minus and one digit wide
+    # (56 px at 39), needs 0.6 x 3 x 39 = 70.2 px and is refused; counted as
+    # two digits only (46.8 px) it would pass.
+    assert widths_figure(misread_leading("-2 375 956", CURRENT_RIGHT, "-23", 56)) is None
+    # A correct negative figure at its printed width is read: "-12" one minus
+    # and two digits wide, a lone "-1" one minus and a narrow "1".
+    assert widths_figure(misread_leading("-12 847 287", CURRENT_RIGHT, "-12", 109)) == -12_847_287
+    assert widths_figure(misread_leading("-1 847 287", CURRENT_RIGHT, "-1", 68)) == -1_847_287
+
+
 def test_digit_read_as_two_bound() -> None:
     # The bound is 0.6 x digits x pitch: 46.8 px for two digits at 39 px.
     at = [("23", CURRENT_RIGHT - 2 * PITCH, 47)]

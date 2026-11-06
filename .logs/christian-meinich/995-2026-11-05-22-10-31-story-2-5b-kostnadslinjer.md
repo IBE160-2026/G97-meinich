@@ -29,3 +29,45 @@ Les kostnadslinjene som kommer ut tomme, og de fire delene av immaterielle eiend
 ### Åpne punkter
 - C2, akseptansekjøringen i ni steg, venter på ja fra Meinich. Etter den kommer etter-målingen, seed-eksporten og PR-en med linjen «Planning documents:». Steget er sporet i spec-ens Tasks og i issue #45.
 - Utsatt kodearbeid står i `deferred-work.md` (Story 2.5b-oppføringen om spørringene i `document-run-counts.ts`).
+
+## 2026-11-06 kl. 11:12 — Christian Meinich
+
+### Oppgave
+Fullføre akseptansekjøringen (C2) etter Meinichs ja. Først undersøke 21-millionersfunnet, så ta ny dump og kjøre steg 4–9. Skrive rapporten og PR-utkastet. Ingen push.
+
+### Plan
+- Sjekke run.step1, reader_commit og derive. Telle med `pnpm analysis:document-run after-2.5b` og kontrollere tallene med psql.
+- Undersøke én PDF med leseren i step 1-imaget. Rettingen legges i `deferred-work.md`, og `ingest/` endres ikke.
+- Steg 3–9 som i spec-en.
+
+### Resultat
+- **Kjøringene:**
+  - run 650: referansesettet, 97 dokumenter;
+  - run 651: 2.1b, 1 947 dokumenter.
+  - Begge kjøringene endte uten at noe ble stående uerstattet, uten tapte tall og uten feil.
+- **Årsak til 21 mill:** i fjorårskolonnen leser Tesseract «2» i «2 375 956» (avskrivninger) som «23», i begge passene. Rettingen er utsatt i `deferred-work.md` (`3d1a03d`).
+  - De 17 innværende kolonnene som summerer under totalen har fått fingeravtrykk.
+  - Kolonnene over totalen hoppes over av derive.
+- **Ny dump:**
+  - `.local/document-run-2.5b/`: 1 947 dokumenter og 3 892 kolonner. Den er kilden for gjenoppretting, og README er oppdatert (`970d572`).
+  - `.local/document-tables-after-2.5b-reread/`: full kopi med 2 044 dokumenter, 4 086 kolonner og 1 865 fingeravtrykk.
+  - Begge er kopiert til `peerless-backups`, og sha256 er lik.
+- **Steg 4–9:**
+  - slettingen var én kontrollert transaksjon (97/194);
+  - derive ga 86 fingeravtrykk;
+  - `seed:export` er committet i `9b82409`;
+  - seeden er lastet to ganger, uten diff ved ny eksport;
+  - etter gjenopprettingen er det 2 044 dokumenter og 4 086 kolonner, og derive ga 1 865 fingeravtrykk, like dumpen etter `input_digest`.
+- **Rapporten:** SM-2 er generert (`a696c6a`), med funnet. 2.1b-tellingen etter omlesingen er i `bb10497`.
+- **Seed-testen** er oppdatert til 86 fingeravtrykk (`27a9743`).
+- **Spec og sesjonsfil** er oppdatert.
+- **Tester:**
+  - `pnpm test`: 958/958;
+  - `pnpm test:db`: 167/167;
+  - `pnpm test:ingest`: 296;
+  - lint og typecheck: OK.
+- PR-utkastet ligger i scratchpad og er ikke pushet.
+
+### Åpne punkter
+- PR, GitHub-review og merge venter på Meinich.
+- Rettingen av «2» lest som «23» står i `deferred-work.md` (Story 2.5b, oppføringen «Tesseract reads one printed digit as two»). Den må også inn som story i `epics.md` eller som åpent spørsmål i PRD-en. Det avgjør Meinich.

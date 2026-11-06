@@ -94,12 +94,12 @@ context:
 ## Tasks & Acceptance
 
 **Execution** (branch `story/2.5c-refuse-digit-read-as-two`, issue #47; small commits; stop at the re-read for Meinich's yes):
-- [ ] Before inputs committed: `analysis/output/ocr-sm2-before-2.5c/`, `document-run-counts-before-2.5c.json`
-- [ ] R1 and R4 in `layout.py`, with their tests
-- [ ] R2 and R3 in `src/engine`, derive counts, with their tests
-- [ ] Counts and the SM-2 2.5c section, with tests
-- [ ] Docs: `AGENTS.md`, `data-sources-brreg.md`, `key-figures.md` (R3's reason), `ai-log.md`, the session file, `deferred-work.md` (close the 2.5b entry)
-- [ ] Planning documents: PRD open question 21 and Story 3.1a in `epics.md`, `.memlog.md` `(change)` lines; the technical note if R2/R3 change what it says; the PR line "Planning documents:"
+- [x] Before inputs committed: `analysis/output/ocr-sm2-before-2.5c/`, `document-run-counts-before-2.5c.json`
+- [x] R1 and R4 in `layout.py`, with their tests
+- [x] R2 and R3 in `src/engine`, derive counts, with their tests
+- [x] Counts and the SM-2 2.5c section, with tests
+- [x] Docs: `AGENTS.md`, `data-sources-brreg.md`, `key-figures.md` (R3's reason), `ai-log.md`, the session file, `deferred-work.md` (close the 2.5b entry)
+- [x] Planning documents: PRD open question 21 and Story 3.1a in `epics.md`, `.memlog.md` `(change)` lines; the technical note if R2/R3 change what it says; the PR line "Planning documents:"
 - [ ] After review and Meinich's yes: C2's nine steps from 2.5b, timed; `pnpm analysis:document-run after-2.5c` between steps 2 and 4; `pnpm analysis:sm2` after step 6
 
 **Acceptance Criteria:**
@@ -109,6 +109,15 @@ context:
 - Given any committed file or PR text, then no fingerprint result is tied to an orgnr of the labelled set.
 
 ## Implementation Notes
+
+- **As built** (`e87f166`, `2b88e3f`, `58c5b71`, `1b8337c`, `57dd893`, `a088bb2`, `8ffffd9`, `31594ff`).
+  - R1: `layout.too_narrow`, called in `parse_number` after the digit check and in the digits-only pass's one-token branch, so both passes refuse; the same rule as the probe's (`analysis/ocr/cost_sum.py`, `narrow_rule`, k = 0.6, one = 1.0).
+  - R3: `guardCurrentAssets(figures, role, sumOmloepsmidler)` takes the column role, so the prior-column case is a guard a test removes. `pnpm derive`, `test/fingerprint-seed.test.ts` and the SM-2 type totals call it after `documentFigures`. The digest of a fingerprint whose line R3 emptied is of the inputs the fingerprint read (that line null), not the stored figure: **for Meinich to confirm or reject** in review.
+  - The before counts were written after `scripts/document-run-counts.ts` gained the engine counts (`57dd893`), still before any re-read; the local database did not change after the seed copy (`e87f166`).
+  - The Story 2.5b section's "after" is now `analysis/output/ocr-sm2-before-2.5c/`, as the 2.3b section's became the 2.5b copy, so the re-read does not move it.
+- **Regression check (one-off, on the host, no OCR).** The 363 documents cached by the probe (`analysis/.cache/ocr/probe/*.words.json`, 726 columns), read by `e87f166` and by the new code: 77 figures refused (salgsinntekt 55, avskrivninger 13, varekostnad 6, forskning_og_utvikling 3), the probe's count at k = 0.6; c1–c4 unchanged in every column; `varer` changed in 21 columns (14 negative before); nothing else differs.
+- **On the local data, before the re-read** (`document-run-counts-before-2.5c.json`, totals): R2 27 current columns, all 27 with `nedskrivninger` empty; R3 `kundefordringer` 8, `bankinnskudd` 0; 18 current and 15 prior columns with a negative `varer`. A rolled-back rebuild of `register.fingerprint`: 1 865 → 1 843 (27 gone, 5 added that were `negative_balance_remainder` before R3 emptied the line, 3 with a new digest). `test/db/derive.test.ts` "rebuilds exactly the rows the table held" fails locally until `pnpm derive` runs (C2 step 5); the committed seed is unchanged by R2 and R3.
+- **Tests changed:** `test/derive.test.ts`'s `negative_balance_remainder` case keeps each asset line within `sum_omloepsmidler` (a 1-øre subtotal now makes R3 empty both lines).
 
 ## Spec Change Log
 

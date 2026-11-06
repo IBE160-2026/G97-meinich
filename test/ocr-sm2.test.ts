@@ -16,6 +16,7 @@ import {
   SM2_PARTS,
   type Sm2Field,
   type StoredColumn,
+  type StoredDocument,
   type TranscribedColumn,
   baselineDiff,
   checkBaselineCoverage,
@@ -23,8 +24,10 @@ import {
   classify,
   compareReference,
   consistencyDenominators,
+  costSumCounts,
   countClasses,
   countNotRead,
+  currentAssetsEmptied,
   groupOf,
   lacksPartColumns,
   mismatches,
@@ -43,12 +46,14 @@ import {
 import {
   REPORT_FILE,
   RUN_COUNTS_BEFORE_2_5B_FILE,
+  RUN_COUNTS_BEFORE_2_5C_FILE,
   RUN_COUNTS_BEFORE_FILE,
   classRow,
   parseRunCounts,
   readInputs,
   renderBeforeAfter,
   renderBeforeAfter25b,
+  renderBeforeAfter25c,
   renderReport,
   storedGateCounts,
 } from '../scripts/ocr-sm2.ts';
@@ -645,7 +650,12 @@ describe('before and after Story 2.5b', () => {
     const fake = inputs.comparison.results.find((r) => r.class === 'correct' && r.columnStatus === 'reconciled');
     if (fake === undefined) throw new Error('no correct field in a reconciled column');
     const misread = { ...fake, class: 'misread' as const, readOre: (fake.readOre ?? 0n) + 100n };
-    const withNew = renderBeforeAfter25b({ ...inputs, comparison: { ...inputs.comparison, results: [...inputs.comparison.results, misread] } }).join('\n');
+    // The section's "after" is the state Story 2.5b left (the Story 2.5c before copy).
+    const after = inputs.before25c;
+    const withNew = renderBeforeAfter25b({
+      ...inputs,
+      before25c: { ...after, comparison: { ...after.comparison, results: [...after.comparison.results, misread] } },
+    }).join('\n');
     expect(withNew).toContain(`| ${fake.orgnr} | ${fake.filingYear} |`);
   });
 
@@ -674,7 +684,7 @@ describe('before and after Story 2.5b', () => {
     expect(gates).toMatch(/\| Cost lines against sum kostnader \| Story 2\.1b run, local data \| no gate then \| no gate then \| not yet counted \| not yet counted \|/);
     expect(gates).not.toMatch(/\d{9}/);
     // The section counts the stored columns it is given.
-    const counted = renderBeforeAfter25b({ ...inputs, stored: columns }).join('\n');
+    const counted = renderBeforeAfter25b({ ...inputs, before25c: { ...inputs.before25c, stored: columns } }).join('\n');
     expect(counted).toMatch(/\| Cost lines against sum kostnader \| Reference set \| \d+ \| \d+ \| 2 \| 1 \|/);
   });
 
@@ -692,10 +702,94 @@ describe('before and after Story 2.5b', () => {
     expect(() => parseRunCounts(json, 'x.json')).toThrow(/x\.json/);
   });
 
+  it('keeps the Story 2.5b section on the state Story 2.5b left, whatever the seed holds now (Story 2.5c)', () => {
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter25b(inputs).join('\n');
+    expect(renderBeforeAfter25b({ ...inputs, comparison: { results: [], notes: [] }, stored: [], documents: [] }).join('\n')).toBe(section);
+  });
+
   it('keeps the Story 2.3b section on the state Story 2.3b left, whatever the seed holds now', () => {
     const inputs = readInputs(root);
     const section = renderBeforeAfter(inputs).join('\n');
     expect(renderBeforeAfter({ ...inputs, comparison: { results: [], notes: [] }, stored: [] }).join('\n')).toBe(section);
     expect(section).not.toMatch(/goodwill/);
+  });
+});
+
+describe('before and after Story 2.5c', () => {
+  const R = 1_000_000_000n;
+  const cost = { sum_driftsinntekter: R, varekostnad: 0n, lonnskostnad: 700_000_000n, avskrivninger: 20_000_000n, annen_driftskostnad: 180_000_000n };
+
+  it('counts the reconciled columns whose cost lines do not sum, nedskrivninger empty as 0, both roles', () => {
+    const columns = [
+      read('921716257', 2021, 'current', { ...cost, sum_driftskostnad: 900_000_000n }), // sums
+      read('921716257', 2022, 'current', { ...cost, sum_driftskostnad: 900_000_500n }), // 5 kr under: the rounding
+      read('921716257', 2023, 'current', { ...cost, sum_driftskostnad: 900_050_000n }), // 500 kr under
+      read('921716257', 2023, 'prior', { ...cost, nedskrivninger: 0n, sum_driftskostnad: 800_000_000n }), // over
+      read('921716257', 2024, 'current', { ...cost, lonnskostnad: undefined, sum_driftskostnad: 990_000_000n }), // a main line empty
+      read('921716257', 2025, 'current', { ...cost, sum_driftskostnad: 1n }, 'failed_reconciliation'),
+    ];
+    expect(costSumCounts(columns)).toEqual({
+      current: { evaluable: 3, under: 1, over: 0 },
+      prior: { evaluable: 1, under: 0, over: 1 },
+    });
+  });
+
+  it('counts the current asset lines R3 keeps from the engine, with the filing\'s API subtotal only', () => {
+    const column = read('921716257', 2025, 'current', { kundefordringer: 1_500_000_000n, bankinnskudd: 200_000_000n });
+    const documents = [{ orgnr: '921716257', filingYear: 2025, brregId: '1', layout: 'generated', status: 'reconciled' }] as unknown as StoredDocument[];
+    const subtotals = new Map([['1', { sumAnleggsmidler: null, sumOmloepsmidler: 350_000_000n }]]);
+    expect(currentAssetsEmptied([column], documents, subtotals)).toEqual({ kundefordringer: 1, bankinnskudd: 0 });
+    expect(currentAssetsEmptied([{ ...column, role: 'prior' }], documents, subtotals)).toEqual({ kundefordringer: 0, bankinnskudd: 0 });
+    expect(currentAssetsEmptied([column], documents, new Map())).toEqual({ kundefordringer: 0, bankinnskudd: 0 });
+  });
+
+  it('reads the engine and varer counts from counts written since Story 2.5c, and none from older counts', () => {
+    const before = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5C_FILE), 'utf8')), RUN_COUNTS_BEFORE_2_5C_FILE);
+    expect(before.engine).toEqual({
+      columns: 1946,
+      fingerprints: 1757,
+      costLinesShortOfTotal: 27,
+      shortWithNedskrivningerEmpty: 27,
+      negativeUnexplained: 35,
+      emptiedKundefordringer: 8,
+      emptiedBankinnskudd: 0,
+    });
+    expect(before.varer?.current.negative_before).toBe(18);
+    const older = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5B_FILE), 'utf8')), RUN_COUNTS_BEFORE_2_5B_FILE);
+    expect([older.engine, older.varer]).toEqual([null, null]);
+    const json = JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5C_FILE), 'utf8'));
+    expect(parseRunCounts({ ...json, varer_against_dump: null }, 'z.json').varer).toBeNull();
+    delete json.engine.skipped.cost_lines_short_of_total;
+    expect(() => parseRunCounts(json, 'z.json')).toThrow(/z\.json/);
+  });
+
+  it('renders the classes, the new errors, the columns that do not sum, R3 and R4 as totals; the 2.1b after says not yet counted', () => {
+    const inputs = readInputs(root);
+    const section = renderBeforeAfter25c({ ...inputs, before25c: { ...inputs.before25c, runAfter: null } }).join('\n');
+    expect(section).toContain('## Before and after Story 2.5c');
+    for (const field of SM2_FIELDS) expect(section).toMatch(new RegExp(`^\\| ${field} \\|`, 'm'));
+    expect(section).toMatch(/\| Story 2\.1b run, local data: `cost_lines_short_of_total` \(R2\) \| 27 \| not yet counted \|/);
+    expect(section).toMatch(/\| Story 2\.1b run, local data \| kundefordringer \| 8 \| not yet counted \|/);
+    expect(section).toMatch(/\| Story 2\.1b run, local data \(this year\) \| not yet counted \| not yet counted \| not yet counted \| 18 \| not yet counted \|/);
+    // Totals only below the error list: no orgnr.
+    const totals = section.slice(section.indexOf('### Cost lines that do not sum'));
+    expect(totals).not.toMatch(/\d{9}/);
+    // A new misread reaching the engine after is listed.
+    const fake = inputs.comparison.results.find((r) => r.class === 'correct' && r.columnStatus === 'reconciled');
+    if (fake === undefined) throw new Error('no correct field in a reconciled column');
+    const misread = { ...fake, class: 'misread' as const, readOre: (fake.readOre ?? 0n) + 100n };
+    const withNew = renderBeforeAfter25c({ ...inputs, comparison: { ...inputs.comparison, results: [...inputs.comparison.results, misread] } }).join('\n');
+    expect(withNew).toContain(`| ${fake.orgnr} | ${fake.filingYear} |`);
+    expect(withNew).toMatch(/\| Misread, reaching the engine \| 0 \| 1 \|/);
+    // The after side counts the stored columns it is given: a varer the re-read empties.
+    const varerBefore = inputs.before25c.stored.find((c) => c.role === 'current' && c.status === 'reconciled' && c.figuresOre.get('varer') != null);
+    if (varerBefore === undefined) throw new Error('no current column with varer');
+    const emptied = inputs.stored.map((c) =>
+      c.orgnr === varerBefore.orgnr && c.filingYear === varerBefore.filingYear && c.role === 'current'
+        ? { ...c, figuresOre: new Map([...c.figuresOre, ['varer', null]]) as StoredColumn['figuresOre'] }
+        : c,
+    );
+    expect(renderBeforeAfter25c({ ...inputs, stored: emptied }).join('\n')).toMatch(/\| Reference set \(this year\) \| 1 \| 0 \| 0 \| 0 \| 0 \|/);
   });
 });

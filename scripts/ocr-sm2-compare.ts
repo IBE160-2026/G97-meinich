@@ -10,6 +10,7 @@
 import {
   DOCUMENT_FIGURE_COLUMNS,
   type DocumentColumnRow,
+  GUARDED_CURRENT_ASSETS,
   documentFigures,
   guardCurrentAssets,
 } from '../src/engine/document-inputs.ts';
@@ -874,4 +875,60 @@ export function typeTotals(
     companies: companies.length,
     companiesUndetermined: companies.filter((c) => c.undetermined).length,
   };
+}
+
+// --- Story 2.5c ------------------------------------------------------------------
+
+/** The bound of R2 and the within-document checks, in øre: 5 kr (within_document_bound_kr). */
+const BOUND_ORE = 500n;
+const MAIN_COST_FIELDS = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annen_driftskostnad'] as const satisfies readonly Sm2Field[];
+
+/** Per role, reconciled columns whose cost lines can be summed, and those under or over the total by more than 5 kr. */
+export type CostSumCounts = Record<Role, { evaluable: number; under: number; over: number }>;
+
+/**
+ * The reconciled columns whose four main cost lines and sum_driftskostnad
+ * are read, and of those the ones whose lines (nedskrivninger empty counted
+ * as 0, as R2 counts it) fall short of the total or exceed it by more than
+ * 5 kr. Under is what R2 skips in a current column; over is
+ * negative_unexplained.
+ */
+export function costSumCounts(columns: readonly StoredColumn[]): CostSumCounts {
+  const out: CostSumCounts = { current: { evaluable: 0, under: 0, over: 0 }, prior: { evaluable: 0, under: 0, over: 0 } };
+  for (const column of columns) {
+    if (column.status !== 'reconciled') continue;
+    const total = column.figuresOre.get('sum_driftskostnad') ?? null;
+    const lines = MAIN_COST_FIELDS.map((f) => column.figuresOre.get(f) ?? null);
+    if (total === null || lines.some((v) => v === null)) continue;
+    const sum = [...lines, column.figuresOre.get('nedskrivninger') ?? null].reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
+    const counts = out[column.role];
+    counts.evaluable += 1;
+    if (total - sum > BOUND_ORE) counts.under += 1;
+    if (sum - total > BOUND_ORE) counts.over += 1;
+  }
+  return out;
+}
+
+/**
+ * The figures R3 empties in the current columns: kundefordringer or
+ * bankinnskudd above the API sum_omloepsmidler of the document's filing + 5
+ * kr (`guardCurrentAssets`, as `pnpm derive` applies it). Totals only.
+ */
+export function currentAssetsEmptied(
+  columns: readonly StoredColumn[],
+  documents: readonly StoredDocument[],
+  subtotals: ReadonlyMap<string, ApiSubtotals>,
+): Record<(typeof GUARDED_CURRENT_ASSETS)[number], number> {
+  const brregIds = new Map(documents.map((d) => [`${d.orgnr}/${d.filingYear}`, d.brregId]));
+  const out = { kundefordringer: 0, bankinnskudd: 0 };
+  for (const column of columns) {
+    if (column.role !== 'current') continue;
+    const id = brregIds.get(`${column.orgnr}/${column.filingYear}`) ?? null;
+    const api = (id === null ? undefined : subtotals.get(id)) ?? null;
+    if (api === null) continue;
+    const stored = documentFigures(documentColumnRow(column));
+    const guarded = guardCurrentAssets(stored, 'current', api.sumOmloepsmidler);
+    for (const line of GUARDED_CURRENT_ASSETS) if (guarded[line] !== stored[line]) out[line] += 1;
+  }
+  return out;
 }

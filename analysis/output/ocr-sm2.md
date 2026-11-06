@@ -289,7 +289,7 @@ None.
 
 ## Before and after Story 2.5b
 
-Story 2.5b reads the cost lines in their other printed wordings (the depreciation row, plurals, note references read as letters), reads the four printed parts of intangible assets as fields of their own, and admits a digits-only figure of a cost line or a part through a sum gate (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), then re-reads every stored document. "Before" is the committed seed as Story 2.3b left it, copied byte for byte into `analysis/output/ocr-sm2-before-2.5b/` before any re-read, and `analysis/output/document-run-counts-before-2.5b.json`; "after" is the committed seed and `analysis/output/document-run-counts-after-2.5b.json`. Both are compared with the corrected transcriptions, over every compared field.
+Story 2.5b reads the cost lines in their other printed wordings (the depreciation row, plurals, note references read as letters), reads the four printed parts of intangible assets as fields of their own, and admits a digits-only figure of a cost line or a part through a sum gate (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), then re-reads every stored document. "Before" is the committed seed as Story 2.3b left it, copied byte for byte into `analysis/output/ocr-sm2-before-2.5b/` before any re-read, and `analysis/output/document-run-counts-before-2.5b.json`; "after" is the seed as Story 2.5b left it, copied into `analysis/output/ocr-sm2-before-2.5c/` before Story 2.5c's re-read, and `analysis/output/document-run-counts-after-2.5b.json`. Both are compared with the corrected transcriptions, over every compared field.
 
 - **The parts before.** The before copy was exported before Story 2.5b's migration and has no columns for forskning_og_utvikling, konsesjoner_patenter, goodwill, utsatt_skattefordel: step 1 did not read them, so every transcribed part counts as not read before.
 
@@ -386,3 +386,96 @@ Current columns holding a figure, of all current columns. The run's 1947 documen
 
 - **Not every new depreciation figure is right.** Checked by hand after the re-read, totals only. 1 291 reconciled columns hold `avskrivninger` for the first time and all four main cost lines. In 48 of them, the lines do not sum to sum kostnader within 5 kr: 27 columns in 19 companies are over the total and 21 columns in 19 companies are under it. Across all 2 044 documents, 10 columns in 7 companies are exactly 21 000 000 kr over. In 9 of them, `avskrivninger` is read as 23.x million in the last-year column. The check of one PDF shows the cause: Tesseract reads the leading digit "2" as "23" in both passes, a token one character wide. No sum covers the cost lines, so the column reconciled.
 - **An over-read is stopped and an under-read is not.** `pnpm derive` skips a column over the total (`negative_unexplained`, 21 → 35), so none of the 12 current columns over the total has a fingerprint. All 17 current columns under the total have one, with the missing amount counted as unexplained. The fix needs a re-read and is deferred (`_bmad-output/implementation-artifacts/deferred-work.md`, Story 2.5b, "Tesseract reads one printed digit as two").
+
+## Before and after Story 2.5c
+
+Story 2.5c refuses a digit token narrower than 0.6 of its digits at the page's character pitch (R1: Tesseract reads a printed "2" as "23" in a box one glyph wide, and both passes agree), reads `varer` from the balance sheet only (R4: the income statement's inventory-change row ends in "varer" too), and re-reads every stored document. Two engine rules need no re-read: no fingerprint when the four main cost lines are read and fall short of sum kostnader by more than 5 kr (R2, `cost_lines_short_of_total`), and a current `kundefordringer` or `bankinnskudd` above the API's sum omløpsmidler + 5 kr is not used (R3). "Before" is the committed seed as Story 2.5b left it, copied byte for byte into `analysis/output/ocr-sm2-before-2.5c/` before any re-read, and `analysis/output/document-run-counts-before-2.5c.json`; "after" is the committed seed and `analysis/output/document-run-counts-after-2.5c.json`. Both are compared with the corrected transcriptions, over every compared field. The engine rules are applied to both with this commit's engine, so "before" and "after" differ only by the re-read.
+
+### The reference set, every class
+
+| Group | correct | not read (transcribed 0) | not read (transcribed non-zero) | misread | phantom | Counted | Recovered exactly |
+|---|---|---|---|---|---|---|---|
+| Before | 723 | 44 | 35 | 2 | 0 | 804 | 89,9 % |
+| After | 723 | 44 | 35 | 2 | 0 | 804 | 89,9 % |
+
+Per field, before → after:
+
+| Field | correct | not read | misread | phantom |
+|---|---|---|---|---|
+| salgsinntekt | 26 | 9 | 0 | 0 |
+| sum_driftsinntekter | 35 | 2 | 0 | 0 |
+| varekostnad | 29 | 1 | 0 | 0 |
+| lonnskostnad | 31 | 5 | 0 | 0 |
+| avskrivninger | 27 | 0 | 0 | 0 |
+| nedskrivninger | 4 | 0 | 0 | 0 |
+| annen_driftskostnad | 37 | 1 | 0 | 0 |
+| sum_driftskostnad | 36 | 1 | 1 | 0 |
+| driftsresultat | 36 | 2 | 0 | 0 |
+| netto_finans | 36 | 2 | 0 | 0 |
+| ordinaert_resultat_foer_skattekostnad | 37 | 3 | 0 | 0 |
+| aarsresultat | 33 | 7 | 0 | 0 |
+| sum_immaterielle_eiendeler | 13 | 10 | 0 | 0 |
+| sum_varige_driftsmidler | 24 | 4 | 0 | 0 |
+| varer | 9 | 2 | 0 | 0 |
+| kundefordringer | 29 | 5 | 0 | 0 |
+| bankinnskudd | 36 | 2 | 0 | 0 |
+| sum_eiendeler | 38 | 2 | 0 | 0 |
+| sum_egenkapital | 37 | 3 | 0 | 0 |
+| leverandorgjeld | 30 | 6 | 0 | 0 |
+| sum_kortsiktig_gjeld | 36 | 2 | 0 | 0 |
+| sum_gjeld | 36 | 4 | 0 | 0 |
+| sum_egenkapital_gjeld | 36 | 3 | 1 | 0 |
+| forskning_og_utvikling | 9 | 0 | 0 | 0 |
+| konsesjoner_patenter | 8 | 3 | 0 | 0 |
+| goodwill | 6 | 0 | 0 | 0 |
+| utsatt_skattefordel | 9 | 0 | 0 | 0 |
+
+### Errors that reach the engine, before and after
+
+Refusing a token must not let a new error in. Misread and phantom figures in reconciled columns of the drawn filings:
+
+| | Before | After |
+|---|---|---|
+| Misread, reaching the engine | 0 | 0 |
+| Phantom, reaching the engine | 0 | 0 |
+
+New ones (after, not before):
+
+None.
+
+### Cost lines that do not sum
+
+Reconciled columns whose four main cost lines (varekostnad, lønnskostnad, avskrivninger, annen driftskostnad) and sum kostnader are read, nedskrivninger counted as 0 when empty; "under" and "over" are the lines short of the total or above it by more than 5 kr. Under is what R2 keeps from a fingerprint in a current column; over is `negative_unexplained`, as before. The Story 2.1b run's come from `pnpm analysis:document-run` (current columns only, with this commit's engine). Totals only.
+
+| Data set | Before | After |
+|---|---|---|
+| Reference set (this year): under the total | 0 of 33 (0,0 %) | 0 of 33 (0,0 %) |
+| Reference set (this year): over the total | 0 of 33 (0,0 %) | 0 of 33 (0,0 %) |
+| Reference set (last year): under the total | 1 of 35 (2,9 %) | 1 of 35 (2,9 %) |
+| Reference set (last year): over the total | 0 of 35 (0,0 %) | 0 of 35 (0,0 %) |
+| Story 2.1b run, local data: `cost_lines_short_of_total` (R2) | 27 | not yet counted |
+| Story 2.1b run, local data: of those, nedskrivninger empty | 27 | not yet counted |
+| Story 2.1b run, local data: `negative_unexplained` | 35 | not yet counted |
+| Story 2.1b run, local data: fingerprints, of current columns | 1757 of 1946 | not yet counted |
+
+### Current asset lines above the API subtotal (R3)
+
+Current columns whose `kundefordringer` or `bankinnskudd` is above the API's sum omløpsmidler of the same filing + 5 kr: the figure is stored, and the engine does not use it. `salgsinntekt` and `leverandorgjeld` get only R1. Totals only.
+
+| Data set | Line | Before | After |
+|---|---|---|---|
+| Reference set | kundefordringer | 0 | 0 |
+| Reference set | bankinnskudd | 0 | 0 |
+| Story 2.1b run, local data | kundefordringer | 8 | not yet counted |
+| Story 2.1b run, local data | bankinnskudd | 0 | not yet counted |
+
+### varer read from the income statement (R4)
+
+Before R4, the income statement's inventory-change row ("… og ferdig tilvirkede varer") was stored as `varer`, negative or positive. The columns whose `varer` the re-read empties or changes are those it was read from, positive values included; for the Story 2.1b run they are counted against `.local/document-run-2.5b/document_column.csv`, the dump taken after Story 2.5b's re-read. Totals only.
+
+| Data set | Emptied by the re-read | Changed by the re-read | Of those, negative before | Negative varer before | Negative varer after |
+|---|---|---|---|---|---|
+| Reference set (this year) | 0 | 0 | 0 | 0 | 0 |
+| Story 2.1b run, local data (this year) | not yet counted | not yet counted | not yet counted | 18 | not yet counted |
+| Reference set (last year) | 0 | 0 | 0 | 0 | 0 |
+| Story 2.1b run, local data (last year) | not yet counted | not yet counted | not yet counted | 15 | not yet counted |

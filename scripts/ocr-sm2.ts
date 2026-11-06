@@ -13,7 +13,7 @@
 // - analysis/output/ocr-consistency-2026.json: the spike's 2021–2025
 //   filings read again by analysis/ocr/consistency.py in step 1's image;
 // - seed/demo/key_figures.csv: the API subtotals the fingerprint reads, for
-//   the undetermined share of Story 2.5b's section;
+//   the undetermined share of Story 2.5b's section and R3 in Story 2.5c's;
 // - the before copies and run counts under analysis/output/ named below.
 //
 // Writes analysis/output/ocr-sm2.md. Amounts and percentages go through
@@ -52,8 +52,10 @@ import {
   classesByField,
   compareReference,
   consistencyDenominators,
+  costSumCounts,
   countClasses,
   countNotRead,
+  currentAssetsEmptied,
   groupOf,
   lacksPartColumns,
   mismatches,
@@ -74,6 +76,7 @@ import {
 } from './ocr-sm2-compare.ts';
 import { type DrawnFiling, REFERENCE_DRAW_FILE, SEED_DIR, parseDrawn } from './seed-format.ts';
 import { type GateCounts, SUM_GATES, type SumGate, gateCounts } from './sum-gates.ts';
+import { type VarerRoleCounts, VARER_DUMP_FILE, varerAgainstDump } from './document-run-counts.ts';
 
 export const TRANSCRIPTIONS_FILE = 'analysis/ocr-reference/transcriptions.csv';
 export const CORRECTIONS_FILE = 'analysis/ocr-reference/README.md';
@@ -217,6 +220,28 @@ export const BEFORE_2_5B_DIR = 'analysis/output/ocr-sm2-before-2.5b';
 export const RUN_COUNTS_BEFORE_2_5B_FILE = 'analysis/output/document-run-counts-before-2.5b.json';
 export const RUN_COUNTS_AFTER_2_5B_FILE = 'analysis/output/document-run-counts-after-2.5b.json';
 
+// Story 2.5c: the committed seed's document rows as Story 2.5b's re-read left
+// them, copied byte for byte before any Story 2.5c re-read, and the 2.1b
+// run's counts before and after its re-read. The copy is also the "after" of
+// the Story 2.5b section, so a later re-read does not move that section.
+export const BEFORE_2_5C_DIR = 'analysis/output/ocr-sm2-before-2.5c';
+export const RUN_COUNTS_BEFORE_2_5C_FILE = 'analysis/output/document-run-counts-before-2.5c.json';
+export const RUN_COUNTS_AFTER_2_5C_FILE = 'analysis/output/document-run-counts-after-2.5c.json';
+
+/** What `pnpm derive`'s engine made of the 2.1b current columns, from a counts JSON written since Story 2.5c. */
+export interface RunEngineTotals {
+  columns: number;
+  fingerprints: number;
+  costLinesShortOfTotal: number;
+  shortWithNedskrivningerEmpty: number;
+  negativeUnexplained: number;
+  emptiedKundefordringer: number;
+  emptiedBankinnskudd: number;
+}
+
+/** The 2.1b rows' varer against the Story 2.5b dump, per role, from a counts JSON written since Story 2.5c. */
+export type RunVarer = Record<'current' | 'prior', VarerRoleCounts>;
+
 /** The stored fingerprints by business type, from a counts JSON written since Story 2.5b. */
 export interface RunTypeTotals {
   fingerprints: number;
@@ -240,7 +265,24 @@ export interface RunCounts {
   types: RunTypeTotals | null;
   /** What the sum gates admitted, both column roles together; null in counts written before Story 2.5b. */
   gates: GateCounts | null;
+  /** Null in counts written before Story 2.5c. */
+  engine: RunEngineTotals | null;
+  /** Null in counts written before Story 2.5c, or when the dump was not there. */
+  varer: RunVarer | null;
 }
+
+const VARER_COUNT_KEYS = [
+  'compared',
+  'unchanged',
+  'emptied',
+  'changed',
+  'newly_read',
+  'emptied_or_changed_negative_before',
+  'negative_before',
+  'negative_after',
+  'only_in_dump',
+  'only_now',
+] as const satisfies readonly (keyof VarerRoleCounts)[];
 
 function count(value: unknown, file: string, where: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw new Error(`${file}: ${where} must be a count`);
@@ -285,7 +327,40 @@ export function parseRunCounts(json: unknown, file: string): RunCounts {
     currentNonNull: Object.fromEntries(Object.entries(nonNull).map(([k, v]) => [k, count(v, file, `columns.current.non_null.${k}`)])),
     types: fingerprints === undefined ? null : types(),
     gates: gatesOf(),
+    engine: engineOf(),
+    varer: varerOf(),
   };
+
+  function engineOf(): RunEngineTotals | null {
+    if (!isRecord(json) || json.engine === undefined) return null;
+    const engine = json.engine;
+    const skipped = at(engine, 'skipped', 'engine');
+    const emptied = at(engine, 'emptied_above_api_subtotal', 'engine');
+    return {
+      columns: count(at(engine, 'columns', 'engine'), file, 'engine.columns'),
+      fingerprints: count(at(engine, 'fingerprints', 'engine'), file, 'engine.fingerprints'),
+      costLinesShortOfTotal: count(at(skipped, 'cost_lines_short_of_total', 'engine.skipped'), file, 'engine.skipped.cost_lines_short_of_total'),
+      shortWithNedskrivningerEmpty: count(
+        at(engine, 'cost_lines_short_of_total_nedskrivninger_empty', 'engine'),
+        file,
+        'engine.cost_lines_short_of_total_nedskrivninger_empty',
+      ),
+      negativeUnexplained: count(at(skipped, 'negative_unexplained', 'engine.skipped'), file, 'engine.skipped.negative_unexplained'),
+      emptiedKundefordringer: count(at(emptied, 'kundefordringer', 'engine.emptied_above_api_subtotal'), file, 'engine.emptied_above_api_subtotal.kundefordringer'),
+      emptiedBankinnskudd: count(at(emptied, 'bankinnskudd', 'engine.emptied_above_api_subtotal'), file, 'engine.emptied_above_api_subtotal.bankinnskudd'),
+    };
+  }
+
+  function varerOf(): RunVarer | null {
+    if (!isRecord(json) || json.varer_against_dump === undefined || json.varer_against_dump === null) return null;
+    const byRole = at(json.varer_against_dump, 'columns', 'varer_against_dump');
+    const one = (name: 'current' | 'prior'): VarerRoleCounts => {
+      const where = `varer_against_dump.columns.${name}`;
+      const counts = at(byRole, name, 'varer_against_dump.columns');
+      return Object.fromEntries(VARER_COUNT_KEYS.map((k) => [k, count(at(counts, k, where), file, `${where}.${k}`)])) as VarerRoleCounts;
+    };
+    return { current: one('current'), prior: one('prior') };
+  }
 
   function gatesOf(): GateCounts | null {
     const byRole = (['current', 'prior'] as const).map((name) => at(role(name), 'gates', `columns.${name}`));
@@ -319,6 +394,17 @@ export interface Story25bInputs {
   runAfter: RunCounts | null;
 }
 
+/** Story 2.5c's inputs: the state Story 2.5b's re-read left, before any Story 2.5c re-read. */
+export interface Story25cInputs {
+  /** The corrected transcriptions against the stored columns before Story 2.5c. */
+  comparison: Comparison;
+  stored: readonly StoredColumn[];
+  documents: readonly StoredDocument[];
+  runBefore: RunCounts;
+  /** Null until the re-read of the 2.1b rows has been counted. */
+  runAfter: RunCounts | null;
+}
+
 export interface StoryBInputs {
   /** The corrected transcriptions against Story 2.3's stored columns. */
   comparison: Comparison;
@@ -346,6 +432,8 @@ export interface ReportInputs {
   before23b: StoryBInputs;
   /** The state before Story 2.5b: "after" of the Story 2.3b section, "before" of the Story 2.5b section. */
   before25b: Story25bInputs;
+  /** The state before Story 2.5c: "after" of the Story 2.5b section, "before" of the Story 2.5c section. */
+  before25c: Story25cInputs;
   /** The committed seed was exported before Story 2.5b's migration, so it holds no part columns. */
   seedLacksParts: boolean;
   /** The API subtotals by brreg_id (seed/demo/key_figures.csv), for the fingerprints. */
@@ -493,10 +581,13 @@ const undeterminedOf = (part: number, whole: number): string => (whole === 0 ? '
  * intangible assets): every class per field, the errors that reach the
  * engine with each new one listed, and the undetermined share of the
  * fingerprints. Totals only: eight reference-set companies are in Story
- * 5.1's labelled set, so no fingerprint result is tied to an orgnr.
+ * 5.1's labelled set, so no fingerprint result is tied to an orgnr. Its
+ * "after" is the state Story 2.5b left, which Story 2.5c copied before its
+ * own re-read (`BEFORE_2_5C_DIR`), so a later re-read does not move it.
  */
 export function renderBeforeAfter25b(inputs: ReportInputs): string[] {
-  const { comparison, stored, documents, subtotals, before25b: b } = inputs;
+  const { subtotals, before25b: b } = inputs;
+  const { comparison, stored, documents } = inputs.before25c;
   const before = b.comparison.results;
   const after = comparison.results;
   const lines: string[] = [];
@@ -508,7 +599,7 @@ export function renderBeforeAfter25b(inputs: ReportInputs): string[] {
     '',
     'Story 2.5b reads the cost lines in their other printed wordings (the depreciation row, plurals, note references read as letters), reads the four printed parts of intangible assets as fields of their own, ' +
       'and admits a digits-only figure of a cost line or a part through a sum gate (the five cost lines against sum kostnader, the four parts against sum immaterielle eiendeler, 5 kr), then re-reads every stored document. ' +
-      `"Before" is the committed seed as Story 2.3b left it, copied byte for byte into \`${BEFORE_2_5B_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_2_5B_FILE}\`; "after" is the committed seed and \`${RUN_COUNTS_AFTER_2_5B_FILE}\`. ` +
+      `"Before" is the committed seed as Story 2.3b left it, copied byte for byte into \`${BEFORE_2_5B_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_2_5B_FILE}\`; "after" is the seed as Story 2.5b left it, copied into \`${BEFORE_2_5C_DIR}/\` before Story 2.5c's re-read, and \`${RUN_COUNTS_AFTER_2_5B_FILE}\`. ` +
       'Both are compared with the corrected transcriptions, over every compared field.',
     '',
   );
@@ -642,6 +733,154 @@ export function renderBeforeAfter25b(inputs: ReportInputs): string[] {
       '',
     );
   }
+  return lines;
+}
+
+/** "n of m (p %)" of the evaluable columns, or "none evaluable". */
+const ofEvaluable = (part: number, whole: number): string => (whole === 0 ? 'none evaluable' : ratio(part, whole));
+
+/** The reference set's varer against the before copy, per role, as the 2.1b counts compare against the dump. */
+function referenceVarer(before: readonly StoredColumn[], after: readonly StoredColumn[]) {
+  const rows = (columns: readonly StoredColumn[]) =>
+    columns.map((c) => {
+      const varer = c.figuresOre.get('varer') ?? null;
+      return { orgnr: c.orgnr, filing_year: c.filingYear, role: c.role, varer_ore: varer === null ? null : varer.toString() };
+    });
+  return varerAgainstDump(BEFORE_2_5C_DIR, rows(before), rows(after)).columns;
+}
+
+/**
+ * The section "Before and after Story 2.5c" (a digit read as two, cost lines
+ * that do not sum, the unguarded lines, varer): every class per field, the
+ * errors that reach the engine with each new one listed, the columns whose
+ * cost lines do not sum, the lines R3 keeps from the engine and the varer
+ * R4 moves, before and after, as totals. No fingerprint result is tied to
+ * an orgnr.
+ */
+export function renderBeforeAfter25c(inputs: ReportInputs): string[] {
+  const { comparison, stored, documents, subtotals, before25c: b } = inputs;
+  const before = b.comparison.results;
+  const after = comparison.results;
+  const lines: string[] = [];
+  const push = (...more: string[]) => lines.push(...more);
+  const notYet = 'not yet counted';
+
+  push(
+    '## Before and after Story 2.5c',
+    '',
+    'Story 2.5c refuses a digit token narrower than 0.6 of its digits at the page\'s character pitch (R1: Tesseract reads a printed "2" as "23" in a box one glyph wide, and both passes agree), reads `varer` from the balance sheet only (R4: the income statement\'s inventory-change row ends in "varer" too), and re-reads every stored document. ' +
+      'Two engine rules need no re-read: no fingerprint when the four main cost lines are read and fall short of sum kostnader by more than 5 kr (R2, `cost_lines_short_of_total`), and a current `kundefordringer` or `bankinnskudd` above the API\'s sum omløpsmidler + 5 kr is not used (R3). ' +
+      `"Before" is the committed seed as Story 2.5b left it, copied byte for byte into \`${BEFORE_2_5C_DIR}/\` before any re-read, and \`${RUN_COUNTS_BEFORE_2_5C_FILE}\`; "after" is the committed seed and \`${RUN_COUNTS_AFTER_2_5C_FILE}\`. ` +
+      'Both are compared with the corrected transcriptions, over every compared field. The engine rules are applied to both with this commit\'s engine, so "before" and "after" differ only by the re-read.',
+    '',
+    '### The reference set, every class',
+    '',
+    CLASS_TABLE_HEADER,
+    '|---|---|---|---|---|---|---|---|',
+    classRow('Before', before),
+    classRow('After', after),
+    '',
+    'Per field, before → after:',
+    '',
+    '| Field | correct | not read | misread | phantom |',
+    '|---|---|---|---|---|',
+    ...classesByField(before).map(({ field, counts }, i) => {
+      const now = classesByField(after)[i]?.counts ?? counts;
+      const cell = (name: keyof typeof counts) => (counts[name] === now[name] ? `${now[name]}` : `${counts[name]} → ${now[name]}`);
+      return `| ${field} | ${cell('correct')} | ${cell('not read')} | ${cell('misread')} | ${cell('phantom')} |`;
+    }),
+    '',
+  );
+
+  const misreadsBefore = misreadsReachingEngine(before);
+  const misreadsAfter = misreadsReachingEngine(after);
+  const phantomsBefore = phantomsReachingEngine(before);
+  const phantomsAfter = phantomsReachingEngine(after);
+  const fresh = [...newResults(misreadsBefore, misreadsAfter), ...newResults(phantomsBefore, phantomsAfter)];
+  push(
+    '### Errors that reach the engine, before and after',
+    '',
+    'Refusing a token must not let a new error in. Misread and phantom figures in reconciled columns of the drawn filings:',
+    '',
+    '| | Before | After |',
+    '|---|---|---|',
+    `| Misread, reaching the engine | ${misreadsBefore.length} | ${misreadsAfter.length} |`,
+    `| Phantom, reaching the engine | ${phantomsBefore.length} | ${phantomsAfter.length} |`,
+    '',
+    'New ones (after, not before):',
+    '',
+  );
+  if (fresh.length === 0) {
+    push('None.', '');
+  } else {
+    push(
+      '| Orgnr | Year | Column | Field | Expected | Read | Class | Column status |',
+      '|---|---|---|---|---|---|---|---|',
+      ...fresh.map(resultRow),
+      '',
+    );
+  }
+
+  const sumBefore = costSumCounts(b.stored);
+  const sumAfter = costSumCounts(stored);
+  const run = (counts: RunCounts | null, pick: (e: RunEngineTotals) => string): string => {
+    if (counts === null) return notYet;
+    return counts.engine === null ? 'not counted then' : pick(counts.engine);
+  };
+  push(
+    '### Cost lines that do not sum',
+    '',
+    'Reconciled columns whose four main cost lines (varekostnad, lønnskostnad, avskrivninger, annen driftskostnad) and sum kostnader are read, nedskrivninger counted as 0 when empty; "under" and "over" are the lines short of the total or above it by more than 5 kr. ' +
+      'Under is what R2 keeps from a fingerprint in a current column; over is `negative_unexplained`, as before. The Story 2.1b run\'s come from `pnpm analysis:document-run` (current columns only, with this commit\'s engine). Totals only.',
+    '',
+    '| Data set | Before | After |',
+    '|---|---|---|',
+    ...(['current', 'prior'] as const).flatMap((role) => [
+      `| Reference set (${ROLE_NAME[role]}): under the total | ${ofEvaluable(sumBefore[role].under, sumBefore[role].evaluable)} | ${ofEvaluable(sumAfter[role].under, sumAfter[role].evaluable)} |`,
+      `| Reference set (${ROLE_NAME[role]}): over the total | ${ofEvaluable(sumBefore[role].over, sumBefore[role].evaluable)} | ${ofEvaluable(sumAfter[role].over, sumAfter[role].evaluable)} |`,
+    ]),
+    `| Story 2.1b run, local data: \`cost_lines_short_of_total\` (R2) | ${run(b.runBefore, (e) => `${e.costLinesShortOfTotal}`)} | ${run(b.runAfter, (e) => `${e.costLinesShortOfTotal}`)} |`,
+    `| Story 2.1b run, local data: of those, nedskrivninger empty | ${run(b.runBefore, (e) => `${e.shortWithNedskrivningerEmpty}`)} | ${run(b.runAfter, (e) => `${e.shortWithNedskrivningerEmpty}`)} |`,
+    `| Story 2.1b run, local data: \`negative_unexplained\` | ${run(b.runBefore, (e) => `${e.negativeUnexplained}`)} | ${run(b.runAfter, (e) => `${e.negativeUnexplained}`)} |`,
+    `| Story 2.1b run, local data: fingerprints, of current columns | ${run(b.runBefore, (e) => `${e.fingerprints} of ${e.columns}`)} | ${run(b.runAfter, (e) => `${e.fingerprints} of ${e.columns}`)} |`,
+    '',
+  );
+
+  const emptiedBefore = currentAssetsEmptied(b.stored, b.documents, subtotals);
+  const emptiedAfter = currentAssetsEmptied(stored, documents, subtotals);
+  push(
+    '### Current asset lines above the API subtotal (R3)',
+    '',
+    'Current columns whose `kundefordringer` or `bankinnskudd` is above the API\'s sum omløpsmidler of the same filing + 5 kr: the figure is stored, and the engine does not use it. `salgsinntekt` and `leverandorgjeld` get only R1. Totals only.',
+    '',
+    '| Data set | Line | Before | After |',
+    '|---|---|---|---|',
+    `| Reference set | kundefordringer | ${emptiedBefore.kundefordringer} | ${emptiedAfter.kundefordringer} |`,
+    `| Reference set | bankinnskudd | ${emptiedBefore.bankinnskudd} | ${emptiedAfter.bankinnskudd} |`,
+    `| Story 2.1b run, local data | kundefordringer | ${run(b.runBefore, (e) => `${e.emptiedKundefordringer}`)} | ${run(b.runAfter, (e) => `${e.emptiedKundefordringer}`)} |`,
+    `| Story 2.1b run, local data | bankinnskudd | ${run(b.runBefore, (e) => `${e.emptiedBankinnskudd}`)} | ${run(b.runAfter, (e) => `${e.emptiedBankinnskudd}`)} |`,
+    '',
+  );
+
+  const ref = referenceVarer(b.stored, stored);
+  const runVarer = (counts: RunCounts | null, pick: (v: RunVarer) => string): string => {
+    if (counts === null) return notYet;
+    return counts.varer === null ? `not counted (no \`${VARER_DUMP_FILE}\`)` : pick(counts.varer);
+  };
+  push(
+    '### varer read from the income statement (R4)',
+    '',
+    'Before R4, the income statement\'s inventory-change row ("… og ferdig tilvirkede varer") was stored as `varer`, negative or positive. The columns whose `varer` the re-read empties or changes are those it was read from, ' +
+      `positive values included; for the Story 2.1b run they are counted against \`${VARER_DUMP_FILE}\`, the dump taken after Story 2.5b's re-read. Totals only.`,
+    '',
+    '| Data set | Emptied by the re-read | Changed by the re-read | Of those, negative before | Negative varer before | Negative varer after |',
+    '|---|---|---|---|---|---|',
+    ...(['current', 'prior'] as const).flatMap((role) => [
+      `| Reference set (${ROLE_NAME[role]}) | ${ref[role].emptied} | ${ref[role].changed} | ${ref[role].emptied_or_changed_negative_before} | ${ref[role].negative_before} | ${ref[role].negative_after} |`,
+      `| Story 2.1b run, local data (${ROLE_NAME[role]}) | ${runVarer(b.runAfter, (v) => `${v[role].emptied}`)} | ${runVarer(b.runAfter, (v) => `${v[role].changed}`)} | ${runVarer(b.runAfter, (v) => `${v[role].emptied_or_changed_negative_before}`)} | ${runVarer(b.runBefore, (v) => `${v[role].negative_before}`)} | ${runVarer(b.runAfter, (v) => `${v[role].negative_after}`)} |`,
+    ]),
+    '',
+  );
   return lines;
 }
 
@@ -894,6 +1133,7 @@ export function renderReport(inputs: ReportInputs, generated: string): string {
   );
   push(...renderBeforeAfter(inputs));
   push(...renderBeforeAfter25b(inputs));
+  push(...renderBeforeAfter25c(inputs));
   return lines.join('\n');
 }
 
@@ -907,6 +1147,8 @@ export function readInputs(root: string): ReportInputs {
   const before25bText = read(`${BEFORE_2_5B_DIR}/document_column.csv`);
   const before25bStored = parseStoredColumns(before25bText);
   const after25bFile = path.join(root, ...RUN_COUNTS_AFTER_2_5B_FILE.split('/'));
+  const after25cFile = path.join(root, ...RUN_COUNTS_AFTER_2_5C_FILE.split('/'));
+  const before25cStored = parseStoredColumns(read(`${BEFORE_2_5C_DIR}/document_column.csv`));
   const transcribed = parseTranscriptions(read(TRANSCRIPTIONS_FILE));
   const corrections = parseCorrections(read(CORRECTIONS_FILE));
   const beforeStored = parseStoredColumns(read(`${BEFORE_2_3B_DIR}/document_column.csv`));
@@ -948,6 +1190,15 @@ export function readInputs(root: string): ReportInputs {
       // Written by `pnpm analysis:document-run after-2.5b` once the 2.1b rows
       // are re-read; until then the report says "not yet counted".
       runAfter: existsSync(after25bFile) ? parseRunCounts(JSON.parse(read(RUN_COUNTS_AFTER_2_5B_FILE)), RUN_COUNTS_AFTER_2_5B_FILE) : null,
+    },
+    before25c: {
+      comparison: compareReference(drawn, transcribed, before25cStored),
+      stored: before25cStored,
+      documents: parseStoredDocuments(read(`${BEFORE_2_5C_DIR}/document.csv`)),
+      runBefore: parseRunCounts(JSON.parse(read(RUN_COUNTS_BEFORE_2_5C_FILE)), RUN_COUNTS_BEFORE_2_5C_FILE),
+      // Written by `pnpm analysis:document-run after-2.5c` once the 2.1b rows
+      // are re-read; until then the report says "not yet counted".
+      runAfter: existsSync(after25cFile) ? parseRunCounts(JSON.parse(read(RUN_COUNTS_AFTER_2_5C_FILE)), RUN_COUNTS_AFTER_2_5C_FILE) : null,
     },
     seedLacksParts: lacksPartColumns(storedText),
     subtotals: parseKeyFigureSubtotals(read(`${SEED_DIR}/key_figures.csv`)),

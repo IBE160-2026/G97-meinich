@@ -2161,6 +2161,130 @@ The review session checked these against the database and the dumps:
 
 CI was green on `b363a6e`. At the human's request (`ja post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 10:33 UTC as `e30ba6d`.
 
+## Story 2.5c: refuse a digit read as two, and cost lines that do not sum (#47, PR #48)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it, except where noted. Fingerprint results are given as totals only: eight of the reference set's companies are also in the labelled set.
+
+### Prompts to the BMAD session
+
+**2026-11-06 11:43**
+```
+/bmad-build Story 2.5c: nekt et siffer lest som to, og kostnadslinjer som ikke summerer (epics.md, Story 2.5c, punkt 1–4). Hent main først (f80febf). Opprett issuet og branchen.
+Start med en probe, read-only, før noe rettes:
+(a) Finn årsaken til de 17 innværende kolonnene som summerer under totalen, med OCR-ordene som bevis. Vis det som totaler per årsak.
+(b) Mål regelen for siffertoken-bredde på lagrede ord før den bygges. Hvor mange tokens ville blitt nektet i referansesettet og i 2.1b-radene, og hvor mange av de nektede i referansesettet er riktige etter avskriften? «1» er smalt, så regelen må tåle det. Et riktig tall som blir nektet, er en kostnad, ikke en gevinst.
+(c) For punkt 4: tell hvor ofte bankinnskudd, kundefordringer, salgsinntekt og leverandørgjeld er feil i referansesettet i dag, og om en delsumkontroll ville fanget det.
+Stopp ved sjekkpunktet og vis meg tallene før koden endres.
+D1 er låst: ingen endring i terskler eller typeregel. Regelen i src/engine (punkt 3) er en grunn til å hoppe over en kolonne, ikke en endring i typeregelen. Vis ingen fingeravtrykk-resultater for orgnr i fasitsettet. Alle tall som totaler, uten orgnr.
+Omlesingen starter bare etter eget ja fra meg, med samme ni steg som i 2.5b. Gjenopprett fra .local/document-run-2.5b/. Ingen dump slettes. Dokumentkjøringen for fasitsettet er ikke en del av denne storyen.
+Små commits underveis. PR-en skal ha linjen «Planning documents:».
+```
+*Changed:* the probe came first, read-only, and the digit-width rule was measured on stored words before it was built (`e6c1cde`). The issue is #47.
+
+**12:08**
+```
+Fra meg: fortsett proben, med ett tillegg til (c). Review-sesjonen finner 55 avstemte innværende kolonner i 44 selskaper der salgsinntekt ligger mer enn 5 kr over sum_driftsinntekter, ikke bare de 13 med forhold ≥ 1,4. Noen av avvikene er runde på mindre skala (5 000 000, 300 000, 10 000). Vis i sjekkpunktet, som totaler:
+1. hvor mange av de 55 som er siffer-lest-som-to (runde avvik i alle størrelser), hvor mange som er andre lesefeil, og hvor mange som er ekte (for eksempel negativ annen driftsinntekt), med bevis fra et utvalg;
+2. det samme for kundefordringer og bankinnskudd mot sumOmloepsmidler fra key_figures, siden begge brukes i fingeravtrykket;
+3. hvor mange av disse breddeegelen i (b) ville fanget, og hvor mange en del-mot-sum-kontroll i src/engine ville fanget uten omlesing.
+Ingen kodeendring før sjekkpunktet.
+```
+*Changed:* the review session had found 55 reconciled current columns with `salgsinntekt` above `sum_driftsinntekter`, not only the 13 the probe first counted. The probe then measured that 40 of 56 current cases are genuine (a negative revenue row), which is why R3 does not guard `salgsinntekt`.
+
+**12:13**
+```
+Fra meg: fint. Ta med i sjekkpunktet om forrige års kolonne når motoren i dag (documentFigures og fingeravtrykket), slik at det er klart om de 123 i forrige års kolonne betyr noe nå eller bare ved en senere bruk.
+```
+*Changed:* the BMAD session confirmed that the prior column does not reach the engine (`scripts/derive.ts` reads `role = 'current'`), so the 123 prior-column cases matter only for a later use.
+
+**14:08**: the human's own words, not drafted by the review session.
+```
+er den ikke ferdig nå?
+```
+*Changed:* none; the probe was still running.
+
+**14:19**: the answers to the four decisions at the probe checkpoint.
+```
+Fra meg: 1 k = 0,6 med «1» som et helt siffer, 2 ja, 3 ja til begge, 4 ja. Skriv beslutningene og målingene inn i spec-en.
+1: begrunnelsen er tallene fra proben: 0 riktige tall tapt i referansesettet, de 7 kolonnene på nøyaktig 21 mill. fanget, og 10 av 11 og 37 av 45 bekreftede salgsinntektsfeil, mot 3 og 3 med k = 0,5. Et nektet token gir et tomt felt, aldri en reparasjon. Testene skal bruke «23 375 956» og «123»-tilfellene fra proben, og et riktig tall med mange «1»-ere som ikke nektes.
+2: reglen gjelder bare når alle kostnadslinjene er lest. Grunnen telles i derive, og en kolonne uten fingeravtrykk blir værende i gruppen, som i dag.
+3: Q21 i PRD-en og Story 3.1a i epics.md rettes i denne PR-en, med .memlog-linje. Ta med tallet: 40 av 56 tilfeller i innværende år der salgsinntekt overstiger totalen er ekte, så en enkel regel om at en del ikke kan overstige summen, passer ikke for salgsinntekt. Kundefordringer eller bankinnskudd over API-ets sumOmloepsmidler blir tomme med en navngitt grunn, i src/engine, uten omlesing.
+4: review-sesjonen finner 18 kolonner for innværende år med negativ verdi for varer. 10 av dem har fingeravtrykk, og alle har inventory = false, så feilen når fingeravtrykket i dag. Tell i rapporten før og etter hvor mange kolonner som har varer lest fra resultatregnskapet, også med positiv verdi. D1 er uendret.
+Omlesingen venter på eget ja. Mål tiden, og bruk samme ni steg som i 2.5b.
+```
+*Changed:* R1 to R4 were written into the spec as decided (`e8f97b3`). Item 4, `varer` read from the income statement, came from the review session: 18 current columns had a negative `varer`, and the 10 with a fingerprint all had `inventory = false`.
+
+**14:23**: the answer to the BMAD session's question whether R2 needs (a) the four main lines read, or (b) every line.
+```
+Fra meg: (a). Skriv i spec-en at R2 bare gjelder når de fire hovedlinjene er lest, og at en kolonne uten varekostnad eller en annen hovedlinje følger intervallregelen som i dag. Ta med kostnaden fra proben: én trykt nedskrivning som ikke ble lest (1 649 988 kr) mister fingeravtrykket. Tell i rapporten etter omlesingen hvor mange kolonner cost_lines_short_of_total gjelder, og hvor mange av dem som har nedskrivninger NULL. Begge valgene dine er godkjent. Behold spec-en samlet. Sett den til ready-for-dev og fortsett med kode og tester i små commits. Omlesingen venter på eget ja.
+```
+*Changed:* R2 applies only when the four main lines are read (`58c5b71`). The cost of one printed `nedskrivninger` that was not read is in the spec.
+
+**15:10**: the answers to the two findings of review pass 1 that the BMAD session put to the human (triage 1 and 19).
+```
+Fra meg: 1: mål det først. Kjør R1 med minustegnet regnet som et tegn på de lagrede ordene i hurtigbufferen, uten OCR, og vis meg hvor mange tall som nektes og hvor mange riktige tall referansesettet mister. Er det 0 tapte riktige tall, tas endringen inn med en test for «-23»-tilfellet, og beslutningen skrives i Spec Change Log. Ellers står hullet som en kjent begrensning i AI-loggen. 2: ja. R3 skal bruke regelen for sammenligning mellom kilder, max(5 kr, 0,001 % av API-tallet), som AGENTS.md krever. Legg verdien ett sted i src/engine, med en test som feiler hvis den avviker fra [reconciliation] i ingest/config.toml. Skriv det i Spec Change Log. Finn årsaken til tidsavbruddene i test:db før PR-en, ikke bare kjør på nytt. Omlesingen venter fortsatt på eget ja.
+```
+*Changed:* the minus was measured first, with 0 correct figures lost, and then taken in (`b57aaba`). R3 uses the between-sources rule, set once and tested against `ingest/config.toml` (`e9ce2ae`). The `test:db` timeouts were traced to a loader transaction left open after a deliberate foreign-key error, and deferred (`a7465b5`).
+
+**15:25**
+```
+Fra meg: ja til omlesingen med de ni stegene fra 2.5b. Ta steg 1 (dump og backup, sjekk sha256) nå og si fra når den er ferdig. Omlesingen kjører jeg selv i mine egne PowerShell-vinduer: først referansesettet, så 2.1b-radene, med logg til .local\reread-ref-2.5c.log og .local\reread-2.1b-2.5c.log. Ikke start noe selv. Når jeg sier at kjøringen er ferdig, sjekker du run.step1 for begge kjøringene, at alle dokumenter har ny reader_commit, og at pnpm derive har kjørt. Vis meg tallene fra steg 2 og tiden kjøringen tok, før noe slettes i steg 4. Ingen push før jeg sier fra.
+```
+*Changed:* the human ran the re-read in their own windows. The review session had recommended a full re-read that night instead of only the reference set: the labelled set's run comes later, and a combined run would have taken about 20 hours.
+
+**2026-11-07 11:06**
+```
+Fra meg: omlesingen er ferdig, og review-sesjonen har sjekket den mot .local/document-tables-before-2.5c-reread/. Run 782 og 783 endte med 0 ikke erstattet og 0 feil, og alle 2 044 dokumenter har reader_commit b57aaba. Ingen kolonne har gått fra avstemt til ikke avstemt. 139 tall ble tomme: 130 større enn sin egen total, 6 nøyaktig 21 mill. over kostnadstotalen, og resten varer fra resultatregnskapet. Det eneste tallet som kan ha vært riktig, ligger i en fjorårskolonne. Ingen andre tall er endret enn varer. Ett funn til PR-en: i ett selskap-år er beholdning nå ukjent fordi R4 ikke fant varer på balansen, mens neste års regnskap har 3,6 mill. kr som fjorårstall. Det er et tomt felt, ikke et galt tall; noter det i SM-2-rapporten og sesjonsfilen som totaler, uten orgnr.
+
+Gjør i denne rekkefølgen:
+1. Legg inn i epics.md en story for dokumentkjøringen for fasitsettet, ordnet etter 2.5c, med en lokal hurtigbuffer for OCR-ordene, kreditert review-sesjonen. Begrunnelse: omlesing har kostet rundt 12 timer tre ganger (2.3b, 2.5b, 2.5c), alle rettingene var etter OCR, og etter fasitsettet blir en omlesing over 35 timer. Vilkår: (a) nøkkelen er PDF-ens sha256, Tesseract-versjonen, traineddata-sha256 og renderinnstillingene, og et avvik gir full OCR som rapporteres, aldri i stillhet; (b) PDF-en hentes fortsatt ved omlesing, så et regnskap som er levert på nytt oppdages; (c) hurtigbufferen er gitignored og ligger bare lokalt, som PDF-ene, til lisensvurderingen i 5.4. Pek oppføringen om fasitsett-kjøringen i deferred-work.md til storyen. Commit planleggingsendringene alene.
+2. Ja til steg 3–9 i seed-prosedyren: ny dump med sha256 og kopi i C:\Users\cmein\peerless-backups\, sletting utenfor allow-listen i én kontrollert transaksjon, derive, seed:export i egen commit, pnpm seed to ganger med uendret re-eksport, gjenoppretting av 2.1b-radene, derive. Den nye dumpen erstatter .local/document-run-2.5b/ som gjenopprettingskilde. Oppdater README («Seed») i samme commit som peker til den nye mappen. Slett ingen eldre dump.
+3. Kjør hele testsuiten, og vis meg tellingene etter steg 5 og 9 og PR-utkastet med linjen «Planning documents:». Ikke push før jeg sier det.
+```
+*Changed:* the local OCR word cache was proposed by the review session after three re-reads of about 12 hours each; it is Story 2.5d (`6ee327b`). The BMAD session added the Tesseract options of both passes to the cache key, and the human kept it. The seed is `29bf5fc`, and the restore source is now `.local/document-run-2.5c/` (`46ae913`).
+
+**11:23**
+```
+Fra meg: review-sesjonen har sjekket steg 3–9, og alt stemmer, med ett unntak. 29bf5fc sier «three figures in the reference set's prior-year columns (salgsinntekt, varekostnad, sum_kortsiktig_gjeld); no current column changed». Diffen viser salgsinntekt i en fjorårskolonne (avstemt), varekostnad i en fjorårskolonne (ikke avstemt) og leverandorgjeld i en nåårskolonne (avstemt). Alle tre er større enn sin egen total, og leverandorgjeld er ikke med i fingeravtrykket. Rett dette i spec-en (C2-avsnittet, steg 6) og i sesjonsfilen, krediter funnet til review-sesjonen, og skriv i PR-teksten at commit-meldingen til 29bf5fc er feil på dette punktet og ikke skrives om. Tesseract-innstillingene i nøkkelen til 2.5d beholdes. e2e: ikke kjør en ny seed-runde, la CI avgjøre det, og skriv årsaken du mener ligger bak i PR-en som en antakelse som CI skal bekrefte. Commit rettingen for seg, push og åpne PR-en mot main.
+```
+*Changed:* the review session found that `29bf5fc`'s message names the wrong fields and says no current column changed. The BMAD session had split the CSV lines on commas, which shifts the fields after a quoted `digits_pass_fields`. The spec and the session file were corrected (`40e8bf4`), and the commit message was not rewritten. PR #48 was opened.
+
+**11:35**
+```
+Fra meg: reviewen min er postet på PR #48, med seks linjekommentarer på 5f3d91e. Før merge:
+1. Rett PR-teksten. (a) R4-linjen: «emptied or changed in 22 current and 17 prior columns» er feil. Skriv det slik document-run-counts-after-2.5c.json har det: endret 22 og 17, tømt 15 og 14, nylest 4 og 7. (b) Fingeravtrykkene: skriv at 1 757 er de gamle tallene regnet med denne storyens motor, og at tabellen faktisk hadde 1 779 for 2.1b-radene før storyen, så det lagrede tallet gikk fra 1 779 til 1 770. Legg samme presisering i ocr-sm2.md ved raden «1757 of 1946».
+2. Linjekommentaren på TARGET_PAGES: page_kind regner en side som resultatside hvis «resultatregnskap» står noe sted i etikettene, før «balanse» sjekkes. Det kan forklare R4-hullet, men det er ikke verifisert. Ikke rett det i denne PR-en. Legg det inn som et punkt i Story 2.5d i epics.md: sjekkes før fasitsettet leses. Krediter review-sesjonen.
+3. Oppdater sesjonsfilen: reviewen, hva som ble rettet etter den, og hvem som fant hva. CI var grønn på 5f3d91e med 116 av 116 e2e-tester, og det bekrefter forklaringen på de lokale feilene.
+Commit i logiske steg, push, og si fra når CI har kjørt på nytt. Ikke merge.
+```
+*Changed:* the PR text's R4 counts and the fingerprint count were corrected, and the SM-2 report now gives the stored count beside the engine's (`e79cf32`). The `page_kind` question is item 3 of Story 2.5d, not verified and not fixed here (`8d506be`). The session file has the review (`8ff1b35`).
+
+### Prompts to the review session
+
+- `hva anbefaler du`, `gjerne` and `vil starte` (11-06): the review session recommended that PRD open question 21 go into Story 2.5c and that question 24 become a precondition of Story 2.7 (`f80febf`), and drafted the 11:43 prompt.
+- Five pastes of the BMAD session's output during the probe and the build (11-06): the review session checked them against the database and the probe's JSON, and drafted the 12:08, 12:13, 14:19, 14:23 and 15:10 prompts. For R1 it recommended k = 0,6 with "1" counted as a full digit, because the probe showed 0 correct reference figures lost.
+- `okei så får vi nå igjen en ny lang kjøring?`, `okei, men må alt lastes inn på nytt? for noen småfeil i noen tall=` and `Ja tenker du at dette er det beste eller burde vi ha en lang kjøring nå?` (11-06): the review session explained why R1 and R4 need a re-read while R2 and R3 do not, and recommended the full re-read that night.
+- `Vindu 1 ; og vindu 2:` (11-06, with screenshots): the review session confirmed that the re-read and the keep-awake command were running.
+- `er det slik at man må gjennom denne prosessen på nytt igjen kanskje etter denne lange kjøringen også?`, `okei, og ved gjennomgang synes du dette er en god idee=`, `okei, skal jeg skrive til bmad nå?`, `Okei, men burde jeg vente med denne etter kjøringen da eller=` and `okei, men hvis det er likt er ikke det dumt?` (11-06): the review session proposed the local OCR word cache, with its conditions, and advised sending it after the re-read, so the BMAD session would not touch the branch while the run used it.
+- `sjekk` and `sjekk igjen nå` (11-06 and 11-07): the review session followed the run from the log and the database, and compared all 4 086 columns with the dump taken before the re-read. It checked each of the 139 emptied figures, and found the R4 gap: one company-year whose stock the next year's document prints.
+- `den er grønn`, `ja post review` and `merget` (11-07): the review session confirmed CI, posted the review and did the housekeeping on `main`.
+
+### Result
+
+All 2 044 documents are read by `b57aaba`. Nothing was left not replaced and no deadline ran out. The 2.1b re-read took 11 h 32 min, and the reference set 38 min. No column went from reconciled to not reconciled. 139 figures were emptied, and every one but one, in a prior column, is a misread or `varer` read from the income statement. No figure other than `varer` changed. No column is now exactly 21 000 000 kr over its cost total, against 10 before, and no `varer` is negative, against 33 before. The share of companies without a type is unchanged (175 of 420), so the story made the data more correct, not more complete. The labelled set's run, with the OCR word cache, is Story 2.5d.
+
+### Checks before merging
+
+The review session checked these against the database and the dumps:
+- runs 782 and 783 and their counts;
+- all 4 086 columns against `.local/document-tables-before-2.5c-reread/`, including each emptied figure, and the fingerprints before and after;
+- the new dump's sha256 and its backup copy;
+- the counts after steps 5 and 9;
+- that the seed commit holds only seed files, and which figures it emptied;
+- the PR text's counts, two of which it corrected.
+
+CI was green on `5f3d91e`, with 116 of 116 e2e tests, which confirmed why 7 failed locally: the local database also holds the 2.1b fingerprints. At the human's request (`ja post review`), the review session posted the GitHub review with six line comments. After the corrections, CI was green on `8ff1b35`, and the PR was merged at 10:59 UTC as `c90ad3e`.
+
 ---
 
 ## Going forward

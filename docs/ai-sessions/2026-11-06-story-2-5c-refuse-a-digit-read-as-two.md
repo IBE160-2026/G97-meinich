@@ -65,10 +65,32 @@ Implement `_bmad-output/implementation-artifacts/spec-2-5c-refuse-a-digit-read-a
   - ESLint passes on the repository. `pnpm lint` also lints `.local/wt-5.1/`, another branch's worktree, and fails there.
   - e2e: 109 passed and 7 failed in `e2e/analysis.spec.ts`, on peer counts and medians. Those expectations are computed from `seed/demo/`, while the local database also holds the 2.1b fingerprints. CI runs e2e on the seed alone.
 
+## The PR review (2026-11-07)
+
+- **The review:** Meinich's GitHub review on PR #48, "Comment", on `5f3d91e`. It has six line comments, written by the review session (Meinich's separate Claude session) and posted on Meinich's decision.
+  - Four line comments confirm the rules against the data: R1 at `layout.py:227` and `:420`, R2 at `fingerprint.ts:262` and R3 at `document-inputs.ts:173`.
+  - The fifth, on R4 at `layout.py:390`, points to `page_kind`.
+  - The sixth, at `ocr-sm2.md:459`, is about the fingerprint row.
+- **Checked by the review session, independently of the BMAD session:**
+  - runs 782 and 783 and their counts;
+  - all 4 086 columns against the dump taken before the re-read, including each of the 139 emptied figures;
+  - the new dump's sha256 and backup;
+  - that the seed commit holds only the seed files.
+- **CI was green on `5f3d91e`:** all 116 e2e tests passed on the seed alone. That confirms the assumed cause of the 7 local failures: the local database also holds the 2.1b fingerprints.
+- **Corrected after the review:**
+  - **The PR text's R4 line** (review session). It said "`varer` emptied or changed in 22 current and 17 prior columns". It now gives the counts as `document-run-counts-after-2.5c.json` has them: changed 22 and 17, emptied 15 and 14, newly read 4 and 7 (current and prior).
+  - **The fingerprint row** (review session, line comment on `ocr-sm2.md`). The 1 757 "before" is the old rows computed with this story's engine. The table held 1 779 fingerprints of the 2.1b rows before the story and 1 770 after. The SM-2 report now states both, taken from the counts files and covered by a test (`e79cf32`). The PR text says the same.
+  - **`page_kind` and R4's gap** (review session, line comment on `layout.py:390`). It is not verified and not fixed here, by Meinich's decision. It is now scope item 3 of Story 2.5d, to be checked before the labelled set is read (`8d506be`).
+- **Found earlier by the review session:** the wrong fields named in `29bf5fc`'s message (above).
+- **Found by the BMAD session, then decided by Meinich:**
+  - R1's minus and R3's tolerance (review pass 1, triage 1 and 19);
+  - the cause of the `test:db` timeouts;
+  - turning the R4 gap into a count.
+
 ## Not done here
 
 - A rerun of `analysis/ocr/cost_sum.py` from its cache: it reads the cached words, not the database, so the re-read does not change it.
-- The review of [PR #48](https://github.com/IBE160-2026/G97-meinich/pull/48) and the merge; CI decides the e2e assumption.
+- The merge of [PR #48](https://github.com/IBE160-2026/G97-meinich/pull/48), which waits for Meinich.
 
 ## Links
 

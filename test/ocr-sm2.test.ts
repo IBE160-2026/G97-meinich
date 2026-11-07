@@ -49,6 +49,7 @@ import {
   REPORT_FILE,
   RUN_COUNTS_BEFORE_2_5B_FILE,
   RUN_COUNTS_BEFORE_2_5C_FILE,
+  RUN_COUNTS_AFTER_2_5C_FILE,
   RUN_COUNTS_BEFORE_FILE,
   classRow,
   parseRunCounts,
@@ -767,6 +768,9 @@ describe('before and after Story 2.5c', () => {
       emptiedBankinnskudd: 0,
     });
     expect(before.varer?.current.negative_before).toBe(18);
+    expect(before.varer?.heldByNextPrior).toBeNull();
+    const after = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_AFTER_2_5C_FILE), 'utf8')), RUN_COUNTS_AFTER_2_5C_FILE);
+    expect(after.varer?.heldByNextPrior).toBe(1);
     const older = parseRunCounts(JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5B_FILE), 'utf8')), RUN_COUNTS_BEFORE_2_5B_FILE);
     expect([older.engine, older.varer]).toEqual([null, null]);
     const json = JSON.parse(readFileSync(path.join(root, RUN_COUNTS_BEFORE_2_5C_FILE), 'utf8'));

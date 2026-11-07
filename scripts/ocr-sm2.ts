@@ -242,7 +242,10 @@ export interface RunEngineTotals {
 }
 
 /** The 2.1b rows' varer against the Story 2.5b dump, per role, from a counts JSON written since Story 2.5c. */
-export type RunVarer = Record<'current' | 'prior', VarerRoleCounts>;
+export type RunVarer = Record<'current' | 'prior', VarerRoleCounts> & {
+  /** Emptied current varer whose stock the next filing year's prior column holds; null in counts written before it was counted. */
+  heldByNextPrior: number | null;
+};
 
 /** The stored fingerprints by business type, from a counts JSON written since Story 2.5b. */
 export interface RunTypeTotals {
@@ -361,7 +364,9 @@ export function parseRunCounts(json: unknown, file: string): RunCounts {
       const counts = at(byRole, name, 'varer_against_dump.columns');
       return Object.fromEntries(VARER_COUNT_KEYS.map((k) => [k, count(at(counts, k, where), file, `${where}.${k}`)])) as VarerRoleCounts;
     };
-    return { current: one('current'), prior: one('prior') };
+    const held = isRecord(json.varer_against_dump) ? json.varer_against_dump.emptied_current_held_by_next_prior : undefined;
+    const heldByNextPrior = held === undefined ? null : count(held, file, 'varer_against_dump.emptied_current_held_by_next_prior');
+    return { current: one('current'), prior: one('prior'), heldByNextPrior };
   }
 
   function gatesOf(): GateCounts | null {
@@ -884,6 +889,10 @@ export function renderBeforeAfter25c(inputs: ReportInputs): string[] {
       `| Reference set (${ROLE_NAME[role]}) | ${ref[role].emptied} | ${ref[role].changed} | ${ref[role].emptied_or_changed_negative_before} | ${ref[role].negative_before} | ${ref[role].negative_after} |`,
       `| Story 2.1b run, local data (${ROLE_NAME[role]}) | ${runVarer(b.runAfter, (v) => `${v[role].emptied}`)} | ${runVarer(b.runAfter, (v) => `${v[role].changed}`)} | ${runVarer(b.runAfter, (v) => `${v[role].emptied_or_changed_negative_before}`)} | ${runVarer(b.runBefore, (v) => `${v[role].negative_before}`)} | ${runVarer(b.runAfter, (v) => `${v[role].negative_after}`)} |`,
     ]),
+    '',
+    'An emptied `varer` is an empty field, not a wrong figure: where the balance printed no stock R4 could read, the stock is now unknown. ' +
+      `Of the Story 2.1b run's emptied current \`varer\`, the next filing year's document holds a stock as its prior-year figure in ${runVarer(b.runAfter, (v) => (v.heldByNextPrior === null ? 'not counted' : `${v.heldByNextPrior}`))} ` +
+      '(found by the review session after the re-read; totals only).',
     '',
   );
   return lines;

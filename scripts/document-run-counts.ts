@@ -30,7 +30,9 @@
 //   the same column in the dump taken after Story 2.5b's re-read
 //   (.local/document-run-2.5b/document_column.csv, gitignored): the columns
 //   whose `varer` the re-read emptied or changed, positive values included,
-//   are those read from the income statement's inventory-change row. Null,
+//   are those read from the income statement's inventory-change row, and
+//   of the current ones emptied, those whose stock the next filing year's
+//   prior column holds (an empty field, not a wrong figure). Null,
 //   said on stderr, when the dump is not there.
 // Apart from the engine counts, nothing is computed from a figure; only
 // NULLs, stored categories and equal or unequal figures are counted. The
@@ -134,7 +136,17 @@ export type VarerRoleCounts = {
   only_now: number;
 };
 
-export type VarerCounts = { dump: string; columns: Record<Role, VarerRoleCounts> };
+export type VarerCounts = {
+  dump: string;
+  columns: Record<Role, VarerRoleCounts>;
+  /**
+   * Of the current columns the re-read emptied, those whose stock the next
+   * filing year's prior column holds now: a stock R4 found on neither balance
+   * of that year's document, so an empty field, not a wrong figure. Absent in
+   * the counts written before this field was added.
+   */
+  emptied_current_held_by_next_prior?: number;
+};
 
 export type DocumentRunCounts = {
   label: string;
@@ -257,7 +269,12 @@ export function varerAgainstDump(dump: string, before: readonly VarerRow[], afte
   }
   const unknown = [...before, ...after].find((r) => !(ROLES as readonly string[]).includes(r.role));
   if (unknown !== undefined) throw new Error(`unknown column role ${unknown.role}`);
-  return { dump, columns };
+  const was = new Map(before.filter((r) => r.role === 'current').map((r) => [key(r), r.varer_ore]));
+  const nextPrior = new Map(after.filter((r) => r.role === 'prior').map((r) => [`${r.orgnr}/${r.filing_year - 1}/current`, r.varer_ore]));
+  const emptied_current_held_by_next_prior = after.filter(
+    (r) => r.role === 'current' && r.varer_ore === null && (was.get(key(r)) ?? null) !== null && (nextPrior.get(key(r)) ?? null) !== null,
+  ).length;
+  return { dump, columns, emptied_current_held_by_next_prior };
 }
 
 /** The counts, from rows already read. Throws on a role or field it does not know. */

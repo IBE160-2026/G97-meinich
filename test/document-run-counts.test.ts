@@ -240,6 +240,28 @@ describe('the Story 2.5c counts', () => {
     expect(() => varerAgainstDump(VARER_DUMP_FILE, [row('9', 'middle', null)], [])).toThrow(/middle/);
   });
 
+  it('counts an emptied current varer whose stock the next filing year holds as its prior figure', () => {
+    const at = (orgnr: string, year: number, role: string, varer: string | null): VarerRow => ({ orgnr, filing_year: year, role, varer_ore: varer });
+    const dump = [
+      at('900000001', 2023, 'current', '-50000000'), // emptied, the 2024 document holds the 2023 stock: counted
+      at('900000002', 2023, 'current', '-50000000'), // emptied, the 2024 document has no stock either
+      at('900000003', 2023, 'current', '360000000'), // not emptied: not counted
+      at('900000004', 2023, 'current', null), // empty before and after: not counted
+    ];
+    const now = [
+      at('900000001', 2023, 'current', null),
+      at('900000001', 2024, 'prior', '360000000'),
+      at('900000002', 2023, 'current', null),
+      at('900000002', 2024, 'prior', null),
+      at('900000003', 2023, 'current', '360000000'),
+      at('900000003', 2024, 'prior', '360000000'),
+      at('900000004', 2023, 'current', null),
+      at('900000004', 2024, 'prior', '360000000'),
+      at('900000001', 2023, 'prior', '1'), // the same document's own prior column is not the next year's
+    ];
+    expect(varerAgainstDump(VARER_DUMP_FILE, dump, now).emptied_current_held_by_next_prior).toBe(1);
+  });
+
   it('reads varer from a dump by its header, NULL as an empty field, and refuses an unreadable one', () => {
     const csv = 'orgnr,filing_year,role,digits_pass_fields,varer_ore\n900000001,2024,prior,"{a,b}",-12\n900000002,2025,current,{},\n';
     expect(parseVarerDump(csv, 'd.csv')).toEqual([

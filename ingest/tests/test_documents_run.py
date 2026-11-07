@@ -459,6 +459,47 @@ def test_bad_list_entry_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
         assert run.main([mode, str(file)]) == 2
 
 
+def test_year_asked_but_not_listed_is_named(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The entry asks for 2024 and 2025; the register lists only 2025. 2024 is
+    # not fetched, and is named and counted, not a failure.
+    FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
+    transport = FixtureTransport({aar_url(ORGNR): b'["2025"]', kopi_url(ORGNR, 2025): pdf("2025")})
+
+    summary = run.run_documents(
+        stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT,
+        years={ORGNR: frozenset({2024, 2025})},
+    )
+
+    assert kopi_requests(transport) == [kopi_url(ORGNR, 2025)]
+    assert [(p.orgnr, p.what) for p in summary.documents.asked_not_listed] == [(ORGNR, "2024")]
+    assert summary.record_counts()["asked_not_listed"] == 1
+    assert "    years a list entry asks for that the register does not list: 1" in summary.lines()
+    assert f"    asked for, not in the register's list: {ORGNR} 2024" in summary.lines()
+    assert summary.failed == [] and not summary.needs_operator()
+
+
+def test_years_entry_still_rereconciles_every_stored_year(
+    stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Documents mode reconciles again every stored document of the company,
+    # from its stored figures, also of a year the entry does not ask for; that
+    # document is not fetched.
+    outcome = write.document_outcome(2023, documents.read_words(*generated(2023), BOUND_KR), {}, RULES)
+    write.write_document(stored, ORGNR, 2023, outcome, None, READ_AT, READER_COMMIT)
+    as_extracted(stored, ORGNR, 2023)
+    FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
+    transport = FixtureTransport({aar_url(ORGNR): b'["2023", "2025"]', kopi_url(ORGNR, 2025): pdf("2025")})
+
+    summary = run.run_documents(
+        stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT,
+        years={ORGNR: frozenset({2025})},
+    )
+
+    assert kopi_requests(transport) == [kopi_url(ORGNR, 2025)]
+    assert sum(n for (year, _), n in summary.documents.rereconciled.items() if year == 2023) == 1
+    assert documents_of(stored, ORGNR)[0][:3] == (2023, "generated", "reconciled")
+
+
 def test_more_years_fetch_only_unstored(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
     # 2025 stored by a run limited to it; then the plain orgnr: only
     # 2021–2024 are fetched.
@@ -1302,9 +1343,14 @@ def test_three_deadlines_in_a_row_stop_the_run_record_it_and_a_rerun_resumes(
     recorded_mode = "reread" if mode == "reread-all" else mode
     assert row is not None and row[0] == recorded_mode
     stops = [f for f in row[1] if f["stage"] == recorded_mode and f["orgnr"] is None]
+    after = (
+        "a new --reread-all run reads every document again (it does not resume)"
+        if mode == "reread-all"
+        else "a new run resumes here"
+    )
     assert [f["reason"] for f in stops] == [
         "stopped after 3 fetch deadlines in a row (max_consecutive_deadlines = 3);"
-        " no further document was fetched, and a new run resumes here"
+        f" no further document was fetched, and {after}"
     ]
 
     # A new run resumes where it stopped: 2021, stored (or at the current

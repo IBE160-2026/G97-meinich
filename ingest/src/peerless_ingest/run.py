@@ -55,8 +55,12 @@ reconciled no longer holds is replaced, and listed per document.
 A list entry (Story 2.5d) is a plain orgnr, meaning every year 2021–2025,
 or `{"orgnr": …, "years": [2025]}`, meaning only those years: in documents
 mode no other year is fetched, and in the re-read modes no stored document
-of another year is re-read. A later run with more years fetches only the
-documents not stored. A malformed entry (no orgnr, a year outside
+of another year is re-read. Documents mode still reconciles again, from
+their stored figures and with no fetch or OCR, every stored document of the
+company, whatever its year. A year asked for that the register's /aar list
+does not hold is named in the summary and counted (`asked_not_listed`), not
+a failure. A later run with more years fetches only the documents not
+stored. A malformed entry (no orgnr, a year outside
 2021–2025, no years, a year or an orgnr twice) refuses the whole list.
 
 `--reread-all` (Story 2.5d) is re-read mode with one difference: the stored
@@ -161,6 +165,9 @@ class DocumentSummary:
     # Companies whose /aar list the register answered 404 or 410: no
     # filed document to read.
     no_document_list: list[str] = field(default_factory=list)
+    # Years a list entry asks for that the register's /aar list does not
+    # hold (Story 2.5d review): not fetched, named, and not a failure.
+    asked_not_listed: list[Problem] = field(default_factory=list)
     # Documents passed to the reader, and the seconds spent reading them
     # (time, not money: a float is fine here).
     read_count: int = 0
@@ -196,6 +203,9 @@ class DocumentSummary:
         out.append(f"    companies with no list of filed documents (404 or 410): {len(self.no_document_list)}")
         for orgnr in self.no_document_list:
             out.append(f"    no list of filed documents: {orgnr}")
+        out.append(f"    years a list entry asks for that the register does not list: {len(self.asked_not_listed)}")
+        for problem in self.asked_not_listed:
+            out.append(f"    asked for, not in the register's list: {problem.orgnr} {problem.what}")
         out.append(f"    read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
         out.append(f"    prior-year columns failed_reconciliation (the filing's status is its current column's): {self.prior_failed}")
         for problem in self.ocr_errors:
@@ -408,6 +418,7 @@ class DocumentsOnlySummary:
             "outside_years": d.outside_years,
             "not_asked_years": d.not_asked_years,
             "no_document_list": len(d.no_document_list),
+            "asked_not_listed": len(d.asked_not_listed),
             "read": d.read_count,
             "ocr_errors": len(d.ocr_errors),
             "prior_failed": d.prior_failed,
@@ -789,13 +800,21 @@ class DeadlineStreak:
     limit: int
     in_a_row: int = 0
     stopped: str | None = None
+    # False for `--reread-all`, which checks no reader version and so reads
+    # every document again on a new run instead of resuming.
+    resumes: bool = True
 
     def deadline(self) -> None:
         self.in_a_row += 1
         if self.in_a_row >= self.limit and self.stopped is None:
+            after = (
+                "a new run resumes here"
+                if self.resumes
+                else "a new --reread-all run reads every document again (it does not resume)"
+            )
             self.stopped = (
                 f"stopped after {self.in_a_row} fetch deadlines in a row (max_consecutive_deadlines = {self.limit});"
-                " no further document was fetched, and a new run resumes here"
+                f" no further document was fetched, and {after}"
             )
 
     def completed(self) -> None:
@@ -904,6 +923,9 @@ def _load_documents(
     if years is None:
         summary.no_document_list.append(orgnr)
         return
+    if wanted is not None:
+        for year in sorted(wanted - set(years)):
+            summary.asked_not_listed.append(Problem(orgnr, str(year)))
     stored = write.stored_document_years(conn, orgnr)
     for year in years:
         if year not in DOCUMENT_YEARS:
@@ -1397,7 +1419,7 @@ def run_reread(
     summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit, cache=cache, every_version=every_version)
     on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
-    streak = DeadlineStreak(cfg.max_consecutive_deadlines)
+    streak = DeadlineStreak(cfg.max_consecutive_deadlines, resumes=not every_version)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
             continue

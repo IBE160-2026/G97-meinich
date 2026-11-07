@@ -12,23 +12,26 @@
    figures from the image equal those from the recording. The expected JSON
    holds no digits-only figure, so without this a broken digits-only pass
    would go unseen.
+5. The OCR word cache (Story 2.5d): each PDF is read twice more through a
+   fresh cache with the key read in the image. The first read misses and
+   stores the words, the second must be a hit and give exactly the same
+   JSON.
 
 Exits 0 when all hold, 1 otherwise, printing each mismatch.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-from . import config, layout
-from .documents import parse_pages, read_words, recognise, to_json
-from .ocr import NOR_TRAINEDDATA_SHA256, PageWords, read_tsv
+from . import config, layout, ocr_cache
+from .documents import parse_pages, read_document, read_words, recognise, to_json
+from .ocr import NOR_TRAINEDDATA_SHA256, PageWords, model_sha256, read_tsv, tesseract_version
 
 VERSION = re.compile(r"^tesseract 5\.5\.\d+")
 
@@ -70,6 +73,30 @@ def digits_differences(read: list[PageWords], recorded: list[PageWords]) -> list
     return [f".digits_pass{d}" for d in differences(digits_figures(read), digits_figures(recorded))]
 
 
+def cached_differences(pdf: bytes, want: object, bound: int) -> list[str]:
+    """Reads `pdf` twice through a fresh OCR word cache with the key read in
+    the image: the first read must miss (absent) and store, the second must
+    hit, and both must give `want`."""
+    out: list[str] = []
+    try:
+        settings = ocr_cache.current_settings()
+    except ocr_cache.KeyUnavailable as error:
+        return [f".cache: key not readable: {error}"]
+    with tempfile.TemporaryDirectory(prefix="peerless-ocr-cache-") as tmp:
+        cache = ocr_cache.Cache(Path(tmp), settings)
+        first = to_json(read_document(pdf, bound, cache))
+        second = to_json(read_document(pdf, bound, cache))
+        counts = cache.counts
+        if (counts.miss_absent, counts.hit, counts.write_failed) != (1, 1, 0):
+            out.append(
+                f".cache: expected one absent miss, one hit and no failed write; got {counts.miss_absent} absent,"
+                f" {counts.hit} hits, {counts.miss_key} key, {counts.miss_unreadable} unreadable, {counts.write_failed} failed writes"
+            )
+        out += [f".cache.first{d}" for d in differences(first, want)]
+        out += [f".cache.hit{d}" for d in differences(second, want)]
+    return out
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 1:
         print("usage: python -m peerless_ingest.image_check <fixtures/documents>")
@@ -106,6 +133,9 @@ def main(argv: list[str]) -> int:
         if recorded:
             diff += digits_differences(pages, recorded)
         print(f"{stem}: {'matches' if not diff else f'{len(diff)} difference(s)'}")
+        cached = cached_differences(pdf.read_bytes(), want, bound)
+        print(f"{stem}, through the OCR word cache: {'a hit, matches' if not cached else f'{len(cached)} difference(s)'}")
+        diff += cached
         failures += [f"{stem}{d}" for d in diff]
 
     for failure in failures:

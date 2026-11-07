@@ -105,6 +105,9 @@ jobs:
       # Story 2.1a: Tesseract 5.5.x and the pinned nor model in the image, and
       # the read of the fixture PDF equals the expected JSON the host tests
       # reach from the recorded Tesseract output. No database, no network.
+      # Story 2.5d: each PDF is then read twice through a fresh OCR word
+      # cache (in the container's temp directory); the second read must be
+      # a hit with the same JSON.
       - name: ocr-image-check
         run: >-
           docker run --rm

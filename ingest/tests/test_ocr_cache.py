@@ -212,3 +212,18 @@ def test_key_values_read_at_run_time(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(ocr, "tesseract_version", lambda: "")
     with pytest.raises(ocr_cache.KeyUnavailable):
         ocr_cache.current_settings()
+
+
+def test_image_check_cached_pass(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The image check's cached pass (CI step ocr-image-check): a miss, then
+    # a hit with the same JSON; a cache that never stores is caught.
+    from peerless_ingest import image_check
+
+    monkeypatch.setattr(ocr_cache, "current_settings", lambda: TEST_SETTINGS)
+    reader = FakeRecognise(monkeypatch, {PDF: recorded_979607008_2025()})
+    assert image_check.cached_differences(PDF, expected_json(), BOUND_KR) == []
+    assert reader.calls == [PDF]
+
+    monkeypatch.setattr(ocr_cache, "store", lambda *args: None)
+    [diff] = image_check.cached_differences(PDF, expected_json(), BOUND_KR)
+    assert diff.startswith(".cache: expected one absent miss, one hit")

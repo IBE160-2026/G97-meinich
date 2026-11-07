@@ -227,3 +227,48 @@ def test_image_check_cached_pass(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ocr_cache, "store", lambda *args: None)
     [diff] = image_check.cached_differences(PDF, expected_json(), BOUND_KR)
     assert diff.startswith(".cache: expected one absent miss, one hit")
+
+
+@pytest.mark.parametrize("change", ["an extra key name", "a key part missing"])
+def test_key_with_other_parts_is_a_key_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str) -> None:
+    # Every known part equal, but the stored key has another set of names:
+    # a key miss with the part "parts", OCR runs, the entry is replaced.
+    ocr_cache.store(tmp_path, ocr_cache.Key.of(PDF, TEST_SETTINGS), paper_top(), [])
+    body = entry(tmp_path)
+    key = dict(ocr_cache.Key.of(PDF, TEST_SETTINGS).as_json())
+    if change == "an extra key name":
+        key["leptonica"] = "1.84.1"
+    else:
+        del key["digits_args"]
+    body["key"] = key
+    ocr_cache.entry_path(tmp_path, PDF_SHA256).write_bytes(gzip.compress(json.dumps(body).encode("utf-8")))
+    reader = FakeRecognise(monkeypatch, {PDF: recorded_979607008_2025()})
+    cache = cache_in(tmp_path)
+
+    read = documents.read_document(PDF, BOUND_KR, cache)
+
+    assert reader.calls == [PDF]
+    assert read.layout == "generated"
+    assert (cache.counts.hit, cache.counts.miss_key) == (0, 1)
+    assert cache.counts.record()["ocr_cache_miss_key_parts"] == {"parts": 1}
+    assert entry(tmp_path)["key"] == ocr_cache.Key.of(PDF, TEST_SETTINGS).as_json()
+
+
+def test_generated_top_with_no_pages_is_a_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # An entry stored with no figure pages whose top now classifies as a
+    # generated filing (as after a fix to layout.classify): its words cannot
+    # be read, so it is a miss of its own kind, read by OCR and replaced.
+    top, pages = recorded_979607008_2025()
+    ocr_cache.store(tmp_path, ocr_cache.Key.of(PDF, TEST_SETTINGS), top, [])
+    reader = FakeRecognise(monkeypatch, {PDF: (top, pages)})
+    cache = cache_in(tmp_path)
+
+    read = documents.read_document(PDF, BOUND_KR, cache)
+
+    assert reader.calls == [PDF]
+    assert documents.to_json(read) == expected_json()
+    assert (cache.counts.hit, cache.counts.miss_pages) == (0, 1)
+    assert cache.counts.record()["ocr_cache_miss_pages"] == 1
+    assert len(entry(tmp_path)["pages"]) == len(pages)  # type: ignore[arg-type]
+    documents.read_document(PDF, BOUND_KR, cache)
+    assert cache.counts.hit == 1 and reader.calls == [PDF]

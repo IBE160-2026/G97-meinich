@@ -53,7 +53,7 @@ from pathlib import Path
 
 import pymupdf
 
-from . import ocr
+from . import layout, ocr
 from .ocr import PageWords, Word
 
 Recognised = tuple[list[Word], list[PageWords]]
@@ -143,8 +143,9 @@ class Hit:
 @dataclass(frozen=True)
 class Miss:
     """Why the stored words were not used: `absent` (no entry), `key` (an
-    entry whose key differs; `parts` names each differing part) or
-    `unreadable` (`reason` says why)."""
+    entry whose key differs; `parts` names each differing part), `pages`
+    (no figure pages stored, but the stored top now classifies as a
+    generated filing) or `unreadable` (`reason` says why)."""
 
     kind: str
     parts: tuple[str, ...] = ()
@@ -208,12 +209,19 @@ def lookup(directory: Path, key: Key) -> Hit | Miss:
             raise Unreadable("the entry is not {key, top, pages}")
         stored_key = data["key"]
         want = key.as_json()
-        differing = tuple(part for part in KEY_PARTS if stored_key.get(part) != want[part])
-        if set(stored_key) != set(KEY_PARTS):
-            differing = differing or ("parts",)
+        # A stored key with another set of names (one missing, one extra)
+        # differs in "parts"; the parts it does hold are compared as well.
+        names = ("parts",) if set(stored_key) != set(KEY_PARTS) else ()
+        differing = names + tuple(p for p in KEY_PARTS if p in stored_key and stored_key[p] != want[p])
         if differing:
             return Miss("key", parts=differing)
-        return Hit(_words(data["top"]), _pages(data["pages"]))
+        top, pages = _words(data["top"]), _pages(data["pages"])
+        # Stored as not generated (no figure pages recognised), but the top
+        # now classifies as generated, e.g. after a fix to layout.classify:
+        # the stored words hold no figure page to read, so OCR runs.
+        if not pages and layout.classify(top) == "generated":
+            return Miss("pages")
+        return Hit(top, pages)
     except (OSError, EOFError, zlib.error, gzip.BadGzipFile, UnicodeDecodeError, ValueError) as error:
         # json.JSONDecodeError and Unreadable are ValueErrors.
         return Miss("unreadable", reason=f"{error.__class__.__name__}: {error}")
@@ -250,6 +258,8 @@ class CacheCounts:
     # Per key part, the misses in which it differed.
     miss_key_parts: Counter[str] = field(default_factory=Counter)
     miss_unreadable: int = 0
+    # Entries with no figure pages whose top now classifies as generated.
+    miss_pages: int = 0
     # Entries that could not be written (the read itself went on).
     write_failed: int = 0
 
@@ -261,6 +271,7 @@ class CacheCounts:
             "ocr_cache_miss_key": self.miss_key,
             "ocr_cache_miss_key_parts": {part: self.miss_key_parts[part] for part in sorted(self.miss_key_parts)},
             "ocr_cache_miss_unreadable": self.miss_unreadable,
+            "ocr_cache_miss_pages": self.miss_pages,
             "ocr_cache_write_failed": self.write_failed,
         }
 
@@ -298,6 +309,8 @@ class Cache:
         elif found.kind == "key":
             self.counts.miss_key += 1
             self.counts.miss_key_parts.update(found.parts)
+        elif found.kind == "pages":
+            self.counts.miss_pages += 1
         else:
             self.counts.miss_unreadable += 1
             self.notify(f"OCR cache entry {key.pdf_sha256} unreadable, read by OCR: {found.reason}")

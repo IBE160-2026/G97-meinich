@@ -15,6 +15,14 @@ figure stays None, never 0.
 **The combined read** (ported from the spike, with the gate it lacked):
 
 1. The plain pass gives every figure it can read as a well-formed digit group.
+   A digit token narrower than 0.6 of its digits at the page's pitch is
+   refused; the rule applies to every token in both passes (R1, Story 2.5c:
+   `layout.too_narrow`). A leading digit Tesseract reads as two ("2" as
+   "23") is a narrow token in the plain pass, which then gives no figure.
+   The digits-only pass merges the groups into one wide token
+   ("23375956"), which R1 does not refuse: such a line may still be offered
+   from there and enters only through a sum gate (4) or a check (3), whose
+   sum the misread figure misses.
 2. For a figure the plain pass did not yield, the digits-only pass may give
    one. It never overrides a plain figure (spike error 4: the digits-only
    pass reads "622821" for 6 228 521).

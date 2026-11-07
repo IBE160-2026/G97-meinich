@@ -39,6 +39,22 @@
 // ingest/config.toml; test/engine/fingerprint-tolerance.test.ts fails if
 // ROUNDING_TOLERANCE_ORE differs from it.
 //
+// Two rules on stored figures (Story 2.5c; Meinich 2026-11-06), with no
+// re-read and no change to D1:
+//
+//   R2  When the four main cost lines are read (varekostnad, lonnskostnad,
+//       avskrivninger, annen_driftskostnad; nedskrivninger read or empty, an
+//       empty one counted as 0) and they fall short of sum_driftskostnad by
+//       more than 5 kr, there is no fingerprint (`cost_lines_short_of_total`):
+//       the probe found one digit of a read line misread (8 read as 3, 6 as
+//       5), so a read line is wrong and its share cannot be trusted. A
+//       column with a main line empty keeps the interval rule. Lines over
+//       the total stay `negative_unexplained`.
+//   R3  A current column's kundefordringer or bankinnskudd above the API's
+//       sum_omloepsmidler + max(5 kr, 0.001 % of it) is absent (`guardCurrentAssets` in
+//       document-inputs.ts) and read here as an empty line, so the inputs
+//       and their digest hold it as null.
+//
 // A category whose interval fits one band (or one answer) is known;
 // otherwise it is a band range, or null for yes/no. `businessType` runs the
 // rule over every value a category can still take and gives a type only
@@ -128,10 +144,17 @@ export type FingerprintInputs = { readonly [F in FingerprintField]: bigint | nul
  * Why a reconciled-or-not column gives no fingerprint:
  * - `not_reconciled`: the column did not reconcile (or is not yet reconciled);
  * - `no_revenue`: sum_driftsinntekter is empty, zero or negative;
+ * - `cost_lines_short_of_total`: the four main cost lines are read and, with
+ *   nedskrivninger (an empty one as 0), fall short of sum_driftskostnad by more than 5 kr (R2, Story 2.5c);
  * - `negative_unexplained`: the read cost lines exceed sum_driftskostnad by more than 5 kr;
  * - `negative_balance_remainder`: the bound for an empty balance line is below −5 kr.
  */
-export type SkipReason = 'not_reconciled' | 'no_revenue' | 'negative_unexplained' | 'negative_balance_remainder';
+export type SkipReason =
+  | 'not_reconciled'
+  | 'no_revenue'
+  | 'cost_lines_short_of_total'
+  | 'negative_unexplained'
+  | 'negative_balance_remainder';
 
 export type FingerprintResult =
   | { readonly kind: 'fingerprint'; readonly fingerprint: Fingerprint; readonly inputs: FingerprintInputs }
@@ -141,6 +164,8 @@ export type FingerprintResult =
 type Interval = { readonly lo: bigint; readonly hi: bigint | null };
 
 const COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'nedskrivninger', 'annenDriftskostnad'] as const;
+/** The cost lines R2 needs read; nedskrivninger may be empty, counted as 0. */
+export const MAIN_COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annenDriftskostnad'] as const;
 const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer', 'kundefordringer', 'bankinnskudd'] as const;
 
 /**
@@ -200,12 +225,19 @@ function atLeastIntangiblesShare(range: Interval, revenue: bigint): boolean | nu
   return null;
 }
 
-/** The figures, or null when the column passes none (not reconciled). */
+/**
+ * The figures, or null when the column passes none (not reconciled). A
+ * figure absent because it exceeds its API subtotal (R3) is an empty line.
+ */
 function readValues(figures: DocumentFigures): { readonly [F in FingerprintField]: bigint | null } | null {
   const values: Partial<Record<FingerprintField, bigint | null>> = {};
   for (const field of FINGERPRINT_FIELDS) {
     const figure = figures[field];
-    if (figure.kind === 'absent') return null;
+    if (figure.kind === 'absent') {
+      if (figure.absence.reason !== 'exceeds_api_subtotal') return null;
+      values[field] = null;
+      continue;
+    }
     values[field] = figure.ore;
   }
   return values as { readonly [F in FingerprintField]: bigint | null };
@@ -222,12 +254,16 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
   if (revenue === null || revenue <= 0n) return { kind: 'skip', reason: 'no_revenue' };
 
   // Cost lines: an empty line lies in [0, U].
-  const unexplained = settled(
-    remainder(
-      values.sumDriftskostnad,
-      COST_LINES.map((line) => values[line]),
-    ),
+  const rest = remainder(
+    values.sumDriftskostnad,
+    COST_LINES.map((line) => values[line]),
   );
+  // R2: every main line read and the lines short of the total (an empty
+  // nedskrivninger counts as 0, as `remainder` skips it).
+  if (rest !== null && rest > ROUNDING_TOLERANCE_ORE && MAIN_COST_LINES.every((line) => values[line] !== null)) {
+    return { kind: 'skip', reason: 'cost_lines_short_of_total' };
+  }
+  const unexplained = settled(rest);
   if (unexplained === 'negative') return { kind: 'skip', reason: 'negative_unexplained' };
 
   // Balance lines: an empty line lies in [0, bound]; the bound is computed

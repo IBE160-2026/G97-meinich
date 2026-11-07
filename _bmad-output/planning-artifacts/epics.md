@@ -1541,6 +1541,12 @@ Scope (Meinich, 2026-11-06):
 
 Items 1 and 2 need a re-read and Meinich's yes before it starts.
 
+Decided at the probe checkpoint (Meinich, 2026-11-06; probe `analysis/output/cost-sum-probe.md`, spec `spec-2-5c-refuse-a-digit-read-as-two.md`):
+- **R1.** A digit token narrower than 0.6 × its digit count × the page's pitch (a "1" a full digit) is refused in both passes. The cause of the columns under the total (item 2) is one digit of a cost line read as another of the same width (8 as 3, 6 as 5), which R1 does not catch.
+- **R2, adopted (item 3).** When the four main cost lines are read and, `nedskrivninger` empty counted as 0, fall short of `sum_driftskostnad` by more than 5 kr, derive writes no fingerprint and counts it as `cost_lines_short_of_total`. A column with a main line empty keeps the interval rule; lines over the total stay `negative_unexplained`.
+- **R3 (item 4).** A current `kundefordringer` or `bankinnskudd` above the API's `sumOmloepsmidler` + max(5 kr, 0.001 % of it) is absent in the engine as `exceeds_api_subtotal`; `salgsinntekt` and `leverandorgjeld` get only R1. PRD open question 21 is answered.
+- **R4.** `varer` is read from balance pages only: the income statement's inventory-change row was stored as the stock.
+
 **Implements:** FR-10 (fingerprint inputs), FR-28 (batch part), NFR25 (SM-2, before and after) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5c-<slug>`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
@@ -1549,13 +1555,62 @@ Items 1 and 2 need a re-read and Meinich's yes before it starts.
 **When** step 1 reads it
 **Then** the figure is refused, never repaired
 
-**Given** a column whose cost lines are all read
-**When** they do not sum to `sum_driftskostnad` within 5 kr
-**Then**, if the rule is adopted, `pnpm derive` writes no fingerprint for it and counts it under a named reason
+**Given** any digit token in either pass, a "1" counted as a full digit
+**When** its width is below 0.6 × its digits × the page's pitch (`layout.MIN_DIGIT_WIDTH`)
+**Then** the figure it belongs to is refused, and a correct figure printed at its width, "11 111 111" included, is read (R1)
+
+**Given** an income statement with the inventory-change row ("… og ferdig tilvirkede varer") and a balance with "Varer"
+**When** step 1 reads the document
+**Then** `varer` comes from the balance only, and after the re-read the counts give, against the dump taken after Story 2.5b's re-read, the columns whose `varer` was emptied or changed, positive values included (R4)
+
+**Given** a column whose four main cost lines are read
+**When** they fall short of `sum_driftskostnad` by more than 5 kr
+**Then** `pnpm derive` writes no fingerprint for it and counts it as `cost_lines_short_of_total` (R2)
+
+**Given** a current `kundefordringer` or `bankinnskudd` above the API's `sumOmloepsmidler` + max(5 kr, 0.001 % of it)
+**When** the engine reads the column
+**Then** the figure is absent with the reason `exceeds_api_subtotal` and the fingerprint treats it as empty (R3)
 
 **Given** every stored document re-read, after Meinich's yes
 **When** `pnpm analysis:sm2` runs
 **Then** misreads and phantoms reaching the engine on the reference set are no more than before, and the columns that do not sum are counted before and after, as totals
+
+**Given** any committed file or PR text
+**Then** no fingerprint result is tied to an orgnr of the labelled set
+
+### Story 2.5d: The labelled set's document run, with a local OCR word cache
+
+As a sensor assessing the project,
+I want the labelled set's documents read once, and a later re-read to reuse the OCR words of an unchanged document,
+So that Story 5.2 can measure the fingerprint layer, and a reader fix does not cost a day and a half of OCR.
+
+Proposed by the review session (Meinich's separate review session, 2026-11-07), ordered by Meinich after Story 2.5c. Each of the last three re-reads (Stories 2.3b, 2.5b and 2.5c) took about 12 hours, and every fix they carried was in what step 1 does after OCR: the labels, the layout, the gates. Tesseract's words were the same each time. Once the labelled set's 741 companies without read documents (845 − 104) are read, a re-read of every stored document would take more than 35 hours. Story 5.2 needs this run (`deferred-work.md`, Story 2.5 entry). D1 (Story 2.5) is unchanged.
+
+Scope (Meinich, 2026-11-07):
+1. Step 1 keeps the OCR words of every document it reads in a local cache, and a read or re-read whose key matches uses the cached words instead of running Tesseract.
+2. The document run for the labelled set, after Story 2.5c is merged, with the before and after counts.
+3. Before the labelled set is read, check whether `layout.page_kind` explains R4's known gap (review session, PR #48, 2026-11-07; not verified). `page_kind` calls a page an income-statement page if "resultatregnskap" appears anywhere in its labels, before "balanse" is checked, so a page holding both statements, or a balance page whose heading is misread, gives no `varer`. One company-year's stock is empty this way while the next year's document prints it as its prior-year figure (`emptied_current_held_by_next_prior` = 1 after Story 2.5c's re-read). The same check covers that a company with an empty `varer` now gets an unknown inventory signal, not "yes".
+
+**Implements:** FR-28 (batch part), FR-70 (the labelled set's documents), NFR25 (SM-2) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5d-<slug>`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** a document whose OCR words are in the cache
+**When** step 1 reads it
+**Then** the cache key is the PDF's sha256, the Tesseract version, the sha256 of `nor.traineddata` and the render settings (and the options of both passes), and only an exact match uses the cached words
+**And** a key that differs runs the full OCR and is reported (in `run.step1` and the run's counts), never silently
+**And** a read from cached words gives the same figures, status and checks as a read through Tesseract (a test over recorded words)
+
+**Given** a re-read
+**When** step 1 re-reads a stored document
+**Then** the PDF is still fetched, so a refiled document has another sha256, misses the cache and is read by OCR
+
+**Given** the cache
+**Then** it is gitignored and kept only locally, like the PDFs, until the licence assessment in Story 5.4, and no seed, export or committed file holds its words
+
+**Given** the labelled set's companies without read documents
+**When** the run is done, after Meinich's yes
+**Then** every document has the current `reader_commit` or is listed as not replaced or not read with its reason, `pnpm derive` has run, and the counts are reported as totals
 
 **Given** any committed file or PR text
 **Then** no fingerprint result is tied to an orgnr of the labelled set
@@ -1824,6 +1879,11 @@ So that every figure the table will show can be traced to a formula and a hand c
 **Given** a document figure the subject has and fewer than 10 peers have from the same source
 **When** its comparison is requested
 **Then** the engine returns the below-floor absence with the count, and no comparison and no kroner (FR-22, FR-24)
+
+**Given** a current column whose `kundefordringer` or `bankinnskudd` is above the key-figures API's `sumOmloepsmidler` of the same filing + max(5 kr, 0.001 % of it) (Story 2.5c, R3)
+**When** the engine reads the document figures, through `documentFigures` and then `guardCurrentAssets`
+**Then** that line is absent with the reason `exceeds_api_subtotal`, and a figure that needs it — receivable days (9), operating-asset turnover (11) — is undefined for that company, never computed from the stored figure (test)
+**And** the absent figure is shown with its reason in Story 2.9's copy (`src/messages/nb.json`), as every other absence is
 
 **Given** the PR
 **When** it is opened

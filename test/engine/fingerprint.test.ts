@@ -8,6 +8,7 @@ import {
   type DocumentColumnRow,
   type DocumentField,
   documentFigures,
+  guardCurrentAssets,
 } from '../../src/engine/document-inputs.ts';
 import {
   BAND_EDGES,
@@ -253,6 +254,52 @@ describe('an empty cost line lies in [0, U] (D2)', () => {
   });
 });
 
+// R2 (Story 2.5c; Meinich 2026-11-06): read cost lines that fall short of
+// the total hold a misread line, so there is no fingerprint.
+describe('the cost lines short of the total (R2)', () => {
+  it('cost lines short of the total: four main lines read, nedskrivninger NULL, 500 kr under', () => {
+    // 0 + 50 + 2 + 38 % = 90 % read; the stated total is 500 kr (50 000 øre) more.
+    expect(fp({ nedskrivninger: null, sumDriftskostnad: pct(90) + 50_000n })).toEqual({
+      kind: 'skip',
+      reason: 'cost_lines_short_of_total',
+    });
+    // nedskrivninger read: the same.
+    expect(fp({ sumDriftskostnad: pct(90) + 50_000n })).toEqual({ kind: 'skip', reason: 'cost_lines_short_of_total' });
+    // A printed write-down the read missed (the probe's 1 649 988 kr) is the cost of the rule.
+    expect(fp({ nedskrivninger: null, sumDriftskostnad: pct(90) + 164_998_800n })).toEqual({
+      kind: 'skip',
+      reason: 'cost_lines_short_of_total',
+    });
+  });
+
+  it('cost lines short of the total: within 5 kr is the register rounding, and gives a fingerprint', () => {
+    expect(fp({ nedskrivninger: null, sumDriftskostnad: pct(90) + 500n }).kind).toBe('fingerprint');
+    expect(fp({ sumDriftskostnad: pct(90) + 500n }).kind).toBe('fingerprint');
+    expect(fp({ nedskrivninger: null, sumDriftskostnad: pct(90) + 501n })).toEqual({
+      kind: 'skip',
+      reason: 'cost_lines_short_of_total',
+    });
+  });
+
+  it('a main line empty keeps the interval rule', () => {
+    for (const line of ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annenDriftskostnad'] as const) {
+      // The rest under the total: the empty line lies in [0, U], as before Story 2.5c.
+      const result = fp({ [line]: null, sumDriftskostnad: pct(95) });
+      expect(result.kind, line).toBe('fingerprint');
+    }
+    // U = 95 − 40 % read = 55 %: personnel cost spans low to mid.
+    expect(fingerprint({ lonnskostnad: null, sumDriftskostnad: pct(95) }).personnelCost).toEqual({ lo: 'low', hi: 'mid' });
+  });
+
+  it('lines over the total stay negative_unexplained', () => {
+    expect(fp({ nedskrivninger: null, sumDriftskostnad: pct(90) - 501n })).toEqual({ kind: 'skip', reason: 'negative_unexplained' });
+  });
+
+  it('an empty total leaves the rule out', () => {
+    expect(fp({ sumDriftskostnad: null }).kind).toBe('fingerprint');
+  });
+});
+
 describe('an empty balance line is bounded by its API subtotal (D2)', () => {
   it('anleggsmidler bounds an empty intangibles line', () => {
     // sum_anleggsmidler 6 % − fixed assets 2 % read = 4 % < 5 %: not capitalised,
@@ -388,6 +435,30 @@ describe('businessType: the rule, first match wins (D1)', () => {
     ).toBe('forhandler');
     // Unknown inventory with cost of goods low: inventory is never read.
     expect(businessType(all({ personnelCost: known('high'), inventory: null }))).toBe('konsulent');
+  });
+});
+
+// R3 (Story 2.5c): a current asset line above the API's sum_omloepsmidler is
+// absent, and the fingerprint reads it as an empty line.
+describe('a current asset line above the API subtotal (R3)', () => {
+  function guarded(figures: Figures, subtotals: ApiSubtotals) {
+    return fingerprintOf(guardCurrentAssets(documentFigures(row('reconciled', figures)), 'current', subtotals.sumOmloepsmidler), subtotals);
+  }
+
+  it('reads an emptied line as empty: varer is bounded without it, and the digest input is null', () => {
+    // kundefordringer read as 106 % (a digit read as two) against sum_omloepsmidler 35 %.
+    const subtotals = { ...SUBTOTALS, sumOmloepsmidler: pct(35) };
+    const result = guarded({ kundefordringer: pct(106), varer: null }, subtotals);
+    if (result.kind !== 'fingerprint') throw new Error(`expected a fingerprint, got skip ${result.reason}`);
+    expect(result.inputs.kundefordringer).toBeNull();
+    // varer lies in [0, 35 − 20 %]: unknown, where the misread 106 % made it a negative remainder.
+    expect(result.fingerprint.inventory).toBeNull();
+    expect(fp({ kundefordringer: pct(106), varer: null }, subtotals)).toEqual({ kind: 'skip', reason: 'negative_balance_remainder' });
+  });
+
+  it('still skips a column that did not reconcile', () => {
+    const figures = guardCurrentAssets(documentFigures(row('failed_reconciliation', {})), 'current', pct(35));
+    expect(fingerprintOf(figures, SUBTOTALS)).toEqual({ kind: 'skip', reason: 'not_reconciled' });
   });
 });
 

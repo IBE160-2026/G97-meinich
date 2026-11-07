@@ -15,7 +15,22 @@ from conftest import BOUND_KR, REPO_ROOT
 from peerless_ingest import config, documents, image_check
 from peerless_ingest.documents import DocumentRead
 from peerless_ingest.ocr import PageWords, Word, read_tsv
-from tsv_builder import BASE_ROWS, Row, digits_of, document, document_pages, replace_row
+from tsv_builder import (
+    BASE_ROWS,
+    CURRENT_RIGHT,
+    GENERATED_TOP,
+    PRIOR_RIGHT,
+    Row,
+    digits_of,
+    document,
+    document_pages,
+    figure_words,
+    label_words,
+    misread_leading,
+    page_lines,
+    replace_row,
+    words,
+)
 
 
 def read(rows: list[Row], digits_rows: list[Row] | None = None, **page: object) -> DocumentRead:
@@ -655,3 +670,42 @@ def test_blank_printed_line_lets_the_gate_admit_nothing_unless_the_sum_holds() -
     column = gated(two, digits_of(BLANK_LONN_ROWS))
     assert (column.figures["annen_driftskostnad"], column.figures["avskrivninger"]) == (None, None)
     assert column.digits_pass_fields == ()
+
+
+# --- The width rule (Story 2.5c, R1) -------------------------------------------------
+
+# COST_ROWS with varekostnad printed "2 375 956" and avskrivninger raised by
+# the difference, so the five lines still sum to sum kostnader 72 510 307.
+NARROW_ROWS = replace_row(replace_row(COST_ROWS, "Varekostnad", current="2 375 956"), "Avskrivning 3", current="57 723 616")
+
+
+def test_digit_read_as_two_not_admitted_by_gate() -> None:
+    def misread(digits_figure: str) -> documents.Column:
+        # The plain pass reads "2" as "23", a box 28 px wide (the probe's
+        # 0.35 of two digits at the pitch), and the digits-only pass offers
+        # `digits_figure` for the line.
+        lines = page_lines(NARROW_ROWS, heading="RESULTATREGNSKAP")
+        at = 2 + [r[0] for r in NARROW_ROWS].index("Varekostnad")
+        lines[at] = label_words("Varekostnad") + misread_leading("2 375 956", CURRENT_RIGHT, "23", 28) + figure_words("744 327", PRIOR_RIGHT)
+        digits = words(page_lines(replace_row(digits_of(NARROW_ROWS), "Varekostnad", current=digits_figure), heading="RESULTATREGNSKAP", figures_only=True))
+        balance = words(page_lines(BALANCE_ROWS, heading="BALANSE"))
+        balance_digits = words(page_lines(digits_of(BALANCE_ROWS), heading="BALANSE", figures_only=True))
+        pages = [PageWords(words(lines), digits), PageWords(balance, balance_digits)]
+        return current_of(documents.read_words(words(GENERATED_TOP), pages, BOUND_KR))
+
+    # As printed, at its width, the line is read.
+    assert read_two(NARROW_ROWS, BALANCE_ROWS).figures["varekostnad"] == 2_375_956
+
+    # Both passes read 23 375 956. The plain token is refused by the width
+    # rule, and the digits pass's figure misses the total by 21 000 000 kr,
+    # so the cost-line gate does not admit it. The column still reconciles:
+    # no check covers the line, which is why it reached the engine before.
+    column = misread("23375956")
+    assert checks_of(column) == ("pass", "pass", "pass", "pass")
+    assert column.figures["varekostnad"] is None
+    assert column.digits_pass_fields == ()
+
+    # A right digits-pass figure is admitted through the gate as before.
+    column = misread("2375956")
+    assert column.figures["varekostnad"] == 2_375_956
+    assert column.digits_pass_fields == ("varekostnad",)

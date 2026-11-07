@@ -4,7 +4,12 @@
 import { describe, expect, it } from 'vitest';
 import { type DeriveInputRow, deriveFingerprints, summaryLines } from '../scripts/derive.ts';
 import { digest } from '../src/engine/digest.ts';
-import { DOCUMENT_FIGURE_COLUMNS, type DocumentField, documentFigures } from '../src/engine/document-inputs.ts';
+import {
+  DOCUMENT_FIGURE_COLUMNS,
+  type DocumentField,
+  documentFigures,
+  guardCurrentAssets,
+} from '../src/engine/document-inputs.ts';
 import { apiSubtotalsFromRow, fingerprintOf } from '../src/engine/fingerprint.ts';
 
 // 10 000 000 kr: a consultancy (personnel 70 %), every line read.
@@ -78,14 +83,49 @@ describe('deriveFingerprints', () => {
       input('900000002', 2025, {}, { status: null }),
       input('900000003', 2025, { sumDriftsinntekter: '0' }),
       input('900000004', 2025, { sumDriftskostnad: '899999499' }), // 5.01 kr over the read lines
-      input('900000005', 2025, { varer: null }, { sum_omloepsmidler_ore: '1' }),
+      // Each asset line within sum_omloepsmidler (R3 empties neither), the two together above it.
+      input('900000005', 2025, { varer: null }, { sum_omloepsmidler_ore: '300000000' }),
+      // R2 (Story 2.5c): 500 kr short of the total, nedskrivninger read and empty.
+      input('900000006', 2025, { sumDriftskostnad: '900050000' }),
+      input('900000007', 2025, { nedskrivninger: null, sumDriftskostnad: '900050000' }),
     ]);
     expect(rows).toEqual([]);
     expect(counts).toMatchObject({
-      columns: 5,
+      columns: 7,
       written: 0,
-      skipped: { not_reconciled: 2, no_revenue: 1, negative_unexplained: 1, negative_balance_remainder: 1 },
+      skipped: {
+        not_reconciled: 2,
+        no_revenue: 1,
+        cost_lines_short_of_total: 2,
+        negative_unexplained: 1,
+        negative_balance_remainder: 1,
+      },
+      shortOfTotalNedskrivningerEmpty: 1,
     });
+  });
+
+  it('empties a current asset line above the API sum_omloepsmidler (R3), counts it, and fingerprints without it', () => {
+    // kundefordringer 15 000 000 kr against sum_omloepsmidler 3 500 000 kr; bankinnskudd 2 000 000 kr is within it.
+    const misread = input('900000001', 2025, { kundefordringer: '1500000000', varer: null });
+    const { rows, counts } = deriveFingerprints([misread, input('900000002', 2025)]);
+    expect(counts.emptiedAboveApiSubtotal).toEqual({ kundefordringer: 1, bankinnskudd: 0 });
+    expect(counts.written).toBe(2);
+    // The stored digest is of what the fingerprint read: kundefordringer empty.
+    const guarded = fingerprintOf(
+      guardCurrentAssets(documentFigures(misread), 'current', 350000000n),
+      apiSubtotalsFromRow(misread),
+    );
+    if (guarded.kind !== 'fingerprint') throw new Error('expected a fingerprint');
+    expect(guarded.inputs.kundefordringer).toBeNull();
+    expect(rows[0]?.input_digest).toBe(digest(guarded.inputs));
+    // Without R3 the misread line leaves varer a negative remainder.
+    expect(fingerprintOf(documentFigures(misread), apiSubtotalsFromRow(misread))).toEqual({
+      kind: 'skip',
+      reason: 'negative_balance_remainder',
+    });
+    // No API subtotal: nothing is emptied.
+    const noApi = deriveFingerprints([input('900000001', 2025, { kundefordringer: '1500000000' }, { sum_omloepsmidler_ore: null })]);
+    expect(noApi.counts.emptiedAboveApiSubtotal).toEqual({ kundefordringer: 0, bankinnskudd: 0 });
   });
 
   it('counts undetermined types per fingerprint and per company at its newest year', () => {
@@ -99,7 +139,9 @@ describe('deriveFingerprints', () => {
     expect(counts.companies).toEqual({ produkt: 0, konsulent: 1, forhandler: 0, annet: 0, undetermined: 1 });
     expect(summaryLines(counts)).toEqual([
       'derive: 3 current document columns read, 3 fingerprints written',
-      '  skipped: not_reconciled 0, no_revenue 0, negative_unexplained 0, negative_balance_remainder 0',
+      '  skipped: not_reconciled 0, no_revenue 0, cost_lines_short_of_total 0, negative_unexplained 0, negative_balance_remainder 0',
+      '  cost_lines_short_of_total with nedskrivninger empty: 0',
+      '  emptied above the API sum_omloepsmidler: kundefordringer 0, bankinnskudd 0',
       '  fingerprints by type: produkt 0, konsulent 1, forhandler 0, annet 0, undetermined 2',
       '  companies by type (newest fingerprinted year, 2 companies): produkt 0, konsulent 1, forhandler 0, annet 0, undetermined 1',
     ]);

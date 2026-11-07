@@ -132,6 +132,12 @@ export interface RunCacheCounts {
   readonly missKeyParts: Readonly<Record<string, Count>> | null;
   readonly missUnreadable: Count;
   readonly missPages: Count;
+  /**
+   * PDFs with no usable /ID array (the cache's key normalises it). Undefined
+   * when the run record has no such count: a run from before that fix, shown
+   * as "not recorded", never as 0.
+   */
+  readonly missPdfId: Count | undefined;
   readonly writeFailed: Count;
 }
 
@@ -155,6 +161,7 @@ export function runCacheCounts(id: number, mode: string, counts: Readonly<Record
         : null,
     missUnreadable: count(counts.ocr_cache_miss_unreadable),
     missPages: count(counts.ocr_cache_miss_pages),
+    missPdfId: 'ocr_cache_miss_pdf_id' in counts ? count(counts.ocr_cache_miss_pdf_id) : undefined,
     writeFailed: count(counts.ocr_cache_write_failed),
   };
 }
@@ -172,13 +179,14 @@ function unreadableCounts(r: RunCacheCounts): string[] {
       ['ocr_cache_miss_pages', r.missPages],
       ['ocr_cache_write_failed', r.writeFailed],
     );
+    if (r.missPdfId !== undefined) named.push(['ocr_cache_miss_pdf_id', r.missPdfId]);
     if (r.missKeyParts === null) named.push(['ocr_cache_miss_key_parts', null]);
     else for (const [part, n] of Object.entries(r.missKeyParts)) named.push([`ocr_cache_miss_key_parts.${part}`, n]);
   }
   return named.filter(([, n]) => n === null).map(([name]) => name);
 }
 
-const shown = (n: Count): string => (n === null ? 'unreadable' : String(n));
+const shown = (n: Count | undefined): string => (n === undefined ? 'not recorded' : n === null ? 'unreadable' : String(n));
 
 export function comparisonLines(name: string, c: TableComparison): string[] {
   const fields = Object.entries(c.fields)
@@ -199,7 +207,8 @@ export function runLines(r: RunCacheCounts): string {
       : Object.entries(r.missKeyParts).map(([k, n]) => `${k} ${shown(n)}`).join(', ') || 'none';
   return (
     `run ${r.id} (${mode}): ${shown(r.read)} read; OCR word cache: ${shown(r.hit)} hits; misses ${shown(r.missAbsent)} absent,` +
-    ` ${shown(r.missKey)} key differs (${parts}), ${shown(r.missUnreadable)} unreadable, ${shown(r.missPages)} no pages;` +
+    ` ${shown(r.missKey)} key differs (${parts}), ${shown(r.missUnreadable)} unreadable, ${shown(r.missPages)} no pages,` +
+    ` ${shown(r.missPdfId)} no usable /ID;` +
     ` ${shown(r.writeFailed)} not written`
   );
 }
@@ -213,11 +222,12 @@ export function cacheProofFailures(r: RunCacheCounts | undefined): string[] {
   if (r.hit === null || r.read === null || r.hit !== r.read || r.hit <= 0) {
     out.push(`run ${r.id}: ${shown(r.hit)} hits of ${shown(r.read)} read; every read must be a hit, and at least one`);
   }
-  const misses: [string, Count][] = [
+  const misses: [string, Count | undefined][] = [
     ['absent', r.missAbsent],
     ['key differs', r.missKey],
     ['unreadable', r.missUnreadable],
     ['no pages', r.missPages],
+    ['no usable /ID', r.missPdfId],
     ['not written', r.writeFailed],
   ];
   for (const [name, n] of misses) if (n !== 0) out.push(`run ${r.id}: ${shown(n)} ${name}, must be 0`);

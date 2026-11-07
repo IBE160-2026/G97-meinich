@@ -121,13 +121,15 @@ const ALL_HITS = {
   ocr_cache_miss_key_parts: {},
   ocr_cache_miss_unreadable: 0,
   ocr_cache_miss_pages: 0,
+  ocr_cache_miss_pdf_id: 0,
+  ocr_cache_miss_pdf_id_reasons: {},
   ocr_cache_write_failed: 0,
 };
 
 describe('the OCR word cache per run', () => {
   it('reads the counts a run recorded', () => {
     expect(runLines(runCacheCounts(801, 'reread', ALL_HITS))).toBe(
-      'run 801 (reread, reread_all): 97 read; OCR word cache: 97 hits; misses 0 absent, 0 key differs (none), 0 unreadable, 0 no pages; 0 not written',
+      'run 801 (reread, reread_all): 97 read; OCR word cache: 97 hits; misses 0 absent, 0 key differs (none), 0 unreadable, 0 no pages, 0 no usable /ID; 0 not written',
     );
     const missed = runCacheCounts(800, 'reread', { ...ALL_HITS, reread_all: false, ocr_cache_hit: 0, ocr_cache_miss_absent: 95, ocr_cache_miss_key: 2, ocr_cache_miss_key_parts: { tesseract: 2 } });
     expect(missed).toMatchObject({ hit: 0, missAbsent: 95, missKey: 2, missKeyParts: { tesseract: 2 }, rereadAll: false });
@@ -138,6 +140,21 @@ describe('the OCR word cache per run', () => {
     expect([r.hit, r.missPages, r.missKey]).toEqual([null, null, null]);
     expect(runLines(r)).toContain('unreadable hits');
     expect(runLines(r)).toContain('unreadable no pages');
+  });
+
+  it('shows a run from before the /ID count as not recorded, never 0, and fails only the proof on it', () => {
+    // Runs 1242 and 1243 (Story 2.5d's first proof) have no ocr_cache_miss_pdf_id.
+    const before = Object.fromEntries(Object.entries(ALL_HITS).filter(([k]) => !k.startsWith('ocr_cache_miss_pdf_id')));
+    const r = runCacheCounts(1243, 'reread', { ...before, ocr_cache_hit: 0, ocr_cache_miss_absent: 97 });
+    expect(r.missPdfId).toBeUndefined();
+    expect(runLines(r)).toContain('not recorded no usable /ID');
+    expect(verdict(input({ runs: [firstRun, r] })).exit).toBe(0);
+    const proof = verdict(input({ runs: [runCacheCounts(1244, 'reread', before)], cacheProof: true }));
+    expect(proof.exit).toBe(1);
+    expect(proof.lines).toContain('FAIL: run 1244: not recorded no usable /ID, must be 0');
+    // Recorded but not an integer: unreadable, and a failure with or without the flag.
+    const bad = verdict(input({ runs: [runCacheCounts(1244, 'reread', { ...ALL_HITS, ocr_cache_miss_pdf_id: 'x' })] }));
+    expect(bad.lines).toContain('FAIL: run 1244: unreadable counts: ocr_cache_miss_pdf_id');
   });
 
   it('says when the cache was off or not yet recorded', () => {
@@ -213,6 +230,7 @@ describe('verdict', () => {
       ['a key miss', proofRun({ ocr_cache_miss_key: 1 })],
       ['an unreadable entry', proofRun({ ocr_cache_miss_unreadable: 1 })],
       ['no pages', proofRun({ ocr_cache_miss_pages: 1 })],
+      ['no usable /ID', proofRun({ ocr_cache_miss_pdf_id: 1, ocr_cache_miss_pdf_id_reasons: { '0 /ID entries': 1 } })],
       ['a failed write', proofRun({ ocr_cache_write_failed: 1 })],
       ['an absent miss count', proofRun({ ocr_cache_miss_absent: 1 })],
     ];

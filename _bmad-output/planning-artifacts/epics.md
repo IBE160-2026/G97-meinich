@@ -1578,6 +1578,42 @@ Decided at the probe checkpoint (Meinich, 2026-11-06; probe `analysis/output/cos
 **Given** any committed file or PR text
 **Then** no fingerprint result is tied to an orgnr of the labelled set
 
+### Story 2.5d: The labelled set's document run, with a local OCR word cache
+
+As a sensor assessing the project,
+I want the labelled set's documents read once, and a later re-read to reuse the OCR words of an unchanged document,
+So that Story 5.2 can measure the fingerprint layer, and a reader fix does not cost a day and a half of OCR.
+
+Proposed by the review session (Meinich's separate review session, 2026-11-07), ordered by Meinich after Story 2.5c. Each of the last three re-reads (Stories 2.3b, 2.5b and 2.5c) took about 12 hours, and every fix they carried was in what step 1 does after OCR: the labels, the layout, the gates. Tesseract's words were the same each time. Once the labelled set's 741 companies without read documents (845 − 104) are read, a re-read of every stored document would take more than 35 hours. Story 5.2 needs this run (`deferred-work.md`, Story 2.5 entry). D1 (Story 2.5) is unchanged.
+
+Scope (Meinich, 2026-11-07):
+1. Step 1 keeps the OCR words of every document it reads in a local cache, and a read or re-read whose key matches uses the cached words instead of running Tesseract.
+2. The document run for the labelled set, after Story 2.5c is merged, with the before and after counts.
+
+**Implements:** FR-28 (batch part), FR-70 (the labelled set's documents), NFR25 (SM-2) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5d-<slug>`, one PR (AGENTS.md Git workflow)
+
+**Acceptance Criteria:**
+
+**Given** a document whose OCR words are in the cache
+**When** step 1 reads it
+**Then** the cache key is the PDF's sha256, the Tesseract version, the sha256 of `nor.traineddata` and the render settings (and the options of both passes), and only an exact match uses the cached words
+**And** a key that differs runs the full OCR and is reported (in `run.step1` and the run's counts), never silently
+**And** a read from cached words gives the same figures, status and checks as a read through Tesseract (a test over recorded words)
+
+**Given** a re-read
+**When** step 1 re-reads a stored document
+**Then** the PDF is still fetched, so a refiled document has another sha256, misses the cache and is read by OCR
+
+**Given** the cache
+**Then** it is gitignored and kept only locally, like the PDFs, until the licence assessment in Story 5.4, and no seed, export or committed file holds its words
+
+**Given** the labelled set's companies without read documents
+**When** the run is done, after Meinich's yes
+**Then** every document has the current `reader_commit` or is listed as not replaced or not read with its reason, `pnpm derive` has run, and the counts are reported as totals
+
+**Given** any committed file or PR text
+**Then** no fingerprint result is tied to an orgnr of the labelled set
+
 ### Story 2.6: Classification (stage 5)
 
 As Kari or Anders,

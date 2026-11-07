@@ -8,6 +8,7 @@ in øre.
     python -m peerless_ingest --companies-only    (`pnpm ingest --companies-only`)
     python -m peerless_ingest --documents <file>  (`pnpm ingest --documents <file>`)
     python -m peerless_ingest --reread <file>     (`pnpm ingest --reread <file>`)
+    python -m peerless_ingest --reread-all <file> (`pnpm ingest --reread-all <file>`)
 
 Prints a summary per industry code, or in documents mode per document status
 and year. Stores no ratio, distribution or derived amount (AD-1, AD-15): the
@@ -50,6 +51,14 @@ reconciled column into failed_reconciliation, an OCR error or a failed fetch
 replaces nothing: the document keeps its old figures and version, is named
 as not replaced, and the run exits 1. A figure that a column still
 reconciled no longer holds is replaced, and listed per document.
+
+`--reread-all` (Story 2.5d) is re-read mode with one difference: the stored
+reader version is not checked, so a document already read by the current
+version is fetched, read and replaced too (the second re-read that proves
+the OCR word cache on real data). Refusals, "not replaced", the fetch
+deadline, the stop after deadlines in a row and the exit code are re-read
+mode's. Its run record has mode `reread` (run.step1's mode check is
+unchanged, so no migration) and `reread_all: true` in its counts.
 
 The OCR word cache (Story 2.5d). When PEERLESS_OCR_CACHE names a directory
 (`pnpm ingest` mounts `.local/ocr-cache/` there for the document modes),
@@ -452,6 +461,9 @@ class RereadSummary:
     stopped: str | None = None
     # The OCR word cache this run used (Story 2.5d), or None.
     cache: ocr_cache.Cache | None = None
+    # `--reread-all` (Story 2.5d): the stored reader version is not checked,
+    # so a document at the current version is re-read too.
+    every_version: bool = False
 
     def needs_operator(self) -> bool:
         # A document not replaced still holds another version's figures.
@@ -469,6 +481,7 @@ class RereadSummary:
             "failed": len(self.failed),
             "read": self.read_count,
             "prior_failed": self.prior_failed,
+            "reread_all": self.every_version,
             **ocr_cache.record_of(self.cache),
         }
 
@@ -481,8 +494,9 @@ class RereadSummary:
         )
 
     def lines(self) -> list[str]:
+        which = "every stored document, whatever its reader version" if self.every_version else "stored documents"
         out = [
-            "Step 1 summary, re-read (stored documents of the listed companies, by the current reader version)",
+            f"Step 1 summary, re-read ({which} of the listed companies, by the current reader version)",
             f"  reader version: {self.reader_commit}",
             f"  {self.listed} orgnrs listed: {self.companies} companies read, {len(self.refused)} refused",
         ]
@@ -970,7 +984,7 @@ def _reread_documents(
         return
     for document in stored:
         year = document.filing_year
-        if document.reader_commit == reader_commit:
+        if not summary.every_version and document.reader_commit == reader_commit:
             summary.current += 1
             continue
         if streak.stopped is not None:
@@ -1335,15 +1349,18 @@ def run_reread(
     clock: Callable[[], float] = time.monotonic,
     on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
     cache: ocr_cache.Cache | None = None,
+    every_version: bool = False,
 ) -> RereadSummary:
     """Re-read mode (Story 2.3b): for each listed orgnr that is a stored
     company with a covered primary code, every stored document whose
     reader version is not `reader_commit` is fetched, read, reconciled and
     replaced (`_reread_documents`). No year without a stored document is
-    fetched. Any other listed orgnr is refused and named."""
+    fetched. Any other listed orgnr is refused and named. With
+    `every_version` (`--reread-all`, Story 2.5d) the reader version is not
+    checked: every stored document is re-read under the same rules."""
     started = clock()
     rules = rules_of(cfg)
-    summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit, cache=cache)
+    summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit, cache=cache, every_version=every_version)
     on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
     streak = DeadlineStreak(cfg.max_consecutive_deadlines)
@@ -1440,9 +1457,11 @@ def _progress(message: str) -> None:
 
 
 ORGNR = re.compile(r"[0-9]{9}")
-USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file> | --reread <file>]"
+USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file> | --reread <file> | --reread-all <file>]"
 DOCUMENTS = "--documents"
 REREAD = "--reread"
+REREAD_ALL = "--reread-all"
+LIST_MODES = (DOCUMENTS, REREAD, REREAD_ALL)
 # The reader version, set by scripts/run-ingest.ts from `git log -1
 # --format=%H -- ingest/` (Story 2.3b). Required by documents and re-read mode.
 READER_COMMIT_ENV = "PEERLESS_READER_COMMIT"
@@ -1458,7 +1477,7 @@ def reader_commit_of(env: Mapping[str, str]) -> str:
 
 
 class BadDocumentList(Exception):
-    """A bad --documents or --reread argument, or no reader version."""
+    """A bad --documents, --reread or --reread-all argument, or no reader version."""
 
 
 def read_document_list(path: Path) -> list[str]:
@@ -1498,15 +1517,16 @@ def _end_run_after_error(
 def main(argv: Sequence[str] | None = None) -> int:
     """`argv` is the command line after the program name (sys.argv[1:] when
     None, as from the `peerless-ingest` script): empty for a normal run,
-    exactly `--companies-only`, `--documents <file>` or `--reread <file>`.
-    Anything else, a file that is not a JSON list of nine-digit strings, or,
-    for the last two, a missing or malformed PEERLESS_READER_COMMIT, exits 2
+    exactly `--companies-only`, `--documents <file>`, `--reread <file>` or
+    `--reread-all <file>`.
+    Anything else, a file that is not a valid document list, or, for the
+    last three, a missing or malformed PEERLESS_READER_COMMIT, exits 2
     before any request or connection."""
     args = list(sys.argv[1:] if argv is None else argv)
     document_list: list[str] | None = None
     reader_commit = ""
     cache: ocr_cache.Cache | None = None
-    if len(args) == 2 and args[0] in (DOCUMENTS, REREAD):
+    if len(args) == 2 and args[0] in LIST_MODES:
         try:
             document_list = read_document_list(Path(args[1]))
             reader_commit = reader_commit_of(os.environ)
@@ -1534,7 +1554,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if companies_only:
         mode = "companies_only"
     elif document_list is not None:
-        mode = "reread" if args[0] == REREAD else "documents"
+        # --reread-all is recorded as mode reread, with reread_all in its counts.
+        mode = "reread" if args[0] in (REREAD, REREAD_ALL) else "documents"
     else:
         mode = "plain"
     summary: Summary | CompaniesOnlySummary | DocumentsOnlySummary | RereadSummary
@@ -1553,6 +1574,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 summary = run_reread(
                     conn, transport, cfg, codes, document_list,
                     reader_commit=reader_commit, progress=_progress, on_summary=partial.append, cache=cache,
+                    every_version=args[0] == REREAD_ALL,
                 )
             elif mode == "documents" and document_list is not None:
                 summary = run_documents(

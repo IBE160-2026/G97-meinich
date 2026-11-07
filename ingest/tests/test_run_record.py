@@ -531,7 +531,7 @@ def test_plain_record_names_load_demo_and_withdrawal(
     assert sorted(stages_of(db)) == ["demo_company_c", "load", "withdrawal"]
 
 
-@pytest.mark.parametrize("mode", ["--documents", "--reread"])
+@pytest.mark.parametrize("mode", ["--documents", "--reread", "--reread-all"])
 def test_document_modes_record_refused(
     db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:

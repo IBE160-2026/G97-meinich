@@ -194,9 +194,9 @@ def test_key_values_read_at_run_time(tmp_path: Path, monkeypatch: pytest.MonkeyP
     model = tmp_path / "nor.traineddata"
     model.write_bytes(b"a model")
     monkeypatch.setenv("TESSDATA_PREFIX", str(tmp_path))
-    monkeypatch.setattr(ocr, "tesseract_version", lambda: "tesseract 9.9.9")
+    monkeypatch.setattr(ocr, "tesseract_version_report", lambda: "tesseract 9.9.9\nleptonica-1.84.1")
     settings = ocr_cache.current_settings()
-    assert settings.tesseract == "tesseract 9.9.9"
+    assert settings.tesseract == "tesseract 9.9.9\nleptonica-1.84.1"
     assert settings.traineddata_sha256 == hashlib.sha256(b"a model").hexdigest()
     assert settings.plain_args == tuple(ocr.PLAIN_ARGS) and settings.digits_args == tuple(ocr.DIGITS_ARGS)
     assert settings.render == ocr_cache.render_settings()
@@ -209,7 +209,7 @@ def test_key_values_read_at_run_time(tmp_path: Path, monkeypatch: pytest.MonkeyP
     with pytest.raises(ocr_cache.KeyUnavailable):
         ocr_cache.current_settings()
     model.write_bytes(b"a model")
-    monkeypatch.setattr(ocr, "tesseract_version", lambda: "")
+    monkeypatch.setattr(ocr, "tesseract_version_report", lambda: "")
     with pytest.raises(ocr_cache.KeyUnavailable):
         ocr_cache.current_settings()
 

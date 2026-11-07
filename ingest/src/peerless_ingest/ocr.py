@@ -48,16 +48,34 @@ DIGITS_ARGS = (*PLAIN_ARGS, "-c", "tessedit_char_whitelist=0123456789-")
 NOR_TRAINEDDATA_SHA256 = "451d52ba1559aa1aecf163ccbfdeced2b9605fbd49480f5e8a53ace29b9eb0e7"
 
 
-def tesseract_version() -> str:
-    """The first line of `tesseract --version`, read at run time, or "" when
-    Tesseract cannot be run. The image check and the OCR word cache's key
-    (Story 2.5d) both read it here."""
+# Lines of `tesseract --version` that name libraries the read never uses:
+# libarchive and libcurl load models from archives and URLs, and the model
+# is a local file. Their versions (OpenSSL among them) change with any
+# rebuild of the base image, so keeping them in the cache key would turn
+# every entry into a miss for nothing.
+UNUSED_LIBRARY_LINES = ("Found libarchive", "Found libcurl")
+
+
+def tesseract_version_report() -> str:
+    """The output of `tesseract --version`, read at run time, its lines
+    stripped: Tesseract's version, leptonica and the image libraries that
+    read the page images, and the CPU features Tesseract found (its SIMD
+    path does the network's arithmetic), without UNUSED_LIBRARY_LINES. ""
+    when Tesseract cannot be run. The OCR word cache's key holds it (Story
+    2.5d)."""
     try:
         result = subprocess.run(["tesseract", "--version"], capture_output=True, text=True, check=False)
     except OSError:
         return ""
-    lines = (result.stdout or result.stderr).splitlines()
-    return lines[0].strip() if lines else ""
+    lines = [line.strip() for line in (result.stdout or result.stderr).splitlines()]
+    return "\n".join(line for line in lines if line and not line.startswith(UNUSED_LIBRARY_LINES))
+
+
+def tesseract_version() -> str:
+    """The first line of `tesseract --version` ("tesseract 5.5.0"), or "",
+    for the image check."""
+    report = tesseract_version_report()
+    return report.splitlines()[0] if report else ""
 
 
 def model_sha256() -> str:

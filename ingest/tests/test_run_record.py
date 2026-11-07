@@ -716,7 +716,7 @@ def test_ocr_cache_with_no_key_is_refused(
     # PEERLESS_OCR_CACHE set, but no Tesseract to read the key from: refused
     # before any connection, never run with a partial key.
     listed = cache_run(db, cfg, tmp_path, monkeypatch)
-    monkeypatch.setattr(run.ocr, "tesseract_version", lambda: "")
+    monkeypatch.setattr(run.ocr, "tesseract_version_report", lambda: "")
     monkeypatch.setenv(ocr_cache.CACHE_ENV, str(tmp_path / "ocr-cache"))
     before = last_run_id(db)
     assert run.main(["--documents", str(listed)]) == 2

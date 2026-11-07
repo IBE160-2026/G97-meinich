@@ -70,7 +70,7 @@ class FakeRecognise:
 # The OCR word cache's settings in the host tests (Story 2.5d): the image's
 # Tesseract and model, as the run would read them there.
 TEST_SETTINGS = ocr_cache.Settings(
-    "tesseract 5.5.0",
+    "tesseract 5.5.0\nleptonica-1.84.1",
     ocr.NOR_TRAINEDDATA_SHA256,
     ocr_cache.render_settings(),
     tuple(ocr.PLAIN_ARGS),

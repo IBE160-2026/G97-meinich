@@ -9,7 +9,8 @@ does not run Tesseract again.
 
 - `pdf_sha256`: the sha256 of the PDF as fetched (a re-read still fetches,
   so a refiled document has another sha256 and misses);
-- `tesseract`: the first line of `tesseract --version`, read at run time;
+- `tesseract`: the output of `tesseract --version`, read at run time: the
+  version and the libraries it reports (leptonica reads the page images);
 - `traineddata_sha256`: the sha256 of `nor.traineddata`, read from the file
   at run time;
 - `render`: the render settings in `ocr` (`ZOOM`, `FIGURE_PAGES`, `TOP_DPI`,
@@ -93,10 +94,10 @@ def render_settings() -> dict[str, object]:
 
 
 def current_settings() -> Settings:
-    """The run's settings, read at run time: `tesseract --version` and the
+    """The run's settings, read at run time: `tesseract --version`'s report and the
     sha256 of the traineddata file, never copied from constants. Raises
     KeyUnavailable when either cannot be read."""
-    version = ocr.tesseract_version()
+    version = ocr.tesseract_version_report()
     model = ocr.model_sha256()
     if not version:
         raise KeyUnavailable("tesseract --version gave nothing")

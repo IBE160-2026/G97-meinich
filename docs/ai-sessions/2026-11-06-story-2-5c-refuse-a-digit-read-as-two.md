@@ -68,10 +68,11 @@ Implement `_bmad-output/implementation-artifacts/spec-2-5c-refuse-a-digit-read-a
 ## Not done here
 
 - A rerun of `analysis/ocr/cost_sum.py` from its cache: it reads the cached words, not the database, so the re-read does not change it.
-- The PR, its review and the merge.
+- The review of [PR #48](https://github.com/IBE160-2026/G97-meinich/pull/48) and the merge; CI decides the e2e assumption.
 
 ## Links
 
+- PR: [#48](https://github.com/IBE160-2026/G97-meinich/pull/48).
 - AI log: "2026-11-06 — Story 2.5c: refuse a digit read as two, cost lines short of their total, and two unguarded lines".
 - Probe: `analysis/output/cost-sum-probe.md`.
 - Planning documents: PRD open question 21 (answered) and FR-58, `.memlog.md`, `epics.md` Stories 2.5c and 3.1a, the technical note's fingerprint rules.

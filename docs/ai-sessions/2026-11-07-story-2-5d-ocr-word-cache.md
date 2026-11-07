@@ -27,9 +27,30 @@ Build what the labelled set's document run needs: a local cache of Tesseract's w
   - `pnpm analysis:seed-documents` (`1b7f3c6`).
   - the whole version report in the key (`25917d3`).
 - Corrected by the implementation subagent before commit: the first key held only the first line of `tesseract --version`. Printing the report in the built image showed leptonica, the image libraries and the CPU features. All three can change the words, so the key now holds them. The libarchive and libcurl lines are left out: the read never uses them, and they change with every base-image rebuild.
-- For review, not decided here:
-  - `read_tsv`, which turns Tesseract's TSV into the stored words, is not in the key (AI log, 2026-11-07, item 1).
+- Raised for review by the implementation subagent, and decided by Meinich (below):
+  - `read_tsv`, which turns Tesseract's TSV into the stored words, was not in the key (AI log, 2026-11-07, item 1).
   - The comparison script reads as `ingest`, because `reader` has no access to schema `run` (item 5).
+
+## Review
+
+Pass 1 (BMAD session, 2026-11-07): three reviewer subagents read the diff `dc4f737..6779472`: Blind Hunter (BH), Edge Case Hunter (EC) and Verification Gap (VG). They made 17 findings, triaged in the spec's Review Triage Log with each finding's layer.
+
+- **Fixed** (by the implementation subagent, each fix in its own commit):
+  - #1 (BH, EC): an entry stored with no figure pages whose top now classifies as generated misses (`ffc7e9c`).
+  - #12 (VG, BH): a stored key with an extra or a missing name misses in `parts` (`ffc7e9c`).
+  - #3 (EC): a failed `tesseract --version` gives no key part (`534dc41`).
+  - #4 (BH, EC): a year asked for that `/aar` does not list is named and counted as `asked_not_listed` (`6610032`).
+  - #13 (BH): `--reread-all`'s deadline stop says a rerun reads every document again (`6610032`).
+  - #9, #10, #11 (EC, BH, VG): the seed comparison shows an unreadable count as unreadable, requires the current reader commit, and with `--cache-proof` requires all hits; its verdict is unit-tested and its select is checked against the loaded seed (`f3b6141`).
+  - #14 (BH): a test of the read-only connection, and the AGENTS.md line (`f3b6141`, `605c376`).
+  - #5 (BH, EC): the docs no longer overclaim what years limit in documents mode, and a test pins the re-reconciliation (`605c376`).
+  - #17 (BH): the technical note's `run.step1` paragraph (`605c376`).
+- **Rejected:** #6 (EC; `mkdirSync` on a file, unlikely), #7 (EC; false, the root is always absolute), #8 (BH, EC; the reference list is plain strings), #15 (BH; CI time only), #16 (BH; orphan entries of about 8.5 KB do no harm).
+- **Decided by Meinich**, 2026-11-07:
+  - #2: the sha256 of `ocr.py` becomes a key part. It is read from the module file when the run starts, and a differing one is named `ocr_code_sha256`. Tested both ways and mutation-checked (`ac61135`); the spec records it in its Spec Change Log, and AGENTS.md, the technical note, epics.md and the AI log were updated (`98a87fb`, `f1eb27b`).
+  - #14: the comparison stays as `ingest` on a read-only connection, with no migration. `reader` is the website's role and is not to see schema `run`.
+  - #17: Story 2.5c's closing log `36b6117` stays on the branch and goes in with the PR.
+  - The CPU features in the key are accepted, since the cache is local.
 - Verified:
   - `pnpm lint` (with `.local/` ignored: the local worktree `.local/wt-5.1` is not part of this repository's tree), `pnpm typecheck`, `pnpm test` (1013), `pnpm test:db` (167), `pnpm test:ingest` (359).
   - The image check in the built image: both fixture PDFs match, live and through the cache.

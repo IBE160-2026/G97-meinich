@@ -99,16 +99,16 @@ context:
 
 **Execution** (branch `story/2.5d-labelled-set-run-and-ocr-cache`, issue #49; small commits):
 - [x] Probe committed (`6a222e5`)
-- [ ] Merge `c0f10a0` from `story/5.1-labelled-set` (`--no-ff`)
-- [ ] `ocr.py`, `ocr_cache.py`, `documents.py`: the key and the cache, with `test_ocr_cache.py`
-- [ ] `run.py`: the cache in both passes and the counts, with the run tests
-- [ ] `run.py`: `--reread-all`, with its tests
-- [ ] `scripts/compare-seed-documents.ts` (`pnpm analysis:seed-documents`), with its test
-- [ ] `scripts/run-ingest.ts`: the mount, with its test; `test/ocr-cache-ignored.test.ts`
-- [ ] `image_check.py`: the cached pass in CI
-- [ ] `run.py` `read_document_list` and the year filter, with their tests; `scripts/document-set.ts --labelled` and its list, with its test
-- [ ] Docs: `AGENTS.md` (Stack), `docs/data-sources-brreg.md`, the README (the cache, `.local/ocr-cache/`), `docs/ai-log.md`, the session file, `deferred-work.md` (close the Story 2.5 entry's run part)
-- [ ] Planning documents: `epics.md` Story 2.5d if a decision changes it, the PRD only if an FR does; the PR line "Planning documents:"
+- [x] Merge `c0f10a0` from `story/5.1-labelled-set` (`--no-ff`) (`7c27af8`)
+- [x] `ocr.py`, `ocr_cache.py`, `documents.py`: the key and the cache, with `test_ocr_cache.py` (`93cc97b`, `25917d3`)
+- [x] `run.py`: the cache in both passes and the counts, with the run tests (`3338427`)
+- [x] `run.py`: `--reread-all`, with its tests (`c460e70`)
+- [x] `scripts/compare-seed-documents.ts` (`pnpm analysis:seed-documents`), with its test (`1b7f3c6`)
+- [x] `scripts/run-ingest.ts`: the mount, with its test; `test/ocr-cache-ignored.test.ts` (`549d631`)
+- [x] `image_check.py`: the cached pass in CI (`60f1918`)
+- [x] `run.py` `read_document_list` and the year filter, with their tests; `scripts/document-set.ts --labelled` and its list, with its test (`f174c5d`, `863c59d`, `61e932e`)
+- [x] Docs: `AGENTS.md` (Stack), `docs/data-sources-brreg.md`, the README (the cache, `.local/ocr-cache/`), `docs/ai-log.md`, the session file, `deferred-work.md` (close the Story 2.5 entry's run part)
+- [x] Planning documents: `epics.md` Story 2.5d if a decision changes it, the PRD only if an FR does; the PR line "Planning documents:" (`epics.md`: the decisions under Story 2.5d; the technical note: the cache and `--reread-all`; the PRD: none affected, no FR changes)
 - [ ] After review and Meinich's yes: the dump and backup with sha256; Meinich runs `pnpm ingest --reread analysis/ocr-reference/document-run.json` (OCR, fills the cache), then `pnpm ingest --reread-all analysis/ocr-reference/document-run.json` (the cache), compared with the seed, the counts recorded here and in the PR; then `pnpm analysis:document-run before-2.5d`; Meinich runs `pnpm ingest --documents analysis/labelled-set/document-run.json`; `pnpm analysis:document-run after-2.5d`; the new dump `.local/document-run-2.5d/`, README "Seed" updated in the same commit; the seed re-export as in 2.5c, from the allow-list.
 
 **Acceptance Criteria:**
@@ -117,6 +117,26 @@ context:
 - Given any committed file or PR text, then no fingerprint result is tied to an orgnr of the labelled set.
 
 ## Implementation Notes
+
+- **As built** (implementation subagent, 2026-11-07; commits in the Tasks above, totals only):
+  - **The key** (`ocr_cache.Key.as_json`) has six parts: `pdf_sha256`, `tesseract`, `traineddata_sha256`, `render` (`zoom`, `figure_pages`, `top_dpi`, `top_fraction`, `pymupdf`), `plain_args` and `digits_args`.
+    - `tesseract` is the report of `tesseract --version` (`ocr.tesseract_version_report`), not only its first line. It includes leptonica, the image libraries and the CPU features Tesseract found; it leaves out the libarchive and libcurl lines, which the read never uses and which change with every base-image rebuild. **For Meinich to confirm in review**: the CPU features make the cache specific to the machine's CPU, which costs nothing while the cache is local.
+    - A key that differs counts `ocr_cache_miss_key` and names each differing part in `ocr_cache_miss_key_parts`. A stored key with another set of parts counts as differing in `parts`.
+  - **Not in the key: `ocr.read_tsv` and `xargs_argv`'s `tsv` output config.** These two turn Tesseract's output into the stored words, so a change to either would not miss. **For review**: such a change needs `.local/ocr-cache/` emptied, or a further key part.
+  - **The counts** go into `run.step1.counts`:
+    - `ocr_cache` ("on" or "off");
+    - `ocr_cache_hit`, `ocr_cache_miss_absent`, `ocr_cache_miss_key`, `ocr_cache_miss_key_parts`, `ocr_cache_miss_unreadable`;
+    - `ocr_cache_write_failed`: an entry that could not be written. The read goes on, and the failure is named on stderr.
+  - **A set `PEERLESS_OCR_CACHE` whose key cannot be read** (no Tesseract, no model file) refuses the run with exit 2, before any connection. It is never run with a partial key.
+  - **`--reread-all`** is recorded as mode `reread` with `reread_all: true` in its counts. `run.step1`'s mode check is unchanged, so there is no migration and no seed re-export.
+    - It does not resume: a rerun reads every document again. The three-deadlines test asserts this.
+  - **Years per entry** apply in every list mode. In documents mode no other year is fetched (`not_asked_years`); in the re-read modes no stored document of another year is re-read (the same count).
+    - The labelled list has 845 entries, each `{"orgnr", "years": [2025]}`. `analysis/labelled-set/document-run.json` is `-text` in `.gitattributes`, as the reference list is, so a Windows checkout keeps it byte-equal to what `--labelled` writes.
+  - **`pnpm analysis:seed-documents` reads as `ingest`**, with `default_transaction_read_only`, because `reader` has no access to schema `run`. It compares every column from the catalog except `reader_commit` and `read_at`. Before any run of this story, on the local database: 97 documents and 194 columns equal to the seed, exit 0.
+  - **The image check**, run locally in the built image: both fixture PDFs (2025 generated, 2011 paper) match, live and through the cache, the second read a hit.
+- **Verification** (2026-11-07):
+  - all green: `pnpm typecheck`, `pnpm test` (1013), `pnpm test:db` (167), `pnpm test:ingest` (359).
+  - `pnpm lint` fails locally only on files in `.local/wt-5.1/`, a local git worktree of `story/5.1-labelled-set` that ESLint's `.` includes. It is outside the repository's tree, and CI does not see it. `eslint . --ignore-pattern ".local/**"` is clean.
 
 ## Spec Change Log
 

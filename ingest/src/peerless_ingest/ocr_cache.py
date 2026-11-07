@@ -15,7 +15,11 @@ does not run Tesseract again.
   at run time;
 - `render`: the render settings in `ocr` (`ZOOM`, `FIGURE_PAGES`, `TOP_DPI`,
   `TOP_FRACTION`) and PyMuPDF's version, which renders the pages;
-- `plain_args` and `digits_args`: both passes' Tesseract options.
+- `plain_args` and `digits_args`: both passes' Tesseract options;
+- `ocr_code_sha256`: the sha256 of `ocr.py` as the run loads it, read from
+  the module file when the run starts, never a constant: it turns page
+  images into words (`read_tsv`, the render calls), so a change to it is a
+  change to the words even when every setting above is the same.
 
 Only an exact match of every part uses the stored words. A key that differs
 in any part is a miss: full OCR runs, the entry is replaced, and the parts
@@ -59,7 +63,15 @@ from .ocr import PageWords, Word
 Recognised = tuple[list[Word], list[PageWords]]
 
 # The parts of the key, in the order they are named in the counts.
-KEY_PARTS = ("pdf_sha256", "tesseract", "traineddata_sha256", "render", "plain_args", "digits_args")
+KEY_PARTS = (
+    "pdf_sha256",
+    "tesseract",
+    "traineddata_sha256",
+    "render",
+    "plain_args",
+    "digits_args",
+    "ocr_code_sha256",
+)
 
 SUFFIX = ".json.gz"
 
@@ -79,6 +91,7 @@ class Settings:
     render: Mapping[str, object]
     plain_args: tuple[str, ...]
     digits_args: tuple[str, ...]
+    ocr_code_sha256: str
 
 
 def render_settings() -> dict[str, object]:
@@ -93,17 +106,28 @@ def render_settings() -> dict[str, object]:
     }
 
 
+def ocr_code_sha256() -> str:
+    """The sha256 of the `ocr` module's file as this process loaded it.
+    Raises KeyUnavailable when the file cannot be read."""
+    try:
+        return hashlib.sha256(Path(ocr.__file__).read_bytes()).hexdigest()
+    except OSError as error:
+        raise KeyUnavailable(f"ocr.py not readable: {error.__class__.__name__}: {error}") from error
+
+
 def current_settings() -> Settings:
-    """The run's settings, read at run time: `tesseract --version`'s report and the
-    sha256 of the traineddata file, never copied from constants. Raises
-    KeyUnavailable when either cannot be read."""
+    """The run's settings, read at run time: `tesseract --version`'s report,
+    the sha256 of the traineddata file and of `ocr.py`, never copied from
+    constants. Raises KeyUnavailable when any of them cannot be read."""
     version = ocr.tesseract_version_report()
     model = ocr.model_sha256()
     if not version:
         raise KeyUnavailable("tesseract --version gave nothing")
     if not model:
         raise KeyUnavailable("nor.traineddata not found under TESSDATA_PREFIX")
-    return Settings(version, model, render_settings(), tuple(ocr.PLAIN_ARGS), tuple(ocr.DIGITS_ARGS))
+    return Settings(
+        version, model, render_settings(), tuple(ocr.PLAIN_ARGS), tuple(ocr.DIGITS_ARGS), ocr_code_sha256()
+    )
 
 
 @dataclass(frozen=True)
@@ -128,6 +152,7 @@ class Key:
             "render": dict(s.render),
             "plain_args": list(s.plain_args),
             "digits_args": list(s.digits_args),
+            "ocr_code_sha256": s.ocr_code_sha256,
         }
         # Through JSON once, so tuples become lists exactly as when loaded.
         loaded: dict[str, object] = json.loads(json.dumps(raw))

@@ -79,6 +79,7 @@ def differing(part: str) -> dict[str, object]:
         "render": {**ocr_cache.render_settings(), "zoom": 3.0},
         "plain_args": ["-l", "nor", "--psm", "4"],
         "digits_args": [*ocr.PLAIN_ARGS, "-c", "tessedit_char_whitelist=0123456789"],
+        "ocr_code_sha256": "d" * 64,
     }
     assert set(changed) == set(ocr_cache.KEY_PARTS)
     return {**key, part: changed[part]}
@@ -200,6 +201,7 @@ def test_key_values_read_at_run_time(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert settings.traineddata_sha256 == hashlib.sha256(b"a model").hexdigest()
     assert settings.plain_args == tuple(ocr.PLAIN_ARGS) and settings.digits_args == tuple(ocr.DIGITS_ARGS)
     assert settings.render == ocr_cache.render_settings()
+    assert settings.ocr_code_sha256 == hashlib.sha256(Path(ocr.__file__).read_bytes()).hexdigest()
 
     cache = ocr_cache.from_env({ocr_cache.CACHE_ENV: str(tmp_path / "c")}, lambda _m: None)
     assert cache is not None and cache.settings == settings
@@ -210,6 +212,39 @@ def test_key_values_read_at_run_time(tmp_path: Path, monkeypatch: pytest.MonkeyP
         ocr_cache.current_settings()
     model.write_bytes(b"a model")
     monkeypatch.setattr(ocr, "tesseract_version_report", lambda: "")
+    with pytest.raises(ocr_cache.KeyUnavailable):
+        ocr_cache.current_settings()
+
+
+def test_changed_ocr_module_misses_with_the_part_named(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # The key holds the sha256 of ocr.py, read from the module file when the
+    # run's settings are read: an unchanged file is a hit, a changed one a
+    # key miss naming `ocr_code_sha256`, read by OCR and stored again.
+    module = tmp_path / "ocr.py"
+    module.write_bytes(Path(ocr.__file__).read_bytes())
+    monkeypatch.setattr(ocr, "__file__", str(module))
+    monkeypatch.setattr(ocr, "tesseract_version_report", lambda: TEST_SETTINGS.tesseract)
+    monkeypatch.setattr(ocr, "model_sha256", lambda: TEST_SETTINGS.traineddata_sha256)
+    reader = FakeRecognise(monkeypatch, {PDF: recorded_979607008_2025()})
+    directory = tmp_path / "cache"
+
+    first = ocr_cache.Cache(directory, ocr_cache.current_settings())
+    documents.read_document(PDF, BOUND_KR, first)
+    unchanged = ocr_cache.Cache(directory, ocr_cache.current_settings())
+    documents.read_document(PDF, BOUND_KR, unchanged)
+    assert (first.counts.miss_absent, unchanged.counts.hit) == (1, 1)
+    assert reader.calls == [PDF]
+
+    module.write_bytes(module.read_bytes() + b"\n# changed\n")
+    changed = ocr_cache.Cache(directory, ocr_cache.current_settings())
+    read = documents.read_document(PDF, BOUND_KR, changed)
+    assert reader.calls == [PDF, PDF]
+    assert read.layout == "generated"
+    assert (changed.counts.hit, changed.counts.miss_key) == (0, 1)
+    assert changed.counts.record()["ocr_cache_miss_key_parts"] == {"ocr_code_sha256": 1}
+    assert entry(directory)["key"] == ocr_cache.Key.of(PDF, changed.settings).as_json()
+
+    module.unlink()
     with pytest.raises(ocr_cache.KeyUnavailable):
         ocr_cache.current_settings()
 

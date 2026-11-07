@@ -75,6 +75,7 @@ TEST_SETTINGS = ocr_cache.Settings(
     ocr_cache.render_settings(),
     tuple(ocr.PLAIN_ARGS),
     tuple(ocr.DIGITS_ARGS),
+    "c" * 64,
 )
 
 

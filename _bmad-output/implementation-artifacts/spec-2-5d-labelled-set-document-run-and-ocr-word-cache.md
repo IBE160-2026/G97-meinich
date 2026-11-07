@@ -2,7 +2,7 @@
 title: "Story 2.5d: The labelled set's document run, with a local OCR word cache"
 type: 'feature'
 created: '2026-11-07'
-status: 'draft'
+status: 'ready-for-dev'
 baseline_commit: 'dc4f737'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -32,6 +32,7 @@ context:
 - **The 2 044 stored documents keep `reader_commit` `b57aaba`;** the cache fills with them at the next reader fix's re-read.
 - **The cache is proven on real data before the labelled set.** After the cache is built, Meinich runs `--reread` of the OCR reference set twice: first through OCR (filling the cache), then from the cache. Both must give exactly the figures, status and checks the committed seed holds now, and the second must have only hits. Hits and misses are counted, and the result goes in this spec and the PR. Any difference is a defect that stops the story before the labelled set.
 - **The list comes from Story 5.1's draw,** brought in by merging `c0f10a0` from `story/5.1-labelled-set` (not a cherry-pick, so the hashes are kept); `15e1010` (the blind labelling) and later commits stay out. The PR says these are 5.1 commits taken unchanged and that the 5.1 PR takes the rest.
+- **`--reread-all <file>` (Meinich, 2026-11-07):** the second re-read needs a mode that reads a document whatever its `reader_commit`, since `--reread` skips a current one. It has exactly `--reread`'s rules for refusing an orgnr, "not replaced", the fetch deadline, the stop after three deadlines in a row and the exit code; the only difference is that `reader_commit` is not checked. It runs alone like the other modes, `pnpm derive` runs after it as after `--reread`, and AGENTS.md gets a line. The script that compares the reference set with the seed also counts the cache's hits and misses from `run.step1`, totals only.
 - **Only the reference year 2025.** A list entry may be `{"orgnr": …, "years": [2025]}` beside a plain orgnr (every year 2021–2025, as today). This is new behaviour: AGENTS.md is updated, and a later run with more years fetches only the documents not stored.
 - **The run order, each after Meinich's own yes and run by Meinich:** the dump and backup with sha256; the reference set re-read twice; the labelled set.
 - **The cache key** is the PDF's sha256, the Tesseract version, the sha256 of `nor.traineddata`, the render settings, and the options of both passes. Only an exact match uses the stored words. A key that differs runs full OCR and is counted in `run.step1`, never silently. Hits and misses are counted per run.
@@ -72,14 +73,14 @@ context:
 | Years per entry | `{"orgnr": X, "years": [2025]}` | only 2025 is fetched; a plain orgnr keeps 2021–2025; a bad entry (no orgnr, a year outside 2021–2025, empty years, duplicates) refuses the list | `ingest/tests/test_documents_run.py::test_list_entry_years_limit_the_fetch`, `::test_bad_list_entry_refused` |
 | More years later | 2025 stored, then the plain orgnr | only 2021–2024 fetched | `test_documents_run.py::test_more_years_fetch_only_unstored` |
 | Labelled list | the 5.1 draw | distinct orgnrs in byte order, each `{"orgnr", "years": [2025]}` | `test/document-set.test.ts` "labelled" |
+| `--reread-all` | a stored document whose `reader_commit` is current | re-read (fetched, read, replaced); `--reread` on the same list skips it as current | `test_documents_run.py::test_reread_all_reads_a_current_document`, `::test_reread_skips_a_current_document` |
+| `--reread-all` rules | a refused orgnr, a hung fetch, three deadlines in a row, a read that would fail reconciliation | as `--reread`: refused, not replaced, stop, exit 1 | `test_documents_run.py` (the `--reread` cases parametrised over both modes) |
+| `--reread-all` derive | `pnpm ingest --reread-all f` | derive runs after; the mount and env as `--reread` | `test/run-ingest.test.ts` |
+| Seed comparison | the reference set's rows and the last runs' records | totals: rows equal / differing per field, ignoring `reader_commit` and `read_at`; hits and misses per run | `test/compare-seed-documents.test.ts` |
 | Real-data proof | the reference set re-read twice | equal to the seed; the second all hits | Meinich's run; recorded in this spec and the PR |
 | Gitignored | a file under `.local/ocr-cache/` | `git check-ignore` matches; `git ls-files .local` is empty | `test/ocr-cache-ignored.test.ts` |
 
 </frozen-after-approval>
-
-## Open Questions
-
-1. **The second re-read of the reference set would read nothing.** `--reread` skips a document whose `reader_commit` is already the current one (`run.py:938`). After the first re-read every reference document carries the current commit, so a second `--reread` at the same commit counts all 97 as current and makes no read, and no hit. (a) A new mode, `--reread-all <file>`, that re-reads every stored document of the listed companies whatever its `reader_commit`, run alone like the other modes, with a test and an AGENTS.md line (recommended: both runs at the final commit, right after each other). (b) Run 1 at an earlier commit of the branch, run 2 at the final one: this works only if `ingest/` changes in between, and review fixes decide that. (c) Between the runs, restore the reference set's document rows from the dump taken before run 1, so they carry `b57aaba` again: a database step in Meinich's run, with no new code.
 
 ## Code Map
 
@@ -101,12 +102,14 @@ context:
 - [ ] Merge `c0f10a0` from `story/5.1-labelled-set` (`--no-ff`)
 - [ ] `ocr.py`, `ocr_cache.py`, `documents.py`: the key and the cache, with `test_ocr_cache.py`
 - [ ] `run.py`: the cache in both passes and the counts, with the run tests
+- [ ] `run.py`: `--reread-all`, with its tests
+- [ ] `scripts/compare-seed-documents.ts` (`pnpm analysis:seed-documents`), with its test
 - [ ] `scripts/run-ingest.ts`: the mount, with its test; `test/ocr-cache-ignored.test.ts`
 - [ ] `image_check.py`: the cached pass in CI
 - [ ] `run.py` `read_document_list` and the year filter, with their tests; `scripts/document-set.ts --labelled` and its list, with its test
 - [ ] Docs: `AGENTS.md` (Stack), `docs/data-sources-brreg.md`, the README (the cache, `.local/ocr-cache/`), `docs/ai-log.md`, the session file, `deferred-work.md` (close the Story 2.5 entry's run part)
 - [ ] Planning documents: `epics.md` Story 2.5d if a decision changes it, the PRD only if an FR does; the PR line "Planning documents:"
-- [ ] After review and Meinich's yes: the dump and backup with sha256; Meinich runs `pnpm ingest --reread analysis/ocr-reference/document-run.json` twice (OCR, then the cache), compared with the seed, the counts recorded here and in the PR; then `pnpm analysis:document-run before-2.5d`; Meinich runs `pnpm ingest --documents analysis/labelled-set/document-run.json`; `pnpm analysis:document-run after-2.5d`; the new dump `.local/document-run-2.5d/`, README "Seed" updated in the same commit; the seed re-export as in 2.5c, from the allow-list.
+- [ ] After review and Meinich's yes: the dump and backup with sha256; Meinich runs `pnpm ingest --reread analysis/ocr-reference/document-run.json` (OCR, fills the cache), then `pnpm ingest --reread-all analysis/ocr-reference/document-run.json` (the cache), compared with the seed, the counts recorded here and in the PR; then `pnpm analysis:document-run before-2.5d`; Meinich runs `pnpm ingest --documents analysis/labelled-set/document-run.json`; `pnpm analysis:document-run after-2.5d`; the new dump `.local/document-run-2.5d/`, README "Seed" updated in the same commit; the seed re-export as in 2.5c, from the allow-list.
 
 **Acceptance Criteria:**
 - Given the labelled set's companies without read documents, when the run is done, then every document has the current `reader_commit` or is listed as not read with its reason, `pnpm derive` has run, and the counts are reported as totals.

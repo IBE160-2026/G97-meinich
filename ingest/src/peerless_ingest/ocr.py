@@ -22,6 +22,7 @@ confidence value is read (AGENTS.md, "Never trust an OCR digit").
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 import subprocess
@@ -45,6 +46,25 @@ DIGITS_ARGS = (*PLAIN_ARGS, "-c", "tessedit_char_whitelist=0123456789-")
 # e12c65a915945e4c28e237a9b52bc4a8f39a0cec. ingest/Dockerfile checks the same
 # hash in the build; image_check checks it in the built image.
 NOR_TRAINEDDATA_SHA256 = "451d52ba1559aa1aecf163ccbfdeced2b9605fbd49480f5e8a53ace29b9eb0e7"
+
+
+def tesseract_version() -> str:
+    """The first line of `tesseract --version`, read at run time, or "" when
+    Tesseract cannot be run. The image check and the OCR word cache's key
+    (Story 2.5d) both read it here."""
+    try:
+        result = subprocess.run(["tesseract", "--version"], capture_output=True, text=True, check=False)
+    except OSError:
+        return ""
+    lines = (result.stdout or result.stderr).splitlines()
+    return lines[0].strip() if lines else ""
+
+
+def model_sha256() -> str:
+    """The sha256 of nor.traineddata under TESSDATA_PREFIX, read from the
+    file at run time, or "" when there is no such file."""
+    path = Path(os.environ.get("TESSDATA_PREFIX", "")) / "nor.traineddata"
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""
 
 
 class OcrError(RuntimeError):

@@ -33,17 +33,6 @@ from .ocr import NOR_TRAINEDDATA_SHA256, PageWords, read_tsv
 VERSION = re.compile(r"^tesseract 5\.5\.\d+")
 
 
-def tesseract_version() -> str:
-    result = subprocess.run(["tesseract", "--version"], capture_output=True, text=True, check=False)
-    lines = (result.stdout or result.stderr).splitlines()
-    return lines[0].strip() if lines else ""
-
-
-def model_sha256() -> str:
-    path = Path(os.environ.get("TESSDATA_PREFIX", "")) / "nor.traineddata"
-    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""
-
-
 def differences(got: object, want: object, where: str = "") -> list[str]:
     """Every path at which two JSON values differ, a key missing on either
     side included (a missing key is not the same as null)."""

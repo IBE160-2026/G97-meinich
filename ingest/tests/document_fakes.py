@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from peerless_ingest import documents
+from peerless_ingest import documents, ocr, ocr_cache
 from peerless_ingest.ocr import PageWords, Word, read_tsv
 from tsv_builder import BASE_ROWS, document, label_words, words
 
@@ -65,3 +65,19 @@ class FakeRecognise:
             raise AssertionError(f"unexpected document read: {body[:40]!r}")
         found = self.reads[body]
         return found() if callable(found) else found
+
+
+# The OCR word cache's settings in the host tests (Story 2.5d): the image's
+# Tesseract and model, as the run would read them there.
+TEST_SETTINGS = ocr_cache.Settings(
+    "tesseract 5.5.0",
+    ocr.NOR_TRAINEDDATA_SHA256,
+    ocr_cache.render_settings(),
+    tuple(ocr.PLAIN_ARGS),
+    tuple(ocr.DIGITS_ARGS),
+)
+
+
+def cache_in(directory: Path) -> ocr_cache.Cache:
+    """A cache in `directory` with the test settings."""
+    return ocr_cache.Cache(directory, TEST_SETTINGS)

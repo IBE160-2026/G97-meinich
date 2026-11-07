@@ -3,7 +3,7 @@
 **Date:** 2026-11-07
 **Tool:** Claude Code (Opus 5.5): the BMAD session, and its implementation subagent for the code
 **Story / issue:** #49, Story 2.5d
-**Result:** commits on `story/2.5d-labelled-set-run-and-ocr-cache` (below); PR to be opened. The runs wait for Meinich's yes.
+**Result:** commits on `story/2.5d-labelled-set-run-and-ocr-cache` (below); PR [#50](https://github.com/IBE160-2026/G97-meinich/pull/50). The runs wait for Meinich's yes.
 
 ## Goal
 

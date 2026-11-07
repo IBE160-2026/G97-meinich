@@ -2,7 +2,7 @@
 title: 'Story 2.5c: Refuse a digit read as two, and cost lines that do not sum'
 type: 'bugfix'
 created: '2026-11-06'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'e6c1cdeacac341fc91d735af2a3576fb8a87e68d'
 route: 'dispatch'
 review_loop_iteration: 0

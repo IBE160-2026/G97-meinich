@@ -87,10 +87,13 @@ Implement `_bmad-output/implementation-artifacts/spec-2-5c-refuse-a-digit-read-a
   - the cause of the `test:db` timeouts;
   - turning the R4 gap into a count.
 
+## Merge
+
+CI was green on `8ff1b35`, with all 116 e2e tests passing. Before merging, the review session checked the re-read against the database and `.local/document-tables-before-2.5c-reread/`: no column went from reconciled to not reconciled, each of the 139 emptied figures is a misread or `varer` from the income statement except one in a prior column, and no figure other than `varer` changed. It also checked the new dump's sha256 and its backup, the counts after steps 5 and 9, that the seed commit holds only the seed files, and the corrections after the review (`e79cf32`, `8d506be`, `8ff1b35`). The review was posted as a GitHub review with six line comments, drafted by the review session and posted at the human's decision. The PR was merged at 10:59 UTC as `c90ad3e`. The review session then set the spec and the story to done on `main`.
+
 ## Not done here
 
 - A rerun of `analysis/ocr/cost_sum.py` from its cache: it reads the cached words, not the database, so the re-read does not change it.
-- The merge of [PR #48](https://github.com/IBE160-2026/G97-meinich/pull/48), which waits for Meinich.
 
 ## Links
 

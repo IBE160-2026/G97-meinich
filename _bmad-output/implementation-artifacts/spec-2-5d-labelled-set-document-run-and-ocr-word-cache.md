@@ -2,7 +2,7 @@
 title: "Story 2.5d: The labelled set's document run, with a local OCR word cache"
 type: 'feature'
 created: '2026-11-07'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'dc4f737'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -109,7 +109,7 @@ context:
 - [x] `run.py` `read_document_list` and the year filter, with their tests; `scripts/document-set.ts --labelled` and its list, with its test (`f174c5d`, `863c59d`, `61e932e`)
 - [x] Docs: `AGENTS.md` (Stack), `docs/data-sources-brreg.md`, the README (the cache, `.local/ocr-cache/`), `docs/ai-log.md`, the session file, `deferred-work.md` (close the Story 2.5 entry's run part)
 - [x] Planning documents: `epics.md` Story 2.5d if a decision changes it, the PRD only if an FR does; the PR line "Planning documents:" (`epics.md`: the decisions under Story 2.5d; the technical note: the cache and `--reread-all`; the PRD: none affected, no FR changes)
-- [ ] After review and Meinich's yes: the dump and backup with sha256; Meinich runs `pnpm ingest --reread analysis/ocr-reference/document-run.json` (OCR, fills the cache), then `pnpm ingest --reread-all analysis/ocr-reference/document-run.json` (the cache), compared with the seed, the counts recorded here and in the PR; then `pnpm analysis:document-run before-2.5d`; Meinich runs `pnpm ingest --documents analysis/labelled-set/document-run.json`; `pnpm analysis:document-run after-2.5d`; the new dump `.local/document-run-2.5d/`, README "Seed" updated in the same commit; the seed re-export as in 2.5c, from the allow-list.
+- [ ] After review and Meinich's yes: the dump and backup with sha256; Meinich runs `pnpm ingest --reread analysis/ocr-reference/document-run.json` (OCR, fills the cache), checked with `pnpm analysis:seed-documents` (exit 0), then `pnpm ingest --reread-all analysis/ocr-reference/document-run.json` (the cache), checked with `pnpm analysis:seed-documents --cache-proof` (exit 0), the counts recorded here and in the PR; then `pnpm analysis:document-run before-2.5d`; Meinich runs `pnpm ingest --documents analysis/labelled-set/document-run.json`; `pnpm analysis:document-run after-2.5d`; the new dump `.local/document-run-2.5d/`, README "Seed" updated in the same commit; the seed re-export as in 2.5c, from the allow-list.
 
 **Acceptance Criteria:**
 - Given the labelled set's companies without read documents, when the run is done, then every document has the current `reader_commit` or is listed as not read with its reason, `pnpm derive` has run, and the counts are reported as totals.
@@ -132,7 +132,9 @@ context:
     - It does not resume: a rerun reads every document again. The three-deadlines test asserts this.
   - **Years per entry** apply in every list mode. In documents mode no other year is fetched (`not_asked_years`); in the re-read modes no stored document of another year is re-read (the same count).
     - The labelled list has 845 entries, each `{"orgnr", "years": [2025]}`. `analysis/labelled-set/document-run.json` is `-text` in `.gitattributes`, as the reference list is, so a Windows checkout keeps it byte-equal to what `--labelled` writes.
-  - **`pnpm analysis:seed-documents` reads as `ingest`**, with `default_transaction_read_only`, because `reader` has no access to schema `run`. It compares every column from the catalog except `reader_commit` and `read_at`. Before any run of this story, on the local database: 97 documents and 194 columns equal to the seed, exit 0.
+  - **`pnpm analysis:seed-documents` reads as `ingest`**, with `default_transaction_read_only`, because `reader` has no access to schema `run`. It compares every column from the catalog except `reader_commit` and `read_at`. Before any run of this story, on the local database: 97 documents and 194 columns equal to the seed.
+    - Review fix: its one pure `verdict` also requires every compared document to carry the current reader commit, fails on an unreadable count, and with `--cache-proof` requires the newest run to be a `--reread-all` of all hits and no miss. Before any run it therefore exits 1 (0 of 97 documents read by the current commit), as it should.
+  - Review fixes in step 1: an entry with no figure pages whose top now classifies as generated is a miss (`ocr_cache_miss_pages`); a stored key with a missing or an extra name misses in `parts`; a failed `tesseract --version` gives no key part; a year an entry asks for that `/aar` does not list is named (`asked_not_listed`); the deadline stop of `--reread-all` says a new run reads everything again.
   - **The image check**, run locally in the built image: both fixture PDFs (2025 generated, 2011 paper) match, live and through the cache, the second read a hit.
 - **Verification** (2026-11-07):
   - all green: `pnpm typecheck`, `pnpm test` (1013), `pnpm test:db` (167), `pnpm test:ingest` (359).
@@ -141,6 +143,28 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Pass 1, 2026-11-07. The diff ran from `dc4f737` to `6779472`, without Story 5.1's merged files (`analysis/labelled-set/*` other than the run list, `test/labelled-set-draw.test.ts`; taken unchanged from `c0f10a0`), the run list itself (845 entries), this spec and the epic context. Three layers ran: blind hunter (BH), edge-case hunter (EC) and verification gap (VG).
+
+| # | Finding (layer) | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | `layout.classify` decides whether the figure pages are recognised, and is not in the key: an entry stored as a paper filing (`pages == []`) still hits after a fix to `classify` makes it generated (BH, EC) | medium | Confirmed: `documents.recognise` (:296) recognises the figure pages only when `classify(top) == "generated"`; on a hit `read_words` re-classifies the top as generated and reads no page, so the document gets a wrong status with the new `reader_commit` | patch: a hit whose top now classifies as generated with no stored pages is a miss (`pages`), counted, read by OCR |
+| 2 | The key holds no version of the code that makes the words (`ocr_top`, `ocr_figure_pages`, `_run`, `read_tsv`, the `tsv` config, the render calls) (BH, EC; the build's own note) | medium | Confirmed: a change there returns the old words with no miss. The frozen key lists five parts; a sixth is a change to Meinich's decision | reject (spec edit); put to Meinich at the presentation |
+| 3 | `tesseract --version` exiting non-zero with text on stderr makes that text the key's Tesseract part (EC) | low | Confirmed: `result.stdout or result.stderr` ignores the exit code; the run is then not refused as the docstring says | patch: "" on a non-zero exit |
+| 4 | A year an entry asks for that the register's `/aar` list lacks is neither fetched nor named (BH, EC) | medium | Confirmed (`run.py` `_load_documents`): for the labelled set, a company without a 2025 document would be missing from the run's report, against the acceptance criterion "listed as not read with its reason" | patch: count and name each (orgnr, year) asked for but not listed |
+| 5 | Documents mode re-reconciles every stored year, while the docs say an entry's years mean "only those years" (BH, EC) | low | Confirmed: `_rereconcile` (:692) takes no years; it fetches nothing and applies the same rules, so no status changes unless the rules did. The docs overclaim | patch: the docs say re-reconciliation covers every stored document; a test pins it |
+| 6 | `mkdirSync` of `.local/ocr-cache` can throw with a stack trace (EC) | low | Only if `.local/ocr-cache` is a file or the disk refuses; unlikely, and the fix adds a branch | reject |
+| 7 | The cache mount uses `path.join`, not `path.resolve`, so a relative root gives a relative bind source (EC) | false | `main` is called with `process.cwd()` (`run-ingest.ts:266`), always absolute | reject |
+| 8 | `referenceOrgnrs` accepts only plain orgnr strings, not `{"orgnr", "years"}` (BH, EC) | low | The reference list is plain strings, written by `--reference`; the script reads no other list | reject |
+| 9 | The comparison shows a missing or non-integer cache count as 0 (EC) | low | Confirmed: a silent fallback (AGENTS.md, L9) | patch: shown as unreadable, and it fails the cache check |
+| 10 | The comparison does not enforce "the second only hits", and ignoring `reader_commit` cannot tell that the re-reads happened (BH, EC) | medium | Confirmed: `main` exits on row differences only; two re-reads that skipped every document would pass | patch: every compared document must carry the current reader commit; `--cache-proof` also requires the newest run to be `--reread-all` with the cache on, every read a hit and no miss or failed write |
+| 11 | `main` of the comparison is run by no test (VG) | medium | Confirmed: only the helpers are imported | patch: the verdict as a pure function, unit-tested per condition, and a `test/db/` test that the catalog select lines up with the loaded seed |
+| 12 | A stored key with an extra or a missing part is untested (`"parts"`) (VG, BH) | low | Confirmed: deleting the check fails no test (L2) | patch: both cases tested |
+| 13 | The deadline stop says "a new run resumes here" also for `--reread-all`, which does not resume, and the test pins that text (BH) | low | Confirmed (`run.py:797`) | patch: the reason says a rerun reads every document again; the test asserts it per mode |
+| 14 | The comparison connects as `ingest`, which can write, guarded by a connection setting no test checks; AGENTS.md's list of scripts reading database URLs is not updated (BH) | medium | Confirmed. The alternative, SELECT on `run.step1` for `reader`, is a migration and a grants change | patch: a test of the read-only setting and the AGENTS.md line; the choice of role put to Meinich |
+| 15 | The image check runs Tesseract one extra time per fixture (BH) | low | CI time only; the round trip stays proven | reject |
+| 16 | The cache is never pruned and its size is not reported (BH) | low | Refiled PDFs leave orphans of about 8.5 KB; no harm to a read | reject |
+| 17 | The technical note's `run.step1` paragraph lacks `reread_all` and the cache counts; the session file has no review section yet; Story 2.5c's closing log (`36b6117`, local `main`) is on the branch (BH) | low | Confirmed. The log commit was made on local `main` after 2.5c and not pushed, so the branch carries it | patch (the technical note; the session file at the end); the log commit put to Meinich |
 
 ## Verification
 

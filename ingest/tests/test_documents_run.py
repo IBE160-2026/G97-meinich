@@ -25,8 +25,8 @@ import psycopg
 import pytest
 
 from conftest import BASE_URL, BOUND_KR, OLDER_READER_COMMIT, READER_COMMIT, RULES, FixtureTransport, aar_url, enhet_url, ingest_database_url, kopi_url, recorded, regnskap_url
-from document_fakes import DOCUMENTS, FakeRecognise, Recognised, generated, paper_top, pdf, recorded_979607008_2025
-from peerless_ingest import documents, ocr, parse, run, write
+from document_fakes import DOCUMENTS, TEST_SETTINGS, FakeRecognise, Recognised, cache_in, generated, paper_top, pdf, recorded_979607008_2025
+from peerless_ingest import documents, ocr, ocr_cache, parse, run, write
 from peerless_ingest.config import Config
 from peerless_ingest.reconcile import SHARED_FIELDS
 from tsv_builder import BASE_ROWS, document, replace_row
@@ -787,6 +787,57 @@ def test_reread_lost_figure_replaced_and_listed(
     assert f"  figure lost, now NULL: {ORGNR} document 2025: current: varekostnad; prior: varekostnad" in text
     # A replaced document with no figure lost is not listed.
     assert not summary.needs_operator()
+
+
+# --- The OCR word cache on a re-read (Story 2.5d) ----------------------------------
+
+
+def test_reread_hit_sets_reader_commit(
+    stored: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The stored document's PDF has its words cached under the run's key:
+    # the re-read still fetches it, reads the stored words with no OCR,
+    # and the replaced row carries the current reader version.
+    store_older(stored, 2025)
+    cache = cache_in(tmp_path)
+    ocr_cache.store(tmp_path, ocr_cache.Key.of(pdf("2025"), TEST_SETTINGS), *document(BOLD_ROWS))
+    reader = FakeRecognise(monkeypatch, {})
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+
+    summary = run.run_reread(
+        stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT, cache=cache
+    )
+
+    assert transport.requested == [kopi_url(ORGNR, 2025)]
+    assert reader.calls == []
+    assert cache.counts.hit == 1
+    assert summary.replaced == {(2025, "reconciled"): 1}
+    assert [row[3:5] for row in stored_rows(stored, ORGNR)] == [(READER_COMMIT, REREAD_AT)] * 2
+    assert summary.record_counts()["ocr_cache_hit"] == 1
+
+
+def test_reread_fetches_and_misses_a_refiled_pdf(
+    stored: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2025 was read and cached from one PDF; the register now serves another
+    # (refiled). The re-read fetches it, its sha256 has no entry: a miss,
+    # read by OCR, and both entries are kept.
+    cache = cache_in(tmp_path)
+    reader = FakeRecognise(monkeypatch, {pdf("2025"): generated(2025), pdf("2025 refiled"): document(BOLD_ROWS)})
+    first = FixtureTransport({aar_url(ORGNR): b'["2025"]', kopi_url(ORGNR, 2025): pdf("2025")})
+    run.run_documents(stored, first, cfg, CODES, [ORGNR], reader_commit=OLDER_READER_COMMIT, now=lambda: READ_AT, cache=cache)
+    assert (cache.counts.miss_absent, cache.counts.hit) == (1, 0)
+
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025 refiled")})
+    summary = run.run_reread(
+        stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT, cache=cache
+    )
+
+    assert transport.requested == [kopi_url(ORGNR, 2025)]
+    assert reader.calls == [pdf("2025"), pdf("2025 refiled")]
+    assert (cache.counts.miss_absent, cache.counts.hit) == (2, 0)
+    assert summary.replaced == {(2025, "reconciled"): 1}
+    assert len(list(tmp_path.glob("*.json.gz"))) == 2
 
 
 class RaisingTransport(FixtureTransport):

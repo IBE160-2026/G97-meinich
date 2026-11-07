@@ -1602,7 +1602,7 @@ Decided (Meinich, 2026-11-07, spec `spec-2-5d-labelled-set-document-run-and-ocr-
 
 **Given** a document whose OCR words are in the cache
 **When** step 1 reads it
-**Then** the cache key is the PDF's sha256, the Tesseract version, the sha256 of `nor.traineddata` and the render settings (and the options of both passes), and only an exact match uses the cached words
+**Then** the cache key is the PDF's sha256, the Tesseract version, the sha256 of `nor.traineddata` and the render settings (and the options of both passes, and the sha256 of `ocr.py`, which turns page images into words; added in review, decided by Meinich 2026-11-07), and only an exact match uses the cached words
 **And** a key that differs runs the full OCR and is reported (in `run.step1` and the run's counts), never silently
 **And** a read from cached words gives the same figures, status and checks as a read through Tesseract (a test over recorded words)
 

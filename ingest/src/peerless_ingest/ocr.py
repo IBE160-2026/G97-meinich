@@ -61,11 +61,14 @@ def tesseract_version_report() -> str:
     stripped: Tesseract's version, leptonica and the image libraries that
     read the page images, and the CPU features Tesseract found (its SIMD
     path does the network's arithmetic), without UNUSED_LIBRARY_LINES. ""
-    when Tesseract cannot be run. The OCR word cache's key holds it (Story
+    when Tesseract cannot be run or exits non-zero. The OCR word cache's key holds it (Story
     2.5d)."""
     try:
         result = subprocess.run(["tesseract", "--version"], capture_output=True, text=True, check=False)
     except OSError:
+        return ""
+    # A failed call's message is no version: never a part of the key.
+    if result.returncode != 0:
         return ""
     lines = [line.strip() for line in (result.stdout or result.stderr).splitlines()]
     return "\n".join(line for line in lines if line and not line.startswith(UNUSED_LIBRARY_LINES))

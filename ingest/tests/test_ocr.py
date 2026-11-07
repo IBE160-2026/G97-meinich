@@ -133,3 +133,13 @@ def test_version_report_keeps_what_reads_and_drops_what_does_not(monkeypatch: py
 
     monkeypatch.setattr(ocr.subprocess, "run", missing)
     assert (ocr.tesseract_version_report(), ocr.tesseract_version()) == ("", "")
+
+
+def test_version_report_of_a_failed_call_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A non-zero exit's message on stderr never becomes the key's Tesseract part.
+    monkeypatch.setattr(
+        ocr.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 1, stdout="", stderr="tesseract: error while loading libtesseract"),
+    )
+    assert (ocr.tesseract_version_report(), ocr.tesseract_version()) == ("", "")

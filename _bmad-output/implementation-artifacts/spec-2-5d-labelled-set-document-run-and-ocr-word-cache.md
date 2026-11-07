@@ -2,7 +2,7 @@
 title: "Story 2.5d: The labelled set's document run, with a local OCR word cache"
 type: 'feature'
 created: '2026-11-07'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_commit: 'dc4f737'
 route: 'dispatch'
 review_loop_iteration: 0

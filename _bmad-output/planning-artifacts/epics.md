@@ -1589,6 +1589,7 @@ Proposed by the review session (Meinich's separate review session, 2026-11-07), 
 Scope (Meinich, 2026-11-07):
 1. Step 1 keeps the OCR words of every document it reads in a local cache, and a read or re-read whose key matches uses the cached words instead of running Tesseract.
 2. The document run for the labelled set, after Story 2.5c is merged, with the before and after counts.
+3. Before the labelled set is read, check whether `layout.page_kind` explains R4's known gap (review session, PR #48, 2026-11-07; not verified). `page_kind` calls a page an income-statement page if "resultatregnskap" appears anywhere in its labels, before "balanse" is checked, so a page holding both statements, or a balance page whose heading is misread, gives no `varer`. One company-year's stock is empty this way while the next year's document prints it as its prior-year figure (`emptied_current_held_by_next_prior` = 1 after Story 2.5c's re-read). The same check covers that a company with an empty `varer` now gets an unknown inventory signal, not "yes".
 
 **Implements:** FR-28 (batch part), FR-70 (the labelled set's documents), NFR25 (SM-2) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5d-<slug>`, one PR (AGENTS.md Git workflow)
 

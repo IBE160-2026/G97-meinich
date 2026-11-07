@@ -57,7 +57,8 @@ Implement `_bmad-output/implementation-artifacts/spec-2-5c-refuse-a-digit-read-a
   - the restore;
   - derive.
 
-  The counts are in the spec's implementation notes. README "Seed" now names `.local/document-run-2.5c/` (`46ae913`). No dump was deleted.
+  The counts are in the spec's implementation notes.
+- **Corrected after the review session's check of steps 3–9** (the finding is the review session's): `29bf5fc`'s message says the seed lost three figures in the reference set's prior columns (`salgsinntekt`, `varekostnad`, `sum_kortsiktig_gjeld`) and no current column changed. The diff shows `salgsinntekt` in a reconciled prior column, `varekostnad` in a prior column that does not reconcile, and `leverandorgjeld` in a reconciled current column, all three above their own total; `leverandorgjeld` is not a fingerprint input. The BMAD session had split the CSV lines on commas, which shifts every field after a quoted `digits_pass_fields` value; a `csv` parse gives the review session's result. The spec's step 6 is corrected; the commit message is wrong on this point and is not rewritten. README "Seed" now names `.local/document-run-2.5c/` (`46ae913`). No dump was deleted.
 - **Story 2.5d added to `epics.md`** (Meinich, proposed by the review session; `6ee327b`): the labelled set's document run, with a local OCR word cache keyed on the PDF's sha256, the Tesseract version, the traineddata sha256 and the render settings. A miss is reported, the PDF is still fetched on a re-read, and the cache stays local until Story 5.4. Three re-reads have cost about 12 hours each, every fix was after OCR, and after the labelled set a re-read would take more than 35 hours. The BMAD session added the options of both Tesseract passes to the key, because they change the words too.
 - **Verification after step 9:**
   - pins, env, typecheck, `pnpm test` (982), `pnpm test:db` (167, the derive test included), `pnpm test:ingest` (304), build and `check:routes` all pass.

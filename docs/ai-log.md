@@ -17,8 +17,8 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 29 |
-| money | 22 |
-| parsing | 17 |
+| money | 23 |
+| parsing | 19 |
 | llm-boundary | 5 |
 | scope | 18 |
 | docs | 22 |
@@ -795,3 +795,19 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 7. **A fingerprint result tied to an orgnr of the labelled set.** The labelled list holds orgnrs and years only; the comparison script prints totals only.
 **Caught by:** The tests above, written to fail with their guard removed; the image check run locally in the built image. The first key held only the first line of `tesseract --version`; the implementation subagent widened it after printing the image's report, before commit `25917d3`.
 **Outcome:** Commits `93cc97b`, `3338427`, `c460e70`, `f174c5d`, `60f1918`, `549d631`, `863c59d`, `61e932e`, `1b7f3c6`, `25917d3`, and the docs. The runs wait for Meinich's yes.
+
+### 2026-11-07 — Story 2.5d: the cache key never matched a real fetch
+**Tags:** parsing
+**Tool:** Claude Code (BMAD session, Opus 5.5); the defect found by the review session
+**Asked:** Prove the OCR word cache on real data: re-read the OCR reference set twice, by OCR and then from the cache, both equal to the seed, the second all hits.
+**Got:** Runs 1242 (`--reread`) and 1243 (`--reread-all`) each read 97 of 97, with 0 failed, 0 not replaced, 87 reconciled and 10 not, and each had 0 hits and 97 absent misses. `pnpm analysis:seed-documents` gave exit 0 after both: 97 documents and 194 columns equal to the seed, all read by `ac61135`. `--cache-proof` gave exit 1 ("0 hits of 97 read", "97 absent, must be 0"). OCR gave the same figures three times, but the cache never hit, and `.local/ocr-cache/` held 194 entries for 97 documents.
+**Problem:** The key's `pdf_sha256` was the sha256 of the raw bytes, and data.brreg.no writes a new random `/ID [<…> <…>]` into the trailer on every fetch, leaving every other byte the same. Every test read the same bytes twice (the fixture PDF, or `pdf(tag)`), so none could see it, and the image check's cached pass reads one PDF object twice, not two fetches. The proof did what it was for: it stopped the story before the labelled set.
+**Caught by:** The review session, from the real runs' counts. It fetched three reference documents twice each and compared the bytes: they differ only in the `/ID` array, and each PDF has exactly one.
+**Outcome:** Decided by Meinich. `ocr_cache.pdf_key_sha256` hashes the PDF with its one `/ID` array replaced by a fixed value; a PDF without exactly one `/ID` array of two hex strings is read by OCR, not stored, and counted as `ocr_cache_miss_pdf_id` with its reason (`df34a2d`). The tests now fetch with another `/ID`:
+- `ingest/tests/test_ocr_cache.py::test_refetched_pdf_with_another_id_is_a_hit` (a hit, the same read);
+- `::test_one_byte_changed_outside_the_id_misses`;
+- `::test_pdf_without_one_id_misses_with_its_reason` (zero, two, or not two hex strings);
+- `::test_entry_under_the_raw_sha256_is_never_read` (the 194 old entries stay, unread);
+- `ingest/tests/test_documents_run.py::test_reread_hit_sets_reader_commit`, where the re-read fetches another `/ID` than the cached one.
+
+Mutation check: hashing the raw bytes again fails 19 tests, among them the first. A trap in AGENTS.md and `docs/data-sources-brreg.md`. **Lesson:** a cache keyed on fetched bytes needs a test that fetches twice, or a check that two real fetches are byte-equal, before the key is trusted.

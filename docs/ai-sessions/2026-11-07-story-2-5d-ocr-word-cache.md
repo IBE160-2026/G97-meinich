@@ -70,6 +70,8 @@ Pass 1 (BMAD session, 2026-11-07): three reviewer subagents read the diff `dc4f7
   - The BMAD session built it with tests that fetch with another `/ID`, and mutation-checked it (`df34a2d`, `f8e0d1e`).
   - It is recorded in the spec's Spec Change Log (`2f4e3f5`), as a trap in AGENTS.md and `docs/data-sources-brreg.md`, and in the AI log (`951c24b`).
   - The 194 old cache entries stay, never read.
+- **The second cache proof passed** (Meinich's runs 1410 `--reread` and 1411 `--reread-all`; the review session checked the counts against `run.step1`): 97 of 97 read each time, 0 failed, 0 not replaced, 0 figures lost; 1410 had 0 hits in 38 min, 1411 had 97 hits and no miss in 2 min 30 s, and both checks gave exit 0.
+- **Before the labelled set** (BMAD session, after Meinich's yes): a new dump and backup, `document-tables-before-2.5d-labelled-set`, with equal sha256, and `analysis/output/document-run-counts-before-2.5d.json` (the spec's Implementation Notes).
 
 ## Links
 

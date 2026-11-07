@@ -147,6 +147,12 @@ context:
   - `pnpm analysis:seed-documents` gave exit 0 after both: 97 documents and 194 columns equal to the seed, all read by `ac61135`.
   - `--cache-proof` gave exit 1: "0 hits of 97 read" and "97 absent, must be 0". OCR gave the same figures three times, but the cache never hit, and `.local/ocr-cache/` held 194 entries for 97 documents.
   - The cause, found by the review session, is the `/ID` array (Spec Change Log). The story stopped before the labelled set, as the plan said.
+- **The cache proof, second attempt (2026-11-07, passed; Meinich's runs, totals only; the review session checked the counts against `run.step1`).**
+  - The same dump stood as the restore point; the reader commit was `df34a2d`.
+  - Run 1410 (`--reread`, through OCR, 38 min): 97 of 97 read, 0 failed, 0 not replaced, 0 figures lost, 87 reconciled and 10 not reconciled; 0 hits and 97 absent misses. `pnpm analysis:seed-documents` gave exit 0.
+  - Run 1411 (`--reread-all`, from the cache, 2 min 30 s): 97 of 97 read, 0 failed, 0 not replaced, 0 figures lost, 87 reconciled and 10 not reconciled; 97 hits, 0 misses, 0 with no usable `/ID` and 0 failed writes. `pnpm analysis:seed-documents --cache-proof` gave exit 0.
+  - All 97 documents are read by `df34a2d` and equal the seed in every compared column.
+- **Before the labelled set** (2026-11-07, after Meinich's yes): the three tables dumped in full to `.local/document-tables-before-2.5d-labelled-set/` (2 044 documents, 1 947 read by `b57aaba` and 97 by `df34a2d`; 4 086 columns; 1 856 fingerprints) and copied to `C:\Users\cmein\peerless-backups\document-tables-before-2.5d-labelled-set\`, with equal sha256 on both sides: `document.csv` `438d7072…6b878d`, `document_column.csv` `f97caefe…4e4079`, `fingerprint.csv` `c42f416e…c5c42` (the same fingerprints as before the proof). `pnpm analysis:document-run before-2.5d` wrote `analysis/output/document-run-counts-before-2.5d.json`, equal to `after-2.5c` but for its label.
 - **Verification** (2026-11-07):
   - all green: `pnpm typecheck`, `pnpm test` (1013), `pnpm test:db` (167), `pnpm test:ingest` (359).
   - `pnpm lint` fails locally only on files in `.local/wt-5.1/`, a local git worktree of `story/5.1-labelled-set` that ESLint's `.` includes. It is outside the repository's tree, and CI does not see it. `eslint . --ignore-pattern ".local/**"` is clean.

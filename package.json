@@ -30,6 +30,7 @@
     "ingest:document-set": "node scripts/document-set.ts",
     "analysis:sm2": "node scripts/ocr-sm2.ts",
     "analysis:document-run": "node scripts/document-run-counts.ts",
+    "analysis:seed-documents": "node scripts/compare-seed-documents.ts",
     "derive": "node scripts/derive.ts",
     "analysis:spread": "node scripts/fingerprint-spread.ts"
   },

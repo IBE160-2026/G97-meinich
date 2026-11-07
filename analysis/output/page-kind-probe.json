@@ -1,0 +1,34 @@
+{
+  "documents_cached": 363,
+  "documents_read": 363,
+  "documents_skipped_no_columns": 0,
+  "pages": {
+    "balance heading only; kind balanse": 444,
+    "balance heading only; kind other": 101,
+    "both headings, kind resultat: \"balanse\" only in \"balanseført\"": 4,
+    "both headings; kind other": 66,
+    "both headings; kind resultat": 4,
+    "income-statement heading only; kind other": 4,
+    "income-statement heading only; kind resultat": 363,
+    "neither heading; kind balanse": 278,
+    "neither heading; kind other": 69,
+    "neither heading; kind resultat": 123
+  },
+  "varer_rows_by_page_kind": {
+    "kind balanse": 78,
+    "kind resultat": 14
+  },
+  "varer_differences_against_r4": {
+    "any: changed, from the income statement's row, differs from the neighbour": 3,
+    "any: changed, from the income statement's row, no neighbour cached": 6,
+    "any: lost, from none, differs from the neighbour": 1,
+    "any: lost, from none, no neighbour cached": 1,
+    "any: new, from the income statement's row, differs from the neighbour": 1,
+    "any: new, from the income statement's row, no neighbour cached": 9,
+    "split: no column differs": 0
+  },
+  "gap_in_cache": {
+    "current: empty, the neighbouring year holds it; a balance `varer` row, plain figure refused or missing, digits pass differs from the neighbour": 1,
+    "prior: empty, the neighbouring year holds it; a balance `varer` row, plain figure refused or missing, digits pass differs from the neighbour": 1
+  }
+}

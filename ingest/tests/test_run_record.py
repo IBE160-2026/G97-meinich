@@ -34,14 +34,15 @@ from conftest import (
     RULES,
     Answer,
     FixtureTransport,
+    aar_url,
     as_owner,
     enhet_url,
     kopi_url,
     recorded,
     regnskap_url,
 )
-from document_fakes import recorded_979607008_2025
-from peerless_ingest import documents, run, write
+from document_fakes import TEST_SETTINGS, FakeRecognise, generated, pdf, recorded_979607008_2025
+from peerless_ingest import documents, ocr_cache, run, write
 from peerless_ingest.config import Config
 from test_write import company, filings_of
 
@@ -530,7 +531,7 @@ def test_plain_record_names_load_demo_and_withdrawal(
     assert sorted(stages_of(db)) == ["demo_company_c", "load", "withdrawal"]
 
 
-@pytest.mark.parametrize("mode", ["--documents", "--reread"])
+@pytest.mark.parametrize("mode", ["--documents", "--reread", "--reread-all"])
 def test_document_modes_record_refused(
     db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str
 ) -> None:
@@ -644,3 +645,80 @@ def test_delete_without_its_record_is_rolled_back(db: psycopg.Connection) -> Non
     with pytest.raises(ValueError, match="no row to record"):
         write.delete_company(db, "000000001", missing_run)
     assert count(db, "select count(*) from register.company where orgnr = '000000001'") == 1
+
+
+# --- The OCR word cache's counts (Story 2.5d) --------------------------------------
+
+
+def cache_run(db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """979607008 stored with 2023-2025 listed; patches main. Returns the list."""
+    orgnr = "979607008"
+    write.write_company(db, company(orgnr, "STATEMENT AS"))
+    responses: dict[str, Answer] = {aar_url(orgnr): b'["2023", "2024", "2025"]'}
+    responses |= {kopi_url(orgnr, y): pdf(str(y)) for y in (2023, 2024, 2025)}
+    patch_main(monkeypatch, db, cfg, FixtureTransport(responses))
+    monkeypatch.setattr(run.config_module, "load_coverage", lambda path: ["69.202"])
+    listed = tmp_path / "list.json"
+    listed.write_text(f'["{orgnr}"]', encoding="utf-8")
+    return listed
+
+
+def test_ocr_cache_counts_recorded(
+    db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 2025's words are cached under the run's key (a hit), 2023's under
+    # another Tesseract (a key miss), 2024's not at all (absent).
+    listed = cache_run(db, cfg, tmp_path, monkeypatch)
+    cache_dir = tmp_path / "ocr-cache"
+    ocr_cache.store(cache_dir, ocr_cache.Key.of(pdf("2025"), TEST_SETTINGS), *generated(2025))
+    older = dataclasses.replace(TEST_SETTINGS, tesseract="tesseract 5.4.1")
+    ocr_cache.store(cache_dir, ocr_cache.Key.of(pdf("2023"), older), *generated(2023))
+    reader = FakeRecognise(monkeypatch, {pdf("2023"): generated(2023), pdf("2024"): generated(2024)})
+    monkeypatch.setattr(run.ocr_cache, "current_settings", lambda: TEST_SETTINGS)
+    monkeypatch.setenv(ocr_cache.CACHE_ENV, str(cache_dir))
+
+    assert run.main(["--documents", str(listed)]) == 0
+
+    assert reader.calls == [pdf("2023"), pdf("2024")]
+    _, ended, counts, failures, _, _ = record(db, last_run_id(db))
+    assert ended and failures == []
+    assert {k: v for k, v in counts.items() if k.startswith("ocr_cache")} == {
+        "ocr_cache": "on",
+        "ocr_cache_hit": 1,
+        "ocr_cache_miss_absent": 1,
+        "ocr_cache_miss_key": 1,
+        "ocr_cache_miss_key_parts": {"tesseract": 1},
+        "ocr_cache_miss_unreadable": 0,
+        "ocr_cache_miss_pages": 0,
+        "ocr_cache_write_failed": 0,
+    }
+    assert counts["written"]["reconciled"] == 3
+
+
+def test_ocr_cache_off_recorded(
+    db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    listed = cache_run(db, cfg, tmp_path, monkeypatch)
+    reader = FakeRecognise(monkeypatch, {pdf(str(y)): generated(y) for y in (2023, 2024, 2025)})
+    monkeypatch.delenv(ocr_cache.CACHE_ENV, raising=False)
+
+    assert run.main(["--documents", str(listed)]) == 0
+
+    assert len(reader.calls) == 3
+    _, _, counts, _, _, _ = record(db, last_run_id(db))
+    assert counts["ocr_cache"] == "off"
+    assert not any(k.startswith("ocr_cache_") for k in counts)
+    assert "  OCR word cache: off (PEERLESS_OCR_CACHE unset); every document read by OCR" in capsys.readouterr().out
+
+
+def test_ocr_cache_with_no_key_is_refused(
+    db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # PEERLESS_OCR_CACHE set, but no Tesseract to read the key from: refused
+    # before any connection, never run with a partial key.
+    listed = cache_run(db, cfg, tmp_path, monkeypatch)
+    monkeypatch.setattr(run.ocr, "tesseract_version_report", lambda: "")
+    monkeypatch.setenv(ocr_cache.CACHE_ENV, str(tmp_path / "ocr-cache"))
+    before = last_run_id(db)
+    assert run.main(["--documents", str(listed)]) == 2
+    assert last_run_id(db) == before

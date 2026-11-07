@@ -8,9 +8,13 @@ import { describe, expect, it } from 'vitest';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 import {
   DOCUMENT_RUN_FILE,
+  LABELLED_DRAW_FILE,
+  LABELLED_RUN_FILE,
   REFERENCE_RUN_FILE,
   documentRunJson,
   documentRunSet,
+  labelledRunJson,
+  labelledRunSet,
   main,
   referenceRunSet,
 } from '../scripts/document-set.ts';
@@ -83,6 +87,48 @@ describe('the OCR reference run (--reference, Story 2.3)', () => {
   });
 });
 
+// Story 2.5d: the labelled set's document run, from Story 5.1's draw. The
+// list ties no fingerprint result to an orgnr: it holds the orgnrs only.
+describe('the labelled run (--labelled, Story 2.5d)', () => {
+  const draw = (subjects: unknown[]): unknown => ({ seed: 1, subjects });
+
+  it('lists every subject and candidate once, in byte order', () => {
+    expect(
+      labelledRunSet(
+        draw([
+          { orgnr: '925152153', filingYear: 2025, candidates: ['933233650', '826160632'] },
+          { orgnr: '826160632', filingYear: 2025, candidates: ['925152153', '911967294'] },
+        ]),
+      ),
+    ).toEqual(['826160632', '911967294', '925152153', '933233650']);
+  });
+
+  it('refuses a subject of another year, a malformed orgnr or no subjects', () => {
+    expect(() => labelledRunSet(draw([{ orgnr: '925152153', filingYear: 2024, candidates: [] }]))).toThrow(/filingYear 2024/);
+    expect(() => labelledRunSet(draw([{ orgnr: '92515215', filingYear: 2025, candidates: [] }]))).toThrow(/nine digits/);
+    expect(() => labelledRunSet(draw([{ orgnr: '925152153', filingYear: 2025, candidates: [925152153] }]))).toThrow(/candidates/);
+    expect(() => labelledRunSet({ seed: 1 })).toThrow(/no subjects/);
+  });
+
+  it('writes each entry as {"orgnr", "years": [2025]}, one per line, LF', () => {
+    const text = labelledRunJson(['826160632', '911967294']);
+    expect(text).toBe('[\n  {"orgnr": "826160632", "years": [2025]},\n  {"orgnr": "911967294", "years": [2025]}\n]\n');
+    expect(JSON.parse(text)).toEqual([
+      { orgnr: '826160632', years: [2025] },
+      { orgnr: '911967294', years: [2025] },
+    ]);
+  });
+
+  it(`commits ${LABELLED_RUN_FILE} as the script writes it from the committed draw`, () => {
+    const committed = readFileSync(path.join(root, LABELLED_RUN_FILE), 'utf8');
+    const orgnrs = labelledRunSet(JSON.parse(readFileSync(path.join(root, LABELLED_DRAW_FILE), 'utf8')));
+    expect(committed).toBe(labelledRunJson(orgnrs));
+    // 30 subjects and their 30 candidates each, overlapping (Story 5.1).
+    expect(orgnrs).toHaveLength(845);
+    expect([...orgnrs].sort(compareBytes)).toEqual(orgnrs);
+  });
+});
+
 describe('main: the argument routing', () => {
   // A scratch root holding only a copy of the committed draw: --reference
   // must not need the database or anything else.
@@ -101,6 +147,20 @@ describe('main: the argument routing', () => {
       const drawn = parseDrawn(JSON.parse(readFileSync(path.join(dir, REFERENCE_DRAW_FILE), 'utf8')));
       expect(readFileSync(path.join(dir, REFERENCE_RUN_FILE), 'utf8')).toBe(documentRunJson(referenceRunSet(drawn)));
       expect(existsSync(path.join(dir, DOCUMENT_RUN_FILE))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('writes the labelled run from the draw with --labelled, and nothing else', async () => {
+    const dir = scratchRoot();
+    try {
+      mkdirSync(path.join(dir, 'analysis/labelled-set'), { recursive: true });
+      cpSync(path.join(root, LABELLED_DRAW_FILE), path.join(dir, LABELLED_DRAW_FILE));
+      expect(await main(dir, ['--labelled'])).toBe(0);
+      expect(readFileSync(path.join(dir, LABELLED_RUN_FILE), 'utf8')).toBe(readFileSync(path.join(root, LABELLED_RUN_FILE), 'utf8'));
+      expect(existsSync(path.join(dir, DOCUMENT_RUN_FILE))).toBe(false);
+      expect(existsSync(path.join(dir, REFERENCE_RUN_FILE))).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

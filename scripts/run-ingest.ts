@@ -24,7 +24,17 @@
 // - `--reread <file>` (Story 2.3b): the same list, mounted the same way;
 //   step 1 re-reads every stored document of those orgnrs that another
 //   reader version read.
-// - Both pass the reader version, the full commit of the last change to
+// - `--reread-all <file>` (Story 2.5d): the same list, mounted the same way;
+//   step 1 re-reads every stored document of those orgnrs, whatever reader
+//   version read it, under `--reread`'s rules.
+// - The OCR word cache (Story 2.5d): for the three list modes the runner
+//   creates `.local/ocr-cache/` (gitignored) and bind-mounts it read-write
+//   at /var/cache/peerless-ocr, named to step 1 in PEERLESS_OCR_CACHE (by
+//   name, its value in the child's environment, like the others). The
+//   image's build context is ingest/, so the cache never enters the image.
+//   A plain or `--companies-only` run gets neither the mount nor the
+//   variable.
+// - All three pass the reader version, the full commit of the last change to
 //   ingest/ (`git log -1 --format=%H -- ingest/`), as PEERLESS_READER_COMMIT
 //   (by name, like the database URL), and are refused before the image is
 //   built when ingest/ has uncommitted changes: the version must name the
@@ -34,14 +44,14 @@
 //   the runner runs `pnpm derive` (scripts/derive.ts, batch step 2, never
 //   from Python) to rebuild every fingerprint from the stored figures it may
 //   just have changed: after a plain run (which refreshes the API subtotals
-//   derive reads), `--documents` and `--reread`, never after
+//   derive reads), `--documents`, `--reread` and `--reread-all`, never after
 //   `--companies-only`. It runs also when step 1 exits non-zero, and step
 //   1's exit code is kept. A failing derive is named on stderr and makes the
 //   runner exit non-zero; its one transaction leaves the old rows standing.
 //
-// Run: node scripts/run-ingest.ts [--companies-only | --documents <file> | --reread <file>]   (from the repository root)
+// Run: node scripts/run-ingest.ts [--companies-only | --documents <file> | --reread <file> | --reread-all <file>]   (from the repository root)
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
@@ -52,23 +62,29 @@ const CONTAINER_HOST = 'host.docker.internal';
 const COMPANIES_ONLY = '--companies-only';
 const DOCUMENTS = '--documents';
 const REREAD = '--reread';
-const LIST_MODES: readonly string[] = [DOCUMENTS, REREAD];
-// Where the `--documents` or `--reread` file is mounted inside the container.
+const REREAD_ALL = '--reread-all';
+const LIST_MODES: readonly string[] = [DOCUMENTS, REREAD, REREAD_ALL];
+// Where the list file is mounted inside the container.
 export const CONTAINER_DOCUMENTS_FILE = '/run/peerless/documents.json';
 export const READER_COMMIT_ENV = 'PEERLESS_READER_COMMIT';
+// The OCR word cache (Story 2.5d): on the host, relative to the repository
+// root, and inside the container.
+export const OCR_CACHE_DIR = path.join('.local', 'ocr-cache');
+export const CONTAINER_OCR_CACHE = '/var/cache/peerless-ocr';
+export const OCR_CACHE_ENV = 'PEERLESS_OCR_CACHE';
 const READER_COMMIT = /^[0-9a-f]{40}$/;
-const USAGE = `allowed: nothing, ${COMPANIES_ONLY}, ${DOCUMENTS} <file>, or ${REREAD} <file>`;
+const USAGE = `allowed: nothing, ${COMPANIES_ONLY}, ${DOCUMENTS} <file>, ${REREAD} <file>, or ${REREAD_ALL} <file>`;
 
 export type StepArgs = {
   // What the container is given, after the image.
   args: string[];
-  // The host file for `--documents` or `--reread`, as given.
+  // The host file for `--documents`, `--reread` or `--reread-all`, as given.
   documentsFile?: string;
 };
 
 // The step-1 arguments, or an error naming what is not allowed: nothing,
-// exactly `--companies-only`, or exactly `--documents <file>` or
-// `--reread <file>`.
+// exactly `--companies-only`, or exactly `--documents <file>`,
+// `--reread <file>` or `--reread-all <file>`.
 export function stepArgs(argv: readonly string[]): StepArgs | { error: string } {
   if (argv.length === 0) return { args: [] };
   if (argv.length === 1 && argv[0] === COMPANIES_ONLY) return { args: [COMPANIES_ONLY] };
@@ -123,6 +139,11 @@ export function dockerRunArgs(root: string, withBaseUrl: boolean, argv: readonly
       `type=bind,source=${path.resolve(root, checked.documentsFile)},target=${CONTAINER_DOCUMENTS_FILE},readonly`,
       '--env',
       READER_COMMIT_ENV,
+      // The OCR word cache, read-write: step 1 stores the words it reads.
+      '--mount',
+      `type=bind,source=${path.join(root, OCR_CACHE_DIR)},target=${CONTAINER_OCR_CACHE}`,
+      '--env',
+      OCR_CACHE_ENV,
     );
   }
   if (withBaseUrl) runArgs.push('--env', 'BRREG_API_BASE_URL');
@@ -206,6 +227,9 @@ export function main(root: string, argv: readonly string[] = []): number {
       return 2;
     }
     commit = version.commit;
+    // A bind mount of a missing directory fails (or Docker creates it as
+    // root); it is made here, gitignored under .local/.
+    mkdirSync(path.join(root, OCR_CACHE_DIR), { recursive: true });
   }
   const url = setting(root, 'INGEST_DATABASE_URL');
   if (url === undefined) {
@@ -223,7 +247,10 @@ export function main(root: string, argv: readonly string[] = []): number {
   const baseUrl = setting(root, 'BRREG_API_BASE_URL');
   const env: NodeJS.ProcessEnv = { ...process.env, INGEST_DATABASE_URL: containerDatabaseUrl(url) };
   if (baseUrl !== undefined) env.BRREG_API_BASE_URL = baseUrl;
-  if (commit !== undefined) env[READER_COMMIT_ENV] = commit;
+  if (commit !== undefined) {
+    env[READER_COMMIT_ENV] = commit;
+    env[OCR_CACHE_ENV] = CONTAINER_OCR_CACHE;
+  }
   const step1 = docker(dockerRunArgs(root, baseUrl !== undefined, argv), env);
   if (checked.args[0] === COMPANIES_ONLY) return step1;
   const derived = derive(root);

@@ -390,7 +390,108 @@ def test_documents_mode_rejects_a_missing_file_and_other_arguments(tmp_path: Pat
 def test_read_document_list_accepts_distinct_orgnrs(tmp_path: Path) -> None:
     file = tmp_path / "documents.json"
     file.write_text('["979607008", "919951834"]', encoding="utf-8")
-    assert run.read_document_list(file) == ["979607008", "919951834"]
+    assert run.read_document_list(file) == run.DocumentList(["979607008", "919951834"], {})
+
+
+# --- Years per list entry (Story 2.5d) --------------------------------------------
+
+
+def test_list_entry_years_limit_the_fetch(
+    db: psycopg.Connection, cfg: Config, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # {"orgnr": X, "years": [2025]} fetches only 2025; a plain orgnr beside
+    # it keeps every year 2021–2025. Through main, from the file.
+    other = "919951834"
+    for orgnr in (ORGNR, other):
+        write.write_company(db, company(orgnr, "STATEMENT AS"))
+    years = range(2021, 2026)
+    FakeRecognise(monkeypatch, {pdf(f"{o} {y}"): generated(y) for o in (ORGNR, other) for y in years})
+    responses: dict[str, bytes | None] = {aar_url(o): json.dumps([str(y) for y in years]).encode() for o in (ORGNR, other)}
+    responses |= {kopi_url(o, y): pdf(f"{o} {y}") for o in (ORGNR, other) for y in years}
+    transport = FixtureTransport(responses)
+    monkeypatch.setattr(run.fetch, "UrllibTransport", lambda *args: transport)
+    monkeypatch.setattr(run.write, "connect", lambda url: contextlib.nullcontext(db))
+    monkeypatch.setattr(run.config_module, "load_config", lambda path: cfg)
+    monkeypatch.setattr(run.config_module, "load_coverage", lambda path: CODES)
+    monkeypatch.setenv("INGEST_DATABASE_URL", "postgresql://unused")
+    monkeypatch.setenv(run.READER_COMMIT_ENV, READER_COMMIT)
+    file = tmp_path / "documents.json"
+    file.write_text(json.dumps([{"orgnr": ORGNR, "years": [2025]}, other]), encoding="utf-8")
+
+    assert run.main(["--documents", str(file)]) == 0
+
+    assert kopi_requests(transport) == [kopi_url(ORGNR, 2025)] + [kopi_url(other, y) for y in years]
+    assert [row[0] for row in documents_of(db, ORGNR)] == [2025]
+    assert [row[0] for row in documents_of(db, other)] == list(years)
+    counts = db.execute("select counts from run.step1 order by id desc limit 1").fetchone()
+    assert counts is not None and counts[0]["not_asked_years"] == 4
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        [{"years": [2025]}],  # no orgnr
+        [{"orgnr": ORGNR}],  # no years
+        [{"orgnr": ORGNR, "years": []}],  # empty years
+        [{"orgnr": ORGNR, "years": [2020]}],  # outside 2021–2025
+        [{"orgnr": ORGNR, "years": [2026]}],
+        [{"orgnr": ORGNR, "years": ["2025"]}],  # a string, not a year
+        [{"orgnr": ORGNR, "years": [True]}],
+        [{"orgnr": ORGNR, "years": [2025, 2025]}],  # a year twice
+        [{"orgnr": ORGNR, "years": [2025]}, ORGNR],  # an orgnr twice
+        [{"orgnr": ORGNR, "years": [2025]}, {"orgnr": ORGNR, "years": [2024]}],
+        [{"orgnr": "97960700", "years": [2025]}],
+        [{"orgnr": ORGNR, "years": [2025], "note": "x"}],  # another key
+        [[ORGNR, 2025]],
+    ],
+)
+def test_bad_list_entry_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, entries: list[object]) -> None:
+    def no_database(*args: object, **kwargs: object) -> None:
+        raise AssertionError("no connection for a bad list")
+
+    monkeypatch.setattr(run.write, "connect", no_database)
+    monkeypatch.setenv(run.READER_COMMIT_ENV, READER_COMMIT)
+    file = tmp_path / "documents.json"
+    file.write_text(json.dumps(entries), encoding="utf-8")
+    with pytest.raises(run.BadDocumentList):
+        run.read_document_list(file)
+    for mode in ("--documents", "--reread", "--reread-all"):
+        assert run.main([mode, str(file)]) == 2
+
+
+def test_more_years_fetch_only_unstored(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    # 2025 stored by a run limited to it; then the plain orgnr: only
+    # 2021–2024 are fetched.
+    years = range(2021, 2026)
+    FakeRecognise(monkeypatch, {pdf(str(y)): generated(y) for y in years})
+    responses: dict[str, bytes | None] = {aar_url(ORGNR): json.dumps([str(y) for y in years]).encode()}
+    responses |= {kopi_url(ORGNR, y): pdf(str(y)) for y in years}
+    first = FixtureTransport(responses)
+    run.run_documents(
+        stored, first, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT, years={ORGNR: frozenset({2025})}
+    )
+    assert kopi_requests(first) == [kopi_url(ORGNR, 2025)]
+
+    later = FixtureTransport(responses)
+    summary = run.run_documents(stored, later, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: READ_AT)
+
+    assert kopi_requests(later) == [kopi_url(ORGNR, y) for y in range(2021, 2025)]
+    assert summary.documents.skipped_stored == 1
+    assert [row[0] for row in documents_of(stored, ORGNR)] == list(years)
+
+
+def test_reread_years_limit_the_reread(stored: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
+    # A re-read of {"orgnr", "years": [2025]} leaves the stored 2024 alone.
+    store_older(stored, 2024)
+    store_older(stored, 2025)
+    FakeRecognise(monkeypatch, {pdf("2025"): document(BOLD_ROWS)})
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+    summary = run.run_reread(
+        stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT,
+        years={ORGNR: frozenset({2025})},
+    )
+    assert transport.requested == [kopi_url(ORGNR, 2025)]
+    assert (summary.not_asked_years, sum(summary.replaced.values())) == (1, 1)
 
 
 def as_extracted(conn: psycopg.Connection, orgnr: str, year: int) -> None:

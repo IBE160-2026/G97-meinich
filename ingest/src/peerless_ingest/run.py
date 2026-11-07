@@ -52,6 +52,13 @@ replaces nothing: the document keeps its old figures and version, is named
 as not replaced, and the run exits 1. A figure that a column still
 reconciled no longer holds is replaced, and listed per document.
 
+A list entry (Story 2.5d) is a plain orgnr, meaning every year 2021–2025,
+or `{"orgnr": …, "years": [2025]}`, meaning only those years: in documents
+mode no other year is fetched, and in the re-read modes no stored document
+of another year is re-read. A later run with more years fetches only the
+documents not stored. A malformed entry (no orgnr, a year outside
+2021–2025, no years, a year or an orgnr twice) refuses the whole list.
+
 `--reread-all` (Story 2.5d) is re-read mode with one difference: the stored
 reader version is not checked, so a document already read by the current
 version is fetched, read and replaced too (the second re-read that proves
@@ -148,6 +155,9 @@ class DocumentSummary:
     skipped_stored: int = 0
     # Years in the register's list outside DOCUMENT_YEARS: never fetched.
     outside_years: int = 0
+    # Years in the register's list that the company's list entry does not
+    # ask for (`{"orgnr", "years"}`, Story 2.5d): not fetched.
+    not_asked_years: int = 0
     # Companies whose /aar list the register answered 404 or 410: no
     # filed document to read.
     no_document_list: list[str] = field(default_factory=list)
@@ -179,7 +189,10 @@ class DocumentSummary:
             f"{status} {sum(n for (_, written), n in self.written.items() if written == status)}" for status in STATUSES
         )
         out.append(f"    written: {totals}")
-        out.append(f"    already stored, skipped: {self.skipped_stored}; listed years outside 2021–2025: {self.outside_years}")
+        out.append(
+            f"    already stored, skipped: {self.skipped_stored}; listed years outside 2021–2025: {self.outside_years};"
+            f" years the list entry does not ask for: {self.not_asked_years}"
+        )
         out.append(f"    companies with no list of filed documents (404 or 410): {len(self.no_document_list)}")
         for orgnr in self.no_document_list:
             out.append(f"    no list of filed documents: {orgnr}")
@@ -393,6 +406,7 @@ class DocumentsOnlySummary:
             },
             "skipped_stored": d.skipped_stored,
             "outside_years": d.outside_years,
+            "not_asked_years": d.not_asked_years,
             "no_document_list": len(d.no_document_list),
             "read": d.read_count,
             "ocr_errors": len(d.ocr_errors),
@@ -444,6 +458,9 @@ class RereadSummary:
     replaced: Counter[tuple[int, str]] = field(default_factory=Counter)
     # Already read by the current version: not fetched (a resumed run).
     current: int = 0
+    # Stored documents of a year the list entry does not ask for (Story
+    # 2.5d): not fetched.
+    not_asked_years: int = 0
     # Not replaced, with the reason: they keep their figures and old version.
     not_replaced: list[Problem] = field(default_factory=list)
     # Replaced, but a column reconciled before and after lost a figure: the
@@ -476,6 +493,7 @@ class RereadSummary:
             "refused": len(self.refused),
             "replaced": {status: sum(n for (_, s), n in self.replaced.items() if s == status) for status in STATUSES},
             "current": self.current,
+            "not_asked_years": self.not_asked_years,
             "not_replaced": len(self.not_replaced),
             "lost_figures": len(self.lost_figures),
             "failed": len(self.failed),
@@ -510,6 +528,7 @@ class RereadSummary:
             f"  replaced {sum(self.replaced.values())}; already current, not fetched {self.current};"
             f" not replaced {len(self.not_replaced)}"
         )
+        out.append(f"  stored documents of years the list entry does not ask for, not fetched: {self.not_asked_years}")
         for problem in self.not_replaced:
             out.append(f"  not replaced, keeps its old figures and version: {problem.orgnr} {problem.what}")
         out.append(f"  replaced with a figure lost from a column still reconciled: {len(self.lost_figures)} documents")
@@ -866,9 +885,11 @@ def _load_documents(
     fetch_deadline_seconds: float,
     streak: DeadlineStreak,
     cache: ocr_cache.Cache | None,
+    wanted: frozenset[int] | None,
 ) -> None:
     """Fetches, reads and stores every filed 2021–2025 document of `orgnr`
-    that has no row yet, each committed on its own with `reader_commit`. A
+    that has no row yet, each committed on its own with `reader_commit`;
+    with `wanted` (the list entry's years, Story 2.5d), only those years. A
     fetch past `fetch_deadline_seconds` is named in `failed` as not fetched,
     and the next year is tried, unless `streak` has stopped the run: then
     nothing more is fetched."""
@@ -886,6 +907,9 @@ def _load_documents(
     for year in years:
         if year not in DOCUMENT_YEARS:
             summary.outside_years += 1
+            continue
+        if wanted is not None and year not in wanted:
+            summary.not_asked_years += 1
             continue
         if year in stored:
             summary.skipped_stored += 1
@@ -963,9 +987,11 @@ def _reread_documents(
     fetch_deadline_seconds: float,
     streak: DeadlineStreak,
     cache: ocr_cache.Cache | None,
+    wanted: frozenset[int] | None,
 ) -> None:
     """Re-reads every stored document of `orgnr` whose reader version is not
-    `reader_commit` (Story 2.3b), through the same fetch, read, reconcile
+    `reader_commit` (Story 2.3b), of the years in `wanted` when the list
+    entry names them (Story 2.5d), through the same fetch, read, reconcile
     and write as a new document, each replaced in its own transaction. A
     document already at `reader_commit` is not fetched, so an interrupted
     re-read resumes where it stopped. A document is not replaced, and keeps
@@ -984,6 +1010,9 @@ def _reread_documents(
         return
     for document in stored:
         year = document.filing_year
+        if wanted is not None and year not in wanted:
+            summary.not_asked_years += 1
+            continue
         if not summary.every_version and document.reader_commit == reader_commit:
             summary.current += 1
             continue
@@ -1299,13 +1328,16 @@ def run_documents(
     clock: Callable[[], float] = time.monotonic,
     on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
     cache: ocr_cache.Cache | None = None,
+    years: Mapping[str, frozenset[int]] | None = None,
 ) -> DocumentsOnlySummary:
     """The document pass for each listed orgnr that is a stored company whose
     primary code is declared in seed/coverage.json (`codes`): first its stored
     documents are reconciled again, then its unstored ones are fetched, read
     and reconciled. Any other listed orgnr is refused and named, and nothing
     is fetched for it. With `cache`, each fetched document's words come from
-    the OCR word cache on an exact key match (Story 2.5d)."""
+    the OCR word cache on an exact key match (Story 2.5d). `years` holds the
+    years of each orgnr whose list entry names them; an orgnr not in it has
+    every year 2021–2025."""
     started = clock()
     rules = rules_of(cfg)
     summary = DocumentsOnlySummary(listed=len(orgnrs), cache=cache)
@@ -1321,7 +1353,7 @@ def run_documents(
         _rereconcile(conn, orgnr, rules, summary.documents, summary.failed)
         _load_documents(
             conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress,
-            cfg.fetch_deadline_seconds, streak, cache,
+            cfg.fetch_deadline_seconds, streak, cache, (years or {}).get(orgnr),
         )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
@@ -1350,6 +1382,7 @@ def run_reread(
     on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
     cache: ocr_cache.Cache | None = None,
     every_version: bool = False,
+    years: Mapping[str, frozenset[int]] | None = None,
 ) -> RereadSummary:
     """Re-read mode (Story 2.3b): for each listed orgnr that is a stored
     company with a covered primary code, every stored document whose
@@ -1372,7 +1405,7 @@ def run_reread(
         summary.companies += 1
         _reread_documents(
             conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress,
-            cfg.fetch_deadline_seconds, streak, cache,
+            cfg.fetch_deadline_seconds, streak, cache, (years or {}).get(orgnr),
         )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
@@ -1480,18 +1513,60 @@ class BadDocumentList(Exception):
     """A bad --documents, --reread or --reread-all argument, or no reader version."""
 
 
-def read_document_list(path: Path) -> list[str]:
-    """The orgnrs of a `--documents` file: a JSON list of distinct
-    nine-digit strings. Anything else raises BadDocumentList."""
+@dataclass(frozen=True)
+class DocumentList:
+    """A `--documents`, `--reread` or `--reread-all` file: the orgnrs in
+    order, and the years of each entry that names them (Story 2.5d)."""
+
+    orgnrs: list[str]
+    years: dict[str, frozenset[int]]
+
+
+def _list_entry(entry: object) -> tuple[str, frozenset[int] | None]:
+    """One entry: a nine-digit orgnr string (every year 2021–2025), or
+    `{"orgnr": …, "years": […]}` with distinct years within 2021–2025.
+    Raises ValueError naming what is wrong."""
+    if isinstance(entry, str):
+        if not ORGNR.fullmatch(entry):
+            raise ValueError(f"{entry!r} is not a nine-digit orgnr string")
+        return entry, None
+    if not isinstance(entry, dict) or set(entry) != {"orgnr", "years"}:
+        raise ValueError(f"{entry!r} is neither an orgnr nor {{\"orgnr\", \"years\"}}")
+    orgnr, years = entry["orgnr"], entry["years"]
+    if not isinstance(orgnr, str) or not ORGNR.fullmatch(orgnr):
+        raise ValueError(f"{entry!r}: orgnr is not a nine-digit string")
+    if not isinstance(years, list) or not years:
+        raise ValueError(f"{entry!r}: years must be a non-empty list")
+    if not all(isinstance(y, int) and not isinstance(y, bool) and y in DOCUMENT_YEARS for y in years):
+        raise ValueError(f"{entry!r}: every year must be an integer within 2021–2025")
+    if len(set(years)) != len(years):
+        raise ValueError(f"{entry!r}: a year is listed twice")
+    return orgnr, frozenset(years)
+
+
+def read_document_list(path: Path) -> DocumentList:
+    """The entries of a document list: a JSON list whose entries are each a
+    nine-digit orgnr string or `{"orgnr": …, "years": [2021–2025, …]}`, every
+    orgnr once. Anything else raises BadDocumentList."""
     try:
-        orgnrs = json.loads(path.read_text(encoding="utf-8"))
+        entries = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         raise BadDocumentList(f"{path}: cannot be read as JSON ({error.__class__.__name__}: {error})") from error
-    if not isinstance(orgnrs, list) or not all(isinstance(o, str) and ORGNR.fullmatch(o) for o in orgnrs):
-        raise BadDocumentList(f"{path}: must be a JSON list of nine-digit orgnr strings")
+    if not isinstance(entries, list):
+        raise BadDocumentList(f"{path}: must be a JSON list of orgnr strings or {{\"orgnr\", \"years\"}} entries")
+    orgnrs: list[str] = []
+    years: dict[str, frozenset[int]] = {}
+    for entry in entries:
+        try:
+            orgnr, wanted = _list_entry(entry)
+        except ValueError as error:
+            raise BadDocumentList(f"{path}: {error}") from error
+        orgnrs.append(orgnr)
+        if wanted is not None:
+            years[orgnr] = wanted
     if len(set(orgnrs)) != len(orgnrs):
         raise BadDocumentList(f"{path}: an orgnr is listed twice")
-    return orgnrs
+    return DocumentList(orgnrs, years)
 
 
 def _end_run_after_error(
@@ -1523,7 +1598,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     last three, a missing or malformed PEERLESS_READER_COMMIT, exits 2
     before any request or connection."""
     args = list(sys.argv[1:] if argv is None else argv)
-    document_list: list[str] | None = None
+    document_list: DocumentList | None = None
     reader_commit = ""
     cache: ocr_cache.Cache | None = None
     if len(args) == 2 and args[0] in LIST_MODES:
@@ -1572,13 +1647,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 summary = run_companies_only(conn, transport, cfg, progress=_progress, on_summary=partial.append)
             elif mode == "reread" and document_list is not None:
                 summary = run_reread(
-                    conn, transport, cfg, codes, document_list,
+                    conn, transport, cfg, codes, document_list.orgnrs, years=document_list.years,
                     reader_commit=reader_commit, progress=_progress, on_summary=partial.append, cache=cache,
                     every_version=args[0] == REREAD_ALL,
                 )
             elif mode == "documents" and document_list is not None:
                 summary = run_documents(
-                    conn, transport, cfg, codes, document_list,
+                    conn, transport, cfg, codes, document_list.orgnrs, years=document_list.years,
                     reader_commit=reader_commit, progress=_progress, on_summary=partial.append, cache=cache,
                 )
             else:

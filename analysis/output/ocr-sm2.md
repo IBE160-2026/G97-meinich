@@ -458,6 +458,8 @@ Reconciled columns with positive sum driftsinntekter whose four main cost lines 
 | Story 2.1b run, local data: `negative_unexplained` | 35 | 26 |
 | Story 2.1b run, local data: fingerprints, of current columns | 1757 of 1946 | 1770 of 1946 |
 
+The fingerprint row's "before" is the old rows computed with this commit's engine, not what the table held. The stored table held 1779 fingerprints of the Story 2.1b rows before this story and 1770 after, so the stored count fell; the row's "before" is lower than what the table held because R2 and R3 already apply to the old rows.
+
 ### Current asset lines above the API subtotal (R3)
 
 Current columns whose `kundefordringer` or `bankinnskudd` is above the API's sum omløpsmidler of the same filing + max(5 kr, 0.001 % of it): the figure is stored, and the engine does not use it. `salgsinntekt` and `leverandorgjeld` get only R1. Totals only.

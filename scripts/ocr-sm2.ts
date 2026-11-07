@@ -855,6 +855,13 @@ export function renderBeforeAfter25c(inputs: ReportInputs): string[] {
     `| Story 2.1b run, local data: fingerprints, of current columns | ${run(b.runBefore, (e) => `${e.fingerprints} of ${e.columns}`)} | ${run(b.runAfter, (e) => `${e.fingerprints} of ${e.columns}`)} |`,
     '',
   );
+  const storedFingerprints = (counts: RunCounts | null): string => (counts?.types == null ? notYet : `${counts.types.fingerprints}`);
+  push(
+    'The fingerprint row\'s "before" is the old rows computed with this commit\'s engine, not what the table held. ' +
+      `The stored table held ${storedFingerprints(b.runBefore)} fingerprints of the Story 2.1b rows before this story and ${storedFingerprints(b.runAfter)} after, ` +
+      'so the stored count fell; the row\'s "before" is lower than what the table held because R2 and R3 already apply to the old rows.',
+    '',
+  );
 
   const emptiedBefore = currentAssetsEmptied(b.stored, b.documents, subtotals);
   const emptiedAfter = currentAssetsEmptied(stored, documents, subtotals);

@@ -783,6 +783,7 @@ describe('before and after Story 2.5c', () => {
     const inputs = readInputs(root);
     const section = renderBeforeAfter25c({ ...inputs, before25c: { ...inputs.before25c, runAfter: null } }).join('\n');
     expect(section).toContain('## Before and after Story 2.5c');
+    expect(section).toContain('The stored table held 1779 fingerprints of the Story 2.1b rows before this story and not yet counted after');
     for (const field of SM2_FIELDS) expect(section).toMatch(new RegExp(`^\\| ${field} \\|`, 'm'));
     expect(section).toMatch(/\| Story 2\.1b run, local data: `cost_lines_short_of_total` \(R2\) \| 27 \| not yet counted \|/);
     expect(section).toMatch(/\| Story 2\.1b run, local data \| kundefordringer \| 8 \| not yet counted \|/);

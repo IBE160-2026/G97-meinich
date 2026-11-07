@@ -11,6 +11,7 @@ import dataclasses
 import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,14 @@ from peerless_ingest import documents, ocr, ocr_cache
 
 STEM = "979607008-2025"
 PDF = (DOCUMENTS / f"{STEM}.pdf").read_bytes()
-PDF_SHA256 = hashlib.sha256(PDF).hexdigest()
+# The fixture's one /ID array, as data.brreg.no wrote it on that fetch.
+[PDF_ID] = re.findall(rb"/ID \[<[0-9A-F]{32}> <[0-9A-F]{32}>\]", PDF)
+# The key's sha256: the PDF with its /ID array replaced by the fixed value,
+# computed here by plain byte replacement, not by the code under test.
+PDF_SHA256 = hashlib.sha256(PDF.replace(PDF_ID, ocr_cache.FIXED_ID)).hexdigest()
+# The same document fetched again: data.brreg.no writes a new random /ID,
+# and every other byte is the same (Story 2.5d, runs 1242 and 1243).
+REFETCHED = PDF.replace(PDF_ID, b"/ID [<0F1E2D3C4B5A69788796A5B4C3D2E1F0> <0F1E2D3C4B5A69788796A5B4C3D2E1F0>]")
 
 
 def expected_json() -> dict[str, object]:
@@ -152,6 +160,91 @@ def test_unreadable_entry_is_a_miss(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     # Replaced by a good entry: the next read is a hit.
     documents.read_document(PDF, BOUND_KR, cache)
     assert cache.counts.hit == 1 and reader.calls == [PDF]
+
+
+def test_refetched_pdf_with_another_id_is_a_hit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Two fetches of one document differ only in the /ID array: the same
+    # key, so the second is a hit with the same read, and no OCR runs.
+    assert REFETCHED != PDF and len(REFETCHED) == len(PDF)
+    assert ocr_cache.pdf_key_sha256(REFETCHED) == ocr_cache.pdf_key_sha256(PDF) == PDF_SHA256
+    reader = FakeRecognise(monkeypatch, {PDF: recorded_979607008_2025(), REFETCHED: recorded_979607008_2025()})
+    cache = cache_in(tmp_path)
+
+    first = documents.read_document(PDF, BOUND_KR, cache)
+    second = documents.read_document(REFETCHED, BOUND_KR, cache)
+
+    assert reader.calls == [PDF]
+    assert (cache.counts.miss_absent, cache.counts.hit) == (1, 1)
+    assert second == first
+    assert [p.name for p in tmp_path.iterdir()] == [f"{PDF_SHA256}.json.gz"]
+
+
+def test_one_byte_changed_outside_the_id_misses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Any other byte changed is another PDF: an absent miss, read by OCR.
+    at = len(PDF) // 2
+    assert not PDF.index(PDF_ID) <= at < PDF.index(PDF_ID) + len(PDF_ID)
+    changed = PDF[:at] + bytes([PDF[at] ^ 0x01]) + PDF[at + 1 :]
+    reader = FakeRecognise(monkeypatch, {PDF: recorded_979607008_2025(), changed: recorded_979607008_2025()})
+    cache = cache_in(tmp_path)
+
+    documents.read_document(PDF, BOUND_KR, cache)
+    documents.read_document(changed, BOUND_KR, cache)
+
+    assert reader.calls == [PDF, changed]
+    assert (cache.counts.miss_absent, cache.counts.hit) == (2, 0)
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ("no /ID", "0 /ID entries"),
+        ("two /ID", "2 /ID entries"),
+        ("not two hex strings", "/ID not an array of two hex strings"),
+    ],
+)
+def test_pdf_without_one_id_misses_with_its_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str, reason: str
+) -> None:
+    # Not exactly one /ID array: no key, so never a hit. Read by OCR every
+    # time, not stored, and counted with the reason named.
+    body = {
+        "no /ID": PDF.replace(PDF_ID, b""),
+        "two /ID": PDF + b"\ntrailer\n<< " + PDF_ID + b" >>\n%%EOF\n",
+        "not two hex strings": PDF.replace(PDF_ID, b"/ID [<5E7C9C707013FC4DB300BFEB537A4866>]"),
+    }[change]
+    reader = FakeRecognise(monkeypatch, {body: recorded_979607008_2025()})
+    heard: list[str] = []
+    cache = dataclasses.replace(cache_in(tmp_path / "cache"), notify=heard.append)
+
+    first = documents.read_document(body, BOUND_KR, cache)
+    second = documents.read_document(body, BOUND_KR, cache)
+
+    assert reader.calls == [body, body]
+    assert first == second and first.layout == "generated"
+    assert (cache.counts.hit, cache.counts.miss_absent, cache.counts.miss_pdf_id) == (0, 0, 2)
+    assert cache.counts.record()["ocr_cache_miss_pdf_id_reasons"] == {reason: 2}
+    assert not (tmp_path / "cache").exists()
+    assert len(heard) == 2 and heard[0].endswith(f": {reason}")
+
+
+def test_entry_under_the_raw_sha256_is_never_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # An entry written before the /ID fix, named by the raw bytes' sha256,
+    # is never looked up: the read is an absent miss, and the old entry is
+    # left as it was (nothing is deleted).
+    raw = hashlib.sha256(PDF).hexdigest()
+    assert raw != PDF_SHA256
+    old = ocr_cache.entry_path(tmp_path, raw)
+    old.write_bytes(gzip.compress(json.dumps({"key": {"pdf_sha256": raw}, "top": [], "pages": []}).encode("utf-8")))
+    before = old.read_bytes()
+    reader = FakeRecognise(monkeypatch, {PDF: recorded_979607008_2025()})
+    cache = cache_in(tmp_path)
+
+    documents.read_document(PDF, BOUND_KR, cache)
+
+    assert reader.calls == [PDF]
+    assert (cache.counts.miss_absent, cache.counts.hit, cache.counts.miss_unreadable) == (1, 0, 0)
+    assert old.read_bytes() == before
+    assert sorted(p.name for p in tmp_path.iterdir()) == sorted([f"{raw}.json.gz", f"{PDF_SHA256}.json.gz"])
 
 
 def test_paper_filing_cached(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -616,7 +616,8 @@ def cache_line(cache: ocr_cache.Cache | None) -> str:
     parts = ", ".join(f"{part} {n}" for part, n in sorted(c.miss_key_parts.items())) or "none"
     return (
         f"  OCR word cache: {c.hit} hits; misses: {c.miss_absent} absent, {c.miss_key} key differs ({parts}),"
-        f" {c.miss_unreadable} unreadable, {c.miss_pages} with no figure pages for a generated top;"
+        f" {c.miss_unreadable} unreadable, {c.miss_pages} with no figure pages for a generated top,"
+        f" {c.miss_pdf_id} with no usable /ID ({', '.join(f'{r} {n}' for r, n in sorted(c.miss_pdf_id_reasons.items())) or 'none'});"
         f" {c.write_failed} entries not written"
     )
 

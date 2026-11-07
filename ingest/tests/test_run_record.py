@@ -690,6 +690,8 @@ def test_ocr_cache_counts_recorded(
         "ocr_cache_miss_key_parts": {"tesseract": 1},
         "ocr_cache_miss_unreadable": 0,
         "ocr_cache_miss_pages": 0,
+        "ocr_cache_miss_pdf_id": 0,
+        "ocr_cache_miss_pdf_id_reasons": {},
         "ocr_cache_write_failed": 0,
     }
     assert counts["written"]["reconciled"] == 3

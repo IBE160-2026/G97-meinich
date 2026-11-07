@@ -7,8 +7,14 @@ does not run Tesseract again.
 
 **The key** is everything that determines the words:
 
-- `pdf_sha256`: the sha256 of the PDF as fetched (a re-read still fetches,
-  so a refiled document has another sha256 and misses);
+- `pdf_sha256`: the sha256 of the PDF as fetched with its one `/ID` array
+  replaced by a fixed value (`pdf_key_sha256`). data.brreg.no writes a new
+  random `/ID [<...> <...>]` into the trailer on every fetch and leaves every
+  other byte the same (found by the review session in Story 2.5d's first
+  proof runs, 1242 and 1243), so the raw bytes' sha256 never matched twice.
+  A PDF without exactly one `/ID` array has no key: it is read by OCR, not
+  stored, and counted as `ocr_cache_miss_pdf_id` with its reason. A re-read
+  still fetches, so a refiled document has another sha256 and misses;
 - `tesseract`: the output of `tesseract --version`, read at run time: the
   version and the libraries it reports (leptonica reads the page images);
 - `traineddata_sha256`: the sha256 of `nor.traineddata`, read from the file
@@ -48,6 +54,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import tempfile
 import zlib
 from collections import Counter
@@ -74,6 +81,30 @@ KEY_PARTS = (
 )
 
 SUFFIX = ".json.gz"
+
+# A PDF name `/ID` (followed by a delimiter, so not a longer name), and the
+# file identifier array as data.brreg.no writes it: two hex strings.
+ID_NAME = re.compile(rb"/ID(?=[\s\[])")
+ID_ARRAY = re.compile(rb"/ID\s*\[\s*<[0-9A-Fa-f]*>\s*<[0-9A-Fa-f]*>\s*\]")
+FIXED_ID = b"/ID [<00000000000000000000000000000000> <00000000000000000000000000000000>]"
+
+
+class PdfIdUnusable(ValueError):
+    """The PDF does not hold exactly one `/ID` array of two hex strings, so
+    its key cannot be computed; the reason says what was found."""
+
+
+def pdf_key_sha256(pdf: bytes) -> str:
+    """The sha256 of `pdf` with its one `/ID` array replaced by `FIXED_ID`.
+    Raises PdfIdUnusable when there is not exactly one `/ID`, or it is not
+    an array of two hex strings."""
+    names = len(ID_NAME.findall(pdf))
+    if names != 1:
+        raise PdfIdUnusable(f"{names} /ID entries")
+    fixed, arrays = ID_ARRAY.subn(FIXED_ID, pdf)
+    if arrays != 1:
+        raise PdfIdUnusable("/ID not an array of two hex strings")
+    return hashlib.sha256(fixed).hexdigest()
 
 
 class KeyUnavailable(RuntimeError):
@@ -139,7 +170,8 @@ class Key:
 
     @staticmethod
     def of(pdf: bytes, settings: Settings) -> Key:
-        return Key(hashlib.sha256(pdf).hexdigest(), settings)
+        """Raises PdfIdUnusable when `pdf` has no usable `/ID` array."""
+        return Key(pdf_key_sha256(pdf), settings)
 
     def as_json(self) -> dict[str, object]:
         """The key as the entry stores it: plain JSON values, so a stored key
@@ -287,6 +319,10 @@ class CacheCounts:
     miss_pages: int = 0
     # Entries that could not be written (the read itself went on).
     write_failed: int = 0
+    # PDFs with no key, because they do not hold exactly one /ID array; per
+    # reason. Read by OCR and not stored.
+    miss_pdf_id: int = 0
+    miss_pdf_id_reasons: Counter[str] = field(default_factory=Counter)
 
     def record(self) -> dict[str, object]:
         return {
@@ -297,6 +333,8 @@ class CacheCounts:
             "ocr_cache_miss_key_parts": {part: self.miss_key_parts[part] for part in sorted(self.miss_key_parts)},
             "ocr_cache_miss_unreadable": self.miss_unreadable,
             "ocr_cache_miss_pages": self.miss_pages,
+            "ocr_cache_miss_pdf_id": self.miss_pdf_id,
+            "ocr_cache_miss_pdf_id_reasons": {r: self.miss_pdf_id_reasons[r] for r in sorted(self.miss_pdf_id_reasons)},
             "ocr_cache_write_failed": self.write_failed,
         }
 
@@ -323,8 +361,15 @@ class Cache:
     def recognise(self, pdf: bytes, recognise: Callable[[bytes], Recognised]) -> Recognised:
         """The words of `pdf`: the stored ones on an exact key match, and
         otherwise `recognise(pdf)`'s, which are then stored. Every outcome is
-        counted."""
-        key = Key.of(pdf, self.settings)
+        counted. A PDF with no usable `/ID` array has no key: it is read by
+        `recognise`, counted with its reason, and not stored."""
+        try:
+            key = Key.of(pdf, self.settings)
+        except PdfIdUnusable as error:
+            self.counts.miss_pdf_id += 1
+            self.counts.miss_pdf_id_reasons[str(error)] += 1
+            self.notify(f"OCR cache not used for a PDF of sha256 {hashlib.sha256(pdf).hexdigest()}: {error}")
+            return recognise(pdf)
         found = lookup(self.directory, key)
         if isinstance(found, Hit):
             self.counts.hit += 1

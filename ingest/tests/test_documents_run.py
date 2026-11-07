@@ -1017,12 +1017,16 @@ def test_reread_hit_sets_reader_commit(
 ) -> None:
     # The stored document's PDF has its words cached under the run's key:
     # the re-read still fetches it, reads the stored words with no OCR,
-    # and the replaced row carries the current reader version.
+    # and the replaced row carries the current reader version. The fetch
+    # carries another random /ID than the one cached, as data.brreg.no's
+    # do on every fetch, and is still a hit.
     store_older(stored, 2025)
     cache = cache_in(tmp_path)
     ocr_cache.store(tmp_path, ocr_cache.Key.of(pdf("2025"), TEST_SETTINGS), *document(BOLD_ROWS))
     reader = FakeRecognise(monkeypatch, {})
-    transport = FixtureTransport({kopi_url(ORGNR, 2025): pdf("2025")})
+    refetched = pdf("2025", file_id="0F1E2D3C4B5A69788796A5B4C3D2E1F0")
+    assert refetched != pdf("2025")
+    transport = FixtureTransport({kopi_url(ORGNR, 2025): refetched})
 
     summary = run.run_reread(
         stored, transport, cfg, CODES, [ORGNR], reader_commit=READER_COMMIT, now=lambda: REREAD_AT, cache=cache

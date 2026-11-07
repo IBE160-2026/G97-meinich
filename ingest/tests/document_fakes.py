@@ -45,9 +45,12 @@ def paper_top() -> list[Word]:
     return words([label_words("Brønnøysundregistrene"), label_words("VEDLEGG TIL ÅRSREGNSKAPET FOR 2011")])
 
 
-def pdf(tag: str) -> bytes:
-    """A body the fetch accepts as a PDF. Its bytes key FakeRecognise."""
-    return f"%PDF-1.4 fixture {tag}".encode()
+def pdf(tag: str, file_id: str = "5E7C9C707013FC4DB300BFEB537A4866") -> bytes:
+    """A body the fetch accepts as a PDF. Its bytes key FakeRecognise. Its
+    trailer holds one `/ID` array, as data.brreg.no's do, so the OCR word
+    cache can key it; `file_id` is the random part the register changes on
+    every fetch."""
+    return f"%PDF-1.4 fixture {tag}\ntrailer\n<< /ID [<{file_id}> <{file_id}>] >>\n%%EOF\n".encode()
 
 
 class FakeRecognise:

@@ -56,6 +56,21 @@ Pass 1 (BMAD session, 2026-11-07): three reviewer subagents read the diff `dc4f7
   - The image check in the built image: both fixture PDFs match, live and through the cache.
   - `pnpm analysis:seed-documents` against the local database before any run: 97 documents and 194 columns equal to the seed.
 
+## The runs
+
+- **Dump and backup** (BMAD session, after Meinich's yes):
+  - `.local/document-tables-before-2.5d-runs/`, the three tables in full: 2 044 documents, 4 086 columns, 1 856 fingerprints;
+  - copied to `C:\Users\cmein\peerless-backups\document-tables-before-2.5d-runs\`, with equal sha256 (the spec's Implementation Notes).
+- **The first cache proof failed** (Meinich's runs 1242 `--reread` and 1243 `--reread-all`, the OCR reference set):
+  - Each read 97 of 97, with 0 failed, 0 not replaced, and 87 reconciled and 10 not.
+  - `pnpm analysis:seed-documents` gave exit 0 after both, all documents read by `ac61135`.
+  - Both runs had 0 hits and 97 absent misses, so `--cache-proof` gave exit 1.
+- **The review session found the defect in the real runs, not this session.** data.brreg.no writes a new random `/ID` array into each PDF's trailer on every fetch, and every other byte stays the same. The key hashed the raw bytes, so it never matched twice. The tests could not catch this, because they all read the same bytes twice.
+- **Meinich decided the fix**: hash the PDF with its one `/ID` array fixed, and count a PDF without exactly one `/ID` as a miss with its reason.
+  - The BMAD session built it with tests that fetch with another `/ID`, and mutation-checked it (`df34a2d`, `f8e0d1e`).
+  - It is recorded in the spec's Spec Change Log (`2f4e3f5`), as a trap in AGENTS.md and `docs/data-sources-brreg.md`, and in the AI log (`951c24b`).
+  - The 194 old cache entries stay, never read.
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-5d-labelled-set-document-run-and-ocr-word-cache.md`

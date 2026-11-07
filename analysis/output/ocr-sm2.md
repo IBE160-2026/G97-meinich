@@ -1,6 +1,6 @@
 # OCR accuracy against the hand-transcribed reference set (SM-2)
 
-Generated 2026-11-06 by `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`), with helpers in `scripts/ocr-sm2-compare.ts`. Inputs, all committed: `analysis/ocr-reference/drawn.json` and `analysis/ocr-reference/transcriptions.csv` (the reference set, issue #14) and the corrections log in `analysis/ocr-reference/README.md`; `seed/demo/document.csv` and `seed/demo/document_column.csv` (step 1's output, written by `pnpm ingest --documents analysis/ocr-reference/document-run.json` and committed by `pnpm seed:export`); `analysis/output/ocr-consistency-2026.json` (generated 2026-10-28 by `analysis/ocr/consistency.py` in step 1's image, tesseract 5.5.0).
+Generated 2026-11-07 by `scripts/ocr-sm2.ts` (`pnpm analysis:sm2`), with helpers in `scripts/ocr-sm2-compare.ts`. Inputs, all committed: `analysis/ocr-reference/drawn.json` and `analysis/ocr-reference/transcriptions.csv` (the reference set, issue #14) and the corrections log in `analysis/ocr-reference/README.md`; `seed/demo/document.csv` and `seed/demo/document_column.csv` (step 1's output, written by `pnpm ingest --documents analysis/ocr-reference/document-run.json` and committed by `pnpm seed:export`); `analysis/output/ocr-consistency-2026.json` (generated 2026-10-28 by `analysis/ocr/consistency.py` in step 1's image, tesseract 5.5.0).
 
 This measures step 1 as it is: `read_document` (Tesseract 5.5, `nor` from `tessdata_best`) and Story 2.2's reconciliation. It states what was measured and commits to no numeric target (NFR32).
 
@@ -453,10 +453,10 @@ Reconciled columns with positive sum driftsinntekter whose four main cost lines 
 | Reference set (this year): over the total | 0 of 33 (0,0 %) | 0 of 33 (0,0 %) |
 | Reference set (last year): under the total | 1 of 35 (2,9 %) | 1 of 35 (2,9 %) |
 | Reference set (last year): over the total | 0 of 35 (0,0 %) | 0 of 35 (0,0 %) |
-| Story 2.1b run, local data: `cost_lines_short_of_total` (R2) | 27 | not yet counted |
-| Story 2.1b run, local data: of those, nedskrivninger empty | 27 | not yet counted |
-| Story 2.1b run, local data: `negative_unexplained` | 35 | not yet counted |
-| Story 2.1b run, local data: fingerprints, of current columns | 1757 of 1946 | not yet counted |
+| Story 2.1b run, local data: `cost_lines_short_of_total` (R2) | 27 | 27 |
+| Story 2.1b run, local data: of those, nedskrivninger empty | 27 | 27 |
+| Story 2.1b run, local data: `negative_unexplained` | 35 | 26 |
+| Story 2.1b run, local data: fingerprints, of current columns | 1757 of 1946 | 1770 of 1946 |
 
 ### Current asset lines above the API subtotal (R3)
 
@@ -466,8 +466,8 @@ Current columns whose `kundefordringer` or `bankinnskudd` is above the API's sum
 |---|---|---|---|
 | Reference set | kundefordringer | 0 | 0 |
 | Reference set | bankinnskudd | 0 | 0 |
-| Story 2.1b run, local data | kundefordringer | 8 | not yet counted |
-| Story 2.1b run, local data | bankinnskudd | 0 | not yet counted |
+| Story 2.1b run, local data | kundefordringer | 8 | 8 |
+| Story 2.1b run, local data | bankinnskudd | 0 | 0 |
 
 ### varer read from the income statement (R4)
 
@@ -476,6 +476,8 @@ Before R4, the income statement's inventory-change row ("… og ferdig tilvirked
 | Data set | Emptied by the re-read | Changed by the re-read | Of those, negative before | Negative varer before | Negative varer after |
 |---|---|---|---|---|---|
 | Reference set (this year) | 0 | 0 | 0 | 0 | 0 |
-| Story 2.1b run, local data (this year) | not yet counted | not yet counted | not yet counted | 18 | not yet counted |
+| Story 2.1b run, local data (this year) | 15 | 22 | 18 | 18 | 0 |
 | Reference set (last year) | 0 | 0 | 0 | 0 | 0 |
-| Story 2.1b run, local data (last year) | not yet counted | not yet counted | not yet counted | 15 | not yet counted |
+| Story 2.1b run, local data (last year) | 14 | 17 | 15 | 15 | 0 |
+
+An emptied `varer` is an empty field, not a wrong figure: where the balance printed no stock R4 could read, the stock is now unknown. Of the Story 2.1b run's emptied current `varer`, the next filing year's document holds a stock as its prior-year figure in 1 (found by the review session after the re-read; totals only).

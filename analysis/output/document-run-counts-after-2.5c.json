@@ -167,6 +167,7 @@
         "unchanged": 1908
       }
     },
-    "dump": ".local/document-run-2.5b/document_column.csv"
+    "dump": ".local/document-run-2.5b/document_column.csv",
+    "emptied_current_held_by_next_prior": 1
   }
 }

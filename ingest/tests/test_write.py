@@ -39,6 +39,8 @@ def company(orgnr: str, navn: str = "TEST AS") -> parse.Company:
         forretningsadresse_kommunenummer=None,
         forretningsadresse_kommune=None,
         naeringskode1_beskrivelse=None,
+        aktivitet=None,
+        vedtektsfestet_formaal=None,
         search_fields_read_at=READ_AT,
     )
 
@@ -316,6 +318,46 @@ def test_run_stores_no_municipality_without_a_business_address(db: psycopg.Conne
     assert search_fields(db, "919951834") == (None, None, "Dataprogrammeringstjenester", READ_AT, READ_AT)
 
 
+def register_text(conn: psycopg.Connection, orgnr: str) -> tuple:
+    return one(conn, "select aktivitet, vedtektsfestet_formaal from register.company where orgnr = %s", orgnr)
+
+
+def bulk_with(texts: dict[str, dict[str, object]]) -> bytes:
+    """The recorded bulk file with invented register text on the named units,
+    every other unit's own text removed."""
+    units = json.loads(recorded("enheter_lastned.json"))
+    for unit in units:
+        unit.pop("aktivitet", None)
+        unit.pop("vedtektsfestetFormaal", None)
+        unit.update(texts.get(unit["organisasjonsnummer"], {}))
+    return json.dumps(units).encode("utf-8")
+
+
+INVENTED_TEXT = {"aktivitet": [" Utvikling av", "programvare "], "vedtektsfestetFormaal": ["Selskapets formål er drift"]}
+STORED_TEXT = ("Utvikling av programvare", "Selskapets formål er drift")
+
+
+def test_run_stores_the_register_text(db: psycopg.Connection, cfg: Config) -> None:
+    transport = FixtureTransport(run_transport().responses, bulk=bulk_with({"919951834": INVENTED_TEXT}))
+
+    run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert register_text(db, "919951834") == STORED_TEXT
+    assert search_fields(db, "919951834")[3] == READ_AT
+
+
+def test_plain_run_clears_the_text_of_a_company_no_longer_as(db: psycopg.Connection, cfg: Config) -> None:
+    run.run(db, FixtureTransport(run_transport().responses, bulk=bulk_with({"919951834": INVENTED_TEXT})), cfg, ["62.100"], now=lambda: READ_AT)
+    assert register_text(db, "919951834") == STORED_TEXT
+    bulk = bulk_with({"919951834": {**INVENTED_TEXT, "organisasjonsform": {"kode": "ENK"}}})
+
+    summary = run.run(db, FixtureTransport(run_transport().responses, bulk=bulk), cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert register_text(db, "919951834") == (None, None)
+    assert summary.register_text_skipped_not_as == 1
+    assert summary.record_counts()["register_text_skipped_not_as"] == 1
+
+
 # --- Companies-only mode (Story 1.5a) ------------------------------------------
 
 BULK_ORGNRS = {"919951834", "990051232", "979607008", "967534579"}
@@ -350,13 +392,24 @@ def companies_only_transport() -> FixtureTransport:
 
 def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.Connection, cfg: Config) -> None:
     prepare_companies_only(db)
+    # Text from an earlier read, which the bulk file no longer has.
+    write.write_company(
+        db,
+        dataclasses.replace(
+            company("979607008", "EKSTRA RESSURS AS"), aktivitet="Gammel tekst", vedtektsfestet_formaal="Gammelt formål"
+        ),
+    )
     filing_before = filing_state(db, 6984522)
     stored = stored_orgnrs(db)
-    transport = companies_only_transport()
+    transport = FixtureTransport({}, bulk=bulk_with({"919951834": INVENTED_TEXT}))
 
     summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
 
     assert transport.requested == [f"{BASE_URL}/enhetsregisteret/api/enheter/lastned"]
+    # The register text is written with the search fields; a unit without it
+    # has its earlier text cleared.
+    assert register_text(db, "919951834") == STORED_TEXT
+    assert register_text(db, "979607008") == (None, None)
     # The search fields come from the bulk file, read at the run's time;
     # navn and read_at are those of the run that stored the company.
     assert search_fields(db, "919951834") == ("1103", "STAVANGER", "Dataprogrammeringstjenester", LATER, READ_AT)
@@ -372,6 +425,54 @@ def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.C
     assert summary.updated == len(stored & BULK_ORGNRS)
     assert summary.not_found == sorted(stored - BULK_ORGNRS)
     assert summary.failed == [] and not summary.needs_operator()
+
+
+@pytest.mark.parametrize(
+    "bulk_form, stored_form",
+    [("ENK", "AS"), ("AS", "ENK")],
+    ids=["register_says_not_as", "stored_row_says_not_as"],
+)
+def test_companies_only_clears_and_counts_the_text_of_another_form(
+    db: psycopg.Connection, cfg: Config, bulk_form: str, stored_form: str
+) -> None:
+    prepare_companies_only(db)
+    write.write_company(
+        db,
+        dataclasses.replace(
+            company("919951834", "OLD NAME AS"),
+            naeringskode1="62.100",
+            organisasjonsform=stored_form,
+            aktivitet="Gammel tekst",
+            vedtektsfestet_formaal="Gammelt formål",
+        ),
+    )
+    bulk = bulk_with({"919951834": {**INVENTED_TEXT, "organisasjonsform": {"kode": bulk_form}}})
+
+    summary = run.run_companies_only(db, FixtureTransport({}, bulk=bulk), cfg, now=lambda: LATER)
+
+    assert register_text(db, "919951834") == (None, None)
+    assert summary.register_text_skipped_not_as == 1
+    assert summary.record_counts()["register_text_skipped_not_as"] == 1
+    assert "  register text not stored, form is not AS: 1" in summary.lines()
+
+
+def test_companies_only_reports_malformed_register_text(db: psycopg.Connection, cfg: Config) -> None:
+    prepare_companies_only(db)
+    transport = FixtureTransport(
+        {}, bulk=bulk_with({"919951834": {"aktivitet": "ikke en liste"}, "979607008": INVENTED_TEXT})
+    )
+
+    summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
+
+    assert [p.orgnr for p in summary.failed] == ["919951834"]
+    assert summary.failed[0].what.startswith("bulk unit not loaded: aktivitet ")
+    assert "ikke en liste" not in summary.failed[0].what
+    assert summary.needs_operator()
+    # Not written; the other company is.
+    assert register_text(db, "919951834") == (None, None)
+    assert search_fields(db, "919951834")[3] == READ_AT
+    assert register_text(db, "979607008") == STORED_TEXT
+    assert search_fields(db, "979607008")[3] == LATER
 
 
 def test_companies_only_leaves_a_company_missing_from_the_bulk_file(db: psycopg.Connection, cfg: Config) -> None:

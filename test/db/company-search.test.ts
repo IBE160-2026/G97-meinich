@@ -1,5 +1,5 @@
-// The data company search stands on (Story 1.5a): the three columns step 1
-// stores, their read time, and the name index over the IMMUTABLE unaccent
+// The data company search stands on (Story 1.5a): the columns step 1 stores
+// (with the register text of Story 2.6a), their read time, and the name index over the IMMUTABLE unaccent
 // wrapper. Checked as `reader`, the role search will run as, by querying
 // the catalog and by calling the wrapper. Writes are attempted only inside
 // transactions that roll back.
@@ -13,6 +13,8 @@ const SEARCH_COLUMNS = [
   'forretningsadresse_kommunenummer',
   'forretningsadresse_kommune',
   'naeringskode1_beskrivelse',
+  'aktivitet',
+  'vedtektsfestet_formaal',
   'search_fields_read_at',
 ] as const;
 
@@ -143,10 +145,12 @@ describe('the search columns of register.company', () => {
        order by column_name`;
     expect(rows).toEqual(
       [
+        { column_name: 'aktivitet', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'forretningsadresse_kommune', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'forretningsadresse_kommunenummer', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'naeringskode1_beskrivelse', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'search_fields_read_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
+        { column_name: 'vedtektsfestet_formaal', data_type: 'text', is_nullable: 'YES' },
       ],
     );
   });

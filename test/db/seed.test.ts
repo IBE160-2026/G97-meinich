@@ -343,7 +343,7 @@ describe('checks inside the load', () => {
     files.set('company.csv', Buffer.from([header.replace(',read_at', ''), ...rest].join('\n')));
     await rolledBack(loader, async (tx) => {
       await expect(tx.savepoint((sp) => loadSeed(sp, { ...committed, files }))).rejects.toThrow(
-        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at, .*slettedato\)$/,
+        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at, .*slettedato, aktivitet, vedtektsfestet_formaal\)$/,
       );
     });
   });

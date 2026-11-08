@@ -26,7 +26,7 @@
     "62.100"
   ],
   "files": {
-    "company.csv": "1e94bb223669a9150fe6f7b85bd72a0b7dcd241c5b8b7447509679e827f0d687",
+    "company.csv": "ac04c9845afa73ee89c775245899e0cd70de399607cc41033023b0fde01c9d6f",
     "document.csv": "0305f8e23fd5bea69aee10487ea1285801dd7873f6d3eb71cd5727a4e125e3a8",
     "document_column.csv": "983e17cb8230485b6347442ac65b636914c34e400e9679d8e9921aa2360430c6",
     "filing.csv": "d10640e7476f75c41e776c0b1c90e8c1563bdf1c65a721df92ee0b5ccfd08285",
@@ -34,7 +34,7 @@
     "key_figures.csv": "ab01a647bd4a50170009c8f21e459cbd245b8ef41e8c724cdff17651e4456b19"
   },
   "format_version": 1,
-  "migration_id": "20261105120000_document_intangible_parts",
+  "migration_id": "20261108120000_company_register_text",
   "read_at": {
     "max": "2026-11-07 17:08:16.121103+00",
     "min": "2026-10-11 10:09:07.22884+00"

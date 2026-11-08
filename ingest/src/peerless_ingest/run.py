@@ -281,6 +281,9 @@ class Summary:
     failed: list[Problem] = field(default_factory=list)
     withdrawal: WithdrawalSummary = field(default_factory=WithdrawalSummary)
     wall_seconds: float = 0.0
+    # Companies loaded with another form than AS: their register text is not
+    # stored (Story 2.6a).
+    register_text_skipped_not_as: int = 0
 
     def needs_operator(self) -> bool:
         """True when anything in the run needs a person to look at it."""
@@ -306,6 +309,7 @@ class Summary:
             },
             "demo_found": self.demo_found,
             "demo_filings_written": self.demo_filings_written,
+            "register_text_skipped_not_as": self.register_text_skipped_not_as,
             "rejected": len(self.rejected),
             "failed": len(self.failed),
             "stored": self.withdrawal.stored,
@@ -572,6 +576,10 @@ class CompaniesOnlySummary:
     # as NULL; the municipality is stored as delivered. Reported, not an
     # error: the next full run stores code and description together.
     code_differs: list[tuple[str, str | None, str | None]] = field(default_factory=list)
+    # Companies the register or the stored row gives another form than AS:
+    # their register text is stored as NULL, clearing any earlier text
+    # (Story 2.6a).
+    register_text_skipped_not_as: int = 0
 
     def needs_operator(self) -> bool:
         """Only a failed write needs a person: a company not found in the
@@ -585,6 +593,7 @@ class CompaniesOnlySummary:
             "updated": self.updated,
             "not_found_in_bulk": len(self.not_found),
             "code_differs": len(self.code_differs),
+            "register_text_skipped_not_as": self.register_text_skipped_not_as,
             "failed": len(self.failed),
         }
 
@@ -596,6 +605,7 @@ class CompaniesOnlySummary:
             "Step 1 summary, companies only (search fields of companies already stored)",
             f"  {self.in_database} companies in the database: updated {self.updated},"
             f" not found in bulk file {len(self.not_found)}",
+            f"  register text not stored, form is not AS: {self.register_text_skipped_not_as}",
         ]
         for orgnr in self.not_found:
             out.append(f"  not found in bulk file, left untouched: {orgnr}")
@@ -655,6 +665,8 @@ def _load_company(
     now: Callable[[], datetime],
 ) -> int:
     """Writes the company and each of its filings. Returns filings written."""
+    if company.organisasjonsform != parse.REGISTER_TEXT_FORM:
+        summary.register_text_skipped_not_as += 1
     try:
         write.write_company(conn, company)
     except psycopg.Error as error:
@@ -1449,17 +1461,21 @@ def run_companies_only(
     on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> CompaniesOnlySummary:
     """Fills forretningsadresse_kommunenummer, forretningsadresse_kommune,
-    naeringskode1_beskrivelse and search_fields_read_at from the bulk
-    download, for every company already in register.company. The bulk file
-    is read without the industry filter: demo company C, or a company whose
-    primary code has changed since it was stored, is in it like any unit.
+    naeringskode1_beskrivelse, aktivitet, vedtektsfestet_formaal and
+    search_fields_read_at from the bulk download, for every company already
+    in register.company. The bulk file is read without the industry filter:
+    demo company C, or a company whose primary code has changed since it was
+    stored, is in it like any unit.
 
     naeringskode1_beskrivelse is stored only when the bulk naeringskode1
     equals the stored one; otherwise it describes a code this row does not
-    hold, and NULL is stored and the company named in the summary."""
-    stored_codes: dict[str, str | None] = {
-        row[0]: row[1] for row in conn.execute("SELECT orgnr, naeringskode1 FROM register.company").fetchall()
-    }
+    hold, and NULL is stored and the company named in the summary. The two
+    texts are stored for an AS only: for any other form, in the bulk file or
+    in the stored row, they are NULL, clearing earlier text, and the company
+    is counted."""
+    rows = conn.execute("SELECT orgnr, naeringskode1, organisasjonsform FROM register.company").fetchall()
+    stored_codes: dict[str, str | None] = {row[0]: row[1] for row in rows}
+    stored_forms: dict[str, str | None] = {row[0]: row[2] for row in rows}
     stored = set(stored_codes)
     summary = CompaniesOnlySummary(in_database=len(stored))
     on_summary(summary)
@@ -1480,6 +1496,10 @@ def run_companies_only(
         if company.naeringskode1 != stored_codes[company.orgnr]:
             summary.code_differs.append((company.orgnr, stored_codes[company.orgnr], company.naeringskode1))
             company = replace(company, naeringskode1_beskrivelse=None)
+        # This mode leaves the stored form as it is, so both must say AS.
+        if company.organisasjonsform != parse.REGISTER_TEXT_FORM or stored_forms[company.orgnr] != parse.REGISTER_TEXT_FORM:
+            summary.register_text_skipped_not_as += 1
+            company = replace(company, aktivitet=None, vedtektsfestet_formaal=None)
         selected.append(company)
     progress(f"bulk download: {len(selected)} of {len(stored)} stored companies found")
 

@@ -34,6 +34,10 @@ from test_write import company, count
 
 READ_AT = datetime(2026, 10, 20, 9, 0, tzinfo=UTC)
 ORGNR = "979607008"
+# Passes modulus 11 and starts with 0, so the register never issues it and no
+# run stores it: these tests must not depend on a real company's documents
+# being absent from the local database.
+NEVER_STORED = "000000027"
 CODES = ["69.202"]  # the primary code test_write.company() stores
 
 
@@ -202,6 +206,15 @@ def test_stored_document_not_refetched(stored: psycopg.Connection, cfg: Config, 
     assert summary.documents.written == {}
 
 
+def filings_of_never_stored() -> bytes:
+    """The recorded filings under NEVER_STORED. Their register ids move too:
+    `brreg_id` is unique, and the real company's filings may be stored."""
+    filings = json.loads(recorded("regnskap_919951834.json").replace(b"919951834", NEVER_STORED.encode()))
+    for filing in filings:
+        filing["id"] += 900_000_000
+    return json.dumps(filings).encode("utf-8")
+
+
 def test_normal_run_fetches_no_document(db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
     # Meinich, 2026-10-20: a plain `pnpm ingest` is the register and API run
     # as before; filed documents are read only with --documents <file>. The
@@ -209,20 +222,21 @@ def test_normal_run_fetches_no_document(db: psycopg.Connection, cfg: Config, mon
     # for them would get them: the assertions, not the transport, catch it.
     reader = FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
     responses: dict[str, bytes | None] = {
-        regnskap_url("919951834"): recorded("regnskap_919951834.json"),
+        regnskap_url(NEVER_STORED): filings_of_never_stored(),
         enhet_url("967534579"): recorded("enhet_967534579.json"),
         regnskap_url("967534579"): recorded("regnskap_967534579.json"),
-        aar_url("919951834"): b'["2025"]',
-        kopi_url("919951834", 2025): pdf("2025"),
+        aar_url(NEVER_STORED): b'["2025"]',
+        kopi_url(NEVER_STORED, 2025): pdf("2025"),
     }
-    transport = FixtureTransport(responses, bulk=recorded("enheter_lastned.json"))
+    bulk = recorded("enheter_lastned.json").replace(b"919951834", NEVER_STORED.encode())
+    transport = FixtureTransport(responses, bulk=bulk)
 
     summary = run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
 
     assert summary.codes["62.100"].filings_written == 3
     assert [url for url in transport.requested if "/aarsregnskap/kopi/" in url] == []
     assert reader.calls == []
-    assert documents_of(db, "919951834") == []
+    assert documents_of(db, NEVER_STORED) == []
     assert "  No filed document fetched (documents mode reads them: --documents <file>)." in summary.lines()
 
 def test_a_failed_document_fetch_costs_only_that_document(
@@ -315,7 +329,7 @@ def test_connect_commits_each_transaction(db: psycopg.Connection) -> None:
 
 
 def test_documents_mode_only_listed_orgnrs(db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
-    other = "919951834"
+    other = NEVER_STORED
     uncovered = "967534579"
     unknown = "000000019"
     assert count(db, "select count(*) from register.company where orgnr = %s", unknown) == 0
@@ -401,7 +415,7 @@ def test_list_entry_years_limit_the_fetch(
 ) -> None:
     # {"orgnr": X, "years": [2025]} fetches only 2025; a plain orgnr beside
     # it keeps every year 2021–2025. Through main, from the file.
-    other = "919951834"
+    other = NEVER_STORED
     for orgnr in (ORGNR, other):
         write.write_company(db, company(orgnr, "STATEMENT AS"))
     years = range(2021, 2026)

@@ -1620,6 +1620,29 @@ Decided (Meinich, 2026-11-07, spec `spec-2-5d-labelled-set-document-run-and-ocr-
 **Given** any committed file or PR text
 **Then** no fingerprint result is tied to an orgnr of the labelled set
 
+### Story 2.6a: The register text classification reads
+
+As Kari or Anders,
+I want the register's own description of each company stored ahead of time,
+So that Story 2.6 has text to classify on, and nothing is fetched while I wait.
+
+**Implements:** FR-11 (its input) · **Invariants:** AD-2, AD-15, AD-16 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.6a-company-text-fields`, one PR (AGENTS.md Git workflow). Split from Story 2.6 (Meinich, 2026-11-08), which found that `register.company` held neither field.
+
+**Acceptance Criteria:**
+
+**Given** a unit in the register's bulk download
+**When** step 1 reads it, in a plain run or in `--companies-only`
+**Then** for an AS, `aktivitet` and `vedtektsfestetFormaal` are stored on `register.company`, their lines joined in order; absent or blank is NULL, never an empty string; and a value of the wrong shape is reported as a failure, never stored (test)
+**And** for any other organisational form both are NULL, also when the company had text from before, and the number skipped is counted in `run.step1` (test)
+
+**Given** `--companies-only`
+**When** it runs
+**Then** it changes only the search fields and these two, on companies already stored, and only an AS in both the register and the stored row keeps text (test)
+
+**Given** the migration
+**When** the PR is merged
+**Then** the seed has been re-exported with the two columns, after Meinich's own `--companies-only` run
+
 ### Story 2.6: Classification (stage 5)
 
 As Kari or Anders,

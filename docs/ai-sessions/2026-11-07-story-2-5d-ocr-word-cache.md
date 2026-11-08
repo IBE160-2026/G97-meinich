@@ -83,6 +83,10 @@ Pass 1 (BMAD session, 2026-11-07): three reviewer subagents read the diff `dc4f7
   - the controlled delete, derive, the seed export (`eadadab`: only `reader_commit` and `read_at` of the 97 reference documents; no labelled-set row), two loads with an unchanged re-export, the restore and derive, which gave exactly the dump's 2 537 fingerprints.
   - The derive output's by-type lines were kept out of the terminal, because they now include the labelled set.
 
+## Merge
+
+CI was green on `87a5d5d`. Before merging, the review session checked the runs against `run.step1` and the database: both cache proofs (runs 1242 and 1243 with 0 hits, runs 1410 and 1411 with 97 hits and the same figures as the seed) and the labelled-set run 1412, totals only. It tried the `/ID` fix on three reference documents fetched twice each, checked the dumps' sha256 against their backups and the counts after the restore (2 785 documents, 5 556 columns, 2 537 fingerprints), and read the seed commit `eadadab` with a CSV parser: only `reader_commit` and `read_at` of the 97 reference documents changed. The review was posted as a GitHub review with six line comments, drafted by the review session and posted at the human's decision. The PR was merged at 08:21 UTC on 2026-11-08 as `a5476b1`. The review session then set the spec and the story to done on `main`.
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-5d-labelled-set-document-run-and-ocr-word-cache.md`

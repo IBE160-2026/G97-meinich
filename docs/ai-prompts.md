@@ -2285,6 +2285,118 @@ The review session checked these against the database and the dumps:
 
 CI was green on `5f3d91e`, with 116 of 116 e2e tests, which confirmed why 7 failed locally: the local database also holds the 2.1b fingerprints. At the human's request (`ja post review`), the review session posted the GitHub review with six line comments. After the corrections, CI was green on `8ff1b35`, and the PR was merged at 10:59 UTC as `c90ad3e`.
 
+## Story 2.5d: the labelled set's document run, with a local OCR word cache (#49, PR #50)
+
+Every `Fra meg:` prompt below, and the 12:04 prompt, was drafted by the review session and pasted by the human, who made the decisions in it. Results for the labelled set are given as totals only: its 720 pairs are not labelled yet.
+
+### Prompts to the BMAD session
+
+**2026-11-07 12:04**
+```
+/bmad-build Story 2.5d: dokumentkjøringen for fasitsettet, med en lokal hurtigbuffer for OCR-ordene (epics.md, Story 2.5d, punkt 1–3). Hent main først (dc4f737). Opprett issuet og branchen.
+
+Rekkefølge:
+1. Probe først, read-only (punkt 3): sjekk om layout.page_kind forklarer R4-hullet (emptied_current_held_by_next_prior = 1), med OCR-ordene som bevis. Tell på de lagrede ordene i analysis/.cache/ocr/probe/ hvor mange sider som har både «resultatregnskap» og «balanse», eller en balanse uten lesbar overskrift, og hvor mange varer som ville blitt lest med en annen regel. Et riktig tall som blir borte, eller et varer fra resultatregnskapet som kommer tilbake, er en kostnad. Vis det som totaler.
+2. Stopp ved sjekkpunktet og vis meg: (a) proben og et forslag, retting eller ingen retting; (b) planen for hurtigbufferen: hvor den ligger, hvor stor den blir for 2 044 + fasitsettets dokumenter, og hvordan den kommer inn i og ut av Docker-imaget; (c) hvordan listen for fasitsettet lages (i Node, som pnpm ingest:document-set), og hvor mange dokumenter og timer det blir med alle årene 2021–2025 og med bare referanseåret. Ingen kodeendring før jeg har svart.
+3. Hurtigbufferen (punkt 1), etter mitt svar: nøkkelen er PDF-ens sha256, Tesseract-versjonen, traineddata-sha256, renderinnstillingene og innstillingene for begge lesingene. Bare et eksakt treff bruker de lagrede ordene. Et avvik gir full OCR og telles i run.step1, aldri i stillhet. PDF-en hentes fortsatt ved omlesing. reader_commit settes som i dag, også når ordene kommer fra hurtigbufferen. Treff og bom telles per kjøring. Test at en lesing fra lagrede ord gir de samme tallene, status og kontrollene som en lesing gjennom Tesseract.
+4. Hurtigbufferen er gitignored og ligger bare lokalt, som PDF-ene, til lisensvurderingen i 5.4. Ingen seed, eksport eller committet fil skal inneholde ordene. Test at .gitignore dekker den.
+
+Kjøringene starter bare etter eget ja fra meg, og jeg kjører dem selv i mine egne PowerShell-vinduer. Før kjøringen: dump og backup med sha256, som i 2.5c. Krever en retting av page_kind at de 2 044 lagrede dokumentene leses på nytt, kommer den omlesingen før fasitsettet, og den fyller hurtigbufferen. Etter kjøringen: en ny dump som gjenopprettingskilde, README «Seed» oppdatert i samme commit, og ingen dump slettes.
+
+D1 er låst: ingen endring i terskler eller typeregel. Vis ingen fingeravtrykk-resultater for orgnr i fasitsettet. Alle tall som totaler, uten orgnr. Hver rad i I/O-matrisen i spec-en skal nevne testen som feiler hvis koden fjernes. Små commits underveis. PR-en skal ha linjen «Planning documents:».
+```
+*Changed:* the probe came first, read-only (`6a222e5`), and the BMAD session stopped at the checkpoint. The probe showed that every rule that would bring a figure back brings back a wrong one. The issue is #49.
+
+**12:27**: the answers to the four decisions at the checkpoint.
+```
+Fra meg: 1 ingen retting; proben viser at hver regel som henter tilbake et tall, henter tilbake et galt tall. Skriv det i spec-en.
+2 (a), med én kontroll lagt til før fasitsettet: etter at hurtigbufferen er bygget, kjører jeg --reread av referansesettet to ganger, først med OCR (fyller hurtigbufferen), så fra hurtigbufferen. Begge skal gi nøyaktig de samme tallene, status og kontrollene som seeden har nå, og den andre skal ha bare treff. Tell treff og bom, og skriv resultatet i spec-en og PR-en. Det beviser på ekte data at hurtigbufferkoden ikke endrer det som leses. Avvik er en feil som stopper storyen før fasitsettet.
+3 (a), som en merge av c0f10a0 fra story/5.1-labelled-set, ikke cherry-pick, så hashene beholdes. 15e1010 (den blinde merkingen) skal ikke med. Skriv i PR-teksten at dette er 5.1-commits tatt med uendret, og at 5.1-PR-en tar resten.
+4 (b), bare 2025. Formatet med {"orgnr", "years"} er ny oppførsel: oppdater AGENTS.md, og test at en ny kjøring med flere år bare henter dokumentene som ikke er lagret.
+Spec-en kan beholdes samlet. De 720 parene i labels.csv er ikke merket ennå: ingen fingeravtrykk-resultater for orgnr i fasitsettet, heller ikke i terminalen. Kjøringene starter bare etter eget ja fra meg, og jeg kjører dem selv: først dump og backup, så referansesettet to ganger, så fasitsettet. Små commits.
+```
+*Changed:* written into the spec (`0c57cb0`), and Story 5.1's draw merged unchanged (`7c27af8`). The control before the labelled set, the reference set read twice, was proposed by the review session.
+
+**12:40**
+```
+Fra meg: (a), --reread-all <file>. Godt fanget. Vilkår: den har nøyaktig de samme reglene som --reread for nekting av orgnr, ikke erstattet, frister, stopp etter tre frister på rad og exit-kode, og forskjellen er bare at reader_commit ikke sjekkes. Test at den leser et dokument som allerede har gjeldende reader_commit, og at --reread fortsatt hopper over det. Den skal også kjøre pnpm derive etterpå, som --reread. Linje i AGENTS.md. Skriptet som sammenligner med seeden skal også telle treff og bom fra run.step1, og bare skrive totaler. Sett spec-en til ready-for-dev og fortsett med kode og tester i små commits. Kjøringene venter på eget ja.
+```
+*Changed:* `--reread-all` (`2db61f5`, `c460e70`). The BMAD session found that a second `--reread` at the same commit reads nothing, so the control as the review session had drafted it would have proved nothing.
+
+**14:25**: the answers to the three findings of review pass 1 that the BMAD session put to the human (triage 2, 14 and 17), and the CPU features in the key.
+```
+Fra meg: 1. Ja, legg til sha256 av ocr.py som en sjette del av nøkkelen, lest fra modulfila når kjøringen starter, ikke en konstant, med eget navn i tellingen når den er ulik. Test at en endret ocr.py gir bom med den delen navngitt, at en uendret gir treff, og at sletting av sjekken får en test til å feile. Oppdater spec-en (i Spec Change Log, med dato og meg som beslutningstaker), AGENTS.md og den tekniske notatet. 2. Behold ingest med skrivebeskyttet tilkobling, ingen migrasjon: reader er rollen nettsiden bruker, og skal ikke se run-skjemaet. 3. 36b6117 blir på branchen og går inn med PR-en. Si det i én linje i PR-teksten. CPU-funksjonene i nøkkelen godtar jeg, siden hurtigbufferen er lokal. Kjør hele testsuiten, så åpner du PR-en med «Planning documents:»-linjen. Kjøringene venter på mitt eget ja.
+```
+*Changed:* `ocr_code_sha256` in the key (`ac61135`) and the decisions in the spec (`f1eb27b`). PR #50 was opened.
+
+**14:41**
+```
+Fra meg: CI er grønn. Ja til kjøringene. Ta dumpen og backupen nå med sha256, som i 2.5c, og vis meg stiene og hashene. Gi meg så kommandoene for de to kjøringene av referansesettet, med sjekken etter hver, og keep-awake-kommandoen. Jeg kjører dem selv i egne vinduer. Mens en kjøring går, rører du ikke ingest/, databasen eller Docker, og du committer ingenting som endrer ingest/, fordi det endrer reader_commit. Fasitsettet starter jeg først når begge sjekkene har gitt exit 0, og etter mitt eget ja.
+```
+*Changed:* the dump `.local/document-tables-before-2.5d-runs/` and its backup. The human ran the first proof in their own windows: runs 1242 and 1243.
+
+**16:11**
+```
+Fra meg: Begge kjøringene av referansesettet er ferdige, og du kan røre ingest/ igjen. Resultat: run 1242 (--reread) og 1243 (--reread-all) leste 97 av 97, 0 feilet og 0 ikke erstattet, 87 avstemt og 10 ikke avstemt, og ga 0 treff og 97 bom «absent» hver. pnpm analysis:seed-documents ga exit 0 etter begge: 97 dokumenter og 194 kolonner er like seeden, og alle er lest av ac61135. --cache-proof ga exit 1 med «0 hits of 97 read» og «97 absent, must be 0». OCR ga altså samme tall tre ganger, men hurtigbufferen traff aldri.
+
+Review-sesjonen fant årsaken: data.brreg.no legger en ny tilfeldig /ID [<…> <…>] i PDF-ens trailer ved hver henting. Ellers er bytene like, sjekket på tre dokumenter fra referansesettet hentet to ganger hver, og hver PDF har nøyaktig én /ID. Derfor gir pdf_sha256 av rå bytes alltid bom «absent», og .local/ocr-cache/ har nå 194 oppføringer for 97 dokumenter.
+
+Retting: nøkkelen og filnavnet bruker sha256 av PDF-en med /ID-arrayen erstattet av en fast verdi. Er det ikke nøyaktig én /ID, er det ingen treff, og bommen telles med årsaken navngitt, aldri stille.
+
+Tester: to PDF-er som bare har ulik /ID, gir samme nøkkel og treff. Én endret byte et annet sted gir bom. Null eller to /ID gir bom med årsak. Fjernes normaliseringen, skal en test feile.
+
+Skriv det inn som en API-felle i docs/data-sources-brreg.md og under «Known API traps» i AGENTS.md, med dato. Føy det til Spec Change Log, med dato og meg som beslutningstaker, siden det endrer nøkkelen jeg bestemte. Før kjøringene 1242 og 1243 inn i spec-en og PR-en som det første forsøket på beviset, mislykket, med tellingene over. Si i sesjonsfila og ai-log at review-sesjonen fant feilen i den ekte kjøringen, og at testene ikke kunne fange den fordi de bruker samme bytes. Hold de gamle oppføringene i hurtigbufferen utenfor. De treffer aldri, og jeg sletter ikke noe nå. Kjør hele testsuiten og push. Gi meg så de samme to kjøringene på nytt med sjekkene. De starter etter mitt ja.
+```
+*Changed:* the review session found the defect, and the key now hashes the PDF with its `/ID` array fixed (`df34a2d`, `f8e0d1e`). The trap is in `AGENTS.md` and `docs/data-sources-brreg.md` (`951c24b`), and the failed proof is in the spec and the session file (`2f4e3f5`, `53c3fd6`).
+
+**18:09**
+```
+Fra meg: Beviset er bestått. Run 1410 (--reread, OCR) tok 38 min med 0 treff og 97 bom «absent», og pnpm analysis:seed-documents ga exit 0. Run 1411 (--reread-all) tok 2 min 30 s med 97 treff, 0 bom, 0 uten brukbar /ID og 0 skrivefeil, og --cache-proof ga exit 0. Begge leste 97, med 0 feilet, 0 ikke erstattet og 0 tapte tall, og 87 avstemt og 10 ikke avstemt. Alle 97 er lest av df34a2d. Før det inn i spec-en og PR-en som det andre, beståtte forsøket. Review-sesjonen har sjekket tellingene mot run.step1.
+
+Ja til fasitsettet. Før jeg starter: ta en ny dump og backup med sha256 av de tre tabellene, slik at gjenopprettingspunktet er nøyaktig. Kjør pnpm analysis:document-run before-2.5d. Commit dette, push, og gi meg kommandoen for fasitsettet. Etter kjøringen skriver du bare totaler, ingen fingeravtrykk eller type per orgnr i fasitsettet, heller ikke i terminalen. Mens kjøringen går, rører du ikke ingest/, databasen eller Docker, og du committer ingenting.
+```
+*Changed:* the passed proof in the spec, and the dump before the labelled set (`b4b5ee7`); the counts before the run (`90175c9`). The human then ran run 1412.
+
+**23:01**
+```
+Fra meg: Fasitkjøringen er ferdig. Run 1412 (--documents) gikk fra 18:22 til 22:55. 845 listet og 0 nektet. 104 var allerede lagret for 2025. 741 ble lest, med 0 feilet, 0 OCR-feil og 0 asked_not_listed. Av de 741 ble 690 avstemt, 45 ikke avstemt og 6 ikke lest ut. Lagrede dokumenter for de samme selskapene ble avstemt på nytt: 448 avstemt og 39 ikke avstemt. Hurtigbufferen ga 741 bom «absent», 0 uten /ID og 0 skrivefeil. Alle 741 er lest av df34a2d. Dokumenter: 2 044 → 2 785. Fingeravtrykk: 1 856 → 2 537. Review-sesjonen har sjekket dette mot run.step1. Gjør resten nå:
+1. pnpm analysis:document-run after-2.5d.
+2. Ny dump .local/document-run-2.5d/ med backup og sha256, og README «Seed» oppdatert i samme commit.
+3. Seed-eksporten med de ni stegene fra 2.5c, fra allow-lista. Ingen rader fra fasitsettet utenfor allow-lista skal havne i seed/.
+4. Før totalene inn i spec-en, sesjonsfila og PR-en.
+5. Bare totaler, ingen orgnr, type eller fingeravtrykk per selskap i fasitsettet, heller ikke i terminalen.
+Slett ingen dump. Kjør hele testsuiten, push, og si fra når CI er grønn. Da lager review-sesjonen et utkast til reviewen.
+```
+*Changed:* the counts after the run (`ee35396`), the new restore source in README "Seed" (`a1edd4c`), the seed (`eadadab`), the totals in the spec (`baec193`), and three step-1 tests deferred (`cc2446a`).
+
+**2026-11-08 09:07**
+```
+Fra meg: Review-sesjonen har sjekket dumpene, databasen, seed-commiten og CI, og alt stemmer. Utsettelsen av de tre stegtestene godtar jeg. Push sesjonsloggen 87a5d5d, så den kommer med i PR-en. Reviewen min kommer på GitHub, og så merger jeg når CI er grønn.
+```
+*Changed:* the session log `87a5d5d` was pushed to the PR.
+
+### Prompts to the review session
+
+- `okei, gi meg prompt` (11-07): the review session drafted the 12:04 prompt for Story 2.5d.
+- Pastes of the BMAD session's output at the checkpoint, after the build and after the PR (11-07): the review session checked them against the code and the branch, and drafted the 12:27, 12:40 and 14:25 prompts. It recommended a sixth key part for `ocr.py`, because stored words would otherwise survive a change to `read_tsv`, and it recommended keeping `reader` away from schema `run`.
+- `hva skal jeg nå?`, `Sånn?`, `da har jeg begynt denne i nytt vindu: …`, `når skal jeg kjøre denne …`, `Skal jeg holde dette vinduet åpent mener du?`, `Har kjøringen da startet?` and `Nå kjører den?` (11-07): the review session gave the commands for each run and confirmed from `run.step1` that it had started.
+- `sjekk`, `nå`, `hvordan ligger vi an nå`, `okei, kan du se hvor lang tid kjøring 2 har brukt nå`, `ferdig nå?` and `kan du sjekke` (11-07): the review session followed the runs in the database. Following the second run of the first proof, it saw about 20 seconds per document and new cache entries instead of hits. It compared the stored keys, then fetched three reference documents twice each and found that the register writes a new random `/ID` on every fetch.
+- `ci er grønn`, `post review` and `merget` (11-08): the review session confirmed CI, posted the review and did the housekeeping on `main`.
+
+### Result
+
+The labelled set's 2025 documents are read: 845 listed, 104 already stored, 741 read and none failed, of which 690 reconciled, 45 did not and 6 could not be read out. Documents went from 2 044 to 2 785, and fingerprints from 1 856 to 2 537. The OCR word cache is proven on real data: the reference set took 38 minutes by OCR and 2 min 30 s from the cache, with 97 hits of 97 and the same figures, status and checks as the seed. The first proof failed with 0 hits, because the cache was keyed on the raw PDF bytes, and `--cache-proof` caught that with exit 1. The tests could not have caught it, because they read the same bytes twice.
+
+### Checks before merging
+
+The review session checked these against `run.step1`, the database and the dumps:
+- runs 1242, 1243, 1410, 1411 and 1412 and their counts;
+- the `/ID` fix on three reference documents fetched twice each, with the raw bytes different and the key equal;
+- the dumps' sha256 against their backups, and the counts after the restore;
+- with a CSV parser, that the seed commit `eadadab` changes only `reader_commit` and `read_at` of the 97 reference documents.
+
+CI was green on `87a5d5d`. At the human's request (`post review`), the review session posted the GitHub review with six line comments. The PR was merged at 08:21 UTC on 2026-11-08 as `a5476b1`.
+
 ---
 
 ## Going forward

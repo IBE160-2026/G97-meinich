@@ -2397,6 +2397,89 @@ The review session checked these against `run.step1`, the database and the dumps
 
 CI was green on `87a5d5d`. At the human's request (`post review`), the review session posted the GitHub review with six line comments. The PR was merged at 08:21 UTC on 2026-11-08 as `a5476b1`.
 
+## Story 2.6a: the register text classification reads (#52, PR #53)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. Results for the labelled set are not given: its 720 pairs are not labelled yet.
+
+### Prompts to the BMAD session
+
+**2026-11-08 09:58**: the answers at Story 2.6's checkpoint, where 2.6a was split out. The prompt that opened Story 2.6 belongs to that story's section.
+```
+Fra meg: 
+1. Ja til «uklart». Det er ikke en femte type: BUSINESS_TYPES står fast, skjemaet er de fire pluss avstå, og det lagres uten type, som fingeravtrykkets null. Det telles for seg i run-recorden, og andelen skal med i 5.2. Rett AC-en i epics.md.
+2. Ingen --include-labelled. Full kjøring gjøres først etter at jeg er ferdig med å merke de 720 parene, og da er de 845 med som alle andre. Før det er 300-prøven utenfor fasitsettet den eneste ekte kjøringen. Den trenger eget OK og skal ikke inn i seeden.
+3. Bare AS. seed:export-sperren gjelder bare AS-selskaper i dekket næring, og ikke-AS skal aldri stå som pending. Rett «all 62.100» til AS i FR-73, tekniske notat og PRD.
+4. Ja, skill ut 2.6a (tekstfeltene, migrasjon, parser, seed-re-eksport) med eget issue, egen story i epics.md og egen PR. Si hvor mye company.csv vokser.
+
+Seeden: jeg trekker tilbake allow-list-utgangspunktet. FR-73 setter lisensporten bare på fingeravtrykk, og klassifiseringene er NLOD-tekst. Etter full kjøring får seeden alle AS i 62.100, som FR-73 sier. Det eneste vilkåret er blindingen, og den er oppfylt når merkingen er ferdig. Derfor skal ikke tekniske notat, PRD og FR-73 skrives om på dette punktet. 2.6-PR-en holdes åpen til full kjøring og seed er gjort.
+
+Bygg 2.6a først. Stopp før --companies-only og gi meg kommandoen. Jeg kjører den selv. Blindingen og reglene fra forrige melding gjelder fortsatt. Ingen modellkall før jeg har sagt OK til akkurat den kjøringen.
+```
+*Changed:* Story 2.6a got its own issue (#52), epics story and spec (`6a3f42c`); columns, parser and docs followed (`a5bc619`, `556379a`, `ce45e0d`), and the review fixes (`e5295f5`). The review session had withdrawn the human's earlier starting point that only allow-listed companies could be stored, because FR-73 gates only fingerprints.
+
+**10:13**: the answer to whether text is stored for every company or for an AS only, and three findings by the review session.
+```
+Fra meg: Bare AS. Andre organisasjonsformer skal ha aktivitet og vedtektsfestet_formaal NULL, også hvis et selskap slutter å være AS og hadde tekst fra før. Tell hvor mange som hoppes over i run.step1, aldri stille, og test begge deler. Grunnen er den samme som for ENK-kommunen i docs/data-sources-brreg.md: offentlig i registeret, men ikke noe Peerless skal samle uten at noe bruker det.
+
+Tre ting til i samme PR:
+1. Rett de tre testene i test_documents_run.py nå. Årsaken står i deferred-work.md: de bruker et ekte orgnr som nå har et lagret dokument, og vi utsatte dem til neste story som endrer ingest/, altså denne. Bruk et gyldig orgnr som aldri er lagret, som foreslått der, og lukk oppføringen.
+2. seed:export alene virker ikke, fordi den lokale databasen har 2 688 dokumenter utenfor allow-lista. Følg steg 3–9 fra 2.5c: sjekk at .local/document-run-2.5d/ fortsatt er lik radene i databasen, kontrollert sletting i én transaksjon, derive, seed:export i egen commit, pnpm seed to ganger med uendret re-eksport, gjenoppretting og derive. Vis tellingene. Ingen dump slettes.
+3. Skriv i PR-en at reader_commit nå flytter seg fra df34a2d uten at tallene endres, at analysis:seed-documents derfor feiler på «current reader» til neste omlesing, og at ingen omlesing trengs for dette.
+
+Kjør hele testsuiten, også pnpm lint, og commit i små steg. Så gir du meg kommandoen for --companies-only. Jeg kjører den selv. Ingenting pushes før seeden er med.
+```
+*Changed:* the AS rule (`ab27ed0`), the three tests on an orgnr no run stores (`f10ccf6`, `1eeb878`) and the deferred entry closed (`aa57ab0`). Without point 2, `seed:export` would have refused the local database. The human then ran `--companies-only`: run 1708.
+
+**15:19**
+```
+Fra meg: --companies-only er ferdig, run 1708: 17 802 oppdatert, 81 ikke i bulkfila, 7 475 uten tekst fordi de ikke er AS, 0 feilet. Review-sesjonen har sjekket: 10 327 AS med begge tekstene, 0 andre former med tekst, 2 785 dokumenter, 5 556 kolonner og 2 537 fingeravtrykk.
+
+Gå videre med seeden etter steg 3–9 fra 2.5c, slik du fikk beskjed om. Dump og backup med sha256 først. Sjekk at .local/document-run-2.5d/ er lik radene i databasen. Slett i én kontrollert transaksjon, kjør derive, kjør seed:export i egen commit, kjør pnpm seed to ganger med uendret re-eksport, gjenopprett og kjør derive. Etterpå skal det være 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og fortsatt 10 327 AS med tekst. Ingen dump slettes.
+
+Les diffen i seed/demo/company.csv kolonne for kolonne før du committer. Forventet: de to nye kolonnene, search_fields_read_at på 17 802 rader, 28 endrede kommuner (nummer og navn), og 28 rader der naeringskode1_beskrivelse blir tom fordi bulkfilas kode ikke er den lagrede (code_differs 29). Ingen av dem er på allow-lista. Alt annet som endrer seg, er en feil: stopp og si fra. Skriv dette i PR-en. Sjekk også at søket tåler en tom beskrivelse, og navngi testen som viser det.
+
+Til spec-en for 2.6: 2 236 av 10 327 AS har identisk aktivitet og vedtektsfestet_formaal. Send teksten bare én gang i de tilfellene, og la kostnadsanslaget regne med det. Ingen modellkall.
+
+Kjør hele testsuiten etterpå, også de to seed-testene og pnpm lint. Vis meg resultatene og tellingene. Ikke push før jeg sier fra.
+```
+*Changed:* the seed alone in `c6d990e`, the seed test's column list (`c023e7c`), the sequence in the spec and the session file (`110ba8d`), and identical text sent once in Story 2.6's spec (`1c9c70e`, still on that branch). The review session named the expected diff of `company.csv` before the BMAD session read it, and the comparison found nothing else.
+
+**15:34**
+```
+Fra meg: Review-sesjonen har sjekket seed-commiten, tellingene, backupen og PR-teksten, og alt stemmer. Du kan pushe story/2.6a-company-text-fields og åpne PR-en med teksten du har skrevet. Identisk tekst under vedtektsfestet_formaal er greit.
+
+Si fra med PR-nummeret når den er åpen. Ikke merge. Ikke start på 2.6 før 2.6a er merget, og ingen modellkall.
+```
+*Changed:* the branch was pushed and PR #53 opened.
+
+**15:38**
+```
+Fra meg: Ja, push sesjonsloggen til PR-en, AGENTS.md krever det på en story-branch. Ingen andre endringer. Ikke merge, og ikke start på 2.6.
+```
+*Changed:* the session log `9023435` was pushed to the PR.
+
+### Prompts to the review session
+
+- `kan vi starte med 2.6 før denne De 720 parene i labels.csv må merkes før Story 5.2. …`, and `hvor mye koster det da? …` (11-08): the review session drafted the prompt that opened Story 2.6. The human's condition, `ikke kjør noe før jeg vet kostnadsanslag ved en kjøring og har sagt OK`, became a rule in it: no model call without an OK for that run.
+- Pastes of the BMAD session's output at the Story 2.6 checkpoint and after the 2.6a build (11-08): the review session checked them against the branch and the database, recommended AS only, found the cause of the three failing tests in `deferred-work.md`, and pointed out that a bare `seed:export` would be refused. It drafted the 09:58 and 10:13 prompts.
+- `okei limt inn i powershell og kjører nå? Hvor lang tid?` and `ferdig nå` (11-08): the review session confirmed the run had started and checked run 1708 and the counts. It found the 2 236 companies with identical text and the 28 changed municipalities and descriptions, by comparing the old seed with the database, and drafted the 15:19 prompt.
+- A paste of the BMAD session's report after the seed (11-08): the review session checked the seed commit, the counts, the backup and the PR text, and drafted the 15:34 prompt.
+- `ci er grønn`, `post review` and `merget` (11-08): the review session confirmed CI, posted the review and did the housekeeping on `main`.
+
+### Result
+
+`register.company` has `aktivitet` and `vedtektsfestet_formaal` for an AS only: 10 327 AS have both texts and no other form has any. The seed carries them. Run 1708 updated 17 802 companies, left 81 not in the bulk file untouched and did not store text for 7 475 that are not an AS.
+
+### Checks before merging
+
+The review session checked these against `run.step1`, the database and the seed files:
+- run 1708 and its counts;
+- that `c6d990e` changes only `company.csv` and `manifest.json`, and that no labelled-set row entered the seed;
+- the counts after the restore, and the backup's sha256 against the dump;
+- the 28 changed municipalities and 28 emptied descriptions, none on the allow-list.
+
+CI was green on `9023435`. At the human's request (`post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 14:49 UTC on 2026-11-08 as `1d1eaf2`.
+
 ---
 
 ## Going forward

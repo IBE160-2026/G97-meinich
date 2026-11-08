@@ -1,0 +1,87 @@
+---
+title: 'Story 2.6a: The register text classification reads'
+type: 'feature'
+created: '2026-11-08'
+status: 'in-progress'
+route: 'dispatch'
+review_loop_iteration: 0
+baseline_commit: '9d43524bf1d3a036d6cc4861f25e389aceb48586'
+context:
+  - '{project-root}/AGENTS.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** Story 2.6 classifies on the company's business description and statement of purpose, but step 1 stores neither, so `register.company` has nothing to classify on.
+
+**Approach:** Step 1 stores `aktivitet` and `vedtektsfestetFormaal` with the search fields, in a plain run and in `--companies-only`. Meinich runs `--companies-only`; the seed is then re-exported.
+
+## Boundaries & Constraints
+
+**Always:**
+- Two nullable text columns on `register.company`, `aktivitet` and `vedtektsfestet_formaal`, added to `SEARCH_FIELD_COLUMNS`, so one read timestamp and one write path cover them. Absent, `null`, an empty array or only blank lines is NULL, never an empty string.
+- The register delivers each as an array of lines; store them stripped and joined with one space, in array order.
+- No silent fallback: a value that is not an array, or an element that is not a string, raises `ValueError` in `parse_company` and is reported through the existing "bulk unit not loaded" failure.
+- Commit in small logical steps, each type-checking: migration, parser and writer with tests, docs. Review fixes are separate commits. No orgnr in commit messages.
+- A migration is applied locally only with `pnpm exec supabase migration up`, which keeps the data.
+
+**Never:**
+- Do not run `pnpm ingest` in any mode, `pnpm seed`, `pnpm seed:export`, `pnpm db:reset`, or anything that truncates a `register` table: the local database holds document rows that a seed would remove. Do not delete anything under `.local/`.
+- No model call. Do not open `labels.csv` or `labels-blind.csv`, or anything under `analysis/labelled-set/`.
+- No print of text per company against the real database, in logs or in commits; fixtures use invented text.
+- Nothing else about the company changes: a companies-only run still updates only `SEARCH_FIELD_COLUMNS`.
+
+## I/O & Edge-Case Matrix
+
+Every row names the test that fails if its code is removed.
+
+| Scenario | Input / State | Expected Output / Behavior | Test that fails without it |
+|----------|--------------|---------------------------|----------------|
+| Lines joined | `aktivitet: [" Utvikling av", "programvare "]` | `"Utvikling av programvare"` | `ingest/tests/test_parse.py::test_register_text_lines_are_joined` |
+| Both fields read | unit with both | each in its own field | `ingest/tests/test_parse.py::test_parse_company_reads_both_register_texts` |
+| Nothing there | absent, `null`, `[]`, `["", " "]` | `None` | `ingest/tests/test_parse.py::test_absent_or_blank_register_text_is_none` |
+| Wrong shape | a string, or `[1]` | `ValueError` naming the field | `ingest/tests/test_parse.py::test_register_text_of_the_wrong_shape_refused` |
+| Plain run writes | a run over a unit | both columns stored | `ingest/tests/test_write.py::test_run_stores_the_register_text` |
+| Companies-only writes | stored company, bulk has text | both columns set, `search_fields_read_at` moved, other columns unchanged | `ingest/tests/test_write.py::test_companies_only_updates_the_search_fields_and_nothing_else` (extended) |
+| Wrong shape in a run | one malformed unit | that orgnr in the summary's `failed`, the others written | `ingest/tests/test_write.py::test_companies_only_reports_malformed_register_text` |
+| Columns exist | migration applied | both `text`, nullable | `test/db/company-search.test.ts` (extended column list) |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `supabase/migrations/` -- new file after `20261105120000`, with comments in the style of `20261014120000_register_company_search.sql`, which added the search fields. Grants follow the table's existing ones.
+- `ingest/src/peerless_ingest/parse.py:94-115,183` -- `Company`, `parse_company`; `_search_field` is the neighbouring pattern.
+- `ingest/src/peerless_ingest/write.py:30` -- `SEARCH_FIELD_COLUMNS`; `UPSERT_COMPANY` and `UPDATE_SEARCH_FIELDS` derive from it, so no new SQL.
+- `ingest/src/peerless_ingest/run.py:1445` -- `run_companies_only` docstring names the fields; its parse failure path already records "bulk unit not loaded".
+- `ingest/tests/test_write.py:39` -- `Company` fixture needs the new fields; `:289` `search_fields`, `:351`.
+- `test/db/company-search.test.ts:13,146` -- column lists.
+- `docs/data-sources-brreg.md:23`, `README.md:76,108`, `AGENTS.md` (the `--companies-only` sentence) -- say what the mode now fills.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [ ] `supabase/migrations/20261108120000_company_register_text.sql` -- add the two columns with comments -- Story 2.6 reads them.
+- [ ] `ingest/src/peerless_ingest/parse.py` -- add the fields and a strict `_register_text` -- the register delivers arrays of lines.
+- [ ] `ingest/src/peerless_ingest/write.py` -- extend `SEARCH_FIELD_COLUMNS`, update its comment -- one write path.
+- [ ] `ingest/src/peerless_ingest/run.py` -- update the docstring -- it names the fields.
+- [ ] `ingest/tests/test_parse.py`, `ingest/tests/test_write.py`, `test/db/company-search.test.ts` -- the matrix's tests.
+- [ ] `docs/data-sources-brreg.md`, `README.md`, `AGENTS.md` -- what the mode fills.
+
+**Acceptance Criteria:**
+- Given the migration applied with `supabase migration up`, when the step-1 and database tests run, then they pass and no `register` row has changed.
+- Given the committed seed from before this migration, when the suite runs before the re-export, then any failure caused only by the seed lacking the two columns is listed in the report and left for the re-export, not worked around.
+
+## Implementation Notes
+
+## Spec Change Log
+
+## Review Triage Log
+
+## Verification
+
+**Commands:**
+- `pnpm exec supabase migration up` -- expected: the one new migration applied.
+- `pnpm check:pins; pnpm lint; pnpm typecheck; pnpm test; pnpm test:db; pnpm test:ingest` -- expected: pass, apart from what the second acceptance criterion names.

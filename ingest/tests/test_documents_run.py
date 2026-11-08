@@ -206,6 +206,15 @@ def test_stored_document_not_refetched(stored: psycopg.Connection, cfg: Config, 
     assert summary.documents.written == {}
 
 
+def filings_of_never_stored() -> bytes:
+    """The recorded filings under NEVER_STORED. Their register ids move too:
+    `brreg_id` is unique, and the real company's filings may be stored."""
+    filings = json.loads(recorded("regnskap_919951834.json").replace(b"919951834", NEVER_STORED.encode()))
+    for filing in filings:
+        filing["id"] += 900_000_000
+    return json.dumps(filings).encode("utf-8")
+
+
 def test_normal_run_fetches_no_document(db: psycopg.Connection, cfg: Config, monkeypatch: pytest.MonkeyPatch) -> None:
     # Meinich, 2026-10-20: a plain `pnpm ingest` is the register and API run
     # as before; filed documents are read only with --documents <file>. The
@@ -213,7 +222,7 @@ def test_normal_run_fetches_no_document(db: psycopg.Connection, cfg: Config, mon
     # for them would get them: the assertions, not the transport, catch it.
     reader = FakeRecognise(monkeypatch, {pdf("2025"): generated(2025)})
     responses: dict[str, bytes | None] = {
-        regnskap_url(NEVER_STORED): recorded("regnskap_919951834.json").replace(b"919951834", NEVER_STORED.encode()),
+        regnskap_url(NEVER_STORED): filings_of_never_stored(),
         enhet_url("967534579"): recorded("enhet_967534579.json"),
         regnskap_url("967534579"): recorded("regnskap_967534579.json"),
         aar_url(NEVER_STORED): b'["2025"]',

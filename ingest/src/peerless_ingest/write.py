@@ -27,12 +27,15 @@ from .documents import FIELDS, Column, DocumentRead
 from .parse import KEY_FIGURE_COLUMNS, Company, Filing
 from .reconcile import SHARED_FIELDS, Reconciliation, Role, Rules, document_status, reconcile_column
 
-# What search shows (Story 1.5a) and when it was read. A normal run writes
-# them with the rest of the company; companies-only mode writes only these.
+# What search shows (Story 1.5a), the register text Story 2.6 classifies on
+# (Story 2.6a), and when they were read. A normal run writes them with the
+# rest of the company; companies-only mode writes only these.
 SEARCH_FIELD_COLUMNS = (
     "forretningsadresse_kommunenummer",
     "forretningsadresse_kommune",
     "naeringskode1_beskrivelse",
+    "aktivitet",
+    "vedtektsfestet_formaal",
     "search_fields_read_at",
 )
 
@@ -112,7 +115,7 @@ def write_company(conn: psycopg.Connection, company: Company) -> None:
 
 
 def update_company_search_fields(conn: psycopg.Connection, company: Company, read_at: datetime) -> bool:
-    """Companies-only mode: sets the three search fields of an existing
+    """Companies-only mode: sets the search fields of an existing
     company, and `search_fields_read_at` to `read_at`, the time of the bulk
     read. Touches no other column (`navn` and `read_at` stay as they were)
     and inserts nothing. Returns whether a row with the orgnr exists."""

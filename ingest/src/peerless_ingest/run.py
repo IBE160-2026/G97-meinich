@@ -1449,8 +1449,8 @@ def run_companies_only(
     on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> CompaniesOnlySummary:
     """Fills forretningsadresse_kommunenummer, forretningsadresse_kommune,
-    naeringskode1_beskrivelse and search_fields_read_at from the bulk
-    download, for every company already in register.company. The bulk file
+    naeringskode1_beskrivelse, aktivitet, vedtektsfestet_formaal and
+    search_fields_read_at from the bulk download, for every company already in register.company. The bulk file
     is read without the industry filter: demo company C, or a company whose
     primary code has changed since it was stored, is in it like any unit.
 

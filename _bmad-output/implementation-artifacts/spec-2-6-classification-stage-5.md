@@ -34,6 +34,7 @@ context:
 - Real runs: until the 720 pairs are labelled, the only one is the 300-company sample outside the labelled set, on its own OK and never in the seed. The full run comes after labelling, with the 845 like any other company. There is no `--include-labelled`.
 - Seed: after the full run, every AS in 62.100, as FR-73 says; blinding is the only condition. The licence gate does not apply (NLOD text). This PR stays open until the full run and seed are done.
 - Story 2.6a is split off with its own issue, epics story and PR, and lands first.
+- One text once: where `aktivitet` and `vedtektsfestet_formaal` are identical (2 236 of the 10 327 AS with text, compared as stored), the request carries that text once, under `vedtektsfestet_formaal`, and leaves `aktivitet` out. Every cost plan builds on the requests as sent, so `pnpm classify --plan` counts it.
 
 **Never:** a model call at request time; a classification in the seed before the labelling is finished; automatic reclassification on a changed prompt.
 
@@ -44,6 +45,7 @@ Every row names the test that fails if its code is removed.
 | Scenario | Input / State | Expected | Test that fails without it |
 |---|---|---|---|
 | Fields sent | a company | only name, secondary codes, purpose, description in the request | `test/classify/request.test.ts` "sends only the four fields" |
+| One text once | `aktivitet` equal to `vedtektsfestet_formaal` | the text appears once in the request, `aktivitet` left out; two different texts are both sent | `test/classify/request.test.ts` "sends an identical text once" |
 | Schema from set | `BUSINESS_TYPES` | enum equals it; no string field without enum | `test/classify/request.test.ts` "schema is generated from BUSINESS_TYPES" |
 | Outside the set | stubbed answer `"saas"` | `failed`, failure in the run record | `test/classify/run.test.ts` "answer outside the set is failed, not coerced" |
 | Refusal, truncation, batch error | stubbed `refusal`, `max_tokens`, `errored` | `failed` with reason | `test/classify/run.test.ts` "refusal, truncation and errored are failed" |
@@ -84,6 +86,16 @@ Every row names the test that fails if its code is removed.
 **Acceptance Criteria:** those of `epics.md`, Story 2.6, as settled by the answers above.
 
 ## Implementation Notes
+
+- **Cost plan with the identical text sent once (2026-11-08, no model call).** Haiku 5.5 Batch, $0.05 in / $0.25 out per MTok (pricing page read 2026-11-08). Input from the real prompt length (765 characters) and the mean request of the 9 482 AS with text outside the labelled set: 371.0 characters as two fields, 338.6 with the identical text once. Central: 3.0 characters per token, 300 tokens overhead, 115 out. High: 2.2 and 500, 1 015 out. Ceiling: `max_tokens` on every request.
+
+  | 10 327 AS | Tokens in | Tokens out | Dollars | Before |
+  |---|---|---|---|---|
+  | Central | 6.90 M | 1.19 M | $0.64 | $0.65 |
+  | High | 10.34 M | 10.48 M | $3.14 | $3.15 |
+  | Ceiling | 10.34 M | 20.65 M | $5.68 | $5.69 |
+
+  The 300-AS sample stays about $0.02 / $0.09 / max $0.17. The saving is about 1.5 % of input tokens: output dominates, so the reason to send the text once is what the model reads, not the cost.
 
 ## Spec Change Log
 

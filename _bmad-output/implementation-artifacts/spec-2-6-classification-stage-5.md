@@ -99,6 +99,8 @@ Every row names the test that fails if its code is removed.
 
 ## Spec Change Log
 
+- 2026-11-08, Meinich: the prompt's category limits are set after sample run 14, on those 300 companies only, never the labelled set: `produkt` needs a named or concretely described software product of the company's own that is sold or rented out; physical products are `annet`; general wording is `uklart`. After one new sample on the same 300, the prompt stands until the full run and is not changed after the labelled set is measured.
+
 - 2026-11-08, BMAD session, for Meinich to confirm: the epic says the flag is stored. It depends on the subject, so no company row can hold it; the funnel returns the flagged orgnrs and count with the group, from the two stored signals. The epic's AC is corrected in this PR.
 - 2026-11-08, BMAD session: the `e2e/no-model-network.spec.ts` row is replaced. A browser test sees only the browser's requests, not the server's, so it would pass with a model call in a server component; a source scan of the request path fails on one.
 - 2026-11-08, BMAD session: `seed:export`'s tests are in `test/db/classification.test.ts`, because they need the database, and `test/db/seed.test.ts` cannot run until the seed is re-exported.

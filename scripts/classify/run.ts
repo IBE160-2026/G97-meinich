@@ -202,6 +202,8 @@ export async function runClassify(deps: Deps, options: Options, maxUsd: Decimal)
     await store.write(work.noText.map((item) => noTextRow(item, sample, deps.now())));
     if (work.send.length > 0) {
       const batchId = await model.submit(work.send.map(({ orgnr, input }) => ({ orgnr, input })));
+      // Before any row is written: a stop here must not lose a paid batch. The id names no company.
+      log(`classify: batch submitted, id ${batchId}, ${work.send.length} requests`);
       counts.sent = work.send.length;
       await store.write(
         work.send.map((item) => ({
@@ -216,7 +218,6 @@ export async function runClassify(deps: Deps, options: Options, maxUsd: Decimal)
           classified_at: deps.now(),
         })),
       );
-      log(`classify: batch submitted, ${work.send.length} requests; waiting`);
       const items = new Map(work.send.map((item) => [item.orgnr, { textDigest: item.textDigest, sample }]));
       await collect(deps, batchId, items, counts, failures);
     }

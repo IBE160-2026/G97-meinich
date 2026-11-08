@@ -206,6 +206,25 @@ describe('a run', () => {
     expect(statuses).toEqual(['pending']);
   });
 
+  it('logs the batch id after submitting and before any row is written', async () => {
+    const { store } = fakeStore([target(A)]);
+    const { model } = stubModel(KONSULENT);
+    const events: string[] = [];
+    const write = store.write.bind(store);
+    store.write = (rows) => {
+      if (rows.length > 0) events.push('write');
+      return write(rows);
+    };
+    const submit = model.submit.bind(model);
+    model.submit = (requests) => {
+      events.push('submit');
+      return submit(requests);
+    };
+    await runClassify({ ...deps(store, model), log: (line) => events.push(line) }, ALL, CAP);
+    expect(events.slice(0, 3)).toEqual(['submit', 'classify: batch submitted, id batch-1, 1 requests', 'write']);
+    expect(events.join(' ')).not.toContain(A);
+  });
+
   it('collects a batch an interrupted run left, without sending it again', async () => {
     const left = stored(target(A), { status: 'pending', business_type: null, batch_id: 'batch-1' });
     const { store, rows } = fakeStore([target(A)], [left]);

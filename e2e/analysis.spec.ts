@@ -27,7 +27,7 @@ import {
   formatReadDate,
   formatWholePercent,
 } from '../src/engine/format.ts';
-import { fingerprintFromColumns } from '../src/engine/fingerprint.ts';
+import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { assemblePeerGroup, type CandidateFiling, type SizeBand, type SubjectFiling } from '../src/engine/peers.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
@@ -136,6 +136,13 @@ const fingerprints = new Map(
     }),
   ]),
 );
+// Story 2.6: the stored classifications' types, by orgnr, as funnel stage 5 reads them.
+const classifications = new Map(
+  csv('classification.csv')
+    .filter((c) => c.status === 'classified')
+    .map((c) => [c.orgnr, businessTypeFromColumn(orNull(c.business_type))]),
+);
+const classificationOf = (orgnr: string | undefined) => classifications.get(orgnr) ?? null;
 const fingerprintOf = (orgnr: string | undefined, year: string | undefined) =>
   fingerprints.get(`${orgnr ?? ''}/${year ?? ''}`) ?? null;
 type SeedCandidate = CandidateFiling & { readonly navn: string };
@@ -148,6 +155,7 @@ function expectedPeerGroup(orgnr: string, band: SizeBand) {
     filingYear: Number(filing.filing_year),
     sumDriftsinntekter: ore(keyFigures.get(filing.brreg_id ?? '')?.sum_driftsinntekter_ore),
     fingerprint: fingerprintOf(orgnr, filing.filing_year),
+    classification: classificationOf(orgnr),
     ...comparability(filing),
   };
   const candidates: SeedCandidate[] = allFilings
@@ -164,6 +172,7 @@ function expectedPeerGroup(orgnr: string, band: SizeBand) {
         filingYear: Number(f.filing_year),
         sumDriftsinntekter: ore(keyFigures.get(f.brreg_id ?? '')?.sum_driftsinntekter_ore),
         fingerprint: fingerprintOf(f.orgnr, f.filing_year),
+        classification: classificationOf(f.orgnr),
         ...comparability(f),
       };
     });

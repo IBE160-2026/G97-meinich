@@ -33,6 +33,7 @@ const subject: SubjectFiling = {
   smaaForetak: true,
   avviklingsregnskap: false,
   fingerprint: null,
+  classification: null,
 };
 
 let nextId = 1n;
@@ -53,6 +54,7 @@ function candidate(orgnr: string, overrides: Partial<CandidateFiling> = {}): Can
     smaaForetak: true,
     avviklingsregnskap: false,
     fingerprint: null,
+    classification: null,
     ...overrides,
   };
 }
@@ -124,7 +126,7 @@ describe('stage 1: the size band, both bounds included, exact to the øre', () =
       ];
       const group = assemblePeerGroup(dormant, candidates, band);
       expect(group.pool).toEqual([]);
-      expect(group.counts).toEqual({ stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 } });
+      expect(group.counts).toEqual({ stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } });
       expect(group.emptyReason).toBe('subject_no_revenue');
     });
   });
@@ -147,7 +149,7 @@ describe('stage 2: comparability, one field at a time', () => {
   ] as const)('a candidate differing only on %s is out at stage 2', (_label, overrides) => {
     const group = assemblePeerGroup(subject, [candidate('900000001'), candidate('900000002', overrides)], 0);
     expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000001']);
-    expect(group.counts).toEqual({ stage1: 2, stage2: 1, stage3: { legalForm: 1 }, stage4: { businessModel: 1 } });
+    expect(group.counts).toEqual({ stage1: 2, stage2: 1, stage3: { legalForm: 1 }, stage4: { businessModel: 1 }, stage5: { classification: 1, flagged: 0 } });
   });
 
   it('an unknown valuta matches nothing, not even itself, and is never read as NOK', () => {
@@ -181,7 +183,7 @@ describe('stage 2: comparability, one field at a time', () => {
       0,
     );
     expect(group.pool).toEqual([]);
-    expect(group.counts).toEqual({ stage1: 2, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 } });
+    expect(group.counts).toEqual({ stage1: 2, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } });
     expect(group.emptyReason).toBe('subject_non_calendar');
   });
 
@@ -197,7 +199,7 @@ describe('stage 3: legal form', () => {
   it.each(['ASA', 'NUF', 'ENK', 'as', null])('a candidate with legal form %s is out at stage 3', (form) => {
     const group = assemblePeerGroup(subject, [candidate('900000001'), candidate('900000002', { organisasjonsform: form })], 0);
     expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000001']);
-    expect(group.counts).toEqual({ stage1: 2, stage2: 2, stage3: { legalForm: 1 }, stage4: { businessModel: 1 } });
+    expect(group.counts).toEqual({ stage1: 2, stage2: 2, stage3: { legalForm: 1 }, stage4: { businessModel: 1 }, stage5: { classification: 1, flagged: 0 } });
   });
 });
 
@@ -212,7 +214,7 @@ describe('counts', () => {
       candidate('900000006', { sumDriftsinntekter: 1n, organisasjonsform: 'NUF' }), // out at 1
     ];
     const group = assemblePeerGroup(subject, candidates, 0);
-    expect(group.counts).toEqual({ stage1: 4, stage2: 2, stage3: { legalForm: 1 }, stage4: { businessModel: 1 } });
+    expect(group.counts).toEqual({ stage1: 4, stage2: 2, stage3: { legalForm: 1 }, stage4: { businessModel: 1 }, stage5: { classification: 1, flagged: 0 } });
     expect(group.emptyReason).toBeNull();
   });
 
@@ -220,7 +222,8 @@ describe('counts', () => {
     expect(assemblePeerGroup(subject, [], 0)).toEqual({
       pool: [],
       group: [],
-      counts: { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 } },
+      flagged: [],
+      counts: { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } },
       emptyReason: null,
     });
   });
@@ -320,7 +323,7 @@ describe('stage 4: business model', () => {
     const group = assemblePeerGroup({ ...subject, fingerprint: KONSULENT }, candidates(), 0);
     expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000001', '900000002', '900000003', '900000004']);
     expect(group.group.map((peer) => peer.orgnr)).toEqual(['900000001', '900000004']);
-    expect(group.counts).toEqual({ stage1: 4, stage2: 4, stage3: { legalForm: 4 }, stage4: { businessModel: 2 } });
+    expect(group.counts).toEqual({ stage1: 4, stage2: 4, stage3: { legalForm: 4 }, stage4: { businessModel: 2 }, stage5: { classification: 2, flagged: 0 } });
   });
 
   it('keeps each type with its own kind', () => {
@@ -364,8 +367,105 @@ describe('stage 4: business model', () => {
       ],
       0,
     );
-    expect(group.counts).toEqual({ stage1: 3, stage2: 3, stage3: { legalForm: 2 }, stage4: { businessModel: 1 } });
+    expect(group.counts).toEqual({ stage1: 3, stage2: 3, stage3: { legalForm: 2 }, stage4: { businessModel: 1 }, stage5: { classification: 1, flagged: 0 } });
     expect(group.pool.map((peer) => peer.orgnr).sort()).toEqual(['900000001', '900000003']);
+  });
+});
+
+// Technical note, "Combining the fingerprint and the text". K and F name the
+// types: the subject is K wherever a signal is present for it.
+describe('stages 4 and 5: the combination rule', () => {
+  const K = 'konsulent' as const;
+  const F = 'forhandler' as const;
+  const P = 'produkt' as const;
+  const bothSignals = { ...subject, fingerprint: KONSULENT, classification: K };
+  const run = (subjectFiling: SubjectFiling, overrides: Partial<CandidateFiling>) =>
+    assemblePeerGroup(subjectFiling, [candidate('900000001', overrides)], 0);
+
+  it('both give the subject type: kept, not flagged', () => {
+    const group = run(bothSignals, { fingerprint: KONSULENT, classification: K });
+    expect(group.group).toHaveLength(1);
+    expect(group.flagged).toEqual([]);
+    expect(group.counts.stage5).toEqual({ classification: 1, flagged: 0 });
+  });
+
+  it('both give the same other type: removed at stage 4', () => {
+    const group = run(bothSignals, { fingerprint: FORHANDLER, classification: F });
+    expect(group.group).toHaveLength(0);
+    expect(group.counts.stage4.businessModel).toBe(0);
+  });
+
+  it('two different other types agree it is not the subject type: removed at stage 4', () => {
+    const group = run(bothSignals, { fingerprint: FORHANDLER, classification: P });
+    expect(group.group).toHaveLength(0);
+    expect(group.counts.stage4.businessModel).toBe(0);
+    expect(group.flagged).toEqual([]);
+  });
+
+  it('fingerprint gives another type, text the subject type: kept and flagged', () => {
+    const group = run(bothSignals, { fingerprint: FORHANDLER, classification: K });
+    expect(group.group).toHaveLength(1);
+    expect(group.flagged).toEqual(['900000001']);
+    expect(group.counts.stage4.businessModel).toBe(1);
+    expect(group.counts.stage5).toEqual({ classification: 1, flagged: 1 });
+  });
+
+  it('fingerprint gives the subject type, text another: kept and flagged', () => {
+    const group = run(bothSignals, { fingerprint: KONSULENT, classification: F });
+    expect(group.group).toHaveLength(1);
+    expect(group.flagged).toEqual(['900000001']);
+    expect(group.counts.stage5).toEqual({ classification: 1, flagged: 1 });
+  });
+
+  it('fingerprint only: it decides at stage 4', () => {
+    expect(run(bothSignals, { fingerprint: KONSULENT, classification: null }).group).toHaveLength(1);
+    const removed = run(bothSignals, { fingerprint: FORHANDLER, classification: null });
+    expect(removed.group).toHaveLength(0);
+    expect(removed.counts.stage4.businessModel).toBe(0);
+  });
+
+  it('text only: it decides at stage 5', () => {
+    expect(run(bothSignals, { fingerprint: null, classification: K }).group).toHaveLength(1);
+    const removed = run(bothSignals, { fingerprint: null, classification: F });
+    expect(removed.group).toHaveLength(0);
+    expect(removed.counts.stage4.businessModel).toBe(1);
+    expect(removed.counts.stage5.classification).toBe(0);
+  });
+
+  it('neither signal: the candidate stays', () => {
+    const group = run(bothSignals, { fingerprint: null, classification: null });
+    expect(group.group).toHaveLength(1);
+    expect(group.flagged).toEqual([]);
+  });
+
+  it('an unclassified candidate stays through stage 5 (no_text, uklart)', () => {
+    const group = run({ ...subject, classification: K }, { fingerprint: null, classification: null });
+    expect(group.counts.stage5.classification).toBe(1);
+  });
+
+  it('a subject with no classification: stage 5 equals stage 4 and the fingerprint decides', () => {
+    const noText = { ...subject, fingerprint: KONSULENT, classification: null };
+    const candidates = [
+      candidate('900000001', { fingerprint: FORHANDLER, classification: K }),
+      candidate('900000002', { fingerprint: KONSULENT, classification: F }),
+      candidate('900000003', { fingerprint: null, classification: F }),
+    ];
+    const group = assemblePeerGroup(noText, candidates, 0);
+    expect(group.group.map((peer) => peer.orgnr).sort()).toEqual(['900000002', '900000003']);
+    expect(group.counts.stage5.classification).toBe(group.counts.stage4.businessModel);
+    expect(group.flagged).toEqual([]);
+  });
+
+  it('a subject with no fingerprint: the text decides alone, nothing is flagged', () => {
+    const noFingerprint = { ...subject, fingerprint: null, classification: K };
+    const candidates = [
+      candidate('900000001', { fingerprint: FORHANDLER, classification: K }),
+      candidate('900000002', { fingerprint: KONSULENT, classification: F }),
+    ];
+    const group = assemblePeerGroup(noFingerprint, candidates, 0);
+    expect(group.group.map((peer) => peer.orgnr)).toEqual(['900000001']);
+    expect(group.counts.stage4.businessModel).toBe(2);
+    expect(group.flagged).toEqual([]);
   });
 });
 

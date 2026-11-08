@@ -55,6 +55,7 @@ vi.mock('next/server', () => ({ connection: async () => {} }));
 // The subject read left-joins register.fingerprint (Story 2.5): no row is
 // every category column null.
 const NO_FINGERPRINT = {
+  classification: null,
   cost_of_goods_lo: null,
   cost_of_goods_hi: null,
   personnel_cost_lo: null,

@@ -15,13 +15,14 @@ import 'server-only';
 // value outside a category's set; no fingerprint is null, never a default.
 import { cache } from 'react';
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
-import { fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
+import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
 import { parseOre } from '../engine/inputs.ts';
 import type { CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
 
 export interface SubjectRow extends SubjectKeyFigures, FingerprintColumns {
+  classification: string | null;
   orgnr: string;
   navn: string | null;
   organisasjonsform: string | null;
@@ -77,7 +78,8 @@ select c.orgnr,
        fp.asset_intensity_lo,
        fp.asset_intensity_hi,
        fp.inventory,
-       fp.capitalised_intangibles
+       fp.capitalised_intangibles,
+       cl.business_type as classification
   from register.company c
   left join lateral (
         select fi.brreg_id, fi.filing_year, fi.regnskapstype, fi.periode_fra, fi.periode_til, fi.valuta,
@@ -89,6 +91,7 @@ select c.orgnr,
        ) f on true
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
+  left join register.classification cl on cl.orgnr = c.orgnr and cl.status = 'classified'
  where c.orgnr = $1::char(9)`;
 
 export function toSubject(row: SubjectRow): Subject {
@@ -110,6 +113,7 @@ export function toSubject(row: SubjectRow): Subject {
           avviklingsregnskap: row.avviklingsregnskap,
           readAt: row.filing_read_at,
           fingerprint: fingerprintFromColumns(row),
+          classification: businessTypeFromColumn(row.classification),
           keyFigures: {
             sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
             driftsresultat_ore: row.driftsresultat_ore,
@@ -176,6 +180,7 @@ export type Candidate = CandidateFiling & {
 };
 
 export interface CandidateRow extends FingerprintColumns {
+  classification: string | null;
   orgnr: string;
   navn: string | null;
   organisasjonsform: string | null;
@@ -233,11 +238,13 @@ select c.orgnr,
        fp.asset_intensity_lo,
        fp.asset_intensity_hi,
        fp.inventory,
-       fp.capitalised_intangibles
+       fp.capitalised_intangibles,
+       cl.business_type as classification
   from register.company c
   join register.filing f on f.orgnr = c.orgnr and f.filing_year = $3::smallint
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
+  left join register.classification cl on cl.orgnr = c.orgnr and cl.status = 'classified'
  where c.naeringskode1 = $2::text
    and c.orgnr <> $1::char(9)`;
 
@@ -263,6 +270,7 @@ export function toCandidate(row: CandidateRow): Candidate {
     avviklingsregnskap: row.avviklingsregnskap,
     sumDriftsinntekter: parseOre(row.sum_driftsinntekter_ore),
     fingerprint: fingerprintFromColumns(row),
+    classification: businessTypeFromColumn(row.classification),
     keyFigures: {
       sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
       driftsresultat_ore: row.driftsresultat_ore,

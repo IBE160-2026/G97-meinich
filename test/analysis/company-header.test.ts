@@ -20,6 +20,7 @@ const filing: SubjectFiling = {
   avviklingsregnskap: false,
   readAt: new Date('2026-10-02T23:30:00Z'),
   fingerprint: null,
+  classification: null,
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',

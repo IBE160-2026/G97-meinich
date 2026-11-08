@@ -71,7 +71,7 @@ describe('loadSubject', () => {
   it('is one parameterised query that reads only the register tables it needs', () => {
     expect(SUBJECT_SQL).toContain('$1::char(9)');
     const tables = [...SUBJECT_SQL.matchAll(/register\.(\w+)/g)].map((m) => m[1]);
-    expect(new Set(tables)).toEqual(new Set(['company', 'covered_industry', 'filing', 'key_figures', 'fingerprint']));
+    expect(new Set(tables)).toEqual(new Set(['company', 'covered_industry', 'filing', 'key_figures', 'fingerprint', 'classification']));
   });
 });
 

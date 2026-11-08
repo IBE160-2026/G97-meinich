@@ -29,6 +29,7 @@ function figures(keyFigures: Partial<SubjectKeyFigures>): Record<string, string>
     avviklingsregnskap: false,
     readAt: new Date('2026-10-11T12:00:00Z'),
     fingerprint: null,
+    classification: null,
     keyFigures: { ...base, ...keyFigures },
   };
   const html = renderToString(createElement(ApiFigures, { filing }));

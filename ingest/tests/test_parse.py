@@ -258,6 +258,20 @@ def unit_with(**fields: object) -> dict:
     return unit
 
 
+def test_register_text_is_not_read_for_another_form() -> None:
+    unit = {
+        "organisasjonsnummer": "919951834",
+        "organisasjonsform": {"kode": "ENK"},
+        "aktivitet": ["Tekst"],
+        # Not read, so a wrong shape cannot refuse the unit.
+        "vedtektsfestetFormaal": "ikke en liste",
+    }
+
+    company = parse.parse_company(unit, READ_AT)
+
+    assert (company.aktivitet, company.vedtektsfestet_formaal) == (None, None)
+
+
 def test_register_text_lines_are_joined() -> None:
     company = parse.parse_company(unit_with(aktivitet=[" Utvikling av", "programvare "]), READ_AT)
     assert company.aktivitet == "Utvikling av programvare"

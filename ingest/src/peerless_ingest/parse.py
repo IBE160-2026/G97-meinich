@@ -109,7 +109,7 @@ class Company:
     forretningsadresse_kommunenummer: str | None
     forretningsadresse_kommune: str | None
     naeringskode1_beskrivelse: str | None
-    # What Story 2.6 classifies on (Story 2.6a): the register's lines stripped
+    # What Story 2.6 classifies on (Story 2.6a), for an AS only: the register's lines stripped
     # and joined with one space. None when the register gave no text; never an
     # empty string.
     aktivitet: str | None
@@ -165,6 +165,12 @@ def _search_field(unit: dict, key: str, field: str) -> str | None:
     return text if text else None
 
 
+# The one organisational form whose register text Step 1 stores (Meinich,
+# 2026-11-08). Classification reads nothing else, and a sole proprietor's text
+# is public in the register but not something Peerless collects unused.
+REGISTER_TEXT_FORM = "AS"
+
+
 def _register_text(unit: dict, field: str) -> str | None:
     """A free-text field the register delivers as an array of lines, each
     with its whitespace runs reduced to one space, joined with one space in
@@ -211,6 +217,8 @@ def parse_company(unit: dict, read_at: datetime) -> Company:
     if not isinstance(orgnr, str) or not ORGNR.match(orgnr):
         raise ValueError(f"unit has no valid organisasjonsnummer: {orgnr!r}")
     navn = unit.get("navn")
+    # Another form's text is not read at all, so it cannot refuse the unit.
+    reads_text = _code(unit, "organisasjonsform") == REGISTER_TEXT_FORM
     return Company(
         orgnr=orgnr,
         navn=navn if isinstance(navn, str) else None,
@@ -225,8 +233,8 @@ def parse_company(unit: dict, read_at: datetime) -> Company:
         forretningsadresse_kommunenummer=_search_field(unit, "forretningsadresse", "kommunenummer"),
         forretningsadresse_kommune=_search_field(unit, "forretningsadresse", "kommune"),
         naeringskode1_beskrivelse=_search_field(unit, "naeringskode1", "beskrivelse"),
-        aktivitet=_register_text(unit, "aktivitet"),
-        vedtektsfestet_formaal=_register_text(unit, "vedtektsfestetFormaal"),
+        aktivitet=_register_text(unit, "aktivitet") if reads_text else None,
+        vedtektsfestet_formaal=_register_text(unit, "vedtektsfestetFormaal") if reads_text else None,
         search_fields_read_at=read_at,
     )
 

@@ -346,6 +346,18 @@ def test_run_stores_the_register_text(db: psycopg.Connection, cfg: Config) -> No
     assert search_fields(db, "919951834")[3] == READ_AT
 
 
+def test_plain_run_clears_the_text_of_a_company_no_longer_as(db: psycopg.Connection, cfg: Config) -> None:
+    run.run(db, FixtureTransport(run_transport().responses, bulk=bulk_with({"919951834": INVENTED_TEXT})), cfg, ["62.100"], now=lambda: READ_AT)
+    assert register_text(db, "919951834") == STORED_TEXT
+    bulk = bulk_with({"919951834": {**INVENTED_TEXT, "organisasjonsform": {"kode": "ENK"}}})
+
+    summary = run.run(db, FixtureTransport(run_transport().responses, bulk=bulk), cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert register_text(db, "919951834") == (None, None)
+    assert summary.register_text_skipped_not_as == 1
+    assert summary.record_counts()["register_text_skipped_not_as"] == 1
+
+
 # --- Companies-only mode (Story 1.5a) ------------------------------------------
 
 BULK_ORGNRS = {"919951834", "990051232", "979607008", "967534579"}
@@ -413,6 +425,35 @@ def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.C
     assert summary.updated == len(stored & BULK_ORGNRS)
     assert summary.not_found == sorted(stored - BULK_ORGNRS)
     assert summary.failed == [] and not summary.needs_operator()
+
+
+@pytest.mark.parametrize(
+    "bulk_form, stored_form",
+    [("ENK", "AS"), ("AS", "ENK")],
+    ids=["register_says_not_as", "stored_row_says_not_as"],
+)
+def test_companies_only_clears_and_counts_the_text_of_another_form(
+    db: psycopg.Connection, cfg: Config, bulk_form: str, stored_form: str
+) -> None:
+    prepare_companies_only(db)
+    write.write_company(
+        db,
+        dataclasses.replace(
+            company("919951834", "OLD NAME AS"),
+            naeringskode1="62.100",
+            organisasjonsform=stored_form,
+            aktivitet="Gammel tekst",
+            vedtektsfestet_formaal="Gammelt formål",
+        ),
+    )
+    bulk = bulk_with({"919951834": {**INVENTED_TEXT, "organisasjonsform": {"kode": bulk_form}}})
+
+    summary = run.run_companies_only(db, FixtureTransport({}, bulk=bulk), cfg, now=lambda: LATER)
+
+    assert register_text(db, "919951834") == (None, None)
+    assert summary.register_text_skipped_not_as == 1
+    assert summary.record_counts()["register_text_skipped_not_as"] == 1
+    assert "  register text not stored, form is not AS: 1" in summary.lines()
 
 
 def test_companies_only_reports_malformed_register_text(db: psycopg.Connection, cfg: Config) -> None:

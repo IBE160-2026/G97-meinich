@@ -73,7 +73,7 @@ Requires Docker, and [uv](https://docs.astral.sh/uv/) 0.12.10 for the tests (uv 
 pnpm db:start && pnpm db:roles   # the database and INGEST_DATABASE_URL in .env
 pnpm test:ingest      # fixture and contract tests: recorded responses, no network; database tests roll back
 pnpm ingest           # builds ingest/Dockerfile and runs it once against the local database
-pnpm ingest --companies-only   # refreshes only the search fields and register text of companies already stored
+pnpm ingest --companies-only   # refreshes only the search fields, and an AS's register text, of companies already stored
 pnpm ingest:document-set       # writes seed/document-run.json from the loaded seed (demo A and B and their peer pools)
 pnpm ingest --documents seed/document-run.json   # reads only the filed documents of the listed companies
 ```
@@ -105,7 +105,7 @@ pnpm analysis:seed-documents --cache-proof                          # exit 0 onl
 
 **The labelled set's documents (Story 2.5d).** `pnpm ingest:document-set --labelled` writes `analysis/labelled-set/document-run.json` from Story 5.1's draw: its 845 companies, each as `{"orgnr": …, "years": [2025]}`, so only the reference year's document is fetched. A list entry may name its years this way beside a plain orgnr (every year 2021–2025); a later run with more years fetches only the documents not stored.
 
-`pnpm ingest --companies-only` streams the bulk download and fills the business municipality (number and name), the primary industry's name and the register's two text fields (`aktivitet`, `vedtektsfestetFormaal`) on the companies already in `register.company`. The name is stored only when the register's primary code still equals the stored one; otherwise it is NULL, and the company is named in the summary. It adds and deletes no company, touches no filing, and leaves every other column, `navn` and `read_at` included, unchanged; `search_fields_read_at` records when these were read. Its summary gives the number updated and names every stored company not found in the bulk file, which it leaves untouched. It accepts no other argument.
+`pnpm ingest --companies-only` streams the bulk download and fills the business municipality (number and name), the primary industry's name and, for an AS only, the register's two text fields (`aktivitet`, `vedtektsfestetFormaal`) on the companies already in `register.company`. The name is stored only when the register's primary code still equals the stored one; otherwise it is NULL, and the company is named in the summary. It adds and deletes no company, touches no filing, and leaves every other column, `navn` and `read_at` included, unchanged; `search_fields_read_at` records when these were read. Its summary gives the number updated and names every stored company not found in the bulk file, which it leaves untouched. It accepts no other argument.
 
 `pnpm ingest` streams the register's bulk download (about 210 MB), then requests each company's key figures with a short pause between requests. It fetches no filed document. It prints a summary per industry code, names any code the register returned nothing for (an SN2007 code, for example), and names every filing it rejected or failed to write. Inside the container a local database host is reached as `host.docker.internal`.
 

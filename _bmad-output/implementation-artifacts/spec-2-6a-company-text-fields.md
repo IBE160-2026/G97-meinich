@@ -23,6 +23,7 @@ context:
 **Always:**
 - Two nullable text columns on `register.company`, `aktivitet` and `vedtektsfestet_formaal`, added to `SEARCH_FIELD_COLUMNS`, so one read timestamp and one write path cover them. Absent, `null`, an empty array or only blank lines is NULL, never an empty string.
 - The register delivers each as an array of lines; store them stripped and joined with one space, in array order.
+- AS only (Meinich, 2026-11-08): any other organisational form, in the unit or in the stored row, has NULL in both columns, also when it had text from before, and is counted as `register_text_skipped_not_as` in `run.step1`.
 - No silent fallback: a value that is not an array, or an element that is not a string, raises `ValueError` in `parse_company` and is reported through the existing "bulk unit not loaded" failure.
 - Commit in small logical steps, each type-checking: migration, parser and writer with tests, docs. Review fixes are separate commits. No orgnr in commit messages.
 - A migration is applied locally only with `pnpm exec supabase migration up`, which keeps the data.
@@ -46,6 +47,9 @@ Every row names the test that fails if its code is removed.
 | Plain run writes | a run over a unit | both columns stored | `ingest/tests/test_write.py::test_run_stores_the_register_text` |
 | Companies-only writes | stored company, bulk has text | both columns set, `search_fields_read_at` moved, other columns unchanged | `ingest/tests/test_write.py::test_companies_only_updates_the_search_fields_and_nothing_else` (extended) |
 | Wrong shape in a run | one malformed unit | that orgnr in the summary's `failed`, the others written | `ingest/tests/test_write.py::test_companies_only_reports_malformed_register_text` |
+| Not an AS, unit | form ENK with text | not read, both `None` | `ingest/tests/test_parse.py::test_register_text_is_not_read_for_another_form` |
+| No longer AS, plain run | stored text, register says ENK | cleared, counted | `ingest/tests/test_write.py::test_plain_run_clears_the_text_of_a_company_no_longer_as` |
+| Another form, companies-only | register or stored row says ENK | cleared, counted | `ingest/tests/test_write.py::test_companies_only_clears_and_counts_the_text_of_another_form` |
 | Columns exist | migration applied | both `text`, nullable | `test/db/company-search.test.ts` (extended column list) |
 
 </frozen-after-approval>
@@ -77,6 +81,8 @@ Every row names the test that fails if its code is removed.
 ## Implementation Notes
 
 ## Spec Change Log
+
+- 2026-11-08, Meinich: AS only, after review pass 1 raised sole proprietors' text in the seed. Added to the frozen block by the human's decision: the rule, its count and three matrix rows. The seed sequence (Story 2.5c's steps 3-9) runs after Meinich's `--companies-only`, because a re-export before it would hold NULL text.
 
 ## Review Triage Log
 

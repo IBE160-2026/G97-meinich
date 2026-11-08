@@ -1632,11 +1632,12 @@ So that Story 2.6 has text to classify on, and nothing is fetched while I wait.
 
 **Given** a unit in the register's bulk download
 **When** step 1 reads it, in a plain run or in `--companies-only`
-**Then** `aktivitet` and `vedtektsfestetFormaal` are stored on `register.company`, their lines joined in order; absent or blank is NULL, never an empty string; and a value of the wrong shape is reported as a failure, never stored (test)
+**Then** for an AS, `aktivitet` and `vedtektsfestetFormaal` are stored on `register.company`, their lines joined in order; absent or blank is NULL, never an empty string; and a value of the wrong shape is reported as a failure, never stored (test)
+**And** for any other organisational form both are NULL, also when the company had text from before, and the number skipped is counted in `run.step1` (test)
 
 **Given** `--companies-only`
 **When** it runs
-**Then** it changes only the search fields and these two, on companies already stored (test)
+**Then** it changes only the search fields and these two, on companies already stored, and only an AS in both the register and the stored row keeps text (test)
 
 **Given** the migration
 **When** the PR is merged

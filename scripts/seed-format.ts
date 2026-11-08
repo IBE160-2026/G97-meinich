@@ -76,6 +76,8 @@ export const SEED_TABLES: readonly SeedTable[] = [
       { name: 'filing_year', text: false },
     ],
   },
+  // Story 2.6: batch step 2's classifications, never a sample run's.
+  { name: 'classification', primaryKey: [{ name: 'orgnr', text: true }] },
 ];
 
 // Written by the loader from the manifest and seed/coverage.json, never

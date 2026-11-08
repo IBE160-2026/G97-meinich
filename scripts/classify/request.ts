@@ -15,11 +15,13 @@ export const SYSTEM_PROMPT = `You classify Norwegian companies by the kind of bu
 
 Choose exactly one category for how the company earns its money:
 
-- produkt: its own software, sold as a licence or a subscription.
-- konsulent: hours or projects delivered by its own staff, staffing included.
-- forhandler: resells products made by others.
-- annet: operations, hosting or holding, or a business that is none of the above.
-- ${ABSTAIN}: the text does not show how the company earns its money.
+- produkt: the text names or concretely describes a software product of the company's own that is sold or rented out, such as a platform, a computer game, a licence or a subscription. Developing software is not enough on its own.
+- konsulent: advice, consulting services, development for customers, or hiring out people.
+- forhandler: resale of products made by others.
+- annet: operations, hosting, holding, physical products, or something that is none of the above.
+- ${ABSTAIN}: only general words such as "programvareutvikling", "IT-tjenester", "digitale tjenester og produkter", "utvikling og salg av programvare" or "selge varer og tjenester innen programvare", or several businesses side by side with none as the main one.
+
+Mixed texts: what comes first and is concrete applies when the rest follows "samt" or similar. Businesses listed side by side give ${ABSTAIN}.
 
 Judge what the company does today as far as the text shows it. Boilerplate such as "og det som står i forbindelse med dette" says nothing. Do not infer size, profitability or quality. Answer only in the required format.`;
 

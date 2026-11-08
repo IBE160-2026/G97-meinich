@@ -380,6 +380,13 @@ def companies_only_transport() -> FixtureTransport:
 
 def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.Connection, cfg: Config) -> None:
     prepare_companies_only(db)
+    # Text from an earlier read, which the bulk file no longer has.
+    write.write_company(
+        db,
+        dataclasses.replace(
+            company("979607008", "EKSTRA RESSURS AS"), aktivitet="Gammel tekst", vedtektsfestet_formaal="Gammelt formål"
+        ),
+    )
     filing_before = filing_state(db, 6984522)
     stored = stored_orgnrs(db)
     transport = FixtureTransport({}, bulk=bulk_with({"919951834": INVENTED_TEXT}))
@@ -388,7 +395,7 @@ def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.C
 
     assert transport.requested == [f"{BASE_URL}/enhetsregisteret/api/enheter/lastned"]
     # The register text is written with the search fields; a unit without it
-    # stores NULL.
+    # has its earlier text cleared.
     assert register_text(db, "919951834") == STORED_TEXT
     assert register_text(db, "979607008") == (None, None)
     # The search fields come from the bulk file, read at the run's time;

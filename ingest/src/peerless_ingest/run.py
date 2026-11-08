@@ -1450,9 +1450,10 @@ def run_companies_only(
 ) -> CompaniesOnlySummary:
     """Fills forretningsadresse_kommunenummer, forretningsadresse_kommune,
     naeringskode1_beskrivelse, aktivitet, vedtektsfestet_formaal and
-    search_fields_read_at from the bulk download, for every company already in register.company. The bulk file
-    is read without the industry filter: demo company C, or a company whose
-    primary code has changed since it was stored, is in it like any unit.
+    search_fields_read_at from the bulk download, for every company already
+    in register.company. The bulk file is read without the industry filter:
+    demo company C, or a company whose primary code has changed since it was
+    stored, is in it like any unit.
 
     naeringskode1_beskrivelse is stored only when the bulk naeringskode1
     equals the stored one; otherwise it describes a code this row does not

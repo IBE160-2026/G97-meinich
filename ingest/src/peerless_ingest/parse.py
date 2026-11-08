@@ -166,8 +166,9 @@ def _search_field(unit: dict, key: str, field: str) -> str | None:
 
 
 def _register_text(unit: dict, field: str) -> str | None:
-    """A free-text field the register delivers as an array of lines, stripped
-    and joined with one space in array order. Absent, null, an empty array or
+    """A free-text field the register delivers as an array of lines, each
+    with its whitespace runs reduced to one space, joined with one space in
+    array order. Absent, null, an empty array or
     only blank lines is None. Anything else is refused: the error names the
     field and the wrong type, and never the text."""
     lines = unit.get(field)
@@ -179,8 +180,9 @@ def _register_text(unit: dict, field: str) -> str | None:
     for line in lines:
         if not isinstance(line, str):
             raise ValueError(f"{field} has a line that is not a string: {type(line).__name__}")
-        if line.strip():
-            stripped.append(line.strip())
+        normalised = " ".join(line.split())
+        if normalised:
+            stripped.append(normalised)
     return " ".join(stripped) if stripped else None
 
 

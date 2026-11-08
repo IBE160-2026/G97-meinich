@@ -263,6 +263,16 @@ def test_register_text_lines_are_joined() -> None:
     assert company.aktivitet == "Utvikling av programvare"
 
 
+def test_register_text_blank_line_between_lines_is_one_space() -> None:
+    company = parse.parse_company(unit_with(aktivitet=["Utvikling", "", "av apper"]), READ_AT)
+    assert company.aktivitet == "Utvikling av apper"
+
+
+def test_register_text_internal_whitespace_is_one_space() -> None:
+    company = parse.parse_company(unit_with(aktivitet=["Utvikling\n av\tapper"]), READ_AT)
+    assert company.aktivitet == "Utvikling av apper"
+
+
 def test_parse_company_reads_both_register_texts() -> None:
     unit = unit_with(aktivitet=["Drift av nettsider"], vedtektsfestetFormaal=["Selskapets formål"])
     company = parse.parse_company(unit, READ_AT)

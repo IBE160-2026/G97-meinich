@@ -73,7 +73,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-61: The front page holds a description, the name-or-orgnr search field, "Slik fungerer det" in three steps and a link to FR-72. Stage split: front page is v1; industry overviews are stage 3.
 - FR-62: An analysis is organised in tabs. Stage split: v1 has four open tabs — overview, peers, key figures and gaps, value; *Utvikling* is stage 2.
 - FR-72: Public page "Slik fungerer Peerless" in plain Norwegian: the five funnel stages without formulas; the two model uses and that the model never calculates (enforced by FR-53 test); measured results (SM-1, SM-2) only once they exist, otherwise "pending" with no placeholder figures; sources and FR-65 licence distinction incl. NLOD credit; known limitations (VAT on receivable days, `smaaForetak` coverage limit); reachable from every footer and the front page.
-- FR-73: Runs from a fresh clone on local Supabase (Docker) with every table/policy/function as a migration; one-command idempotent seed (`pnpm seed`, demo, committed) with register data, API figures, stored classifications for all `62.100`, fingerprint categories for every `62.100` candidate only if the licence gate opens (allow-listed companies keep theirs either way), full document figures for demo companies A and B, A's/B's peers at all three band steps and the OCR reference filings (check asserts no others; C needs API figures only), stored explanations for every `62.100` default group; `pnpm seed:full` local-only and gitignored; licence gate before the demo seed is published; AI test mode on stored output with FR-53 and digest checks at load; no runtime call to register/model (test asserts); no email; demo A (typical consultancy), B (loss-making product company), C (`69.202` uncovered); other `62.100` companies show "Ikke i demodataene" for document figures; README of ~five commands listing the three demo orgnrs; no secret needed.
+- FR-73: Runs from a fresh clone on local Supabase (Docker) with every table/policy/function as a migration; one-command idempotent seed (`pnpm seed`, demo, committed) with register data, API figures, stored classifications for every AS in `62.100`, fingerprint categories for every `62.100` candidate only if the licence gate opens (allow-listed companies keep theirs either way), full document figures for demo companies A and B, A's/B's peers at all three band steps and the OCR reference filings (check asserts no others; C needs API figures only), stored explanations for every `62.100` default group; `pnpm seed:full` local-only and gitignored; licence gate before the demo seed is published; AI test mode on stored output with FR-53 and digest checks at load; no runtime call to register/model (test asserts); no email; demo A (typical consultancy), B (loss-making product company), C (`69.202` uncovered); other `62.100` companies show "Ikke i demodataene" for document figures; README of ~five commands listing the three demo orgnrs; no secret needed.
 
 **Stage 2 / Stage 3 (backlog only, not for v1 stories)**
 
@@ -1657,6 +1657,8 @@ So that companies that describe the same work are matched, without any model cal
 **When** it classifies a company
 **Then** it sends the model only the company name, secondary industry codes, statement of purpose and business description, and accepts an answer only in the fixed category set defined once in code; the response schema has no free-text field
 **And** the category set is the shared set of business types fixed in Story 2.5 and defined once in `src/engine`; the model's response schema is generated from it, so the fingerprint and the text cannot drift apart
+**And** the schema adds one abstention, `uklart`, which is not a fifth type: `BUSINESS_TYPES` stands, and the row is `classified` with no type, like the fingerprint's null, a missing signal in the funnel, counted on its own in step 2's run record, with its share reported in Story 5.2 (Meinich, 2026-11-08)
+**And** only an AS in a covered industry is classified; any other form never has a row (Meinich, 2026-11-08)
 **And** an answer outside the category set is never coerced: the row is `failed` and the failure is written to step 2's run record
 **And** the model id is pinned in configuration, and each row stores the model id, a prompt hash and a digest of the description text (AD-7, AD-13)
 **And** the model key is read only by step 2 and appears in no other module or env var the app reads (AD-19)
@@ -1671,7 +1673,7 @@ So that companies that describe the same work are matched, without any model cal
 
 **Given** classification status
 **When** a run finishes
-**Then** each row is `classified`, `no_text`, `failed` or `pending`; a record in step 2's run-record table holds start, end, counts per status, model id and prompt hash; and `seed:export` refuses while a covered-industry row is `failed` or `pending`
+**Then** each row is `classified`, `no_text`, `failed` or `pending`; a record in step 2's run-record table holds start, end, counts per status, model id and prompt hash; and `seed:export` refuses while a covered-industry AS row is `failed` or `pending`
 
 **Given** the migrations for this story
 **When** they run
@@ -1687,7 +1689,7 @@ So that companies that describe the same work are matched, without any model cal
 **Then** it reads stored classifications only and, together with stage 4, applies the combination rule recorded in the technical note ("Combining the fingerprint and the text"): both signals present and agreeing on whether the candidate is the subject's type decide; both present and disagreeing keep the candidate and flag it "Usikker klassifisering", resolved by neither (the model never adjudicates); only one present decides alone
 **And** in the funnel counts, stage 4 removes a candidate whose fingerprint gives another type unless its text gives the subject's type, and stage 5 removes a candidate whose text gives another type and that has no fingerprint; an unclassified candidate stays at stage 5
 **And** a subject with no classification leaves stage 5's count equal to stage 4's, and the fingerprint alone decides at stage 4
-**And** a test per case — both agree (subject's type; another type, including two different other types), both disagree (each way round), fingerprint only, text only, neither, and a subject missing each signal — asserts kept, removed or flagged; the flag is stored and the flagged count is available to the funnel
+**And** a test per case — both agree (subject's type; another type, including two different other types), both disagree (each way round), fingerprint only, text only, neither, and a subject missing each signal — asserts kept, removed or flagged; the flag follows from the two stored signals and depends on the subject, so the funnel returns it with the group, and the flagged count with its counts
 
 **Given** no model key
 **When** the test suite and an analysis run
@@ -2544,7 +2546,7 @@ So that the full analysis runs locally without any key, within what the licence 
 
 **Given** the committed demo seed
 **When** `pnpm seed` loads it
-**Then** it holds register data and API figures for every 62.100 company, stored classifications for all of them, full document figures for A, B and the allow-listed peers, API figures for C, and stored explanations for every 62.100 default group once Epic 4 and Story 5.5 are done (until then the seed carries none, and the explanation card shows its no-stored-explanation state)
+**Then** it holds register data and API figures for every 62.100 company, stored classifications for every AS among them, full document figures for A, B and the allow-listed peers, API figures for C, and stored explanations for every 62.100 default group once Epic 4 and Story 5.5 are done (until then the seed carries none, and the explanation card shows its no-stored-explanation state)
 **And** loading twice leaves the same state, and the CI seed job passes
 
 **Given** the README

@@ -24,6 +24,10 @@ Store `aktivitet` and `vedtektsfestetFormaal` for an AS, so Story 2.6 has text t
 - **Rejected:** see the spec's Review Triage Log, with who found what.
 - **The review session (Meinich's separate session)** checked the totals after run 1708 and named the expected diff of `company.csv`, which the column-by-column comparison confirmed. No per-orgnr result for the labelled set is recorded.
 
+## Merge
+
+CI was green on `9023435`. Before merging, the review session checked run 1708 in `run.step1`, the database before and after the restore, the backup's sha256, and the seed: `c6d990e` changes only `company.csv` and `manifest.json`, the new file has 10 327 AS with both texts and no other form with text, and the document rows stay at 97, 194 and 86, so no labelled-set row entered the seed. It compared the old seed with the database after the run for the 28 changed municipalities and the 28 emptied industry descriptions, none on the allow-list. Meinich asked for the review to be posted: seven line comments on `9023435` (review 5818323357). One comment carries a question to Story 2.6: the spec does not say what happens to an AS with neither text, of which there are 45, all among the 81 companies not in the bulk file. Nothing was rejected in this review. Merged at 14:49 UTC on 2026-11-08 as `1d1eaf2`.
+
 ## Links
 
 - Spec, with the seed sequence's totals: `_bmad-output/implementation-artifacts/spec-2-6a-company-text-fields.md`

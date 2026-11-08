@@ -2,7 +2,7 @@
 title: 'Story 2.6a: The register text classification reads'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '9d43524bf1d3a036d6cc4861f25e389aceb48586'

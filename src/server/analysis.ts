@@ -91,7 +91,7 @@ select c.orgnr,
        ) f on true
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
-  left join register.classification cl on cl.orgnr = c.orgnr and cl.status = 'classified'
+  left join register.classification cl on cl.orgnr = c.orgnr
  where c.orgnr = $1::char(9)`;
 
 export function toSubject(row: SubjectRow): Subject {
@@ -244,7 +244,7 @@ select c.orgnr,
   join register.filing f on f.orgnr = c.orgnr and f.filing_year = $3::smallint
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
-  left join register.classification cl on cl.orgnr = c.orgnr and cl.status = 'classified'
+  left join register.classification cl on cl.orgnr = c.orgnr
  where c.naeringskode1 = $2::text
    and c.orgnr <> $1::char(9)`;
 

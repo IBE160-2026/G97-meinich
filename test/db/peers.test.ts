@@ -252,6 +252,32 @@ describe('stage 4 against stored fingerprints', () => {
 
   // Review pass 1 (triage 4): the subject read's join, through SUBJECT_SQL
   // and toSubject as the page runs them, in the rolled-back transaction.
+  it('reads a classified row as its type, and an uklart or a failed row as none (Story 2.6)', async () => {
+    const { funnel } = await groupForDemoA(0);
+    const classificationIn = async (tx: postgres.TransactionSql) => {
+      const [row] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [funnel.orgnr]);
+      if (row === undefined) throw new Error('demo A is not stored');
+      return toSubject(row).filing?.classification;
+    };
+    const store = async (tx: postgres.TransactionSql, status: string, type: string | null) => {
+      await tx`delete from register.classification where orgnr = ${funnel.orgnr}`;
+      await tx`
+        insert into register.classification (orgnr, status, business_type, text_digest, model_id, prompt_hash, classified_at)
+        values (${funnel.orgnr}, ${status}, ${type}, ${'0'.repeat(64)}, 'm', ${'0'.repeat(64)}, now())`;
+    };
+    await expect(
+      admin.begin(async (tx) => {
+        await store(tx, 'classified', 'konsulent');
+        expect(await classificationIn(tx)).toBe('konsulent');
+        await store(tx, 'classified', null);
+        expect(await classificationIn(tx)).toBeNull();
+        await store(tx, 'failed', null);
+        expect(await classificationIn(tx)).toBeNull();
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+  });
+
   it('reads the subject’s fingerprint for its benchmark year, and none stored only for another year', async () => {
     const { funnel } = await groupForDemoA(0);
     const subjectIn = async (tx: postgres.TransactionSql) => {

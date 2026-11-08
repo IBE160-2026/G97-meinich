@@ -80,6 +80,15 @@ Every row names the test that fails if its code is removed.
 
 ## Implementation Notes
 
+- **The seed sequence, after Meinich's `--companies-only` (run 1708, 2026-11-08), totals only.** Run 1708: 17 802 updated, 81 not in the bulk file, 7 475 without text because not an AS, 0 failed, `code_differs` 29. Steps 3-9 of Story 2.5b/2.5c's C2 (no re-read was needed).
+  - Dump and backup first: `.local/document-tables-before-2.6a-seed/` (six tables) copied to `C:\Users\cmein\peerless-backups\` with equal sha256. `.local/document-run-2.5d/` equals the database's rows outside the allow-list: 2 688 documents and 5 362 columns, row for row.
+  - One transaction, counts checked before COMMIT: 5 362 columns and 2 688 documents deleted, 97 and 194 left. `pnpm derive`: 86 fingerprints of 97 columns. `seed:export`, committed alone (`c6d990e`).
+  - `seed/demo/company.csv` against the committed file, column by column, same 17 883 orgnrs in the same order: `aktivitet` and `vedtektsfestet_formaal` added (10 327 AS with both, 0 other forms); `search_fields_read_at` on 17 802 rows; municipality number and name on the same 28 rows; `naeringskode1_beskrivelse` emptied on 28. Nothing else changed. The 28 and 28 are off the allow-list (the 17 802 include its 20). `code_differs` is 29 and 28 emptied: the 29th was already empty. File 2.62 MB to 5.28 MB. `manifest.json` changed in the migration id and the file's sha256 only.
+  - `pnpm seed` twice, the re-export unchanged. Restored from the 2.5d dump, `pnpm derive`: 2 785 documents, 5 556 columns, 2 537 fingerprints, 10 327 AS with text; all six tables row for row equal to the dump taken before the deletion.
+- **An empty `naeringskode1_beskrivelse` in search:** `test/db/search.test.ts` "returns a company without an industry name, beskrivelse null" and `e2e/search.spec.ts` "a result without an industry name shows the code alone".
+- **A test only the re-export could reach:** `test/db/seed.test.ts` "refuses a file whose header does not match the table columns" expected the column list to end on `slettedato`; fixed in `c023e7c`.
+- **`reader_commit`** moves from `df34a2d` to `ab27ed0`, the last commit changing `ingest/`. `pnpm analysis:seed-documents` shows 97 and 194 rows equal, 0 differing, and exits 1 on "97 documents not read by the current reader commit" until the next re-read. No figure reading changed, so no re-read is needed.
+
 ## Spec Change Log
 
 - 2026-11-08, Meinich: AS only, after review pass 1 raised sole proprietors' text in the seed. Added to the frozen block by the human's decision: the rule, its count and three matrix rows. The seed sequence (Story 2.5c's steps 3-9) runs after Meinich's `--companies-only`, because a re-export before it would hold NULL text.

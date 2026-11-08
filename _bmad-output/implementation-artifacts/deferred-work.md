@@ -184,3 +184,4 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-6a-company-text-fields.md`
   summary: Story 2.6's classify step must refuse to run when no covered AS has register text, so a database that has not had `--companies-only` is not stored as all `no_text`.
   evidence: `search_fields_read_at` is set on rows whose text was never read, and NULL text means either no text or not read since the migration (review pass 1, Blind Hunter and Edge Case Hunter).
+  closed: Story 2.6 (2026-11-08). `pnpm classify` refuses when no covered AS has text, in `--plan` too (`test/classify/run.test.ts` "refuses when no covered AS has text, storing nothing").

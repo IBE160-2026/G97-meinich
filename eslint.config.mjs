@@ -137,6 +137,8 @@ export default defineConfig([
     },
   },
   globalIgnores([
+    // Gitignored local work: dumps, logs and old worktrees.
+    '.local/**',
     '.next/**',
     'out/**',
     'build/**',

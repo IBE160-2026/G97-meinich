@@ -20,7 +20,13 @@ const TABLE_WRITES = ['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE'] as const;
 const ALL_TABLE_PRIVILEGES = ['SELECT', ...TABLE_WRITES, 'REFERENCES', 'TRIGGER'] as const;
 const INSUFFICIENT_PRIVILEGE = '42501';
 // Story 2.5: the step-1 tables batch step 2 reads to derive fingerprints.
-const DERIVE_READS: readonly string[] = ['register.document', 'register.document_column', 'register.key_figures'];
+// Story 2.6: and the company text pnpm classify builds a request from.
+const DERIVE_READS: readonly string[] = [
+  'register.company',
+  'register.document',
+  'register.document_column',
+  'register.key_figures',
+];
 
 const sql = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
 type Tx = postgres.TransactionSql;
@@ -542,7 +548,6 @@ describe('the step-2 table', () => {
       for (const source of DERIVE_READS) {
         expect(await attemptAs(tx, 'derive', `select * from ${source} limit 1`), source).toBeUndefined();
       }
-      expect(await attemptAs(tx, 'derive', 'select * from register.company limit 1')).toBe(INSUFFICIENT_PRIVILEGE);
       expect(await attemptAs(tx, 'derive', 'select * from register.filing limit 1')).toBe(INSUFFICIENT_PRIVILEGE);
     });
   });
@@ -551,8 +556,30 @@ describe('the step-2 table', () => {
 // Story 2.5: derive's exact ACL on every register relation, so a grant to
 // derive that no story declared fails here. Loops pg_class, so a table a
 // later migration adds is covered without editing this test.
+// Story 2.6: the classifications batch step 2 writes and the request path reads.
+describe('the classification table', () => {
+  it('grants exactly derive SELECT, INSERT, UPDATE, loader SELECT, INSERT, TRUNCATE and reader SELECT', async () => {
+    const rows = await sql<{ grantee: string; privilege: string }[]>`
+      select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
+             a.privilege_type as privilege
+      from pg_catalog.pg_class c, aclexplode(c.relacl) a
+      where c.oid = 'register.classification'::regclass and a.grantee <> c.relowner
+      order by 1, 2
+    `;
+    expect(rows).toEqual([
+      { grantee: 'derive', privilege: 'INSERT' },
+      { grantee: 'derive', privilege: 'SELECT' },
+      { grantee: 'derive', privilege: 'UPDATE' },
+      { grantee: 'loader', privilege: 'INSERT' },
+      { grantee: 'loader', privilege: 'SELECT' },
+      { grantee: 'loader', privilege: 'TRUNCATE' },
+      { grantee: 'reader', privilege: 'SELECT' },
+    ]);
+  });
+});
+
 describe("derive's privileges on every register relation", () => {
-  it('are SELECT on what step 2 reads, SELECT, INSERT and TRUNCATE on the fingerprint, and nothing else', async () => {
+  it('are SELECT on what step 2 reads, SELECT, INSERT and TRUNCATE on the fingerprint, SELECT, INSERT and UPDATE on the classification, and nothing else', async () => {
     const tables = await sql<{ name: string }[]>`
       select format('%I.%I', n.nspname, c.relname) as name
       from pg_catalog.pg_class c
@@ -563,7 +590,13 @@ describe("derive's privileges on every register relation", () => {
     expect(tables.map((t) => t.name)).toEqual(expect.arrayContaining([...DERIVE_READS, 'register.fingerprint']));
     for (const { name } of tables) {
       const expected =
-        name === 'register.fingerprint' ? ['SELECT', 'INSERT', 'TRUNCATE'] : DERIVE_READS.includes(name) ? ['SELECT'] : [];
+        name === 'register.fingerprint'
+          ? ['SELECT', 'INSERT', 'TRUNCATE']
+          : name === 'register.classification'
+            ? ['SELECT', 'INSERT', 'UPDATE']
+            : DERIVE_READS.includes(name)
+              ? ['SELECT']
+              : [];
       for (const privilege of ALL_TABLE_PRIVILEGES) {
         const [row] = await sql<{ ok: boolean }[]>`
           select has_table_privilege('derive', ${name}, ${privilege}) as ok

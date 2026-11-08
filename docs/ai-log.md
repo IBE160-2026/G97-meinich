@@ -16,9 +16,9 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 28 |
-| money | 22 |
-| parsing | 16 |
+| auth | 29 |
+| money | 23 |
+| parsing | 19 |
 | llm-boundary | 5 |
 | scope | 18 |
 | docs | 22 |
@@ -780,3 +780,34 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 **Caught by:** The BMAD coordinator's review of the implementation.
 **Outcome:** Corrected in the code, the docs and the planning documents in the commits after `c4cf8f4`; nothing here changes R1–R4.
 
+### 2026-11-07 — Story 2.5d: the OCR word cache, `--reread-all`, years per list entry
+**Tags:** auth · parsing
+**Tool:** Claude Code (implementation subagent, Opus 5.5)
+**Asked:** Implement the spec: a local OCR word cache used only on an exact key match, its counts in `run.step1`, `--reread-all`, list entries that name their years, the labelled set's list from Story 5.1's draw, and a script comparing the reference set's rows with the seed; no run.
+**Got:** `ingest/src/peerless_ingest/ocr_cache.py` (`Key`, `lookup`, `store`, `Cache`), `documents.recognise_cached`, the cache in both document passes, `--reread-all`, `DocumentList` with per-entry years, the mount in `scripts/run-ingest.ts`, the image check's cached pass, `pnpm ingest:document-set --labelled`, `pnpm analysis:seed-documents`.
+**Problem:** What could go wrong (not yet reviewed):
+1. **A cached read that is not the same read.** If the key leaves out something that determines the words, a stored word list from another setting is used silently. The key holds the PDF's sha256, the report of `tesseract --version` (leptonica, the image libraries and the CPU features Tesseract found, since its SIMD path does the network's arithmetic; libarchive and libcurl dropped, `ingest/tests/test_ocr.py::test_version_report_keeps_what_reads_and_drops_what_does_not`), the model's sha256, the render settings with PyMuPDF's version, both passes' options and the sha256 of `ocr.py`, all read at run time (`ingest/tests/test_ocr_cache.py::test_key_values_read_at_run_time`); a part differing is a miss, each part in turn (`::test_key_part_differs_runs_ocr`). The first key left out `ocr.read_tsv` and `xargs_argv`'s `tsv` output config, which turn Tesseract's output into the stored words, so a change to either would not have missed; the review found it (pass 1, #2), and Meinich decided to add the sha256 of `ocr.py`, read from the module file when the run starts: a changed file misses with `ocr_code_sha256` named, an unchanged one hits (`::test_changed_ocr_module_misses_with_the_part_named`). Checked by mutation: a constant in its place, the part left out of the stored key, or its comparison skipped each fails a test. Any edit to `ocr.py`, a comment included, empties the cache in effect; that is the price of not judging which edits matter.
+2. **A cached read giving other figures than a live one.** `test_ocr_cache.py::test_hit_reads_the_same_as_tesseract` reads the recorded words of 979607008-2025 through the cache and compares with `expected-979607008-2025.json`; the CI step `ocr-image-check` reads both fixture PDFs twice through a fresh cache in the image, the second a hit with the same JSON (run locally: both match). The real-data proof is Meinich's two re-reads of the reference set, compared by `pnpm analysis:seed-documents`.
+3. **An entry altered on disk.** The key is checked, the words are not: a hand-edited entry with a matching key would be read. The cache is local, written atomically (`::test_absent_runs_ocr_and_writes`), and an unreadable or malformed entry is a miss (`::test_unreadable_entry_is_a_miss`).
+4. **The cache leaving the machine.** It holds the words of filed documents. `.local/` is gitignored, nothing under it is tracked and no `*.json.gz` is (`test/ocr-cache-ignored.test.ts`); the mount is only for the three list modes (`test/run-ingest.test.ts`), and the image's build context is `ingest/`.
+5. **Data access: the comparison script connects as `ingest`**, a role with write grants, because `reader` has no access to schema `run`. It sets `default_transaction_read_only` and issues only SELECTs; nothing in it writes, but the guard is the connection setting, not the role.
+6. **`--reread-all` recorded as mode `reread`.** The mode check of `run.step1` is unchanged (no migration); the run is told apart by `reread_all: true` in its counts (`ingest/tests/test_documents_run.py::test_main_reread_all_runs_every_version`). A reader of the record who looks only at `mode` sees a re-read.
+7. **A fingerprint result tied to an orgnr of the labelled set.** The labelled list holds orgnrs and years only; the comparison script prints totals only.
+**Caught by:** The tests above, written to fail with their guard removed; the image check run locally in the built image. The first key held only the first line of `tesseract --version`; the implementation subagent widened it after printing the image's report, before commit `25917d3`.
+**Outcome:** Commits `93cc97b`, `3338427`, `c460e70`, `f174c5d`, `60f1918`, `549d631`, `863c59d`, `61e932e`, `1b7f3c6`, `25917d3`, and the docs. The runs wait for Meinich's yes.
+
+### 2026-11-07 — Story 2.5d: the cache key never matched a real fetch
+**Tags:** parsing
+**Tool:** Claude Code (BMAD session, Opus 5.5); the defect found by the review session
+**Asked:** Prove the OCR word cache on real data: re-read the OCR reference set twice, by OCR and then from the cache, both equal to the seed, the second all hits.
+**Got:** Runs 1242 (`--reread`) and 1243 (`--reread-all`) each read 97 of 97, with 0 failed, 0 not replaced, 87 reconciled and 10 not, and each had 0 hits and 97 absent misses. `pnpm analysis:seed-documents` gave exit 0 after both: 97 documents and 194 columns equal to the seed, all read by `ac61135`. `--cache-proof` gave exit 1 ("0 hits of 97 read", "97 absent, must be 0"). OCR gave the same figures three times, but the cache never hit, and `.local/ocr-cache/` held 194 entries for 97 documents.
+**Problem:** The key's `pdf_sha256` was the sha256 of the raw bytes, and data.brreg.no writes a new random `/ID [<…> <…>]` into the trailer on every fetch, leaving every other byte the same. Every test read the same bytes twice (the fixture PDF, or `pdf(tag)`), so none could see it, and the image check's cached pass reads one PDF object twice, not two fetches. The proof did what it was for: it stopped the story before the labelled set.
+**Caught by:** The review session, from the real runs' counts. It fetched three reference documents twice each and compared the bytes: they differ only in the `/ID` array, and each PDF has exactly one.
+**Outcome:** Decided by Meinich. `ocr_cache.pdf_key_sha256` hashes the PDF with its one `/ID` array replaced by a fixed value; a PDF without exactly one `/ID` array of two hex strings is read by OCR, not stored, and counted as `ocr_cache_miss_pdf_id` with its reason (`df34a2d`). The tests now fetch with another `/ID`:
+- `ingest/tests/test_ocr_cache.py::test_refetched_pdf_with_another_id_is_a_hit` (a hit, the same read);
+- `::test_one_byte_changed_outside_the_id_misses`;
+- `::test_pdf_without_one_id_misses_with_its_reason` (zero, two, or not two hex strings);
+- `::test_entry_under_the_raw_sha256_is_never_read` (the 194 old entries stay, unread);
+- `ingest/tests/test_documents_run.py::test_reread_hit_sets_reader_commit`, where the re-read fetches another `/ID` than the cached one.
+
+Mutation check: hashing the raw bytes again fails 19 tests, among them the first. A trap in AGENTS.md and `docs/data-sources-brreg.md`. **Lesson:** a cache keyed on fetched bytes needs a test that fetches twice, or a check that two real fetches are byte-equal, before the key is trusted.

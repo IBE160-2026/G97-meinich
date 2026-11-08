@@ -1,15 +1,18 @@
 // `pnpm ingest` (scripts/run-ingest.ts): the URL the container sees, where
 // settings come from, and the docker argv, which must never hold a password.
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import {
   CONTAINER_DOCUMENTS_FILE,
+  CONTAINER_OCR_CACHE,
   containerDatabaseUrl,
   dockerRunArgs,
   main,
+  OCR_CACHE_DIR,
+  OCR_CACHE_ENV,
   READER_COMMIT_ENV,
   setting,
   stepArgs,
@@ -106,12 +109,21 @@ describe('argument passthrough', () => {
       args: ['--reread', CONTAINER_DOCUMENTS_FILE],
       documentsFile: 'seed/document-run.json',
     });
+    expect(stepArgs(['--reread-all', 'seed/document-run.json'])).toEqual({
+      args: ['--reread-all', CONTAINER_DOCUMENTS_FILE],
+      documentsFile: 'seed/document-run.json',
+    });
     for (const argv of [
       ['--reread'],
       ['--reread', '--rm'],
       ['--reread', 'a.json', 'b.json'],
       ['--reread', 'a.json', '--documents', 'b.json'],
       ['--reread', 'a,readonly=false.json'],
+      ['--reread-all'],
+      ['--reread-all', 'a.json', 'b.json'],
+      ['--reread-all', 'a.json', '--reread', 'b.json'],
+      ['--reread-all', 'a,readonly=false.json'],
+      ['--rereadall', 'a.json'],
       ['--entrypoint=sh'],
       ['--companies-only', '--rm'],
       ['-e', 'X'],
@@ -135,9 +147,28 @@ describe('argument passthrough', () => {
     expect(mounts).toEqual([
       `type=bind,source=${path.join('/repo', 'seed')},target=/seed,readonly`,
       `type=bind,source=${path.resolve('/repo', 'seed/document-run.json')},target=${CONTAINER_DOCUMENTS_FILE},readonly`,
+      `type=bind,source=${path.join('/repo', OCR_CACHE_DIR)},target=${CONTAINER_OCR_CACHE}`,
     ]);
     // The host path never reaches the container's command line.
     expect(args.slice(args.indexOf('peerless-ingest:local'))).not.toContain('seed/document-run.json');
+  });
+
+  // Story 2.5d: the OCR word cache, read-write, for the three list modes
+  // only, with PEERLESS_OCR_CACHE passed by name.
+  it('mounts .local/ocr-cache read-write for --documents, --reread and --reread-all only', () => {
+    const cacheMount = `type=bind,source=${path.join('/repo', OCR_CACHE_DIR)},target=${CONTAINER_OCR_CACHE}`;
+    expect(cacheMount).not.toContain('readonly');
+    for (const mode of ['--documents', '--reread', '--reread-all']) {
+      const args = dockerRunArgs('/repo', false, [mode, 'list.json']);
+      expect(args[args.indexOf(cacheMount) - 1], mode).toBe('--mount');
+      expect(args[args.indexOf(OCR_CACHE_ENV) - 1], mode).toBe('--env');
+      expect(args.filter((arg) => arg.includes(OCR_CACHE_ENV))).toEqual([OCR_CACHE_ENV]);
+    }
+    for (const argv of [[], ['--companies-only']]) {
+      const args = dockerRunArgs('/repo', true, argv);
+      expect(args.join(' '), argv.join(' ')).not.toContain('ocr-cache');
+      expect(args.join(' '), argv.join(' ')).not.toContain(OCR_CACHE_ENV);
+    }
   });
 
   it('never forwards a refused argument, even when called directly', () => {
@@ -195,7 +226,7 @@ describe('main', () => {
 
   it('refuses a dirty ingest tree', () => {
     writeFileSync(path.join(dir, 'run.json'), '["979607008"]\n');
-    for (const mode of ['--documents', '--reread']) {
+    for (const mode of ['--documents', '--reread', '--reread-all']) {
       vi.mocked(spawnSync).mockClear();
       fakeSpawn(' M ingest/src/peerless_ingest/layout.py\n');
       expect(main(dir, [mode, 'run.json']), mode).toBe(2);
@@ -222,7 +253,7 @@ describe('main', () => {
 
   it('passes the reader version by name, its value only in the environment', () => {
     writeFileSync(path.join(dir, 'run.json'), '["979607008"]\n');
-    for (const mode of ['--documents', '--reread']) {
+    for (const mode of ['--documents', '--reread', '--reread-all']) {
       vi.mocked(spawnSync).mockClear();
       fakeSpawn('');
       expect(main(dir, [mode, 'run.json'])).toBe(0);
@@ -238,7 +269,20 @@ describe('main', () => {
       expect(args.join(' ')).not.toContain(COMMIT);
       const env = (runCall?.[2] as { env: NodeJS.ProcessEnv }).env;
       expect(env[READER_COMMIT_ENV]).toBe(COMMIT);
+      expect(env[OCR_CACHE_ENV]).toBe(CONTAINER_OCR_CACHE);
+      // The cache directory exists before docker is asked to mount it.
+      expect(statSync(path.join(dir, OCR_CACHE_DIR)).isDirectory()).toBe(true);
     }
+  });
+
+  it('creates no cache directory and passes no cache variable for a plain or --companies-only run', () => {
+    for (const argv of [[], ['--companies-only']]) {
+      vi.mocked(spawnSync).mockClear();
+      expect(main(dir, argv)).toBe(0);
+      const runCall = vi.mocked(spawnSync).mock.calls.find((call) => call[0] === 'docker' && (call[1] as string[])[0] === 'run');
+      expect((runCall?.[2] as { env: NodeJS.ProcessEnv }).env[OCR_CACHE_ENV]).toBeUndefined();
+    }
+    expect(existsSync(path.join(dir, OCR_CACHE_DIR))).toBe(false);
   });
 
   it('runs the container with --companies-only after the image', () => {
@@ -294,6 +338,7 @@ describe('main runs pnpm derive after step 1', () => {
     ['a plain run', []],
     ['--documents', ['--documents', 'run.json']],
     ['--reread', ['--reread', 'run.json']],
+    ['--reread-all', ['--reread-all', 'run.json']],
   ] as const)('after %s, once, after the container', (_label, argv) => {
     fakeExits(0, 0);
     expect(main(dir, argv)).toBe(0);

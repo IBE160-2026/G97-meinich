@@ -1,11 +1,13 @@
 """Read the figures of a filed document (Story 2.1a).
 
-`read_document(pdf bytes, bound) -> DocumentRead` is the library's one entry
-point: it classifies page 1, and for a generated filing reads both figure
+`read_document(pdf bytes, bound, cache) -> DocumentRead` is the library's one
+entry point: it classifies page 1, and for a generated filing reads both figure
 columns and runs the four within-document checks within `bound` kroner (the
 configured `within_document_bound_kr`, Story 2.2). `read_words` is the same read from
 words already recognised, so the host tests run it on recorded Tesseract
-output with no Tesseract installed.
+output with no Tesseract installed. With an OCR word cache (`ocr_cache`,
+Story 2.5d), the words come from the cache on an exact key match and from
+Tesseract otherwise; `read_words` is the same either way.
 
 No database, no network, no write (Story 2.1b stores this). Figures are
 whole currency units as printed; converting to øre is 2.1b's writer. The only
@@ -74,7 +76,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from . import layout, ocr
+from . import layout, ocr, ocr_cache
 from .layout import Layout, Page, Pass
 from .ocr import PageWords, Word
 
@@ -304,11 +306,23 @@ def recognise(pdf: bytes) -> tuple[list[Word], list[PageWords]]:
     return top, pages
 
 
-def read_document(pdf: bytes, bound: int) -> DocumentRead:
+def recognise_cached(pdf: bytes, cache: ocr_cache.Cache | None) -> tuple[list[Word], list[PageWords]]:
+    """The recognised words of `pdf`: from the OCR word cache on an exact
+    key match (Story 2.5d), otherwise from `recognise`, then stored. With no
+    cache, `recognise` alone."""
+    if cache is None:
+        return recognise(pdf)
+    # `recognise` is looked up at call time, so a test that replaces it
+    # replaces Tesseract here too.
+    return cache.recognise(pdf, lambda body: recognise(body))
+
+
+def read_document(pdf: bytes, bound: int, cache: ocr_cache.Cache | None = None) -> DocumentRead:
     """Render, recognise and read one filed document; `bound` is the
-    within-document bound in whole kroner."""
-    top, pages = recognise(pdf)
-    return read_words(top, pages, bound)
+    within-document bound in whole kroner. With `cache`, the words come from
+    the OCR word cache when its key matches exactly, and `read_words` runs
+    on them exactly as on Tesseract's."""
+    return read_words(*recognise_cached(pdf, cache), bound)
 
 
 # --- JSON, for the fixtures ----------------------------------------------------------

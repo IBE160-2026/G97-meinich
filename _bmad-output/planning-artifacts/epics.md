@@ -1591,13 +1591,18 @@ Scope (Meinich, 2026-11-07):
 2. The document run for the labelled set, after Story 2.5c is merged, with the before and after counts.
 3. Before the labelled set is read, check whether `layout.page_kind` explains R4's known gap (review session, PR #48, 2026-11-07; not verified). `page_kind` calls a page an income-statement page if "resultatregnskap" appears anywhere in its labels, before "balanse" is checked, so a page holding both statements, or a balance page whose heading is misread, gives no `varer`. One company-year's stock is empty this way while the next year's document prints it as its prior-year figure (`emptied_current_held_by_next_prior` = 1 after Story 2.5c's re-read). The same check covers that a company with an empty `varer` now gets an unknown inventory signal, not "yes".
 
+Decided (Meinich, 2026-11-07, spec `spec-2-5d-labelled-set-document-run-and-ocr-word-cache.md`):
+- Item 3 is settled by the probe (`analysis/output/page-kind-probe.md`) with no fix: every rule that would bring a `varer` back brings back a wrong one, so an empty `varer` stays empty with its reason, and the 2 044 stored documents are not re-read first.
+- The labelled set's run reads the reference year 2025 only: a document list entry may be `{"orgnr", "years": [2025]}` beside a plain orgnr (every year 2021–2025), and a later run with more years fetches only what is not stored.
+- The cache is proven on real data first: the OCR reference set is re-read twice, by OCR and then from the cache with `--reread-all` (the re-read without the reader-version check), and both must equal the committed seed (`pnpm analysis:seed-documents`), the second with only hits.
+
 **Implements:** FR-28 (batch part), FR-70 (the labelled set's documents), NFR25 (SM-2) · **Invariants:** AD-1, AD-2, AD-15 · **UX:** – · **Issue / branch / PR:** one issue, branch `story/2.5d-<slug>`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
 **Given** a document whose OCR words are in the cache
 **When** step 1 reads it
-**Then** the cache key is the PDF's sha256, the Tesseract version, the sha256 of `nor.traineddata` and the render settings (and the options of both passes), and only an exact match uses the cached words
+**Then** the cache key is the PDF's sha256 (with its `/ID` array fixed, since the register writes a new random one on every fetch; decided by Meinich 2026-11-07), the Tesseract version, the sha256 of `nor.traineddata` and the render settings (and the options of both passes, and the sha256 of `ocr.py`, which turns page images into words; added in review, decided by Meinich 2026-11-07), and only an exact match uses the cached words
 **And** a key that differs runs the full OCR and is reported (in `run.step1` and the run's counts), never silently
 **And** a read from cached words gives the same figures, status and checks as a read through Tesseract (a test over recorded words)
 

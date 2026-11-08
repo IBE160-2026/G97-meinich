@@ -3,7 +3,7 @@
 **Date:** 2026-11-08
 **Tool:** Claude Code (Opus 5.5, BMAD build)
 **Story / issue:** #52, Story 2.6a, split out of Story 2.6 (#51)
-**Result:** branch `story/2.6a-company-text-fields`, seed `c6d990e`. PR: linked when opened.
+**Result:** branch `story/2.6a-company-text-fields`, seed `c6d990e`. PR [#53](https://github.com/IBE160-2026/G97-meinich/pull/53).
 
 ## Goal
 

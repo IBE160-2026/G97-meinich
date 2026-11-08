@@ -2,7 +2,7 @@
 title: 'Story 2.6a: The register text classification reads'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-progress'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_commit: '9d43524bf1d3a036d6cc4861f25e389aceb48586'
@@ -63,12 +63,12 @@ Every row names the test that fails if its code is removed.
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/20261108120000_company_register_text.sql` -- add the two columns with comments -- Story 2.6 reads them.
-- [ ] `ingest/src/peerless_ingest/parse.py` -- add the fields and a strict `_register_text` -- the register delivers arrays of lines.
-- [ ] `ingest/src/peerless_ingest/write.py` -- extend `SEARCH_FIELD_COLUMNS`, update its comment -- one write path.
-- [ ] `ingest/src/peerless_ingest/run.py` -- update the docstring -- it names the fields.
-- [ ] `ingest/tests/test_parse.py`, `ingest/tests/test_write.py`, `test/db/company-search.test.ts` -- the matrix's tests.
-- [ ] `docs/data-sources-brreg.md`, `README.md`, `AGENTS.md` -- what the mode fills.
+- [x] `supabase/migrations/20261108120000_company_register_text.sql` -- add the two columns with comments -- Story 2.6 reads them.
+- [x] `ingest/src/peerless_ingest/parse.py` -- add the fields and a strict `_register_text` -- the register delivers arrays of lines.
+- [x] `ingest/src/peerless_ingest/write.py` -- extend `SEARCH_FIELD_COLUMNS`, update its comment -- one write path.
+- [x] `ingest/src/peerless_ingest/run.py` -- update the docstring -- it names the fields.
+- [x] `ingest/tests/test_parse.py`, `ingest/tests/test_write.py`, `test/db/company-search.test.ts` -- the matrix's tests.
+- [x] `docs/data-sources-brreg.md`, `README.md`, `AGENTS.md` -- what the mode fills.
 
 **Acceptance Criteria:**
 - Given the migration applied with `supabase migration up`, when the step-1 and database tests run, then they pass and no `register` row has changed.
@@ -79,6 +79,26 @@ Every row names the test that fails if its code is removed.
 ## Spec Change Log
 
 ## Review Triage Log
+
+Review pass 1, 2026-11-08. Layers: Blind Hunter (BH), Edge Case Hunter (ECH), Verification Gap (VG).
+
+| Finding | Layer | Verdict | Evidence and route |
+|---|---|---|---|
+| CI fails until the seed is re-exported | BH, VG | medium | Real and expected (second AC). Merge blocker: the re-export lands in this PR after Meinich's run. No code change. |
+| The seed publishes free text for sole proprietors | BH | medium | Real: about 6 300 `ENK` rows. Classification reads AS only. Intent gap, put to Meinich before the run. |
+| `search_fields_read_at` set while the text was never read; NULL is ambiguous | BH, ECH | medium | Real until the run. Frozen: one read timestamp. Deferred: Story 2.6 refuses to classify when no covered AS has text. |
+| Blank line between lines not pinned | VG, BH | low | Patched, `e5295f5`, with a test. |
+| Internal whitespace survives | ECH, BH | low | Patched, `e5295f5`, with a test. |
+| NULL assertion in the companies-only test is vacuous | BH | medium | Patched, `e5295f5`: the row holds text before the run. |
+| Docs: demo C's failure path; plain run not named; docstring unwrapped | BH | low | Patched, `e5295f5`. |
+| Lone surrogate aborts the run | ECH | false | Not shown reachable: 0 wrong-shape values in the bulk file of 2026-11-08, and an encode error fails loudly. |
+| A malformed text loses the whole unit | BH | false | The spec's decision (frozen); 0 such values among the stored companies in the bulk file of 2026-11-08. |
+| Plain-run wrong shape has no own test | BH | low | Rejected: the shared `except ValueError` path is tested (`test_write.py`, generic case; VG confirms). |
+| Text kept when the primary code differs | BH | false | The text describes the company, not the stored code; `naeringskode1_beskrivelse` is cleared because it names a code. |
+| No totals for text coverage | BH | low | Rejected: a count query after the run answers it, totals only. |
+| Second field not in the blank parameters | BH | low | Rejected: one function, the field name is its only difference. |
+| "Search fields" names now cover text | BH | low | Rejected: the frozen spec extends `SEARCH_FIELD_COLUMNS`; a rename adds churn. |
+| Empty Implementation Notes, no session file | BH | low | Handled before the PR. |
 
 ## Verification
 

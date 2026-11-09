@@ -74,14 +74,15 @@ If a stratum ends below 15 subjects, or the labelling ends below about 900 pairs
 
 **The other 24 subjects: done 2026-11-09,** 720 of 720 pairs: 31 `ja`, 649 `nei`, 40 `usikker`. `labelled_on` is 2026-11-08 for the first 180 pairs and 2026-11-09 for the other 540. One typo was normalised (`beu` to `nei`, row 446, confirmed by the labeller). They were labelled before `pnpm classify` had run on any of these companies.
 
-**These 720 pairs are labelled more specifically than the rubric above.** Where one description named a sector or a particular line of software and the other did not, or where the two were worded differently, the labeller chose `nei`, although the rubric says domain and technology do not count on their own. A pair with identical but vague text could be `ja`. The review session found this on 2026-11-09 from the share of `ja` and the labeller's `notes`, and offered a new round against the rubric. Meinich decided the same day to keep the labels: the more specific judgement is more detailed, and the AI is there to help with the comparison.
+**These 720 pairs are labelled more specifically than the rubric above.** Where one description named a sector or a particular line of software and the other did not, or where the two were worded differently, the labeller chose `nei`, although the rubric says domain and technology do not count on their own. A pair with identical but vague text could be `ja`. The review session found this on 2026-11-09 from the share of `ja` and the labeller's `notes`, and offered a new round against the rubric. Meinich first decided to keep the labels, because the more specific judgement is more detailed, and changed that decision the same day: sector is left out for now and the rubric stands. These labels stay in `labels.csv` as the first round, as they were labelled, and are not the measure.
 
-What follows from that:
+What the first round showed:
 - The share of `ja` is 25 % (45 of 180) in the blind pairs and 4.3 % (31 of 720) in these. For subjects whose description was scored informative it is 31 of 90 against 10 of 360. An exact permutation test on `ja` per subject gives a one-sided p of about 0.0006, so random assignment of the blind subjects does not explain it.
-- Story 5.2 reports the blind and the non-blind pairs separately as well as together, and says that a non-blind `ja` means more than the rubric's same main revenue model. The blind sheet has one note, so whether it followed the rubric cannot be read from the notes; its share of `ja` suggests it did.
-- 12 of the 24 subjects have no `ja`, so recall on these pairs rests on 31 labels and its uncertainty is stated.
+- The blind sheet has one note, so whether it followed the rubric cannot be read from the notes; its share of `ja` suggests it did. The blind pairs keep their labels.
+- 12 of the 24 subjects have no `ja`.
 - `usikker` rose through the sheet: 0, 8, 12 and 20 per 180 rows.
-- The second labeller has to be told how these pairs were judged, or κ measures the difference between the two criteria. At this share about 2 of 50 randomly drawn pairs would be `ja`, so κ will be weak unless the draw is changed.
+
+**Second round of the 720 pairs: started 2026-11-09, not finished.** The rubric above applies; sector and wording do not count. `labels-revenue-model.csv` holds the 685 companies in those pairs, one row each, in shuffled order (seed 20261109), with no pair shown. For each company the labeller sets its main revenue model in `model`: `p` product, `k` project and consulting, `b` staffing, `v` resale, `d` operations, `i` not operating, `u` the information does not let you decide (with what was missing in `notes`). Each pair's label is then computed, not chosen: `nei` if either company is `i`; otherwise `usikker` if either is `u`; otherwise `ja` for the same letter and `nei` for different letters. Story 5.2 measures against this round and the blind pairs, and may show the first round beside them, named as the stricter reading. The second labeller uses this same method, and whether the draw of 50 pairs needs changing is decided when the share of `ja` in this round is known.
 
 ## Files
 
@@ -90,7 +91,8 @@ What follows from that:
 - `subjects.json`: the first step's result: the counts, the shuffled order, the skips and each subject's 30 candidates.
 - `subject-descriptions.csv`: the shuffled subjects' descriptions, then their `ja`/`nei` scores.
 - `drawn.json`: the 30 subjects and their candidates.
-- `labels-blind.csv`, `labels.csv`: the labelling sheets, then the labels (`subject_orgnr`, `candidate_orgnr`, `label`, `labelled_by`, `labelled_on`, `notes`).
+- `labels-blind.csv`, `labels.csv`: the labelling sheets, then the labels (`subject_orgnr`, `candidate_orgnr`, `label`, `labelled_by`, `labelled_on`, `notes`). `labels.csv` is the first round of the 720 non-blind pairs.
+- `labels-revenue-model.csv`: the second round, one row per company (`orgnr`, `navn`, `beskrivelse`, `hjemmeside`, `model`, `notes`).
 - `kappa.csv`: the 50 pairs of the second labeller.
 
 The sheets are semicolon-separated UTF-8, so they open column by column in a Norwegian Excel, like the OCR reference set.

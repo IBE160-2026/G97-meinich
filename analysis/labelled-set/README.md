@@ -72,6 +72,17 @@ If a stratum ends below 15 subjects, or the labelling ends below about 900 pairs
 
 **Blind subsample: done 2026-11-01,** 180 of 180 pairs: 45 `ja`, 134 `nei`, 1 `usikker`. It was finished before Story 2.5 started, so the labeller had not seen the fingerprint's business types or any fingerprint result. `labelled_on` is 2026-10-30 for the first 30 pairs and the day the sheet was finished for the other 150, which were labelled over 2026-10-30 to 2026-11-01. One typo was normalised (`ja'` to `ja`, row 55), and two labels were lower-cased.
 
+**The other 24 subjects: done 2026-11-09,** 720 of 720 pairs: 31 `ja`, 649 `nei`, 40 `usikker`. `labelled_on` is 2026-11-08 for the first 180 pairs and 2026-11-09 for the other 540. One typo was normalised (`beu` to `nei`, row 446, confirmed by the labeller). They were labelled before `pnpm classify` had run on any of these companies.
+
+**These 720 pairs are labelled more specifically than the rubric above.** Where one description named a sector or a particular line of software and the other did not, or where the two were worded differently, the labeller chose `nei`, although the rubric says domain and technology do not count on their own. A pair with identical but vague text could be `ja`. The review session found this on 2026-11-09 from the share of `ja` and the labeller's `notes`, and offered a new round against the rubric. Meinich decided the same day to keep the labels: the more specific judgement is more detailed, and the AI is there to help with the comparison.
+
+What follows from that:
+- The share of `ja` is 25 % (45 of 180) in the blind pairs and 4.3 % (31 of 720) in these. For subjects whose description was scored informative it is 31 of 90 against 10 of 360. An exact permutation test on `ja` per subject gives a one-sided p of about 0.0006, so random assignment of the blind subjects does not explain it.
+- Story 5.2 reports the blind and the non-blind pairs separately as well as together, and says that a non-blind `ja` means more than the rubric's same main revenue model. The blind sheet has one note, so whether it followed the rubric cannot be read from the notes; its share of `ja` suggests it did.
+- 12 of the 24 subjects have no `ja`, so recall on these pairs rests on 31 labels and its uncertainty is stated.
+- `usikker` rose through the sheet: 0, 8, 12 and 20 per 180 rows.
+- The second labeller has to be told how these pairs were judged, or κ measures the difference between the two criteria. At this share about 2 of 50 randomly drawn pairs would be `ja`, so κ will be weak unless the draw is changed.
+
 ## Files
 
 - `README.md`: these rules.

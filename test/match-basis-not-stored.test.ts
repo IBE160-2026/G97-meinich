@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseCsv, SEED_TABLES, seedFileName } from '../scripts/seed-format.ts';
+import { MATCH_BASES } from '../src/engine/peers.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 
@@ -43,6 +44,8 @@ describe('the match basis and the flag are never stored', () => {
   it.each(migrations)('no column for them in %s', (name) => {
     const sql = withoutComments(readFileSync(path.join(migrationsDir, name), 'utf8'));
     expect(sql.match(STORED) ?? []).toEqual([]);
+    // Nor a column of another name holding the basis ids as values.
+    expect(MATCH_BASES.filter((id) => sql.includes(id))).toEqual([]);
   });
 
   it('no column for them in any seed file header', () => {
@@ -57,5 +60,7 @@ describe('the match basis and the flag are never stored', () => {
       'match_basis',
     ]);
     expect('uncertain_flag'.match(STORED)).toEqual(['uncertain_flag']);
+    const valueCheck = "check (signals in ('accounts_only', 'description_only'))";
+    expect(MATCH_BASES.filter((id) => valueCheck.includes(id))).toEqual(['accounts_only', 'description_only']);
   });
 });

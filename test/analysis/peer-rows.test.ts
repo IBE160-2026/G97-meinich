@@ -1,5 +1,6 @@
-// The Peers tab's rows (Story 2.7; AD-4): each peer as the strings the list
-// shows and nothing else. Synthetic peers.
+// The Peers tab's rows (Stories 2.7, 2.8; AD-4): each peer as the strings
+// the list shows, its orgnr for the exclude action and whether it is
+// excluded, and nothing else. Synthetic peers.
 import { describe, expect, it } from 'vitest';
 import { BASIS_DISPLAY, peerRows, type PeerInput } from '../../src/analysis/peer-rows.ts';
 import type { SubjectKeyFigures } from '../../src/analysis/view.ts';
@@ -71,9 +72,11 @@ describe('peerRows', () => {
   it('a row has only the shown fields', () => {
     const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], [], 'NOK');
     expect(Object.keys(row ?? {}).sort()).toEqual(
-      ['driftsmargin', 'flagg', 'grunnlag', 'grunnlagKi', 'hvorforMed', 'navn', 'omsetning'].sort(),
+      ['driftsmargin', 'excluded', 'flagg', 'grunnlag', 'grunnlagKi', 'hvorforMed', 'navn', 'omsetning', 'orgnr'].sort(),
     );
     expect(row).toEqual({
+      orgnr: '900000001',
+      excluded: false,
       navn: 'PEER 900000001 AS',
       omsetning: `15,0${NBSP}mill.${NBSP}kr`,
       driftsmargin: `10,0${NBSP}%`,
@@ -84,7 +87,7 @@ describe('peerRows', () => {
     });
   });
 
-  it('carries no orgnr, øre amount, fingerprint category or business type', () => {
+  it('carries no øre amount, fingerprint category or business type, and the orgnr only as its own field', () => {
     const rows = peerRows(
       subject,
       'ADMMIT AS',
@@ -92,7 +95,8 @@ describe('peerRows', () => {
       ['900000002'],
       'NOK',
     );
-    const text = JSON.stringify(rows);
+    expect(rows.map((row) => row.orgnr)).toEqual(['900000001', '900000002']);
+    const text = JSON.stringify(rows.map((row) => ({ ...row, orgnr: '' })));
     expect(text).not.toMatch(/9000000\d\d/);
     expect(text).not.toMatch(/1500000000|150000000|500000000|200000000/);
     expect(text).not.toMatch(/\b(low|mid|high|produkt|konsulent|forhandler|annet)\b/);
@@ -140,6 +144,19 @@ describe('peerRows', () => {
   it('reads "Ikke i kroner" for revenue outside NOK', () => {
     const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], [], 'USD');
     expect(row?.omsetning).toBe(nb['peers.otherCurrency']);
+  });
+
+  // Story 2.8: an excluded peer keeps its row, marked.
+  it('marks the peers in ekskl as excluded and keeps their rows', () => {
+    const rows = peerRows(subject, 'ADMMIT AS', [peer('900000001'), peer('900000002'), peer('900000003')], [], 'NOK', [
+      '900000002',
+      '900000009',
+    ]);
+    expect(rows.map((row) => [row.orgnr, row.excluded])).toEqual([
+      ['900000001', false],
+      ['900000002', true],
+      ['900000003', false],
+    ]);
   });
 
   it('keeps the peers’ order', () => {

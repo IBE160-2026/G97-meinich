@@ -5,7 +5,10 @@
 // the shown group (the group after funnel stage 4, minus `ekskl`, the same
 // group the Peers tab lists) and the benchmark out. The choice of the
 // stage-4 group over the stage 1–3 pool is made here, where it is tested
-// (test/analysis/shown-group.test.ts). The subject's
+// (test/analysis/shown-group.test.ts). Story 2.8: the Peers tab lists the
+// whole group, excluded peers marked, so `members` keeps them, while
+// `peers`, the benchmark, `analysisCount` and the funnel's flagged count
+// leave them out. The subject's
 // own `valuta` goes to the engine, which gives no kroner amount for a filing
 // not in NOK.
 import { benchmarkApiFigures, type ApiBenchmark } from '../engine/benchmark.ts';
@@ -14,10 +17,21 @@ import { withoutExcluded, type EmptyReason, type FunnelCounts } from '../engine/
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
 
 export type ShownGroup<P> = {
+  /** The group minus `ekskl`: the peers in the analysis, which every figure uses. */
   readonly peers: readonly P[];
-  /** The funnel's five stage counts and its flagged count (Story 2.7), as the funnel computed them. */
+  /** The whole group after stage 5, in funnel order, excluded peers included: the rows of the Peers list. */
+  readonly members: readonly P[];
+  /** The `ekskl` orgnrs that are in the group, in group order. An `ekskl` peer stage 4 or 5 removed is not among them. */
+  readonly excludedInGroup: readonly string[];
+  /** `peers.length`: "{m} i analysen" and the header's count. */
+  readonly analysisCount: number;
+  /**
+   * The funnel's five stage counts (Story 2.7), with the flagged count
+   * taken over the peers in the analysis only (Story 2.8): an excluded
+   * flagged peer is not counted.
+   */
   readonly counts: FunnelCounts;
-  /** The funnel's flagged orgnrs: the Peers list tags them, nothing else reads them. */
+  /** The funnel's flagged orgnrs, excluded peers included: the Peers list tags them, nothing else reads them. */
   readonly flagged: readonly string[];
   /** The subject's three API figures against `peers` (Story 1.8). */
   readonly benchmark: ApiBenchmark;
@@ -48,9 +62,15 @@ export function shownGroup<P extends { readonly orgnr: string; readonly keyFigur
 ): ShownGroup<P> {
   const emptyReason = funnel.emptyReason;
   const peers = withoutExcluded(funnel.group, ekskl);
+  const excluded = new Set(ekskl);
+  const excludedInGroup = funnel.group.filter((peer) => excluded.has(peer.orgnr)).map((peer) => peer.orgnr);
+  const flaggedInAnalysis = funnel.flagged.filter((orgnr) => !excluded.has(orgnr)).length;
   return {
     peers,
-    counts: funnel.counts,
+    members: funnel.group,
+    excludedInGroup,
+    analysisCount: peers.length,
+    counts: { ...funnel.counts, stage5: { ...funnel.counts.stage5, flagged: flaggedInAnalysis } },
     flagged: funnel.flagged,
     benchmark: benchmarkApiFigures(
       apiInputsFromRow(filing.keyFigures),

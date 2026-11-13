@@ -14,6 +14,8 @@ const NBSP = ' ';
 const GLYPH = '✦';
 
 const row = (overrides: Partial<PeerDisplayRow> = {}): PeerDisplayRow => ({
+  orgnr: '900000001',
+  excluded: false,
   navn: 'STOR AS',
   omsetning: `23,5${NBSP}mill.${NBSP}kr`,
   driftsmargin: `4,2${NBSP}%`,

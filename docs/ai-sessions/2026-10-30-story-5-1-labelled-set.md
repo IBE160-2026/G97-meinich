@@ -3,7 +3,7 @@
 **Date:** 2026-10-30 to 2026-11-13
 **Tool:** Claude Code (Opus 5.5, BMAD session), checked by Meinich's separate review session. The second round of the 720 pairs was filled in by a ChatGPT model (OpenAI, version not recorded).
 **Story / issue:** #13, Story 5.1 (FR-70)
-**Result:** branch `story/5.1-labelled-set`. PR: see the PR that links this file.
+**Result:** branch `story/5.1-labelled-set`, PR [#55](https://github.com/IBE160-2026/G97-meinich/pull/55).
 
 ## Goal
 

@@ -165,8 +165,8 @@ export const lookupSubject = cache(async (orgnr: string): Promise<Subject | null
 
 /**
  * A candidate's filing as the funnel reads it, with what the Peers list
- * shows (the name and the municipality) and the seven key-figure inputs the
- * three API figures are computed from (Story 1.8). Selection never reads
+ * shows (the name; since Story 2.7 no municipality) and the seven
+ * key-figure inputs the three API figures are computed from (Story 1.8). Selection never reads
  * those inputs (src/engine/peers.ts takes a CandidateFiling, which has no
  * such field); they are compared only after the group is formed. Nothing
  * else per peer is read (AD-4): no employee count, no other register field.
@@ -175,7 +175,6 @@ export const lookupSubject = cache(async (orgnr: string): Promise<Subject | null
  */
 export type Candidate = CandidateFiling & {
   readonly navn: string | null;
-  readonly kommune: string | null;
   readonly keyFigures: SubjectKeyFigures;
 };
 
@@ -185,7 +184,6 @@ export interface CandidateRow extends FingerprintColumns {
   navn: string | null;
   organisasjonsform: string | null;
   naeringskode1: string | null;
-  forretningsadresse_kommune: string | null;
   brreg_id: string;
   regnskapstype: string;
   periode_fra: string;
@@ -214,7 +212,6 @@ select c.orgnr,
        c.navn,
        c.organisasjonsform,
        c.naeringskode1,
-       c.forretningsadresse_kommune,
        f.brreg_id,
        f.regnskapstype,
        f.periode_fra::text as periode_fra,
@@ -256,7 +253,6 @@ export function toCandidate(row: CandidateRow): Candidate {
   return {
     orgnr: row.orgnr,
     navn: row.navn,
-    kommune: row.forretningsadresse_kommune,
     organisasjonsform: row.organisasjonsform,
     naeringskode1: row.naeringskode1,
     brregId,

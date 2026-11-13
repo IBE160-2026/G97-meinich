@@ -228,6 +228,41 @@ function signals(
 }
 
 /**
+ * "Grunnlag for treff" (Story 2.7; FR-16), in display order: which signals
+ * took part in keeping a peer in the group. `description_and_accounts` and
+ * `description_only` rest on the model's classification; the other two on
+ * rules alone.
+ */
+export const MATCH_BASES = [
+  'description_and_accounts',
+  'accounts_only',
+  'description_only',
+  'industry_and_size_only',
+] as const;
+export type MatchBasis = (typeof MATCH_BASES)[number];
+
+/**
+ * A peer's match basis against the subject. A signal counts exactly when
+ * signals() gives it a value rather than null: a type on both sides,
+ * whether or not they agree. So a flagged peer (the two disagree) is
+ * `description_and_accounts`, and an undetermined fingerprint, `uklart`, an
+ * unclassified peer and a subject with no type give no signal. The group,
+ * the flag and the basis all read the one signals(): switch the text off
+ * where the classification enters, and all three follow. Computed per
+ * request, never stored (the basis depends on the subject).
+ */
+export function matchBasis(
+  subject: Pick<SubjectFiling, 'fingerprint' | 'classification'>,
+  candidate: Pick<CandidateFiling, 'fingerprint' | 'classification'>,
+): MatchBasis {
+  const { fingerprint, text } = signals(subject, candidate);
+  if (fingerprint !== null && text !== null) return 'description_and_accounts';
+  if (fingerprint !== null) return 'accounts_only';
+  if (text !== null) return 'description_only';
+  return 'industry_and_size_only';
+}
+
+/**
  * Funnel stages 1–5 at `band`. `candidates` are the filings of the companies
  * to consider, any number per company; the subject's own are ignored, and a
  * company without a filing in the subject's year is out before stage 1.

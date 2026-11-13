@@ -2538,6 +2538,7 @@ So that the full analysis runs locally without any key, within what the licence 
 **Then** A is chosen as a typical consultancy with a full analysis and B as a loss-making product company showing fingerprint separation and a large gap, each recorded with the reason it was chosen
 **And** C is not chosen again: this story confirms the `69.202` company chosen in Story 1.3a, recorded in step 1's configuration file, still shows the uncovered state from API figures alone
 **And** the placeholders for A and B from Stories 1.5b and 1.6b are replaced with their links (tests for the not-in-database and no-match states)
+**And** the choice considers a demo company whose text classification has a business type, so the demo shows the AI layer: the current A and B are both `uklart`, so even with their fingerprints in the seed neither shows a ✦ match basis or a flag on the Peers tab (Story 2.7); the decision and its reason are recorded with the others
 
 **Given** the licence gate
 **When** it is assessed

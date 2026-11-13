@@ -1,7 +1,7 @@
 // The front page and its search (Story 1.5b), against the production build
 // and the loaded demo seed. A navigation is checked by its URL: the bare
 // analysis path of a covered company redirects to its Oversikt tab
-// (Story 1.6b; the analysis pages are tested in e2e/analysis.spec.ts).
+// (Story 1.6b; the analysis pages are tested in e2e/analysis-states.spec.ts and the specs beside it).
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };

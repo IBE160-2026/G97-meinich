@@ -1,6 +1,6 @@
 // The search field's server-rendered markup, both variants (Story 1.5b).
 // The compact variant is mounted in the header by Story 1.6b; its behaviour
-// there is tested in e2e/analysis.spec.ts, the hero's in e2e/search.spec.ts.
+// there is tested in e2e/analysis-states.spec.ts, the hero's in e2e/search.spec.ts.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';

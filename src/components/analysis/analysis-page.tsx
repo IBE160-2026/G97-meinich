@@ -23,12 +23,14 @@ import {
   PANEL_HEADING_ID,
   PATH_CONTEXT,
   analysisView,
+  displayName,
   funnelSubject,
   hasPeerGroup,
   urlContext,
   type AnalysisView,
   type Subject,
 } from '@/analysis/view';
+import { peerRows } from '@/analysis/peer-rows';
 import { shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
@@ -146,6 +148,17 @@ function SearchAgain() {
   );
 }
 
+/**
+ * The Peers tab's rows (Story 2.7): built here, on the server, so only their
+ * strings reach the page. A covered subject always has a filing; one
+ * without would be a bug, so it throws rather than show no peers.
+ */
+function peersShown(subject: Subject, group: ShownGroup) {
+  const funnel = funnelSubject(subject);
+  if (funnel === null) throw new TypeError('peersShown: a covered subject without a filing');
+  return peerRows(funnel, displayName(subject), group.peers, group.flagged, group.valuta);
+}
+
 function Covered({
   subject,
   state,
@@ -175,8 +188,8 @@ function Covered({
         ) : null}
         {view.fane === 'peers' ? (
           <PeerList
-            peers={group.peers}
-            valuta={group.valuta}
+            rows={peersShown(subject, group)}
+            counts={group.counts}
             emptyReason={group.emptyReason}
             filingYear={group.filingYear}
           />

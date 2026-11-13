@@ -1,25 +1,34 @@
-// The Peers tab's peer group (Story 1.7; FR-8, UX-DR37, UX-DR68): the count,
-// then one row per peer — name, benchmark-year revenue, municipality — by
-// revenue descending, then orgnr. A server component: only the strings
-// shown reach the page (AD-4). An orgnr is rendered only for a peer with no
-// name, grouped 3-3-3 in its place, as the spec allows; rows are never keyed
-// by orgnr, because a React key travels in the RSC payload.
+// The Peers tab (Stories 1.7, 2.7; FR-15, FR-16, UX-DR37, UX-DR68): the
+// count, the funnel, then one row per peer — Selskap · Omsetning ·
+// Driftsmargin · Hvorfor med · Grunnlag for treff · flag — by revenue
+// descending, then orgnr. A server component: it renders the display rows
+// of src/analysis/peer-rows.ts, so only the strings shown reach the page
+// (AD-4). Rows are never keyed by orgnr, because a React key travels in the
+// RSC payload, and no row carries one.
 //
-// The table sits in its own horizontal scroll region (`.scroll-region` in
-// globals.css, with the edge fade), so it may be wider than a phone while
-// the page body never scrolls sideways.
-import type { EmptyReason } from '@/engine/peers';
-import { formatKommune, formatMillions, formatOrgnr } from '@/engine/format';
+// ✦ (ai-mark.tsx) marks the two bases that rest on a classification and
+// the flag, never the reason or a number; screen readers hear "KI-generert"
+// once per cell. The caption carries the visible key.
+//
+// From `md` the list is a table in its own horizontal scroll region
+// (`.scroll-region` in globals.css), so it may be wider than the screen
+// while the page body never scrolls sideways. Below `md` it is one card per
+// peer, the first PHONE_CARDS shown and the rest sent as strings to
+// "Vis alle {n}", which draws them in the client only when pressed.
+// A subject that cannot have peers shows its sentence and no funnel: the
+// zeros would only repeat it.
+import type { PeerDisplayRow } from '@/analysis/peer-rows';
+import type { EmptyReason, FunnelCounts } from '@/engine/peers';
 import { t } from '@/messages';
+import { AiMark } from './ai-mark';
+import { Basis, CARD_LIST_CLASS, Flag, PeerCard, type PeerCardLabels } from './peer-card';
+import { PeerFunnel } from './peer-funnel';
+import { ShowAllToggle } from './show-all-toggle';
 
-/** What the list reads of one peer. */
-export type PeerRow = {
-  readonly orgnr: string;
-  readonly navn: string | null;
-  readonly kommune: string | null;
-  /** Øre; never null in a peer group (stage 1 requires revenue). */
-  readonly sumDriftsinntekter: bigint | null;
-};
+/** Cards shown on the phone before "Vis alle {n}" (Meinich, 2026-11-13). */
+export const PHONE_CARDS = 8;
+
+const HIDDEN_CARDS_ID = 'flere-sammenlignbare';
 
 /**
  * The Peers tab's sentence for an empty group: the subject's own reason, or
@@ -31,73 +40,131 @@ export function emptyText(emptyReason: EmptyReason, filingYear: number): string 
   return t('peers.none');
 }
 
-function revenueText(peer: PeerRow, valuta: string | null): string {
-  // The formatter writes "kr" whatever the currency: another valuta shows
-  // the words, never a wrong unit.
-  if (valuta !== 'NOK' || peer.sumDriftsinntekter === null) return t('peers.otherCurrency');
-  return formatMillions(peer.sumDriftsinntekter.toString());
+// The table's cells are styled from the table, not cell by cell, so a large
+// group's page stays small: columns 2 and 3 are figures, right-aligned.
+const TABLE_CLASS =
+  'w-full border-collapse text-left text-[13px] [&_th]:py-2 [&_th]:pr-4 [&_th]:font-semibold [&_td]:py-2 [&_td]:pr-4 ' +
+  '[&_tbody_tr]:border-b [&_tbody_tr]:border-divider [&_tbody_tr]:align-top [&_td:first-child]:min-w-40 [&_td:first-child]:break-words ' +
+  '[&_:is(td,th):is(:nth-child(2),:nth-child(3))]:text-right [&_:is(td,th):is(:nth-child(2),:nth-child(3),:nth-child(5))]:whitespace-nowrap ' +
+  '[&_td:is(:nth-child(2),:nth-child(3))]:figure [&_td:nth-child(4)]:min-w-56';
+
+function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
+  const ki = t('peers.ai');
+  return (
+    <div
+      role="region"
+      tabIndex={0}
+      aria-label={t('peers.regionLabel')}
+      className="scroll-region mt-4 hidden md:block"
+    >
+      <table className={TABLE_CLASS}>
+        <caption className="caption-bottom pt-2 text-left text-[12px] text-slate">
+          <span className="sr-only">{`${t('peers.regionLabel')}. `}</span>
+          <AiMark spoken={false} />
+          {ki}
+        </caption>
+        <thead>
+          <tr className="border-b border-divider text-slate">
+            <th scope="col">{t('peers.col.selskap')}</th>
+            <th scope="col">{t('peers.col.omsetning')}</th>
+            <th scope="col">{t('fig.driftsmargin')}</th>
+            <th scope="col">{t('peers.col.reason')}</th>
+            <th scope="col">{t('peers.col.basis')}</th>
+            <th scope="col">
+              <span className="sr-only">{t('peers.col.flag')}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            // The position is the key: the list is static per render.
+            <tr key={index}>
+              <td>{row.navn}</td>
+              <td>{row.omsetning}</td>
+              <td>{row.driftsmargin}</td>
+              <td>{row.hvorforMed}</td>
+              <td>
+                <Basis row={row} ki={ki} />
+              </td>
+              <td>{row.flagg === null ? null : <Flag text={row.flagg} ki={ki} />}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
+/** The labels every card shows, from the messages, as strings the client toggle can take. */
+function cardLabels(): PeerCardLabels {
+  return {
+    omsetning: t('peers.col.omsetning'),
+    driftsmargin: t('fig.driftsmargin'),
+    reason: t('peers.col.reason'),
+    basis: t('peers.col.basis'),
+    ki: t('peers.ai'),
+  };
+}
+
+function PeerCards({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
+  const labels = cardLabels();
+  const rest = rows.slice(PHONE_CARDS);
+  return (
+    <div className="mt-4 md:hidden" data-testid="peer-cards">
+      <ul className={CARD_LIST_CLASS}>
+        {rows.slice(0, PHONE_CARDS).map((row, index) => (
+          <PeerCard key={index} row={row} labels={labels} first={false} />
+        ))}
+      </ul>
+      {/* The rest reach the client as strings and are drawn only on "Vis alle". */}
+      {rest.length > 0 ? (
+        <ShowAllToggle
+          listId={HIDDEN_CARDS_ID}
+          label={t('peers.showAll', { n: String(rows.length) })}
+          rows={rest}
+          labels={labels}
+        />
+      ) : null}
+      <p className="m-0 mt-2 text-[12px] text-slate">
+        <AiMark spoken={false} />
+        {labels.ki}
+      </p>
+    </div>
+  );
+}
+
+
 export function PeerList({
-  peers,
-  valuta,
+  rows,
+  counts,
   emptyReason,
   filingYear,
 }: {
-  readonly peers: readonly PeerRow[];
-  /** The group's currency: every peer's equals the subject's (stage 2). */
-  readonly valuta: string | null;
+  readonly rows: readonly PeerDisplayRow[];
+  readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
   /** The subject's benchmark year, named when it has no revenue to compare. */
   readonly filingYear: number;
 }) {
-  const rows = peers.map((peer) => ({
-    navn: peer.navn ?? formatOrgnr(peer.orgnr),
-    omsetning: revenueText(peer, valuta),
-    kommune: peer.kommune === null ? t('peers.unknownKommune') : formatKommune(peer.kommune),
-  }));
   return (
     <div className="mt-2">
       <p className="m-0 text-slate" data-testid="peer-count">
         {rows.length === 1 ? t('peers.countOne') : t('peers.count', { n: String(rows.length) })}
       </p>
-      {rows.length === 0 ? (
+      {emptyReason !== null ? (
         <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
       ) : (
-        <div
-          role="region"
-          tabIndex={0}
-          aria-label={t('peers.regionLabel')}
-          className="scroll-region mt-4"
-        >
-          <table className="w-full border-collapse text-left">
-            <caption className="sr-only">{t('peers.regionLabel')}</caption>
-            <thead>
-              <tr className="border-b border-divider text-[13px] text-slate">
-                <th scope="col" className="py-2 pr-4 font-semibold">
-                  {t('peers.col.selskap')}
-                </th>
-                <th scope="col" className="py-2 pr-4 text-right font-semibold whitespace-nowrap">
-                  {t('peers.col.omsetning')}
-                </th>
-                <th scope="col" className="py-2 font-semibold">
-                  {t('peers.col.kommune')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => (
-                // The position is the key: the list is static per render,
-                // and an orgnr key would reach the payload.
-                <tr key={index} className="border-b border-divider">
-                  <td className="py-2 pr-4 break-words">{row.navn}</td>
-                  <td className="figure py-2 pr-4 text-right whitespace-nowrap">{row.omsetning}</td>
-                  <td className="py-2">{row.kommune}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <PeerFunnel counts={counts} />
+          {rows.length === 0 ? (
+            <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
+          ) : (
+            <>
+              <PeerTable rows={rows} />
+              <PeerCards rows={rows} />
+            </>
+          )}
+        </>
       )}
     </div>
   );

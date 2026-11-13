@@ -1,4 +1,5 @@
-// The peer group as the analysis page shows it, and the subject's three API
+// The peer group as the analysis page shows it, the funnel's counts and
+// flagged peers (Story 2.7), and the subject's three API
 // figures benchmarked against it (Stories 1.7–1.8, 2.5). Pure: the peer
 // group at the URL's band, the `ekskl` list and the subject's filing in;
 // the shown group (the group after funnel stage 4, minus `ekskl`, the same
@@ -9,11 +10,15 @@
 // not in NOK.
 import { benchmarkApiFigures, type ApiBenchmark } from '../engine/benchmark.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
-import { withoutExcluded, type EmptyReason } from '../engine/peers.ts';
+import { withoutExcluded, type EmptyReason, type FunnelCounts } from '../engine/peers.ts';
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
 
 export type ShownGroup<P> = {
   readonly peers: readonly P[];
+  /** The funnel's five stage counts and its flagged count (Story 2.7), as the funnel computed them. */
+  readonly counts: FunnelCounts;
+  /** The funnel's flagged orgnrs: the Peers list tags them, nothing else reads them. */
+  readonly flagged: readonly string[];
   /** The subject's three API figures against `peers` (Story 1.8). */
   readonly benchmark: ApiBenchmark;
   /** The subject's filing's smaaForetak, for the non-small notice. */
@@ -31,6 +36,8 @@ export type FunnelResult<P> = {
   readonly pool: readonly P[];
   /** The pool after stage 4. */
   readonly group: readonly P[];
+  readonly flagged: readonly string[];
+  readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
 };
 
@@ -43,6 +50,8 @@ export function shownGroup<P extends { readonly orgnr: string; readonly keyFigur
   const peers = withoutExcluded(funnel.group, ekskl);
   return {
     peers,
+    counts: funnel.counts,
+    flagged: funnel.flagged,
     benchmark: benchmarkApiFigures(
       apiInputsFromRow(filing.keyFigures),
       peers.map((peer) => apiInputsFromRow(peer.keyFigures)),

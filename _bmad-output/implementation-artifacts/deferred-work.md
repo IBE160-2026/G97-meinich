@@ -195,3 +195,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`
   summary: The request path reads sample classifications: `SUBJECT_SQL` and `CANDIDATES_SQL` in `src/server/analysis.ts` join `register.classification` without `not cl.sample`, so after a new sample run the local analysis page would use sample answers at stage 5, while `decideWork` never lets a sample answer stand in a full run.
   evidence: Review of PR #54 by the review session, https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327641. No effect now: the seed never holds sample rows, and run 18 left none locally. Proposed: `and not cl.sample` in both queries with a test, or a sentence in the spec that it is deliberate. Deferred by Meinich, 2026-11-13.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-7-the-peers-tab-shows-why.md`
+  summary: With `ekskl` in the URL, the Peers funnel's stage-5 and flagged counts are the group's before the exclusion while the list and its count are after it, so an excluded flagged peer still counts in "✦ n med usikker klassifisering", and a group excluded entirely shows "Fant ingen sammenlignbare selskaper." under a funnel with survivors. Story 2.8 adds the funnel's "{n} ekskludert av deg → {m} i analysen" and the exclude button; it should count flagged among the peers in the analysis, and give the all-excluded group its own sentence.
+  evidence: Story 2.7 review, Edge Case Hunter and Blind Hunter (triage rows 13). Reachable only by a hand-edited URL until 2.8.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-7-the-peers-tab-shows-why.md`
+  summary: The phone list's "Vis alle {n}" (`src/components/analysis/show-all-toggle.tsx`) keeps its open state across a client navigation that changes the group; Story 2.8's soft navigations on exclude, restore and band should reset it (a key from the group) or keep it open on purpose, with a test.
+  evidence: Story 2.7 review, Edge Case Hunter (triage row 14). Band and `ekskl` change only by full URL edits until 2.8.

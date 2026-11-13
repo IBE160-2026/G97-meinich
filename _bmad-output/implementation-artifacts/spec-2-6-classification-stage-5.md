@@ -97,6 +97,16 @@ Every row names the test that fails if its code is removed.
 
   The 300-AS sample stays about $0.02 / $0.09 / max $0.17. The saving is about 1.5 % of input tokens: output dominates, so the reason to send the text once is what the model reads, not the cost.
 
+- **The model runs, totals only (Meinich ran each, after its own OK on the cost plan).** None shows a result per orgnr for the labelled set.
+
+  | Run | What | Sent | Failed | `produkt` | `konsulent` | `forhandler` | `annet` | `uklart` | `no_text` | Tokens in | Tokens out | Cost |
+  |---|---|---|---|---|---|---|---|---|---|---|---|---|
+  | 14 | sample, first prompt | 300 | 0 | 126 | 56 | 2 | 53 | 63 | 0 | 186 154 | 16 827 | about $0.0135 |
+  | 17 | sample, prompt `2810d26aa8dc` | 300 | 0 | 45 | 45 | 0 | 47 | 163 | 0 | 234 754 | 15 171 | about $0.0155 |
+  | 18 | full, prompt `2810d26aa8dc` | 10 326 | 0 | 1 315 | 1 699 | 43 | 1 379 | 5 890 (57 %) | 45 | 8 069 842 | 530 218 | about $0.54 |
+
+  Run 18 (2026-11-11, `claude-haiku-5-5`, Batch API, 9 min) classified every AS in `62.100`, the 300 sample companies again among them: 10 371 rows, none `pending`, `failed` or `sample`, one prompt hash and one model id. Its cost is within the plan's central estimate ($0.73) and the extrapolation from run 17 ($0.53). The review session checked `run.step2` and the table.
+
 ## Spec Change Log
 
 - 2026-11-08, Meinich: the prompt's category limits are set after sample run 14, on those 300 companies only, never the labelled set: `produkt` needs a named or concretely described software product of the company's own that is sold or rented out; physical products are `annet`; general wording is `uklart`. After one new sample on the same 300, the prompt stands until the full run and is not changed after the labelled set is measured.

@@ -2480,6 +2480,156 @@ The review session checked these against `run.step1`, the database and the seed 
 
 CI was green on `9023435`. At the human's request (`post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 14:49 UTC on 2026-11-08 as `1d1eaf2`.
 
+## Story 2.6: classification, funnel stage 5 (#51, PR #54)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. Results for the labelled set are given as totals only.
+
+### Prompts to the BMAD session
+
+**2026-11-08 09:29**: the prompt that opened Story 2.6.
+```
+/bmad-build Story 2.6: klassifisering, steg 5 (epics.md, Story 2.6). Hent main først (9d43524). Opprett issuet og branchen.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) hva som sendes til modellen, kategorisettet og responsskjemaet;
+(b) hvor mange selskaper som skal klassifiseres, hvor mange som er no_text, og et kostnadsoverslag for én full kjøring;
+(c) hvordan test-modus med lagret output virker, så en fersk klone kjører uten nøkkel;
+(d) hva seeden skal inneholde. Den tekniske notatet sier AI-klassifiseringer for hele 62.100, men regelen vår er ingen type for selskaper utenfor allow-lista i repoet, og merkingen av fasitsettet er ikke ferdig. Mitt utgangspunkt er bare allow-listede selskaper til merkingen og lisensvurderingen i 5.4 er gjort. Hvis det gjør et plandokument feil, sier du hvilket og retter det i samme PR;
+(e) om en endret prompt gjør at alle selskaper må klassifiseres på nytt, og hva det i så fall koster.
+
+Modell og kostnad: utgangspunktet mitt er claude-haiku-5-5 med batch-API-et. Overslaget lages uten et eneste modellkall, ut fra den faktiske lengden på prompten og på beskrivelsene til et utvalg utenfor fasitsettet, med prisen du oppgir og datoen for den. Vis det som tokens inn, tokens ut (med tenkingen regnet med, og et høyt anslag i tillegg) og dollar, både for hele 62.100 og for bare AS. Etter mitt OK til overslaget kan du be meg om å kjøre en prøve på noen hundre selskaper utenfor fasitsettet for å måle det faktiske tokenforbruket. Da oppgir du også hva prøven koster.
+
+Ingen modellkall, verken prøve eller full kjøring, før jeg har sett kostnadsanslaget for den kjøringen og sagt OK. Dette gjelder hver kjøring for seg. Nøkkelen setter jeg selv, og den skal aldri stå i en commit eller i en logg. Jeg kjører selv de ekte kjøringene.
+
+Blinding: de 720 parene i labels.csv er ikke merket. Ingen klassifisering eller fingeravtrykk per orgnr for de 845 selskapene i analysis/labelled-set/document-run.json, heller ikke i terminalen, spec-en, PR-en eller ai-log. Bare totaler. Prompten og kategoriene skal ikke prøves ut eller justeres på disse selskapene, og du skal ikke åpne labels.csv eller labels-blind.csv. Eksempler og testdata kommer fra andre selskaper.
+
+Ingen dump slettes. .local/document-run-2.5d/ er gjenopprettingskilden etter seed. Hver rad i I/O-matrisen skal nevne testen som feiler hvis koden fjernes. Små commits. PR-en skal ha linjen «Planning documents:».
+```
+*Changed:* issue #51, the branch and the draft spec with these decisions (`70d3187`). At the checkpoint the register text was found missing, and Story 2.6a was split out; its prompts are in the section above. The cost rule (no model call without an OK for that run) and the blinding rule held for the whole story.
+
+**15:53**, after Story 2.6a was merged.
+```
+Fra meg: 2.6a er merget. Hent main (a71eb51) og oppdater story/2.6-classification-stage-5 med den. Fortsett Story 2.6 etter svarene jeg allerede har gitt ved sjekkpunktet, og med teksten sendt én gang der feltene er like.
+
+Reglene står: ingen modellkall før jeg har sett kostnadsanslaget for den kjøringen og sagt OK, hver kjøring for seg. Nøkkelen setter jeg selv, og den skal aldri stå i en commit eller i en logg. Jeg kjører de ekte kjøringene selv. Ingen klassifisering eller fingeravtrykk per orgnr for de 845 selskapene i fasitsettet, bare totaler. Ikke åpne labels.csv eller labels-blind.csv.
+
+Bygg og test uten nøkkel, med lagret output. Stopp før 300-prøven og vis meg anslaget for den. Små commits. Ingen push før jeg sier fra.
+```
+*Changed:* the branch was brought up to date with `main`, and the build followed: the SDK pinned (`d51dee9`), the table and the run record (`9965de9`), stages 4 and 5 (`370c6ce`), `pnpm classify` (`c486873`), the seed and `run.step2` (`d674075`), and docs (`ce3b80b`). The BMAD session stopped before the sample with an estimate.
+
+**16:22**, the OK to the first sample.
+```
+Fra meg: OK til 300-prøven med --max-usd 0.20. Jeg setter nøkkelen og kjører den selv. Du kjører ikke pnpm classify igjen med noe annet enn --plan, uansett flagg. Det gjelder også kjøringer du regner med stopper av seg selv. Ikke rør databasen eller koden mens prøven går.
+
+Når jeg sier at den er ferdig: logg batch-ID-en rett etter innsending, før raden skrives til databasen, så en stopp der ikke mister en betalt batch. ID-en navngir ingen selskaper. Legg til en test og oppdater issue #51. Full kjøring venter på at merkingen er ferdig og på eget OK.
+```
+*Changed:* the human ran run 14 himself. The BMAD session had run `pnpm classify` with a $0.01 cap without an OK for that run; nothing was sent, and this prompt limited it to `--plan`.
+
+**16:35**, after run 14.
+```
+Fra meg: Prøven er ferdig: run 14, 300 sendt, 0 feilet, 186 154 tokens inn og 16 827 ut, omtrent $0,0135. Fordeling: produkt 126, konsulent 56, forhandler 2, annet 53, uklart 63. Review-sesjonen har sjekket at ingen av de 300 er i fasitsettet.
+
+1. Gjør det du lovet: logg batch-ID-en rett etter innsending, før radene skrives, legg til testen og oppdater issue #51.
+
+2. Prompten ser ut til å bruke produkt for lett. «Utvikling og programmering av software» og «Konsept- og programvareutvikling» ble produkt, men teksten viser ikke at selskapet selger egen programvare. Stram inn slik at utvikling av programvare alene ikke er nok til produkt: teksten må vise et eget produkt som selges, ellers uklart hvis den ikke viser hvordan selskapet tjener penger. Bruk bare de 300 i prøven som grunnlag, aldri de 845. Vis meg den nye prompten, hvor mange av de 300 du venter blir endret, og anslaget for en ny prøve med --reclassify-stale. Stopp der.
+
+Ingen kjøring uten nøkkel-OK fra meg. Du kjører bare --plan. Full kjøring venter på merkingen og eget OK.
+```
+*Changed:* the batch id is logged before any row is written (`2a3bb91`, with a test), and the BMAD session proposed tighter categories.
+
+**16:40**, the human's answer to the proposed prompt.
+```
+Fra meg: Punkt 4: begrens produkt til programvare. Bruk «a software product of the company's own that is sold or rented out, such as a platform, a computer game, a licence or a subscription». Fysiske produkter blir annet.
+
+Legg «utvikling og salg av programvare» og «selge varer og tjenester innen programvare» til i uklart-listen, så de svarene blir stabile.
+
+Punkt 1–3 er greit: uklart er riktig for generelle tekster, og andelen rapporteres i 5.2.
+
+Commit prompten, kjør testene og --plan, og gi meg den endelige kommandoen. OK til én ny prøve på de samme 300 med --reclassify-stale og --max-usd 0.20. Den kjører jeg selv. Etterpå står prompten fast til full kjøring, og den endres ikke etter at fasitsettet er målt.
+```
+*Changed:* the prompt was committed (`47d4675`) and the spec said when it stands (`57d7bb4`). The human ran sample run 17 himself.
+
+**22:12**, after run 17.
+```
+Fra meg: Prøve 2 er ferdig (run 17, prompt 2810d26aa8dc): 300 sendt, 0 feilet, produkt 45, konsulent 45, forhandler 0, annet 47, uklart 163. 234 754 tokens inn, 15 171 ut, ca. $0,0155.
+
+Det er strengere enn du ventet (produkt ~75, uklart ~140). Review-sesjonen leste uklart-tekstene: anslagsvis 20–25 av de 163 beskriver eget programvareprodukt konkret ("utvikling og salg av programvare for X"), og modellen svarer ulikt på nesten like tekster. Jeg lar prompten stå som bestemt: uklart tar ingen ut av gruppa, og andelen måles i Story 5.2.
+
+Gjør dette, og ikke noe mer:
+1. Før resultatet og denne avgjørelsen inn under Spec Change Log i spec-en for 2.6, med dato og at funnet kom fra review-sesjonen. Kun totaler, og egen commit på branchen.
+2. Kjør pnpm classify --plan --all (ingen nøkkel, skriver ingenting) og gi meg kostnadsanslaget for full kjøring.
+
+Ikke endre prompten. Ikke start full kjøring: den venter på at merkingen er ferdig og på min OK.
+```
+*Changed:* the finding and the decision went into the spec's change log (`1c30dd2`), and `--plan --all` gave the estimate for the full run: $0.73 central, $5.81 ceiling.
+
+**2026-11-13 19:22**, after full run 18, with an addition on Bård Pettersen's PRD feedback pasted in the same message.
+```
+Fra meg: Full kjøring er ferdig (run 18, prompt 2810d26aa8dc, claude-haiku-5-5, 9 min): 10 326 sendt, 0 feilet, produkt 1 315, konsulent 1 699, forhandler 43, annet 1 379, uklart 5 890 (57 %), no_text 45. 8 069 842 tokens inn, 530 218 ut, ca. $0,54. Ingen rader er pending, failed eller sample. Review-sesjonen har sjekket run.step2 og tabellen.
+
+Fullfør Story 2.6:
+1. Før run 18 inn i spec-en og session-fila (kun totaler).
+2. Seed-sekvensen som i 2.5c, steg 3–9: dump og backup med sha256, sjekk .local/document-run-2.5d/ mot databasen, slett rader utenfor allow-listen i én sjekket transaksjon, pnpm derive, pnpm seed:export i egen commit, pnpm seed to ganger med uendret re-eksport, gjenopprett .local/document-run-2.5d/, pnpm derive. Klassifiseringene går i seed slik spec-en sier. Rapporter hvor mange klassifiseringsrader seeden fikk, og tallene etter gjenoppretting (forventet 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader). Ingen dump slettes.
+3. Kjør hele suiten med test:db og e2e.
+4. Når alt er grønt: push branchen og åpne PR-en med "Planning documents:"-linje og lenke til session-fila. Gi meg PR-nummeret.
+
+Blindingen gjelder fortsatt: ingen klassifisering eller fingeravtrykk per orgnr for de 845 i fasitsettet, hverken i terminal, spec, PR eller ai-log. Bare totaler. Ikke åpne labels.csv, labels-blind.csv eller labels-revenue-model.csv. Ikke kjør pnpm classify igjen.
+
+
+Fra meg, tillegg til 2.6: Bård Pettersen har lagt tilbakemelding på PRD-en i main (prds/prd-Peerless-2026-09-25/tilbakemelding-prd.md). To punkter hører hjemme i 2.6-PR-en, siden 2.6 har avgjort dem:
+1. FR-11: list kategoriene modellen svarer med (produkt, konsulent, forhandler, annet og avståelsen uklart, som lagres som classified uten type), og at et svar utenfor settet lagres som failed og telles i run.step2. Lag konsekvenser som kan testes, og pek på testene.
+2. §8 Cost: det faktiske tallet fra run 18 (10 326 selskaper, ca. $0,54, Batch API, kjøres på nytt bare ved endret tekst, prompt eller modell).
+Skriv det som regel og konsekvenser, ikke historikk, og legg historikken i .memlog.md med en (change)-linje. Resten av tilbakemeldingen tar vi etter 2.6.
+```
+*Changed:* run 18 in the spec (`9b7eb53`), FR-11 and §8 Cost (`c0acc0c`), the seed (`77b8813`), the fixes the BMAD session found in the seed sequence (`869a82c`, `4af1694`, `8045ca1`), the docs (`e763091`) and PR #54.
+
+**19:51**: pasted before the review was posted, so the BMAD session found no review and changed nothing.
+```
+Fra meg: Review på PR #54 er postet. Gjør dette, og ikke noe mer:
+1. Rett blinding-påstanden i docs/ai-log.md (linje 825), PR-teksten og session-fila som foreslått i linjekommentaren. Seedens classification.csv har alle 845 selskapene i fasitsettet. Det er riktig at de er der, men teksten skal si det. Merkingen var ferdig før run 18, og den andre merkeren får ikke se fila.
+2. Før de to andre kommentarene inn i deferred-work.md som egne punkter med lenke til kommentaren: tokens for feilede svar, og prøverader i forespørselsstien.
+3. Oppdater session-fila med review-funnene, med hvem som fant hva (review-sesjonen), og hva som ble rettet eller utsatt.
+Én commit for rettingen og én for dokumentasjonen. Push, og si fra når CI er grønn. Ikke merge.
+```
+*Changed:* nothing; see the next prompt.
+
+**19:53**, after the review was posted.
+```
+Fra meg: Reviewen er postet nå (https://github.com/IBE160-2026/G97-meinich/pull/54#pullrequestreview-5896391765). Gjør de tre punktene fra forrige melding:
+1. Blinding-påstanden: ordlyden står i kommentaren på docs/ai-log.md:825 (https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327631).
+2. deferred-work.md:
+   - tokens for feilede svar: https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327638
+   - prøverader i forespørselsstien: https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327641
+3. Session-fila med funnene, kreditert review-sesjonen.
+Én commit for rettingen og én for dokumentasjonen. Push, og si fra når CI er grønn. Ikke merge.
+```
+*Changed:* the blinding claim corrected (`b9f928a`) and two findings deferred, with the review in the session file (`c47b951`).
+
+### Prompts to the review session
+
+- `ikke kjør noe før jeg vet kostnadsanslag ved en kjøring og har sagt OK` (11-08, in the 2.6a section): the rule every model run in this story followed.
+- `hvordan finner jeg nøkkelen? …`, `står at max abbonnement inkluderer 100 USD i mnd` and the following questions (11-08): the review session explained the API credit included in the plan, where the key goes, and that it stays in `.env`. The key was saved in `.env.example` by mistake; the human restored that file before any commit, and the review session checked that the key is in no commit on any ref.
+- `limt inn til BMAD - men føler vi må ha det mer klart ja` (11-08): the review session drafted the 16:35 and 16:40 prompts after reading run 14's answers on the 300 sample companies only.
+- `svart igjen:` with run 17's output (11-08): the review session read the `uklart` texts, found that an estimated 20-25 of 163 describe a product of the company's own, and recommended letting the prompt stand. The human did (22:12).
+- `okei så må først bli ferdige med labels` (11-08) to `vi brukte her Chat GPT sin modell til å fylle ut. …` (11-11): the labelling of the 720 pairs, which the full run waited for. That exchange belongs to Story 5.1 and goes in its section.
+- `okei, så nå kjører vi full batch kjøring?` (11-11): the review session checked the branch, the database and that no batch was pending; the human had already started run 18.
+- `Se svaret:` with run 18's output, and `Først se at sensor har pushet noe som jeg må pulle` (11-13): the review session checked run 18, brought `main` up to date with Bård Pettersen's two commits, summarised his PRD feedback and drafted the 19:22 prompt's addition.
+- The BMAD session's report on PR #54, `post review` and `merget` (11-13): the review session reviewed the PR, posted the review at the human's request and did the housekeeping on `main`.
+
+### Result
+
+Every AS in `62.100` with text is classified from its register text by `claude-haiku-5-5` through the Batch API: run 18 sent 10 326, 0 failed, `produkt` 1 315, `konsulent` 1 699, `forhandler` 43, `annet` 1 379, `uklart` 5 890 (57 %), and 45 had no text; about $0.54. Funnel stages 4 and 5 combine the fingerprint and the text, and the seed holds the 10 371 rows.
+
+### Checks before merging
+
+The review session checked these against `run.step2`, the database, the seed and the code:
+- runs 14, 17 and 18, and that neither sample held a company of the labelled set;
+- stages 4 and 5 for all nine combinations of the two signals;
+- that the eleven tests the spec and FR-11 cite exist;
+- the seed's 10 371 rows, among them the 845 of the labelled set, which the PR text had said were not there.
+
+CI was green on `c47b951`. At the human's request (`post review`), the review session posted the GitHub review with six line comments. The PR was merged at 19:05 UTC on 2026-11-13 as `2e98a7b`.
+
 ---
 
 ## Going forward

@@ -54,6 +54,10 @@ Meinich's GitHub review ([review 5896815047](https://github.com/IBE160-2026/G97-
   - [r4567668109](https://github.com/IBE160-2026/G97-meinich/pull/55#discussion_r4567668109): the second labeller and κ are taken in stage 2. Without κ the blind pairs rest on Meinich's judgement and the second round on one model; this is stated in the README and is to be stated in Story 5.2's result.
 - No finding was rejected.
 
+## Merge
+
+The branch conflicted with `main` in `.memlog.md`, where both had appended a line; the review session merged `main` into it and kept both lines in the order the decisions were made (`b07322c`). CI was green, and the PR was merged at 19:52 UTC on 2026-11-13 as `0e21eae`. Nothing was rejected in the review.
+
 ## Links
 
 - Issue [#13](https://github.com/IBE160-2026/G97-meinich/issues/13).

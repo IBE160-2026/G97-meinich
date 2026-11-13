@@ -8,6 +8,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { formatMillions } from '../src/engine/format.ts';
+import type { PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { PHONE_CARDS } from '../src/components/analysis/peer-list.tsx';
 import {
   A,
@@ -174,6 +175,8 @@ function mixedBasisSubject(): string {
 }
 
 test.describe('the Peers tab shows why (Story 2.7)', () => {
+  const basisText = (row: PeerDisplayRow) => (row.grunnlagKi ? `${GLYPH}${nb['peers.ai']} ${row.grunnlag}` : row.grunnlag);
+  const flagText = (row: PeerDisplayRow) => (row.flagg === null ? '' : `${GLYPH}${nb['peers.ai']} ${row.flagg}`);
   const desktopRows = (page: Page) => page.getByRole('region', { name: nb['peers.regionLabel'] }).locator('tbody tr');
 
   test('the funnel shows the five stages with the engine’s counts, the Segment criterion and the flagged count', async ({ page }) => {
@@ -195,32 +198,43 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     expect(new Set(tops).size).toBe(1);
   });
 
-  for (const [label, subjectOf] of [
-    ['demo A', () => A.orgnr ?? ''],
-    ['a mixed-basis subject from the seed', mixedBasisSubject],
-  ] as const) {
-    test(`${label}: each row's basis and flag match the engine on the seed`, async ({ page }) => {
-      const orgnr = subjectOf();
-      const rows = expectedRows(orgnr, 0);
-      expect(rows.length).toBeGreaterThan(0);
-      await page.setViewportSize({ width: 1280, height: 900 });
-      await page.goto(`/analyse/${orgnr}/peers`);
-      const shown = desktopRows(page);
-      await expect(shown).toHaveCount(rows.length);
-      await expect(shown.locator('td:nth-child(1)')).toHaveText(rows.map((row) => row.navn));
-      await expect(shown.locator('td:nth-child(2)')).toHaveText(rows.map((row) => row.omsetning));
-      await expect(shown.locator('td:nth-child(3)')).toHaveText(rows.map((row) => row.driftsmargin));
-      await expect(shown.locator('td:nth-child(4)')).toHaveText(rows.map((row) => row.hvorforMed));
-      await expect(shown.getByTestId('peer-basis')).toHaveText(
-        rows.map((row) => (row.grunnlagKi ? `${GLYPH}${nb['peers.ai']} ${row.grunnlag}` : row.grunnlag)),
-      );
-      await expect(shown.locator('td:nth-child(6)')).toHaveText(
-        rows.map((row) => (row.flagg === null ? '' : `${GLYPH}${nb['peers.ai']} ${row.flagg}`)),
-      );
-      // ✦ is hidden from screen readers wherever it is drawn.
-      for (const mark of await page.getByTestId('ai-mark').all()) await expect(mark).toHaveAttribute('aria-hidden', 'true');
-    });
-  }
+  // Demo A is not in the labelled set, and its group has no type on either
+  // signal for it: row by row, names and reasons may be compared.
+  test("demo A: each row's figures, reason, basis and flag match the engine on the seed", async ({ page }) => {
+    const rows = expectedRows(A.orgnr ?? '', 0);
+    expect(rows.length).toBeGreaterThan(0);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${A.orgnr}/peers`);
+    const shown = desktopRows(page);
+    await expect(shown).toHaveCount(rows.length);
+    await expect(shown.locator('td:nth-child(1)')).toHaveText(rows.map((row) => row.navn));
+    await expect(shown.locator('td:nth-child(2)')).toHaveText(rows.map((row) => row.omsetning));
+    await expect(shown.locator('td:nth-child(3)')).toHaveText(rows.map((row) => row.driftsmargin));
+    await expect(shown.locator('td:nth-child(4)')).toHaveText(rows.map((row) => row.hvorforMed));
+    await expect(shown.getByTestId('peer-basis')).toHaveText(rows.map(basisText));
+    await expect(shown.locator('td:nth-child(6)')).toHaveText(rows.map(flagText));
+    for (const mark of await page.getByTestId('ai-mark').all()) await expect(mark).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  // The mixed-basis subject's peers may be in the labelled set, so a failure
+  // must not print a basis or a flag next to a name: the test compares
+  // totals per basis and per flag only, and the row count.
+  test('a mixed-basis subject from the seed: the totals per basis and flag match the engine', async ({ page }) => {
+    const orgnr = mixedBasisSubject();
+    const rows = expectedRows(orgnr, 0);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${orgnr}/peers`);
+    const shown = desktopRows(page);
+    await expect(shown).toHaveCount(rows.length);
+    const tally = (texts: readonly string[]) => {
+      const counts: Record<string, number> = {};
+      for (const text of texts) counts[text] = (counts[text] ?? 0) + 1;
+      return counts;
+    };
+    expect(tally(await shown.getByTestId('peer-basis').allTextContents())).toEqual(tally(rows.map(basisText)));
+    expect(tally(await shown.locator('td:nth-child(6)').allTextContents())).toEqual(tally(rows.map(flagText)));
+    for (const mark of await page.getByTestId('ai-mark').all()) await expect(mark).toHaveAttribute('aria-hidden', 'true');
+  });
 
   test('the caption carries the key "✦ KI-generert", and the flag column has a screen-reader header', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });

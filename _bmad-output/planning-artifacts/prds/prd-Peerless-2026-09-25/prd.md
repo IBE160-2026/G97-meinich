@@ -330,6 +330,7 @@ Every AS in a covered industry is classified in the batch, never at request time
 - The database refuses a type outside the set, and a type on a row that is not `classified` (`test/db/classification.test.ts` "refuses a type outside the set, and a type on a row that is not classified").
 - The seed is not exported while a covered AS has a `failed` or `pending` row (`test/db/classification.test.ts` "refuses while a row is %s").
 - The model performs no arithmetic here or anywhere (FR-53).
+- **Stage 5 stays in the funnel only under SM-1's decision rule (§9).** Story 5.2 compares *fingerprint alone* with *fingerprint and text* on all labelled pairs, `usikker` left out: the text must raise precision by at least 3 percentage points and lower recall by no more than 3. If it does not, the text signal is switched off in v1: the group is decided by the fingerprint alone, no peer is flagged (FR-14), and no match basis rests on the description, so every peer is *accounts alone* or *industry and size alone* (FR-16). The blind pairs are reported on their own as well.
 
 #### FR-12: Unclassified companies remain eligible · v1
 
@@ -1136,11 +1137,12 @@ Everything in §5, plus:
 
 ## 9. Success Metrics
 
-Each metric names what it validates. `[ASSUMPTION]` No source document states a numeric target for the two measurement-based metrics, and this PRD does not invent one: v1 commits to measuring and reporting, and the thresholds are an open question (§11). If the course expects a stated threshold, SM-1 and SM-2 both need one.
+Each metric names what it validates. v1 states no quality target for SM-1 or SM-2: it measures and reports. It has one **decision rule**, which SM-1 applies to stage 5 (below), so the measurement can change the product (§11, question 11).
 
 **Primary**
 
 - **SM-1 — What each layer adds.** The headline result is the **layer-by-layer ablation**: precision and recall against the labelled set (FR-70) for each funnel layer standalone and cumulatively — industry code and size alone, adding the accounts-based fingerprint, adding model classification, and adding embeddings if they are built. **Three layers reported, four with embeddings.** The question it answers is how much each layer contributes and, specifically, **whether the model adds anything beyond the accounts-based fingerprint.** That question can genuinely come back "no", which is what makes it the headline. Reported for **`62.100`**, the one industry v1 covers, split by whether the description is informative, with each cohort's share disclosed (§10 states what one industry cannot show). Validates FR-7 to FR-16, FR-70.
+- **SM-1's decision rule for stage 5.** Story 5.2 compares *fingerprint alone* with *fingerprint and text* against the labelled set, with `usikker` left out. Stage 5 is kept if the text raises precision by at least 3 percentage points and lowers recall by no more than 3 percentage points. Otherwise the text signal is switched off in the v1 funnel: the group is decided by the fingerprint alone, no peer gets a match basis that rests on the description, and the result is reported as the model not being needed (§10). The rule is decided on all labelled pairs; the blind pairs are also reported on their own.
 - **SM-1b — Sanity check against industry code alone.** Precision and recall of the full funnel against the industry-code-only baseline on the same labelled set. This is a **check, not a claim**: the labeller judges comparability on criteria the fingerprint encodes, so the baseline is expected to lose, and its losing confirms the labelling is coherent rather than demonstrating the method works. A result where industry code alone *wins* would mean something is wrong with the funnel or the labelling. Validates FR-70.
 - **SM-2 — Recognition accuracy.** Measured against a hand-transcribed reference set of 20 filings drawn from all of `62.100`. **The headline is the number of misread figures that reach the engine** — a misread figure in a column that nevertheless reconciled — because those are wrong figures Peerless would use. Alongside it: the share of figures recovered exactly (each figure classed as correct, not read, misread or phantom) and the share of filings that reconcile. Each is split between recent filings (2023–2025, which the register's key-figures API also holds) and older ones (2021–2022), a boundary set before the comparison ran (Story 2.3, 2026-10-23); paper filings are never read. Result in §10. This measurement decides which document-derived ratios the product can honestly offer and how far back trend can reach. Validates FR-28, FR-57, FR-58.
 - **SM-3 — Authorisation.** From stage 2, when user data is first stored. Zero successful forbidden accesses across the full suite, including between workspaces held by the same owner and from an anonymous session against saved data. Validates FR-34, FR-45, FR-47.
@@ -1234,7 +1236,7 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 
 **Gated on measurement** (answers arrive from work already scheduled)
 
-11. **Target thresholds for precision, recall and OCR accuracy.** None stated anywhere. Whether v1 should commit to a threshold at all, or only to measuring, is a decision — and committing to one before the baseline exists would be guessing.
+11. **Target thresholds for precision, recall and OCR accuracy.** v1 has a decision rule, not a quality target (§9): stage 5 is kept only if the text raises precision by at least 3 percentage points and lowers recall by no more than 3, measured in Story 5.2; otherwise the text signal is switched off (FR-11). No threshold is set for precision, recall or OCR accuracy as such, because one set before the baseline exists would be a guess. *(2026-11-13)*
 12. **Which fingerprint features are used, and whether cost of goods share or personnel cost share enters selection at all.** The first half is answered (Story 2.5, Meinich 2026-11-01): five categories with fixed band edges and a fixed rule to a business type (FR-10), set before any share was seen. The within-band spread test passed for all six cost-share bands on the 421 companies fingerprinted so far, the lowest at 5.0 pp (FR-13). What remains open is whether each band **earns its place**, which is measured against the labelled set in Story 5.2; a band that fails goes to the product owner rather than being dropped automatically.
 13. **How much autonomy the model has in accepting or rejecting a candidate.** The second half of this question is answered (2026-09-30): all six comparability fields are hard exclusions and none is loosenable (FR-8), and FR-18's loosening reaches the size band and segmentation only. Model autonomy at stage 5 remains open.
 14. **OCR field names.** All ten OCR-sourced field names in `docs/key-figures.md` are marked provisional until confirmed against a real filing.
@@ -1253,11 +1255,11 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 
 Every `[ASSUMPTION]` in this document, for explicit confirmation:
 
-- **§9** — no numeric target is stated for any measured metric, so none is invented here. If the course expects a stated target, SM-1 and SM-2 need one. Open question 11.
 - **§2.3, names and illustrative figures only** — the four situations are captured and confirmed, but the protagonists' names are invented, and each subject company's own margin is invented because no real subject exists. The peer statistics around them are real screening figures, standing in for a narrower peer group.
 
 **Resolved, kept for the trail:**
 
+- **§9** — no quality target for SM-1 or SM-2; v1 has a decision rule for stage 5 instead (2026-11-13, question 11).
 - **§4.3, FR-28** — trend depth: five years, from measurement (2026-09-26).
 - **§4.5, FR-38** — the hand-entered set is confirmed, not inferred (2026-09-26).
 - **§6** — `43.210` confirmed out of MVP (2026-09-26); since 2026-10-10 v1 covers `62.100` only, with `69.202` and `43.210` in stage 3 (§6.3).

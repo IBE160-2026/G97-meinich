@@ -45,6 +45,7 @@ describe('formatter bytes', () => {
     ['formatMillionsNumber 310 000 000 øre', formatMillionsNumber('310000000'), '3,1'],
     ['formatMillionsNumber 1 240 000 000 øre', formatMillionsNumber('1240000000'), '12,4'],
     ['formatMillionsNumber 123 456 789 000 øre', formatMillionsNumber('123456789000'), `1${NBSP}234,6`],
+    ['formatMillionsNumber 0.33 × 1 234 567 891 øre', formatMillionsNumber('407407404.03'), '4,1'],
     ['formatBandFactor 0.33', formatBandFactor('0.33'), '0,33'],
     ['formatBandFactor 0.5', formatBandFactor('0.5'), '0,5'],
     ['formatBandFactor 0.25', formatBandFactor('0.25'), '0,25'],

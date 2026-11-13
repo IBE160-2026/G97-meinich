@@ -79,11 +79,12 @@ export function formatMillions(oreAmount: string): string {
 }
 
 /**
- * Øre (whole-number string) → millions of kroner, one decimal, no unit:
- * "3,1", for a range whose unit is written once ("3,1–12,4 mill. kr").
+ * Exact øre (a plain decimal string, may have a fraction: a band bound such
+ * as 0.33 × revenue) → millions of kroner, one decimal, no unit: "3,1", for
+ * a range whose unit is written once ("3,1–12,4 mill. kr").
  */
 export function formatMillionsNumber(oreAmount: string): string {
-  return render(ore(oreAmount).div(ORE_PER_MILLION_KRONER), 1);
+  return render(decimal(oreAmount).div(ORE_PER_MILLION_KRONER), 1);
 }
 
 /** A fraction (0.021) → percent, one decimal: "2,1 %". */

@@ -73,7 +73,7 @@ describe('CompanyHeader revenue', () => {
 describe('CompanyHeader peer count (Story 1.7)', () => {
   const items = (peerCount?: number): string[] => {
     const html = renderToString(createElement(CompanyHeader, { subject, peerCount }));
-    return [...html.matchAll(/<span>([^<]*)<\/span>/g)].map((match) => match[1] ?? '');
+    return [...html.matchAll(/<span(?: data-testid="[^"]*")?>([^<]*)<\/span>/g)].map((match) => match[1] ?? '');
   };
 
   it('shows "{n} sammenlignbare" right after the revenue', () => {
@@ -92,5 +92,12 @@ describe('CompanyHeader peer count (Story 1.7)', () => {
 
   it('shows no count without a peer group', () => {
     expect(items().join(' ')).not.toContain('sammenlignbare');
+  });
+
+  // Story 2.8: a widened band tags the count "Utvidet"; Standard does not.
+  it('tags the count "Utvidet" when the band is widened', () => {
+    const widened = renderToString(createElement(CompanyHeader, { subject, peerCount: 23, widened: true }));
+    expect(widened).toMatch(/data-testid="header-peer-count">23 sammenlignbare<span[^>]*data-testid="widened-tag">Utvidet<\/span>/);
+    expect(renderToString(createElement(CompanyHeader, { subject, peerCount: 23 }))).not.toContain('widened-tag');
   });
 });

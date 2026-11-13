@@ -1,7 +1,7 @@
 'use client';
 
 // The analysis error boundary: an error thrown below the analysis segment
-// and outside src/app/analyse/[orgnr]/error.tsx — in practice the [orgnr]
+// and outside the [orgnr] segment's own error.tsx — in practice the [orgnr]
 // layout's subject read — renders the lookup-error state (role="alert", no
 // partial figures). The error itself is never rendered. A failed subject
 // read in the layout throws before streaming: Next.js answers 500 with its

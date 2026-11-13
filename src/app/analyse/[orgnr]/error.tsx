@@ -12,7 +12,7 @@
 // frame.
 //
 // Any other error, the first load of a page included, shows the
-// lookup-error state as src/app/analyse/error.tsx does, with no detail of
+// lookup-error state as the analysis segment's error.tsx does, with no detail of
 // the error, and never navigates (e2e/db-down.spec.ts).
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';

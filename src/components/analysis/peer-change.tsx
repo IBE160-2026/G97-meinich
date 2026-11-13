@@ -3,7 +3,7 @@
 // restore, a size-band step and reset. Each is a soft navigation,
 // `router.push` to the URL `serialize` writes, rendered on the server; nothing
 // is stored (no cookie, no browser storage, no table). This provider sits in
-// the analysis layout (src/app/analyse/[orgnr]/layout.tsx), which survives a
+// the analysis layout (the [orgnr] segment's layout.tsx), which survives a
 // query-only navigation, so it holds what must outlive the page it changes:
 //
 //   - the last good URL, which each committed page reports through
@@ -34,16 +34,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { PANEL_HEADING_ID, PATH_CONTEXT } from '@/analysis/view';
 import { t } from '@/messages';
 import { StateBlock } from './state-block';
-import { parse, serialize, type AnalysisState, type Band } from '@/url/analysis-state';
+import { announcement, nextState, type PeerChange, type PeerCommit } from '@/analysis/peer-change';
+import { parse, serialize, type Band } from '@/url/analysis-state';
 
-export type PeerChange =
-  | { readonly kind: 'exclude'; readonly orgnr: string; readonly navn: string }
-  | { readonly kind: 'restore'; readonly orgnr: string; readonly navn: string }
-  | { readonly kind: 'band'; readonly band: Band }
-  | { readonly kind: 'reset' };
-
-/** What a committed page reports: its canonical URL, the peers in its analysis, and its band's label ("0,33–3×"). */
-export type PeerCommit = { readonly href: string; readonly count: number; readonly bandLabel: string };
+export type { PeerChange, PeerCommit };
 
 export type PeerChangeValue = {
   readonly isPending: boolean;
@@ -65,45 +59,6 @@ export const PeerChangeContext = createContext<PeerChangeValue | null>(null);
 /** The provider's value; null outside the analysis layout (a component test, another page). */
 export function usePeerChange(): PeerChangeValue | null {
   return useContext(PeerChangeContext);
-}
-
-/**
- * The state `change` asks for, on `base`. Pure: the URL comes from
- * `serialize` of this state, never from a string composed here.
- */
-export function nextState(base: AnalysisState, change: PeerChange): AnalysisState {
-  switch (change.kind) {
-    case 'exclude':
-      return { ...base, ekskl: [...base.ekskl.filter((orgnr) => orgnr !== change.orgnr), change.orgnr] };
-    case 'restore':
-      return { ...base, ekskl: base.ekskl.filter((orgnr) => orgnr !== change.orgnr) };
-    case 'band':
-      return { ...base, band: change.band };
-    case 'reset':
-      return { ...base, ekskl: [], band: 0 };
-  }
-}
-
-/** The announcement for a committed change, with the analysis's new count. */
-export function announcement(change: PeerChange, commit: PeerCommit): string {
-  const one = commit.count === 1;
-  const m = String(commit.count);
-  switch (change.kind) {
-    case 'exclude':
-      return one
-        ? t('peers.announce.excludedOne', { navn: change.navn })
-        : t('peers.announce.excluded', { navn: change.navn, m });
-    case 'restore':
-      return one
-        ? t('peers.announce.restoredOne', { navn: change.navn })
-        : t('peers.announce.restored', { navn: change.navn, m });
-    case 'band':
-      return one
-        ? t('peers.announce.bandOne', { b: commit.bandLabel })
-        : t('peers.announce.band', { b: commit.bandLabel, n: m });
-    case 'reset':
-      return one ? t('peers.announce.resetOne') : t('peers.announce.reset', { n: m });
-  }
 }
 
 /** The element focus belongs on after `change` has committed. */

@@ -2,6 +2,9 @@
 // one per open tab, each to its own path with every other URL setting kept,
 // aria-current="page" on the active one. Three in Epics 1–2; no Verdi tab
 // or placeholder until Epic 3. They wrap at phone width, never scroll.
+// No prefetch (Story 2.8): every peer-group change renders a new URL, and
+// prefetching the other tabs would make each change cost three analysis
+// requests against the rate limit instead of one.
 import Link from 'next/link';
 import { OPEN_FANER, type OpenFane } from '@/analysis/view';
 import { t } from '@/messages';
@@ -17,6 +20,7 @@ export function TabLinks({ state, active }: { readonly state: AnalysisState; rea
             <li key={fane} className="min-w-0">
               <Link
                 href={serialize({ ...state, fane })}
+                prefetch={false}
                 aria-current={current ? 'page' : undefined}
                 lang={fane === 'peers' ? 'en' : undefined}
                 className={`inline-flex min-h-11 items-center px-[7px] py-2 text-[13px] leading-[1.2] no-underline md:px-3 md:text-[14px] ${

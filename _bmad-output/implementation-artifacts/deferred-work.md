@@ -185,3 +185,11 @@
   summary: Story 2.6's classify step must refuse to run when no covered AS has register text, so a database that has not had `--companies-only` is not stored as all `no_text`.
   evidence: `search_fields_read_at` is set on rows whose text was never read, and NULL text means either no text or not read since the migration (review pass 1, Blind Hunter and Edge Case Hunter).
   closed: Story 2.6 (2026-11-08). `pnpm classify` refuses when no covered AS has text, in `--plan` too (`test/classify/run.test.ts` "refuses when no covered AS has text, storing nothing").
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`
+  summary: `pnpm classify` does not count the tokens of a response it stores as `failed` before reading it: a message that stops on `max_tokens` or `refusal`, or has no text block, is billed, but `toBatchResult` (`scripts/classify/model-client.ts`) returns the failed outcome without its `usage`, so `run.step2`'s `input_tokens` and `output_tokens` are too low whenever such a response occurs. An answer that is read and then refused by `parseAnswer` is counted.
+  evidence: Review of PR #54 by the review session, https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327638. No effect on run 18 (0 failed). Proposed: carry `usage` in the failed outcome, add it to the counts, with a test in `test/classify/run.test.ts`. Deferred by Meinich, 2026-11-13.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`
+  summary: The request path reads sample classifications: `SUBJECT_SQL` and `CANDIDATES_SQL` in `src/server/analysis.ts` join `register.classification` without `not cl.sample`, so after a new sample run the local analysis page would use sample answers at stage 5, while `decideWork` never lets a sample answer stand in a full run.
+  evidence: Review of PR #54 by the review session, https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327641. No effect now: the seed never holds sample rows, and run 18 left none locally. Proposed: `and not cl.sample` in both queries with a test, or a sentence in the spec that it is deliberate. Deferred by Meinich, 2026-11-13.

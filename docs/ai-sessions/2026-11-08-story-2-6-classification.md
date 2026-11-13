@@ -30,6 +30,15 @@ Classify every AS in `62.100` from its register text with a model in batch step 
 - **Seed:** 10 371 classification rows (`77b8813`), exported after the document rows outside the allow-list were removed; `.local/document-run-2.5d/` restored afterwards, all seven tables equal to the dump before.
 - **Run 18,** checked by the review session in `run.step2` and the table: 10 326 sent, 0 failed, `produkt` 1 315, `konsulent` 1 699, `forhandler` 43, `annet` 1 379, `uklart` 5 890 (57 %), `no_text` 45; about $0.54. The spec has the three runs as totals.
 
+## Review of PR #54
+
+Meinich posted the review on 2026-11-13 ([review 5896391765](https://github.com/IBE160-2026/G97-meinich/pull/54#pullrequestreview-5896391765)) as comments. The review session wrote the findings and line comments; Meinich decided each one. CI was green on `b94b20f`.
+
+- **Corrected, found by the review session:** the blinding claim in `docs/ai-log.md`, the PR text and this file said that no result per orgnr for the 845 was written, but the seed's `classification.csv` holds every one of them. It should hold them, and now the text says so (`b9f928a`, [comment](https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327631)). The test the ai-log cited covers only the plan's output.
+- **Deferred to `deferred-work.md`, found by the review session:** a response stored as `failed` before it is read (`max_tokens`, `refusal`, no text) is billed but not counted in `run.step2` ([comment](https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327638)); the request path reads sample rows, so a new local sample run would reach stage 5 ([comment](https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327641)). Neither affects run 18 or the seed.
+- **Checked by the review session, no change:** stages 4 and 5 in `src/engine/peers.ts` follow the technical note's rule for all nine combinations of the two signals; `run.step2` and `register.classification` for run 18; that the eleven tests the spec and FR-11 cite exist; that FR-11 and §8 answer points 4.3 and the cost part of 4.4 of Bård Pettersen's feedback.
+- **Meinich's decisions, recorded on the PR:** the prompt stands after sample run 17; the full run came after the labelling was finished; the rule for when stage 5 is kept (the rest of 4.4) is decided before Story 5.2.
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`

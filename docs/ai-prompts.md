@@ -2537,6 +2537,22 @@ Ingen kjøring uten nøkkel-OK fra meg. Du kjører bare --plan. Full kjøring ve
 ```
 *Changed:* the batch id is logged before any row is written (`2a3bb91`, with a test), and the BMAD session proposed tighter categories.
 
+**16:36**, sent while the BMAD session was still working on 16:35, as an addition to its point 2.
+```
+Fra meg: Tillegg til punkt 2. Bruk disse grensene i prompten:
+
+- produkt: teksten navngir eller beskriver konkret et eget produkt som selges eller leies ut, for eksempel en plattform, et dataspill, en lisens eller et abonnement. Utvikling av programvare alene er ikke nok.
+- konsulent: rådgivning, konsulenttjenester, utvikling for kunder eller utleie av folk.
+- forhandler: videresalg av andres produkter.
+- annet: drift, hosting, holding eller noe som ikke er noe av det over.
+- uklart: bare generelle ord som «programvareutvikling», «IT-tjenester» eller «digitale tjenester og produkter», eller flere virksomheter sidestilt uten at én er hovedsaken.
+
+Blandede tekster: det som står først og er konkret gjelder hvis resten kommer etter «samt» eller lignende. Sidestilte virksomheter gir uklart.
+
+Prompten skal ikke inneholde selskapsnavn. Eksempler bare fra de 300 i prøven, aldri fra de 845. Vis meg den endelige prompten, hvor mange av de 300 du venter endres, og anslaget for en ny prøve. Stopp der.
+```
+*Changed:* these limits, with the human's answer at 16:40, became the prompt's categories (`47d4675`).
+
 **16:40**, the human's answer to the proposed prompt.
 ```
 Fra meg: Punkt 4: begrens produkt til programvare. Bruk «a software product of the company's own that is sold or rented out, such as a platform, a computer game, a licence or a subscription». Fysiske produkter blir annet.
@@ -2629,6 +2645,94 @@ The review session checked these against `run.step2`, the database, the seed and
 - the seed's 10 371 rows, among them the 845 of the labelled set, which the PR text had said were not there.
 
 CI was green on `c47b951`. At the human's request (`post review`), the review session posted the GitHub review with six line comments. The PR was merged at 19:05 UTC on 2026-11-13 as `2e98a7b`.
+
+## Story 5.1: the labelled set (#13, PR #55), with question 22 and `seed:full` on `main` (`d9fb281`…`d704fd2`, `8e69ac6`…`797429f`)
+
+The rules, the draw and most of the labelling were done with the review session, in the worktree `.local/wt-5.1`; the BMAD session took the PR and the planning changes. Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The labels are not given per pair.
+
+### Prompts to the BMAD session
+
+Before these, the 2.5d section's prompt of 2026-11-07 12:27 merged the draw's commits into Story 2.5d, so the labelled set's document run could read its list.
+
+**2026-11-13 20:15**: question 22 on `main`, then the Story 5.1 PR.
+```
+Fra meg: To oppgaver, i denne rekkefølgen.
+
+DEL 1: Q22 (PRD §11), rett på main som planarbeid. Min beslutning, på Bård Pettersens tilbakemelding (tilbakemelding-prd.md, 4.2):
+- v1 leveres på demodataene (FR-73). Alt som allerede er lest, er med: dokumentene i seeden (demoselskapene og OCR-referansesettet), og de lokale dokumentene og fingeravtrykkene for fasitsettet, som Story 5.2 måler mot. Det som ikke er med i v1, er dokumentkjøringen for resten av 62.100 (alle selskaper, alle år, ca. 190 timer). Verktøyet for den finnes (pnpm ingest --documents <liste>), så den kan kjøres senere uten ny kode.
+- FR-3 og FR-59 skrives om: 62.100 regnes som dekket i v1 for selskapene i seeden, målt mot fasitsettet. Andre 62.100-selskaper får trinn 1–3 og klassifiseringen, slik Story 5.4 sier.
+- Nøkkeltall 7 og 8 vises som fraværende i v1, med grunn (FR-21, FR-22). Lesing av aarsverk flyttes til stage 2.
+- Q22 flyttes til "Answered". Rett epics.md, den tekniske notatet, docs/key-figures.md hvis den berøres, og deferred-work.md (de to oppføringene). (change)-linje i .memlog.md.
+Skriv FR-ene som regel og konsekvenser, ikke historikk. Små commits, push til main, og vis meg hashene.
+
+DEL 2: Story 5.1-PR-en (issue #13). Branchen story/5.1-labelled-set er sjekket ut i worktreen .local/wt-5.1 og har 7 lokale commits som ikke er pushet. Arbeid der, og oppdater den med main etter del 1.
+- Merkingen er ferdig. De 180 blinde parene er merket av meg. De 720 andre har to runder: første runde merket av meg, strengere enn kriteriet, og beholdt som første runde. Andre runde er én forretningsmodell per selskap (685 selskaper), fylt ut av en ChatGPT-modell som jeg har gått gjennom og godtatt. Parene regnes ut. README-en i analysis/labelled-set/ har tallene og hvorfor. Bruk tallene derfra.
+- Den andre merkeren og κ er ikke oppnådd i v1. Min beslutning: det tas i stage 2. Si det i README-en under "Labelling record" som en mangel, slik FR-70 krever.
+- FR-70 og Story 5.1 i epics.md sier "hand-labelled". Rett dem i denne PR-en: de blinde parene er merket av et menneske, andre runde av de 720 av en ChatGPT-modell, og κ er utsatt til stage 2. Rett også den tekniske notatets avsnitt om hva målingen hevder, hvis det sier noe annet. (change)-linje i .memlog.md.
+- Session-fil for 5.1, med lenker til commitene. Ta med funnene fra review-sesjonen: den lave andelen ja i første runde og at notatene viste at sektor ble vektlagt. Ta også med beslutningene mine: beholde første runde, gå tilbake til kriteriet, og godta ChatGPT-runden.
+- Push og åpne PR-en mot main med "Closes #13", "Planning documents:"-linjen og lenke til session-fila. Gi meg PR-nummeret. Ikke merge.
+
+Ikke åpne labels.csv, labels-blind.csv eller labels-revenue-model.csv. Det du trenger, står i README-en. Ingen dump slettes, og pnpm classify kjøres ikke.
+```
+*Changed:* part 1 on `main`: the PRD (`d9fb281`), `epics.md` (`de07de3`), the technical note (`cb00c4c`), `docs/key-figures.md` (`1998731`) and `deferred-work.md` (`d704fd2`); the BMAD session added that the pay-level-versus-productivity view is absent too. Part 2: `main` merged into the branch (`8144423`), the shortfall and the counts in the README (`e73a3c8`), FR-70, `epics.md`, PRD §10 and the technical note (`fe34951`, `8a2a9b0`, `f3cb055`), the session file (`f317cda`, `4100f59`) and PR #55. The first point was replaced before it was pasted, after the human asked whether the document runs already made were left out of v1; they were not.
+
+**20:27**, sent while the BMAD session was working, after the review was posted.
+```
+Fra meg: Reviewen på PR #55 er postet (https://github.com/IBE160-2026/G97-meinich/pull/55#pullrequestreview-5896815047). Gjør dette i worktreen .local/wt-5.1, og ikke noe mer:
+1. Formuleringen "one AI's classification with another's" gjelder bare tekstlaget (trinn 5), ikke fingeravtrykket eller bransjekoden. Rett den slik kommentaren foreslår (https://github.com/IBE160-2026/G97-meinich/pull/55#discussion_r4567668083) på alle fire stedene: PRD FR-70, den tekniske notatet (linje 516), README-en for fasitsettet (linje 87) og session-fila. Kreditér funnet til review-sesjonen, og si at feilen startet i README-teksten den skrev selv.
+2. Push sesjonsloggen e2d5697 til PR-en, slik AGENTS.md krever.
+3. Oppdater session-fila med reviewen: funnet, hva som ble rettet, og mine to beslutninger fra kommentarene på README-en.
+Én commit for rettingen og én for session-fila. Push, og si fra når CI er grønn. Ikke merge.
+```
+*Changed:* the wording corrected in four files (`d46ebb6`), the BMAD session's own session log pushed (`e2d5697`), and the review in the session file (`15c63f0`).
+
+**20:27**: `pnpm seed:full`.
+```
+Fra meg: pnpm seed:full (FR-73, Story 5.7). Min beslutning, etter Q22: kommandoen lover ikke lenger hele datasettet.
+- pnpm seed:full bygger registerdata og API-nøkkeltall for hele 62.100 (pnpm ingest), og leser dokumenter bare for selskapene i en liste brukeren gir (pnpm ingest --documents <liste>). Uten liste leser den ingen dokumenter. Den kaller ingen modell og trenger ingen nøkkel.
+- Popover-teksten for "Ikke i demodataene" lover ikke lenger hele datasettet. Den sier at tallene fra årsregnskapsdokumentene bare er lest for demoselskapene i v1. Foreslå en norsk tekst, og vis den til meg før den står i EXPERIENCE.
+- Rett FR-73 (både "full"-nivået og avsnittet om hva andre selskaper viser), Story 5.7 i epics.md (kriteriene om seed:full, README-teksten og popover-teksten), EXPERIENCE og den tekniske notatet der de nevner seed:full. (change)-linje i .memlog.md.
+Skriv det som regel og konsekvenser, ikke historikk. Små commits rett på main, og vis meg hashene og popover-teksten.
+```
+*Changed:* the BMAD session paused and asked where the full dataset's classifications and explanations come from, and proposed the popover text.
+
+**20:39**: the answer.
+```
+Fra meg:
+1. PR #55: rett PR-beskrivelsen til samme formulering som i d46ebb6 (tekstlaget, trinn 5). Ingenting annet. Jeg merger etterpå.
+
+2. seed:full, på main:
+- Popover-teksten kan brukes som du foreslo: «Tallene fra årsregnskapsdokumentene er i denne versjonen bare lest inn for demoselskapene og sammenligningsgruppene deres. For dette selskapet sammenlignes bare nøkkeltallene fra Regnskapsregisterets API.»
+- seed:full kaller aldri en modell. Klassifiseringene tas fra den committede seeden, som har alle AS i 62.100. Den som vil lage nye, kjører pnpm classify for seg selv, med nøkkel. Forklaringene fra demoseeden vises bare der den lagrede digesten stemmer med motoren for datasettet som er lastet, og ellers vises ingen, med beskjed (FR-73, AD-13). Det er ingen ny regel.
+- "Runs both batch steps" i Story 5.7 betyr pnpm ingest (med dokumentliste hvis brukeren gir en) og pnpm derive. Klassifisering og forklaringer er ikke med.
+Rett FR-73, Story 5.7, den tekniske notatet og EXPERIENCE i små commits rett på main, med (change)-linje i .memlog.md. Vis meg hashene.
+```
+*Changed:* the PR text corrected, and on `main` the PRD (`8e69ac6`), `epics.md` (`7f0cbee`), the technical note (`cdf9f23`) and EXPERIENCE (`797429f`). The BMAD session added two test requirements and the time per document to Story 5.7.
+
+### Prompts to the review session
+
+- `okei hva er neste steg nå` and `gjerne` (10-30): the review session wrote the sampling frame and rubric before the draw and before Story 2.5 (`737d089`, after `ja det er greit`), then the draw script and its first step (`2c21381`, `dbe2d0d`), in the worktree.
+- `se nå`, `sånn - føler konsulenttjenester innen it er beskrvende nok?`, `sånn` and `behold` (10-30): the human scored the subjects' descriptions. The review session found 54 rows left empty before the last scored one and asked for them in order, proposed a sharper rule for "informative", and ran the second step (`d631915`, `c0f10a0`).
+- `Okei, kan du beskrive og gi meg excel filene jeg bør jobbe på` and `kan du fylle inn det for meg?` (10-30): the review session explained the sheets and filled in only `labelled_by` and `labelled_on` for the rows the human had labelled, never a label.
+- `da er labels blind ferdig` (11-01): the review session checked the 180 blind pairs and pushed them (`15e1010`).
+- `kan vi starte med 2.6 før denne De 720 parene i labels.csv må merkes før Story 5.2. …` (11-08): Story 2.6 started while the 720 pairs waited, and its full run waited for them.
+- `okei gi meg labels.csv så jeg kan fortsette` and `har fylt den ut` (11-09): the review session checked the format, then found the low share of `ja` against the blind pairs and, from the notes, that sector and wording had been weighed (`7b0a54f`, `ead8f8a`).
+- `det kan hende jeg var litt strengere nå. …`, `ønsker det spesifikt som jeg har gjort` and `ja eller hva tenker du? Er det dumt med endring?` (11-09): the human first kept the specific labels; the review session then recommended a second round against the rubric, keeping the first.
+- `okei, kan du fylle ut en ny en med din vurdering også kan jeg bekrefte eller avkrefte om ikke OK?` (11-09): the review session declined to pre-fill the labels, because the set measures a Claude model and the human would anchor on its answers, and proposed one revenue model per company with the pair labels computed (`52794dd`).
+- `okei, har readme fått med seg at vi går tilbake til det vi opprinnelig ble enige om - ikke sektor nå i første omgang` (11-09): the README was corrected to say so.
+- `har fylt ut nå` (11-09), then `vi brukte her Chat GPT sin modell til å fylle ut. Må være OK i denne omgang. …` and `gått gjennom og ser OK ut - noe av oppgaven er jo også basert på å bruke AI så synes det er greit` (11-11): the review session noticed from the timing and the notes that the sheet had not been filled in by hand and asked; the human confirmed it and accepted the round, and the README says so (`c799ff1`, `3a7f322`, `60ae244`).
+- `1. enig 2. ok for nå - får eventuelt gjøre dette i steg 2` (11-13): the human accepted the review session's proposal for question 22 and moved the second labeller and κ to stage 2.
+- `okei vent 2 sek - all den dokumentkjøringen vi har gjort skal ikke med i v1?` (11-13): the review session clarified that everything already read stays in v1 and rewrote the first point of the 20:15 prompt.
+- `A (anbefalt): endre løftet. …` and `1. ja` (11-13): the human chose to change what `seed:full` promises, and asked for the review to be posted.
+- A screenshot of the merge conflict (11-13): the review session merged `main` into the branch and kept both `.memlog.md` lines (`b07322c`).
+
+### Result
+
+The labelled set has 30 subjects and 900 pairs. The 180 blind pairs are labelled by the human. The other 720 have a first round by the human, kept as a stricter reading, and a second round by revenue model per company, filled in by a ChatGPT model and accepted by the human, which is the measure; no second labeller or κ in v1. Question 22 is answered: v1 ships on the demo data with everything already read, and `pnpm seed:full` no longer promises the full dataset.
+
+### Checks before merging
+
+The review session checked the README's counts against the label files as it counted them when they were committed, and that FR-70, Story 5.1, PRD §10 and the technical note say who labelled and that κ is stage 2. At the human's request (`1. ja`), it posted the GitHub review with three line comments; one wording, which had started in a README sentence the review session wrote, was corrected. The PR was merged at 19:52 UTC on 2026-11-13 as `0e21eae`.
 
 ---
 

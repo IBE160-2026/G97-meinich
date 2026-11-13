@@ -531,9 +531,7 @@ For each key figure the product shows the subject's value, the peer median, the 
 - The favourable quartile is the upper quartile where higher is better and the lower quartile where lower is better, by the direction declared for that figure.
 - Percentile is `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
 - Both the median and the favourable quartile are always shown where both exist. The median is context, and a marker on the closable-share control; it is never the target of the kroner arithmetic (FR-31).
-- **A figure with no declared direction gets no favourable quartile and no percentile**, because both are defined in the favourable direction and there is none. Those figures show the subject's value against the peer distribution and are never ranked: revenue growth, because fast growth often explains a weak margin; personnel cost per FTE and equity ratio, because the direction is genuinely arguable; and cash share, which is a diagnostic (FR-21).
-
-**Notes.** `[NOTE FOR PM]` Total cost share (6) is a check, not a benchmarking figure (FR-21). `docs/key-figures.md` gives it no direction in its table but leaves it out of the sentence listing the figures with none; which one is meant, and so whether it gets a favourable quartile, is for Story 3.1a to settle in both places.
+- **A figure with no declared direction gets no favourable quartile and no percentile**, because both are defined in the favourable direction and there is none. Those figures show the subject's value against the peer distribution and are never ranked: total cost share (6), because it is a check on the three cost shares and ranking it would rank the operating margin again (FR-21); revenue growth, because fast growth often explains a weak margin; personnel cost per FTE and equity ratio, because the direction is genuinely arguable; and cash share, which is a diagnostic (FR-21).
 
 #### FR-28: Multi-year trend where available · Stage 2
 

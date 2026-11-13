@@ -26,7 +26,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 
 - FR-1: One search field accepts a company name or an organisation number; nine digits → exact orgnr match, else fuzzy name match; searches Peerless's own database only (never the register live); each result shows name, orgnr, primary industry, municipality; never filters on financial criteria; choosing a result resolves on orgnr; malformed input or no match gives a clear message, never an empty analysis.
 - FR-2: The subject is shown with registered name, orgnr, primary industry code and the analysed accounting year, the year taken from the returned `regnskapsperiode`/filing `id`, never the requested `år`; a renamed company still resolves to one company.
-- FR-3: Only a subject whose `naeringskode1.kode` is in a covered industry gets a peer analysis; an industry is covered only once extracted, reconciled and measured against a labelled set; SN2025 codes only (SN2007 returns nothing). Stage split: v1 covers `62.100` only; `69.202` and `43.210` are stage 3.
+- FR-3: Only a subject whose `naeringskode1.kode` is in a covered industry gets a peer analysis; an industry is covered only once measured against a labelled set and the filings of the companies it is offered with are extracted and reconciled; SN2025 codes only (SN2007 returns nothing). Stage split: v1 covers `62.100` only; `69.202` and `43.210` are stage 3. In v1 `62.100` counts as covered for the companies whose document figures are in the seed, measured against the labelled set; every other `62.100` company gets stages 1–3 and classification; the document run over the rest of `62.100` is not part of v1 (`pnpm ingest --documents <list>`, no new code).
 - FR-4: A subject outside a covered industry shows only the three API-sourced figures (operating margin, return on assets, equity ratio) from the latest year plus a plain statement naming its industry as not yet covered; no peer group, median, quartile, percentile or kroner; an orgnr not in the database shows "Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi {industry}." with links to demo companies A and B, where {industry} is each covered code from `register.covered_industry` with the register's own `naeringskode1_beskrivelse` for it, first letter lower-cased — "dataprogrammeringstjenester (62.100)" for v1 — never a literal in `src/` (human decision 2026-10-15); demonstrated by demo company C (`69.202`); no live register call.
 - FR-6: The open route is rate-limited per IP with an in-memory counter in the single local server process, storing no IP; exceeding the limit returns a refusal, never a partial analysis. Stage split: per-IP limit is v1; per-session limit and CAPTCHA are stage 2.
 - FR-7: Funnel stage 1 (rules) filters on `naeringskode1.kode` and a size band of `sumDriftsinntekter` from the same filing, default 0.5–2× the subject's; never `sumEiendeler` or the register's employee count.
@@ -45,12 +45,12 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-20: Peer group assembly returns in under one second, reading only stored key figures and profiles; no document fetched/OCR'd, no peer classified and no model call reachable from a request in v1.
 - FR-70: A labelled set is built from week 1: 30 `62.100` subjects × 30 candidates drawn at random from the subject's size band (not funnel output), ~900 judgements; rubric written and dated before the fingerprint feature list is fixed; a blind (description/website-only) subsample; second labeller on ~50 pairs with Cohen's κ; stated pooling fallback; counts reported as achieved.
 - FR-68: Description embeddings computed in batch only and used as one optional layer in the SM-1 ablation; never user-facing in v1, no peer reaches a group by embedding; the one v1 item that may be cut (last).
-- FR-21: The engine computes and displays every key figure exactly as `docs/key-figures.md` defines; tests assert the two identities exactly (ROA = margin × revenue/assets; personnel cost share = cost per FTE ÷ revenue per FTE); total cost share is a check row; cash share is an unranked diagnostic with no kroner; amounts in øre, ratios in decimal, rounded only for display (% 1 dp, days whole, kroner whole).
-- FR-22: No aggregate for a key figure unless ≥10 peers have a defined value for that figure (counted per figure); below the floor the row keeps the subject's own value and states "n of 10"; no kroner; synthetic cohorts at/below 10 assert nothing escapes.
+- FR-21: The engine computes and displays every key figure exactly as `docs/key-figures.md` defines; tests assert the two identities exactly (ROA = margin × revenue/assets; personnel cost share = cost per FTE ÷ revenue per FTE); total cost share is a check row; key figures 7 and 8 are absent in v1 with their own reason, because v1 does not read `aarsverk` (stage 2); cash share is an unranked diagnostic with no kroner; amounts in øre, ratios in decimal, rounded only for display (% 1 dp, days whole, kroner whole).
+- FR-22: No aggregate for a key figure unless ≥10 peers have a defined value for that figure (counted per figure); below the floor the row keeps the subject's own value and states "n of 10"; no kroner; key figures 7 and 8 show their v1 absence reason, not the floor; synthetic cohorts at/below 10 assert nothing escapes.
 - FR-23: A zero/negative denominator or an underivable missing component makes a figure undefined (never zero); missing components are first derived from stated totals; the company leaves only that figure's distribution; the left-out count is shown; nothing estimated or imputed.
 - FR-24: A figure's comparison (median, favourable quartile, percentile, kroner) is shown only if computable for subject and ≥10 peers from the same source; otherwise the subject's own value stays with the reason, displayed as in FR-22.
 - FR-25: The benchmark year is the subject's latest filed year; peers without a filing for that year are excluded.
-- FR-26: Two decomposition views: margin vs capital efficiency, and pay level vs productivity (via the FR-21 identity). Stage split: both open in v1; behind the account wall from stage 2.
+- FR-26: Two decomposition views: margin vs capital efficiency, and pay level vs productivity (via the FR-21 identity); in v1 the pay-level view is absent with the reason of key figures 7 and 8. Stage split: both open in v1; behind the account wall from stage 2.
 - FR-27: Each key figure shows subject value, peer median, favourable quartile (direction-aware) and percentile `(worse + 0.5 × equal)/peers × 100`; median always shown, never the kroner target; no-direction figures (revenue growth, personnel cost per FTE, equity ratio, cash share) get no favourable quartile and no percentile.
 - FR-29: Each key figure with a kroner translation converts its gap exactly per `docs/key-figures.md`; only gaps worse than target produce kroner, otherwise shown as a strength; cost shares (3–5) have no kroner of their own.
 - FR-30: No double counting, tested in two clusters: no cost share produces its own kroner and no total adds a margin-decomposition bar to annual profit uplift; the four decomposition bars sum exactly to (margin − peer-group-as-a-whole margin) × revenue and displayed bars (largest remainder) sum to the displayed total; decomposition not shown with <10 in the common set; never scaled by closable share; working capital released = receivable days + payable days only; operating-asset capital never summed with receivable days.
@@ -64,7 +64,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-56: Ratio tables, distribution plots and the peer list scroll horizontally inside their own containers.
 - FR-57: Each filing carries a data quality flag derived only from the two reconciliation checks, never OCR confidence.
 - FR-58: A figure is accepted only if it reconciles (within-document absolute bound of a few kroner; document-vs-API proportional tolerance; never collapsed, never exact equality); a failure blocks the filing; no caveated or substituted figure.
-- FR-59: No document is fetched or OCR'd during a user request; all document-derived figures come from pre-warmed storage; a covered industry is fully pre-warmed before it is offered.
+- FR-59: No document is fetched or OCR'd during a user request; all document-derived figures come from pre-warmed storage; a company is offered with document-derived figures only once its documents are pre-warmed, and any other shows them absent with a reason; pre-warming more companies is a batch run, not a code change.
 - FR-60: Every kroner amount traces to its key figure and on to the filed values; degraded filings are reported unavailable, never estimated.
 - FR-71: When the subject's own filing fails reconciliation, the three API figures keep full comparison, the twelve document-dependent figures are absent with a stated reason, nothing estimated/substituted, and the subject is not demoted to uncovered.
 - FR-64: Every figure and aggregate states its filing year and register read date; no freshness guarantee; manual batch refresh. Stage split: on-screen disclosure is v1; carrying it into PDF export and saved analyses (and saved-analysis exceptions) is stage 2.
@@ -365,7 +365,7 @@ FR-17: Epic 2 — Exclude a peer (saving in Epic 6)
 FR-18: Epic 2 — Widen the size band in three steps (segmentation loosening, stage 3, in Epic 6)
 FR-19: Epic 2 — Recompute after a peer-group change
 FR-20: Epic 1 — Peer group under one second
-FR-21: Epic 1, 3 — Key figures per key-figures.md and identities (API figures in Story 1.4; every formula, the identities and the reference cases in Story 3.1a)
+FR-21: Epic 1, 2, 3 — Key figures per key-figures.md and identities (API figures in Story 1.4; the v1 absence reason of key figures 7 and 8 in Story 2.9; every formula, the identities and the reference cases in Story 3.1a); reading `aarsverk` in Epic 6 (stage 2)
 FR-22: Epic 1 — Ten-peer floor per figure
 FR-23: Epic 2, 3 — Undefined is not zero (engine and API figures in Epic 2; document figures in the engine in Story 3.1a, their rows in Story 3.1b)
 FR-24: Epic 1, 3 — Same basis for subject and peers (API rows in Epic 1; document figures in Story 3.1a, their rows in Story 3.1b)
@@ -384,7 +384,7 @@ FR-55: Epic 1 — Reflow to phone width
 FR-56: Epic 1 — Tables and charts scroll in their own containers
 FR-57: Epic 2 — Data quality flag per filing
 FR-58: Epic 2 — Reconciliation rules
-FR-59: Epic 1 — No OCR or fetch at query time (Stories 1.3a, 1.7)
+FR-59: Epic 1 — No OCR or fetch at query time (Stories 1.3a, 1.7); the run over the rest of `62.100` is not part of v1
 FR-60: Epic 3 — Traceability to filed values
 FR-61: Epic 1 — Front page (industry overviews in Epic 6)
 FR-62: Epic 1, 3 — Tabs: Oversikt, Peers and Nøkkeltall og gap in Epic 1 (three tabs during Epics 1–2); Verdi added in Epic 3, so four open tabs once Epic 3 is done (Utvikling in Epic 6)
@@ -1822,14 +1822,14 @@ As Kari or Anders,
 I want every missing figure to state why it is missing,
 So that I never mistake an unreadable filing, an undefined ratio or a thin group for a zero.
 
-**Implements:** FR-23, FR-55, FR-56, FR-71 · **Invariants:** AD-1, AD-8, AD-15 · **UX:** UX-DR10, UX-DR37, UX-DR38, UX-DR39, UX-DR50, UX-DR68 · **Issue / branch / PR:** one issue, branch `story/2.9-missing-figures-reasons`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-21 (key figures 7 and 8 absent in v1), FR-23, FR-55, FR-56, FR-71 · **Invariants:** AD-1, AD-8, AD-15 · **UX:** UX-DR10, UX-DR37, UX-DR38, UX-DR39, UX-DR50, UX-DR68 · **Issue / branch / PR:** one issue, branch `story/2.9-missing-figures-reasons`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
 **Given** the engine's input and output types
 **When** they are read
-**Then** each figure is a discriminated union of a value or an absence with exactly one reason: undefined; failed reconciliation; not in this dataset; below the floor
-**And** each reason maps to exactly one EXPERIENCE state — "Kan ikke beregnes" with its reason, "Regnskapet for {år} kunne ikke leses sikkert", "Ikke i demodataene", "For få sammenlignbare (n av 10)" — through an exhaustive switch that fails to compile if a reason is added without a state
+**Then** each figure is a discriminated union of a value or an absence with exactly one reason: undefined; failed reconciliation; not in this dataset; below the floor; not read in v1
+**And** each reason maps to exactly one EXPERIENCE state — "Kan ikke beregnes" with its reason, "Regnskapet for {år} kunne ikke leses sikkert", "Ikke i demodataene", "For få sammenlignbare (n av 10)", and a state for not read in v1 whose copy this story adds to EXPERIENCE — through an exhaustive switch that fails to compile if a reason is added without a state
 
 **Given** a zero or negative denominator, or a missing component that cannot be derived
 **When** the figure is computed
@@ -1856,6 +1856,10 @@ So that I never mistake an unreadable filing, an undefined ratio or a thin group
 **Given** a figure with fewer than 10 comparable peers
 **When** it is computed
 **Then** its reason is below the floor, with the count
+
+**Given** key figures 7 (revenue per FTE) and 8 (personnel cost per FTE), which divide by `aarsverk`
+**When** any subject's figures are computed in v1
+**Then** both are absent with the reason not read in v1, for the subject and every peer, never undefined, failed reconciliation or below the floor, because v1 does not read the notes `aarsverk` comes from (FR-21, FR-22; reading it is stage 2)
 
 **Given** the analysis of a subject whose filing failed reconciliation, with the header subline, at 375 px and 320 px
 **When** it renders
@@ -2004,7 +2008,8 @@ So that I know which lever the gap sits on.
 
 **Given** the row Lønnskostnadsandel
 **When** "Lønnsnivå eller produktivitet?" is opened
-**Then** it shows lønnskostnad per årsverk (no direction, no beste fjerdedel) and omsetning per årsverk, each against its own median with its own strip and gate, in the same pattern
+**Then** it shows lønnskostnad per årsverk (no direction, no beste fjerdedel) and omsetning per årsverk, each against its own median with its own strip and gate, in the same pattern, once `aarsverk` is read (stage 2)
+**And** in v1, where no `aarsverk` is read, the fold-out shows the not-read-in-v1 state of Story 2.9 for both factors and computes no median (FR-26)
 
 **Given** either fold-out
 **When** it renders
@@ -2012,7 +2017,7 @@ So that I know which lever the gap sits on.
 
 **Given** a 62.100 company outside the demo seed
 **When** the table renders
-**Then** "Margin eller kapitalbruk?" is shown (both factors come from the API) and "Lønnsnivå eller produktivitet?" reads "Ikke i demodataene"
+**Then** "Margin eller kapitalbruk?" is shown (both factors come from the API) and "Lønnsnivå eller produktivitet?" shows the not-read-in-v1 state, as for every company in v1
 
 **Given** the PR
 **When** it is opened
@@ -2537,7 +2542,7 @@ So that the full analysis runs locally without any key, within what the licence 
 **When** the demo seed is exported
 **Then** it contains fingerprint categories for allow-listed companies only — A, B, their peers and the OCR reference filings keep theirs, so B still shows fingerprint separation — and a 62.100 company outside the allow-list gets funnel stages 1–3 plus classification, with match basis "Kun beskrivelse" or "Kun bransje og størrelse"
 **And** EXPERIENCE's outside-the-demo-seed state is edited in this PR to say what is shown then: stage 4 "Forretningsmodell" reads "Ikke kjørt – regnskapstall ikke i demodataene" with its count equal to stage 3's, and the about page's document-figure paragraph drops "for resten av bransjen bare avledede kategorier"
-**And** with the gate open, fingerprint categories for every 62.100 candidate are committed and stage 4 runs as in Story 2.5
+**And** v1 reads no other 62.100 company's documents for the seed (FR-3; the labelled set's documents and fingerprints stay local, for Story 5.2), so the demo seed is this fallback whether the gate opens or not; an open gate allows fingerprint categories to be committed for companies outside the allow-list once a later document run (`pnpm ingest --documents <list>`) has read them
 
 **Given** `seed/allow-list.json`
 **When** it is written by `pnpm seed:export`
@@ -2657,6 +2662,6 @@ So that the project is demonstrably runnable without the authors' keys or accoun
 
 Not broken into stories. AGENTS.md: no stage 2 or stage 3 work starts until v1 runs from a fresh clone (Story 5.7).
 
-**Stage 2:** FR-5, FR-28 (the view), FR-33 to FR-51, FR-63, FR-67, and the stage-2 parts of FR-6, FR-17, FR-26, FR-52, FR-62, FR-64, FR-66, FR-69.
+**Stage 2:** FR-5, FR-21 and FR-26 (reading `aarsverk` from the notes, for key figures 7 and 8 and the pay-level view), FR-28 (the view), FR-33 to FR-51, FR-63, FR-67, and the stage-2 parts of FR-6, FR-17, FR-26, FR-52, FR-62, FR-64, FR-66, FR-69.
 
 **Stage 3:** FR-3 (`69.202` and `43.210`, each a line in `seed/coverage.json` once measured), FR-18 (loosening legal form and geography), FR-61 (industry overviews).

@@ -2,7 +2,7 @@
 title: 'Story 2.7: The Peers tab shows why'
 type: 'feature'
 created: '2026-11-13'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'be7711b53e54208b5a590d3a285bda45794235c7'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -102,6 +102,32 @@ Every row names the test that fails if its code is removed. Engine tests use syn
 - [ ] Review fixes (a separate commit), then `docs/ai-log.md` (what the payload exposes), the session file, FR status in the PRD if wording moves, sesjonslogg.
 
 **Acceptance Criteria:** those of `epics.md`, Story 2.7, as settled by the answers above. The PR states what could go wrong with what the payload exposes, and has a "Planning documents:" line.
+
+## Spec Change Log
+
+- 2026-11-13, BMAD session, review: the I/O matrix row "Rendered" names `e2e/peers.spec.ts` "each row's basis and flag match the engine on the seed". Review fix `999c9f0` split it into "demo A: each row's figures, reason, basis and flag match the engine on the seed" (row by row) and "a mixed-basis subject from the seed: the totals per basis and flag match the engine" (totals only, so a failure prints no peer's basis beside its name; the peers may be in the labelled set). The row is covered by both. KEEP: no e2e test compares a non-demo subject's rows by name.
+- 2026-11-13, BMAD session, review: the phone cards past the first 8 are rendered by the client when "Vis alle" is pressed, from the same display strings as props, not sent as server-rendered nodes; the Code Map said `show-all-toggle.tsx` takes only ReactNodes. Rendering every peer twice with its utility classes made demo A's Peers page 2.0 MB at band 1 (629 peers), and a soft navigation to it outran the 5 s expect timeout under the parallel e2e run. KEEP: the cards' content, order, focus move and AD-4 strings.
+
+## Review Triage Log
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | BMAD session (suite run) | The Peers page renders every peer as a table row and as a card, with utility classes, so the HTML is 1.3 MB at band 0 and 2.0 MB at band 1 for demo A; "a tab change … focuses the panel heading" fails twice in the parallel e2e run, passes alone | high | measured with `next start`: 458 B per row, 651 B per card, 1.28 MB of RSC script for 629 peers | patch |
+| 2 | Edge case, Blind | `peersShown` returns `[]` when `funnelSubject` is null: a silent fallback | low | covered subjects always have a filing (`analysisView`), but the rule forbids the silent path | patch |
+| 3 | Blind | `src/analysis/peer-rows.ts` imports `undefinedText` from a component file | low | the analysis layer depends on `src/components` | patch |
+| 4 | Blind | `SERVER_FIELDS` lacks the basis ids and `matchBasis`; the payload scan never runs on a page with ✦ or a flag | medium | `e2e/payload.ts`; only demo A's Peers page is scanned, and it has neither | patch |
+| 5 | Blind | `mixedBasisSubject()` does not require a ✦ basis | low | the current pick has 133 "Kun beskrivelse", but nothing demands one | patch |
+| 6 | Verification gap | No test shows a flagged peer's tag through the page: both e2e subjects have 0 flagged | medium | verified by the layer on the seed; `peersShown` could pass `[]` and every test passes | patch |
+| 7 | Blind | The "Vis alle" e2e branch runs only `if (rows.length > PHONE_CARDS)` | low | demo A has 396 peers today; nothing asserts it | patch |
+| 8 | Blind | `test/match-basis-not-stored.test.ts` misses a column storing the basis ids as values | low | its pattern matches identifiers with basis/flag, not `'accounts_only'` | patch |
+| 9 | Blind, Verification gap | The matrix row "Rendered" names a test title that no longer exists | low | `999c9f0` renamed and split it | Spec Change Log (not the frozen block) |
+| 10 | Blind | The AI log, session file and `.logs` describe the state before review; 66 vs 53 tests unexplained | low | 53 `test(` calls, 66 tests once the loops over widths and queries expand | patch (docs, BMAD session) |
+| 11 | Blind | The AI log says no band is revealed; with the thresholds public, "i samme bånd" and the subject's share (shown from Epic 3) give the peer's band | low | `BAND_EDGES` in `src/engine/fingerprint.ts` | patch (docs) |
+| 12 | Blind | `sprint-status.yaml` still says `in-progress` with the spec at `in-review` | low | AGENTS.md's two vocabularies | patch |
+| 13 | Edge case, Blind | With `ekskl`, the funnel's stage 5 and flagged counts are before the exclusion and the list count after; all excluded shows "Fant ingen…" under a funnel with survivors | low | reachable only by a hand-edited URL until Story 2.8 adds the button; "{n} ekskludert av deg → {m} i analysen" is 2.8's | defer (2.8) |
+| 14 | Edge case | `ShowAllToggle` keeps `open` across a client navigation that changes the rows | low | band and `ekskl` change only by full URL edits until Story 2.8 | defer (2.8) |
+| 15 | Edge case | `INTANGIBLES_SHARE` not a whole percent would be misstated | false | the constant is 0.05, fixed before data (FR-10); changing it is a story | reject |
+| 16 | Edge case | An empty-string `navn` gives a blank cell | false | `register.company` has 0 empty or blank names; the register gives null | reject |
 
 ## Design Notes
 

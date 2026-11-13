@@ -2,7 +2,7 @@
 title: 'Story 2.6: Classification (stage 5)'
 type: 'feature'
 created: '2026-11-08'
-status: 'draft'
+status: 'in-review'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -106,6 +106,14 @@ Every row names the test that fails if its code is removed.
   | 18 | full, prompt `2810d26aa8dc` | 10 326 | 0 | 1 315 | 1 699 | 43 | 1 379 | 5 890 (57 %) | 45 | 8 069 842 | 530 218 | about $0.54 |
 
   Run 18 (2026-11-11, `claude-haiku-5-5`, Batch API, 9 min) classified every AS in `62.100`, the 300 sample companies again among them: 10 371 rows, none `pending`, `failed` or `sample`, one prompt hash and one model id. Its cost is within the plan's central estimate ($0.73) and the extrapolation from run 17 ($0.53). The review session checked `run.step2` and the table.
+
+- **The seed sequence after run 18 (2026-11-13), Story 2.5c's steps 3-9, totals only.**
+  - Dump and backup first: `.local/document-tables-before-2.6-seed/` (seven tables, `classification` included) copied to `C:\Users\cmein\peerless-backups\` with equal sha256. `.local/document-run-2.5d/` equals the database's rows outside the allow-list: 2 688 documents and 5 362 columns, row for row.
+  - One transaction, counts checked before COMMIT: 5 362 columns and 2 688 documents deleted, 97 and 194 left, 10 371 classifications untouched. `pnpm derive`: 86 fingerprints of 97 columns. `seed:export`, committed alone (`77b8813`): `seed/demo/classification.csv` with 10 371 rows (`classified` 10 326, of them `uklart` 5 890; `no_text` 45; none `sample`), and `manifest.json` with the file's sha256 and the migration id `20261108130000_classification`. No other seed file changed.
+  - `pnpm seed` twice, the re-export unchanged. Restored from the 2.5d dump, `pnpm derive`: 2 785 documents, 5 556 columns, 2 537 fingerprints, 10 371 classifications; all seven tables row for row equal to the dump taken before the deletion.
+- **Found in the seed sequence:** `pnpm seed` printed step 2's latest run as 3 and step 1's as 783, not 19 and 1708: `latestRunRecord` ordered by its text alias. Fixed in `869a82c` with `test/db/classification.test.ts` "the latest record is the highest id, not the highest as text", which fails without the fix.
+- **Tests only the re-export could reach:** `test/allow-list.test.ts` "reads the committed seed files" (`4af1694`) and `test/db/seed.test.ts` "writes rows in byte order of the key even when the table was filled in another order" (`8045ca1`) listed the seed files without `classification.csv`.
+- **The suite, 2026-11-13:** `check:pins`, `check:env`, `lint`, `typecheck`, `test` (1 082), `test:db` (184), `test:ingest` (391), `build`, `check:routes` and `test:e2e` (116) pass. e2e ran on the seeded database, as in CI: on the restored one, seven peer-group and key-figure tests fail by design, because their expected values are computed from the seed's 86 fingerprints. The database was restored again afterwards and compared, all seven tables equal.
 
 ## Spec Change Log
 

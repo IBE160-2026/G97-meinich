@@ -26,10 +26,13 @@ Classify every AS in `62.100` from its register text with a model in batch step 
 - **Corrected after run 14:** the batch id was written to the terminal only after the rows; an interrupted run would have lost it (`2a3bb91`, `test/classify/run.test.ts` "logs the batch id after submitting and before any row is written").
 - **Prompt, on the 300 sample companies only:** run 14 gave `produkt` 126 of 300, too many general texts read as a product. The categories were limited (`47d4675`).
 - **Found by the review session after run 17:** the BMAD session expected about 75 `produkt` and 140 `uklart`; run 17 gave 45 and 163. The review session read the `uklart` texts: an estimated 20-25 of the 163 concretely describe a software product of the company's own, and the model answers differently on nearly identical texts. Meinich let the prompt stand (spec change log, `1c30dd2`).
+- **Found by the BMAD session in the seed sequence:** `pnpm seed` printed the wrong latest run record, because `latestRunRecord` ordered by its text alias. Fixed with a database test that fails without the fix (`869a82c`). Two tests that list the seed files lacked `classification.csv` (`4af1694`, `8045ca1`).
+- **Seed:** 10 371 classification rows (`77b8813`), exported after the document rows outside the allow-list were removed; `.local/document-run-2.5d/` restored afterwards, all seven tables equal to the dump before.
 - **Run 18,** checked by the review session in `run.step2` and the table: 10 326 sent, 0 failed, `produkt` 1 315, `konsulent` 1 699, `forhandler` 43, `annet` 1 379, `uklart` 5 890 (57 %), `no_text` 45; about $0.54. The spec has the three runs as totals.
 
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`
+- `docs/ai-log.md`, 2026-11-13: Story 2.6
 - PRD: FR-11 and §8 Cost (`c0acc0c`), with a `(change)` line in `.memlog.md`
 - Issue #51; Story 2.6a, issue #52 and PR #53

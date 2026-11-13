@@ -106,7 +106,7 @@ Decided once; used verbatim everywhere. This table is the source the message fil
 | Data date | Regnskapsår 2025 · hentet 3. okt. 2026 | |
 | Oversikt small cards | Største kapitalgap · Største styrke · Mangler grunnlag | The capital card shows the largest one-off capital amount and is not ranked against the per-year hero |
 | Below minimum group | For få sammenlignbare (7 av 10) | Phone short form "For få (7 av 10)". Only for genuine below-floor cases |
-| Figure not in the demo seed | Ikke i demodataene | Info popover: "Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Hele datasettet bygges lokalt med pnpm seed:full." |
+| Figure not in the demo seed | Ikke i demodataene | Info popover: "Tallene fra årsregnskapsdokumentene er i denne versjonen bare lest inn for demoselskapene og sammenligningsgruppene deres. For dette selskapet sammenlignes bare nøkkeltallene fra Regnskapsregisterets API." It names no command and promises no full dataset. |
 | Own value undefined (FR-23) | Kan ikke beregnes | Plus the reason: "omsetningen er null eller negativ" / "en regnskapslinje mangler" |
 | No declared direction | Ingen retning | |
 | Direction | ↑ Høyere er bedre / ↓ Lavere er bedre; "Bedre →" on axes | Glyphs `aria-hidden`; screen readers get the words ("bedre mot høyre") |

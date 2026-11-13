@@ -2,15 +2,13 @@
 // loaded demo seed: the peer group on the header and the tab, `ekskl`
 // against the pool, the funnel, each row against the engine run on the seed,
 // the payload, the subjects that cannot have peers, and phone widths.
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { formatMillions } from '../src/engine/format.ts';
 import type { PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { businessType } from '../src/engine/fingerprint.ts';
-import { PHONE_CARDS } from '../src/components/analysis/peer-list.tsx';
+import { PHONE_CARDS } from '../src/components/analysis/phone-cards.ts';
 import {
   A,
   ABSENT,
@@ -22,6 +20,7 @@ import {
   expectedPool,
   expectedRows,
   expectedSubject,
+  labelled,
   newestFiling,
   noSidewaysScroll,
   nonCalendar,
@@ -70,6 +69,7 @@ test.describe('the peer group (Story 1.7)', () => {
       nb['peers.col.reason'],
       nb['peers.col.basis'],
       nb['peers.col.flag'],
+      nb['peers.col.action'],
     ]);
     const rows = peerTable(page).locator('tbody tr');
     await expect(rows).toHaveCount(pool0.length);
@@ -80,10 +80,12 @@ test.describe('the peer group (Story 1.7)', () => {
   });
 
   // AD-4, Story 2.7: each peer reaches the page as display strings only.
-  test('the HTML and the RSC payload of Peers carry no peer orgnr, peer key-figure amount or server field', async ({ request }) => {
+  test('the HTML and the RSC payload of Peers carry no orgnr outside the group, peer key-figure amount or server field', async ({ request }) => {
     await expectNoPeerFields(request, `/analyse/${A.orgnr}/peers`, {
       pool: expectedPool(A.orgnr ?? '', 0),
       marker: nb['peers.funnel.stage5'],
+      // Story 2.8: every group member's orgnr, for its exclude action.
+      inUrl: pool0.map((peer) => peer.orgnr),
     });
   });
 
@@ -152,13 +154,6 @@ test.describe('a covered AS that cannot have peers', () => {
 });
 
 // Story 2.7: the funnel and why each peer is in the group.
-const labelled = new Set(
-  (
-    JSON.parse(readFileSync(path.resolve(import.meta.dirname, '../analysis/labelled-set/document-run.json'), 'utf8')) as {
-      orgnr: string;
-    }[]
-  ).map((entry) => entry.orgnr),
-);
 const GLYPH = '✦';
 
 /**
@@ -282,11 +277,13 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       await expectEveryMarkHidden(page);
     });
 
-    test(`${label}: the HTML and the RSC payload carry no peer orgnr, peer key-figure amount or server field`, async ({ request }) => {
+    test(`${label}: the HTML and the RSC payload carry no orgnr outside the group, peer key-figure amount or server field`, async ({ request }) => {
       const orgnr = subjectOf();
       await expectNoPeerFields(request, `/analyse/${orgnr}/peers`, {
         pool: expectedPool(orgnr, 0),
         marker: nb['peers.funnel.stage5'],
+        // Story 2.8: the group's orgnrs, for the exclude actions; a pool peer stage 4 or 5 removed stays out.
+        inUrl: expectedGroup(orgnr, 0).map((peer) => peer.orgnr),
       });
     });
   }

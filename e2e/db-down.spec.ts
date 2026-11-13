@@ -67,3 +67,18 @@ test('the search endpoint answers 500 with an empty object', async ({ request })
 test('/slik-fungerer-peerless, which reads only the header coverage, still answers 200', async ({ request }) => {
   expect((await request.get('/slik-fungerer-peerless')).status()).toBe(200);
 });
+
+// Story 2.8: the analysis's error boundaries go back only while a
+// peer-group change is in flight. A direct load that fails shows the alert
+// where it was opened and never navigates.
+test('a direct load with an error does not navigate away', async ({ page }) => {
+  const path = `/analyse/${ORGNR}/peers?band=1`;
+  await page.goto(path);
+  await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
+  // Long enough for a Back the boundary would have sent.
+  await page.waitForTimeout(1000);
+  const url = new URL(page.url());
+  expect(`${url.pathname}${url.search}`).toBe(path);
+  expect(await page.evaluate(() => window.history.length)).toBe(1);
+  await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
+});

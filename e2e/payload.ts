@@ -3,7 +3,11 @@
 // beyond what the shown analysis needs. Each body is scanned for
 //
 //   - every pool peer's orgnr (the group and the peers stages 4–5 removed),
-//     except those the URL itself holds (`ekskl`, which the tab links keep);
+//     except those the page may carry (`inUrl`): on Oversikt and Nøkkeltall
+//     the ones the URL itself holds (`ekskl`, which the tab links keep); on
+//     Peers every group member's, excluded or not, which its exclude action
+//     writes into the URL (Story 2.8, AD-4 as amended on 2026-11-13). A pool
+//     peer stage 4 or 5 removed is never allowed;
 //   - every pool peer's key-figure amounts in øre, as digits without the
 //     sign; amounts under 6 digits (below 10 000 kr) are skipped, because
 //     such short digit runs occur in ordinary page text, ids and hashes;
@@ -55,7 +59,7 @@ export async function expectNoPeerFields(
   }: {
     readonly pool: readonly SeedCandidate[];
     readonly marker: string;
-    /** Orgnrs the URL names, which the page may echo in its links. */
+    /** Orgnrs the page may carry: those the URL names, and on Peers the group's. */
     readonly inUrl?: readonly string[];
   },
 ): Promise<void> {

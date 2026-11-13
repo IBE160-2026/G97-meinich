@@ -36,12 +36,12 @@ import { AiMark } from './ai-mark';
 import { PeerAction, PeerChangeLink } from './peer-action';
 import { Basis, CARD_LIST_CLASS, Flag, PeerCard, PeerName, type PeerCardLabels } from './peer-card';
 import { PeerFunnel } from './peer-funnel';
+import { PHONE_CARDS } from './phone-cards';
 import { ShowAllToggle } from './show-all-toggle';
 import { SizeBandControl } from './size-band';
 import { StateBlock } from './state-block';
 
-/** Cards shown on the phone before "Vis alle {n}" (Meinich, 2026-11-13). */
-export const PHONE_CARDS = 8;
+export { PHONE_CARDS };
 
 const HIDDEN_CARDS_ID = 'flere-sammenlignbare';
 

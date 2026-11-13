@@ -80,6 +80,8 @@ Direction: ↑ higher is better, ↓ lower is better, – no direction.
 | 7 | Revenue per FTE | `sumDriftsinntekter / aarsverk` | OCR | ↑ | – |
 | 8 | Personnel cost per FTE | `lonnskostnad / aarsverk` | OCR | – | – |
 
+**Not computed from stored data in v1.** `aarsverk` is printed in the notes, which v1 does not read, so both figures are absent in v1 with that reason, for the subject and every peer, and so is the pay-level side of the decomposition below. The engine implements both formulas, and the identity is asserted on test inputs. Reading `aarsverk` is stage 2.
+
 ### Working capital
 
 | # | Key figure | Formula | Source | Dir. | Kroner |

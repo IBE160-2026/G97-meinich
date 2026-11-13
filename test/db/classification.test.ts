@@ -6,7 +6,7 @@ import { postgresStore } from '../../scripts/classify.ts';
 import { rebuildFingerprints } from '../../scripts/derive.ts';
 import { copyTable, refuseUnfinishedClassifications } from '../../scripts/seed-export.ts';
 import { SEED_TABLES, SeedRefusal, parseCsv } from '../../scripts/seed-format.ts';
-import { withFingerprintRecord } from '../../scripts/step2-record.ts';
+import { latestRunRecord, withFingerprintRecord } from '../../scripts/step2-record.ts';
 import { supabaseDbUrl } from './db-env.ts';
 
 const sql = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
@@ -154,6 +154,15 @@ describe('the run record', () => {
       await expect(withFingerprintRecord(tx, () => Promise.reject(new TypeError('bad input')))).rejects.toThrow('bad input');
       const [record] = await tx`select error from run.step2 order by id desc limit 1`;
       expect(record?.error).toBe('TypeError: bad input');
+    });
+  });
+
+  it('the latest record is the highest id, not the highest as text', async () => {
+    await rolledBack(async (tx) => {
+      for (const id of [9_000_000, 10_000_000]) {
+        await tx`insert into run.step2 (id, mode, started_at) overriding system value values (${id}, 'classify', now())`;
+      }
+      expect((await latestRunRecord(tx, 'step2'))?.id).toBe('10000000');
     });
   });
 });

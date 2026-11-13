@@ -39,10 +39,11 @@ export function runRecordLine(step: 'step 1' | 'step 2', record: RunRecord | nul
 }
 
 /** The latest record of `table`, read as that step's own role; only `pnpm seed`'s print reads it. */
-export async function latestRunRecord(sql: postgres.Sql, table: 'step1' | 'step2'): Promise<RunRecord | null> {
+export async function latestRunRecord(sql: postgres.Sql | postgres.TransactionSql, table: 'step1' | 'step2'): Promise<RunRecord | null> {
+  // Ordered by the table's bigint id: a bare `id` names the text alias, and "9" sorts after "10".
   const [row] = await sql.unsafe<RunRecord[]>(
-    `select id::text, mode, started_at, ended_at, jsonb_array_length(failures) as failures, error
-       from run.${table} order by id desc limit 1`,
+    `select r.id::text as id, r.mode, r.started_at, r.ended_at, jsonb_array_length(r.failures) as failures, r.error
+       from run.${table} r order by r.id desc limit 1`,
   );
   return row ?? null;
 }

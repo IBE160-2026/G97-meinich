@@ -2734,6 +2734,130 @@ The labelled set has 30 subjects and 900 pairs. The 180 blind pairs are labelled
 
 The review session checked the README's counts against the label files as it counted them when they were committed, and that FR-70, Story 5.1, PRD §10 and the technical note say who labelled and that κ is stage 2. At the human's request (`1. ja`), it posted the GitHub review with three line comments; one wording, which had started in a README sentence the review session wrote, was corrected. The PR was merged at 19:52 UTC on 2026-11-13 as `0e21eae`.
 
+## Questions 24 and 11, the decision rule for stage 5, and FR-27 (on `main`: `6505191`…`6f969b2`, `85cf736`)
+
+Planning work committed straight to `main` by the BMAD session. Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-13 21:03**: question 24 alone, pasted first.
+```
+Fra meg: Q24 (PRD §11), rett på main som planarbeid. Min beslutning:
+Grunnlaget for treff viser hvilke signaler som var med på å holde peeren i gruppa. Et signal teller bare når det gir en forretningstype både for subjektet og for peeren, altså nøyaktig når signals() i src/engine/peers.ts ikke gir null:
+- fingeravtrykk og tekst → "Beskrivelse og regnskap" (✦)
+- bare fingeravtrykk → "Kun regnskap"
+- bare tekst → "Kun beskrivelse" (✦)
+- ingen av dem → "Kun bransje og størrelse"
+Fingeravtrykk uten type, uklart fra modellen og et subjekt uten type gir altså ikke grunnlag. En flagget peer får "Beskrivelse og regnskap" og taggen "✦ Usikker klassifisering". Grunnlaget avhenger av subjektet og lagres ikke, som flagget.
+Rett FR-16 (fjern [NOTE FOR PM]), FR-12 og glossaret hvis de sier noe annet, flytt Q24 til "Answered", og rett Story 2.7 i epics.md (fjern forutsetningen øverst, og skriv regelen inn i kriteriet om "Grunnlag for treff", med en test per kombinasjon), epic-2-context.md (som i dag sier at enhver peer med fingeravtrykk er "Kun regnskap") og den tekniske notatet. (change)-linje i .memlog.md.
+Skriv det som regel og konsekvenser, ikke historikk. Små commits rett på main, og vis meg hashene.
+```
+*Changed:* the PRD (`6505191`), Story 2.7 (`f0210f8`), the Epic 2 context (`7ca31ea`) and the technical note (`a284299`).
+
+**21:04**, sent while the BMAD session was working: the three decisions together, replacing the prompt above.
+```
+Fra meg: Tre beslutninger, rett på main som planarbeid. Små commits, (change)-linje i .memlog.md for hver, skrevet som regel og konsekvenser, ikke historikk. Vis meg hashene.
+
+1. Q24 (PRD §11): Grunnlaget for treff viser hvilke signaler som var med på å holde peeren i gruppa. Et signal teller bare når det gir en forretningstype både for subjektet og for peeren, altså nøyaktig når signals() i src/engine/peers.ts ikke gir null:
+- fingeravtrykk og tekst → "Beskrivelse og regnskap" (✦)
+- bare fingeravtrykk → "Kun regnskap"
+- bare tekst → "Kun beskrivelse" (✦)
+- ingen av dem → "Kun bransje og størrelse"
+Fingeravtrykk uten type, uklart fra modellen og et subjekt uten type gir altså ikke grunnlag. En flagget peer får "Beskrivelse og regnskap" og taggen "✦ Usikker klassifisering". Grunnlaget avhenger av subjektet og lagres ikke, som flagget. Rett FR-16 (fjern [NOTE FOR PM]), FR-12 og glossaret hvis de sier noe annet, flytt Q24 til "Answered", og rett Story 2.7 i epics.md (fjern forutsetningen øverst, og skriv regelen inn i kriteriet om "Grunnlag for treff", med en test per kombinasjon), epic-2-context.md (som i dag sier at enhver peer med fingeravtrykk er "Kun regnskap") og den tekniske notatet.
+
+2. Beslutningsregel for trinn 5 (Bård Pettersens tilbakemelding 4.4), før Story 5.2: Story 5.2 sammenligner "fingeravtrykk alene" med "fingeravtrykk + tekst" mot fasiten, med usikker utelatt. Trinn 5 beholdes hvis teksten øker presisjonen med minst 3 prosentpoeng og ikke senker recall med mer enn 3 prosentpoeng. Ellers slås tekstsignalet av i trakten i v1: gruppa bestemmes av fingeravtrykket alene, og ingen peer får grunnlag som hviler på beskrivelsen. Resultatet rapporteres da som at modellen ikke trengtes (§10). Regelen avgjøres på alle merkede par; de blinde parene rapporteres i tillegg for seg. Skriv regelen inn i PRD (§9 og Story 5.2s FR) og i Story 5.2 i epics.md, og si i Q11 at v1 har en beslutningsregel, ikke et kvalitetsmål.
+
+3. FR-27: Totalkostandelen (nøkkeltall 6) har ingen retning, altså ingen gunstig kvartil og ingen persentil, fordi den er en kontroll og en rangering ville rangert driftsmarginen på nytt. Legg den til i setningen om tall uten retning i docs/key-figures.md og i FR-27, og fjern [NOTE FOR PM] i FR-27. Rett Story 3.1a i epics.md hvis den sier noe annet.
+```
+*Changed:* question 24 was already done with the same content; the decision rule for stage 5 in the PRD (`bca8a98`, in FR-11 and §9) and Story 5.2 (`8b08034`); total cost share with no direction in `docs/key-figures.md` (`544250c`), FR-27 (`acdc504`) and `epics.md` (`6f969b2`).
+
+**21:07**: question 11.
+```
+Fra meg: Flytt Q11 til "Answered" i PRD §11. Spørsmålet var om v1 skal ha et mål eller bare måle, og det er besvart: en beslutningsregel, ikke et kvalitetsmål. (change)-linje i .memlog.md, én commit rett på main, og push den sammen med loggcommiten c14a7cc. Vis meg hashen.
+```
+*Changed:* question 11 moved to Answered (`85cf736`).
+
+### Prompts to the review session
+
+- `gjerne` (11-13), after Story 5.1's merge: the review session proposed that the match basis name the signals that took part in keeping a peer, so an undetermined fingerprint, `uklart` and a subject with no type give no basis.
+- `hva med disse?`, with the open list (11-13): the review session proposed the decision rule for stage 5 (3 percentage points either way, the text switched off otherwise) and no direction for total cost share, because ranking it would rank the operating margin again.
+- `3. Rettelsen på PR #53: ja` (11-13): the review session posted its correction on PR #53 ([reply](https://github.com/IBE160-2026/G97-meinich/pull/53#discussion_r4568041611)): its earlier line comment there had missed `no_text`.
+- The BMAD session's report (11-13): the review session checked every place the three rules are stated, and recommended moving question 11 to Answered.
+
+### Result
+
+The match basis names the signals that took part. Stage 5 stays in v1 only if the text raises precision by at least 3 percentage points and lowers recall by no more than 3 (Story 5.2). Total cost share has no direction. Questions 11 and 24 are answered.
+
+## Story 2.7: the Peers tab shows why (#56, PR #57)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-13 21:09**: the prompt that opened Story 2.7.
+```
+/bmad-build Story 2.7: The Peers tab shows why (epics.md, Story 2.7). Hent main først (85cf736). Opprett issuet og branchen story/2.7-peers-why.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) "Hvorfor med": hvilke profilfelter peeren deler med subjektet funksjonen bruker, et par eksempeltekster fra demoselskapene, og hvordan testen viser at ingen modelloutput går inn.
+(b) "Grunnlag for treff": funksjonen i src/engine som bygger på signals() i peers.ts, og lista over testene, én per kombinasjon slik Story 2.7 sier. Tekstsignalet kan bli slått av i v1 etter Story 5.2 (FR-11). Vis hvordan grunnlaget og flagget da følger av samme sted, uten egen kode.
+(c) Payloaden: hvilke felter per peer som sendes til klienten, og at ingenting utover det som vises er med (AD-4).
+(d) Oppsettet på 375 og 320 px: trakten som liste og peerne som kort med "Vis alle {n}".
+(e) Norsk tekst for Segment-steget (bare AS i v1, i samsvar med FR-9), "✦ {n} med usikker klassifisering" og ✦-nøkkelen. Den går i nb.json og EXPERIENCE. Vis meg teksten før den står der.
+
+Regler: hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Eksempler og testdata kommer fra demoselskapene A, B og C eller syntetiske selskaper, aldri fra de 845 i fasitsettet, og ingen klassifisering eller fingeravtrykk per orgnr for dem i spec, PR eller ai-log. Små commits, sjekk på telefonbredde underveis, hele suiten før første push, ingen push før jeg sier fra. PR-en skal ha linjen "Planning documents:". pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #56, the branch and the spec (`d6f6ffc`), stopped at the checkpoint with two findings: demo A and B show nothing from stages 4 and 5 in the committed seed, and no seeded subject shows all four bases.
+
+**21:22**: the answers at the checkpoint.
+```
+Fra meg:
+1. Subjektets navn ({ref}), som du anbefaler.
+2. Flagget i egen sjette kolonne, slik Story 2.7 sier.
+3. 8 kort før "Vis alle {n}".
+4. Behold hele spec-en, med oppdelingen av e2e/analysis.spec.ts som første commit, der testene bare flyttes.
+
+Teksten er godkjent med én endring: bruk regelen fra fingeravtrykket i stedet for "vesentlige": "balanseførte immaterielle eiendeler minst 5 % av omsetningen" / "immaterielle eiendeler under 5 % av omsetningen". Hent tallet fra konstanten i src/engine/fingerprint.ts, ikke skriv det inn på nytt.
+
+Om demo A og B: lokalt har begge fingeravtrykk. Bare den committede seeden mangler dem, fordi allow-listen ennå bare har OCR-referansesettet. Story 5.4 legger til A, B og peerne. Teksten deres er uklart, så heller ikke etter 5.4 vil de vise et ✦-grunnlag eller et flagg. Før det inn som et punkt i Story 5.4 i epics.md: vurder et demoselskap der teksten har en type, så demoen viser AI-laget. Skriv det i spec-en og session-fila også.
+
+Godkjent: skriv svarene inn i den låste delen og fortsett med implementeringen. Samme regler som før: små commits, sjekk på 375 og 320 px underveis, hele suiten før første push, ingen push før jeg sier fra.
+```
+*Changed:* the spec approved, Story 5.4's demo note (`be7711b`), the e2e split as a pure move (`efa1cea`), the engine, copy, page and e2e (`7d32c87`…`2c05f22`), and the review fixes, among them the six approved strings the implementation subagent had rewritten (`5f73ab6`) and the mixed-basis test comparing totals only (`999c9f0`).
+
+**22:19**, after the full suite was stopped for lack of memory during e2e.
+```
+Fra meg: Kjør pnpm test:e2e --workers=1 mot den committede seeden. Når den er grønn:
+1. Gjenopprett .local/document-run-2.5d/ og kjør pnpm derive. Vis radtallene: 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader.
+2. Commit AI-loggen, oppdater session-fila og .logs.
+3. Gi meg en kort oversikt over reviewen: hva de tre agentene fant, hva som ble rettet (med commit), utsatt (med lenke til deferred-work.md) og avvist (med grunn). Si også hva som gjorde Peers-siden 2,0 MB, og hva som tok den ned til 0,61 MB.
+4. Skriv PR-teksten med "Planning documents:"-linjen, men ikke push før jeg sier fra.
+Ingen dump slettes.
+```
+*Changed:* e2e passed 125 of 125 with one worker after two test fixes (`d193e10`); the 2.5d rows were restored and checked; the docs and log (`6063723`, `8703b80`); the page weight fix was explained (`2359b6f`).
+
+**22:35**.
+```
+Fra meg: Push branchen og opprett PR-en med teksten i pr-2-7.md. Gi meg PR-nummeret og si fra når CI er grønn. Ikke merge.
+```
+*Changed:* the branch pushed and PR #57 opened.
+
+### Prompts to the review session
+
+- `gjerne` (11-13): the review session drafted the 21:09 prompt.
+- The BMAD session's checkpoint (11-13): the review session checked demo A and B in the database. Both have fingerprints locally; only the committed seed lacks them, because the allow-list holds only the OCR reference set until Story 5.4. Their text is `uklart`, so they would show no ✦ basis even after 5.4, which became the Story 5.4 note. It recommended the BMAD session's answers and the exact 5 % wording for intangibles, and drafted the 21:22 prompt.
+- The BMAD session's report that the suite had stopped (11-13): the review session measured the free memory (2.1 GB of 15.7) and drafted the 22:19 prompt with one worker.
+- The BMAD session's final report (11-13): the review session read `matchBasis`, `inclusionReason`, the copy in `nb.json` and the PR text, and recommended the push (22:35).
+- `post review`, `grønn nå` and `merget` (11-13): the review session waited for green CI, posted the review and did the housekeeping on `main`.
+
+### Result
+
+The Peers tab shows the five-stage funnel with the flagged count, and a peer list with "Hvorfor med", written by rules, and "Grunnlag for treff", from the same `signals()` as the group and the flag. At 375 and 320 px the funnel is a list and the peers are cards.
+
+### Checks before merging
+
+The review session checked `matchBasis` against question 24's rule, that "Hvorfor med" reads no model field, the copy against what the human approved, the restored row counts and the PR text. CI was green on `8703b80`. At the human's request (`post review`), the review session posted the GitHub review with four line comments. The PR was merged at 21:46 UTC on 2026-11-13 as `087d6ef`.
+
 ---
 
 ## Going forward

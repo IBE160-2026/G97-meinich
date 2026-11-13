@@ -20,7 +20,8 @@ import type { EmptyReason } from '@/engine/peers';
 import { MIN_PEERS } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 import { serialize, type AnalysisState } from '@/url/analysis-state';
-import { DIRECTION_WORDS, FIGURES, undefinedText } from './api-figures';
+import { undefinedText } from '@/analysis/figure-text';
+import { DIRECTION_WORDS, FIGURES } from './api-figures';
 import { kronerAmountText } from './kroner-amount';
 import { emptyText } from './peer-list';
 

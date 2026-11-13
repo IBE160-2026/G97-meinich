@@ -2,11 +2,12 @@
 // totalkapitalrentabilitet and egenkapitalandel from computeApiKeyFigures,
 // each a percent from format.ts, or "Kan ikke beregnes" with its reason.
 // No median, beste fjerdedel, Plassering or kroner: there is no peer group.
+import { undefinedText } from '@/analysis/figure-text';
 import type { SubjectFiling } from '@/analysis/view';
 import { formatPercent, formatReadDate } from '@/engine/format';
 import { apiInputsFromRow } from '@/engine/inputs';
 import { computeApiKeyFigures } from '@/engine/key-figures';
-import type { ApiKeyFigures, Direction, FigureAbsence, FigureResult } from '@/engine/types';
+import type { ApiKeyFigures, Direction, FigureResult } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 
 export const FIGURES: readonly {
@@ -26,15 +27,6 @@ export const DIRECTION_WORDS: Readonly<Record<Direction, MessageId>> = {
   lower_is_better: 'keyFigures.dir.lower',
   none: 'keyFigures.dir.none',
 };
-
-/** "Kan ikke beregnes: {reason}" for a figure the company's own filing cannot give. */
-export function undefinedText(absence: FigureAbsence, denominator: MessageId): string {
-  const reason: MessageId =
-    absence.reason === 'undefined' && absence.cause === 'denominator_not_positive'
-      ? denominator
-      : 'analysis.figures.reason.componentMissing';
-  return t('analysis.figures.undefined', { grunn: t(reason) });
-}
 
 function shown(result: FigureResult, denominator: MessageId): string {
   if (result.kind === 'value') return formatPercent(result.value.toString());

@@ -16,7 +16,7 @@ import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';
 import { matchBasis, type CandidateFiling, type MatchBasis, type SubjectFiling } from '../engine/peers.ts';
-import { undefinedText } from '../components/analysis/api-figures.tsx';
+import { undefinedText } from './figure-text.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { inclusionReason } from './inclusion-reason.ts';
 import type { SubjectKeyFigures } from './view.ts';

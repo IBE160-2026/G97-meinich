@@ -19,7 +19,8 @@ import { stripPosition, type ApiBenchmark, type FigureBenchmark } from '@/engine
 import { formatPercent, formatPercentNumber, formatWholePercent } from '@/engine/format';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
-import { DIRECTION_WORDS, FIGURES, undefinedText } from './api-figures';
+import { undefinedText } from '@/analysis/figure-text';
+import { DIRECTION_WORDS, FIGURES } from './api-figures';
 import { DistributionStrip, type StripMarks } from './distribution-strip';
 import { kronerAmountText } from './kroner-amount';
 import { PhoneRowToggle } from './phone-row-toggle';

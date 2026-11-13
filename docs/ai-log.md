@@ -16,10 +16,10 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 30 |
+| auth | 31 |
 | money | 23 |
 | parsing | 19 |
-| llm-boundary | 6 |
+| llm-boundary | 7 |
 | scope | 18 |
 | docs | 22 |
 
@@ -827,3 +827,18 @@ Mutation check: hashing the raw bytes again fails 19 tests, among them the first
 7. **The wrong latest run printed by `pnpm seed`.** `latestRunRecord` selected `id::text` under the alias `id`, so `order by id desc` sorted text: it printed run 3 for step 2 when run 19 was the latest, and 783 for step 1 instead of 1708. Every unit test passed, because they fake the read.
 **Caught by:** Item 7 by the BMAD session, reading `pnpm seed`'s output during the seed sequence against `run.step2`. The review session found after sample run 17 that an estimated 20-25 of its 163 `uklart` texts concretely describe a product of the company's own; Meinich let the prompt stand.
 **Outcome:** Item 7 is fixed in `869a82c`, with `test/db/classification.test.ts` "the latest record is the highest id, not the highest as text", which fails without the fix (checked). **Lesson:** an alias that shadows a column changes what `order by` sorts; a query that picks "the latest" needs a database test with ids that sort differently as text.
+
+### 2026-11-13 — Story 2.7: what the Peers page now sends per peer
+**Tags:** auth · llm-boundary
+**Tool:** Claude Code (BMAD implementation subagent, Opus 5.5)
+**Asked:** Show the five-stage funnel and, per peer, driftsmargin, a rules-written "Hvorfor med" and the match basis, rendered by server components so the page carries only the strings shown (AD-4).
+**Got:** `matchBasis` beside `signals()` in `src/engine/peers.ts`, `src/analysis/inclusion-reason.ts`, `src/analysis/peer-rows.ts`, the funnel, table and phone cards, and one payload scan for every tab (`e2e/payload.ts`).
+**Problem:** Not yet reviewed. What could go wrong with what the payload exposes, and what holds it:
+1. **A peer field beyond the shown strings.** Each peer reaches the components as `PeerDisplayRow`: name, revenue in millions, driftsmargin, reason, basis label, whether the basis rests on a classification, and the flag (`test/analysis/peer-rows.test.ts` "a row has only the shown fields", "carries no orgnr, øre amount, fingerprint category or business type"). The page scan checks the HTML and the RSC payload for every pool peer's orgnr, its key-figure amounts in øre and the server's field names (`e2e/peers.spec.ts` "the HTML and the RSC payload of Peers carry no peer orgnr, peer key-figure amount or server field"; the same helper in the key-figure and Oversikt specs). The candidate read no longer reads the municipality, which the list stopped showing.
+2. **What the strings still let a reader infer.** Each peer's driftsmargin is new on the page, one decimal, the value the benchmark uses; AD-4 allows the shown figures. The reason's ratio to one decimal, with the subject's revenue in the header, gives the peer's revenue to about 5 %, which the revenue column already shows. The traits name fingerprint categories in words: "med varelager"/"uten varelager" and the intangibles threshold are a peer's own yes/no category, said only when the subject's is the same; a band is named only as "i samme bånd", and the subject's own band is not shown. With the licence gate closed the committed seed holds fingerprints for the allow-listed companies only, so a fresh clone shows traits for those alone; a local database with the dumps restored shows them for every fingerprinted company. The basis says whether each side has a type, and an unflagged "Beskrivelse og regnskap" peer has the subject's type, which is not shown either.
+3. **The model writing the justification.** `ProfileFields` has no classification field; `test/analysis/inclusion-reason.test.ts` "the input type has no model field" holds a `@ts-expect-error` that `pnpm typecheck` rejects once one is added (checked by adding it), and "same inputs give the same text, whatever the classification".
+4. **✦ on rules or numbers.** `test/analysis/peer-list.test.ts` "✦ on exactly the two classification bases and the flag" counts the glyph and the spoken "KI-generert" per cell, phone cards included.
+5. **A stored basis or flag.** `test/match-basis-not-stored.test.ts` scans every migration and seed header.
+6. **The labelled set.** The page shows, for any subject, whether each peer has a type on each signal; for a peer in the labelled set that is in the running app only, never committed. The e2e mixed-basis subject is picked outside `analysis/labelled-set/document-run.json` and not named in a title.
+**Caught by:** Design against the spec's matrix and AD-4; the tests named above. The e2e tests were written but not run in the session.
+**Outcome:** Commits `7d32c87` to `2c05f22` on `story/2.7-peers-why`.

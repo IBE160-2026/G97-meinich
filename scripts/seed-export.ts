@@ -103,8 +103,8 @@ async function checkPrimaryKey(sql: Sql, table: SeedTable): Promise<void> {
   }
 }
 
-// `where` is a WHERE clause the caller built from checked values (only
-// fingerprintWhere's), or empty for every row.
+// `where` is a WHERE clause the caller built from checked values
+// (fingerprintWhere's or the sample filter), or empty for every row.
 async function copyOut(sql: Sql, table: SeedTable, where = ''): Promise<Buffer> {
   await checkPrimaryKey(sql, table);
   const columns = (await columnsOf(sql, table.name)).map(quoteIdent).join(', ');
@@ -126,14 +126,32 @@ async function copyOut(sql: Sql, table: SeedTable, where = ''): Promise<Buffer> 
 }
 
 // One seed table's file: register.fingerprint only the rows the licence gate
-// lets through (Story 2.5), every other table whole.
+// lets through (Story 2.5), register.classification never a sample run's
+// (Story 2.6), every other table whole.
 export async function copyTable(
   sql: Sql,
   table: SeedTable,
   gate: { open: boolean },
   allowList: readonly string[],
 ): Promise<Buffer> {
+  if (table.name === 'classification') return copyOut(sql, table, 'WHERE NOT sample');
   return copyOut(sql, table, table.name === 'fingerprint' ? fingerprintWhere(gate, allowList) : '');
+}
+
+// Story 2.6: a covered-industry AS must be settled before a seed holds it.
+// Names a count, never a company. A sample's rows are not exported, so they
+// do not count.
+export async function refuseUnfinishedClassifications(sql: Sql): Promise<void> {
+  const [row] = await sql<{ failed: number; pending: number }[]>`
+    select count(*) filter (where cl.status = 'failed')::int as failed,
+           count(*) filter (where cl.status = 'pending')::int as pending
+      from register.classification cl
+      join register.company c on c.orgnr = cl.orgnr
+      join register.covered_industry ci on ci.code = c.naeringskode1
+     where c.organisasjonsform = 'AS' and not cl.sample`;
+  if (row !== undefined && (row.failed > 0 || row.pending > 0)) {
+    throw new SeedRefusal(`register.classification: ${row.failed} failed and ${row.pending} pending rows for covered AS companies; settle them with pnpm classify first`);
+  }
 }
 
 // Writes the seed into outRoot (the repository root unless a test passes a
@@ -193,6 +211,7 @@ export async function exportSeed(
 
   // Story 2.5: fingerprints are filtered by the licence gate.
   const gate = readLicenceGate(gateFile, notice);
+  await refuseUnfinishedClassifications(sql);
   const outputs = new Map<string, Buffer>();
   for (const table of SEED_TABLES) {
     outputs.set(

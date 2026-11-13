@@ -49,6 +49,7 @@ import {
   fingerprintOf,
 } from '../src/engine/fingerprint.ts';
 import { setting } from './run-ingest.ts';
+import { withFingerprintRecord } from './step2-record.ts';
 
 /** A current document column with its filing's API subtotals, as the read returns it. */
 export type DeriveInputRow = DocumentColumnRow & {
@@ -221,7 +222,7 @@ export async function main(root: string): Promise<number> {
   }
   const sql = postgres(url, { max: 1, onnotice: () => {} });
   try {
-    const counts = await sql.begin((tx) => rebuildFingerprints(tx));
+    const counts = await withFingerprintRecord(sql, () => sql.begin((tx) => rebuildFingerprints(tx)));
     process.stdout.write(`${summaryLines(counts).join('\n')}\n`);
     return 0;
   } catch (error) {

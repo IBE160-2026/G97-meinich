@@ -532,6 +532,7 @@ describe('the export order', () => {
       ['document.csv', headerOnly('document.csv')],
       ['document_column.csv', headerOnly('document_column.csv')],
       ['fingerprint.csv', headerOnly('fingerprint.csv')],
+      ['classification.csv', headerOnly('classification.csv')],
     ]);
     const out = path.join(scratch, 'order');
     await rolledBack(loader, async (tx) => {

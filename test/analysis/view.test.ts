@@ -31,6 +31,7 @@ const filing = {
   avviklingsregnskap: false,
   readAt: new Date('2026-10-11T13:36:34Z'),
   fingerprint: null,
+  classification: null,
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',
@@ -249,6 +250,7 @@ describe('funnelSubject', () => {
       smaaForetak: true,
       avviklingsregnskap: false,
       fingerprint: null,
+      classification: null,
     });
     expect(funnelSubject(noFiling)).toBeNull();
   });

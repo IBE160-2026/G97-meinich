@@ -158,6 +158,12 @@ def test_gone_unit_is_deleted_everywhere(owner_db: psycopg.Connection, cfg: Conf
                values (%s, 2025, 'low', 'low', 'mid', 'high', 'low', 'low', null, true, %s, 'full')""",
             (target, "0" * 64),
         )
+        # Story 2.6: and its classification, written the same way.
+        db.execute(
+            """insert into register.classification (orgnr, status, text_digest, classified_at)
+               values (%s, 'no_text', %s, now())""",
+            (target, "0" * 64),
+        )
     brreg_ids = [row[0] for row in db.execute("select brreg_id from register.filing where orgnr = %s", (target,))]
     _, fillers = stored_to_multiple(db)
 
@@ -171,6 +177,7 @@ def test_gone_unit_is_deleted_everywhere(owner_db: psycopg.Connection, cfg: Conf
         "register.document",
         "register.document_column",
         "register.fingerprint",
+        "register.classification",
     } <= set(by_orgnr)
     assert {"register.key_figures", "register.document"} <= set(by_brreg_id)
     # Read as the migration role: ingest may not read register.fingerprint.

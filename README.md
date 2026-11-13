@@ -183,6 +183,15 @@ pnpm derive             # fingerprints of every stored document, the acceptance 
 pnpm analysis:spread    # the within-band spread over them
 ```
 
+**Classification (Story 2.6).** The app reads stored classifications and needs no key. Only someone refreshing them runs step 2's `pnpm classify`, which calls the model through the Batch API:
+
+```sh
+pnpm classify --plan --sample 300             # what it would send and cost: no key, nothing written
+pnpm classify --sample 300 --max-usd 0.20     # a real run: needs ANTHROPIC_API_KEY in .env
+```
+
+`--all` takes every AS in a covered industry in place of `--sample`. A real run refuses when its ceiling is above `--max-usd`.
+
 **Recovering an empty local database without a new step-1 run.** If the seed matches the latest migration, `pnpm seed` restores the data. If a new migration is already in the tree and the seed has not been re-exported, load the old seed with the old loader on the old schema, then migrate and export:
 
 ```sh

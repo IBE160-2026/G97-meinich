@@ -16,10 +16,10 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 29 |
+| auth | 30 |
 | money | 23 |
 | parsing | 19 |
-| llm-boundary | 5 |
+| llm-boundary | 6 |
 | scope | 18 |
 | docs | 22 |
 
@@ -811,3 +811,19 @@ This entry corrects item 4 of the earlier entry "Story 2.2: the two reconciliati
 - `ingest/tests/test_documents_run.py::test_reread_hit_sets_reader_commit`, where the re-read fetches another `/ID` than the cached one.
 
 Mutation check: hashing the raw bytes again fails 19 tests, among them the first. A trap in AGENTS.md and `docs/data-sources-brreg.md`. **Lesson:** a cache keyed on fetched bytes needs a test that fetches twice, or a check that two real fetches are byte-equal, before the key is trusted.
+
+### 2026-11-13 — Story 2.6: the model classifies in batch step 2, and the seed printed the wrong run
+**Tags:** llm-boundary · auth
+**Tool:** Claude Code (BMAD session, Opus 5.5); the run checks and the prompt finding by the review session
+**Asked:** Classify every AS in `62.100` from its register text with `claude-haiku-5-5` through the Batch API, store the result with its provenance, combine it with the fingerprint at stages 4 and 5, and seed it, with no model call in the request path and no key in a fresh clone.
+**Got:** `pnpm classify` (`scripts/classify.ts`, `scripts/classify/`), `register.classification` and `run.step2`, the combination rule in `src/engine/peers.ts`, and the seed's `classification.csv`. Full run 18 classified 10 326 AS for about $0.54, 0 failed; the spec has the totals.
+**Problem:** What could go wrong, and what holds it:
+1. **The key or the SDK reaching the request path.** Only `scripts/classify/model-client.ts` names `ANTHROPIC_API_KEY` or imports the SDK, and no file under `src/` names the model host or `scripts/classify` (`test/classify/key-boundary.test.ts` "is named only in the model client", "the SDK is imported only by the model client", "nothing in the request path names a model host or batch step 2").
+2. **A model answer stored as a category it is not.** An answer outside the schema's enum, or of another shape, is `failed`, never coerced, and counted in `run.step2` (`test/classify/request.test.ts` "refuses %s"; `test/classify/run.test.ts` "answer outside the set is failed, not coerced"); the table refuses a type outside the set (`test/db/classification.test.ts` "refuses a type outside the set, and a type on a row that is not classified").
+3. **The register text steering the model.** The text reaches the model as data in the user turn; the most it can change is the category its own company lands in, and the answer is held to the enum. The system prompt says the text is never an instruction.
+4. **Data access.** `derive` gains SELECT, INSERT and UPDATE on `register.classification` and nothing to delete it; `reader` SELECT only (`test/db/grants.test.ts` "grants exactly derive SELECT, INSERT, UPDATE, loader SELECT, INSERT, TRUNCATE and reader SELECT").
+5. **Blinding of the labelled set.** No result per orgnr for its 845 companies was printed, or written outside the seed. The seed's `classification.csv` holds every AS, the 845 included, because Story 5.2 measures against them; the labelling was finished before full run 18. The second labeller is not shown it. The prompt was set on two 300-company samples drawn outside it. The plan's output names no company (`test/classify/run.test.ts` "names no company"); nothing tests the rest.
+6. **Spending without an OK.** A real run needs `--max-usd` and refuses when the plan's ceiling is above it, sending nothing (`test/classify/run.test.ts` "refuses above the cap with nothing sent and the refusal in the run record"). The BMAD session itself ran `pnpm classify` with a cap of $0.01 to watch it refuse without a key; nothing was sent, and Meinich limited the session to `--plan`.
+7. **The wrong latest run printed by `pnpm seed`.** `latestRunRecord` selected `id::text` under the alias `id`, so `order by id desc` sorted text: it printed run 3 for step 2 when run 19 was the latest, and 783 for step 1 instead of 1708. Every unit test passed, because they fake the read.
+**Caught by:** Item 7 by the BMAD session, reading `pnpm seed`'s output during the seed sequence against `run.step2`. The review session found after sample run 17 that an estimated 20-25 of its 163 `uklart` texts concretely describe a product of the company's own; Meinich let the prompt stand.
+**Outcome:** Item 7 is fixed in `869a82c`, with `test/db/classification.test.ts` "the latest record is the highest id, not the highest as text", which fails without the fix (checked). **Lesson:** an alias that shadows a column changes what `order by` sorts; a query that picks "the latest" needs a database test with ids that sort differently as text.

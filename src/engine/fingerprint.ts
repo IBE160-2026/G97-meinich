@@ -67,6 +67,17 @@ import { parseOre } from './inputs.ts';
 export const BUSINESS_TYPES = ['produkt', 'konsulent', 'forhandler', 'annet'] as const;
 export type BusinessType = (typeof BUSINESS_TYPES)[number];
 
+/**
+ * A stored classification's type: null when the column is, a TypeError on a
+ * value outside BUSINESS_TYPES, never a default.
+ */
+export function businessTypeFromColumn(value: string | null): BusinessType | null {
+  if (value === null) return null;
+  const type = BUSINESS_TYPES.find((candidate) => candidate === value);
+  if (type === undefined) throw new TypeError(`not a business type: ${JSON.stringify(value)}`);
+  return type;
+}
+
 /** The bands, in ascending order. */
 export const BANDS = ['low', 'mid', 'high'] as const;
 export type Band = (typeof BANDS)[number];

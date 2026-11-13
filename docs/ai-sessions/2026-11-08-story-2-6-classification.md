@@ -39,6 +39,10 @@ Meinich posted the review on 2026-11-13 ([review 5896391765](https://github.com/
 - **Checked by the review session, no change:** stages 4 and 5 in `src/engine/peers.ts` follow the technical note's rule for all nine combinations of the two signals; `run.step2` and `register.classification` for run 18; that the eleven tests the spec and FR-11 cite exist; that FR-11 and §8 answer points 4.3 and the cost part of 4.4 of Bård Pettersen's feedback.
 - **Meinich's decisions, recorded on the PR:** the prompt stands after sample run 17; the full run came after the labelling was finished; the rule for when stage 5 is kept (the rest of 4.4) is decided before Story 5.2.
 
+## Merge
+
+CI was green on `c47b951`. After the review fixes, the review session checked that `b9f928a` changes the blinding claim in `docs/ai-log.md`, this file and the PR text as the line comment proposed, that `c47b951` adds the two deferred findings to `deferred-work.md` with links to their comments, and that nothing else changed. Nothing was rejected in this review. Merged at 19:05 UTC on 2026-11-13 as `2e98a7b`.
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`

@@ -63,7 +63,7 @@ development_status:
   2-5c-refuse-a-digit-read-as-two-and-cost-lines-that-do-not-sum: done  # issue #47; found after 2.5b's re-read (Meinich, 2026-11-06); before the labelled-set document run
   2-5d-labelled-set-document-run-and-ocr-word-cache: done  # issue #49; added 2026-11-07 (Meinich, proposed by the review session); after 2.5c
   2-6a-the-register-text-classification-reads: done  # split from 2.6 (Meinich, 2026-11-08)
-  2-6-classification-stage-5: review
+  2-6-classification-stage-5: done
   2-7-the-peers-tab-shows-why: backlog
   2-8-adjust-the-peer-group: backlog
   2-9-missing-figures-say-why: backlog

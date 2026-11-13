@@ -43,7 +43,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - FR-18: The user can loosen the size band in fixed single steps 0.5–2× → 0.33–3× → 0.25–4× (nothing wider); never a comparability field (test asserts no loosening admits a comparability failure); a loosened criterion is shown as loosened with updated counts. Stage split: v1 loosens the size band only and never offers comparability; loosening segmentation (legal form/geography) is stage 3.
 - FR-19: Any peer-group change recomputes every key figure, aggregate, percentile and kroner amount immediately, with no stale value on screen; a figure can cross the minimum group size either way.
 - FR-20: Peer group assembly returns in under one second, reading only stored key figures and profiles; no document fetched/OCR'd, no peer classified and no model call reachable from a request in v1.
-- FR-70: A labelled set is built from week 1: 30 `62.100` subjects × 30 candidates drawn at random from the subject's size band (not funnel output), ~900 judgements; rubric written and dated before the fingerprint feature list is fixed; a blind (description/website-only) subsample; second labeller on ~50 pairs with Cohen's κ; stated pooling fallback; counts reported as achieved.
+- FR-70: A labelled set is built from week 1: 30 `62.100` subjects × 30 candidates drawn at random from the subject's size band (not funnel output), ~900 judgements; rubric written and dated before the fingerprint feature list is fixed; a blind (description/website-only) subsample labelled by a person; the other pairs labelled through each company's main revenue model, filled in v1 by a ChatGPT model and accepted by a person; second labeller on ~50 pairs with Cohen's κ in stage 2, its absence stated as a shortfall in v1; stated pooling fallback; counts reported as achieved.
 - FR-68: Description embeddings computed in batch only and used as one optional layer in the SM-1 ablation; never user-facing in v1, no peer reaches a group by embedding; the one v1 item that may be cut (last).
 - FR-21: The engine computes and displays every key figure exactly as `docs/key-figures.md` defines; tests assert the two identities exactly (ROA = margin × revenue/assets; personnel cost share = cost per FTE ÷ revenue per FTE); total cost share is a check row; key figures 7 and 8 are absent in v1 with their own reason, because v1 does not read `aarsverk` (stage 2); cash share is an unranked diagnostic with no kroner; amounts in øre, ratios in decimal, rounded only for display (% 1 dp, days whole, kroner whole).
 - FR-22: No aggregate for a key figure unless ≥10 peers have a defined value for that figure (counted per figure); below the floor the row keeps the subject's own value and states "n of 10"; no kroner; key figures 7 and 8 show their v1 absence reason, not the floor; synthetic cohorts at/below 10 assert nothing escapes.
@@ -2416,7 +2416,7 @@ The labelled set (30 × 30 in 62.100, started in week 1 as calendar work, in par
 **Calendar work: this story starts in week 1, in parallel with Epic 1**, so that it is complete when Story 5.2 starts directly after Epic 2.
 
 As a sensor assessing the peer selection,
-I want a hand-labelled set of genuine comparables built to a stated sampling frame,
+I want a labelled set of genuine comparables built to a stated sampling frame, with who labelled each part stated,
 So that the funnel is measured against judgements made independently of it.
 
 **Implements:** FR-70 · **Invariants:** – · **UX:** – · **Issue / branch / PR:** one issue, branch `story/5.1-labelled-set`, one PR (AGENTS.md Git workflow)
@@ -2436,13 +2436,18 @@ So that the funnel is measured against judgements made independently of it.
 **When** it is labelled
 **Then** it is labelled from description and website only, without accounts, and marked as such in the data
 
+**Given** the 720 pairs outside the blind subsample
+**When** they are labelled
+**Then** each company's main revenue model is set and each pair's label is computed from the two, and the README states who set it — in v1 a ChatGPT model, checked and accepted by Meinich — and keeps any earlier round by a person beside it as a stricter reading, not as the measure
+
 **Given** a second labeller
 **When** they label about 50 pairs
 **Then** Cohen's κ is reported with the pairs used
+**And** this is stage 2 (Meinich, 2026-11-13): v1 has no second labeller and no κ, and the README states that shortfall under "Labelling record" (FR-70)
 
 **Given** the set as achieved
 **When** it is committed
-**Then** the counts actually achieved are reported (subjects, pairs, blind subsample, κ pairs), and the stated pooling fallback is applied and reported if a stratum falls short
+**Then** the counts actually achieved are reported (subjects, pairs, blind subsample, who labelled each part, κ pairs — none in v1), and the stated pooling fallback is applied and reported if a stratum falls short
 
 ### Story 5.2: Layer-by-layer measurement
 

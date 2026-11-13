@@ -44,6 +44,16 @@ The counts are in [`analysis/labelled-set/README.md`](../../analysis/labelled-se
   - No second labeller and no κ in v1; both are stage 2 (2026-11-13, `e73a3c8`).
 - **Corrected by this session:** the README listed `kappa.csv` as a file, but it was never written; removed from the file list (`e73a3c8`). FR-70, Story 5.1, §10 of the PRD and the technical note said "hand-labelled" and promised κ; corrected in this PR.
 
+## Review of PR #55
+
+Meinich's GitHub review ([review 5896815047](https://github.com/IBE160-2026/G97-meinich/pull/55#pullrequestreview-5896815047)), gone through with the review session; the line comments were written by the review session and posted on Meinich's decision. It checked the README's counts against the label files as the review session counted them when they were committed, and checked that FR-70, Story 5.1, the technical note and PRD §10 say who labelled and that κ is stage 2.
+
+- **Found by the review session** ([r4567668083](https://github.com/IBE160-2026/G97-meinich/pull/55#discussion_r4567668083)): "one AI's classification against another's" described SM-1 as a whole, but it holds only for the text layer (stage 5); SM-1 measures each layer apart, and the fingerprint and industry code are not AI. The error started in the README sentence the review session itself wrote, and this session copied it into PRD FR-70, the technical note, the PR description and this file. **Corrected** as the comment proposed, in the four files (`d46ebb6`): "the text layer (stage 5) is one AI's classification measured against another's".
+- **Meinich's decisions, in the comments on the README:**
+  - [r4567668097](https://github.com/IBE160-2026/G97-meinich/pull/55#discussion_r4567668097): the ChatGPT round is accepted as the measure for the 720 pairs. Meinich went through the answers, and it is stated in the README and in FR-70. The first round, labelled by Meinich, is kept as the stricter reading. The review session had recommended labelling by hand, because a Claude model is what is measured.
+  - [r4567668109](https://github.com/IBE160-2026/G97-meinich/pull/55#discussion_r4567668109): the second labeller and κ are taken in stage 2. Without κ the blind pairs rest on Meinich's judgement and the second round on one model; this is stated in the README and is to be stated in Story 5.2's result.
+- No finding was rejected.
+
 ## Links
 
 - Issue [#13](https://github.com/IBE160-2026/G97-meinich/issues/13).

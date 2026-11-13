@@ -2,7 +2,7 @@
 title: 'Story 2.7: The Peers tab shows why'
 type: 'feature'
 created: '2026-11-13'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'be7711b53e54208b5a590d3a285bda45794235c7'
 route: 'dispatch'
 review_loop_iteration: 0

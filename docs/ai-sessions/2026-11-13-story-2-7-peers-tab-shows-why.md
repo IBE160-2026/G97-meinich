@@ -103,6 +103,10 @@ Three review subagents read the diff (Blind Hunter, Edge Case Hunter, Verificati
 - **Before the seed load:** the document rows outside the allow-list were dumped to `.local/before-2.7-suite/` and equal `.local/document-run-2.5d/` row for row.
 - **Afterwards:** `.local/document-run-2.5d/` was restored and `pnpm derive` run. That gives 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, and the restored rows equal the dump. No dump was deleted.
 
+## Merge
+
+CI was green on `8703b80` (7 min 32 s). Before merging, the review session checked `matchBasis` against the rule Meinich set for question 24, that "Hvorfor med" reads no model field, that `nb.json` holds the copy Meinich approved at the checkpoint, the restored row counts, and the PR text. At Meinich's request it posted the review with four line comments ([review 5898468009](https://github.com/IBE160-2026/G97-meinich/pull/57#pullrequestreview-5898468009)): one check of the rule and three of Meinich's decisions. Nothing needed changing, and nothing was rejected. Merged at 21:46 UTC on 2026-11-13 as `087d6ef`.
+
 ## Links
 
 - AI log: "2026-11-13 — Story 2.7: what the Peers page now sends per peer"

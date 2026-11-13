@@ -64,12 +64,41 @@ def transport() -> fetch.UrllibTransport:
     return fetch.UrllibTransport("peerless-tests", pause_seconds=0.15, attempts=3)
 
 
-@pytest.mark.parametrize("code", [404, 410])
-def test_absent_unit_is_none(monkeypatch: pytest.MonkeyPatch, sleeps: list[float], code: int) -> None:
-    calls = patch_urlopen(monkeypatch, [http_error(code)])
+def test_absent_unit_is_none(monkeypatch: pytest.MonkeyPatch, sleeps: list[float]) -> None:
+    calls = patch_urlopen(monkeypatch, [http_error(404)])
     assert transport().get(URL, fetch.ACCEPT_JSON) is None
     assert len(calls) == 1
     assert sleeps == [0.15]  # only the pause, no backoff
+
+
+def test_gone_is_distinct_from_not_found(monkeypatch: pytest.MonkeyPatch, sleeps: list[float]) -> None:
+    # Story 2.4: only an explicit 410 raises Gone, the one answer that can
+    # delete a company; 404 stays None. Neither is retried.
+    calls = patch_urlopen(monkeypatch, [http_error(410)])
+    with pytest.raises(fetch.Gone):
+        transport().get(URL, fetch.ACCEPT_JSON)
+    assert len(calls) == 1
+    assert sleeps == [0.15]
+    # Gone is not one of the errors a run treats as a failed fetch.
+    assert not issubclass(fetch.Gone, (OSError, ValueError, http.client.HTTPException))
+
+    patch_urlopen(monkeypatch, [http_error(410)])
+    with pytest.raises(fetch.Gone):
+        fetch.fetch_unit(transport(), "https://register.fixture.invalid", "919951834")
+    patch_urlopen(monkeypatch, [http_error(404)])
+    assert fetch.fetch_unit(transport(), "https://register.fixture.invalid", "919951834") is None
+
+
+def test_gone_filings_still_empty(monkeypatch: pytest.MonkeyPatch, sleeps: list[float]) -> None:
+    # The key-figures and document endpoints answer a 410 as before: no
+    # filing, no year list, no document. Only the unit endpoint deletes.
+    base = "https://register.fixture.invalid"
+    patch_urlopen(monkeypatch, [http_error(410)])
+    assert fetch.fetch_filings(transport(), base, "919951834") == []
+    patch_urlopen(monkeypatch, [http_error(410)])
+    assert fetch.fetch_document_years(transport(), base, "919951834") is None
+    patch_urlopen(monkeypatch, [http_error(410)])
+    assert fetch.fetch_document(transport(), base, "919951834", 2025) is None
 
 
 def test_503_is_retried_once(monkeypatch: pytest.MonkeyPatch, sleeps: list[float]) -> None:

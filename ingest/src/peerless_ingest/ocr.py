@@ -22,6 +22,7 @@ confidence value is read (AGENTS.md, "Never trust an OCR digit").
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 import subprocess
@@ -45,6 +46,46 @@ DIGITS_ARGS = (*PLAIN_ARGS, "-c", "tessedit_char_whitelist=0123456789-")
 # e12c65a915945e4c28e237a9b52bc4a8f39a0cec. ingest/Dockerfile checks the same
 # hash in the build; image_check checks it in the built image.
 NOR_TRAINEDDATA_SHA256 = "451d52ba1559aa1aecf163ccbfdeced2b9605fbd49480f5e8a53ace29b9eb0e7"
+
+
+# Lines of `tesseract --version` that name libraries the read never uses:
+# libarchive and libcurl load models from archives and URLs, and the model
+# is a local file. Their versions (OpenSSL among them) change with any
+# rebuild of the base image, so keeping them in the cache key would turn
+# every entry into a miss for nothing.
+UNUSED_LIBRARY_LINES = ("Found libarchive", "Found libcurl")
+
+
+def tesseract_version_report() -> str:
+    """The output of `tesseract --version`, read at run time, its lines
+    stripped: Tesseract's version, leptonica and the image libraries that
+    read the page images, and the CPU features Tesseract found (its SIMD
+    path does the network's arithmetic), without UNUSED_LIBRARY_LINES. ""
+    when Tesseract cannot be run or exits non-zero. The OCR word cache's key holds it (Story
+    2.5d)."""
+    try:
+        result = subprocess.run(["tesseract", "--version"], capture_output=True, text=True, check=False)
+    except OSError:
+        return ""
+    # A failed call's message is no version: never a part of the key.
+    if result.returncode != 0:
+        return ""
+    lines = [line.strip() for line in (result.stdout or result.stderr).splitlines()]
+    return "\n".join(line for line in lines if line and not line.startswith(UNUSED_LIBRARY_LINES))
+
+
+def tesseract_version() -> str:
+    """The first line of `tesseract --version` ("tesseract 5.5.0"), or "",
+    for the image check."""
+    report = tesseract_version_report()
+    return report.splitlines()[0] if report else ""
+
+
+def model_sha256() -> str:
+    """The sha256 of nor.traineddata under TESSDATA_PREFIX, read from the
+    file at run time, or "" when there is no such file."""
+    path = Path(os.environ.get("TESSDATA_PREFIX", "")) / "nor.traineddata"
+    return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""
 
 
 class OcrError(RuntimeError):

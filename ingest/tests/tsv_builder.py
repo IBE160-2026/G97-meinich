@@ -29,7 +29,9 @@ TOP = 200
 
 HEADER = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext"
 
-Placed = tuple[str, float]  # (text, left)
+# (text, left), or (text, left, width) for a word whose box Tesseract gives
+# narrower or wider than its characters (Story 2.5c, the width rule).
+Placed = tuple[str, float] | tuple[str, float, int]
 
 
 def label_words(text: str, left: float = LABEL_X) -> list[Placed]:
@@ -47,13 +49,23 @@ def figure_words(text: str, right: float) -> list[Placed]:
     return label_words(text, right - len(text) * PITCH)
 
 
+def misread_leading(printed: str, right: float, leading: str, width: int) -> list[Placed]:
+    """`printed` placed as `figure_words` places it, with its leading group
+    read as `leading` in a box `width` px wide: Tesseract adding a digit to
+    a group it sees as one glyph ("2 375 956" read as "23", "375", "956",
+    the "23" 28 px wide; the Story 2.5c probe)."""
+    placed = figure_words(printed, right)
+    return [(leading, placed[0][1], width), *placed[1:]]
+
+
 def tsv(lines: Sequence[Sequence[Placed]]) -> str:
     """A TSV with one Tesseract line per entry, top to bottom."""
     rows = [HEADER]
     for n, line in enumerate(lines, start=1):
         top = TOP + n * LINE_STEP
-        for w, (text, left) in enumerate(line, start=1):
-            width = max(int(len(text) * PITCH) - 10, 5)
+        for w, placed in enumerate(line, start=1):
+            text, left = placed[0], placed[1]
+            width = placed[2] if len(placed) == 3 else max(int(len(text) * PITCH) - 10, 5)
             rows.append(f"5\t1\t1\t1\t{n}\t{w}\t{int(left) + 5}\t{top}\t{width}\t{WORD_HEIGHT}\t95.0\t{text}")
     return "\n".join(rows) + "\n"
 
@@ -140,3 +152,17 @@ def replace_row(rows: Sequence[Row], label: str, current: str | None = None, pri
         out.append(row)
     assert any(r[0] == label for r in rows), label
     return out
+
+
+def document_pages(
+    pages: Sequence[tuple[str, Sequence[Row], Sequence[Row] | None]],
+) -> tuple[list[Word], list[PageWords]]:
+    """A generated document of several figure pages, each (heading, rows,
+    digits-only rows or None for the plain rows without spaces), each with
+    its own year header."""
+    out: list[PageWords] = []
+    for heading, rows, digits_rows in pages:
+        plain = words(page_lines(rows, heading=heading))
+        digits = words(page_lines(digits_rows if digits_rows is not None else digits_of(rows), heading=heading, figures_only=True))
+        out.append(PageWords(plain, digits))
+    return words(GENERATED_TOP), out

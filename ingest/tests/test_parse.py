@@ -249,6 +249,65 @@ def test_parse_company_absent_or_empty_search_fields_are_none() -> None:
     assert company.naeringskode1 == "62.100"
 
 
+def unit_with(**fields: object) -> dict:
+    """A unit with invented register text only."""
+    unit = next(u for u in bulk_units() if u["organisasjonsnummer"] == "919951834")
+    unit.pop("aktivitet", None)
+    unit.pop("vedtektsfestetFormaal", None)
+    unit.update(fields)
+    return unit
+
+
+def test_register_text_is_not_read_for_another_form() -> None:
+    unit = {
+        "organisasjonsnummer": "919951834",
+        "organisasjonsform": {"kode": "ENK"},
+        "aktivitet": ["Tekst"],
+        # Not read, so a wrong shape cannot refuse the unit.
+        "vedtektsfestetFormaal": "ikke en liste",
+    }
+
+    company = parse.parse_company(unit, READ_AT)
+
+    assert (company.aktivitet, company.vedtektsfestet_formaal) == (None, None)
+
+
+def test_register_text_lines_are_joined() -> None:
+    company = parse.parse_company(unit_with(aktivitet=[" Utvikling av", "programvare "]), READ_AT)
+    assert company.aktivitet == "Utvikling av programvare"
+
+
+def test_register_text_blank_line_between_lines_is_one_space() -> None:
+    company = parse.parse_company(unit_with(aktivitet=["Utvikling", "", "av apper"]), READ_AT)
+    assert company.aktivitet == "Utvikling av apper"
+
+
+def test_register_text_internal_whitespace_is_one_space() -> None:
+    company = parse.parse_company(unit_with(aktivitet=["Utvikling\n av\tapper"]), READ_AT)
+    assert company.aktivitet == "Utvikling av apper"
+
+
+def test_parse_company_reads_both_register_texts() -> None:
+    unit = unit_with(aktivitet=["Drift av nettsider"], vedtektsfestetFormaal=["Selskapets formål"])
+    company = parse.parse_company(unit, READ_AT)
+    assert company.aktivitet == "Drift av nettsider"
+    assert company.vedtektsfestet_formaal == "Selskapets formål"
+
+
+@pytest.mark.parametrize("fields", [{}, {"aktivitet": None}, {"aktivitet": []}, {"aktivitet": ["", " "]}])
+def test_absent_or_blank_register_text_is_none(fields: dict) -> None:
+    company = parse.parse_company(unit_with(**fields), READ_AT)
+    assert company.aktivitet is None
+    assert company.vedtektsfestet_formaal is None
+
+
+@pytest.mark.parametrize("field", ["aktivitet", "vedtektsfestetFormaal"])
+@pytest.mark.parametrize("value", ["en streng", [1]])
+def test_register_text_of_the_wrong_shape_refused(field: str, value: object) -> None:
+    with pytest.raises(ValueError, match=field):
+        parse.parse_company(unit_with(**{field: value}), READ_AT)
+
+
 def test_bulk_download_streams_through_gzip() -> None:
     transport = FixtureTransport({}, bulk=recorded("enheter_lastned.json"))
     orgnrs = [unit["organisasjonsnummer"] for unit in fetch.iter_bulk_units(transport, BASE_URL)]

@@ -1,11 +1,13 @@
 """Read the figures of a filed document (Story 2.1a).
 
-`read_document(pdf bytes, bound) -> DocumentRead` is the library's one entry
-point: it classifies page 1, and for a generated filing reads both figure
+`read_document(pdf bytes, bound, cache) -> DocumentRead` is the library's one
+entry point: it classifies page 1, and for a generated filing reads both figure
 columns and runs the four within-document checks within `bound` kroner (the
 configured `within_document_bound_kr`, Story 2.2). `read_words` is the same read from
 words already recognised, so the host tests run it on recorded Tesseract
-output with no Tesseract installed.
+output with no Tesseract installed. With an OCR word cache (`ocr_cache`,
+Story 2.5d), the words come from the cache on an exact key match and from
+Tesseract otherwise; `read_words` is the same either way.
 
 No database, no network, no write (Story 2.1b stores this). Figures are
 whole currency units as printed; converting to øre is 2.1b's writer. The only
@@ -15,6 +17,14 @@ figure stays None, never 0.
 **The combined read** (ported from the spike, with the gate it lacked):
 
 1. The plain pass gives every figure it can read as a well-formed digit group.
+   A digit token narrower than 0.6 of its digits at the page's pitch is
+   refused; the rule applies to every token in both passes (R1, Story 2.5c:
+   `layout.too_narrow`). A leading digit Tesseract reads as two ("2" as
+   "23") is a narrow token in the plain pass, which then gives no figure.
+   The digits-only pass merges the groups into one wide token
+   ("23375956"), which R1 does not refuse: such a line may still be offered
+   from there and enters only through a sum gate (4) or a check (3), whose
+   sum the misread figure misses.
 2. For a figure the plain pass did not yield, the digits-only pass may give
    one. It never overrides a plain figure (spike error 4: the digits-only
    pass reads "622821" for 6 228 521).
@@ -24,9 +34,25 @@ figure stays None, never 0.
    came from the plain pass, and (b) every evaluable check of that column
    passes. Otherwise the figure is absent; if any check fails, every
    digits-only figure of the column is dropped. A field in no check never
-   takes a digits-only figure, and digits-only figures never confirm each
+   takes a digits-only figure except through a sum gate (4), and
+   digits-only figures never confirm each
    other: sum eiendeler and sum egenkapital og gjeld print the same number,
    so the same dropped digit in both would pass C3 (Meinich, 2026-10-19).
+4. Two sum gates (Story 2.5b, F3; Meinich, 2026-11-05) admit a digits-only
+   figure for a line in no check: the five cost lines against
+   sum_driftskostnad, and the four parts of intangible assets against
+   sum_immaterielle_eiendeler (`SUM_GATES`). A gate admits one when the
+   total was read in the plain pass, every operand is present, at most one
+   operand came from the digits-only pass, and the operands sum to the
+   total within `bound`. A line with no matching row counts as 0 inside
+   the gate only and is never stored as 0; a row that matched but whose
+   figure neither pass read leaves the gate not evaluable. A row printed with
+   a figure in one column and none in the other is matched, so the gate is
+   not evaluable for the column where it is blank; a label with no figure in
+   either column is no candidate row and counts as 0. The gates live
+   here only: they are not checks of the column and never touch its
+   status (`reconcile.column_status`). A failing c1-c4 still drops every
+   digits-only figure of the column, gated or not.
 
 **Reporting unit.** Figures are read only when every page with its own year
 header has a "Beløp i:" header, and every such header states the same bare
@@ -50,7 +76,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from . import layout, ocr
+from . import layout, ocr, ocr_cache
 from .layout import Layout, Page, Pass
 from .ocr import PageWords, Word
 
@@ -73,6 +99,16 @@ CHECK_FIELDS: dict[str, tuple[str, ...]] = {
     "c2": ("driftsresultat", "netto_finans", "ordinaert_resultat_foer_skattekostnad"),
     "c3": ("sum_eiendeler", "sum_egenkapital_gjeld"),
     "c4": ("sum_egenkapital", "sum_gjeld", "sum_egenkapital_gjeld"),
+}
+
+# The sum gates of the digits-only pass (Story 2.5b, F3): a total and the
+# lines it sums. Used by `combine` only, never by `checks`.
+SUM_GATES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "cost_lines": (
+        "sum_driftskostnad",
+        ("varekostnad", "lonnskostnad", "avskrivninger", "nedskrivninger", "annen_driftskostnad"),
+    ),
+    "intangible_parts": ("sum_immaterielle_eiendeler", layout.PARTS),
 }
 
 VALUTA = re.compile(r"^[A-Z]{3}$")
@@ -135,11 +171,47 @@ def checks(f: dict[str, int | None], bound: int) -> dict[str, CheckResult]:
 # --- The combined read -------------------------------------------------------------
 
 
+def gate_admits(
+    gate: str,
+    plain: dict[str, int | None],
+    digits: dict[str, int | None],
+    matched: frozenset[str],
+    bound: int,
+) -> str | None:
+    """The one operand of a sum gate whose digits-only figure the gate
+    admits, or None. `digits` holds the digits-only figures offered for
+    fields the plain pass missed; `matched` the fields a row matched in the
+    document. Nothing is stored from here: an operand with no row counts as
+    0 in this sum only."""
+    total_field, operands = SUM_GATES[gate]
+    total = plain[total_field]
+    if total is None:
+        return None
+    total_of_lines = 0
+    from_digits: list[str] = []
+    for field in operands:
+        plain_figure, digits_figure = plain[field], digits.get(field)
+        if plain_figure is not None:
+            total_of_lines += plain_figure
+        elif digits_figure is not None:
+            total_of_lines += digits_figure
+            from_digits.append(field)
+        elif field in matched:
+            return None  # a row matched, but no figure was read: not evaluable
+    if len(from_digits) != 1:
+        return None
+    return from_digits[0] if abs(total_of_lines - total) <= bound else None
+
+
 def combine(
-    plain: dict[str, int | None], digits: dict[str, int | None], bound: int
+    plain: dict[str, int | None],
+    digits: dict[str, int | None],
+    bound: int,
+    matched: frozenset[str],
 ) -> tuple[dict[str, int | None], tuple[str, ...]]:
     """The column's figures and the fields taken from the digits-only pass,
-    under the gate described in the module docstring."""
+    under the gate described in the module docstring. `matched` holds the
+    fields a row with a figure matched in the document, in either pass."""
     filled = dict(plain)
     offered = [k for k in FIELDS if plain[k] is None and digits[k] is not None]
     for k in offered:
@@ -157,15 +229,19 @@ def combine(
             for name in passing
         )
 
-    kept = tuple(k for k in offered if confirmed(k))
+    offered_digits = {k: digits[k] for k in offered}
+    gated = {gate_admits(gate, plain, offered_digits, matched, bound) for gate in SUM_GATES}
+    kept = tuple(k for k in offered if confirmed(k) or k in gated)
     figures = dict(plain)
     for k in kept:
         figures[k] = digits[k]
     return figures, kept
 
 
-def _column(year: int, plain: dict[str, int | None], digits: dict[str, int | None], bound: int) -> Column:
-    figures, kept = combine(plain, digits, bound)
+def _column(
+    year: int, plain: dict[str, int | None], digits: dict[str, int | None], bound: int, matched: frozenset[str]
+) -> Column:
+    figures, kept = combine(plain, digits, bound, matched)
     c = checks(figures, bound)
     return Column(year, figures, c["c1"], c["c2"], c["c3"], c["c4"], kept)
 
@@ -208,13 +284,14 @@ def read_words(top: Sequence[Word], pages: Sequence[PageWords], bound: int) -> D
 
     plain = layout.extract(plain_pages)
     digits = layout.extract(parse_pages(pages, "digits"))
+    matched = frozenset(plain) | frozenset(digits)
     return DocumentRead(
         kind,
         unit,
         unit,
         None,
-        _column(current_year, _split(plain, 0), _split(digits, 0), bound),
-        _column(prior_year, _split(plain, 1), _split(digits, 1), bound),
+        _column(current_year, _split(plain, 0), _split(digits, 0), bound, matched),
+        _column(prior_year, _split(plain, 1), _split(digits, 1), bound, matched),
     )
 
 
@@ -229,11 +306,23 @@ def recognise(pdf: bytes) -> tuple[list[Word], list[PageWords]]:
     return top, pages
 
 
-def read_document(pdf: bytes, bound: int) -> DocumentRead:
+def recognise_cached(pdf: bytes, cache: ocr_cache.Cache | None) -> tuple[list[Word], list[PageWords]]:
+    """The recognised words of `pdf`: from the OCR word cache on an exact
+    key match (Story 2.5d), otherwise from `recognise`, then stored. With no
+    cache, `recognise` alone."""
+    if cache is None:
+        return recognise(pdf)
+    # `recognise` is looked up at call time, so a test that replaces it
+    # replaces Tesseract here too.
+    return cache.recognise(pdf, lambda body: recognise(body))
+
+
+def read_document(pdf: bytes, bound: int, cache: ocr_cache.Cache | None = None) -> DocumentRead:
     """Render, recognise and read one filed document; `bound` is the
-    within-document bound in whole kroner."""
-    top, pages = recognise(pdf)
-    return read_words(top, pages, bound)
+    within-document bound in whole kroner. With `cache`, the words come from
+    the OCR word cache when its key matches exactly, and `read_words` runs
+    on them exactly as on Tesseract's."""
+    return read_words(*recognise_cached(pdf, cache), bound)
 
 
 # --- JSON, for the fixtures ----------------------------------------------------------

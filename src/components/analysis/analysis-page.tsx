@@ -96,14 +96,16 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
   };
 
   // A subject without a peer group has an empty pool: every `ekskl` item
-  // is dropped with the notice.
+  // is dropped with the notice. `ekskl` is checked against the candidate
+  // pool (stages 1–3); the shown group and every aggregate use the group
+  // after stage 4 (Story 2.5).
   const parsed = parseSegments(segments, search, urlContext((band) => groupAt(band)?.orgnrs ?? NO_POOL));
   const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
   const filing = subject?.filing ?? null;
   const group =
     at === null || parsed.kind !== 'analysis' || filing === null
       ? null
-      : shownGroup(at.group.pool, parsed.state.ekskl, at.group.emptyReason, filing);
+      : shownGroup(at.group, parsed.state.ekskl, filing);
   return { parsed, subject, group, view: analysisView(subject, parsed, search) };
 }
 

@@ -110,3 +110,36 @@ def test_missing_tsv_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         ocr._run([image], tmp_path, "plain", ocr.PLAIN_ARGS)
     assert raised.value.pages == ("p2.png",)
 
+
+
+def test_version_report_keeps_what_reads_and_drops_what_does_not(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The OCR word cache's key (Story 2.5d): the version, leptonica, the image
+    # libraries and the CPU features stay; libarchive and libcurl, which the
+    # read never uses, go.
+    printed = (
+        "tesseract 5.5.0\n leptonica-1.84.1\n  libgif 5.2.2 : libpng 1.6.48\n Found AVX2\n Found FMA\n"
+        " Found OpenMP 201511\n Found libarchive 3.7.4 zlib/1.3.1\n Found libcurl/8.14.1 OpenSSL/3.5.7\n"
+    )
+    monkeypatch.setattr(
+        ocr.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout=printed, stderr="")
+    )
+    assert ocr.tesseract_version_report().splitlines() == [
+        "tesseract 5.5.0", "leptonica-1.84.1", "libgif 5.2.2 : libpng 1.6.48", "Found AVX2", "Found FMA", "Found OpenMP 201511",
+    ]  # fmt: skip
+    assert ocr.tesseract_version() == "tesseract 5.5.0"
+
+    def missing(*args: object, **kwargs: object) -> None:
+        raise FileNotFoundError("tesseract")
+
+    monkeypatch.setattr(ocr.subprocess, "run", missing)
+    assert (ocr.tesseract_version_report(), ocr.tesseract_version()) == ("", "")
+
+
+def test_version_report_of_a_failed_call_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A non-zero exit's message on stderr never becomes the key's Tesseract part.
+    monkeypatch.setattr(
+        ocr.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 1, stdout="", stderr="tesseract: error while loading libtesseract"),
+    )
+    assert (ocr.tesseract_version_report(), ocr.tesseract_version()) == ("", "")

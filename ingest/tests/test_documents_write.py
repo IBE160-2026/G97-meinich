@@ -27,7 +27,8 @@ ORGNR = "979607008"
 # the PDF in Story 2.1a) times 100, each written out as a literal.
 # Annen driftskostnad 2025 and leverandørgjeld in both years are printed but
 # absent from the read (the digits-only gate, Story 2.1a); varer is a heading
-# with no figure. Nedskrivninger 2025 is a printed 0.
+# with no figure. Nedskrivninger 2025 is a printed 0. The four parts of
+# intangible assets (Story 2.5b) were hand-checked against the PDF on 2026-11-05.
 CONTRACT_CURRENT_ORE: dict[str, int | None] = {
     "salgsinntekt_ore": 7_198_715_700,
     "sum_driftsinntekter_ore": 7_263_231_000,
@@ -41,6 +42,10 @@ CONTRACT_CURRENT_ORE: dict[str, int | None] = {
     "netto_finans_ore": -82_651_100,
     "ordinaert_resultat_foer_skattekostnad_ore": -70_450_800,
     "aarsresultat_ore": -154_100_900,
+    "forskning_og_utvikling_ore": 698_626_200,
+    "konsesjoner_patenter_ore": 3_625_000,
+    "goodwill_ore": 900_047_200,
+    "utsatt_skattefordel_ore": 19_026_100,
     "sum_immaterielle_eiendeler_ore": 1_621_324_500,
     "sum_varige_driftsmidler_ore": 119_776_800,
     "varer_ore": None,
@@ -66,6 +71,10 @@ CONTRACT_PRIOR_ORE: dict[str, int | None] = {
     "netto_finans_ore": -110_274_500,
     "ordinaert_resultat_foer_skattekostnad_ore": -207_185_700,
     "aarsresultat_ore": -261_156_000,
+    "forskning_og_utvikling_ore": 95_331_900,
+    "konsesjoner_patenter_ore": 6_041_700,
+    "goodwill_ore": 1_350_070_800,
+    "utsatt_skattefordel_ore": 10_056_000,
     "sum_immaterielle_eiendeler_ore": 1_461_500_300,
     "sum_varige_driftsmidler_ore": 210_272_300,
     "varer_ore": None,
@@ -121,7 +130,8 @@ def test_contract_979607008_2025_db(db: psycopg.Connection) -> None:
         column = stored_column(db, ORGNR, 2025, role)
         assert column["stated_year"] == year
         assert (column["c1"], column["c2"], column["c3"], column["c4"]) == ("pass", "pass", "pass", "pass")
-        assert column["digits_pass_fields"] == []
+        # Goodwill 2024 enters through the parts-sum gate (Story 2.5b).
+        assert column["digits_pass_fields"] == ([] if role == "current" else ["goodwill"])
         assert column["dataset"] == "full"
         figures = {name: column[name] for name in write.FIGURE_COLUMNS}
         assert figures == expected, role
@@ -147,7 +157,7 @@ def test_figure_columns_match_the_reading_library(db: psycopg.Connection) -> Non
            order by a.attnum"""
     ).fetchall()
     assert [name for name, _, _ in rows] == list(write.FIGURE_COLUMNS)
-    assert len(write.FIGURE_COLUMNS) == 23
+    assert len(write.FIGURE_COLUMNS) == 27  # 23 of Story 2.1a, then the four parts of intangibles (Story 2.5b)
     for name, kind, comment in rows:
         assert kind == "bigint", name
         assert comment is not None and comment.startswith("øre (hundredths of document.valuta"), name
@@ -208,10 +218,15 @@ def test_document_and_columns_are_written_together(db: psycopg.Connection) -> No
 
 
 def test_ingest_cannot_delete_documents(db: psycopg.Connection) -> None:
+    # Story 2.4: ingest deletes only from register.company; a document goes
+    # only with its company, by the cascade.
     for table in ("register.document", "register.document_column"):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with db.transaction():
                 db.execute(f"delete from {table}")
+    write.write_company(db, company("000000000", "WITHDRAWN AS"))
+    with db.transaction():
+        assert db.execute("delete from register.company where orgnr = '000000000'").rowcount == 1
 
 
 def test_document_records_reader_version(db: psycopg.Connection) -> None:

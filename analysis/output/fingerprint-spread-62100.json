@@ -1,0 +1,35 @@
+{
+  "categories": {
+    "costOfGoods": {
+      "high": {
+        "iqr_pp": "29.80639025906438138124591256471297489209",
+        "n": 80
+      },
+      "low": {
+        "iqr_pp": "4.966068399763039498560469717932217261653",
+        "n": 84
+      },
+      "mid": {
+        "iqr_pp": "11.6534243929071689224262438487767165595",
+        "n": 135
+      }
+    },
+    "personnelCost": {
+      "high": {
+        "iqr_pp": "18.94745317083863560329832773410641385989",
+        "n": 100
+      },
+      "low": {
+        "iqr_pp": "15.15092143973346406974504835825014449668",
+        "n": 101
+      },
+      "mid": {
+        "iqr_pp": "14.99728736365953566519658950744215609101",
+        "n": 146
+      }
+    }
+  },
+  "companies": 420,
+  "industry": "62.100",
+  "measure": "interquartile range (PERCENTILE.INC Q3 - Q1) of the read share in each band, in percentage points; shares from empty lines are not counted"
+}

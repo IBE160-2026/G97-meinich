@@ -24,6 +24,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
+import { type RunRecord, latestRunRecord, runRecordLine } from './step2-record.ts';
 import { setting } from './run-ingest.ts';
 import {
   COVERAGE_FILE as COVERAGE_LABEL,
@@ -89,7 +90,7 @@ async function checkHeader(tx: postgres.TransactionSql, file: string, table: str
   }
 }
 
-async function copyIn(tx: postgres.TransactionSql, table: string, columns: string[], bytes: Buffer): Promise<void> {
+export async function copyIn(tx: postgres.TransactionSql, table: string, columns: string[], bytes: Buffer): Promise<void> {
   const text = `COPY register.${quoteIdent(table)} (${columns.map(quoteIdent).join(', ')}) FROM STDIN (FORMAT csv, HEADER MATCH)`;
   const query = tx.unsafe(text);
   // postgres.js 3.4.9 resolves the COPY query with the writable and, when
@@ -182,12 +183,19 @@ export async function main(root: string): Promise<number> {
       union all select 'key_figures', count(*)::text from register.key_figures
       union all select 'document', count(*)::text from register.document
       union all select 'document_column', count(*)::text from register.document_column
+      union all select 'fingerprint', count(*)::text from register.fingerprint
+      union all select 'classification', count(*)::text from register.classification
       union all select 'covered_industry', count(*)::text from register.covered_industry
       union all select 'dataset', count(*)::text from register.dataset
     `;
     process.stdout.write(
       `seed: loaded ${plan.manifest.dataset} (migration ${plan.manifest.migration_id}): ${counts.map((c) => `${c.name} ${c.n}`).join(', ')}\n`,
     );
+    const lines = await printRunRecords({
+      step1: () => recordAs(root, 'INGEST_DATABASE_URL', 'step1'),
+      step2: () => recordAs(root, 'DERIVE_DATABASE_URL', 'step2'),
+    });
+    process.stdout.write(`${lines.join('\n')}\n`);
     return 0;
   } catch (error) {
     const code = (error as { code?: unknown }).code;
@@ -198,6 +206,34 @@ export async function main(root: string): Promise<number> {
   } finally {
     await sql.end();
   }
+}
+
+// The loader holds nothing in schema `run`: each step's record is read as
+// that step's own role.
+async function recordAs(root: string, variable: string, table: 'step1' | 'step2'): Promise<RunRecord | null> {
+  const url = setting(root, variable);
+  if (url === undefined) throw new Error(`${variable} is not set`);
+  const sql = postgres(url, { max: 1, onnotice: () => {} });
+  try {
+    return await latestRunRecord(sql, table);
+  } finally {
+    await sql.end();
+  }
+}
+
+/** One line per step, labelled; a record that cannot be read is said to be so. */
+export async function printRunRecords(read: {
+  readonly step1: () => Promise<RunRecord | null>;
+  readonly step2: () => Promise<RunRecord | null>;
+}): Promise<string[]> {
+  const line = async (step: 'step 1' | 'step 2', record: () => Promise<RunRecord | null>) => {
+    try {
+      return runRecordLine(step, await record());
+    } catch (error) {
+      return `seed: ${step}: run record could not be read (${(error as Error).name})`;
+    }
+  };
+  return [await line('step 1', read.step1), await line('step 2', read.step2)];
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

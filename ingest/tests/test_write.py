@@ -39,6 +39,8 @@ def company(orgnr: str, navn: str = "TEST AS") -> parse.Company:
         forretningsadresse_kommunenummer=None,
         forretningsadresse_kommune=None,
         naeringskode1_beskrivelse=None,
+        aktivitet=None,
+        vedtektsfestet_formaal=None,
         search_fields_read_at=READ_AT,
     )
 
@@ -206,11 +208,34 @@ def test_atomic_write_leaves_no_filing_when_key_figures_fail(db: psycopg.Connect
     assert count(db, "select count(*) from register.key_figures where brreg_id = %s", filing.brreg_id) == 1
 
 
-def test_ingest_cannot_delete_or_run_ddl(db: psycopg.Connection) -> None:
-    for statement in ("delete from register.company", "create table register.ingest_was_here (id int)"):
+def register_tables(conn: psycopg.Connection) -> list[str]:
+    """Every table in schema register, as the catalog lists it."""
+    rows = conn.execute(
+        """select format('%I.%I', n.nspname, c.relname) from pg_catalog.pg_class c
+             join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'register' and c.relkind in ('r', 'p') order by 1"""
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def test_ingest_deletes_only_companies_and_runs_no_ddl(db: psycopg.Connection) -> None:
+    # Story 2.4: the one DELETE step 1 holds is on register.company (a
+    # withdrawn unit); every other register table refuses it, and DDL is
+    # refused everywhere.
+    write.write_company(db, company(ABSENT, "WITHDRAWN AS"))
+    with db.transaction():
+        assert db.execute("delete from register.company where orgnr = %s", (ABSENT,)).rowcount == 1
+    tables = register_tables(db)
+    assert "register.company" in tables and "register.filing" in tables
+    for table in tables:
+        if table == "register.company":
+            continue
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with db.transaction():
-                db.execute(statement)
+                db.execute(f"delete from {table}")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with db.transaction():
+            db.execute("create table register.ingest_was_here (id int)")
 
 
 # --- The run, end to end, against recorded responses ---------------------------
@@ -293,6 +318,46 @@ def test_run_stores_no_municipality_without_a_business_address(db: psycopg.Conne
     assert search_fields(db, "919951834") == (None, None, "Dataprogrammeringstjenester", READ_AT, READ_AT)
 
 
+def register_text(conn: psycopg.Connection, orgnr: str) -> tuple:
+    return one(conn, "select aktivitet, vedtektsfestet_formaal from register.company where orgnr = %s", orgnr)
+
+
+def bulk_with(texts: dict[str, dict[str, object]]) -> bytes:
+    """The recorded bulk file with invented register text on the named units,
+    every other unit's own text removed."""
+    units = json.loads(recorded("enheter_lastned.json"))
+    for unit in units:
+        unit.pop("aktivitet", None)
+        unit.pop("vedtektsfestetFormaal", None)
+        unit.update(texts.get(unit["organisasjonsnummer"], {}))
+    return json.dumps(units).encode("utf-8")
+
+
+INVENTED_TEXT = {"aktivitet": [" Utvikling av", "programvare "], "vedtektsfestetFormaal": ["Selskapets formål er drift"]}
+STORED_TEXT = ("Utvikling av programvare", "Selskapets formål er drift")
+
+
+def test_run_stores_the_register_text(db: psycopg.Connection, cfg: Config) -> None:
+    transport = FixtureTransport(run_transport().responses, bulk=bulk_with({"919951834": INVENTED_TEXT}))
+
+    run.run(db, transport, cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert register_text(db, "919951834") == STORED_TEXT
+    assert search_fields(db, "919951834")[3] == READ_AT
+
+
+def test_plain_run_clears_the_text_of_a_company_no_longer_as(db: psycopg.Connection, cfg: Config) -> None:
+    run.run(db, FixtureTransport(run_transport().responses, bulk=bulk_with({"919951834": INVENTED_TEXT})), cfg, ["62.100"], now=lambda: READ_AT)
+    assert register_text(db, "919951834") == STORED_TEXT
+    bulk = bulk_with({"919951834": {**INVENTED_TEXT, "organisasjonsform": {"kode": "ENK"}}})
+
+    summary = run.run(db, FixtureTransport(run_transport().responses, bulk=bulk), cfg, ["62.100"], now=lambda: READ_AT)
+
+    assert register_text(db, "919951834") == (None, None)
+    assert summary.register_text_skipped_not_as == 1
+    assert summary.record_counts()["register_text_skipped_not_as"] == 1
+
+
 # --- Companies-only mode (Story 1.5a) ------------------------------------------
 
 BULK_ORGNRS = {"919951834", "990051232", "979607008", "967534579"}
@@ -327,13 +392,24 @@ def companies_only_transport() -> FixtureTransport:
 
 def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.Connection, cfg: Config) -> None:
     prepare_companies_only(db)
+    # Text from an earlier read, which the bulk file no longer has.
+    write.write_company(
+        db,
+        dataclasses.replace(
+            company("979607008", "EKSTRA RESSURS AS"), aktivitet="Gammel tekst", vedtektsfestet_formaal="Gammelt formål"
+        ),
+    )
     filing_before = filing_state(db, 6984522)
     stored = stored_orgnrs(db)
-    transport = companies_only_transport()
+    transport = FixtureTransport({}, bulk=bulk_with({"919951834": INVENTED_TEXT}))
 
     summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
 
     assert transport.requested == [f"{BASE_URL}/enhetsregisteret/api/enheter/lastned"]
+    # The register text is written with the search fields; a unit without it
+    # has its earlier text cleared.
+    assert register_text(db, "919951834") == STORED_TEXT
+    assert register_text(db, "979607008") == (None, None)
     # The search fields come from the bulk file, read at the run's time;
     # navn and read_at are those of the run that stored the company.
     assert search_fields(db, "919951834") == ("1103", "STAVANGER", "Dataprogrammeringstjenester", LATER, READ_AT)
@@ -349,6 +425,54 @@ def test_companies_only_updates_the_search_fields_and_nothing_else(db: psycopg.C
     assert summary.updated == len(stored & BULK_ORGNRS)
     assert summary.not_found == sorted(stored - BULK_ORGNRS)
     assert summary.failed == [] and not summary.needs_operator()
+
+
+@pytest.mark.parametrize(
+    "bulk_form, stored_form",
+    [("ENK", "AS"), ("AS", "ENK")],
+    ids=["register_says_not_as", "stored_row_says_not_as"],
+)
+def test_companies_only_clears_and_counts_the_text_of_another_form(
+    db: psycopg.Connection, cfg: Config, bulk_form: str, stored_form: str
+) -> None:
+    prepare_companies_only(db)
+    write.write_company(
+        db,
+        dataclasses.replace(
+            company("919951834", "OLD NAME AS"),
+            naeringskode1="62.100",
+            organisasjonsform=stored_form,
+            aktivitet="Gammel tekst",
+            vedtektsfestet_formaal="Gammelt formål",
+        ),
+    )
+    bulk = bulk_with({"919951834": {**INVENTED_TEXT, "organisasjonsform": {"kode": bulk_form}}})
+
+    summary = run.run_companies_only(db, FixtureTransport({}, bulk=bulk), cfg, now=lambda: LATER)
+
+    assert register_text(db, "919951834") == (None, None)
+    assert summary.register_text_skipped_not_as == 1
+    assert summary.record_counts()["register_text_skipped_not_as"] == 1
+    assert "  register text not stored, form is not AS: 1" in summary.lines()
+
+
+def test_companies_only_reports_malformed_register_text(db: psycopg.Connection, cfg: Config) -> None:
+    prepare_companies_only(db)
+    transport = FixtureTransport(
+        {}, bulk=bulk_with({"919951834": {"aktivitet": "ikke en liste"}, "979607008": INVENTED_TEXT})
+    )
+
+    summary = run.run_companies_only(db, transport, cfg, now=lambda: LATER)
+
+    assert [p.orgnr for p in summary.failed] == ["919951834"]
+    assert summary.failed[0].what.startswith("bulk unit not loaded: aktivitet ")
+    assert "ikke en liste" not in summary.failed[0].what
+    assert summary.needs_operator()
+    # Not written; the other company is.
+    assert register_text(db, "919951834") == (None, None)
+    assert search_fields(db, "919951834")[3] == READ_AT
+    assert register_text(db, "979607008") == STORED_TEXT
+    assert search_fields(db, "979607008")[3] == LATER
 
 
 def test_companies_only_leaves_a_company_missing_from_the_bulk_file(db: psycopg.Connection, cfg: Config) -> None:
@@ -556,10 +680,16 @@ def code_without_companies(s: run.Summary) -> None:
     s.codes["62.010"] = run.CodeSummary("62.010")
 
 
+def withdrawal_not_deleted(s: run.Summary) -> None:
+    # Story 2.4, Q6: a withdrawal check that did not finish (here a lookup
+    # that timed out) needs a person; a 404 or a live unit does not.
+    s.withdrawal.fail(write.Failure("919951834", "withdrawal", "TimeoutError: timed out"), incomplete=True)
+
+
 @pytest.mark.parametrize(
     "spoil",
-    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies],
-    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies"],
+    [None, with_failed, with_rejected, without_demo, demo_without_filings, code_without_companies, withdrawal_not_deleted],
+    ids=["clean", "failed", "rejected", "demo-not-found", "demo-no-filings", "code-no-companies", "withdrawal-failure"],
 )
 def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: object) -> None:
     summary = clean_summary()
@@ -577,6 +707,8 @@ def test_main_exit_code(monkeypatch: pytest.MonkeyPatch, cfg: Config, spoil: obj
     monkeypatch.setattr(run.config_module, "load_coverage", lambda _path: list(summary.codes))
     monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run.write, "start_run", lambda *_args: 1)
+    monkeypatch.setattr(run.write, "end_run", lambda *_args: None)
     monkeypatch.setattr(run, "run", lambda *_args, **_kwargs: summary)
 
     assert run.main([]) == (0 if spoil is None else 1)
@@ -606,6 +738,8 @@ def test_main_selects_companies_only_mode(monkeypatch: pytest.MonkeyPatch, cfg: 
     monkeypatch.setattr(run.config_module, "load_coverage", no_coverage)
     monkeypatch.setattr(run.config_module, "database_url", lambda: "postgresql://unused")
     monkeypatch.setattr(run.write, "connect", lambda _url: NoConnection())
+    monkeypatch.setattr(run.write, "start_run", lambda *_args: 1)
+    monkeypatch.setattr(run.write, "end_run", lambda *_args: None)
     monkeypatch.setattr(run, "run", full)
     monkeypatch.setattr(run, "run_companies_only", companies_only)
 

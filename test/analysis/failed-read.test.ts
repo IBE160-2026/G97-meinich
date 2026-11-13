@@ -52,6 +52,20 @@ vi.mock('next/navigation', () => navigation);
 // The front page awaits connection() first; outside a request it would throw.
 vi.mock('next/server', () => ({ connection: async () => {} }));
 
+// The subject read left-joins register.fingerprint (Story 2.5): no row is
+// every category column null.
+const NO_FINGERPRINT = {
+  classification: null,
+  cost_of_goods_lo: null,
+  cost_of_goods_hi: null,
+  personnel_cost_lo: null,
+  personnel_cost_hi: null,
+  asset_intensity_lo: null,
+  asset_intensity_hi: null,
+  inventory: null,
+  capitalised_intangibles: null,
+};
+
 const { lookupCandidates, lookupSubject } = await import('../../src/server/analysis.ts');
 const { failureKind } = await import('../../src/logger.ts');
 const { default: AnalysisLayout } = await import('../../src/app/analyse/[orgnr]/layout.tsx');
@@ -125,6 +139,7 @@ describe('a failed candidate read after a successful subject read (Story 1.7)', 
   // A covered AS with a calendar-year NOK filing: the page goes on to read
   // its candidates, and that read fails.
   const coveredAs = {
+    ...NO_FINGERPRINT,
     orgnr: ORGNR,
     navn: 'ADMMIT AS',
     organisasjonsform: 'AS',
@@ -195,6 +210,7 @@ describe('a failed coverage read for an uncovered company (retro R4)', () => {
   // below the Suspense boundary, the page would resolve to the boundary and
   // the failure would come after the response had started as a 200.
   const uncoveredAs = {
+    ...NO_FINGERPRINT,
     orgnr: ORGNR,
     navn: 'DEMO C AS',
     organisasjonsform: 'AS',

@@ -7,10 +7,32 @@
 // Every amount is a bigint: stored figures in øre (parseOre), transcribed
 // figures in whole kroner, compared as øre = kroner × 100. A blank cell and a
 // NULL column are absent, never 0.
+import {
+  DOCUMENT_FIGURE_COLUMNS,
+  type DocumentColumnRow,
+  GUARDED_CURRENT_ASSETS,
+  documentFigures,
+  exceedsApiSubtotal,
+  guardCurrentAssets,
+} from '../src/engine/document-inputs.ts';
+import {
+  type ApiSubtotals,
+  MAIN_COST_LINES,
+  ROUNDING_TOLERANCE_ORE,
+  apiSubtotalsFromRow,
+  businessType,
+  fingerprintOf,
+} from '../src/engine/fingerprint.ts';
 import { parseOre } from '../src/engine/inputs.ts';
 import { type DrawnFiling, compareBytes, parseCsv } from './seed-format.ts';
+import { parseTextArray } from './sum-gates.ts';
 
-/** The 23 lines `read_document` targets (ingest/src/peerless_ingest/layout.py, TARGETS), in its order. */
+/**
+ * The 27 lines `read_document` targets (ingest/src/peerless_ingest/layout.py,
+ * TARGETS), in its order: the 23 of Story 2.1a, then the four parts of
+ * intangible assets of Story 2.5b (Meinich, 2026-11-01, Q2: measured like
+ * every other field).
+ */
 export const SM2_FIELDS = [
   'salgsinntekt',
   'sum_driftsinntekter',
@@ -35,8 +57,17 @@ export const SM2_FIELDS = [
   'sum_kortsiktig_gjeld',
   'sum_gjeld',
   'sum_egenkapital_gjeld',
+  'forskning_og_utvikling',
+  'konsesjoner_patenter',
+  'goodwill',
+  'utsatt_skattefordel',
 ] as const;
 export type Sm2Field = (typeof SM2_FIELDS)[number];
+
+/** The four parts of intangible assets, stored since Story 2.5b's migration. */
+export const SM2_PARTS = ['forskning_og_utvikling', 'konsesjoner_patenter', 'goodwill', 'utsatt_skattefordel'] as const satisfies readonly Sm2Field[];
+/** The fields compared before Story 2.5b: the report's Story 2.3b section counts these only. */
+export const SM2_FIELDS_BEFORE_2_5B: readonly Sm2Field[] = SM2_FIELDS.filter((f) => !(SM2_PARTS as readonly string[]).includes(f));
 
 export type Role = 'current' | 'prior';
 const ROLES: readonly Role[] = ['current', 'prior'];
@@ -76,6 +107,8 @@ export interface StoredColumn {
   /** c1–c5 as stored; null on a row from before Story 2.2. */
   checks: Readonly<Record<CheckName, CheckResult | null>>;
   figuresOre: ReadonlyMap<Sm2Field, bigint | null>;
+  /** The fields taken from the digits-only pass, as stored. */
+  digitsPassFields: readonly string[];
 }
 
 /** One stored document (register.document). */
@@ -85,6 +118,8 @@ export interface StoredDocument {
   layout: string;
   status: string;
   refusal: string | null;
+  /** The key-figures filing the document belongs to, or null. */
+  brregId: string | null;
 }
 
 export type CheckResult = 'pass' | 'fail' | 'not_evaluable';
@@ -320,13 +355,35 @@ export function transcriptionsBefore(
   return before;
 }
 
-/** seed/demo/document_column.csv (COPY csv with header), read by header name. NULL is an empty unquoted field. */
+/**
+ * Whether a document_column.csv was exported before Story 2.5b's migration:
+ * its header has none of the four parts' columns. Some but not all of them
+ * refuses.
+ */
+export function lacksPartColumns(text: string): boolean {
+  const [header] = parseCsv(text);
+  if (header === undefined) throw new Error('document_column.csv: no header');
+  const present = SM2_PARTS.filter((field) => header.includes(`${field}_ore`));
+  if (present.length !== 0 && present.length !== SM2_PARTS.length) {
+    throw new Error(`document_column.csv: only some of the parts' columns: ${present.join(', ')}`);
+  }
+  return present.length === 0;
+}
+
+/**
+ * seed/demo/document_column.csv (COPY csv with header), read by header name.
+ * NULL is an empty unquoted field. An export from before Story 2.5b's
+ * migration has no columns for the four parts of intangible assets
+ * (`lacksPartColumns`): they read as null, as step 1 then did not read
+ * them, and the report says so. Any other missing column refuses.
+ */
 export function parseStoredColumns(text: string): StoredColumn[] {
   const file = 'document_column.csv';
   const [header, ...rows] = parseCsv(text);
   if (header === undefined) throw new Error(`${file}: no header`);
-  const oreColumns = SM2_FIELDS.map((field) => `${field}_ore`);
-  const at = indexOf(file, header, ['orgnr', 'filing_year', 'role', 'stated_year', 'status', ...CHECK_NAMES, ...oreColumns]);
+  const fields: readonly Sm2Field[] = lacksPartColumns(text) ? SM2_FIELDS_BEFORE_2_5B : SM2_FIELDS;
+  const oreColumns = fields.map((field) => `${field}_ore`);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'role', 'stated_year', 'status', 'digits_pass_fields', ...CHECK_NAMES, ...oreColumns]);
   return rows.map((row, index) => {
     const line = index + 2;
     const status = cell(file, row, at, 'status', line);
@@ -344,8 +401,10 @@ export function parseStoredColumns(text: string): StoredColumn[] {
         c4: checkResult(file, cell(file, row, at, 'c4', line), line),
         c5: checkResult(file, cell(file, row, at, 'c5', line), line),
       },
+      digitsPassFields: parseTextArray(cell(file, row, at, 'digits_pass_fields', line), `${file} row ${line} digits_pass_fields`),
       figuresOre: new Map(
         SM2_FIELDS.map((field) => {
+          if (!fields.includes(field)) return [field, null] as const;
           const value = cell(file, row, at, `${field}_ore`, line);
           return [field, parseOre(value === '' ? null : value)] as const;
         }),
@@ -359,18 +418,42 @@ export function parseStoredDocuments(text: string): StoredDocument[] {
   const file = 'document.csv';
   const [header, ...rows] = parseCsv(text);
   if (header === undefined) throw new Error(`${file}: no header`);
-  const at = indexOf(file, header, ['orgnr', 'filing_year', 'layout', 'status', 'refusal']);
+  const at = indexOf(file, header, ['orgnr', 'filing_year', 'layout', 'status', 'refusal', 'brreg_id']);
   return rows.map((row, index) => {
     const line = index + 2;
     const refusal = cell(file, row, at, 'refusal', line);
+    const brregId = cell(file, row, at, 'brreg_id', line);
+    if (brregId !== '' && !/^\d+$/.test(brregId)) throw new Error(`${file} row ${line}: brreg_id must be blank or digits`);
     return {
       orgnr: orgnr(file, cell(file, row, at, 'orgnr', line), line),
       filingYear: year(file, cell(file, row, at, 'filing_year', line), line, 'filing_year'),
       layout: cell(file, row, at, 'layout', line),
       status: cell(file, row, at, 'status', line),
       refusal: refusal === '' ? null : refusal,
+      brregId: brregId === '' ? null : brregId,
     };
   });
+}
+
+/** seed/demo/key_figures.csv, read by header name: the two API subtotals the fingerprint reads, by brreg_id. */
+export function parseKeyFigureSubtotals(text: string): Map<string, ApiSubtotals> {
+  const file = 'key_figures.csv';
+  const [header, ...rows] = parseCsv(text);
+  if (header === undefined) throw new Error(`${file}: no header`);
+  const at = indexOf(file, header, ['brreg_id', 'sum_anleggsmidler_ore', 'sum_omloepsmidler_ore']);
+  const out = new Map<string, ApiSubtotals>();
+  rows.forEach((row, index) => {
+    const line = index + 2;
+    const value = (name: string) => {
+      const v = cell(file, row, at, name, line);
+      return v === '' ? null : v;
+    };
+    out.set(
+      cell(file, row, at, 'brreg_id', line),
+      apiSubtotalsFromRow({ sum_anleggsmidler_ore: value('sum_anleggsmidler_ore'), sum_omloepsmidler_ore: value('sum_omloepsmidler_ore') }),
+    );
+  });
+  return out;
 }
 
 // --- Classifying ---------------------------------------------------------------
@@ -688,9 +771,17 @@ export const BASELINE_FAILING: readonly string[] = [
 
 // --- Before and after Story 2.3b ---------------------------------------------------
 
-/** Each field's class counts, in SM2_FIELDS order. */
-export function classesByField(results: readonly FieldResult[]): { field: Sm2Field; counts: ClassCounts }[] {
-  return SM2_FIELDS.map((field) => ({ field, counts: countClasses(results.filter((r) => r.field === field)) }));
+/** Each field's class counts, in SM2_FIELDS order, over `fields` (every compared field by default). */
+export function classesByField(
+  results: readonly FieldResult[],
+  fields: readonly Sm2Field[] = SM2_FIELDS,
+): { field: Sm2Field; counts: ClassCounts }[] {
+  return fields.map((field) => ({ field, counts: countClasses(results.filter((r) => r.field === field)) }));
+}
+
+/** The results for `fields` only. */
+export function onlyFields(results: readonly FieldResult[], fields: readonly Sm2Field[]): FieldResult[] {
+  return results.filter((r) => fields.includes(r.field));
 }
 
 const resultKey = (r: FieldResult): string => `${r.orgnr}/${r.filingYear}/${r.role}/${r.field}/${r.readOre ?? 'null'}`;
@@ -724,4 +815,159 @@ export function totalShownRead(c: CheckedColumn): boolean {
 
 export function totalShownMissing(c: CheckedColumn): boolean {
   return c.c3 === 'not_evaluable' && c.c5 !== 'not_evaluable';
+}
+
+// --- Before and after Story 2.5b: the undetermined share ------------------------------
+
+/** Business types over stored columns: totals only, never a company (the labelled set, Meinich 2026-11-01). */
+export interface TypeTotals {
+  /** Current columns. */
+  columns: number;
+  /** Columns that give a fingerprint. */
+  fingerprints: number;
+  /** Fingerprints whose unknown categories allow more than one type. */
+  undetermined: number;
+  /** Companies with a fingerprint, each at its newest fingerprinted year. */
+  companies: number;
+  companiesUndetermined: number;
+}
+
+/** A stored column as `documentFigures` takes it: its status and every figure column, as øre strings. */
+export function documentColumnRow(column: StoredColumn): DocumentColumnRow {
+  const figures = Object.fromEntries(
+    Object.values(DOCUMENT_FIGURE_COLUMNS).map((name) => {
+      const field = SM2_FIELDS.find((f) => `${f}_ore` === name);
+      if (field === undefined) throw new Error(`${name}: not a compared field`);
+      const value = column.figuresOre.get(field) ?? null;
+      return [name, value === null ? null : value.toString()];
+    }),
+  );
+  return { status: column.status, ...figures } as DocumentColumnRow;
+}
+
+/**
+ * Each current column's fingerprint, with the engine (fingerprintOf,
+ * businessType) and the API subtotals of the document's key-figures filing
+ * (none when the document has no brreg_id or the seed no such filing), as
+ * `pnpm derive` computes it. Totals only.
+ */
+export function typeTotals(
+  columns: readonly StoredColumn[],
+  documents: readonly StoredDocument[],
+  subtotals: ReadonlyMap<string, ApiSubtotals>,
+): TypeTotals {
+  const brregIds = new Map(documents.map((d) => [`${d.orgnr}/${d.filingYear}`, d.brregId]));
+  const none: ApiSubtotals = { sumAnleggsmidler: null, sumOmloepsmidler: null };
+  const newest = new Map<string, { year: number; undetermined: boolean }>();
+  let current = 0;
+  let fingerprints = 0;
+  let undetermined = 0;
+  for (const column of columns) {
+    if (column.role !== 'current') continue;
+    current += 1;
+    const id = brregIds.get(`${column.orgnr}/${column.filingYear}`) ?? null;
+    const api = (id === null ? undefined : subtotals.get(id)) ?? none;
+    const result = fingerprintOf(guardCurrentAssets(documentFigures(documentColumnRow(column)), 'current', api.sumOmloepsmidler), api);
+    if (result.kind !== 'fingerprint') continue;
+    fingerprints += 1;
+    const isUndetermined = businessType(result.fingerprint) === null;
+    if (isUndetermined) undetermined += 1;
+    const seen = newest.get(column.orgnr);
+    if (seen === undefined || column.filingYear > seen.year) newest.set(column.orgnr, { year: column.filingYear, undetermined: isUndetermined });
+  }
+  const companies = [...newest.values()];
+  return {
+    columns: current,
+    fingerprints,
+    undetermined,
+    companies: companies.length,
+    companiesUndetermined: companies.filter((c) => c.undetermined).length,
+  };
+}
+
+// --- Story 2.5c ------------------------------------------------------------------
+
+/** The engine's main cost lines (R2), by their stored names. */
+const MAIN_COST_FIELDS: readonly Sm2Field[] = MAIN_COST_LINES.map((line) => {
+  const field = SM2_FIELDS.find((f) => f === line.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`));
+  if (field === undefined) throw new Error(`${line}: not a compared field`);
+  return field;
+});
+
+/** Per role, reconciled columns whose cost lines can be summed, and those under or over the total by more than 5 kr. */
+export type CostSumCounts = Record<Role, { evaluable: number; under: number; over: number }>;
+
+/**
+ * The reconciled columns whose four main cost lines and sum_driftskostnad
+ * are read and whose sum_driftsinntekter is positive (the engine skips
+ * the others earlier, as not_reconciled or no_revenue), and of those the
+ * ones whose lines (nedskrivninger empty counted as 0, as R2 counts it)
+ * fall short of the total or exceed it by more than the engine's
+ * ROUNDING_TOLERANCE_ORE. Under is what R2 skips in a current column; over
+ * is negative_unexplained.
+ */
+export function costSumCounts(columns: readonly StoredColumn[]): CostSumCounts {
+  const out: CostSumCounts = { current: { evaluable: 0, under: 0, over: 0 }, prior: { evaluable: 0, under: 0, over: 0 } };
+  for (const column of columns) {
+    if (column.status !== 'reconciled') continue;
+    const total = column.figuresOre.get('sum_driftskostnad') ?? null;
+    const lines = MAIN_COST_FIELDS.map((f) => column.figuresOre.get(f) ?? null);
+    const revenue = column.figuresOre.get('sum_driftsinntekter') ?? null;
+    if (total === null || lines.some((v) => v === null) || revenue === null || revenue <= 0n) continue;
+    const sum = [...lines, column.figuresOre.get('nedskrivninger') ?? null].reduce<bigint>((a, v) => a + (v ?? 0n), 0n);
+    const counts = out[column.role];
+    counts.evaluable += 1;
+    if (total - sum > ROUNDING_TOLERANCE_ORE) counts.under += 1;
+    if (sum - total > ROUNDING_TOLERANCE_ORE) counts.over += 1;
+  }
+  return out;
+}
+
+type GuardedLine = (typeof GUARDED_CURRENT_ASSETS)[number];
+
+/** The stored field name of an R3 line. */
+const GUARDED_FIELD: Readonly<Record<GuardedLine, Sm2Field>> = { kundefordringer: 'kundefordringer', bankinnskudd: 'bankinnskudd' };
+
+/**
+ * The figures R3 empties, as `orgnr/filing year/current/field` keys: a
+ * current column's kundefordringer or bankinnskudd that `guardCurrentAssets`
+ * makes absent as `exceeds_api_subtotal` against the API sum_omloepsmidler
+ * of the document's filing, as `pnpm derive` applies it.
+ */
+export function r3Emptied(
+  columns: readonly StoredColumn[],
+  documents: readonly StoredDocument[],
+  subtotals: ReadonlyMap<string, ApiSubtotals>,
+): Set<string> {
+  const brregIds = new Map(documents.map((d) => [`${d.orgnr}/${d.filingYear}`, d.brregId]));
+  const out = new Set<string>();
+  for (const column of columns) {
+    if (column.role !== 'current') continue;
+    const id = brregIds.get(`${column.orgnr}/${column.filingYear}`) ?? null;
+    const api = (id === null ? undefined : subtotals.get(id)) ?? null;
+    if (api === null) continue;
+    const guarded = guardCurrentAssets(documentFigures(documentColumnRow(column)), 'current', api.sumOmloepsmidler);
+    for (const line of GUARDED_CURRENT_ASSETS) {
+      if (exceedsApiSubtotal(guarded[line])) out.add(`${column.orgnr}/${column.filingYear}/current/${GUARDED_FIELD[line]}`);
+    }
+  }
+  return out;
+}
+
+/** The figures R3 empties in the current columns, per line. Totals only. */
+export function currentAssetsEmptied(
+  columns: readonly StoredColumn[],
+  documents: readonly StoredDocument[],
+  subtotals: ReadonlyMap<string, ApiSubtotals>,
+): Record<GuardedLine, number> {
+  const keys = [...r3Emptied(columns, documents, subtotals)];
+  return {
+    kundefordringer: keys.filter((k) => k.endsWith('/kundefordringer')).length,
+    bankinnskudd: keys.filter((k) => k.endsWith('/bankinnskudd')).length,
+  };
+}
+
+/** The results whose figure the engine uses: those R3 empties (`r3Emptied`) left out. */
+export function withoutR3Emptied(results: readonly FieldResult[], emptied: ReadonlySet<string>): FieldResult[] {
+  return results.filter((r) => !emptied.has(`${r.orgnr}/${r.filingYear}/${r.role}/${r.field}`));
 }

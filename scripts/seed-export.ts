@@ -9,7 +9,7 @@
 //   primary key with COLLATE "C" on text columns. TimeZone UTC and DateStyle
 //   ISO, YMD make read_at and the dates round-trip byte for byte. No value
 //   is parsed in JS.
-// - Writes seed/demo/{company,filing,key_figures,document,document_column}.csv,
+// - Writes seed/demo/{company,filing,key_figures,document,document_column,fingerprint}.csv,
 //   seed/demo/manifest.json and seed/allow-list.json, LF and UTF-8. Never
 //   seed/coverage.json.
 // - Refuses, before writing any file, a document figure (a row of
@@ -18,6 +18,14 @@
 //   the committed OCR reference draw (analysis/ocr-reference/drawn.json,
 //   Story 2.3), each added once with the reason "OCR-referansesett". The
 //   refusal checks that merged list.
+// - Story 2.4: drops each allow-list entry whose orgnr is not in
+//   register.company (a company deleted after 410 Gone), naming it on
+//   stderr, and refuses, naming it, a drawn reference orgnr that is not a
+//   stored company (D6), before writing any file.
+// - Story 2.5: writes register.fingerprint filtered by the licence gate
+//   (docs/licence-gate.json): only the allow-listed companies' rows unless
+//   the file records the gate as open. Absent or unreadable is closed, and
+//   stderr says so.
 // - Running it twice on the same database gives byte-identical files.
 //
 // A later migration invalidates the seed: the PR that adds a migration runs
@@ -46,13 +54,18 @@ import {
   exportPaths,
   latestMigrationId,
   orderByClause,
+  LICENCE_GATE_FILE,
   REFERENCE_DRAW_FILE,
+  fingerprintWhere,
   parseAllowListEntries,
   parseDrawn,
   readCoverage,
+  readLicenceGate,
   refuseUnlistedDocumentFigures,
+  refuseUnstoredDrawn,
   seedFileName,
   sha256,
+  splitStoredAllowList,
   stableJson,
   withReferenceOrgnrs,
 } from './seed-format.ts';
@@ -90,10 +103,12 @@ async function checkPrimaryKey(sql: Sql, table: SeedTable): Promise<void> {
   }
 }
 
-async function copyOut(sql: Sql, table: SeedTable): Promise<Buffer> {
+// `where` is a WHERE clause the caller built from checked values
+// (fingerprintWhere's or the sample filter), or empty for every row.
+async function copyOut(sql: Sql, table: SeedTable, where = ''): Promise<Buffer> {
   await checkPrimaryKey(sql, table);
   const columns = (await columnsOf(sql, table.name)).map(quoteIdent).join(', ');
-  const query = `COPY (SELECT ${columns} FROM register.${quoteIdent(table.name)} ${orderByClause(table)}) TO STDOUT (FORMAT csv, HEADER)`;
+  const query = `COPY (SELECT ${columns} FROM register.${quoteIdent(table.name)} ${where} ${orderByClause(table)}) TO STDOUT (FORMAT csv, HEADER)`;
   const stream = await sql.unsafe(query).readable();
   // Flowing mode ('data' events), not for-await. postgres.js 3.4.9 pauses
   // the socket when a push into the readable reports backpressure and
@@ -110,19 +125,54 @@ async function copyOut(sql: Sql, table: SeedTable): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+// One seed table's file: register.fingerprint only the rows the licence gate
+// lets through (Story 2.5), register.classification never a sample run's
+// (Story 2.6), every other table whole.
+export async function copyTable(
+  sql: Sql,
+  table: SeedTable,
+  gate: { open: boolean },
+  allowList: readonly string[],
+): Promise<Buffer> {
+  if (table.name === 'classification') return copyOut(sql, table, 'WHERE NOT sample');
+  return copyOut(sql, table, table.name === 'fingerprint' ? fingerprintWhere(gate, allowList) : '');
+}
+
+// Story 2.6: a covered-industry AS must be settled before a seed holds it.
+// Names a count, never a company. A sample's rows are not exported, so they
+// do not count.
+export async function refuseUnfinishedClassifications(sql: Sql): Promise<void> {
+  const [row] = await sql<{ failed: number; pending: number }[]>`
+    select count(*) filter (where cl.status = 'failed')::int as failed,
+           count(*) filter (where cl.status = 'pending')::int as pending
+      from register.classification cl
+      join register.company c on c.orgnr = cl.orgnr
+      join register.covered_industry ci on ci.code = c.naeringskode1
+     where c.organisasjonsform = 'AS' and not cl.sample`;
+  if (row !== undefined && (row.failed > 0 || row.pending > 0)) {
+    throw new SeedRefusal(`register.classification: ${row.failed} failed and ${row.pending} pending rows for covered AS companies; settle them with pnpm classify first`);
+  }
+}
+
 // Writes the seed into outRoot (the repository root unless a test passes a
 // scratch directory). Reads coverage.json and the migrations from root.
-// sql must be a transaction: the settings are SET LOCAL.
-export async function exportSeed(sql: postgres.TransactionSql, root: string, outRoot: string = root): Promise<Manifest> {
+// sql must be a transaction: the settings are SET LOCAL. notice receives each
+// line meant for stderr (an allow-list entry dropped, Story 2.4; the licence
+// gate read as closed, Story 2.5). gateFile is docs/licence-gate.json under
+// root unless a test passes another.
+export async function exportSeed(
+  sql: postgres.TransactionSql,
+  root: string,
+  outRoot: string = root,
+  notice: (line: string) => void = (line) => process.stderr.write(`${line}\n`),
+  gateFile: string = path.join(root, ...LICENCE_GATE_FILE.split('/')),
+): Promise<Manifest> {
   await sql.unsafe(`SET LOCAL TimeZone = 'UTC'`);
   await sql.unsafe(`SET LOCAL DateStyle = 'ISO, YMD'`);
   await sql.unsafe(`SET LOCAL client_encoding = 'UTF8'`);
 
   const coverage = readCoverage(path.join(root, ...COVERAGE_FILE.split('/')));
   const migrationId = latestMigrationId(root);
-
-  const outputs = new Map<string, Buffer>();
-  for (const table of SEED_TABLES) outputs.set(seedFileName(table), await copyOut(sql, table));
 
   // The declared codes with at least one company whose primary industry is
   // that code. Demo company C's industry is not declared, so never included.
@@ -145,10 +195,35 @@ export async function exportSeed(sql: postgres.TransactionSql, root: string, out
   const allowListJson: unknown = existsSync(allowListFile) ? JSON.parse(readFileSync(allowListFile, 'utf8')) : [];
   const drawFile = path.join(root, ...REFERENCE_DRAW_FILE.split('/'));
   if (!existsSync(drawFile)) throw new SeedRefusal(`${REFERENCE_DRAW_FILE}: missing`);
-  const allowList = withReferenceOrgnrs(
-    parseAllowListEntries(allowListJson),
-    parseDrawn(JSON.parse(readFileSync(drawFile, 'utf8'))),
+  // Story 2.4: a company deleted after 410 Gone is in no seed file, since
+  // the cascade removed its rows, and leaves the allow-list here, named on
+  // stderr. A drawn reference orgnr that is not stored refuses (D6).
+  const stored = new Set(
+    (await sql<{ orgnr: string }[]>`select orgnr from register.company`).map((row) => row.orgnr),
   );
+  const drawn = parseDrawn(JSON.parse(readFileSync(drawFile, 'utf8')));
+  refuseUnstoredDrawn(drawn, stored);
+  const { kept, dropped } = splitStoredAllowList(parseAllowListEntries(allowListJson), stored);
+  for (const entry of dropped) {
+    notice(`seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${entry.orgnr} (${entry.reason})`);
+  }
+  const allowList = withReferenceOrgnrs(kept, drawn);
+
+  // Story 2.5: fingerprints are filtered by the licence gate.
+  const gate = readLicenceGate(gateFile, notice);
+  await refuseUnfinishedClassifications(sql);
+  const outputs = new Map<string, Buffer>();
+  for (const table of SEED_TABLES) {
+    outputs.set(
+      seedFileName(table),
+      await copyTable(
+        sql,
+        table,
+        gate,
+        allowList.map((entry) => entry.orgnr),
+      ),
+    );
+  }
   refuseUnlistedDocumentFigures(
     new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')])),
     allowList.map((entry) => entry.orgnr),

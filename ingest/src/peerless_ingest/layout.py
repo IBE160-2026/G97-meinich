@@ -20,6 +20,31 @@ from the spike:
   and s inside a word that mixes letters and digits, so the bold total row
   "50M EGENKAPITAL OG GJELD" can match. It is tried after `fold`, never
   instead of it, and only for a field `fold` matched nowhere.
+- Story 2.5b (probe checkpoint, Meinich 2026-11-05):
+  - the four printed parts of intangible assets are targets of their own,
+    matched on balance pages only (`TARGET_PAGES`);
+  - later variants for the cost lines (`LATER_VARIANTS`: the depreciation
+    wordings, plurals), matched on income-statement pages only and only
+    for a field the variants of `TARGETS` matched nowhere;
+  - a third label fold, `fold_notes`, drops trailing note references read
+    as letters ("Lønnskostnad ll, 2, 3"). It is tried after `fold` and
+    `fold_mixed`, never instead of them.
+  Every match the earlier stages make stands, with the same value.
+- Story 2.5c (Meinich, 2026-11-06):
+  - R1, the width rule: a digit token narrower than `MIN_DIGIT_WIDTH` (0.6)
+    times its digit count (plus one for a leading minus) times the page's
+    character pitch is refused; the
+    rule applies to every digit token in both passes. Tesseract adds a digit
+    to a leading group it reads one glyph wide ("2 375 956" read as "23",
+    "375", "956"), and the plain pass refuses that narrow "23". The
+    digits-only pass merges the groups into one wide token ("23375956",
+    about 0.9 of its digits), which the rule does not refuse: there only
+    the sum gates and the checks keep the misread out. The probe measured
+    correct tokens at 0.76 or more, the misreads at 0.34-0.36
+    (analysis/output/cost-sum-probe.md);
+  - R4: `varer` matches on balance pages only, so the income statement's
+    inventory-change row ("... og ferdig tilvirkede varer") is never read as
+    the balance's stock.
 
 Nothing here computes anything: a figure is the digits as printed, or None.
 """
@@ -89,6 +114,26 @@ def fold_mixed(text: str) -> str:
         if _LETTER.search(word) and _DIGIT.search(word):
             word = word.translate(MIXED_WORD_DIGITS)
         words.append(word)
+    return fold(" ".join(words))
+
+
+# A note reference at the end of a label, as Tesseract reads it: digits, "l"
+# for a bold 1, and commas ("Lønnskostnad ll, 2, 3"). `fold` drops the
+# digits and commas but keeps the "l", so the label no longer ends with its
+# target (Story 2.5b probe).
+NOTE_REFERENCE = re.compile(r"^[0-9l,]+$")
+
+
+def fold_notes(text: str) -> str:
+    """The third label fold (Story 2.5b): like `fold`, after dropping the
+    label's trailing words made only of digits, "l" and commas, so
+    "Lønnskostnad ll, 2, 3" folds to "lonnskostnad" where `fold` gives
+    "lonnskostnadll". The first word is never dropped. For labels only,
+    never a figure, and tried after `fold` and `fold_mixed`, never instead
+    of them."""
+    words = text.split()
+    while len(words) > 1 and NOTE_REFERENCE.match(words[-1]):
+        words.pop()
     return fold(" ".join(words))
 
 
@@ -179,15 +224,32 @@ def unit_text(label_words: Sequence[Word]) -> str | None:
     return None
 
 
+def too_narrow(tokens: Sequence[Word], pitch: float) -> bool:
+    """R1 (Story 2.5c): some digit token is narrower than `MIN_DIGIT_WIDTH`
+    times its characters times `pitch`: its digits, a "1" counted as a full
+    digit, plus one for a leading minus, whose glyph is inside the box
+    (Meinich, 2026-11-06, review triage 1). A token that is not all ASCII
+    digits after the minus is left to the digit check."""
+    for t in tokens:
+        digits = t.text.lstrip("-")
+        characters = len(digits) + (1 if t.text.startswith("-") else 0)
+        if DIGITS.match(digits) and t.width < MIN_DIGIT_WIDTH * characters * pitch:
+            return True
+    return False
+
+
 def parse_number(tokens: Sequence[Word], pitch: float, mode: Pass) -> int | None:
     """Join digit groups into one figure, or refuse. Never guess, never
     repair: a token holding anything but ASCII digits (after a leading minus)
-    gives None."""
+    gives None, and so does a digit token too narrow for its digits (R1,
+    `too_narrow`), checked on every token in either pass. A digits-only
+    token merged from several groups is as wide as they are, so R1 rarely
+    refuses one."""
     if not tokens:
         return None
     # The digits-only pass drops the thousands spaces and returns one token.
     if mode == "digits" and len(tokens) == 1 and ONE_TOKEN.match(tokens[0].text):
-        return int(tokens[0].text)
+        return None if too_narrow(tokens, pitch) else int(tokens[0].text)
     words = list(tokens)
     text = [t.text for t in words]
     negative = False
@@ -197,6 +259,8 @@ def parse_number(tokens: Sequence[Word], pitch: float, mode: Pass) -> int | None
     elif text[0].startswith("-"):
         negative, text = True, [text[0][1:], *text[1:]]
     if not text or not all(DIGITS.match(t) for t in text):
+        return None
+    if too_narrow(words, pitch):
         return None
     # A leading group of 1-3 digits, then groups of exactly 3.
     if not (1 <= len(text[0]) <= 3) or not all(len(t) == 3 for t in text[1:]):
@@ -296,9 +360,64 @@ TARGETS: dict[str, tuple[str, ...]] = {
     "sum_kortsiktig_gjeld": ("sumkortsiktiggjeld",),
     "sum_gjeld": ("sumgjeld",),
     "sum_egenkapital_gjeld": ("sumegenkapitaloggjeld",),
+    # The four printed parts of intangible assets (Story 2.5b, F2), last, as
+    # their columns in register.document_column. From the
+    # labels the probe found (analysis/output/empty-lines-probe.md). The
+    # concessions row wraps: "Konsesjoner, patenter," / "lisenser,
+    # varemerker" (/ "og lignende rettigheter"), or is one line,
+    # "Konsesjoner, patenter o.l.". Balance pages only (TARGET_PAGES).
+    # 979607008/2025 prints the first part as "Utvikling" alone, under the
+    # heading "Immaterielle eiendeler" (the contract fixture).
+    "forskning_og_utvikling": ("forskningogutvikling", "utvikling"),
+    "konsesjoner_patenter": (
+        "konsesjonerpatenterol",
+        "konsesjonerpatenterlisenservaremerker",
+        "konsesjonerpatenterlisenservaremerkerol",
+        "konsesjonerpatenterlisenservaremerkeroglignenderettigheter",
+    ),
+    "goodwill": ("goodwill",),
+    "utsatt_skattefordel": ("utsattskattefordel",),
 }
 
+# The page kind a field must stand on. A part of intangible assets: the
+# balance sheet, never the income statement, whose depreciation row ends in
+# "… immaterielle eiendeler". `varer` (R4, Story 2.5c): the balance sheet,
+# never the income statement's inventory-change row "Endring i beholdning
+# av / varer under tilvirkning / og ferdig tilvirkede varer", which ends in
+# "varer" too and was stored as the stock. Fields not listed match on any
+# statement page, as before Story 2.5b.
+PARTS: tuple[str, ...] = ("forskning_og_utvikling", "konsesjoner_patenter", "goodwill", "utsatt_skattefordel")
+TARGET_PAGES: dict[str, PageKind] = {**dict.fromkeys(PARTS, "balanse"), "varer": "balanse"}
+
+# Wordings of the cost lines that `TARGETS` misses (Story 2.5b, F1; the
+# probe's evidence). Tried only for a field no variant of `TARGETS` matched
+# under `fold` or `fold_mixed`, and only on income-statement pages, so a
+# balance row is never read as depreciation.
+LATER_VARIANTS: dict[str, tuple[str, ...]] = {
+    "lonnskostnad": ("lonnskostnader",),
+    "avskrivninger": (
+        "avskrivningavdriftsmidlerogimmaterielleeiendeler",
+        "avskrivningpadriftsmidlerogimmaterielleeiendeler",
+        "avskrivningpavarigedriftsmidler",
+        "avskrivningavdriftsmidler",
+        "avskrivninger",
+        "avskrivning",
+    ),
+    "nedskrivninger": (
+        "nedskrivningavdriftsmidlerogimmaterielleeiendeler",
+        "nedskrivningpavarigedriftsmidlerogimmaterielleeiendeler",
+    ),
+    "annen_driftskostnad": ("annendriftskostnader", "andredriftskostnader"),
+}
+LATER_PAGES: dict[str, PageKind] = dict.fromkeys(LATER_VARIANTS, "resultat")
+
 LABEL_SIMILARITY = 0.85  # tolerates OCR slips such as "Driftoreoultat" for "Driftsresultat"
+# R1 (Story 2.5c; Meinich, 2026-11-06): a digit token narrower than this many
+# character pitches per digit (a leading minus counted as one more) is refused. Measured by the probe
+# (analysis/output/cost-sum-probe.md): correct tokens are 0.76 or more (a
+# lone "1"), 0.84 (two digits) and 0.91 (three) at the 1st percentile; a
+# digit read as two, 0.34-0.36. At 0.6 no correct reference figure is lost.
+MIN_DIGIT_WIDTH = 0.6
 JOIN_LINES = 3  # at most this many label-only lines above a row join its label
 
 
@@ -324,10 +443,18 @@ def ends_balance(label: str) -> bool:
     )
 
 
-def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list[tuple[str, str, Row]]:
-    """(joined label, own label, row) for every row with a number on a
-    statement page, its labels folded by `fold_label`."""
-    candidates: list[tuple[str, str, Row]] = []
+@dataclass(frozen=True)
+class Candidate:
+    joined: str  # the row's label joined with the label-only lines above it, folded
+    own: str  # the row's own label, folded
+    row: Row
+    kind: PageKind
+
+
+def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list[Candidate]:
+    """Every row with a number on a statement page, its labels folded by
+    `fold_label`."""
+    candidates: list[Candidate] = []
     for page in pages:
         if page.kind == "other":
             continue
@@ -341,38 +468,73 @@ def _candidates(pages: Sequence[Page], fold_label: Callable[[str], str]) -> list
             while j >= 0 and not rows[j].has_number and i - j <= JOIN_LINES:
                 joined = fold_label(rows[j].label) + joined
                 j -= 1
-            candidates.append((joined, own, row))
+            candidates.append(Candidate(joined, own, row, page.kind))
     return candidates
 
 
-def _match(candidates: list[tuple[str, str, Row]], found: dict[str, tuple[int | None, int | None]]) -> None:
-    """Fills `found` for each field not in it yet: exact matches first, over
-    every candidate; a fuzzy match only for a field no row matched exactly,
-    and only against the row's own label."""
-    for key, variants in TARGETS.items():
+def _match(
+    candidates: list[Candidate],
+    found: dict[str, tuple[int | None, int | None]],
+    targets: dict[str, tuple[str, ...]],
+    pages: dict[str, PageKind],
+    taken: set[int],
+) -> None:
+    """Fills `found` for each field of `targets` not in it yet: exact
+    matches first, over every candidate; a fuzzy match only for a field no
+    row matched exactly, and only against the row's own label. A field in
+    `pages` matches only a row on a page of that kind. `taken` holds the
+    rows (by identity) an earlier match of this extract assigned; the fuzzy
+    match never offers one of them to another field, so an unwrapped
+    "Avskrivning av driftsmidler og immaterielle eiendeler" row, about 0.95
+    similar to the write-down label, is never read as nedskrivninger too
+    (Story 2.5b review)."""
+
+    def allowed(key: str, c: Candidate) -> bool:
+        return key not in pages or c.kind == pages[key]
+
+    for key, variants in targets.items():
         if key in found:
             continue
-        for joined, _, row in candidates:
-            if any(joined.endswith(v) for v in variants):
-                found[key] = (row.current, row.prior)
+        for c in candidates:
+            if allowed(key, c) and any(c.joined.endswith(v) for v in variants):
+                found[key] = (c.row.current, c.row.prior)
+                taken.add(id(c.row))
                 break
-    for key, variants in TARGETS.items():
+    for key, variants in targets.items():
         if key in found:
             continue
-        for _, own, row in candidates:
-            if any(similar(own, v) for v in variants):
-                found[key] = (row.current, row.prior)
+        for c in candidates:
+            if id(c.row) not in taken and allowed(key, c) and any(similar(c.own, v) for v in variants):
+                found[key] = (c.row.current, c.row.prior)
+                taken.add(id(c.row))
                 break
 
 
 def extract(pages: Sequence[Page]) -> dict[str, tuple[int | None, int | None]]:
-    """(current, prior) per target field a row matched. Under `fold` first,
-    exactly as before Story 2.3b: exact matches over every page, then a fuzzy
-    match only for a field no row matched exactly, and only against the
-    row's own label. Then the same two steps under `fold_mixed`, only for a
-    field `fold` matched nowhere, so every match `fold` makes stands. A
-    field no row matched is left out."""
+    """(current, prior) per target field a row matched, in stages. Each
+    stage fills only a field no earlier stage matched, so every earlier
+    match stands with its value:
+
+    1. `TARGETS` under `fold`, exactly as before Story 2.3b: exact matches
+       over every page, then a fuzzy match only for a field no row matched
+       exactly, and only against the row's own label;
+    2. the same under `fold_mixed` (Story 2.3b);
+    3. the cost lines' `LATER_VARIANTS` with their `TARGETS` variants, on
+       income-statement pages only, under `fold` and then `fold_mixed`
+       (Story 2.5b);
+    4. every variant under `fold_notes`, the later variants still on
+       income-statement pages only (Story 2.5b).
+
+    The parts of intangible assets and `varer` (Story 2.5c, R4) match on
+    balance pages only, in every stage. A row one field matched is never another field's fuzzy match
+    (`taken`, Story 2.5b review); the 40 probe documents kept all 1 486
+    matches of the code before it. A field no row matched is left out."""
     found: dict[str, tuple[int | None, int | None]] = {}
-    _match(_candidates(pages, fold), found)
-    _match(_candidates(pages, fold_mixed), found)
+    later = {key: TARGETS[key] + variants for key, variants in LATER_VARIANTS.items()}
+    taken: set[int] = set()
+    _match(_candidates(pages, fold), found, TARGETS, TARGET_PAGES, taken)
+    _match(_candidates(pages, fold_mixed), found, TARGETS, TARGET_PAGES, taken)
+    _match(_candidates(pages, fold), found, later, LATER_PAGES, taken)
+    _match(_candidates(pages, fold_mixed), found, later, LATER_PAGES, taken)
+    _match(_candidates(pages, fold_notes), found, TARGETS | later, TARGET_PAGES | LATER_PAGES, taken)
     return found

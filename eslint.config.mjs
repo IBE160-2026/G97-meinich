@@ -25,6 +25,20 @@ const serverImportRestriction = {
   ],
 };
 
+// A 'use client' module also may not import the engine's digest (Story 2.5):
+// it hashes with node:crypto, which is server-only, and a digest is a batch
+// and CI concern, never something a browser computes.
+const clientImportRestriction = {
+  paths: serverImportRestriction.paths,
+  patterns: [
+    ...serverImportRestriction.patterns,
+    {
+      regex: /^(?:@\/engine\/digest|src\/engine\/digest|(?:\.{1,2}\/)+(?:[^/]+\/)*digest)(?:\.[cm]?[jt]s)?$/.source,
+      message: 'src/engine/digest.ts uses node:crypto; a client module may not import it.',
+    },
+  ],
+};
+
 // The engine is pure functions, figures in and figures out (AD-8; Story 1.4):
 // on top of the server restriction it may import nothing from Next.js or
 // React, subpaths included (next/server, react/jsx-runtime, react-dom/server).
@@ -119,10 +133,12 @@ export default defineConfig([
       local: { rules: { 'client-restricted-imports': clientRestrictedImports } },
     },
     rules: {
-      'local/client-restricted-imports': ['error', serverImportRestriction],
+      'local/client-restricted-imports': ['error', clientImportRestriction],
     },
   },
   globalIgnores([
+    // Gitignored local work: dumps, logs and old worktrees.
+    '.local/**',
     '.next/**',
     'out/**',
     'build/**',

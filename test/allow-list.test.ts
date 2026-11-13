@@ -30,10 +30,12 @@ describe('seed/allow-list.json', () => {
 
   it('reads the committed seed files', () => {
     expect([...files.keys()].sort()).toEqual([
+      'classification.csv',
       'company.csv',
       'document.csv',
       'document_column.csv',
       'filing.csv',
+      'fingerprint.csv',
       'key_figures.csv',
     ]);
   });

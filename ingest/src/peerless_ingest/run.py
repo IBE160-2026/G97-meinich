@@ -8,6 +8,7 @@ in øre.
     python -m peerless_ingest --companies-only    (`pnpm ingest --companies-only`)
     python -m peerless_ingest --documents <file>  (`pnpm ingest --documents <file>`)
     python -m peerless_ingest --reread <file>     (`pnpm ingest --reread <file>`)
+    python -m peerless_ingest --reread-all <file> (`pnpm ingest --reread-all <file>`)
 
 Prints a summary per industry code, or in documents mode per document status
 and year. Stores no ratio, distribution or derived amount (AD-1, AD-15): the
@@ -51,10 +52,55 @@ replaces nothing: the document keeps its old figures and version, is named
 as not replaced, and the run exits 1. A figure that a column still
 reconciled no longer holds is replaced, and listed per document.
 
+A list entry (Story 2.5d) is a plain orgnr, meaning every year 2021–2025,
+or `{"orgnr": …, "years": [2025]}`, meaning only those years: in documents
+mode no other year is fetched, and in the re-read modes no stored document
+of another year is re-read. Documents mode still reconciles again, from
+their stored figures and with no fetch or OCR, every stored document of the
+company, whatever its year. A year asked for that the register's /aar list
+does not hold is named in the summary and counted (`asked_not_listed`), not
+a failure. A later run with more years fetches only the documents not
+stored. A malformed entry (no orgnr, a year outside
+2021–2025, no years, a year or an orgnr twice) refuses the whole list.
+
+`--reread-all` (Story 2.5d) is re-read mode with one difference: the stored
+reader version is not checked, so a document already read by the current
+version is fetched, read and replaced too (the second re-read that proves
+the OCR word cache on real data). Refusals, "not replaced", the fetch
+deadline, the stop after deadlines in a row and the exit code are re-read
+mode's. Its run record has mode `reread` (run.step1's mode check is
+unchanged, so no migration) and `reread_all: true` in its counts.
+
+The OCR word cache (Story 2.5d). When PEERLESS_OCR_CACHE names a directory
+(`pnpm ingest` mounts `.local/ocr-cache/` there for the document modes),
+documents and re-read mode take each fetched document's recognised words
+from it on an exact key match (`ocr_cache`), and otherwise read by OCR and
+store them. Every document is still fetched, and its row carries the
+current reader version, also on a hit. The hits and the misses, per kind,
+are in the run record's counts; without the variable the counts say
+`ocr_cache: off`. A set variable whose key cannot be read (no Tesseract, no
+model file) refuses the run before any connection.
+
 Companies-only mode (Story 1.5a) reads only the bulk download and fills the
 fields search shows on the companies already in register.company. It adds
-no company, deletes none, touches no filing and leaves every other column,
-`navn` and `read_at` included, as it was.
+no company, deletes none (only a plain run deletes), touches no filing and
+leaves every other column, `navn` and `read_at` included, as it was.
+
+Withdrawn companies (Story 2.4). A plain run reads the stored orgnrs before
+the bulk download, and after loading asks the register's unit endpoint
+about each stored orgnr that is absent from the whole bulk file. Only an
+explicit 410 Gone deletes it (`write.delete_company`), and every register row
+that references it goes with it. 404, a 5xx, a timeout, a body that is not
+JSON, or a live unit deletes nothing and is a failure. If more than
+`[withdrawal] max_absent_share` of the stored companies are absent, the
+bulk file is taken to be truncated: no unit is asked about and nothing is
+deleted (D5). No other mode deletes.
+
+The run record (Story 2.4). Every mode's run is recorded in run.step1:
+inserted when it starts, updated when it ends with its counts per outcome
+and every failure, also when it ends in an exception, whose class and
+message are recorded before it is raised again. Each deleted orgnr is
+appended in the deleting transaction.
 """
 
 from __future__ import annotations
@@ -64,18 +110,20 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from collections import Counter
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from fractions import Fraction
 from pathlib import Path
 from typing import Protocol
 
 import psycopg
 
 from . import config as config_module
-from . import documents, fetch, ocr, parse, reconcile, write
+from . import documents, fetch, ocr, ocr_cache, parse, reconcile, write
 
 # Every filed document of these years is read (Story 2.1b): five years of
 # development over time, each document also carrying the year before.
@@ -111,9 +159,15 @@ class DocumentSummary:
     skipped_stored: int = 0
     # Years in the register's list outside DOCUMENT_YEARS: never fetched.
     outside_years: int = 0
+    # Years in the register's list that the company's list entry does not
+    # ask for (`{"orgnr", "years"}`, Story 2.5d): not fetched.
+    not_asked_years: int = 0
     # Companies whose /aar list the register answered 404 or 410: no
     # filed document to read.
     no_document_list: list[str] = field(default_factory=list)
+    # Years a list entry asks for that the register's /aar list does not
+    # hold (Story 2.5d review): not fetched, named, and not a failure.
+    asked_not_listed: list[Problem] = field(default_factory=list)
     # Documents passed to the reader, and the seconds spent reading them
     # (time, not money: a float is fine here).
     read_count: int = 0
@@ -142,14 +196,77 @@ class DocumentSummary:
             f"{status} {sum(n for (_, written), n in self.written.items() if written == status)}" for status in STATUSES
         )
         out.append(f"    written: {totals}")
-        out.append(f"    already stored, skipped: {self.skipped_stored}; listed years outside 2021–2025: {self.outside_years}")
+        out.append(
+            f"    already stored, skipped: {self.skipped_stored}; listed years outside 2021–2025: {self.outside_years};"
+            f" years the list entry does not ask for: {self.not_asked_years}"
+        )
         out.append(f"    companies with no list of filed documents (404 or 410): {len(self.no_document_list)}")
         for orgnr in self.no_document_list:
             out.append(f"    no list of filed documents: {orgnr}")
+        out.append(f"    years a list entry asks for that the register does not list: {len(self.asked_not_listed)}")
+        for problem in self.asked_not_listed:
+            out.append(f"    asked for, not in the register's list: {problem.orgnr} {problem.what}")
         out.append(f"    read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
         out.append(f"    prior-year columns failed_reconciliation (the filing's status is its current column's): {self.prior_failed}")
         for problem in self.ocr_errors:
             out.append(f"    OCR error, stored as not_extracted: {problem.orgnr} {problem.what}")
+        return out
+
+
+# The stage of every failure the withdrawal check records (Story 2.4).
+WITHDRAWAL = "withdrawal"
+# How a failure fetching demo company C's unit is named in Summary.failed.
+DEMO_PREFIX = "demo company C: "
+
+
+@dataclass
+class WithdrawalSummary:
+    """The withdrawal check of a plain run (Story 2.4): the stored orgnrs
+    absent from the bulk file, and what the register's unit endpoint
+    answered for each."""
+
+    # Companies stored when the run started; how many of them the bulk file
+    # did not hold and have no stored slettedato (the D5 share's count), and
+    # how many it did not hold but are already stored as dissolved, which
+    # are not looked up again (Q5a).
+    stored: int = 0
+    absent: int = 0
+    absent_already_dissolved: int = 0
+    # Absent orgnrs asked about at the unit endpoint.
+    checked: int = 0
+    # Deleted after 410 Gone, with every row referencing them.
+    deleted: list[str] = field(default_factory=list)
+    # Answered 200 with a slettedato, now stored: dissolved, not withdrawn,
+    # and not a failure (Q4a).
+    dissolved: list[str] = field(default_factory=list)
+    # Not deleted, and why: 404, a live unit, a fetch error, a malformed
+    # slettedato, a failed write, or the whole check skipped for a
+    # truncated bulk file. All are in the run record.
+    failures: list[write.Failure] = field(default_factory=list)
+    # True when the check did not finish (Q6): the D5 guard, a failed
+    # delete or write, or a lookup that did not complete. Only this makes
+    # the run exit 1; 404 and a live unit are failures that do not.
+    incomplete: bool = False
+
+    def fail(self, failure: write.Failure, *, incomplete: bool) -> None:
+        self.failures.append(failure)
+        self.incomplete = self.incomplete or incomplete
+
+    def lines(self) -> list[str]:
+        out = [
+            f"  Withdrawn companies: {self.stored} stored, {self.absent} absent from the bulk file"
+            f" (and {self.absent_already_dissolved} already stored as dissolved), {self.checked} asked about,"
+            f" {len(self.deleted)} deleted (410 Gone), {len(self.dissolved)} dissolved (slettedato stored),"
+            f" {len(self.failures)} failures"
+        ]
+        for orgnr in self.deleted:
+            out.append(f"  deleted (410 Gone), with every row referencing it: {orgnr}")
+        for orgnr in self.dissolved:
+            out.append(f"  dissolved (200 with slettedato), kept: {orgnr}")
+        for failure in self.failures:
+            out.append(f"  not deleted: {failure.orgnr or '-'} {failure.reason}")
+        if self.incomplete:
+            out.append("  The withdrawal check did not finish: a person must look at the failures above.")
         return out
 
 
@@ -162,7 +279,11 @@ class Summary:
     demo_filings_written: int = 0
     rejected: list[Problem] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
+    withdrawal: WithdrawalSummary = field(default_factory=WithdrawalSummary)
     wall_seconds: float = 0.0
+    # Companies loaded with another form than AS: their register text is not
+    # stored (Story 2.6a).
+    register_text_skipped_not_as: int = 0
 
     def needs_operator(self) -> bool:
         """True when anything in the run needs a person to look at it."""
@@ -172,7 +293,58 @@ class Summary:
             or not self.demo_found
             or self.demo_filings_written == 0
             or self.codes_returning_nothing()
+            or self.withdrawal.incomplete
         )
+
+    def record_counts(self) -> dict[str, object]:
+        """The run record's counts per outcome."""
+        return {
+            "codes": {
+                code: {
+                    "companies": s.companies,
+                    "companies_with_filings": s.companies_with_filings,
+                    "filings_written": s.filings_written,
+                }
+                for code, s in self.codes.items()
+            },
+            "demo_found": self.demo_found,
+            "demo_filings_written": self.demo_filings_written,
+            "register_text_skipped_not_as": self.register_text_skipped_not_as,
+            "rejected": len(self.rejected),
+            "failed": len(self.failed),
+            "stored": self.withdrawal.stored,
+            "absent_from_bulk": self.withdrawal.absent,
+            "absent_already_dissolved": self.withdrawal.absent_already_dissolved,
+            "unit_checked": self.withdrawal.checked,
+            "deleted": len(self.withdrawal.deleted),
+            "dissolved": len(self.withdrawal.dissolved),
+            "withdrawal_failures": len(self.withdrawal.failures),
+            "withdrawal_incomplete": self.withdrawal.incomplete,
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        """Every failure, as the run record lists it, each once: those that
+        make `needs_operator` true, and the withdrawal check's 404 and live
+        answers, which do not."""
+        out = [
+            write.Failure(p.orgnr, "demo_company_c" if p.what.startswith(DEMO_PREFIX) else "load", p.what)
+            for p in self.failed
+        ]
+        out += [write.Failure(p.orgnr, "filing_rejected", p.what) for p in self.rejected]
+        demo_named = any(p.orgnr == self.demo_orgnr and p.what.startswith(DEMO_PREFIX) for p in self.failed)
+        # The demo and coverage checks judge a finished run: a run that
+        # raised before reaching them did not find them missing.
+        if finished:
+            if not self.demo_found:
+                if not demo_named:
+                    out.append(write.Failure(self.demo_orgnr, "demo_company_c", "not found in Enhetsregisteret"))
+            elif self.demo_filings_written == 0:
+                out.append(write.Failure(self.demo_orgnr, "demo_company_c", "no filing written"))
+            out += [
+                write.Failure(None, "coverage", f"{code}: no unit has it as naeringskode1")
+                for code in self.codes_returning_nothing()
+            ]
+        return out + list(self.withdrawal.failures)
 
     def codes_returning_nothing(self) -> list[str]:
         return [code for code, summary in self.codes.items() if summary.companies == 0]
@@ -200,6 +372,7 @@ class Summary:
             out.append(f"  rejected filing, not written: {problem.orgnr} {problem.what}")
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        out.extend(self.withdrawal.lines())
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
         out.append("  No filed document fetched (documents mode reads them: --documents <file>).")
         out.append("  Stored as filed: no ratio, distribution or derived amount was written.")
@@ -222,11 +395,48 @@ class DocumentsOnlySummary:
     # whole table: read but not reconciled, because their company was not
     # in this list (Story 2.2). None if the count could not be read.
     still_extracted: int | None = None
+    # Why the run stopped before its list ended (too many fetch deadlines in
+    # a row, Story 2.5b review), or None.
+    stopped: str | None = None
+    # The OCR word cache this run used (Story 2.5d), or None: every
+    # document read by OCR, recorded as `ocr_cache: off`.
+    cache: ocr_cache.Cache | None = None
 
     def needs_operator(self) -> bool:
         # An OCR error is stored for good (a rerun skips it), so it needs a
         # person even though the run went on.
-        return bool(self.failed or self.refused or self.documents.ocr_errors)
+        return bool(self.failed or self.refused or self.documents.ocr_errors or self.stopped)
+
+    def record_counts(self) -> dict[str, object]:
+        d = self.documents
+        return {
+            "listed": self.listed,
+            "companies": self.companies,
+            "refused": len(self.refused),
+            "failed": len(self.failed),
+            "written": {status: sum(n for (_, s), n in d.written.items() if s == status) for status in STATUSES},
+            "rereconciled": {
+                status: sum(n for (_, s), n in d.rereconciled.items() if s == status) for status in RECONCILED_STATUSES
+            },
+            "skipped_stored": d.skipped_stored,
+            "outside_years": d.outside_years,
+            "not_asked_years": d.not_asked_years,
+            "no_document_list": len(d.no_document_list),
+            "asked_not_listed": len(d.asked_not_listed),
+            "read": d.read_count,
+            "ocr_errors": len(d.ocr_errors),
+            "prior_failed": d.prior_failed,
+            "still_extracted": self.still_extracted,
+            **ocr_cache.record_of(self.cache),
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        return (
+            [write.Failure(p.orgnr, "refused", p.what) for p in self.refused]
+            + [write.Failure(p.orgnr, "documents", p.what) for p in self.failed]
+            + [write.Failure(p.orgnr, "ocr", p.what) for p in self.documents.ocr_errors]
+            + ([] if self.stopped is None else [write.Failure(None, "documents", self.stopped)])
+        )
 
     def lines(self) -> list[str]:
         out = [
@@ -238,6 +448,9 @@ class DocumentsOnlySummary:
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
         out.extend(self.documents.lines())
+        out.append(cache_line(self.cache))
+        if self.stopped is not None:
+            out.append(f"  STOPPED before the end of the list: {self.stopped}")
         shown = "unknown (count failed)" if self.still_extracted is None else str(self.still_extracted)
         out.append(f"  documents still extracted (not reconciled; not in this list): {shown}")
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
@@ -260,6 +473,9 @@ class RereadSummary:
     replaced: Counter[tuple[int, str]] = field(default_factory=Counter)
     # Already read by the current version: not fetched (a resumed run).
     current: int = 0
+    # Stored documents of a year the list entry does not ask for (Story
+    # 2.5d): not fetched.
+    not_asked_years: int = 0
     # Not replaced, with the reason: they keep their figures and old version.
     not_replaced: list[Problem] = field(default_factory=list)
     # Replaced, but a column reconciled before and after lost a figure: the
@@ -272,14 +488,48 @@ class RereadSummary:
     read_seconds: float = 0.0
     prior_failed: int = 0
     wall_seconds: float = 0.0
+    # Why the run stopped before its list ended (too many fetch deadlines in
+    # a row, Story 2.5b review), or None.
+    stopped: str | None = None
+    # The OCR word cache this run used (Story 2.5d), or None.
+    cache: ocr_cache.Cache | None = None
+    # `--reread-all` (Story 2.5d): the stored reader version is not checked,
+    # so a document at the current version is re-read too.
+    every_version: bool = False
 
     def needs_operator(self) -> bool:
         # A document not replaced still holds another version's figures.
-        return bool(self.failed or self.refused or self.not_replaced)
+        return bool(self.failed or self.refused or self.not_replaced or self.stopped)
+
+    def record_counts(self) -> dict[str, object]:
+        return {
+            "listed": self.listed,
+            "companies": self.companies,
+            "refused": len(self.refused),
+            "replaced": {status: sum(n for (_, s), n in self.replaced.items() if s == status) for status in STATUSES},
+            "current": self.current,
+            "not_asked_years": self.not_asked_years,
+            "not_replaced": len(self.not_replaced),
+            "lost_figures": len(self.lost_figures),
+            "failed": len(self.failed),
+            "read": self.read_count,
+            "prior_failed": self.prior_failed,
+            "reread_all": self.every_version,
+            **ocr_cache.record_of(self.cache),
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        return (
+            [write.Failure(p.orgnr, "refused", p.what) for p in self.refused]
+            + [write.Failure(p.orgnr, "not_replaced", p.what) for p in self.not_replaced]
+            + [write.Failure(p.orgnr, "reread", p.what) for p in self.failed]
+            + ([] if self.stopped is None else [write.Failure(None, "reread", self.stopped)])
+        )
 
     def lines(self) -> list[str]:
+        which = "every stored document, whatever its reader version" if self.every_version else "stored documents"
         out = [
-            "Step 1 summary, re-read (stored documents of the listed companies, by the current reader version)",
+            f"Step 1 summary, re-read ({which} of the listed companies, by the current reader version)",
             f"  reader version: {self.reader_commit}",
             f"  {self.listed} orgnrs listed: {self.companies} companies read, {len(self.refused)} refused",
         ]
@@ -293,6 +543,7 @@ class RereadSummary:
             f"  replaced {sum(self.replaced.values())}; already current, not fetched {self.current};"
             f" not replaced {len(self.not_replaced)}"
         )
+        out.append(f"  stored documents of years the list entry does not ask for, not fetched: {self.not_asked_years}")
         for problem in self.not_replaced:
             out.append(f"  not replaced, keeps its old figures and version: {problem.orgnr} {problem.what}")
         out.append(f"  replaced with a figure lost from a column still reconciled: {len(self.lost_figures)} documents")
@@ -300,7 +551,10 @@ class RereadSummary:
             out.append(f"  figure lost, now NULL: {problem.orgnr} {problem.what}")
         for problem in self.failed:
             out.append(f"  failed, not written: {problem.orgnr} {problem.what}")
+        if self.stopped is not None:
+            out.append(f"  STOPPED before the end of the list: {self.stopped}")
         out.append(f"  read: {self.read_count} documents in {self.read_seconds:.1f} s of reading")
+        out.append(cache_line(self.cache))
         out.append(f"  prior-year columns failed_reconciliation (the filing's status is its current column's): {self.prior_failed}")
         out.append(f"  Wall time: {self.wall_seconds:.0f} s")
         out.append("  No bulk download and no key figures fetched; stored as filed.")
@@ -312,7 +566,8 @@ class CompaniesOnlySummary:
     in_database: int
     updated: int = 0
     # In register.company but absent from the bulk download: withdrawn units
-    # (deleting them is Story 2.4) or, in a test database, units outside it.
+    # (only a plain run deletes one, after 410 Gone) or, in a test database,
+    # units outside it.
     not_found: list[str] = field(default_factory=list)
     failed: list[Problem] = field(default_factory=list)
     # (orgnr, stored naeringskode1, bulk naeringskode1) where the register's
@@ -321,6 +576,10 @@ class CompaniesOnlySummary:
     # as NULL; the municipality is stored as delivered. Reported, not an
     # error: the next full run stores code and description together.
     code_differs: list[tuple[str, str | None, str | None]] = field(default_factory=list)
+    # Companies the register or the stored row gives another form than AS:
+    # their register text is stored as NULL, clearing any earlier text
+    # (Story 2.6a).
+    register_text_skipped_not_as: int = 0
 
     def needs_operator(self) -> bool:
         """Only a failed write needs a person: a company not found in the
@@ -328,11 +587,25 @@ class CompaniesOnlySummary:
         reported for the next full run."""
         return bool(self.failed)
 
+    def record_counts(self) -> dict[str, object]:
+        return {
+            "in_database": self.in_database,
+            "updated": self.updated,
+            "not_found_in_bulk": len(self.not_found),
+            "code_differs": len(self.code_differs),
+            "register_text_skipped_not_as": self.register_text_skipped_not_as,
+            "failed": len(self.failed),
+        }
+
+    def record_failures(self, finished: bool = True) -> list[write.Failure]:
+        return [write.Failure(p.orgnr, "search_fields", p.what) for p in self.failed]
+
     def lines(self) -> list[str]:
         out = [
             "Step 1 summary, companies only (search fields of companies already stored)",
             f"  {self.in_database} companies in the database: updated {self.updated},"
             f" not found in bulk file {len(self.not_found)}",
+            f"  register text not stored, form is not AS: {self.register_text_skipped_not_as}",
         ]
         for orgnr in self.not_found:
             out.append(f"  not found in bulk file, left untouched: {orgnr}")
@@ -343,6 +616,24 @@ class CompaniesOnlySummary:
             out.append(f"  failed write, rolled back: {problem.orgnr} {problem.what}")
         out.append("  No company added or deleted, no filing touched, navn and read_at unchanged.")
         return out
+
+
+def cache_line(cache: ocr_cache.Cache | None) -> str:
+    """The OCR word cache's counts as the summary prints them (Story 2.5d)."""
+    if cache is None:
+        return "  OCR word cache: off (PEERLESS_OCR_CACHE unset); every document read by OCR"
+    c = cache.counts
+    parts = ", ".join(f"{part} {n}" for part, n in sorted(c.miss_key_parts.items())) or "none"
+    return (
+        f"  OCR word cache: {c.hit} hits; misses: {c.miss_absent} absent, {c.miss_key} key differs ({parts}),"
+        f" {c.miss_unreadable} unreadable, {c.miss_pages} with no figure pages for a generated top,"
+        f" {c.miss_pdf_id} with no usable /ID ({', '.join(f'{r} {n}' for r, n in sorted(c.miss_pdf_id_reasons.items())) or 'none'});"
+        f" {c.write_failed} entries not written"
+    )
+
+
+# A run's summary, as the run record reads it (Story 2.4).
+RecordedSummary = Summary | CompaniesOnlySummary | DocumentsOnlySummary | RereadSummary
 
 
 class ConnectionLost(Exception):
@@ -374,6 +665,8 @@ def _load_company(
     now: Callable[[], datetime],
 ) -> int:
     """Writes the company and each of its filings. Returns filings written."""
+    if company.organisasjonsform != parse.REGISTER_TEXT_FORM:
+        summary.register_text_skipped_not_as += 1
     try:
         write.write_company(conn, company)
     except psycopg.Error as error:
@@ -476,6 +769,71 @@ class NotRead(Exception):
     stored for it, so a later run tries it again."""
 
 
+class FetchDeadline(Exception):
+    """The fetch of one document did not end within the deadline."""
+
+
+def _fetch_within(deadline_seconds: float, transport: fetch.Transport, base_url: str, orgnr: str, year: int) -> bytes | None:
+    """`fetch.fetch_document`, abandoned after `deadline_seconds` (Story
+    2.5b, the watchdog). The fetch runs on a daemon thread and the run stops
+    waiting for it, so a request that hangs past urlopen's per-operation
+    timeout (Story 2.3b's re-read) costs this document only. The abandoned
+    thread is left to end on its own; nothing it returns is used. Raises
+    FetchDeadline on expiry, and re-raises whatever the fetch raised."""
+    outcome: list[tuple[bool, object]] = []
+
+    def target() -> None:
+        try:
+            outcome.append((True, fetch.fetch_document(transport, base_url, orgnr, year)))
+        except BaseException as error:  # handed to the run's thread, never swallowed
+            outcome.append((False, error))
+
+    worker = threading.Thread(target=target, name=f"fetch {orgnr}/{year}", daemon=True)
+    worker.start()
+    worker.join(deadline_seconds)
+    if worker.is_alive() or not outcome:
+        raise FetchDeadline(f"no answer within {deadline_seconds:g} s (the per-document fetch deadline)")
+    done, value = outcome[0]
+    if not done:
+        assert isinstance(value, BaseException)
+        raise value
+    assert value is None or isinstance(value, bytes)
+    return value
+
+
+@dataclass
+class DeadlineStreak:
+    """Fetch deadlines in a row, across one documents or re-read run (Story
+    2.5b review, Meinich 2026-11-05). After `limit` in a row the network or
+    the Docker VM has most likely stalled, and every further document would
+    wait the full deadline, so the run stops: no further document is
+    fetched, the stop is a failure in the run record, and the run exits 1.
+    A fetch that ends in any other way resets the count."""
+
+    limit: int
+    in_a_row: int = 0
+    stopped: str | None = None
+    # False for `--reread-all`, which checks no reader version and so reads
+    # every document again on a new run instead of resuming.
+    resumes: bool = True
+
+    def deadline(self) -> None:
+        self.in_a_row += 1
+        if self.in_a_row >= self.limit and self.stopped is None:
+            after = (
+                "a new run resumes here"
+                if self.resumes
+                else "a new --reread-all run reads every document again (it does not resume)"
+            )
+            self.stopped = (
+                f"stopped after {self.in_a_row} fetch deadlines in a row (max_consecutive_deadlines = {self.limit});"
+                f" no further document was fetched, and {after}"
+            )
+
+    def completed(self) -> None:
+        self.in_a_row = 0
+
+
 class _Timed(Protocol):
     read_count: int
     read_seconds: float
@@ -491,23 +849,34 @@ def _fetch_and_read(
     timing: _Timed,
     now: Callable[[], datetime],
     clock: Callable[[], float],
+    fetch_deadline_seconds: float,
+    streak: DeadlineStreak,
+    cache: ocr_cache.Cache | None,
 ) -> tuple[documents.DocumentRead | ocr.OcrError, datetime]:
     """Fetches the document of `orgnr` for `year` by the year in its path
     and reads it (`documents.read_document`): the read, or the OcrError when
     Tesseract failed, and when it was read. Raises NotRead for a fetch
     error, a document not served (`unserved` says why that is a problem)
-    and any other failure of the read. KeyboardInterrupt is not an
-    Exception and still stops the run."""
+    and any other failure of the read, and for a fetch that did not end
+    within `fetch_deadline_seconds` (Story 2.5b), which `streak` counts; a
+    fetch that ends in any other way resets it. The PDF is always fetched;
+    its words come from `cache` only when its key matches exactly (Story
+    2.5d). KeyboardInterrupt is not an Exception and still stops the run."""
     try:
-        pdf = fetch.fetch_document(transport, base_url, orgnr, year)
+        pdf = _fetch_within(fetch_deadline_seconds, transport, base_url, orgnr, year)
+    except FetchDeadline as error:
+        streak.deadline()
+        raise NotRead(f"not fetched: {error}") from error
     except FETCH_ERRORS as error:
+        streak.completed()
         raise NotRead(f"{error.__class__.__name__}: {error}") from error
+    streak.completed()
     if pdf is None:
         raise NotRead(unserved)
     read_at = now()
     started = clock()
     try:
-        return documents.read_document(pdf, rules.within_document_bound_kr), read_at
+        return documents.read_document(pdf, rules.within_document_bound_kr, cache), read_at
     except ocr.OcrError as error:
         return error, read_at
     except Exception as error:
@@ -546,9 +915,19 @@ def _load_documents(
     now: Callable[[], datetime],
     clock: Callable[[], float],
     progress: Callable[[str], None],
+    fetch_deadline_seconds: float,
+    streak: DeadlineStreak,
+    cache: ocr_cache.Cache | None,
+    wanted: frozenset[int] | None,
 ) -> None:
     """Fetches, reads and stores every filed 2021–2025 document of `orgnr`
-    that has no row yet, each committed on its own with `reader_commit`."""
+    that has no row yet, each committed on its own with `reader_commit`;
+    with `wanted` (the list entry's years, Story 2.5d), only those years. A
+    fetch past `fetch_deadline_seconds` is named in `failed` as not fetched,
+    and the next year is tried, unless `streak` has stopped the run: then
+    nothing more is fetched."""
+    if streak.stopped is not None:
+        return
     try:
         years = fetch.fetch_document_years(transport, base_url, orgnr)
     except FETCH_ERRORS as error:
@@ -557,17 +936,26 @@ def _load_documents(
     if years is None:
         summary.no_document_list.append(orgnr)
         return
+    if wanted is not None:
+        for year in sorted(wanted - set(years)):
+            summary.asked_not_listed.append(Problem(orgnr, str(year)))
     stored = write.stored_document_years(conn, orgnr)
     for year in years:
         if year not in DOCUMENT_YEARS:
             summary.outside_years += 1
             continue
+        if wanted is not None and year not in wanted:
+            summary.not_asked_years += 1
+            continue
         if year in stored:
             summary.skipped_stored += 1
             continue
+        if streak.stopped is not None:
+            return
         try:
             read, read_at = _fetch_and_read(
-                transport, base_url, rules, orgnr, year, "listed in /aar but not served (404 or 410)", summary, now, clock
+                transport, base_url, rules, orgnr, year, "listed in /aar but not served (404 or 410)", summary, now, clock,
+                fetch_deadline_seconds, streak, cache,
             )
         except NotRead as error:
             failed.append(Problem(orgnr, f"document {year}: {error}"))
@@ -632,18 +1020,24 @@ def _reread_documents(
     now: Callable[[], datetime],
     clock: Callable[[], float],
     progress: Callable[[str], None],
+    fetch_deadline_seconds: float,
+    streak: DeadlineStreak,
+    cache: ocr_cache.Cache | None,
+    wanted: frozenset[int] | None,
 ) -> None:
     """Re-reads every stored document of `orgnr` whose reader version is not
-    `reader_commit` (Story 2.3b), through the same fetch, read, reconcile
+    `reader_commit` (Story 2.3b), of the years in `wanted` when the list
+    entry names them (Story 2.5d), through the same fetch, read, reconcile
     and write as a new document, each replaced in its own transaction. A
     document already at `reader_commit` is not fetched, so an interrupted
     re-read resumes where it stopped. A document is not replaced, and keeps
     its old figures and version, when the re-read gives fewer columns than
     are stored (a refusal, a year mismatch), when it turns a reconciled
     column into failed_reconciliation, when Tesseract fails, or when it is
-    not fetched or not read; each is named in `summary.not_replaced`. A
+    not fetched (also past `fetch_deadline_seconds`) or not read; each is named in `summary.not_replaced`. A
     document replaced although a column reconciled before and after lost a
-    figure is named in `summary.lost_figures`."""
+    figure is named in `summary.lost_figures`. Once `streak` has stopped the
+    run, nothing more is fetched."""
     try:
         stored = write.stored_document_versions(conn, orgnr)
     except psycopg.Error as error:
@@ -652,12 +1046,18 @@ def _reread_documents(
         return
     for document in stored:
         year = document.filing_year
-        if document.reader_commit == reader_commit:
+        if wanted is not None and year not in wanted:
+            summary.not_asked_years += 1
+            continue
+        if not summary.every_version and document.reader_commit == reader_commit:
             summary.current += 1
             continue
+        if streak.stopped is not None:
+            return
         try:
             read, read_at = _fetch_and_read(
-                transport, base_url, rules, orgnr, year, "stored, but not served now (404 or 410)", summary, now, clock
+                transport, base_url, rules, orgnr, year, "stored, but not served now (404 or 410)", summary, now, clock,
+                fetch_deadline_seconds, streak, cache,
             )
         except NotRead as error:
             summary.not_replaced.append(Problem(orgnr, f"document {year}: {error}"))
@@ -707,6 +1107,147 @@ def _reread_documents(
         progress(f"re-read {orgnr}/{year}: {outcome.status}{refusal}")
 
 
+def _percent(share: Fraction) -> str:
+    """A share as a percentage for the summary and run record, formatted
+    from the exact fraction."""
+    return f"{share * 100:.2f} %"
+
+
+def _check_withdrawn(
+    conn: psycopg.Connection,
+    transport: fetch.Transport,
+    cfg: config_module.Config,
+    stored: Mapping[str, date | None],
+    seen: set[str],
+    summary: WithdrawalSummary,
+    run_id: int | None,
+    progress: Callable[[str], None],
+) -> None:
+    """Asks the register's unit endpoint about every orgnr in `stored` (orgnr
+    to stored slettedato) that the bulk file did not hold (`seen`) and that
+    is not already stored as dissolved, and acts on the answer (Story 2.4):
+
+    - 410 Gone: the company is deleted, with every row referencing it;
+    - 200 with a slettedato: dissolved, its slettedato stored (Q4a);
+    - 404, or 200 without a slettedato: a failure, nothing changed;
+    - a lookup that did not complete, a malformed slettedato or a failed
+      write: a failure that leaves the check incomplete (Q6).
+
+    If the share of absent companies without a stored slettedato exceeds
+    `cfg.max_absent_share`, nothing is asked and nothing is changed: a
+    truncated bulk file would otherwise make thousands of companies look
+    withdrawn (D5, Q5a)."""
+    missing = sorted(set(stored) - seen)
+    absent = [orgnr for orgnr in missing if stored[orgnr] is None]
+    summary.stored = len(stored)
+    summary.absent = len(absent)
+    summary.absent_already_dissolved = len(missing) - len(absent)
+    if not absent:
+        return
+    share = Fraction(len(absent), len(stored))
+    if share > cfg.max_absent_share:
+        summary.fail(
+            write.Failure(
+                None,
+                WITHDRAWAL,
+                f"bulk_absent_share_exceeded: {len(absent)} of {len(stored)} stored companies absent from the bulk file"
+                f" ({_percent(share)}, limit {_percent(cfg.max_absent_share)}); no unit asked about, nothing deleted",
+            ),
+            incomplete=True,
+        )
+        progress(f"withdrawal check skipped: {len(absent)} of {len(stored)} stored companies absent from the bulk file")
+        return
+    progress(f"withdrawal check: {len(absent)} stored companies absent from the bulk file")
+    for orgnr in absent:
+        summary.checked += 1
+        try:
+            unit = fetch.fetch_unit(transport, cfg.base_url, orgnr)
+        except fetch.Gone:
+            _delete_withdrawn(conn, orgnr, summary, run_id, progress)
+            continue
+        except FETCH_ERRORS as error:
+            summary.fail(write.Failure(orgnr, WITHDRAWAL, f"{error.__class__.__name__}: {error}"), incomplete=True)
+            continue
+        if unit is None:
+            summary.fail(write.Failure(orgnr, WITHDRAWAL, "unit_not_found"), incomplete=False)
+        elif "slettedato" in unit:
+            _store_dissolved(conn, orgnr, unit["slettedato"], summary, progress)
+        else:
+            summary.fail(write.Failure(orgnr, WITHDRAWAL, "absent_from_bulk_but_live"), incomplete=False)
+
+
+def _delete_withdrawn(
+    conn: psycopg.Connection,
+    orgnr: str,
+    summary: WithdrawalSummary,
+    run_id: int | None,
+    progress: Callable[[str], None],
+) -> None:
+    """Deletes a company the register answered 410 Gone for. A failed delete
+    leaves the check incomplete; a closed connection ends the run."""
+    try:
+        deleted = write.delete_company(conn, orgnr, run_id)
+    except (psycopg.Error, ValueError) as error:
+        summary.fail(
+            write.Failure(orgnr, WITHDRAWAL, f"delete_failed: {error.__class__.__name__}: {str(error).strip()}"),
+            incomplete=True,
+        )
+        if conn.closed:
+            raise ConnectionLost(f"database connection closed after deleting: {orgnr}") from error
+        return
+    if deleted:
+        summary.deleted.append(orgnr)
+        progress(f"deleted (410 Gone): {orgnr}")
+    else:
+        # Stored when the run started, gone now: nothing to delete.
+        summary.fail(write.Failure(orgnr, WITHDRAWAL, "gone_but_no_row_to_delete"), incomplete=False)
+
+
+SLETTEDATO = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+
+
+def _store_dissolved(
+    conn: psycopg.Connection,
+    orgnr: str,
+    value: object,
+    summary: WithdrawalSummary,
+    progress: Callable[[str], None],
+) -> None:
+    """A unit answering 200 with a slettedato is dissolved (Q4a): the date is
+    stored as the register gives it. A value that is not an ISO date is a
+    failure, never guessed at."""
+    slettedato: date | None = None
+    if isinstance(value, str) and SLETTEDATO.fullmatch(value):
+        try:
+            slettedato = date.fromisoformat(value)
+        except ValueError:
+            slettedato = None
+    if slettedato is None:
+        summary.fail(write.Failure(orgnr, WITHDRAWAL, f"malformed_slettedato: {value!r}"), incomplete=True)
+        return
+    try:
+        updated = write.store_slettedato(conn, orgnr, slettedato)
+    except psycopg.Error as error:
+        summary.fail(
+            write.Failure(orgnr, WITHDRAWAL, f"slettedato_not_stored: {error.__class__.__name__}: {str(error).strip()}"),
+            incomplete=True,
+        )
+        if conn.closed:
+            raise ConnectionLost(f"database connection closed after: {orgnr}") from error
+        return
+    if not updated:
+        summary.fail(write.Failure(orgnr, WITHDRAWAL, "dissolved_but_no_row_to_update"), incomplete=False)
+        return
+    summary.dissolved.append(orgnr)
+    progress(f"dissolved (slettedato {slettedato.isoformat()}): {orgnr}")
+
+
+def _stored_orgnrs(conn: psycopg.Connection) -> dict[str, date | None]:
+    """Every stored orgnr, with its stored slettedato (NULL: not known to be
+    dissolved)."""
+    return {str(row[0]): row[1] for row in conn.execute("SELECT orgnr, slettedato FROM register.company").fetchall()}
+
+
 def run(
     conn: psycopg.Connection,
     transport: fetch.Transport,
@@ -715,16 +1256,37 @@ def run(
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
+    run_id: int | None = None,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> Summary:
+    """The plain run: the bulk download, each covered company and its
+    filings, demo company C, then the withdrawal check (Story 2.4).
+    `run_id` is this run's record in run.step1, to which each deleted orgnr
+    is appended in the deleting transaction; None only in tests that do
+    not look at the record."""
     started = clock()
     summary = Summary(codes={code: CodeSummary(code) for code in codes}, demo_orgnr=cfg.demo_company_c.orgnr)
+    on_summary(summary)
+
+    # The companies stored before this run, read before the bulk download:
+    # each one the whole bulk file does not hold is checked in step 4.
+    stored = _stored_orgnrs(conn)
+    seen: set[str] = set()
+
+    def marking_seen(units: Iterator[dict]) -> Iterator[dict]:
+        for unit in units:
+            orgnr = unit.get("organisasjonsnummer")
+            if isinstance(orgnr, str):
+                seen.add(orgnr)
+            yield unit
 
     # 1. The bulk download, filtered on the primary code while streaming.
     # Collected before any key-figures request, so the long download is not
-    # held open across thousands of calls.
+    # held open across thousands of calls. Every unit's orgnr is marked
+    # seen, whatever its primary code.
     bulk_read_at = now()
     selected: list[tuple[str, parse.Company]] = []
-    for code, unit in parse.select_covered(fetch.iter_bulk_units(transport, cfg.base_url), codes):
+    for code, unit in parse.select_covered(marking_seen(fetch.iter_bulk_units(transport, cfg.base_url)), codes):
         try:
             selected.append((code, parse.parse_company(unit, bulk_read_at)))
         except ValueError as error:
@@ -749,13 +1311,21 @@ def run(
     try:
         unit = fetch.fetch_unit(transport, cfg.base_url, demo_orgnr)
         company = parse.parse_company(unit, now()) if unit is not None else None
+    except fetch.Gone:
+        # Withdrawn: not loaded. Step 4 deletes it if it is stored and absent
+        # from the bulk file.
+        summary.failed.append(Problem(demo_orgnr, f"{DEMO_PREFIX}withdrawn (410 Gone)"))
+        company = None
     except FETCH_ERRORS as error:
-        summary.failed.append(Problem(demo_orgnr, f"demo company C: {error.__class__.__name__}: {error}"))
+        summary.failed.append(Problem(demo_orgnr, f"{DEMO_PREFIX}{error.__class__.__name__}: {error}"))
         company = None
     if company is not None:
         summary.demo_found = True
         summary.demo_navn = company.navn
         summary.demo_filings_written = _load_company(conn, transport, cfg.base_url, company, summary, now)
+
+    # 4. Withdrawn companies: only a 410 Gone from the unit endpoint deletes.
+    _check_withdrawn(conn, transport, cfg, stored, seen, summary.withdrawal, run_id, progress)
     summary.wall_seconds = clock() - started
     return summary
 
@@ -792,26 +1362,40 @@ def run_documents(
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
+    cache: ocr_cache.Cache | None = None,
+    years: Mapping[str, frozenset[int]] | None = None,
 ) -> DocumentsOnlySummary:
     """The document pass for each listed orgnr that is a stored company whose
     primary code is declared in seed/coverage.json (`codes`): first its stored
     documents are reconciled again, then its unstored ones are fetched, read
     and reconciled. Any other listed orgnr is refused and named, and nothing
-    is fetched for it."""
+    is fetched for it. With `cache`, each fetched document's words come from
+    the OCR word cache on an exact key match (Story 2.5d). `years` holds the
+    years of each orgnr whose list entry names them; an orgnr not in it has
+    every year 2021–2025."""
     started = clock()
     rules = rules_of(cfg)
-    summary = DocumentsOnlySummary(listed=len(orgnrs))
+    summary = DocumentsOnlySummary(listed=len(orgnrs), cache=cache)
+    on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
+    streak = DeadlineStreak(cfg.max_consecutive_deadlines)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
             continue
+        if streak.stopped is not None:
+            break
         summary.companies += 1
         _rereconcile(conn, orgnr, rules, summary.documents, summary.failed)
         _load_documents(
-            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress
+            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary.documents, summary.failed, now, clock, progress,
+            cfg.fetch_deadline_seconds, streak, cache, (years or {}).get(orgnr),
         )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    summary.stopped = streak.stopped
+    if streak.stopped is not None:
+        progress(f"STOPPED: {streak.stopped}")
     try:
         summary.still_extracted = write.count_extracted_documents(conn)
     except psycopg.Error as error:
@@ -831,23 +1415,39 @@ def run_reread(
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
     clock: Callable[[], float] = time.monotonic,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
+    cache: ocr_cache.Cache | None = None,
+    every_version: bool = False,
+    years: Mapping[str, frozenset[int]] | None = None,
 ) -> RereadSummary:
     """Re-read mode (Story 2.3b): for each listed orgnr that is a stored
     company with a covered primary code, every stored document whose
     reader version is not `reader_commit` is fetched, read, reconciled and
     replaced (`_reread_documents`). No year without a stored document is
-    fetched. Any other listed orgnr is refused and named."""
+    fetched. Any other listed orgnr is refused and named. With
+    `every_version` (`--reread-all`, Story 2.5d) the reader version is not
+    checked: every stored document is re-read under the same rules."""
     started = clock()
     rules = rules_of(cfg)
-    summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit)
+    summary = RereadSummary(listed=len(orgnrs), reader_commit=reader_commit, cache=cache, every_version=every_version)
+    on_summary(summary)
     accepted = _listed_companies(conn, codes, orgnrs, summary.refused)
+    streak = DeadlineStreak(cfg.max_consecutive_deadlines, resumes=not every_version)
     for index, orgnr in enumerate(orgnrs, start=1):
         if orgnr not in accepted:
             continue
+        if streak.stopped is not None:
+            break
         summary.companies += 1
-        _reread_documents(conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress)
+        _reread_documents(
+            conn, transport, cfg.base_url, rules, orgnr, reader_commit, summary, now, clock, progress,
+            cfg.fetch_deadline_seconds, streak, cache, (years or {}).get(orgnr),
+        )
         if index % 25 == 0:
             progress(f"{index} of {len(orgnrs)} listed orgnrs")
+    summary.stopped = streak.stopped
+    if streak.stopped is not None:
+        progress(f"STOPPED: {streak.stopped}")
     summary.wall_seconds = clock() - started
     return summary
 
@@ -858,21 +1458,27 @@ def run_companies_only(
     cfg: config_module.Config,
     now: Callable[[], datetime] = _now,
     progress: Callable[[str], None] = lambda _message: None,
+    on_summary: Callable[[RecordedSummary], None] = lambda _summary: None,
 ) -> CompaniesOnlySummary:
     """Fills forretningsadresse_kommunenummer, forretningsadresse_kommune,
-    naeringskode1_beskrivelse and search_fields_read_at from the bulk
-    download, for every company already in register.company. The bulk file
-    is read without the industry filter: demo company C, or a company whose
-    primary code has changed since it was stored, is in it like any unit.
+    naeringskode1_beskrivelse, aktivitet, vedtektsfestet_formaal and
+    search_fields_read_at from the bulk download, for every company already
+    in register.company. The bulk file is read without the industry filter:
+    demo company C, or a company whose primary code has changed since it was
+    stored, is in it like any unit.
 
     naeringskode1_beskrivelse is stored only when the bulk naeringskode1
     equals the stored one; otherwise it describes a code this row does not
-    hold, and NULL is stored and the company named in the summary."""
-    stored_codes: dict[str, str | None] = {
-        row[0]: row[1] for row in conn.execute("SELECT orgnr, naeringskode1 FROM register.company").fetchall()
-    }
+    hold, and NULL is stored and the company named in the summary. The two
+    texts are stored for an AS only: for any other form, in the bulk file or
+    in the stored row, they are NULL, clearing earlier text, and the company
+    is counted."""
+    rows = conn.execute("SELECT orgnr, naeringskode1, organisasjonsform FROM register.company").fetchall()
+    stored_codes: dict[str, str | None] = {row[0]: row[1] for row in rows}
+    stored_forms: dict[str, str | None] = {row[0]: row[2] for row in rows}
     stored = set(stored_codes)
     summary = CompaniesOnlySummary(in_database=len(stored))
+    on_summary(summary)
 
     # Collected before any write, so the long download is not held open
     # across the updates.
@@ -890,6 +1496,10 @@ def run_companies_only(
         if company.naeringskode1 != stored_codes[company.orgnr]:
             summary.code_differs.append((company.orgnr, stored_codes[company.orgnr], company.naeringskode1))
             company = replace(company, naeringskode1_beskrivelse=None)
+        # This mode leaves the stored form as it is, so both must say AS.
+        if company.organisasjonsform != parse.REGISTER_TEXT_FORM or stored_forms[company.orgnr] != parse.REGISTER_TEXT_FORM:
+            summary.register_text_skipped_not_as += 1
+            company = replace(company, aktivitet=None, vedtektsfestet_formaal=None)
         selected.append(company)
     progress(f"bulk download: {len(selected)} of {len(stored)} stored companies found")
 
@@ -903,8 +1513,9 @@ def run_companies_only(
                 raise ConnectionLost(f"database connection closed after: {company.orgnr}") from error
             continue
         if not matched:
-            # Stored at the start of the run, gone now: step 1 never deletes,
-            # so something else did. Not the same as absent from the bulk file.
+            # Stored at the start of the run, gone now: this mode deletes
+            # nothing, so another run or something else did. Not the same as
+            # absent from the bulk file.
             summary.failed.append(Problem(company.orgnr, "no row to update"))
             continue
         if company.orgnr not in seen:
@@ -923,9 +1534,11 @@ def _progress(message: str) -> None:
 
 
 ORGNR = re.compile(r"[0-9]{9}")
-USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file> | --reread <file>]"
+USAGE = "usage: python -m peerless_ingest [--companies-only | --documents <file> | --reread <file> | --reread-all <file>]"
 DOCUMENTS = "--documents"
 REREAD = "--reread"
+REREAD_ALL = "--reread-all"
+LIST_MODES = (DOCUMENTS, REREAD, REREAD_ALL)
 # The reader version, set by scripts/run-ingest.ts from `git log -1
 # --format=%H -- ingest/` (Story 2.3b). Required by documents and re-read mode.
 READER_COMMIT_ENV = "PEERLESS_READER_COMMIT"
@@ -941,39 +1554,111 @@ def reader_commit_of(env: Mapping[str, str]) -> str:
 
 
 class BadDocumentList(Exception):
-    """A bad --documents or --reread argument, or no reader version."""
+    """A bad --documents, --reread or --reread-all argument, or no reader version."""
 
 
-def read_document_list(path: Path) -> list[str]:
-    """The orgnrs of a `--documents` file: a JSON list of distinct
-    nine-digit strings. Anything else raises BadDocumentList."""
+@dataclass(frozen=True)
+class DocumentList:
+    """A `--documents`, `--reread` or `--reread-all` file: the orgnrs in
+    order, and the years of each entry that names them (Story 2.5d)."""
+
+    orgnrs: list[str]
+    years: dict[str, frozenset[int]]
+
+
+def _list_entry(entry: object) -> tuple[str, frozenset[int] | None]:
+    """One entry: a nine-digit orgnr string (every year 2021–2025), or
+    `{"orgnr": …, "years": […]}` with distinct years within 2021–2025.
+    Raises ValueError naming what is wrong."""
+    if isinstance(entry, str):
+        if not ORGNR.fullmatch(entry):
+            raise ValueError(f"{entry!r} is not a nine-digit orgnr string")
+        return entry, None
+    if not isinstance(entry, dict) or set(entry) != {"orgnr", "years"}:
+        raise ValueError(f"{entry!r} is neither an orgnr nor {{\"orgnr\", \"years\"}}")
+    orgnr, years = entry["orgnr"], entry["years"]
+    if not isinstance(orgnr, str) or not ORGNR.fullmatch(orgnr):
+        raise ValueError(f"{entry!r}: orgnr is not a nine-digit string")
+    if not isinstance(years, list) or not years:
+        raise ValueError(f"{entry!r}: years must be a non-empty list")
+    if not all(isinstance(y, int) and not isinstance(y, bool) and y in DOCUMENT_YEARS for y in years):
+        raise ValueError(f"{entry!r}: every year must be an integer within 2021–2025")
+    if len(set(years)) != len(years):
+        raise ValueError(f"{entry!r}: a year is listed twice")
+    return orgnr, frozenset(years)
+
+
+def read_document_list(path: Path) -> DocumentList:
+    """The entries of a document list: a JSON list whose entries are each a
+    nine-digit orgnr string or `{"orgnr": …, "years": [2021–2025, …]}`, every
+    orgnr once. Anything else raises BadDocumentList."""
     try:
-        orgnrs = json.loads(path.read_text(encoding="utf-8"))
+        entries = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         raise BadDocumentList(f"{path}: cannot be read as JSON ({error.__class__.__name__}: {error})") from error
-    if not isinstance(orgnrs, list) or not all(isinstance(o, str) and ORGNR.fullmatch(o) for o in orgnrs):
-        raise BadDocumentList(f"{path}: must be a JSON list of nine-digit orgnr strings")
+    if not isinstance(entries, list):
+        raise BadDocumentList(f"{path}: must be a JSON list of orgnr strings or {{\"orgnr\", \"years\"}} entries")
+    orgnrs: list[str] = []
+    years: dict[str, frozenset[int]] = {}
+    for entry in entries:
+        try:
+            orgnr, wanted = _list_entry(entry)
+        except ValueError as error:
+            raise BadDocumentList(f"{path}: {error}") from error
+        orgnrs.append(orgnr)
+        if wanted is not None:
+            years[orgnr] = wanted
     if len(set(orgnrs)) != len(orgnrs):
         raise BadDocumentList(f"{path}: an orgnr is listed twice")
-    return orgnrs
+    return DocumentList(orgnrs, years)
+
+
+def _end_run_after_error(
+    conn: psycopg.Connection, run_id: int, error: BaseException, partial: RecordedSummary | None
+) -> None:
+    """Ends the run record of a run that raised, with the exception's class
+    and message, and the counts and failures its summary held when it
+    raised (`partial`; None if it raised before making one). If even that
+    write fails (the connection is gone), says so on stderr; the caller
+    raises the run's own exception either way."""
+    counts: Mapping[str, object] = {} if partial is None else partial.record_counts()
+    failures: list[write.Failure] = [] if partial is None else partial.record_failures(finished=False)
+    try:
+        write.end_run(conn, run_id, _now(), counts, failures, f"{error.__class__.__name__}: {error}")
+    except (psycopg.Error, ValueError) as record_error:
+        print(
+            f"run record {run_id} not ended: {record_error.__class__.__name__}: {record_error}",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     """`argv` is the command line after the program name (sys.argv[1:] when
     None, as from the `peerless-ingest` script): empty for a normal run,
-    exactly `--companies-only`, `--documents <file>` or `--reread <file>`.
-    Anything else, a file that is not a JSON list of nine-digit strings, or,
-    for the last two, a missing or malformed PEERLESS_READER_COMMIT, exits 2
+    exactly `--companies-only`, `--documents <file>`, `--reread <file>` or
+    `--reread-all <file>`.
+    Anything else, a file that is not a valid document list, or, for the
+    last three, a missing or malformed PEERLESS_READER_COMMIT, exits 2
     before any request or connection."""
     args = list(sys.argv[1:] if argv is None else argv)
-    document_list: list[str] | None = None
+    document_list: DocumentList | None = None
     reader_commit = ""
-    if len(args) == 2 and args[0] in (DOCUMENTS, REREAD):
+    cache: ocr_cache.Cache | None = None
+    if len(args) == 2 and args[0] in LIST_MODES:
         try:
             document_list = read_document_list(Path(args[1]))
             reader_commit = reader_commit_of(os.environ)
         except BadDocumentList as error:
             print(f"{USAGE}; {error}", file=sys.stderr)
+            return 2
+        # The OCR word cache (Story 2.5d), when PEERLESS_OCR_CACHE names one.
+        # Its key must be readable: a cache with an unknown Tesseract or
+        # model is refused, never used.
+        try:
+            cache = ocr_cache.from_env(os.environ, _progress)
+        except ocr_cache.KeyUnavailable as error:
+            print(f"{ocr_cache.CACHE_ENV} is set, but the OCR word cache's key cannot be read: {error}", file=sys.stderr)
             return 2
     elif args not in ([], ["--companies-only"]):
         print(f"{USAGE}; got {' '.join(args)}", file=sys.stderr)
@@ -985,16 +1670,42 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Companies-only mode fetches no industry: it never reads coverage.json.
     codes = [] if companies_only else config_module.load_coverage(coverage_path)
     transport = fetch.UrllibTransport(cfg.user_agent, cfg.request_pause_seconds)
+    if companies_only:
+        mode = "companies_only"
+    elif document_list is not None:
+        # --reread-all is recorded as mode reread, with reread_all in its counts.
+        mode = "reread" if args[0] in (REREAD, REREAD_ALL) else "documents"
+    else:
+        mode = "plain"
     summary: Summary | CompaniesOnlySummary | DocumentsOnlySummary | RereadSummary
     with write.connect(config_module.database_url()) as conn:
-        if companies_only:
-            summary = run_companies_only(conn, transport, cfg, progress=_progress)
-        elif document_list is not None and args[0] == REREAD:
-            summary = run_reread(conn, transport, cfg, codes, document_list, reader_commit=reader_commit, progress=_progress)
-        elif document_list is not None:
-            summary = run_documents(conn, transport, cfg, codes, document_list, reader_commit=reader_commit, progress=_progress)
-        else:
-            summary = run(conn, transport, cfg, codes, progress=_progress)
+        # The run record (Story 2.4): inserted now, ended below, also when
+        # the run ends in an exception.
+        run_id = write.start_run(conn, mode, _now())
+        print(f"run record: run.step1 id {run_id} ({mode})", file=sys.stderr, flush=True)
+        # The summary as the run builds it, so a run that raises still
+        # records the counts and failures collected before the exception.
+        partial: list[RecordedSummary] = []
+        try:
+            if mode == "companies_only":
+                summary = run_companies_only(conn, transport, cfg, progress=_progress, on_summary=partial.append)
+            elif mode == "reread" and document_list is not None:
+                summary = run_reread(
+                    conn, transport, cfg, codes, document_list.orgnrs, years=document_list.years,
+                    reader_commit=reader_commit, progress=_progress, on_summary=partial.append, cache=cache,
+                    every_version=args[0] == REREAD_ALL,
+                )
+            elif mode == "documents" and document_list is not None:
+                summary = run_documents(
+                    conn, transport, cfg, codes, document_list.orgnrs, years=document_list.years,
+                    reader_commit=reader_commit, progress=_progress, on_summary=partial.append, cache=cache,
+                )
+            else:
+                summary = run(conn, transport, cfg, codes, progress=_progress, run_id=run_id, on_summary=partial.append)
+        except BaseException as error:
+            _end_run_after_error(conn, run_id, error, partial[0] if partial else None)
+            raise
+        write.end_run(conn, run_id, _now(), summary.record_counts(), summary.record_failures(), None)
     for line in summary.lines():
         print(line)
     return 1 if summary.needs_operator() else 0

@@ -27,6 +27,7 @@ import {
   formatReadDate,
   formatWholePercent,
 } from '../src/engine/format.ts';
+import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { assemblePeerGroup, type CandidateFiling, type SizeBand, type SubjectFiling } from '../src/engine/peers.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
@@ -118,8 +119,34 @@ function comparability(f: Record<string, string>) {
     avviklingsregnskap: bool(f.avviklingsregnskap),
   };
 }
+// Story 2.5: the stored fingerprints, by orgnr and filing year, as the
+// server's left join reads them.
+const fingerprints = new Map(
+  csv('fingerprint.csv').map((f) => [
+    `${f.orgnr}/${f.filing_year}`,
+    fingerprintFromColumns({
+      cost_of_goods_lo: orNull(f.cost_of_goods_lo),
+      cost_of_goods_hi: orNull(f.cost_of_goods_hi),
+      personnel_cost_lo: orNull(f.personnel_cost_lo),
+      personnel_cost_hi: orNull(f.personnel_cost_hi),
+      asset_intensity_lo: orNull(f.asset_intensity_lo),
+      asset_intensity_hi: orNull(f.asset_intensity_hi),
+      inventory: bool(f.inventory),
+      capitalised_intangibles: bool(f.capitalised_intangibles),
+    }),
+  ]),
+);
+// Story 2.6: the stored classifications' types, by orgnr, as funnel stage 5 reads them.
+const classifications = new Map(
+  csv('classification.csv')
+    .filter((c) => c.status === 'classified')
+    .map((c) => [c.orgnr, businessTypeFromColumn(orNull(c.business_type))]),
+);
+const classificationOf = (orgnr: string | undefined) => classifications.get(orgnr) ?? null;
+const fingerprintOf = (orgnr: string | undefined, year: string | undefined) =>
+  fingerprints.get(`${orgnr ?? ''}/${year ?? ''}`) ?? null;
 type SeedCandidate = CandidateFiling & { readonly navn: string };
-function expectedGroup(orgnr: string, band: SizeBand) {
+function expectedPeerGroup(orgnr: string, band: SizeBand) {
   const own = company(orgnr);
   const filing = newestFiling(orgnr);
   const subject: SubjectFiling = {
@@ -127,6 +154,8 @@ function expectedGroup(orgnr: string, band: SizeBand) {
     naeringskode1: orNull(own.naeringskode1),
     filingYear: Number(filing.filing_year),
     sumDriftsinntekter: ore(keyFigures.get(filing.brreg_id ?? '')?.sum_driftsinntekter_ore),
+    fingerprint: fingerprintOf(orgnr, filing.filing_year),
+    classification: classificationOf(orgnr),
     ...comparability(filing),
   };
   const candidates: SeedCandidate[] = allFilings
@@ -142,11 +171,17 @@ function expectedGroup(orgnr: string, band: SizeBand) {
         brregId: BigInt(f.brreg_id ?? '0'),
         filingYear: Number(f.filing_year),
         sumDriftsinntekter: ore(keyFigures.get(f.brreg_id ?? '')?.sum_driftsinntekter_ore),
+        fingerprint: fingerprintOf(f.orgnr, f.filing_year),
+        classification: classificationOf(f.orgnr),
         ...comparability(f),
       };
     });
-  return assemblePeerGroup(subject, candidates, band).pool;
+  return assemblePeerGroup(subject, candidates, band);
 }
+/** The group after stage 4: what the Peers tab lists and every aggregate uses. */
+const expectedGroup = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).group;
+/** The candidate pool, stages 1–3: what `ekskl` is checked against. */
+const expectedPool = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).pool;
 
 const coverageSentence = 'dataprogrammeringstjenester (62.100)';
 const dataDate = (orgnr: string) => {
@@ -570,7 +605,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
   }
 
   test('the HTML and the RSC payload carry no peer orgnr and no peer key-figure amount', async ({ request }) => {
-    const pool = expectedGroup(A.orgnr ?? '', 0);
+    const pool = expectedPool(A.orgnr ?? '', 0);
     const url = `/analyse/${A.orgnr}/nokkeltall`;
     const html = await (await request.get(url)).text();
     const rsc = await request.get(url, { headers: { RSC: '1' } });
@@ -784,7 +819,7 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     [withSettings, 1],
   ] as const) {
     test(`the HTML and the RSC payload of Oversikt carry no peer orgnr and no peer key-figure amount (${query === '' ? 'default' : query})`, async ({ request }) => {
-      const bandPool = expectedGroup(A.orgnr ?? '', band);
+      const bandPool = expectedPool(A.orgnr ?? '', band);
       const url = `/analyse/${A.orgnr}/oversikt${query}`;
       const html = await (await request.get(url)).text();
       const payload = await (await request.get(url, { headers: { RSC: '1' } })).text();

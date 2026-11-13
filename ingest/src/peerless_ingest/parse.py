@@ -109,7 +109,12 @@ class Company:
     forretningsadresse_kommunenummer: str | None
     forretningsadresse_kommune: str | None
     naeringskode1_beskrivelse: str | None
-    # When the three fields above were read. A normal run reads them with the
+    # What Story 2.6 classifies on (Story 2.6a), for an AS only: the register's lines stripped
+    # and joined with one space. None when the register gave no text; never an
+    # empty string.
+    aktivitet: str | None
+    vedtektsfestet_formaal: str | None
+    # When the five fields above were read. A normal run reads them with the
     # rest of the unit, so parse_company sets it to read_at.
     search_fields_read_at: datetime
 
@@ -160,6 +165,33 @@ def _search_field(unit: dict, key: str, field: str) -> str | None:
     return text if text else None
 
 
+# The one organisational form whose register text Step 1 stores (Meinich,
+# 2026-11-08). Classification reads nothing else, and a sole proprietor's text
+# is public in the register but not something Peerless collects unused.
+REGISTER_TEXT_FORM = "AS"
+
+
+def _register_text(unit: dict, field: str) -> str | None:
+    """A free-text field the register delivers as an array of lines, each
+    with its whitespace runs reduced to one space, joined with one space in
+    array order. Absent, null, an empty array or
+    only blank lines is None. Anything else is refused: the error names the
+    field and the wrong type, and never the text."""
+    lines = unit.get(field)
+    if lines is None:
+        return None
+    if not isinstance(lines, list):
+        raise ValueError(f"{field} is not an array of lines: {type(lines).__name__}")
+    stripped: list[str] = []
+    for line in lines:
+        if not isinstance(line, str):
+            raise ValueError(f"{field} has a line that is not a string: {type(line).__name__}")
+        normalised = " ".join(line.split())
+        if normalised:
+            stripped.append(normalised)
+    return " ".join(stripped) if stripped else None
+
+
 def _bool(value: object) -> bool | None:
     return value if isinstance(value, bool) else None
 
@@ -185,6 +217,8 @@ def parse_company(unit: dict, read_at: datetime) -> Company:
     if not isinstance(orgnr, str) or not ORGNR.match(orgnr):
         raise ValueError(f"unit has no valid organisasjonsnummer: {orgnr!r}")
     navn = unit.get("navn")
+    # Another form's text is not read at all, so it cannot refuse the unit.
+    reads_text = _code(unit, "organisasjonsform") == REGISTER_TEXT_FORM
     return Company(
         orgnr=orgnr,
         navn=navn if isinstance(navn, str) else None,
@@ -199,6 +233,8 @@ def parse_company(unit: dict, read_at: datetime) -> Company:
         forretningsadresse_kommunenummer=_search_field(unit, "forretningsadresse", "kommunenummer"),
         forretningsadresse_kommune=_search_field(unit, "forretningsadresse", "kommune"),
         naeringskode1_beskrivelse=_search_field(unit, "naeringskode1", "beskrivelse"),
+        aktivitet=_register_text(unit, "aktivitet") if reads_text else None,
+        vedtektsfestet_formaal=_register_text(unit, "vedtektsfestetFormaal") if reads_text else None,
         search_fields_read_at=read_at,
     )
 

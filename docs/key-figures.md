@@ -14,6 +14,8 @@ The calculation engine implements exactly these definitions. Change this documen
 
 **Undefined is not zero.** If a denominator is zero or negative, or a component is missing and cannot be derived from its stated total, the key figure is undefined for that company. The company is left out of that figure's distribution, and the number left out is shown. A missing component is checked before the denominator's sign.
 
+**A current asset line above its API subtotal is not used.** A current-year `kundefordringer` or `bankinnskudd` read from the filed document that exceeds the key-figures API's `sumOmloepsmidler` of the same filing by more than the between-sources rule, max(5 kr, 0.001 % of the subtotal), as step 1 compares a document figure with the API (`docs/data-sources-brreg.md`, "Reconciliation") cannot be right together with that subtotal — a part does not exceed its sum, so the figure or the subtotal is wrong — and is absent with the reason *exceeds the API subtotal* (`exceeds_api_subtotal`; Story 2.5c, R3, `guardCurrentAssets` in `src/engine/document-inputs.ts`). A figure that reads it, such as receivable days (9), is then undefined for that company, as for any missing component. The stored figure is kept as filed; only the engine does not use it. Of the probe's eight such columns, six were a leading digit read as two and two the register's subtotal, so the rule can also drop a correct line when the subtotal is wrong. Not checked: a prior-year column (the API holds no subtotal for it), and `kundefordringer` + `bankinnskudd` together above the subtotal while each is within it. `salgsinntekt` and `leverandorgjeld` get no such rule: a revenue line can exceed its total when another revenue row is negative.
+
 **Deriving a missing API input.** An empty field is derived from stated values only, one level deep — a derived value never feeds another derivation:
 
 - `sumDriftsinntekter` = `driftsresultat` + `sumDriftskostnad`
@@ -77,6 +79,8 @@ Direction: ↑ higher is better, ↓ lower is better, – no direction.
 |---|---|---|---|---|---|
 | 7 | Revenue per FTE | `sumDriftsinntekter / aarsverk` | OCR | ↑ | – |
 | 8 | Personnel cost per FTE | `lonnskostnad / aarsverk` | OCR | – | – |
+
+**Not computed from stored data in v1.** `aarsverk` is printed in the notes, which v1 does not read, so both figures are absent in v1 with that reason, for the subject and every peer, and so is the pay-level side of the decomposition below. The engine implements both formulas, and the identity is asserted on test inputs. Reading `aarsverk` is stage 2.
 
 ### Working capital
 
@@ -146,11 +150,12 @@ The target is the favourable quartile at every setting of *s*, and *s* scales th
 
 ## Peer selection and benchmarking
 
-**Stages 1–3 (rules, `src/engine/peers.ts`).** A candidate is compared on its benchmark filing: its filing for the benchmark year, preferring the subject's `regnskapstype`, then the latest `periode_til`, `periode_fra` and register id. A company with no filing that year is excluded.
+**Stages 1–4 (rules, `src/engine/peers.ts`).** A candidate is compared on its benchmark filing: its filing for the benchmark year, preferring the subject's `regnskapstype`, then the latest `periode_til`, `periode_fra` and register id. A company with no filing that year is excluded.
 
 - **Stage 1.** Same `naeringskode1` (the primary code only). `sumDriftsinntekter` inside the size band around the subject's, both bounds included, computed exactly on øre: 0.5–2× by default, widened to 0.33–3× and 0.25–4×. A candidate with no stated revenue is out. A subject with no positive revenue (zero, negative or not stated) has no size band and therefore no peers.
 - **Stage 2.** `valuta`, `regnskapsregler`, `smaaForetak`, `avviklingsregnskap`, `regnskapstype` and the financial period are equal and stated on both sides. A `valuta` that is not an ISO 4217 code matches nothing, not even itself, and is never read as NOK. Only filings running 1 January – 31 December pass, so a subject with another financial year has no peers. None of these is loosenable.
 - **Stage 3.** Legal form `AS` only (`ASA` is a different form).
+- **Stage 4.** Business model (Story 2.5): the business type derived from the subject's stored fingerprint for the benchmark year, against each candidate's for the same year. A candidate of another type is removed; one with no fingerprint or no type stays, and a subject with neither keeps the whole pool. A column whose four main cost lines are read and fall short of sum kostnader by more than 5 kr gets no fingerprint (Story 2.5c, R2: a read line is misread). The fingerprint reads cost of goods share (3) and personnel cost share (4) only as bands, never as values; the categories, bands and rule are in the technical note, "Rules fixed by the stories".
 
 Selection never reads total assets, the register's employee count, or any benchmarked measure.
 

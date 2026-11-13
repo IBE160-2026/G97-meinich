@@ -25,7 +25,15 @@
 // `pnpm ingest --documents analysis/ocr-reference/document-run.json`. It
 // reads only the draw, never the database.
 //
-// Run: node scripts/document-set.ts [--reference]   (from the repository root)
+// `--labelled` (Story 2.5d) writes analysis/labelled-set/document-run.json:
+// every subject and candidate of Story 5.1's draw
+// (analysis/labelled-set/drawn.json), each once in byte order, as
+// `{"orgnr": …, "years": [2025]}`, so
+// `pnpm ingest --documents analysis/labelled-set/document-run.json` fetches
+// only the reference year's document. It reads only the draw, never the
+// database, and refuses a draw whose subjects are not all of that year.
+//
+// Run: node scripts/document-set.ts [--reference | --labelled]   (from the repository root)
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,7 +43,14 @@ import { type DrawnFiling, REFERENCE_DRAW_FILE, compareBytes, parseDrawn } from 
 
 export const DOCUMENT_RUN_FILE = 'seed/document-run.json';
 export const REFERENCE_RUN_FILE = 'analysis/ocr-reference/document-run.json';
+export const LABELLED_DRAW_FILE = 'analysis/labelled-set/drawn.json';
+export const LABELLED_RUN_FILE = 'analysis/labelled-set/document-run.json';
+// The labelled set's reference year (Story 5.1: every subject's benchmark
+// filing is of it); the run reads only its document (Story 2.5d).
+export const LABELLED_YEAR = 2025;
 const REFERENCE = '--reference';
+const LABELLED = '--labelled';
+const ORGNR = /^[0-9]{9}$/;
 
 // Every drawn orgnr once, in byte order. Step 1 reads every year in the
 // register's list for each of them; Story 2.3 compares only the drawn years.
@@ -59,6 +74,51 @@ export function documentRunJson(orgnrs: readonly string[]): string {
   return `[\n${orgnrs.map((orgnr) => `  ${JSON.stringify(orgnr)}`).join(',\n')}\n]\n`;
 }
 
+// The orgnrs of Story 5.1's draw: each subject and each of its candidates.
+// Throws on a draw that is not {seed, subjects: [{orgnr, filingYear,
+// candidates, …}]} with nine-digit orgnrs and every filingYear the
+// reference year.
+export function labelledRunSet(draw: unknown): string[] {
+  if (typeof draw !== 'object' || draw === null || !Array.isArray((draw as { subjects?: unknown }).subjects)) {
+    throw new Error(`${LABELLED_DRAW_FILE}: no subjects list`);
+  }
+  const orgnrs = new Set<string>();
+  for (const subject of (draw as { subjects: unknown[] }).subjects) {
+    if (typeof subject !== 'object' || subject === null) throw new Error(`${LABELLED_DRAW_FILE}: a subject is not an object`);
+    const { orgnr, filingYear, candidates } = subject as { orgnr?: unknown; filingYear?: unknown; candidates?: unknown };
+    if (typeof orgnr !== 'string' || !ORGNR.test(orgnr)) throw new Error(`${LABELLED_DRAW_FILE}: a subject orgnr is not nine digits`);
+    if (filingYear !== LABELLED_YEAR) {
+      throw new Error(`${LABELLED_DRAW_FILE}: subject ${orgnr} has filingYear ${String(filingYear)}, not ${LABELLED_YEAR}`);
+    }
+    if (!Array.isArray(candidates) || !candidates.every((c): c is string => typeof c === 'string' && ORGNR.test(c))) {
+      throw new Error(`${LABELLED_DRAW_FILE}: subject ${orgnr}'s candidates are not nine-digit orgnrs`);
+    }
+    orgnrs.add(orgnr);
+    for (const candidate of candidates) orgnrs.add(candidate);
+  }
+  return [...orgnrs].sort(compareBytes);
+}
+
+// One `{"orgnr", "years": [2025]}` entry per line, LF, readable by step 1's
+// read_document_list.
+export function labelledRunJson(orgnrs: readonly string[]): string {
+  if (orgnrs.length === 0) return '[]\n';
+  const entry = (orgnr: string): string => `  {"orgnr": ${JSON.stringify(orgnr)}, "years": [${LABELLED_YEAR}]}`;
+  return `[\n${orgnrs.map(entry).join(',\n')}\n]\n`;
+}
+
+function writeLabelledRun(root: string): number {
+  try {
+    const orgnrs = labelledRunSet(JSON.parse(readFileSync(path.join(root, ...LABELLED_DRAW_FILE.split('/')), 'utf8')));
+    writeFileSync(path.join(root, ...LABELLED_RUN_FILE.split('/')), labelledRunJson(orgnrs));
+    process.stdout.write(`ingest:document-set: wrote ${LABELLED_RUN_FILE} (${orgnrs.length} orgnrs, ${LABELLED_YEAR} only)\n`);
+    return 0;
+  } catch (error) {
+    process.stderr.write(`ingest:document-set: ${(error as Error).message}\n`);
+    return 1;
+  }
+}
+
 function writeReferenceRun(root: string): number {
   try {
     const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, ...REFERENCE_DRAW_FILE.split('/')), 'utf8')));
@@ -74,8 +134,9 @@ function writeReferenceRun(root: string): number {
 
 export async function main(root: string, argv: readonly string[] = []): Promise<number> {
   if (argv.length === 1 && argv[0] === REFERENCE) return writeReferenceRun(root);
+  if (argv.length === 1 && argv[0] === LABELLED) return writeLabelledRun(root);
   if (argv.length > 0) {
-    process.stderr.write(`ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing or ${REFERENCE}\n`);
+    process.stderr.write(`ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing, ${REFERENCE} or ${LABELLED}\n`);
     return 1;
   }
   const url = setting(root, 'READER_DATABASE_URL');

@@ -18,6 +18,9 @@ import {
   checkMeasured,
   defaultSeedPaths,
   exportPaths,
+  fingerprintWhere,
+  LICENCE_GATE_FILE,
+  readLicenceGate,
   latestMigrationId,
   orderByClause,
   REFERENCE_REASON,
@@ -28,7 +31,9 @@ import {
   prepareSeed,
   readCoverage,
   refuseUnlistedDocumentFigures,
+  refuseUnstoredDrawn,
   sha256,
+  splitStoredAllowList,
   stableJson,
   unlistedDocumentFigures,
   validateCoverage,
@@ -92,7 +97,15 @@ function refusal(fn: () => unknown): string {
 
 describe('the seed tables', () => {
   it('lists the step-1 tables in foreign-key order and the loader tables apart', () => {
-    expect(SEED_TABLES.map((t) => t.name)).toEqual(['company', 'filing', 'key_figures', 'document', 'document_column']);
+    expect(SEED_TABLES.map((t) => t.name)).toEqual([
+      'company',
+      'filing',
+      'key_figures',
+      'document',
+      'document_column',
+      'fingerprint',
+      'classification',
+    ]);
     expect(LOADER_TABLES).toEqual(['dataset', 'covered_industry']);
   });
 
@@ -125,6 +138,10 @@ describe('the seed tables', () => {
       { name: 'filing_year', text: false },
       { name: 'role', text: true },
     ]);
+    expect(key('fingerprint')).toEqual([
+      { name: 'orgnr', text: true },
+      { name: 'filing_year', text: false },
+    ]);
   });
 });
 
@@ -138,6 +155,8 @@ describe('the export', () => {
       'seed/demo/key_figures.csv',
       'seed/demo/document.csv',
       'seed/demo/document_column.csv',
+      'seed/demo/fingerprint.csv',
+      'seed/demo/classification.csv',
       'seed/demo/manifest.json',
       'seed/allow-list.json',
     ]);
@@ -162,6 +181,8 @@ describe('the manifest and files', () => {
       'key_figures.csv',
       'document.csv',
       'document_column.csv',
+      'fingerprint.csv',
+      'classification.csv',
     ]);
   });
 
@@ -374,6 +395,33 @@ describe('the OCR reference orgnrs on the allow-list (Story 2.3)', () => {
     );
   });
 
+  // Story 2.4: a company deleted after 410 Gone leaves the allow-list; a
+  // drawn one stops the export (D6).
+  it('drops allow-list entries that are not stored companies, keeping the order of the rest', () => {
+    const entries = [
+      { orgnr: '979607008', reason: 'Demoselskap A' },
+      { orgnr: '919951834', reason: 'Testoppføring' },
+      { orgnr: '923609016', reason: 'Demoselskap B' },
+    ];
+    expect(splitStoredAllowList(entries, new Set(['923609016', '979607008']))).toEqual({
+      kept: [entries[0], entries[2]],
+      dropped: [entries[1]],
+    });
+    expect(splitStoredAllowList(entries, new Set())).toEqual({ kept: [], dropped: entries });
+  });
+
+  it('refuses a drawn orgnr that is not a stored company, naming each once', () => {
+    const stored = new Set(drawn.map((d) => d.orgnr));
+    expect(() => refuseUnstoredDrawn(drawn, stored)).not.toThrow();
+    const [first, second] = drawn;
+    stored.delete(first?.orgnr ?? '');
+    stored.delete(second?.orgnr ?? '');
+    const missing = [first?.orgnr ?? '', second?.orgnr ?? ''].sort();
+    expect(refusal(() => refuseUnstoredDrawn([...drawn, { orgnr: first?.orgnr ?? '', year: 2020 }], stored))).toBe(
+      `analysis/ocr-reference/drawn.json: drawn orgnrs that are not stored companies (withdrawn?): ${missing.join(', ')}; stop and decide how the OCR reference set changes (Story 2.4, D6)`,
+    );
+  });
+
   it('reads the draw and refuses a malformed cell', () => {
     expect(parseDrawn({ seed: 1, cells: [{ year: 2021, band: 'A', orgnr: '921716257', skipped_no_document: [] }] })).toEqual([
       { orgnr: '921716257', year: 2021 },
@@ -429,5 +477,63 @@ describe('the committed seed', () => {
     const plan = prepareSeed(defaultSeedPaths(root));
     expect(plan.manifest.dataset).toBe('demo');
     expect(plan.manifest.migration_id).toBe(latestMigrationId(root));
+  });
+});
+
+// Story 2.5: the licence gate. Absent, unreadable or misshapen is closed and
+// says so; only a well-formed file with open: true opens it.
+describe('the licence gate', () => {
+  function gateWith(content: string | null): { open: boolean; notices: string[] } {
+    const file = path.join(scratch, 'licence-gate.json');
+    if (content === null) rmSync(file, { force: true });
+    else writeFileSync(file, content);
+    const notices: string[] = [];
+    const gate = readLicenceGate(file, (line) => notices.push(line));
+    return { open: gate.open, notices };
+  }
+
+  it('is closed when the file is absent, and says so', () => {
+    const { open, notices } = gateWith(null);
+    expect(open).toBe(false);
+    expect(notices).toEqual([
+      `seed:export: ${LICENCE_GATE_FILE} is absent; the licence gate is closed: fingerprints of allow-listed companies only`,
+    ]);
+  });
+
+  it.each([
+    ['not JSON', '{open: true'],
+    ['an array', '[]'],
+    ['open as a string', JSON.stringify({ open: 'true', assessment: 'x', date: '2026-11-01' })],
+    ['a missing date', JSON.stringify({ open: true, assessment: 'x' })],
+    ['an extra key', JSON.stringify({ open: true, assessment: 'x', date: '2026-11-01', by: 'x' })],
+    ['a date that is not a date', JSON.stringify({ open: true, assessment: 'x', date: 'soon' })],
+  ])('is closed when the file is unreadable (%s), and says so', (_label, content) => {
+    const { open, notices } = gateWith(content);
+    expect(open).toBe(false);
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatch(/the licence gate is closed$/);
+  });
+
+  it('is closed when the file records it closed, and open only when it records it open', () => {
+    expect(gateWith(JSON.stringify({ open: false, assessment: 'pending', date: '2026-11-01' }))).toEqual({
+      open: false,
+      notices: [],
+    });
+    expect(gateWith(JSON.stringify({ open: true, assessment: 'NLOD 2.0 permits it', date: '2026-11-01' }))).toEqual({
+      open: true,
+      notices: [],
+    });
+  });
+
+  it('filters fingerprints to the allow-list unless open', () => {
+    expect(fingerprintWhere({ open: true }, ['912197905'])).toBe('');
+    expect(fingerprintWhere({ open: false }, ['912197905', '885583822'])).toBe(
+      `WHERE "orgnr" IN ('885583822', '912197905')`,
+    );
+    expect(fingerprintWhere({ open: false }, [])).toBe('WHERE false');
+  });
+
+  it('refuses an allow-list entry that is not an orgnr rather than inlining it', () => {
+    expect(refusal(() => fingerprintWhere({ open: false }, ["1'); drop table x; --"]))).toMatch(/is not an orgnr/);
   });
 });

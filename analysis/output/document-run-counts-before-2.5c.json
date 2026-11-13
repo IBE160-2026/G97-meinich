@@ -1,0 +1,172 @@
+{
+  "columns": {
+    "current": {
+      "columns": 1946,
+      "gates": {
+        "cost_lines": {
+          "admitted": 321,
+          "operand_counted_as_zero": 306
+        },
+        "intangible_parts": {
+          "admitted": 97,
+          "operand_counted_as_zero": 97
+        }
+      },
+      "non_null": {
+        "aarsresultat": 1741,
+        "annen_driftskostnad": 1713,
+        "avskrivninger": 1409,
+        "bankinnskudd": 1843,
+        "driftsresultat": 1921,
+        "forskning_og_utvikling": 566,
+        "goodwill": 79,
+        "konsesjoner_patenter": 201,
+        "kundefordringer": 1490,
+        "leverandorgjeld": 1585,
+        "lonnskostnad": 1602,
+        "nedskrivninger": 66,
+        "netto_finans": 1906,
+        "ordinaert_resultat_foer_skattekostnad": 1909,
+        "salgsinntekt": 1509,
+        "sum_driftsinntekter": 1913,
+        "sum_driftskostnad": 1918,
+        "sum_egenkapital": 1941,
+        "sum_egenkapital_gjeld": 1930,
+        "sum_eiendeler": 1920,
+        "sum_gjeld": 1932,
+        "sum_immaterielle_eiendeler": 1238,
+        "sum_kortsiktig_gjeld": 1933,
+        "sum_varige_driftsmidler": 1386,
+        "utsatt_skattefordel": 653,
+        "varekostnad": 1389,
+        "varer": 286
+      },
+      "status": {
+        "failed_reconciliation": 110,
+        "reconciled": 1836
+      }
+    },
+    "prior": {
+      "columns": 1946,
+      "gates": {
+        "cost_lines": {
+          "admitted": 305,
+          "operand_counted_as_zero": 295
+        },
+        "intangible_parts": {
+          "admitted": 113,
+          "operand_counted_as_zero": 113
+        }
+      },
+      "non_null": {
+        "aarsresultat": 1711,
+        "annen_driftskostnad": 1582,
+        "avskrivninger": 1301,
+        "bankinnskudd": 1668,
+        "driftsresultat": 1877,
+        "forskning_og_utvikling": 544,
+        "goodwill": 71,
+        "konsesjoner_patenter": 183,
+        "kundefordringer": 1362,
+        "leverandorgjeld": 1484,
+        "lonnskostnad": 1489,
+        "nedskrivninger": 57,
+        "netto_finans": 1838,
+        "ordinaert_resultat_foer_skattekostnad": 1878,
+        "salgsinntekt": 1452,
+        "sum_driftsinntekter": 1843,
+        "sum_driftskostnad": 1860,
+        "sum_egenkapital": 1869,
+        "sum_egenkapital_gjeld": 1894,
+        "sum_eiendeler": 1883,
+        "sum_gjeld": 1866,
+        "sum_immaterielle_eiendeler": 1162,
+        "sum_kortsiktig_gjeld": 1853,
+        "sum_varige_driftsmidler": 1321,
+        "utsatt_skattefordel": 632,
+        "varekostnad": 1267,
+        "varer": 242
+      },
+      "status": {
+        "failed_reconciliation": 174,
+        "reconciled": 1772
+      }
+    }
+  },
+  "documents": {
+    "reader_commit": {
+      "19b541ba52ed2128461974cd2d4d472470c73f69": 1947
+    },
+    "status": {
+      "failed_reconciliation": 110,
+      "not_extracted": 1,
+      "reconciled": 1836
+    },
+    "total": 1947
+  },
+  "engine": {
+    "columns": 1946,
+    "cost_lines_short_of_total_nedskrivninger_empty": 27,
+    "emptied_above_api_subtotal": {
+      "bankinnskudd": 0,
+      "kundefordringer": 8
+    },
+    "fingerprints": 1757,
+    "skipped": {
+      "cost_lines_short_of_total": 27,
+      "negative_balance_remainder": 7,
+      "negative_unexplained": 35,
+      "no_revenue": 10,
+      "not_reconciled": 110
+    }
+  },
+  "fingerprints": {
+    "companies": {
+      "annet": 13,
+      "forhandler": 101,
+      "konsulent": 55,
+      "produkt": 66,
+      "undetermined": 165
+    },
+    "total": 1779,
+    "types": {
+      "annet": 43,
+      "forhandler": 437,
+      "konsulent": 258,
+      "produkt": 290,
+      "undetermined": 751
+    }
+  },
+  "label": "before-2.5c",
+  "orgnrs": 412,
+  "source": "the local database: documents of the orgnrs in seed/document-run.json (Story 2.1b acceptance run; not reproducible from a fresh clone until Story 5.4)",
+  "varer_against_dump": {
+    "columns": {
+      "current": {
+        "changed": 0,
+        "compared": 1946,
+        "emptied": 0,
+        "emptied_or_changed_negative_before": 0,
+        "negative_after": 18,
+        "negative_before": 18,
+        "newly_read": 0,
+        "only_in_dump": 0,
+        "only_now": 0,
+        "unchanged": 1946
+      },
+      "prior": {
+        "changed": 0,
+        "compared": 1946,
+        "emptied": 0,
+        "emptied_or_changed_negative_before": 0,
+        "negative_after": 15,
+        "negative_before": 15,
+        "newly_read": 0,
+        "only_in_dump": 0,
+        "only_now": 0,
+        "unchanged": 1946
+      }
+    },
+    "dump": ".local/document-run-2.5b/document_column.csv"
+  }
+}

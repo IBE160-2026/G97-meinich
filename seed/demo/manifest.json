@@ -26,16 +26,18 @@
     "62.100"
   ],
   "files": {
-    "company.csv": "a7d5cefe09730a11d1d301897bb013337bc27ccbae4de115175f9b62c524600e",
-    "document.csv": "b5e46978fd25522693eacaf277e59b29beec5846ccd73d191d07a9f8d25d287f",
-    "document_column.csv": "cc9c6cad3c13e7caecd7d693dc44f83d09726dc7e14d864cfebdb0ce430327eb",
-    "filing.csv": "88bb7fd1a195f4cd46c3057c7ed1c677b51959e01ab6495c894dd94ee5bbf6b3",
-    "key_figures.csv": "61ecab7b34fca9f8b041718a06d506e55c993cf017abea9f826345d932e1fe1c"
+    "classification.csv": "3f116ae8bb8ec3392ab639b9e08b96426ecd6a8e73707027b74a41c860ddf990",
+    "company.csv": "ac04c9845afa73ee89c775245899e0cd70de399607cc41033023b0fde01c9d6f",
+    "document.csv": "0305f8e23fd5bea69aee10487ea1285801dd7873f6d3eb71cd5727a4e125e3a8",
+    "document_column.csv": "983e17cb8230485b6347442ac65b636914c34e400e9679d8e9921aa2360430c6",
+    "filing.csv": "d10640e7476f75c41e776c0b1c90e8c1563bdf1c65a721df92ee0b5ccfd08285",
+    "fingerprint.csv": "9c20c384dc9d8acb1ead7e7adfbe4e91d618330aa7e10fd25c36806922827c7b",
+    "key_figures.csv": "ab01a647bd4a50170009c8f21e459cbd245b8ef41e8c724cdff17651e4456b19"
   },
   "format_version": 1,
-  "migration_id": "20261023120000_document_reader_commit",
+  "migration_id": "20261108130000_classification",
   "read_at": {
-    "max": "2026-10-27 17:41:52.940882+00",
+    "max": "2026-11-07 17:08:16.121103+00",
     "min": "2026-10-11 10:09:07.22884+00"
   }
 }

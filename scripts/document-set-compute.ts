@@ -36,7 +36,9 @@ export async function demoPools(): Promise<SubjectPool[]> {
       throw new Error(`demo company ${demo.orgnr} has no benchmark filing`);
     }
     const candidates = await loadCandidates(funnel.orgnr, funnel.naeringskode1, funnel.filingYear);
-    // Band 0 is the standard band (0.5–2× the subject's revenue).
+    // Band 0 is the standard band (0.5–2× the subject's revenue). The pool
+    // is stages 1–3: stage 4 (Story 2.5) reads fingerprints that come from
+    // these very documents, so it must not narrow the set they are read for.
     groups.push({ subject: demo.orgnr, pool: assemblePeerGroup(funnel, candidates, 0).pool });
   }
   return groups;

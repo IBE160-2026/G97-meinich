@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import REPO_ROOT, RULES
+from conftest import MAX_ABSENT_SHARE, REPO_ROOT, RULES
 from peerless_ingest import config
 
 
@@ -58,6 +58,72 @@ def test_committed_reconciliation_values() -> None:
         RULES.between_sources_floor_kr,
         RULES.between_sources_tolerance,
     )
+
+
+def test_committed_withdrawal_limit() -> None:
+    # Story 2.4, D5 (Meinich, 2026-10-30): more than 1 % of the stored
+    # companies absent from the bulk file stops the withdrawal check. Read
+    # exactly: 0.01 is 1/100, not the binary float nearest it.
+    cfg = config.load_config(REPO_ROOT / "ingest" / "config.toml", env={})
+    assert cfg.max_absent_share == Fraction(1, 100) == MAX_ABSENT_SHARE
+    assert type(cfg.max_absent_share) is Fraction
+
+
+def _config_with_withdrawal(tmp_path: Path, withdrawal: str | None) -> Path:
+    base = (REPO_ROOT / "ingest" / "config.toml").read_text(encoding="utf-8")
+    start = base.index("[withdrawal]")
+    end = base.index("\n\n", start)
+    replacement = "" if withdrawal is None else f"[withdrawal]\nmax_absent_share = {withdrawal}"
+    path = tmp_path / "config.toml"
+    path.write_text(base[:start] + replacement + base[end:], encoding="utf-8")
+    return path
+
+
+def test_withdrawal_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_withdrawal(tmp_path, "0.02"), env={}).max_absent_share == Fraction(1, 50)
+    assert config.load_config(_config_with_withdrawal(tmp_path, "0"), env={}).max_absent_share == 0
+    for bad in (None, '"0.01"', "-0.01", "1.5", "true"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_withdrawal(tmp_path, bad), env={})
+
+
+def test_committed_fetch_deadline() -> None:
+    # Story 2.5b: ten minutes, a chosen wall-time limit on one document's
+    # fetch, generous for a PDF of a few MB; not derived from the 60 s socket
+    # timeout, which bounds one socket operation, not the request.
+    assert config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).fetch_deadline_seconds == 600
+
+
+def _config_with_documents(tmp_path: Path, documents: str | None, consecutive: str | None = "3") -> Path:
+    base = (REPO_ROOT / "ingest" / "config.toml").read_text(encoding="utf-8")
+    start = base.index("[documents]")
+    end = base.index("\n\n", start)
+    lines = [] if documents is None else ["[documents]", f"fetch_deadline_seconds = {documents}"]
+    if documents is not None and consecutive is not None:
+        lines.append(f"max_consecutive_deadlines = {consecutive}")
+    replacement = "\n".join(lines)
+    path = tmp_path / "config.toml"
+    path.write_text(base[:start] + replacement + base[end:], encoding="utf-8")
+    return path
+
+
+def test_fetch_deadline_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_documents(tmp_path, "0.5"), env={}).fetch_deadline_seconds == 0.5
+    for bad in (None, "0", "-1", '"600"', "true", "nan", "inf", "-inf"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_documents(tmp_path, bad), env={})
+
+
+def test_committed_max_consecutive_deadlines() -> None:
+    # Story 2.5b review (Meinich, 2026-11-05): three deadlines in a row stop the run.
+    assert config.load_config(REPO_ROOT / "ingest" / "config.toml", env={}).max_consecutive_deadlines == 3
+
+
+def test_max_consecutive_deadlines_config_validated(tmp_path: Path) -> None:
+    assert config.load_config(_config_with_documents(tmp_path, "600", "1"), env={}).max_consecutive_deadlines == 1
+    for bad in (None, "0", "-1", "2.0", "1.5", '"3"', "true", "nan", "inf"):
+        with pytest.raises(config.ConfigError):
+            config.load_config(_config_with_documents(tmp_path, "600", bad), env={})
 
 
 VALID_RECONCILIATION = {

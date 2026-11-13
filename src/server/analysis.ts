@@ -8,14 +8,21 @@ import 'server-only';
 // lookupSubject is wrapped in React's cache(): the layout decides the 404
 // from it, and the page and its metadata read the same row within the
 // request. A failed read throws (see lookupSubject).
+//
+// Story 2.5: both reads left-join the stored fingerprint of the filing year
+// (register.fingerprint, written by batch step 2) for funnel stage 4. Its
+// categories are parsed by the engine's one validator, which throws on a
+// value outside a category's set; no fingerprint is null, never a default.
 import { cache } from 'react';
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
+import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
 import { parseOre } from '../engine/inputs.ts';
 import type { CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
 
-interface SubjectRow extends SubjectKeyFigures {
+export interface SubjectRow extends SubjectKeyFigures, FingerprintColumns {
+  classification: string | null;
   orgnr: string;
   navn: string | null;
   organisasjonsform: string | null;
@@ -63,7 +70,16 @@ select c.orgnr,
        k.sum_eiendeler_ore,
        k.sum_egenkapital_gjeld_ore,
        k.sum_egenkapital_ore,
-       k.sum_gjeld_ore
+       k.sum_gjeld_ore,
+       fp.cost_of_goods_lo,
+       fp.cost_of_goods_hi,
+       fp.personnel_cost_lo,
+       fp.personnel_cost_hi,
+       fp.asset_intensity_lo,
+       fp.asset_intensity_hi,
+       fp.inventory,
+       fp.capitalised_intangibles,
+       cl.business_type as classification
   from register.company c
   left join lateral (
         select fi.brreg_id, fi.filing_year, fi.regnskapstype, fi.periode_fra, fi.periode_til, fi.valuta,
@@ -74,9 +90,11 @@ select c.orgnr,
          limit 1
        ) f on true
   left join register.key_figures k on k.brreg_id = f.brreg_id
+  left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
+  left join register.classification cl on cl.orgnr = c.orgnr
  where c.orgnr = $1::char(9)`;
 
-function toSubject(row: SubjectRow): Subject {
+export function toSubject(row: SubjectRow): Subject {
   const filing =
     row.filing_year === null ||
     row.filing_read_at === null ||
@@ -94,6 +112,8 @@ function toSubject(row: SubjectRow): Subject {
           smaaForetak: row.smaa_foretak,
           avviklingsregnskap: row.avviklingsregnskap,
           readAt: row.filing_read_at,
+          fingerprint: fingerprintFromColumns(row),
+          classification: businessTypeFromColumn(row.classification),
           keyFigures: {
             sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
             driftsresultat_ore: row.driftsresultat_ore,
@@ -159,7 +179,8 @@ export type Candidate = CandidateFiling & {
   readonly keyFigures: SubjectKeyFigures;
 };
 
-interface CandidateRow {
+export interface CandidateRow extends FingerprintColumns {
+  classification: string | null;
   orgnr: string;
   navn: string | null;
   organisasjonsform: string | null;
@@ -209,14 +230,25 @@ select c.orgnr,
        k.sum_eiendeler_ore,
        k.sum_egenkapital_gjeld_ore,
        k.sum_egenkapital_ore,
-       k.sum_gjeld_ore
+       k.sum_gjeld_ore,
+       fp.cost_of_goods_lo,
+       fp.cost_of_goods_hi,
+       fp.personnel_cost_lo,
+       fp.personnel_cost_hi,
+       fp.asset_intensity_lo,
+       fp.asset_intensity_hi,
+       fp.inventory,
+       fp.capitalised_intangibles,
+       cl.business_type as classification
   from register.company c
   join register.filing f on f.orgnr = c.orgnr and f.filing_year = $3::smallint
   left join register.key_figures k on k.brreg_id = f.brreg_id
+  left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
+  left join register.classification cl on cl.orgnr = c.orgnr
  where c.naeringskode1 = $2::text
    and c.orgnr <> $1::char(9)`;
 
-function toCandidate(row: CandidateRow): Candidate {
+export function toCandidate(row: CandidateRow): Candidate {
   // brreg_id is int8 like the amounts: parseOre reads any int8 string
   // exactly, never through a JavaScript number.
   const brregId = parseOre(row.brreg_id);
@@ -237,6 +269,8 @@ function toCandidate(row: CandidateRow): Candidate {
     smaaForetak: row.smaa_foretak,
     avviklingsregnskap: row.avviklingsregnskap,
     sumDriftsinntekter: parseOre(row.sum_driftsinntekter_ore),
+    fingerprint: fingerprintFromColumns(row),
+    classification: businessTypeFromColumn(row.classification),
     keyFigures: {
       sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
       driftsresultat_ore: row.driftsresultat_ore,

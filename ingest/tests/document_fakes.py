@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from peerless_ingest import documents
+from peerless_ingest import documents, ocr, ocr_cache
 from peerless_ingest.ocr import PageWords, Word, read_tsv
 from tsv_builder import BASE_ROWS, document, label_words, words
 
@@ -45,9 +45,12 @@ def paper_top() -> list[Word]:
     return words([label_words("Brønnøysundregistrene"), label_words("VEDLEGG TIL ÅRSREGNSKAPET FOR 2011")])
 
 
-def pdf(tag: str) -> bytes:
-    """A body the fetch accepts as a PDF. Its bytes key FakeRecognise."""
-    return f"%PDF-1.4 fixture {tag}".encode()
+def pdf(tag: str, file_id: str = "5E7C9C707013FC4DB300BFEB537A4866") -> bytes:
+    """A body the fetch accepts as a PDF. Its bytes key FakeRecognise. Its
+    trailer holds one `/ID` array, as data.brreg.no's do, so the OCR word
+    cache can key it; `file_id` is the random part the register changes on
+    every fetch."""
+    return f"%PDF-1.4 fixture {tag}\ntrailer\n<< /ID [<{file_id}> <{file_id}>] >>\n%%EOF\n".encode()
 
 
 class FakeRecognise:
@@ -65,3 +68,20 @@ class FakeRecognise:
             raise AssertionError(f"unexpected document read: {body[:40]!r}")
         found = self.reads[body]
         return found() if callable(found) else found
+
+
+# The OCR word cache's settings in the host tests (Story 2.5d): the image's
+# Tesseract and model, as the run would read them there.
+TEST_SETTINGS = ocr_cache.Settings(
+    "tesseract 5.5.0\nleptonica-1.84.1",
+    ocr.NOR_TRAINEDDATA_SHA256,
+    ocr_cache.render_settings(),
+    tuple(ocr.PLAIN_ARGS),
+    tuple(ocr.DIGITS_ARGS),
+    "c" * 64,
+)
+
+
+def cache_in(directory: Path) -> ocr_cache.Cache:
+    """A cache in `directory` with the test settings."""
+    return ocr_cache.Cache(directory, TEST_SETTINGS)

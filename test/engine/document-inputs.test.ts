@@ -5,11 +5,15 @@ import {
   DOCUMENT_FIGURE_COLUMNS,
   type DocumentColumnRow,
   type DocumentField,
+  GUARDED_CURRENT_ASSETS,
   documentFigures,
+  exceedsApiSubtotal,
+  guardCurrentAssets,
 } from '../../src/engine/document-inputs.ts';
 
 // 979607008/2025, this year's column, as stored (øre strings), with the
-// three figures the read leaves NULL.
+// three figures the read leaves NULL, and the four parts of intangible
+// assets (Story 2.5b).
 const FIGURES: Record<DocumentField, string | null> = {
   salgsinntekt: '7198715700',
   sumDriftsinntekter: '7263231000',
@@ -34,6 +38,10 @@ const FIGURES: Record<DocumentField, string | null> = {
   sumKortsiktigGjeld: '1867602300',
   sumGjeld: '2330935500',
   sumEgenkapitalGjeld: '3107354400',
+  forskningOgUtvikling: '698626200',
+  konsesjonerPatenter: '3625000',
+  goodwill: '900047200',
+  utsattSkattefordel: '19026100',
 };
 
 function row(status: string | null, figures: Record<DocumentField, string | null> = FIGURES): DocumentColumnRow {
@@ -44,9 +52,9 @@ function row(status: string | null, figures: Record<DocumentField, string | null
 }
 
 describe('documentFigures', () => {
-  it('maps all 23 figure columns of register.document_column', () => {
-    expect(Object.keys(DOCUMENT_FIGURE_COLUMNS)).toHaveLength(23);
-    expect(new Set(Object.values(DOCUMENT_FIGURE_COLUMNS)).size).toBe(23);
+  it('maps all 27 figure columns of register.document_column', () => {
+    expect(Object.keys(DOCUMENT_FIGURE_COLUMNS)).toHaveLength(27);
+    expect(new Set(Object.values(DOCUMENT_FIGURE_COLUMNS)).size).toBe(27);
     for (const column of Object.values(DOCUMENT_FIGURE_COLUMNS)) expect(column).toMatch(/^[a-z_]+_ore$/);
   });
 
@@ -63,7 +71,7 @@ describe('documentFigures', () => {
 
   it('a failed column passes no value', () => {
     const figures = documentFigures(row('failed_reconciliation'));
-    expect(Object.keys(figures)).toHaveLength(23);
+    expect(Object.keys(figures)).toHaveLength(27);
     for (const figure of Object.values(figures)) {
       expect(figure).toEqual({ kind: 'absent', absence: { reason: 'failed_reconciliation' } });
     }
@@ -73,7 +81,7 @@ describe('documentFigures', () => {
     // A row restored from a dump made before Story 2.2: no status. Visible
     // as an absence, and no throw, so one such row cannot fail a page.
     const figures = documentFigures(row(null));
-    expect(Object.keys(figures)).toHaveLength(23);
+    expect(Object.keys(figures)).toHaveLength(27);
     for (const figure of Object.values(figures)) {
       expect(figure).toEqual({ kind: 'absent', absence: { reason: 'not_reconciled' } });
     }
@@ -83,5 +91,58 @@ describe('documentFigures', () => {
     expect(() => documentFigures(row('extracted'))).toThrow(TypeError);
     expect(() => documentFigures(row('Reconciled'))).toThrow(TypeError);
     expect(() => documentFigures(row('reconciled', { ...FIGURES, sumGjeld: '1.5' }))).toThrow(TypeError);
+  });
+});
+
+// R3 (Story 2.5c; Meinich 2026-11-06). 979607008/2025's kundefordringer and
+// bankinnskudd are 8 421 893 and 2 115 356 kr.
+describe('guardCurrentAssets', () => {
+  const reconciled = documentFigures(row('reconciled'));
+  const absent = { kind: 'absent', absence: { reason: 'exceeds_api_subtotal' } };
+
+  it('a current asset line above the API subtotal is empty, with its reason', () => {
+    // sum_omloepsmidler 8 000 000 kr: kundefordringer is above it by more than 5 kr.
+    const guarded = guardCurrentAssets(reconciled, 'current', 800000000n);
+    expect(guarded.kundefordringer).toEqual(absent);
+    expect(guarded.bankinnskudd).toEqual({ kind: 'value', ore: 211535600n });
+    // Every other figure is unchanged, and so is the input.
+    for (const field of Object.keys(reconciled) as DocumentField[]) {
+      if (field !== 'kundefordringer') expect(guarded[field], field).toEqual(reconciled[field]);
+    }
+    expect(reconciled.kundefordringer).toEqual({ kind: 'value', ore: 842189300n });
+    // Both lines, each checked on its own.
+    const both = guardCurrentAssets(reconciled, 'current', 200000000n);
+    expect([both.kundefordringer, both.bankinnskudd]).toEqual([absent, absent]);
+    expect([...GUARDED_CURRENT_ASSETS]).toEqual(['kundefordringer', 'bankinnskudd']);
+    expect([exceedsApiSubtotal(both.kundefordringer), exceedsApiSubtotal(reconciled.kundefordringer)]).toEqual([true, false]);
+    expect(exceedsApiSubtotal(documentFigures(row('failed_reconciliation')).kundefordringer)).toBe(false);
+  });
+
+  it('a current asset line above the API subtotal is empty only beyond the 5 kr floor, where 0.001 % is less', () => {
+    // sum_omloepsmidler 100 000 kr: 0.001 % is 1 kr, so the 5 kr floor applies.
+    const subtotal = 10_000_000n;
+    const line = (ore: bigint) => documentFigures(row('reconciled', { ...FIGURES, kundefordringer: ore.toString() }));
+    expect(guardCurrentAssets(line(subtotal + 500n), 'current', subtotal).kundefordringer).toEqual({ kind: 'value', ore: subtotal + 500n });
+    expect(guardCurrentAssets(line(subtotal + 501n), 'current', subtotal).kundefordringer).toEqual(absent);
+  });
+
+  it('a current asset line above the API subtotal is empty only beyond max(5 kr, 0.001 % of it)', () => {
+    // sum_omloepsmidler 100 000 000 kr: 0.001 % is 1 000 kr (100 000 øre), above the 5 kr floor.
+    const subtotal = 10_000_000_000n;
+    const line = (ore: bigint) => documentFigures(row('reconciled', { ...FIGURES, kundefordringer: ore.toString() }));
+    const kept = guardCurrentAssets(line(subtotal + 100_000n), 'current', subtotal);
+    expect(kept.kundefordringer).toEqual({ kind: 'value', ore: subtotal + 100_000n });
+    // 6 kr over: past the floor, inside the proportional term, kept.
+    expect(guardCurrentAssets(line(subtotal + 600n), 'current', subtotal).kundefordringer.kind).toBe('value');
+    expect(guardCurrentAssets(line(subtotal + 100_001n), 'current', subtotal).kundefordringer).toEqual(absent);
+  });
+
+  it('leaves the figures unchanged with no API figure, in the prior column, or for a line not read', () => {
+    expect(guardCurrentAssets(reconciled, 'current', null)).toEqual(reconciled);
+    expect(guardCurrentAssets(reconciled, 'prior', 1n)).toEqual(reconciled);
+    const unread = documentFigures(row('reconciled', { ...FIGURES, kundefordringer: null }));
+    expect(guardCurrentAssets(unread, 'current', 1n).kundefordringer).toEqual({ kind: 'value', ore: null });
+    const failed = documentFigures(row('failed_reconciliation'));
+    expect(guardCurrentAssets(failed, 'current', 1n)).toEqual(failed);
   });
 });

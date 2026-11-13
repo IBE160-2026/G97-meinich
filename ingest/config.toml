@@ -39,6 +39,37 @@ request_pause_seconds = 0.15
 orgnr = "967534579"
 navn = "KANTALL AS"
 
+# Withdrawn companies (Story 2.4). A plain `pnpm ingest` asks the register's
+# unit endpoint about every stored orgnr absent from the bulk download, and
+# deletes the company only on 410 Gone. If more than this share of the
+# stored companies is absent from the bulk file, the download is taken to be
+# truncated: no unit is asked about, nothing is deleted, the run record names
+# the failure and the run exits 1 (D5, Meinich 2026-10-30). A share, not a
+# percentage: 0.01 is 1 %; read exactly, never compared as a float.
+[withdrawal]
+max_absent_share = 0.01
+
+# The time limit on fetching one filed document (Story 2.5b, the watchdog).
+# urlopen's timeout bounds each socket operation, not the request, and in
+# Story 2.3b's re-read a fetch hung for about two hours with no error. The
+# fetch therefore runs on a worker thread that the run stops waiting for
+# after this many seconds: the document is named as not fetched (not
+# replaced, on a re-read), the run goes on, and it exits 1 at the end so a
+# rerun tries it again. 600 s is a chosen wall-time limit on one
+# document's fetch, retries included: generous for a PDF of a few MB. It is
+# not derived from fetch.py's 60 s, which bounds one socket operation, not
+# the request.
+#
+# After this many fetch deadlines in a row (Story 2.5b review, Meinich
+# 2026-11-05), a documents or re-read run stops: the network or the Docker
+# VM has most likely stalled, and every further document would wait the
+# full deadline. The stop is a failure in the run record, the run exits 1,
+# and a new run resumes where it stopped. A fetch that ends in any other
+# way resets the count.
+[documents]
+fetch_deadline_seconds = 600
+max_consecutive_deadlines = 3
+
 # The two reconciliation rules of Story 2.2 (FR-57, FR-58). Each is set here
 # once, with its own key, and never combined with the other. The reasons and
 # the measurements behind them are in docs/data-sources-brreg.md,

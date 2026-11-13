@@ -7,10 +7,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { exportSeed } from '../../scripts/seed-export.ts';
+import { copyTable, exportSeed } from '../../scripts/seed-export.ts';
 import {
   ALLOW_LIST_FILE,
   COVERAGE_FILE,
+  LICENCE_GATE_FILE,
   LOADER_TABLES,
   MANIFEST_FILE,
   REFERENCE_DRAW_FILE,
@@ -25,6 +26,7 @@ import {
   parseDrawn,
   prepareSeed,
   readCoverage,
+  readLicenceGate,
   stableJson,
   withReferenceOrgnrs,
 } from '../../scripts/seed-format.ts';
@@ -104,22 +106,40 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 557 companies, 22 354 filings, the reference documents, the coverage rows and one dataset row', async () => {
+  it('loads 17 883 companies, 22 522 filings, the reference documents and their fingerprints, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
       const [counts] = await tx<
-        { company: number; filing: number; key_figures: number; document: number; document_column: number }[]
+        {
+          company: number;
+          filing: number;
+          key_figures: number;
+          document: number;
+          document_column: number;
+          fingerprint: number;
+        }[]
       >`
         select (select count(*)::int from register.company) as company,
                (select count(*)::int from register.filing) as filing,
                (select count(*)::int from register.key_figures) as key_figures,
                (select count(*)::int from register.document) as document,
-               (select count(*)::int from register.document_column) as document_column
+               (select count(*)::int from register.document_column) as document_column,
+               (select count(*)::int from register.fingerprint) as fingerprint
       `;
       // The committed seed holds the OCR reference set's documents only
       // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
       // each. The acceptance run's rows wait for Story 5.4's allow-list.
-      expect(counts).toEqual({ company: 17557, filing: 22354, key_figures: 22354, document: 97, document_column: 194 });
+      // Story 2.5: step 2 fingerprints their current columns, computed by the
+      // engine from the committed figures before the re-export. After Story
+      // 2.5b's re-read, 86 of 97 (10 not reconciled, 1 without revenue).
+      expect(counts).toEqual({
+        company: 17883,
+        filing: 22522,
+        key_figures: 22522,
+        document: 97,
+        document_column: 194,
+        fingerprint: 86,
+      });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;
       const declared = readCoverage(path.join(root, COVERAGE_FILE));
@@ -323,7 +343,7 @@ describe('checks inside the load', () => {
     files.set('company.csv', Buffer.from([header.replace(',read_at', ''), ...rest].join('\n')));
     await rolledBack(loader, async (tx) => {
       await expect(tx.savepoint((sp) => loadSeed(sp, { ...committed, files }))).rejects.toThrow(
-        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at\)$/,
+        /^company\.csv: header \(.*\) does not match register\.company columns \(.*read_at, .*slettedato, aktivitet, vedtektsfestet_formaal\)$/,
       );
     });
   });
@@ -416,6 +436,75 @@ describe('the export and document figures', () => {
     expect(JSON.parse(allowList)).toHaveLength(21);
   });
 
+  // Story 2.4. These run as the migration role (admin), which may delete,
+  // standing in for step 1's delete after 410 Gone; the cascade is the
+  // database's, whichever role deletes.
+  function scratchExportRoot(name: string): string {
+    const scratchRoot = path.join(scratch, name);
+    cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
+    cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
+    cpSync(path.join(root, REFERENCE_DRAW_FILE), path.join(scratchRoot, REFERENCE_DRAW_FILE));
+    return scratchRoot;
+  }
+
+  it('refuses a drawn orgnr that is not a stored company, naming it, and writes nothing', async () => {
+    const scratchRoot = scratchExportRoot('withdrawn-drawn-root');
+    const out = path.join(scratch, 'withdrawn-drawn-out');
+    const withdrawn = drawn[0]?.orgnr ?? '';
+    await rolledBack(admin, async (tx) => {
+      await loadSeed(tx, committed);
+      await tx`delete from register.company where orgnr = ${withdrawn}`;
+      await expect(exportSeed(tx, scratchRoot, out, () => {})).rejects.toThrow(
+        `${REFERENCE_DRAW_FILE}: drawn orgnrs that are not stored companies (withdrawn?): ${withdrawn}`,
+      );
+    });
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('leaves a company deleted after 410 out of every seed file, the manifest and the allow-list', async () => {
+    const scratchRoot = scratchExportRoot('withdrawn-listed-root');
+    const out = path.join(scratch, 'withdrawn-listed-out');
+    const notices: string[] = [];
+    let manifest: { document_figure_orgnrs: string[] } | undefined;
+    let withdrawn = '';
+    await rolledBack(admin, async (tx) => {
+      await loadSeed(tx, committed);
+      // A company with filings and key figures, outside the reference draw,
+      // given a document and an allow-list entry, then deleted.
+      const [company] = await tx<{ orgnr: string }[]>`
+        select c.orgnr from register.company c
+         where exists (select 1 from register.filing f join register.key_figures k using (brreg_id) where f.orgnr = c.orgnr)
+           and c.orgnr <> all(${drawn.map((filing) => filing.orgnr)}::text[])
+         order by c.orgnr limit 1`;
+      withdrawn = company?.orgnr ?? '';
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr: withdrawn, reason: 'Testoppføring' }]));
+      await tx`
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+        values (${withdrawn}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+        values (${withdrawn}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
+      await tx`delete from register.company where orgnr = ${withdrawn}`;
+      manifest = await exportSeed(tx, scratchRoot, out, (line) => notices.push(line));
+    });
+    expect(withdrawn).toMatch(/^\d{9}$/);
+    expect(notices).toEqual([
+      `seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${withdrawn} (Testoppføring)`,
+      `seed:export: ${LICENCE_GATE_FILE} is absent; the licence gate is closed: fingerprints of allow-listed companies only`,
+    ]);
+    expect(manifest?.document_figure_orgnrs).not.toContain(withdrawn);
+    expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(stableJson(withReferenceOrgnrs([], drawn)));
+    for (const file of readdirSync(path.join(out, SEED_DIR)).filter((name) => name.endsWith('.csv'))) {
+      const [header = [], ...rows] = parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8'));
+      const at = header.indexOf('orgnr');
+      if (at === -1) continue;
+      expect(
+        rows.filter((row) => row[at] === withdrawn),
+        file,
+      ).toEqual([]);
+    }
+  });
+
   it('refuses to export without the committed reference draw, writing nothing', async () => {
     const scratchRoot = path.join(scratch, 'no-draw-root');
     cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
@@ -442,6 +531,8 @@ describe('the export order', () => {
       ['key_figures.csv', headerOnly('key_figures.csv')],
       ['document.csv', headerOnly('document.csv')],
       ['document_column.csv', headerOnly('document_column.csv')],
+      ['fingerprint.csv', headerOnly('fingerprint.csv')],
+      ['classification.csv', headerOnly('classification.csv')],
     ]);
     const out = path.join(scratch, 'order');
     await rolledBack(loader, async (tx) => {
@@ -453,6 +544,103 @@ describe('the export order', () => {
     const orgnrs = exported.map((row) => row[at] ?? '');
     expect(orgnrs.length).toBe(rows.length);
     expect(orgnrs).toEqual([...orgnrs].sort(compareBytes));
+  });
+});
+
+// Story 2.5: the licence gate in seed:export. Two synthetic companies with a
+// fingerprint each, written as the migration role in a transaction that is
+// rolled back: one on the allow-list the export uses, one not. Absent and
+// closed export the allow-listed one only; open exports both. The
+// allow-listed one is always kept. No stored company's fingerprint is read.
+describe('the licence gate', () => {
+  const LISTED = '000000017';
+  const UNLISTED = '000000025';
+  const fingerprintTable = SEED_TABLES.find((table) => table.name === 'fingerprint');
+
+  async function withTwoFingerprints(tx: Tx): Promise<void> {
+    for (const orgnr of [LISTED, UNLISTED]) {
+      await tx`insert into register.company (orgnr, read_at) values (${orgnr}, now())`;
+      // A fingerprint references its company, not its document column
+      // (spec change log, review pass 1): none is stored here.
+      await tx`
+        insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
+               personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory, capitalised_intangibles, input_digest, dataset)
+        values (${orgnr}, 2025, 'low', 'low', 'high', 'high', 'low', 'low', false, false, ${'0'.repeat(64)}, 'full')`;
+    }
+  }
+
+  async function exportedOrgnrs(gateContent: string | null): Promise<{ orgnrs: string[]; notices: string[] }> {
+    if (fingerprintTable === undefined) throw new Error('fingerprint is not a seed table');
+    const file = path.join(scratch, `licence-gate-${String(gateContent?.length ?? 'absent')}.json`);
+    rmSync(file, { force: true });
+    if (gateContent !== null) writeFileSync(file, gateContent);
+    const notices: string[] = [];
+    const gate = readLicenceGate(file, (line) => notices.push(line));
+    let orgnrs: string[] = [];
+    await rolledBack(admin, async (tx) => {
+      await withTwoFingerprints(tx);
+      const [header, ...rows] = parseCsv((await copyTable(tx, fingerprintTable, gate, [LISTED])).toString('utf8'));
+      const at = header?.indexOf('orgnr') ?? -1;
+      orgnrs = rows.map((row) => row[at] ?? '').filter((orgnr) => orgnr === LISTED || orgnr === UNLISTED);
+    });
+    return { orgnrs, notices };
+  }
+
+  it('absent: exports the allow-listed fingerprints only, and says the gate is closed', async () => {
+    const { orgnrs, notices } = await exportedOrgnrs(null);
+    expect(orgnrs).toEqual([LISTED]);
+    expect(notices.join('\n')).toMatch(/is absent; the licence gate is closed/);
+  });
+
+  it('closed: exports the allow-listed fingerprints only', async () => {
+    const { orgnrs } = await exportedOrgnrs(JSON.stringify({ open: false, assessment: 'pending', date: '2026-11-01' }));
+    expect(orgnrs).toEqual([LISTED]);
+  });
+
+  it('open: exports every fingerprint, the allow-listed one included', async () => {
+    const { orgnrs } = await exportedOrgnrs(JSON.stringify({ open: true, assessment: 'assessed', date: '2026-11-01' }));
+    expect(orgnrs).toEqual([LISTED, UNLISTED]);
+  });
+
+  // Review pass 1 (triage 2): an open gate exports what it opens for. A
+  // whole export, with a fingerprint of a company outside the allow-list
+  // and no document column behind it, writes the fingerprint and no
+  // document figure. Document rows outside the allow-list (a local
+  // acceptance run's) are removed inside the rolled-back transaction, as
+  // the export would refuse them anyway.
+  it('open: a whole export writes an unlisted fingerprint without its document column', async () => {
+    const gateFile = path.join(scratch, 'licence-gate-open-export.json');
+    writeFileSync(gateFile, JSON.stringify({ open: true, assessment: 'assessed', date: '2026-11-01' }));
+    const out = path.join(scratch, 'open-gate-export');
+    const listed = JSON.parse(readFileSync(path.join(root, ALLOW_LIST_FILE), 'utf8')) as { orgnr: string }[];
+    const allowListed = [...listed.map((e) => e.orgnr), ...drawn.map((d) => d.orgnr)];
+    await rolledBack(admin, async (tx) => {
+      await tx`delete from register.document where not (orgnr = any(${allowListed}::text[]))`;
+      await tx`insert into register.company (orgnr, read_at) values (${UNLISTED}, now())`;
+      await tx`
+        insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
+               personnel_cost_hi, asset_intensity_lo, asset_intensity_hi, inventory, capitalised_intangibles, input_digest, dataset)
+        values (${UNLISTED}, 2025, 'low', 'low', 'high', 'high', 'low', 'low', false, false, ${'0'.repeat(64)}, 'full')`;
+      await exportSeed(tx, root, out, () => {}, gateFile);
+    });
+    const orgnrsIn = (file: string): string[] => {
+      const [header, ...rows] = parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8'));
+      const at = header?.indexOf('orgnr') ?? -1;
+      return rows.map((row) => row[at] ?? '');
+    };
+    expect(orgnrsIn('fingerprint.csv')).toContain(UNLISTED);
+    expect(orgnrsIn('document_column.csv')).not.toContain(UNLISTED);
+    expect(orgnrsIn('document.csv')).not.toContain(UNLISTED);
+  });
+
+  it('filters no other table', async () => {
+    const company = SEED_TABLES.find((table) => table.name === 'company');
+    if (company === undefined) throw new Error('company is not a seed table');
+    await rolledBack(admin, async (tx) => {
+      await withTwoFingerprints(tx);
+      const text = (await copyTable(tx, company, { open: false }, [LISTED])).toString('utf8');
+      expect(text).toContain(`\n${UNLISTED},`);
+    });
   });
 });
 

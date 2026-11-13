@@ -1,7 +1,8 @@
-// Funnel stages 1–3 (Story 1.7; FR-8): which companies are comparable with
-// the subject, decided by rules only. Pure: the subject's benchmark-year
-// filing and every same-industry company's filings for that year in, the
-// candidate pool at one size band and a count per stage out.
+// Funnel stages 1–4 (Stories 1.7, 2.5; FR-8, FR-10): which companies are
+// comparable with the subject, decided by rules only. Pure: the subject's
+// benchmark-year filing and every same-industry company's filings for that
+// year in, the candidate pool at one size band, the group after stage 4 and
+// a count per stage out.
 //
 //   stage 1  same naeringskode1, and sumDriftsinntekter inside the size band
 //            around the subject's (both bounds included, exact in øre)
@@ -9,12 +10,32 @@
 //            avviklingsregnskap, financial period and regnskapstype; both
 //            filings run 1 January – 31 December
 //   stage 3  legal form AS
+//   stage 4  business model: the business type of the subject's fingerprint
+//            for its benchmark year, against each candidate's for the same
+//            year (src/engine/fingerprint.ts). A candidate with another type
+//            is removed unless its text gives the subject's type. One with no
+//            fingerprint, or with no type, is kept; a subject with neither
+//            removes no one.
+//   stage 5  classification (Story 2.6): the stored type from the company's
+//            text. A candidate with another type and no fingerprint signal
+//            is removed. One with no type is kept; a subject with none
+//            leaves the count equal to stage 4's.
+//
+// The two stages combine as the technical note says ("Combining the
+// fingerprint and the text"): one giving the subject's type and the other
+// not keeps the candidate and flags it, and neither overrides the other.
+//
+// The candidate pool (`pool`) is stages 1–3: `ekskl` is checked against it,
+// and so are the document run's set and the 5.1 frame. `group` is the pool
+// after stages 4 and 5, which every aggregate uses.
 //
 // Selection never reads a benchmarked measure: no margin, no return, no
 // assets and no employee count (the register's is today's, not the year's).
-// The input types carry no such field, so the funnel cannot read one.
-// Stages 4–5 (fingerprint, classification) are Epic 2's; each adds a count.
+// The input types carry no such field, so the funnel cannot read one. Cost
+// of goods and personnel cost shares are benchmarked too: they reach stage 4
+// only as band ids inside a Fingerprint, never as values.
 import { Decimal } from './decimal.ts';
+import { businessType, type BusinessType, type Fingerprint } from './fingerprint.ts';
 
 /** The size-band step: 0 Standard, 1 and 2 widened (Epic 2's control). */
 export type SizeBand = 0 | 1 | 2;
@@ -49,6 +70,10 @@ export type SubjectFiling = Comparability & {
   readonly filingYear: number;
   /** Øre, as filed; null when the register's element is empty. */
   readonly sumDriftsinntekter: bigint | null;
+  /** The stored fingerprint for `filingYear`; null when there is none. */
+  readonly fingerprint: Fingerprint | null;
+  /** The stored classification's type; null when there is none, or the model abstained. */
+  readonly classification: BusinessType | null;
 };
 
 /** One filing of one candidate company. A company may have several in a year. */
@@ -61,6 +86,10 @@ export type CandidateFiling = Comparability & {
   readonly filingYear: number;
   /** Øre, as filed; null when the register's element is empty. */
   readonly sumDriftsinntekter: bigint | null;
+  /** The company's stored fingerprint for `filingYear`; null when there is none. */
+  readonly fingerprint: Fingerprint | null;
+  /** The company's stored classification's type; null when there is none, or the model abstained. */
+  readonly classification: BusinessType | null;
 };
 
 export type FunnelCounts = {
@@ -70,6 +99,10 @@ export type FunnelCounts = {
   readonly stage2: number;
   /** Companies left after each stage-3 criterion, in order. */
   readonly stage3: { readonly legalForm: number };
+  /** Companies left after stage 4, counted on stage 3's. */
+  readonly stage4: { readonly businessModel: number };
+  /** Companies left after stage 5, counted on stage 4's, and how many of them are flagged. */
+  readonly stage5: { readonly classification: number; readonly flagged: number };
 };
 
 /**
@@ -83,6 +116,10 @@ export type EmptyReason = 'subject_no_revenue' | 'subject_non_calendar' | null;
 export type PeerGroup<C extends CandidateFiling> = {
   /** Stages 1–3 at the band, one filing per company, by revenue descending, then orgnr. */
   readonly pool: readonly C[];
+  /** The pool after stages 4 and 5, in pool order: the group every aggregate uses. */
+  readonly group: readonly C[];
+  /** Orgnrs in `group` whose two signals disagree ("Usikker klassifisering"), in pool order. */
+  readonly flagged: readonly string[];
   readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
 };
@@ -174,7 +211,24 @@ export function isComparable(subject: Comparability, candidate: Comparability): 
 }
 
 /**
- * Funnel stages 1–3 at `band`. `candidates` are the filings of the companies
+ * Whether each signal says the candidate is the subject's type; null when
+ * the signal is missing for either, because a signal missing for the subject
+ * counts as missing for every candidate.
+ */
+function signals(
+  subject: Pick<SubjectFiling, 'fingerprint' | 'classification'>,
+  candidate: Pick<CandidateFiling, 'fingerprint' | 'classification'>,
+): { readonly fingerprint: boolean | null; readonly text: boolean | null } {
+  const agree = (a: BusinessType | null, b: BusinessType | null) => (a === null || b === null ? null : a === b);
+  const typeOf = (fingerprint: Fingerprint | null) => (fingerprint === null ? null : businessType(fingerprint));
+  return {
+    fingerprint: agree(typeOf(subject.fingerprint), typeOf(candidate.fingerprint)),
+    text: agree(subject.classification, candidate.classification),
+  };
+}
+
+/**
+ * Funnel stages 1–5 at `band`. `candidates` are the filings of the companies
  * to consider, any number per company; the subject's own are ignored, and a
  * company without a filing in the subject's year is out before stage 1.
  */
@@ -216,13 +270,37 @@ export function assemblePeerGroup<C extends CandidateFiling>(
       descending(a.sumDriftsinntekter ?? 0n, b.sumDriftsinntekter ?? 0n) || -descending(a.orgnr, b.orgnr),
   );
 
+  // Stages 4 and 5: a missing signal excludes no one.
+  const afterStage4 = pool.filter((candidate) => {
+    const { fingerprint, text } = signals(subject, candidate);
+    return fingerprint !== false || text === true;
+  });
+  const group = afterStage4.filter((candidate) => {
+    const { fingerprint, text } = signals(subject, candidate);
+    return text !== false || fingerprint !== null;
+  });
+  const flagged = group
+    .filter((candidate) => {
+      const { fingerprint, text } = signals(subject, candidate);
+      return fingerprint !== null && text !== null && fingerprint !== text;
+    })
+    .map((candidate) => candidate.orgnr);
+
   let emptyReason: EmptyReason = null;
   if (!subjectHasRevenue) emptyReason = 'subject_no_revenue';
   else if (!isCalendarYear(subject)) emptyReason = 'subject_non_calendar';
 
   return {
     pool,
-    counts: { stage1: stage1.length, stage2: stage2.length, stage3: { legalForm: legalForm.length } },
+    group,
+    flagged,
+    counts: {
+      stage1: stage1.length,
+      stage2: stage2.length,
+      stage3: { legalForm: legalForm.length },
+      stage4: { businessModel: afterStage4.length },
+      stage5: { classification: group.length, flagged: flagged.length },
+    },
     emptyReason,
   };
 }

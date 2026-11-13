@@ -15,7 +15,22 @@ from conftest import BOUND_KR, REPO_ROOT
 from peerless_ingest import config, documents, image_check
 from peerless_ingest.documents import DocumentRead
 from peerless_ingest.ocr import PageWords, Word, read_tsv
-from tsv_builder import BASE_ROWS, Row, digits_of, document, replace_row
+from tsv_builder import (
+    BASE_ROWS,
+    CURRENT_RIGHT,
+    GENERATED_TOP,
+    PRIOR_RIGHT,
+    Row,
+    digits_of,
+    document,
+    document_pages,
+    figure_words,
+    label_words,
+    misread_leading,
+    page_lines,
+    replace_row,
+    words,
+)
 
 
 def read(rows: list[Row], digits_rows: list[Row] | None = None, **page: object) -> DocumentRead:
@@ -338,6 +353,12 @@ FILED_979607008_2025: dict[str, tuple[int | None, int | None]] = {
     "netto_finans": (-826_511, -1_102_745),
     "ordinaert_resultat_foer_skattekostnad": (-704_508, -2_071_857),
     "aarsresultat": (-1_541_009, -2_611_560),
+    # The four parts (Story 2.5b), hand-checked against the PDF 2026-11-05.
+    # The first part is printed as "Utvikling".
+    "forskning_og_utvikling": (6_986_262, 953_319),
+    "konsesjoner_patenter": (36_250, 60_417),
+    "goodwill": (9_000_472, 13_500_708),
+    "utsatt_skattefordel": (190_261, 100_560),
     "sum_immaterielle_eiendeler": (16_213_245, 14_615_003),
     "sum_varige_driftsmidler": (1_197_768, 2_102_723),
     "varer": (None, None),
@@ -352,9 +373,11 @@ FILED_979607008_2025: dict[str, tuple[int | None, int | None]] = {
 }
 
 # Figures the read leaves absent although the document prints them. The
-# plain pass misread a digit ("l0 170 8365", "l 001 605", "l 731 356"), and
-# neither field is in a check, so the gate refuses the digits-only figure
-# (for annen driftskostnad 2025 it was also wrong: "101708365").
+# plain pass misread a digit ("l0 170 8365", "l 001 605", "l 731 356").
+# Leverandørgjeld is in no check and no sum gate, so the digits-only figure
+# is refused. Annen driftskostnad 2025 is in the cost-lines gate (Story
+# 2.5b), but its digits-only figure was wrong too ("101708365"), so the
+# lines do not sum to sum kostnader and the gate refuses it.
 ABSENT_BY_GATE = {("annen_driftskostnad", 0), ("leverandorgjeld", 0), ("leverandorgjeld", 1)}
 
 
@@ -377,7 +400,9 @@ def test_contract_979607008_2025() -> None:
     assert (result.current.year, result.prior.year) == (2025, 2024)
     for index, column in enumerate((result.current, result.prior)):
         assert checks_of(column) == ("pass", "pass", "pass", "pass")
-        assert column.digits_pass_fields == ()
+        # Goodwill 2024 (13 500 708) is absent from the plain pass and taken
+        # from the digits-only pass through the parts-sum gate (Story 2.5b).
+        assert column.digits_pass_fields == ((), ("goodwill",))[index]
         for name, filed in FILED_979607008_2025.items():
             want = None if (name, index) in ABSENT_BY_GATE else filed[index]
             assert column.figures[name] == want, (name, column.year)
@@ -428,3 +453,259 @@ def test_image_check_compares_the_digits_pass() -> None:
     diff = image_check.digits_differences([PageWords(page.plain, broken), *recorded[1:]], recorded)
     assert diff == [".digits_pass.sum_driftsinntekter: read [7263231, 69051006], expected [72632310, 69051006]"]
 
+
+# --- The sum gates (Story 2.5b, F3) -------------------------------------------------
+
+# An income statement whose five cost lines sum to sum kostnader 72 510 307,
+# with the probe's three wrongly grouped figures as their true values:
+# varekostnad 14 481 267 ("l4 481 267"), lønnskostnad 8 605 849
+# ("8 605 8349") and annen driftskostnad 3 804 886 ("3 804 3836").
+COST_ROWS: list[Row] = [
+    ("Salgsinntekt", "71 987 157", "66 799 459"),
+    ("Sum inntekter", "72 632 310", "69 051 006"),
+    ("Varekostnad", "14 481 267", "744 327"),
+    ("Lønnskostnad", "8 605 849", "52 967 147"),
+    ("Avskrivning 3", "45 618 305", "5 512 071"),
+    ("Nedskrivning av varige", "", ""),
+    ("driftsmidler og", "", ""),
+    ("immaterielle eiendeler", "0", "328 527"),
+    ("Annen driftskostnad", "3 804 886", "10 468 045"),
+    ("Sum kostnader", "72 510 307", "70 020 117"),
+    ("Driftsresultat", "122 003", "-969 111"),
+    ("Netto finans", "-826 511", "-1 102 745"),
+    ("Resultat før skattekostnad", "-704 508", "-2 071 857"),
+]
+
+BALANCE_ROWS: list[Row] = [
+    ("Immaterielle eiendeler", "", ""),
+    ("Utvikling 3", "6 986 262", "953 319"),
+    ("Konsesjoner, patenter,", "", ""),
+    ("lisenser, varemerker ol. 3", "36 250", "60 417"),
+    ("Utsatt skattefordel 4, 5", "190 261", "100 560"),
+    ("Goodwill 3", "9 000 472", "13 500 708"),
+    ("Sun immaterielle eiendeler", "16 213 245", "14 615 003"),
+    ("SUM EIENDELER", "31 073 544", "35 615 025"),
+    ("Sum egenkapital", "7 764 189", "9 305 198"),
+    ("Sum gjeld", "23 309 355", "26 309 827"),
+    ("SUM EGENKAPITAL OG GJELD", "31 073 544", "35 615 025"),
+]
+
+
+def read_two(
+    cost: list[Row], balance: list[Row], cost_digits: list[Row] | None = None, balance_digits: list[Row] | None = None
+) -> documents.Column:
+    top, pages = document_pages([("RESULTATREGNSKAP", cost, cost_digits), ("BALANSE", balance, balance_digits)])
+    return current_of(documents.read_words(top, pages, BOUND_KR))
+
+
+def test_two_page_statement_reads_every_line() -> None:
+    column = read_two(COST_ROWS, BALANCE_ROWS)
+    assert checks_of(column) == ("pass", "pass", "pass", "pass")
+    assert column.digits_pass_fields == ()
+    assert column.figures["avskrivninger"] == 45_618_305
+    assert column.figures["nedskrivninger"] == 0
+    assert column.figures["goodwill"] == 9_000_472
+
+
+def test_cost_line_recovered_through_gate() -> None:
+    digits = digits_of(COST_ROWS)
+
+    # Admitted: lønnskostnad refused in plain ("8 6O5 849"), the digits pass
+    # reads it right, and the five lines sum to the plain sum kostnader.
+    plain = replace_row(COST_ROWS, "Lønnskostnad", current="8 6O5 849")
+    column = read_two(plain, BALANCE_ROWS, digits)
+    assert column.figures["lonnskostnad"] == 8_605_849
+    assert column.digits_pass_fields == ("lonnskostnad",)
+
+    # The probe's three refused tokens, each with the digits pass's wrong
+    # figure: the lines no longer sum to the total, so each stays absent.
+    for label, printed, read in [
+        ("Varekostnad", "l4 481 267", "4481267"),  # correct 14 481 267
+        ("Lønnskostnad", "8 605 8349", "86058349"),  # correct 8 605 849
+        ("Annen driftskostnad", "3 804 3836", "38043836"),  # correct 3 804 886
+    ]:
+        column = read_two(replace_row(COST_ROWS, label, current=printed), BALANCE_ROWS, replace_row(digits, label, current=read))
+        assert column.digits_pass_fields == (), label
+        assert all(column.figures[f] is not None for f in ("sum_driftskostnad", "driftsresultat")), label
+        field = {"Varekostnad": "varekostnad", "Lønnskostnad": "lonnskostnad"}.get(label, "annen_driftskostnad")
+        assert column.figures[field] is None, label
+
+    # The total refused in plain: the gate is not evaluable and lønnskostnad
+    # absent. Sum kostnader itself comes in through c1; a gate takes only a
+    # plain total.
+    no_total = replace_row(plain, "Sum kostnader", current="72 51O 307")
+    column = read_two(no_total, BALANCE_ROWS, digits)
+    assert column.figures["lonnskostnad"] is None
+    assert column.figures["sum_driftskostnad"] == 72_510_307
+    assert column.digits_pass_fields == ("sum_driftskostnad",)
+
+    # Two operands from the digits pass: absent, both.
+    two = replace_row(plain, "Varekostnad", current="14 48l 267")
+    column = read_two(two, BALANCE_ROWS, digits)
+    assert (column.figures["lonnskostnad"], column.figures["varekostnad"]) == (None, None)
+    assert column.digits_pass_fields == ()
+
+    # A row that matched but whose figure neither pass read: not evaluable,
+    # never 0, though here the printed figure is 0 and the sum would hold.
+    unread = replace_row(plain, "immaterielle eiendeler", current="O")
+    column = read_two(unread, BALANCE_ROWS, replace_row(digits, "immaterielle eiendeler", current=""))
+    assert (column.figures["lonnskostnad"], column.figures["nedskrivninger"]) == (None, None)
+
+    # A line with no row at all counts as 0 in the gate, and stays absent.
+    no_row = [r for r in plain if r[0] not in ("Nedskrivning av varige", "driftsmidler og", "immaterielle eiendeler")]
+    no_row_digits = [r for r in digits if r[0] not in ("Nedskrivning av varige", "driftsmidler og", "immaterielle eiendeler")]
+    column = read_two(no_row, BALANCE_ROWS, no_row_digits)
+    assert column.figures["lonnskostnad"] == 8_605_849
+    assert column.figures["nedskrivninger"] is None
+
+    # A failing c1-c4 drops it, as every digits-only figure of the column.
+    broken = replace_row(BALANCE_ROWS, "Sum gjeld", current="23 309 955")
+    column = read_two(plain, broken, digits)
+    assert column.figures["lonnskostnad"] is None
+    assert column.digits_pass_fields == ()
+
+
+def test_intangible_part_recovered_only_through_gate() -> None:
+    digits = digits_of(BALANCE_ROWS)
+
+    # Kept from the digits pass: goodwill refused in plain, and the four
+    # parts sum to the plain sum immaterielle eiendeler (979607008/2024's
+    # case: 13 500 708).
+    plain = replace_row(BALANCE_ROWS, "Goodwill 3", current="9 OOO 472")
+    column = read_two(COST_ROWS, plain, None, digits)
+    assert column.figures["goodwill"] == 9_000_472
+    assert column.digits_pass_fields == ("goodwill",)
+    assert column.figures["sum_immaterielle_eiendeler"] == 16_213_245
+
+    # The sum fails (a dropped digit): absent.
+    column = read_two(COST_ROWS, plain, None, replace_row(digits, "Goodwill 3", current="900472"))
+    assert column.figures["goodwill"] is None
+    assert column.digits_pass_fields == ()
+
+    # An operand matched but read by neither pass: absent, even when its
+    # printed figure is 0 and the sum would hold with it as 0.
+    with_zero = [*plain[:1], ("Forskning og utvikling", "O", "0"), *plain[1:]]
+    with_zero = replace_row(with_zero, "Utvikling 3", current="")  # the parts: 0 + 36 250 + 190 261 + goodwill
+    with_zero = replace_row(with_zero, "Sun immaterielle eiendeler", current="9 226 983")
+    zero_digits = [*digits[:1], ("Forskning og utvikling", "", "0"), *digits[1:]]
+    zero_digits = replace_row(zero_digits, "Utvikling 3", current="")
+    column = read_two(COST_ROWS, with_zero, None, zero_digits)
+    assert (column.figures["goodwill"], column.figures["forskning_og_utvikling"]) == (None, None)
+
+    # The total not read in plain (the bold "Sum" line's 1 read as "l"):
+    # absent, both, though the digits pass reads the total right.
+    no_total = replace_row(plain, "Sun immaterielle eiendeler", current="l6 213 245")
+    column = read_two(COST_ROWS, no_total, None, digits)
+    assert (column.figures["goodwill"], column.figures["sum_immaterielle_eiendeler"]) == (None, None)
+    assert column.digits_pass_fields == ()
+
+    # The total printed as 0 and read as "Ö": never read as 0, so the gate
+    # has no total and admits nothing.
+    zero = [("Goodwill", "O", "0"), ("Sun immaterielle eiendeler", "Ö", "Ö"), *BALANCE_ROWS[7:]]
+    column = read_two(COST_ROWS, zero, None, [("Goodwill", "0", "0"), ("Sun immaterielle eiendeler", "", ""), *digits[7:]])
+    assert (column.figures["goodwill"], column.figures["sum_immaterielle_eiendeler"]) == (None, None)
+
+    # A part with no row counts as 0 in the gate and is never stored as 0.
+    no_goodwill = [r for r in plain if r[0] != "Goodwill 3"]
+    no_goodwill = replace_row(no_goodwill, "Utvikling 3", current="6 986 2b2")
+    no_goodwill = replace_row(no_goodwill, "Sun immaterielle eiendeler", current="7 212 773")
+    column = read_two(COST_ROWS, no_goodwill, None, [r for r in digits if r[0] != "Goodwill 3"])
+    assert column.figures["forskning_og_utvikling"] == 6_986_262
+    assert column.figures["goodwill"] is None
+    assert column.digits_pass_fields == ("forskning_og_utvikling",)
+
+
+# 994176021/2021, this year's column, as the probe's cached words read it:
+# "Lønnskostnad 2" is printed with no figure in either pass, and so is the
+# wrapped "Nedskrivning …" row. There the other lines sum exactly to sum
+# kostnader (1 365 321 + 3 781 795 + 8 373 426 = 13 520 542), so the blank
+# rows are 0 in fact. The risk the spec names (change log, 2026-11-05) is a
+# printed figure OCR did not see at all: the gate counts the blank row as 0.
+BLANK_LONN_ROWS: list[Row] = [
+    ("Sum inntekter", "14 028 370", "10 415 356"),
+    ("Varekostnad", "1 365 321", "996 371"),
+    ("Lønnskostnad 2", "", ""),
+    ("Avskrivning 3", "3 781 795", "2 869 057"),
+    ("Nedskrivning av varige", "", ""),
+    ("driftsmidler og", "", ""),
+    ("immaterielle eiendeler 3", "", ""),
+    ("Annen driftskostnad 2", "8 373 426", "6 246 567"),
+    ("Sun kostnader", "13 520 542", "10 111 995"),
+    ("Driftsresultat", "507 828", "303 361"),
+]
+
+
+def test_blank_printed_line_lets_the_gate_admit_nothing_unless_the_sum_holds() -> None:
+    def gated(rows: list[Row], digits: list[Row]) -> documents.Column:
+        top, pages = document_pages([("RESULTATREGNSKAP", rows, digits), ("BALANSE", BALANCE_ROWS, None)])
+        return current_of(documents.read_words(top, pages, BOUND_KR))
+
+    # Lønnskostnad's printed figure, 2 000 000, missing from both passes: sum
+    # kostnader and driftsresultat as printed then. Annen driftskostnad is
+    # refused in plain and read right by the digits pass, but with the blank
+    # row counted as 0 the lines are 2 000 000 short of the total: nothing is
+    # admitted (fails if the gate's sum check is removed).
+    missing = replace_row(
+        replace_row(replace_row(BLANK_LONN_ROWS, "Sun kostnader", current="15 520 542"), "Driftsresultat", current="-1 492 172"),
+        "Annen driftskostnad 2",
+        current="8 373 4z6",
+    )
+    column = gated(missing, digits_of(replace_row(missing, "Annen driftskostnad 2", current="8 373 426")))
+    assert column.c1 == "pass"
+    assert column.figures["annen_driftskostnad"] is None
+    assert column.figures["lonnskostnad"] is None
+    assert column.digits_pass_fields == ()
+
+    # As in the document, the blank rows being 0: the sum holds, and one
+    # operand from the digits pass is admitted.
+    one = replace_row(BLANK_LONN_ROWS, "Annen driftskostnad 2", current="8 373 4z6")
+    column = gated(one, digits_of(BLANK_LONN_ROWS))
+    assert column.figures["annen_driftskostnad"] == 8_373_426
+    assert column.digits_pass_fields == ("annen_driftskostnad",)
+    assert column.figures["lonnskostnad"] is None  # counted as 0 in the gate only, never stored
+
+    # Two operands from the digits pass, the sum holding: nothing is admitted
+    # (fails if the "at most one digits-pass operand" rule is removed).
+    two = replace_row(one, "Avskrivning 3", current="3 78l 795")
+    column = gated(two, digits_of(BLANK_LONN_ROWS))
+    assert (column.figures["annen_driftskostnad"], column.figures["avskrivninger"]) == (None, None)
+    assert column.digits_pass_fields == ()
+
+
+# --- The width rule (Story 2.5c, R1) -------------------------------------------------
+
+# COST_ROWS with varekostnad printed "2 375 956" and avskrivninger raised by
+# the difference, so the five lines still sum to sum kostnader 72 510 307.
+NARROW_ROWS = replace_row(replace_row(COST_ROWS, "Varekostnad", current="2 375 956"), "Avskrivning 3", current="57 723 616")
+
+
+def test_digit_read_as_two_not_admitted_by_gate() -> None:
+    def misread(digits_figure: str) -> documents.Column:
+        # The plain pass reads "2" as "23", a box 28 px wide (the probe's
+        # 0.35 of two digits at the pitch), and the digits-only pass offers
+        # `digits_figure` for the line.
+        lines = page_lines(NARROW_ROWS, heading="RESULTATREGNSKAP")
+        at = 2 + [r[0] for r in NARROW_ROWS].index("Varekostnad")
+        lines[at] = label_words("Varekostnad") + misread_leading("2 375 956", CURRENT_RIGHT, "23", 28) + figure_words("744 327", PRIOR_RIGHT)
+        digits = words(page_lines(replace_row(digits_of(NARROW_ROWS), "Varekostnad", current=digits_figure), heading="RESULTATREGNSKAP", figures_only=True))
+        balance = words(page_lines(BALANCE_ROWS, heading="BALANSE"))
+        balance_digits = words(page_lines(digits_of(BALANCE_ROWS), heading="BALANSE", figures_only=True))
+        pages = [PageWords(words(lines), digits), PageWords(balance, balance_digits)]
+        return current_of(documents.read_words(words(GENERATED_TOP), pages, BOUND_KR))
+
+    # As printed, at its width, the line is read.
+    assert read_two(NARROW_ROWS, BALANCE_ROWS).figures["varekostnad"] == 2_375_956
+
+    # Both passes read 23 375 956. The plain token is refused by the width
+    # rule, and the digits pass's figure misses the total by 21 000 000 kr,
+    # so the cost-line gate does not admit it. The column still reconciles:
+    # no check covers the line, which is why it reached the engine before.
+    column = misread("23375956")
+    assert checks_of(column) == ("pass", "pass", "pass", "pass")
+    assert column.figures["varekostnad"] is None
+    assert column.digits_pass_fields == ()
+
+    # A right digits-pass figure is admitted through the gate as before.
+    column = misread("2375956")
+    assert column.figures["varekostnad"] == 2_375_956
+    assert column.digits_pass_fields == ("varekostnad",)

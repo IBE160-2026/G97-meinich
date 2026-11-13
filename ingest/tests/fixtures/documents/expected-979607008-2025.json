@@ -28,7 +28,11 @@
       "leverandorgjeld": null,
       "sum_kortsiktig_gjeld": 18676023,
       "sum_gjeld": 23309355,
-      "sum_egenkapital_gjeld": 31073544
+      "sum_egenkapital_gjeld": 31073544,
+      "forskning_og_utvikling": 6986262,
+      "konsesjoner_patenter": 36250,
+      "goodwill": 9000472,
+      "utsatt_skattefordel": 190261
     },
     "c1": "pass",
     "c2": "pass",
@@ -61,12 +65,18 @@
       "leverandorgjeld": null,
       "sum_kortsiktig_gjeld": 18009823,
       "sum_gjeld": 26309827,
-      "sum_egenkapital_gjeld": 35615025
+      "sum_egenkapital_gjeld": 35615025,
+      "forskning_og_utvikling": 953319,
+      "konsesjoner_patenter": 60417,
+      "goodwill": 13500708,
+      "utsatt_skattefordel": 100560
     },
     "c1": "pass",
     "c2": "pass",
     "c3": "pass",
     "c4": "pass",
-    "digits_pass_fields": []
+    "digits_pass_fields": [
+      "goodwill"
+    ]
   }
 }

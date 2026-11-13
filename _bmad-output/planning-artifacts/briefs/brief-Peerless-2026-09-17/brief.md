@@ -2,7 +2,7 @@
 title: Peerless
 status: complete
 created: 2026-09-17
-updated: 2026-10-10
+updated: 2026-11-04
 ---
 
 # Product Brief: Peerless — Peer Benchmarking from Public Accounts
@@ -23,7 +23,7 @@ A wage share of thirty-one per cent sounds neither high nor low until you know t
 
 **Today** the question is answered rarely and expensively: a consultant spends weeks on a deck that is never revisited, or an accountant offers an impression that cannot show its working. Advisers rebuild the same analysis from scratch for every client, so it is offered rarely and priced as a project.
 
-**What exists commercially leaves the hard part to the user.** Credit bureaus answer a counterparty's question — will this company pay — not the company's own. Proff Forvalt offers competitor analysis, but the user picks the companies, and picking well is exactly what requires knowing the industry. Enin can generate lists of comparable companies, but sells to banks for credit and fraud work. Valutico recommends and explains comparable companies, but for valuation against listed companies. None of them chooses the peers for a Norwegian SME and turns each deviation into kroner.
+**What exists commercially leaves the hard part to the user.** Credit bureaus answer a counterparty's question — will this company pay — not the company's own. Proff Forvalt offers competitor analysis, but the user picks the companies, and picking well is exactly what requires knowing the industry. Enin can generate lists of comparable companies, but sells to banks for credit and fraud work. Valutico recommends and explains comparable companies, but for valuation against listed companies. Empirion Performance comes closest in form — a self-service analysis of public accounts, 17 key figures against up to 250 comparable companies, with an AI summary — but the user searches out the comparison set, and positions are shown, not kroner. None of them chooses the peers for a Norwegian SME and turns each deviation into kroner.
 
 ## The Solution
 

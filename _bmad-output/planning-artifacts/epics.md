@@ -2465,6 +2465,13 @@ So that the report shows where the improvement comes from, and whether the model
 **And** flagged candidates (FR-14) are reported apart from the rest
 **And** SM-1b compares the full funnel with an industry-code-only baseline, as a sanity check and not a claim
 
+**Given** the decision rule for stage 5 (PRD §9, FR-11), fixed before this story runs
+**When** the measurement runs
+**Then** it compares *fingerprint alone* with *fingerprint and text* on all labelled pairs, with `usikker` left out, and reports precision and recall for both and the difference in percentage points
+**And** stage 5 is kept if the text raises precision by at least 3 percentage points and lowers recall by no more than 3 percentage points; the report states which, and the rule is never re-tuned after the result is seen
+**And** the blind pairs are reported on their own as well, but the rule is decided on all labelled pairs
+**And** if stage 5 is not kept, this story's PR switches the text signal off in the v1 funnel: the group is decided by the fingerprint alone, no peer is flagged, and no match basis rests on the description (tests in `test/engine/peers.test.ts` for each), and the report and PRD §10 state that the model was not needed
+
 **Given** the two banded measures in the fingerprint — the cost-of-goods share band and the personnel-cost share band (FR-13)
 **When** the measurement runs
 **Then** it reports precision and recall with and without each band, and the report records for each band whether it is kept or dropped, with the reason

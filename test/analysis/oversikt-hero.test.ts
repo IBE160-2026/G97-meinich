@@ -209,8 +209,9 @@ describe('the hero without an amount', () => {
 });
 
 describe('an empty group with a reason, as on the Peers tab', () => {
+  const NO_COUNTS = { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
   const peersSentence = (emptyReason: EmptyReason) =>
-    text(renderToString(createElement(PeerList, { peers: [], valuta: 'NOK', emptyReason, filingYear: 2025 })));
+    text(renderToString(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025 })));
 
   it('a non-calendar year: the own value and the Peers tab’s sentence, not "(0 av 10)"', () => {
     const html = render(amountOf(CLIMAX, []), 'subject_non_calendar');

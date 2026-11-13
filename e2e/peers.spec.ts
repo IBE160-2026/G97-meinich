@@ -30,6 +30,7 @@ test.describe('the peer group (Story 1.7)', () => {
   });
 
   test('the Peers tab lists the group by revenue, with the count, in a labelled scroll region', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/peers`);
     await expect(page.getByTestId('peer-count')).toHaveText(peersCount(pool0.length));
     const region = page.getByRole('region', { name: nb['peers.regionLabel'] });
@@ -38,7 +39,10 @@ test.describe('the peer group (Story 1.7)', () => {
     await expect(peerTable(page).locator('thead th')).toHaveText([
       nb['peers.col.selskap'],
       nb['peers.col.omsetning'],
-      nb['peers.col.kommune'],
+      nb['fig.driftsmargin'],
+      nb['peers.col.reason'],
+      nb['peers.col.basis'],
+      nb['peers.col.flag'],
     ]);
     const rows = peerTable(page).locator('tbody tr');
     await expect(rows).toHaveCount(pool0.length);
@@ -83,14 +87,12 @@ test.describe('the peer group (Story 1.7)', () => {
   });
 
   for (const width of [375, 320]) {
-    test(`the Peers tab reflows at ${width} px: the table scrolls in its region, the body never`, async ({ page }) => {
+    test(`the Peers tab reflows at ${width} px: cards instead of the table, the body never scrolls`, async ({ page }) => {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`/analyse/${A.orgnr}/peers`);
-      await expect(peerTable(page)).toBeVisible();
+      await expect(peerTable(page)).toBeHidden();
+      await expect(page.getByTestId('peer-cards')).toBeVisible();
       await noSidewaysScroll(page);
-      const region = await page.getByRole('region', { name: nb['peers.regionLabel'] }).boundingBox();
-      if (region === null) throw new Error('peer region not rendered');
-      expect(region.x + region.width).toBeLessThanOrEqual(width);
     });
   }
 });

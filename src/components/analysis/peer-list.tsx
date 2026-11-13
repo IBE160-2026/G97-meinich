@@ -1,25 +1,32 @@
-// The Peers tab's peer group (Story 1.7; FR-8, UX-DR37, UX-DR68): the count,
-// then one row per peer — name, benchmark-year revenue, municipality — by
-// revenue descending, then orgnr. A server component: only the strings
-// shown reach the page (AD-4). An orgnr is rendered only for a peer with no
-// name, grouped 3-3-3 in its place, as the spec allows; rows are never keyed
-// by orgnr, because a React key travels in the RSC payload.
+// The Peers tab (Stories 1.7, 2.7; FR-15, FR-16, UX-DR37, UX-DR68): the
+// count, the funnel, then one row per peer — Selskap · Omsetning ·
+// Driftsmargin · Hvorfor med · Grunnlag for treff · flag — by revenue
+// descending, then orgnr. A server component: it renders the display rows
+// of src/analysis/peer-rows.ts, so only the strings shown reach the page
+// (AD-4). Rows are never keyed by orgnr, because a React key travels in the
+// RSC payload, and no row carries one.
 //
-// The table sits in its own horizontal scroll region (`.scroll-region` in
-// globals.css, with the edge fade), so it may be wider than a phone while
-// the page body never scrolls sideways.
-import type { EmptyReason } from '@/engine/peers';
-import { formatKommune, formatMillions, formatOrgnr } from '@/engine/format';
+// ✦ (ai-mark.tsx) marks the two bases that rest on a classification and
+// the flag, never the reason or a number; screen readers hear "KI-generert"
+// once per cell. The caption carries the visible key.
+//
+// From `md` the list is a table in its own horizontal scroll region
+// (`.scroll-region` in globals.css), so it may be wider than the screen
+// while the page body never scrolls sideways. Below `md` it is one card per
+// peer, the first PHONE_CARDS shown and the rest behind "Vis alle {n}".
+// A subject that cannot have peers shows its sentence and no funnel: the
+// zeros would only repeat it.
+import type { PeerDisplayRow } from '@/analysis/peer-rows';
+import type { EmptyReason, FunnelCounts } from '@/engine/peers';
 import { t } from '@/messages';
+import { AiMark } from './ai-mark';
+import { PeerFunnel } from './peer-funnel';
+import { ShowAllToggle } from './show-all-toggle';
 
-/** What the list reads of one peer. */
-export type PeerRow = {
-  readonly orgnr: string;
-  readonly navn: string | null;
-  readonly kommune: string | null;
-  /** Øre; never null in a peer group (stage 1 requires revenue). */
-  readonly sumDriftsinntekter: bigint | null;
-};
+/** Cards shown on the phone before "Vis alle {n}" (Meinich, 2026-11-13). */
+export const PHONE_CARDS = 8;
+
+const HIDDEN_CARDS_ID = 'flere-sammenlignbare';
 
 /**
  * The Peers tab's sentence for an empty group: the subject's own reason, or
@@ -31,73 +38,166 @@ export function emptyText(emptyReason: EmptyReason, filingYear: number): string 
   return t('peers.none');
 }
 
-function revenueText(peer: PeerRow, valuta: string | null): string {
-  // The formatter writes "kr" whatever the currency: another valuta shows
-  // the words, never a wrong unit.
-  if (valuta !== 'NOK' || peer.sumDriftsinntekter === null) return t('peers.otherCurrency');
-  return formatMillions(peer.sumDriftsinntekter.toString());
+/** The basis, ✦ first when it rests on a classification. */
+function Basis({ row }: { readonly row: PeerDisplayRow }) {
+  return (
+    <span data-testid="peer-basis">
+      {row.grunnlagKi ? <AiMark /> : null}
+      {row.grunnlag}
+    </span>
+  );
+}
+
+/** The flag as a slate tag. `spoken` false when its cell has said "KI-generert" already. */
+function Flag({ text, spoken }: { readonly text: string; readonly spoken: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center rounded-sm border border-input-border px-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate"
+      data-testid="peer-flag"
+    >
+      <AiMark spoken={spoken} />
+      {text}
+    </span>
+  );
+}
+
+function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
+  return (
+    <div
+      role="region"
+      tabIndex={0}
+      aria-label={t('peers.regionLabel')}
+      className="scroll-region mt-4 hidden md:block"
+    >
+      <table className="w-full border-collapse text-left text-[13px]">
+        <caption className="caption-bottom pt-2 text-left text-[12px] text-slate">
+          <span className="sr-only">{`${t('peers.regionLabel')}. `}</span>
+          <AiMark spoken={false} />
+          {t('peers.ai')}
+        </caption>
+        <thead>
+          <tr className="border-b border-divider text-slate">
+            <th scope="col" className="py-2 pr-4 font-semibold">
+              {t('peers.col.selskap')}
+            </th>
+            <th scope="col" className="py-2 pr-4 text-right font-semibold whitespace-nowrap">
+              {t('peers.col.omsetning')}
+            </th>
+            <th scope="col" className="py-2 pr-4 text-right font-semibold whitespace-nowrap">
+              {t('fig.driftsmargin')}
+            </th>
+            <th scope="col" className="py-2 pr-4 font-semibold">
+              {t('peers.col.reason')}
+            </th>
+            <th scope="col" className="py-2 pr-4 font-semibold whitespace-nowrap">
+              {t('peers.col.basis')}
+            </th>
+            <th scope="col" className="py-2 font-semibold">
+              <span className="sr-only">{t('peers.col.flag')}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            // The position is the key: the list is static per render.
+            <tr key={index} className="border-b border-divider align-top">
+              <td className="min-w-40 py-2 pr-4 break-words">{row.navn}</td>
+              <td className="figure py-2 pr-4 text-right whitespace-nowrap">{row.omsetning}</td>
+              <td className="figure py-2 pr-4 text-right whitespace-nowrap">{row.driftsmargin}</td>
+              <td className="min-w-56 py-2 pr-4">{row.hvorforMed}</td>
+              <td className="py-2 pr-4 whitespace-nowrap">
+                <Basis row={row} />
+              </td>
+              <td className="py-2">{row.flagg === null ? null : <Flag text={row.flagg} spoken />}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PeerCard({ row, first }: { readonly row: PeerDisplayRow; readonly first: boolean }) {
+  return (
+    <li className="border-b border-divider py-3" data-testid="peer-card">
+      {/* The first card behind "Vis alle" takes focus when it opens. */}
+      <p className="m-0 font-semibold break-words" tabIndex={first ? -1 : undefined}>
+        {row.navn}
+      </p>
+      <dl className="m-0 mt-1 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
+        <dt className="text-slate">{t('peers.col.omsetning')}</dt>
+        <dd className="figure m-0">{row.omsetning}</dd>
+        <dt className="text-slate">{t('fig.driftsmargin')}</dt>
+        <dd className="figure m-0">{row.driftsmargin}</dd>
+        <dt className="text-slate">{t('peers.col.reason')}</dt>
+        <dd className="m-0 break-words">{row.hvorforMed}</dd>
+        <dt className="text-slate">{t('peers.col.basis')}</dt>
+        {/* Basis and flag share this cell: "KI-generert" is said once for both. */}
+        <dd className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Basis row={row} />
+          {row.flagg === null ? null : <Flag text={row.flagg} spoken={!row.grunnlagKi} />}
+        </dd>
+      </dl>
+    </li>
+  );
+}
+
+function PeerCards({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
+  const shown = rows.slice(0, PHONE_CARDS);
+  const rest = rows.slice(PHONE_CARDS);
+  return (
+    <div className="mt-4 md:hidden" data-testid="peer-cards">
+      <ul className="m-0 list-none p-0">
+        {shown.map((row, index) => (
+          <PeerCard key={index} row={row} first={false} />
+        ))}
+      </ul>
+      {rest.length > 0 ? (
+        <ShowAllToggle listId={HIDDEN_CARDS_ID} label={t('peers.showAll', { n: String(rows.length) })}>
+          {rest.map((row, index) => (
+            <PeerCard key={index} row={row} first={index === 0} />
+          ))}
+        </ShowAllToggle>
+      ) : null}
+      <p className="m-0 mt-2 text-[12px] text-slate">
+        <AiMark spoken={false} />
+        {t('peers.ai')}
+      </p>
+    </div>
+  );
 }
 
 export function PeerList({
-  peers,
-  valuta,
+  rows,
+  counts,
   emptyReason,
   filingYear,
 }: {
-  readonly peers: readonly PeerRow[];
-  /** The group's currency: every peer's equals the subject's (stage 2). */
-  readonly valuta: string | null;
+  readonly rows: readonly PeerDisplayRow[];
+  readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
   /** The subject's benchmark year, named when it has no revenue to compare. */
   readonly filingYear: number;
 }) {
-  const rows = peers.map((peer) => ({
-    navn: peer.navn ?? formatOrgnr(peer.orgnr),
-    omsetning: revenueText(peer, valuta),
-    kommune: peer.kommune === null ? t('peers.unknownKommune') : formatKommune(peer.kommune),
-  }));
   return (
     <div className="mt-2">
       <p className="m-0 text-slate" data-testid="peer-count">
         {rows.length === 1 ? t('peers.countOne') : t('peers.count', { n: String(rows.length) })}
       </p>
-      {rows.length === 0 ? (
+      {emptyReason !== null ? (
         <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
       ) : (
-        <div
-          role="region"
-          tabIndex={0}
-          aria-label={t('peers.regionLabel')}
-          className="scroll-region mt-4"
-        >
-          <table className="w-full border-collapse text-left">
-            <caption className="sr-only">{t('peers.regionLabel')}</caption>
-            <thead>
-              <tr className="border-b border-divider text-[13px] text-slate">
-                <th scope="col" className="py-2 pr-4 font-semibold">
-                  {t('peers.col.selskap')}
-                </th>
-                <th scope="col" className="py-2 pr-4 text-right font-semibold whitespace-nowrap">
-                  {t('peers.col.omsetning')}
-                </th>
-                <th scope="col" className="py-2 font-semibold">
-                  {t('peers.col.kommune')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => (
-                // The position is the key: the list is static per render,
-                // and an orgnr key would reach the payload.
-                <tr key={index} className="border-b border-divider">
-                  <td className="py-2 pr-4 break-words">{row.navn}</td>
-                  <td className="figure py-2 pr-4 text-right whitespace-nowrap">{row.omsetning}</td>
-                  <td className="py-2">{row.kommune}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <PeerFunnel counts={counts} />
+          {rows.length === 0 ? (
+            <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
+          ) : (
+            <>
+              <PeerTable rows={rows} />
+              <PeerCards rows={rows} />
+            </>
+          )}
+        </>
       )}
     </div>
   );

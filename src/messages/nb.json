@@ -58,8 +58,6 @@
   "peers.regionLabel": "Sammenlignbare selskaper",
   "peers.col.selskap": "Selskap",
   "peers.col.omsetning": "Omsetning",
-  "peers.col.kommune": "Kommune",
-  "peers.unknownKommune": "Ukjent",
   "peers.otherCurrency": "Ikke i kroner",
   "peers.col.reason": "Hvorfor med",
   "peers.col.basis": "Grunnlag for treff",

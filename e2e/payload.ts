@@ -8,7 +8,10 @@
 //     sign; amounts under 6 digits (below 10 000 kr) are skipped, because
 //     such short digit runs occur in ordinary page text, ids and hashes;
 //   - the server's field names for what it reads per peer: amounts,
-//     fingerprint categories, the classification, the municipality.
+//     fingerprint categories, the classification, the municipality, the
+//     match basis ids. The display rows' own keys (`hvorforMed`,
+//     `grunnlagKi`) are not among them: "Vis alle" receives those rows as
+//     strings, so they are in the RSC payload by design.
 //
 // `marker` is a string the tab always renders, so an empty or failed page
 // cannot pass the scan.
@@ -34,8 +37,12 @@ export const SERVER_FIELDS = [
   'business_type',
   'forretningsadresse_kommune',
   'organisasjonsform',
-  'grunnlagKi',
-  'hvorforMed',
+  // Story 2.7: the match basis reaches the page as its label, never as its id.
+  'matchBasis',
+  'description_and_accounts',
+  'accounts_only',
+  'description_only',
+  'industry_and_size_only',
 ] as const;
 
 export async function expectNoPeerFields(

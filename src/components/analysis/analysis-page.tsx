@@ -187,7 +187,12 @@ function Covered({
   const peers = view.fane === 'peers' ? peersShown(subject, group, state) : null;
   return (
     <>
-      <PeerChangeCommit href={serialize(state)} count={group.analysisCount} bandLabel={bandFactors(state.band)} />
+      <PeerChangeCommit
+        href={serialize(state)}
+        count={group.analysisCount}
+        bandLabel={bandFactors(state.band)}
+        renderId={crypto.randomUUID()}
+      />
       <TabLinks state={state} active={view.fane} />
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">

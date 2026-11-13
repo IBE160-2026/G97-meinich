@@ -89,6 +89,17 @@ test.describe('the peer group (Story 1.7)', () => {
     });
   });
 
+  // Story 2.8: the states a peer-group change adds, the widest band with exclusions.
+  test('the HTML and the RSC payload of Peers at band 2 with exclusions carry no orgnr outside the group', async ({ request }) => {
+    const group2 = expectedGroup(A.orgnr ?? '', 2);
+    const ekskl = group2.slice(0, 2).map((peer) => peer.orgnr).sort();
+    await expectNoPeerFields(request, `/analyse/${A.orgnr}/peers?ekskl=${ekskl.join(',')}&band=2`, {
+      pool: expectedPool(A.orgnr ?? '', 2),
+      marker: nb['peers.funnel.stage5'],
+      inUrl: group2.map((peer) => peer.orgnr),
+    });
+  });
+
   test('ekskl: a pool peer leaves the count, an orgnr outside the pool is dropped with the notice', async ({ page }) => {
     const peer = pool0[0]?.orgnr ?? '';
     await page.goto(`/analyse/${A.orgnr}/peers?ekskl=${peer},${ABSENT}`);

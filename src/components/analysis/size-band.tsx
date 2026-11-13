@@ -35,12 +35,20 @@ export function SizeBandControl({
   readonly note: string;
 }) {
   const peerChange = usePeerChange();
-  // The step last chosen: checked at once, while the change is in flight.
-  const [chosen, setChosen] = useState<Band>(band);
+  // The step last chosen is checked at once, but only while its change is
+  // in flight. Otherwise the band the server rendered is checked: a
+  // query-only navigation keeps this component, so a remembered choice
+  // would outlive a reset, a browser Back or a failed change.
+  const [chosen, setChosen] = useState<Band | null>(null);
+  const pending = peerChange?.isPending === true;
+  // Forgotten once nothing is in flight (state adjusted during render, as
+  // React recommends over an effect).
+  if (!pending && chosen !== null) setChosen(null);
+  const current = pending && chosen !== null ? chosen : band;
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
 
   const choose = (next: Band) => {
-    if (next === chosen) return;
+    if (next === current) return;
     setChosen(next);
     peerChange?.change({ kind: 'band', band: next });
   };
@@ -69,7 +77,7 @@ export function SizeBandControl({
         data-testid="size-band"
       >
         {steps.map((step, index) => {
-          const checked = step.band === chosen;
+          const checked = step.band === current;
           return (
             <button
               key={step.band}

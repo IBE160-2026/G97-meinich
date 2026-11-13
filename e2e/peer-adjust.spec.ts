@@ -99,6 +99,8 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await page.getByRole('link', { name: nb['peers.reset'] }).click();
     await expect.poll(() => shown(page)).toBe(PEERS);
     await expect(peerCount(page)).toHaveText(count(group0.length));
+    // The band control follows the rendered band: it keeps no choice of its own.
+    await expect(page.locator('[data-band-step="0"]')).toHaveAttribute('aria-checked', 'true');
 
     await page.goBack();
     await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}&band=1`);
@@ -107,6 +109,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await page.goBack();
     await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}`);
     await expect(peerCount(page)).toHaveText(count(group0.length - 1));
+    await expect(page.locator('[data-band-step="0"]')).toHaveAttribute('aria-checked', 'true');
     await page.goBack();
     await expect.poll(() => shown(page)).toBe(PEERS);
     await expect(peerCount(page)).toHaveText(count(group0.length));
@@ -121,6 +124,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await expect(status(page)).toHaveText(fill('peers.announce.reset', { n: String(group0.length) }));
     await expect(page.locator(`#${PANEL_HEADING_ID}`)).toBeFocused();
     await expect(page.getByTestId('widened-tag')).toHaveCount(0);
+    await expect(page.locator('[data-band-step="0"]')).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByRole('link', { name: nb['peers.reset'] })).toHaveCount(0);
   });
 
@@ -280,11 +284,108 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await expect(peerCount(page)).toHaveText(count(group0.length));
     await expect(page.getByText(nb['search.failed'])).toHaveCount(0);
 
-    // The next change succeeds and clears the alert.
+    // A failed band step: the control returns to the band still shown.
+    // Waiting for the step's own request, so the first failure's alert cannot pass for this one.
+    const bandRequest = page.waitForRequest((request) => new URL(request.url()).searchParams.get('band') === '1');
+    await page.locator('[data-band-step="1"]').click();
+    await bandRequest;
+    await expect.poll(() => shown(page)).toBe(PEERS);
+    await expect(page.getByTestId('peer-change-alert').getByRole('paragraph')).toHaveText(nb['peers.failed']);
+    await expect(page.locator('[data-band-step="0"]')).toHaveAttribute('aria-checked', 'true');
+    await expect(peerCount(page)).toHaveText(count(group0.length));
+
+    // Another page clears the alert: a tab change.
     await page.unrouteAll();
+    await page.getByRole('link', { name: nb['tabs.nokkeltall'] }).click();
+    await expect.poll(() => shown(page)).toBe(`/analyse/${A.orgnr ?? ''}/nokkeltall`);
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText(nb['tabs.nokkeltall']);
+    await expect(page.getByTestId('peer-change-alert')).toHaveText('');
+
+    // The next change succeeds.
+    await page.getByRole('link', { name: nb['tabs.peers'] }).click();
+    await expect(page.getByTestId('size-band')).toBeVisible();
     await action(page, peer).click();
     await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}`);
     await expect(page.getByTestId('peer-change-alert')).toHaveText('');
+  });
+
+  test('a change undone before it commits ends at the standard URL and is announced', async ({ page }) => {
+    await open(page, PEERS);
+    // The first change's response is held until the second has been asked for.
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let rscRequests = 0;
+    await page.route(
+      (url) => url.pathname.startsWith('/analyse/'),
+      async (route: Route) => {
+        if (route.request().headers()['rsc'] === '1') {
+          rscRequests += 1;
+          if (rscRequests === 1) await held;
+        }
+        await route.continue();
+      },
+    );
+    await page.locator('[data-band-step="1"]').click();
+    await expect.poll(() => rscRequests).toBe(1);
+    // Back to Standard while the first is pending: the same URL and count as the last commit.
+    await page.locator('[data-band-step="0"]').click();
+    await expect.poll(() => rscRequests).toBe(2);
+    release();
+    await expect.poll(() => shown(page)).toBe(PEERS);
+    await expect(status(page)).toHaveText(fill('peers.announce.band', { b: bandFactors(0), n: String(group0.length) }));
+    await expect(peerCount(page)).toHaveText(count(group0.length));
+    await expect(page.locator('[data-band-step="0"]')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('a page error outside a peer-group change shows the error state and does not navigate', async ({ page }) => {
+    await open(page, PEERS);
+    // No change in flight: a tab's RSC request is answered by the server whose database is unreachable.
+    await page.route(
+      (url) => url.pathname.startsWith('/analyse/'),
+      async (route: Route) => {
+        if (route.request().headers()['rsc'] !== '1') return route.continue();
+        const url = new URL(route.request().url());
+        url.port = DB_DOWN_PORT;
+        return route.fulfill({ response: await route.fetch({ url: url.toString() }) });
+      },
+    );
+    const tab = `/analyse/${A.orgnr ?? ''}/nokkeltall`;
+    await page.getByRole('link', { name: nb['tabs.nokkeltall'] }).click();
+    await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
+    const entries = await historyLength(page);
+    // Long enough for a Back the boundary would have sent.
+    await page.waitForTimeout(1000);
+    expect(shown(page)).toBe(tab);
+    expect(await historyLength(page)).toBe(entries);
+    await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
+    await expect(page.getByTestId('peer-change-alert')).toHaveCount(0);
+  });
+
+  test('a failure of the second of two quick changes returns to the last good URL and figures', async ({ page }) => {
+    await open(page, PEERS);
+    const [one, two] = group0;
+    // The second change's request (both orgnrs excluded) is answered by the server whose database is unreachable.
+    await page.route(
+      (url) => url.pathname.startsWith('/analyse/'),
+      async (route: Route) => {
+        const request = route.request();
+        if (request.headers()['rsc'] !== '1' || !(new URL(request.url()).searchParams.get('ekskl') ?? '').includes(',')) {
+          return route.continue();
+        }
+        const url = new URL(request.url());
+        url.port = DB_DOWN_PORT;
+        return route.fulfill({ response: await route.fetch({ url: url.toString() }) });
+      },
+    );
+    await action(page, one?.orgnr ?? '').click();
+    await action(page, two?.orgnr ?? '').click();
+    await expect(page.getByTestId('peer-change-alert').getByRole('paragraph')).toHaveText(nb['peers.failed']);
+    await expect.poll(() => shown(page)).toBe(PEERS);
+    await expect(desktopRows(page)).toHaveCount(group0.length);
+    await expect(page.locator('[data-excluded="true"]')).toHaveCount(0);
+    await expect(peerCount(page)).toHaveText(count(group0.length));
   });
 
   test('a change over the rate limit shows the refusal page', async ({ page, request }) => {

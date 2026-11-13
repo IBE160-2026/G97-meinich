@@ -9,7 +9,9 @@ import { describe, expect, it } from 'vitest';
 import type { PeerDisplayRow } from '../../src/analysis/peer-rows.ts';
 import { bandSteps } from '../../src/analysis/size-band.ts';
 import { PHONE_CARDS, PeerList } from '../../src/components/analysis/peer-list.tsx';
+import { PeerAction, PeerChangeLink } from '../../src/components/analysis/peer-action.tsx';
 import { ShowAllToggle } from '../../src/components/analysis/show-all-toggle.tsx';
+import { SizeBandControl } from '../../src/components/analysis/size-band.tsx';
 import type { FunnelCounts } from '../../src/engine/peers.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { defaultState, type AnalysisState } from '../../src/url/analysis-state.ts';
@@ -83,6 +85,9 @@ const text = (markup: string) => markup.replace(/<!-- -->/g, '').replace(/<[^>]+
 const spokenKi = (markup: string) => markup.split(`<span class="sr-only">${nb['peers.ai']} </span>`).length - 1;
 const glyphs = (markup: string) => markup.split(GLYPH).length - 1;
 
+/** The 'use client' components the list renders, which findElement does not call. */
+const CLIENT_COMPONENTS: ReadonlySet<unknown> = new Set([PeerAction, PeerChangeLink, SizeBandControl, ShowAllToggle]);
+
 /** The first element of `type` in the tree, calling the function components on the way (server components are pure). */
 function findElement<P>(node: ReactNode, type: (props: P) => ReactNode): ReactElement<P> | undefined {
   if (Array.isArray(node)) {
@@ -96,14 +101,9 @@ function findElement<P>(node: ReactNode, type: (props: P) => ReactNode): ReactEl
   const element = node as ReactElement<{ children?: ReactNode }>;
   if (element.type === type) return node as ReactElement<P>;
   if (typeof element.type === 'function') {
-    let rendered: ReactNode;
-    try {
-      rendered = (element.type as (props: unknown) => ReactNode)(element.props);
-    } catch {
-      // A client component calls hooks, which need a renderer: its subtree holds no list part.
-      return undefined;
-    }
-    return findElement(rendered, type);
+    // A client component calls hooks, which need a renderer, and holds no list part: skipped by identity.
+    if (CLIENT_COMPONENTS.has(element.type)) return undefined;
+    return findElement((element.type as (props: unknown) => ReactNode)(element.props), type);
   }
   return findElement(element.props.children, type);
 }
@@ -301,8 +301,12 @@ describe('PeerList', () => {
     expect(widest).not.toContain('<a ');
     // One peer: the singular.
     expect(text(blockOf(render({ rows: five.slice(0, 1) })))).toContain(nb['peers.tooSmallOne']);
-    // Zero: "Fant ingen sammenlignbare selskaper."
-    expect(text(blockOf(render({ rows: [], state: at({ band: 2 }) })))).toBe(nb['peers.none']);
+    // Zero: "Fant ingen sammenlignbare selskaper." alone, at any band.
+    for (const band of [0, 2] as const) {
+      const empty = blockOf(render({ rows: [], state: at({ band }) }));
+      expect(text(empty)).toBe(nb['peers.none']);
+      expect(empty).not.toContain('<a ');
+    }
     // Ten: no block.
     expect(render({ rows: ten })).not.toContain('data-testid="too-small-block"');
   });

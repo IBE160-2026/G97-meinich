@@ -61,15 +61,17 @@ export function widerBand(band: SizeBand): SizeBand | null {
  * The State block above the funnel when the analysis has fewer than
  * MIN_PEERS peers (EXPERIENCE.md "Peer group too small"), or null. `text`
  * is the block's sentence; `widen` the band its "Utvid
- * størrelsesintervallet" action goes to, null at the widest band and when
- * the user has excluded every peer (widening is not what they asked for).
+ * størrelsesintervallet" action goes to, null at the widest band, for an
+ * empty group ("Fant ingen sammenlignbare selskaper." alone, EXPERIENCE.md)
+ * and when the user has excluded every peer (widening is not what they
+ * asked for).
  */
 export type TooSmall = { readonly text: string; readonly widen: SizeBand | null };
 
 export function groupTooSmall(memberCount: number, analysisCount: number, band: SizeBand): TooSmall | null {
   if (analysisCount >= MIN_PEERS) return null;
   const wider = widerBand(band);
-  if (memberCount === 0) return { text: t('peers.none'), widen: wider };
+  if (memberCount === 0) return { text: t('peers.none'), widen: null };
   if (analysisCount === 0) return { text: t('peers.allExcluded'), widen: null };
   const one = analysisCount === 1;
   const n = String(analysisCount);

@@ -86,6 +86,9 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
   const lastGood = useRef<string | null>(null);
   const inFlight = useRef<InFlight | null>(null);
   const [failed, setFailed] = useState(false);
+  // Where the failure alert stands: shown after `fail()`, kept through the
+  // commit its own Back produces, cleared by the next commit or change.
+  const failure = useRef<'none' | 'awaitingBack' | 'shown'>('none');
   const [message, setMessage] = useState('');
   const [showAllBand, setShowAllBand] = useState<Band | null>(null);
   const messageTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -98,6 +101,7 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
       const href = serialize(nextState(base.state, requested));
       if (href === baseHref) return;
       inFlight.current = { change: requested, href };
+      failure.current = 'none';
       setFailed(false);
       if (requested.kind === 'band' || requested.kind === 'reset') setShowAllBand(null);
       startTransition(() => {
@@ -109,6 +113,12 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
 
   const commit = useCallback((committed: PeerCommit) => {
     lastGood.current = committed.href;
+    if (failure.current === 'awaitingBack') {
+      failure.current = 'shown';
+    } else if (failure.current === 'shown') {
+      failure.current = 'none';
+      setFailed(false);
+    }
     const done = inFlight.current;
     if (done === null) return;
     inFlight.current = null;
@@ -117,13 +127,18 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
     if (messageTimer.current !== null) clearTimeout(messageTimer.current);
     const text = announcement(done.change, committed);
     messageTimer.current = setTimeout(() => setMessage(text), 50);
+    // Only when focus was lost (the pressed link went with the change): a
+    // user who moved focus elsewhere while it was pending keeps it there.
+    const active = document.activeElement;
+    const lost = active === null || active === document.body || !active.isConnected;
     const target = focusTarget(done.change);
-    if (target !== null && document.activeElement !== target) target.focus();
+    if (lost && target !== null) target.focus();
   }, []);
 
   const hasChangeInFlight = useCallback(() => inFlight.current !== null, []);
   const fail = useCallback(() => {
     inFlight.current = null;
+    failure.current = 'awaitingBack';
     setFailed(true);
   }, []);
 
@@ -152,18 +167,20 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
 /**
  * Rendered by every covered analysis page: reports the URL the server
  * parsed (`serialize` of its state), so the next change builds on it, and
- * the count the announcement names. Renders nothing.
+ * the count the announcement names. Renders nothing. `renderId` is new for
+ * every server render, so each render commits exactly once, also one whose
+ * URL and count equal the last (an exclude restored before it committed).
  */
-export function PeerChangeCommit({ href, count, bandLabel }: PeerCommit) {
+export function PeerChangeCommit({ href, count, bandLabel, renderId }: PeerCommit & { readonly renderId: string }) {
   const context = usePeerChange();
   const commit = context?.commit;
   useEffect(() => {
     commit?.({ href, count, bandLabel });
-  }, [commit, href, count, bandLabel]);
+  }, [commit, href, count, bandLabel, renderId]);
   return null;
 }
 
-/** "Kunne ikke oppdatere analysen. Prøv igjen." after a failed change, until the next one. */
+/** "Kunne ikke oppdatere analysen. Prøv igjen." after a failed change, until the next change or page. */
 export function PeerChangeAlert() {
   const context = usePeerChange();
   return (

@@ -67,8 +67,8 @@ describe('groupTooSmall', () => {
     expect(groupTooSmall(1, 1, 2)).toEqual({ text: nb['peers.tooSmallWidestOne'], widen: null });
   });
 
-  it('an empty group: "Fant ingen …"; every peer excluded: its own sentence, no widening', () => {
-    expect(groupTooSmall(0, 0, 0)).toEqual({ text: nb['peers.none'], widen: 1 });
+  it('an empty group: "Fant ingen …" alone; every peer excluded: its own sentence; neither offers widening', () => {
+    expect(groupTooSmall(0, 0, 0)).toEqual({ text: nb['peers.none'], widen: null });
     expect(groupTooSmall(0, 0, 2)).toEqual({ text: nb['peers.none'], widen: null });
     expect(groupTooSmall(4, 0, 0)).toEqual({ text: nb['peers.allExcluded'], widen: null });
   });

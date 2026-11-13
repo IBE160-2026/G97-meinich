@@ -9,16 +9,19 @@ import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { formatMillions } from '../src/engine/format.ts';
 import type { PeerDisplayRow } from '../src/analysis/peer-rows.ts';
+import { businessType } from '../src/engine/fingerprint.ts';
 import { PHONE_CARDS } from '../src/components/analysis/peer-list.tsx';
 import {
   A,
   ABSENT,
   companies,
+  classificationOf,
   covered,
   expectedGroup,
   expectedPeerGroup,
   expectedPool,
   expectedRows,
+  expectedSubject,
   newestFiling,
   noSidewaysScroll,
   nonCalendar,
@@ -159,29 +162,49 @@ const labelled = new Set(
 const GLYPH = '✦';
 
 /**
- * The first covered AS outside the labelled set whose expected rows pass
- * `wanted`, picked from the seed when the test runs. Its orgnr is never
+ * The first covered AS outside the labelled set that `eligible` admits and
+ * whose expected rows pass `wanted`, picked from the seed when the test
+ * runs and then kept: building every peer's rows is the slow part, so
+ * `eligible` first drops subjects that cannot qualify. Its orgnr is never
  * named in a title.
  */
-function seedSubject(wanted: (rows: readonly PeerDisplayRow[]) => boolean, missing: string): string {
-  for (const c of companies) {
-    const orgnr = c.orgnr ?? '';
-    if (!covered.has(c.naeringskode1 ?? '') || c.organisasjonsform !== 'AS' || !withFiling.has(orgnr)) continue;
-    if (labelled.has(orgnr)) continue;
-    if (wanted(expectedRows(orgnr, 0))) return orgnr;
-  }
-  throw new Error(`no covered AS outside the labelled set ${missing} in the seed`);
+function seedSubject(
+  eligible: (orgnr: string) => boolean,
+  wanted: (rows: readonly PeerDisplayRow[]) => boolean,
+  missing: string,
+): () => string {
+  let found: string | null = null;
+  return () => {
+    if (found !== null) return found;
+    for (const c of companies) {
+      const orgnr = c.orgnr ?? '';
+      if (!covered.has(c.naeringskode1 ?? '') || c.organisasjonsform !== 'AS' || !withFiling.has(orgnr)) continue;
+      if (labelled.has(orgnr) || !eligible(orgnr)) continue;
+      if (wanted(expectedRows(orgnr, 0))) {
+        found = orgnr;
+        return orgnr;
+      }
+    }
+    throw new Error(`no covered AS outside the labelled set ${missing} in the seed`);
+  };
 }
 
-/** A subject whose group mixes match bases, at least one of them resting on a classification (✦). */
-const mixedBasisSubject = () =>
-  seedSubject(
-    (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2 && rows.some((row) => row.grunnlagKi),
-    'with mixed match bases and a ✦ basis',
-  );
+/** A subject whose group mixes match bases, at least one of them resting on a classification (✦): it needs a type of its own. */
+const mixedBasisSubject = seedSubject(
+  (orgnr) => classificationOf(orgnr) !== null,
+  (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2 && rows.some((row) => row.grunnlagKi),
+  'with mixed match bases and a ✦ basis',
+);
 
-/** A subject whose group has at least one flagged peer. */
-const flaggedSubject = () => seedSubject((rows) => rows.some((row) => row.flagg !== null), 'with a flagged peer');
+/** A subject whose group has a flagged peer: it needs both signals of its own, a typed fingerprint and a type. */
+const flaggedSubject = seedSubject(
+  (orgnr) => {
+    const own = expectedSubject(orgnr);
+    return own.classification !== null && own.fingerprint !== null && businessType(own.fingerprint) !== null;
+  },
+  (rows) => rows.some((row) => row.flagg !== null),
+  'with a flagged peer',
+);
 
 /** ✦ is hidden from screen readers wherever it is drawn: one read of every marker, not one wait per marker. */
 async function expectEveryMarkHidden(page: Page): Promise<void> {
@@ -282,6 +305,8 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       const rows = expectedRows(A.orgnr ?? '', 0);
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`/analyse/${A.orgnr}/peers`);
+      // The streamed panel replaces the loading state after the load event: measure once it is shown.
+      await expect(page.getByTestId('funnel-stage').last()).toBeVisible();
       await noSidewaysScroll(page);
       // The funnel stacks: each stage below the one before, full width.
       const stages = await page.getByTestId('funnel-stage').evaluateAll((items) =>

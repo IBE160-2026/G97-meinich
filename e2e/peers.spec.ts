@@ -174,6 +174,12 @@ function mixedBasisSubject(): string {
   throw new Error('no covered AS outside the labelled set with mixed match bases in the seed');
 }
 
+/** ✦ is hidden from screen readers wherever it is drawn: one read of every marker, not one wait per marker. */
+async function expectEveryMarkHidden(page: Page): Promise<void> {
+  const hidden = await page.getByTestId('ai-mark').evaluateAll((marks) => marks.map((mark) => mark.getAttribute('aria-hidden')));
+  expect(hidden.filter((value) => value !== 'true')).toEqual([]);
+}
+
 test.describe('the Peers tab shows why (Story 2.7)', () => {
   const basisText = (row: PeerDisplayRow) => (row.grunnlagKi ? `${GLYPH}${nb['peers.ai']} ${row.grunnlag}` : row.grunnlag);
   const flagText = (row: PeerDisplayRow) => (row.flagg === null ? '' : `${GLYPH}${nb['peers.ai']} ${row.flagg}`);
@@ -213,7 +219,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     await expect(shown.locator('td:nth-child(4)')).toHaveText(rows.map((row) => row.hvorforMed));
     await expect(shown.getByTestId('peer-basis')).toHaveText(rows.map(basisText));
     await expect(shown.locator('td:nth-child(6)')).toHaveText(rows.map(flagText));
-    for (const mark of await page.getByTestId('ai-mark').all()) await expect(mark).toHaveAttribute('aria-hidden', 'true');
+    await expectEveryMarkHidden(page);
   });
 
   // The mixed-basis subject's peers may be in the labelled set, so a failure
@@ -233,7 +239,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     };
     expect(tally(await shown.getByTestId('peer-basis').allTextContents())).toEqual(tally(rows.map(basisText)));
     expect(tally(await shown.locator('td:nth-child(6)').allTextContents())).toEqual(tally(rows.map(flagText)));
-    for (const mark of await page.getByTestId('ai-mark').all()) await expect(mark).toHaveAttribute('aria-hidden', 'true');
+    await expectEveryMarkHidden(page);
   });
 
   test('the caption carries the key "✦ KI-generert", and the flag column has a screen-reader header', async ({ page }) => {

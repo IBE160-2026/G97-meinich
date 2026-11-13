@@ -150,11 +150,12 @@ function SearchAgain() {
 
 /**
  * The Peers tab's rows (Story 2.7): built here, on the server, so only their
- * strings reach the page. A covered subject always has a filing.
+ * strings reach the page. A covered subject always has a filing; one
+ * without would be a bug, so it throws rather than show no peers.
  */
 function peersShown(subject: Subject, group: ShownGroup) {
   const funnel = funnelSubject(subject);
-  if (funnel === null) return [];
+  if (funnel === null) throw new TypeError('peersShown: a covered subject without a filing');
   return peerRows(funnel, displayName(subject), group.peers, group.flagged, group.valuta);
 }
 

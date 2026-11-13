@@ -5,9 +5,16 @@
 // throws: Next.js answers 500 and the analysis segment's error.tsx shows the alert.
 // The lookup is cached, so the page reads the same row without a second
 // query.
+//
+// Story 2.8: the layout survives a query-only navigation, so it holds the
+// peer-change provider (src/components/analysis/peer-change.tsx): the
+// pending state, the announcements and the failure alert outlive the page
+// a change replaces. [orgnr]/error.tsx sits inside this layout, so the
+// provider is still there when a change fails.
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { PATH_CONTEXT } from '@/analysis/view';
+import { PeerChangeProvider } from '@/components/analysis/peer-change';
 import { lookupSubject } from '@/server/analysis';
 import { parseSegments } from '@/url/analysis-state';
 
@@ -22,5 +29,5 @@ export default async function AnalysisLayout({
   const parsed = parseSegments({ orgnr }, '', PATH_CONTEXT);
   if (parsed.kind !== 'analysis') notFound();
   if ((await lookupSubject(parsed.state.orgnr)) === null) notFound();
-  return children;
+  return <PeerChangeProvider>{children}</PeerChangeProvider>;
 }

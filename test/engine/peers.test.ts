@@ -199,6 +199,43 @@ describe('stage 2: comparability, one field at a time', () => {
   });
 });
 
+// Story 2.8 (FR-18): the size band is the only thing that loosens. At each
+// band, a candidate inside even the narrowest band that fails one of the six
+// comparability fields stays out of the pool, also at the edges of the band.
+describe('FR-18: no band admits a candidate that fails a comparability field', () => {
+  const failing = [
+    ['valuta', { valuta: 'EUR' }],
+    ['regnskapsregler', { regnskapsregler: 'IFRS' }],
+    ['smaaForetak', { smaaForetak: false }],
+    ['avviklingsregnskap', { avviklingsregnskap: true }],
+    ['the financial period', { periodeFra: '2024-07-01', periodeTil: '2025-06-30' }],
+    ['regnskapstype', { regnskapstype: 'KONSERN' }],
+  ] as const;
+  const bands = [0, 1, 2] as const satisfies readonly SizeBand[];
+
+  it('covers every band in SIZE_BANDS', () => {
+    expect(Object.keys(SIZE_BANDS).map(Number)).toEqual([...bands]);
+  });
+
+  for (const band of bands) {
+    // The subject's own revenue, and both bounds of this band, to the øre.
+    const bound = (factor: Decimal) => BigInt(factor.mul(S.toString()).toString());
+    const revenues = [S, bound(SIZE_BANDS[band].lo), bound(SIZE_BANDS[band].hi)];
+    it.each(failing)(`band ${band}: a candidate failing only %s is never in the pool`, (_label, overrides) => {
+      const candidates = revenues.flatMap((revenue, i) => [
+        candidate(`90000010${i}`, { sumDriftsinntekter: revenue }),
+        candidate(`90000020${i}`, { sumDriftsinntekter: revenue, ...overrides }),
+      ]);
+      const group = assemblePeerGroup(subject, candidates, band);
+      // By revenue descending: the upper bound, the subject's revenue, the lower bound.
+      expect(group.pool.map((peer) => peer.orgnr)).toEqual(['900000102', '900000100', '900000101']);
+      expect(group.group.every((peer) => !peer.orgnr.startsWith('9000002'))).toBe(true);
+      expect(group.counts.stage1).toBe(6);
+      expect(group.counts.stage2).toBe(3);
+    });
+  }
+});
+
 describe('stage 3: legal form', () => {
   it.each(['ASA', 'NUF', 'ENK', 'as', null])('a candidate with legal form %s is out at stage 3', (form) => {
     const group = assemblePeerGroup(subject, [candidate('900000001'), candidate('900000002', { organisasjonsform: form })], 0);

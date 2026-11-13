@@ -2,11 +2,13 @@
 // formatting"): U+00A0 no-break space, U+2212 minus, decimal comma.
 import { describe, expect, it } from 'vitest';
 import {
+  formatBandFactor,
   formatDays,
   formatKommune,
   formatKroner,
   formatKronerExact,
   formatMillions,
+  formatMillionsNumber,
   formatMultiple,
   formatOrgnr,
   formatPercent,
@@ -40,6 +42,14 @@ describe('formatter bytes', () => {
     ['formatDays 48', formatDays('48'), `48${NBSP}dager`],
     ['formatTurnover 2.85', formatTurnover('2.85'), '2,85'],
     ['formatMultiple 6.5', formatMultiple('6.5'), '6,5'],
+    ['formatMillionsNumber 310 000 000 øre', formatMillionsNumber('310000000'), '3,1'],
+    ['formatMillionsNumber 1 240 000 000 øre', formatMillionsNumber('1240000000'), '12,4'],
+    ['formatMillionsNumber 123 456 789 000 øre', formatMillionsNumber('123456789000'), `1${NBSP}234,6`],
+    ['formatBandFactor 0.33', formatBandFactor('0.33'), '0,33'],
+    ['formatBandFactor 0.5', formatBandFactor('0.5'), '0,5'],
+    ['formatBandFactor 0.25', formatBandFactor('0.25'), '0,25'],
+    ['formatBandFactor 2', formatBandFactor('2'), '2'],
+    ['formatBandFactor 4.00', formatBandFactor('4.00'), '4'],
     ['formatOrgnr 912345678', formatOrgnr('912345678'), `912${NBSP}345${NBSP}678`],
   ])('%s', (_label, actual, expected) => {
     expectBytes(actual, expected);

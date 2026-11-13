@@ -38,6 +38,8 @@ type RenderOptions = {
   readonly plus?: boolean;
   /** Drop a fractional part that is all zeros ("6" rather than "6,0"). */
   readonly trimZeroFraction?: boolean;
+  /** Drop trailing zeros of the fraction ("0,5" rather than "0,50"); implies trimZeroFraction. */
+  readonly trimTrailingZeros?: boolean;
 };
 
 /** Rounds `value` to `places` and writes it with grouped digits, decimal comma and true minus. */
@@ -47,8 +49,9 @@ function render(value: Decimal, places: number, options: RenderOptions = {}): st
   // toString never uses exponent notation (decimal.ts) and has at most
   // `places` fraction digits after rounding.
   const [whole = '0', fraction = ''] = rounded.abs().toString().split('.');
-  const padded = fraction.padEnd(places, '0');
-  const showFraction = places > 0 && !(options.trimZeroFraction === true && /^0*$/.test(padded));
+  const padded = options.trimTrailingZeros === true ? fraction.replace(/0+$/, '') : fraction.padEnd(places, '0');
+  const trimZero = options.trimZeroFraction === true || options.trimTrailingZeros === true;
+  const showFraction = places > 0 && !(trimZero && /^0*$/.test(padded));
   return sign + groupThousands(whole) + (showFraction ? `,${padded}` : '');
 }
 
@@ -73,6 +76,14 @@ export function formatSignedKroner(oreAmount: string): string {
 /** Øre (whole-number string) → millions of kroner, one decimal: "16,7 mill. kr". */
 export function formatMillions(oreAmount: string): string {
   return `${render(ore(oreAmount).div(ORE_PER_MILLION_KRONER), 1)}${NBSP}mill.${NBSP}kr`;
+}
+
+/**
+ * Øre (whole-number string) → millions of kroner, one decimal, no unit:
+ * "3,1", for a range whose unit is written once ("3,1–12,4 mill. kr").
+ */
+export function formatMillionsNumber(oreAmount: string): string {
+  return render(ore(oreAmount).div(ORE_PER_MILLION_KRONER), 1);
 }
 
 /** A fraction (0.021) → percent, one decimal: "2,1 %". */
@@ -108,6 +119,15 @@ export function formatTurnover(value: string): string {
 /** A multiple → up to one decimal: "6,5", "6". */
 export function formatMultiple(value: string): string {
   return render(decimal(value), 1, { trimZeroFraction: true });
+}
+
+/**
+ * A size-band factor (src/engine/peers.ts SIZE_BANDS) → up to two decimals,
+ * no trailing zero: "0,33", "0,5", "2". formatMultiple keeps one decimal
+ * and would write 0.33 as "0,3".
+ */
+export function formatBandFactor(value: string): string {
+  return render(decimal(value), 2, { trimTrailingZeros: true });
 }
 
 /** A nine-digit organisation number → grouped 3-3-3: "912 345 678". */

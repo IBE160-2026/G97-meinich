@@ -1,4 +1,4 @@
-// The page's group-and-benchmark assembly (Stories 1.8, 2.5): the group
+// The page's group-and-benchmark assembly (Stories 1.8, 2.5, 2.7): the group
 // after funnel stage 4 minus `ekskl`, never the stage 1–3 pool, and the
 // subject's own `valuta` passed to the engine, so a filing not in NOK gets no
 // kroner amount.
@@ -23,7 +23,8 @@ const pool = Array.from({ length: 12 }, (_, i) => ({
 }));
 
 // No stage 4 removal: group equals pool.
-const funnel = { pool, group: pool, emptyReason: null };
+const counts = { stage1: 12, stage2: 12, stage3: { legalForm: 12 }, stage4: { businessModel: 12 }, stage5: { classification: 12, flagged: 0 } };
+const funnel = { pool, group: pool, flagged: [], counts, emptyReason: null };
 
 // The subject: 1 % margin, worse than beste fjerdedel.
 const filing = (valuta: string) => ({
@@ -58,7 +59,7 @@ describe('shownGroup', () => {
   // and group differ. The shown peers and every figure use the group.
   it('shows and benchmarks the group after stage 4, not the pool', () => {
     const removed = [pool[10]?.orgnr ?? '', pool[11]?.orgnr ?? ''];
-    const afterStage4 = { pool, group: pool.filter((peer) => !removed.includes(peer.orgnr)), emptyReason: null };
+    const afterStage4 = { pool, group: pool.filter((peer) => !removed.includes(peer.orgnr)), flagged: [], counts, emptyReason: null };
     const shown = shownGroup(afterStage4, [], filing('NOK'));
     expect(shown.peers.map((peer) => peer.orgnr)).toEqual(afterStage4.group.map((peer) => peer.orgnr));
     for (const orgnr of removed) expect(shown.peers.map((peer) => peer.orgnr)).not.toContain(orgnr);
@@ -66,8 +67,17 @@ describe('shownGroup', () => {
   });
 
   it('carries the funnel’s empty reason', () => {
-    expect(shownGroup({ pool: [], group: [], emptyReason: 'subject_no_revenue' }, [], filing('NOK')).emptyReason).toBe(
+    expect(shownGroup({ pool: [], group: [], flagged: [], counts, emptyReason: 'subject_no_revenue' }, [], filing('NOK')).emptyReason).toBe(
       'subject_no_revenue',
     );
+  });
+
+  // Story 2.7: the Peers tab shows the funnel's counts and tags its flagged peers.
+  it('passes the funnel’s counts and flagged orgnrs through, unchanged by ekskl', () => {
+    const flaggedCounts = { ...counts, stage5: { classification: 12, flagged: 1 } };
+    const flagged = [pool[3]?.orgnr ?? ''];
+    const shown = shownGroup({ ...funnel, counts: flaggedCounts, flagged }, [pool[0]?.orgnr ?? ''], filing('NOK'));
+    expect(shown.counts).toBe(flaggedCounts);
+    expect(shown.flagged).toBe(flagged);
   });
 });

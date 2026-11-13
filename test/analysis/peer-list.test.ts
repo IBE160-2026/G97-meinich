@@ -1,11 +1,12 @@
 // The Peers tab's list (Stories 1.7, 2.7): the count, the funnel, the table
 // and the phone cards, ✦ on exactly the two classification bases and the
 // flag, the empty states, the scroll region, and no orgnr in the markup.
-import { createElement } from 'react';
+import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { PeerDisplayRow } from '../../src/analysis/peer-rows.ts';
 import { PHONE_CARDS, PeerList } from '../../src/components/analysis/peer-list.tsx';
+import { ShowAllToggle } from '../../src/components/analysis/show-all-toggle.tsx';
 import type { FunnelCounts } from '../../src/engine/peers.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 
@@ -54,6 +55,24 @@ const text = (markup: string) => markup.replace(/<!-- -->/g, '').replace(/<[^>]+
 const spokenKi = (markup: string) => markup.split(`<span class="sr-only">${nb['peers.ai']} </span>`).length - 1;
 const glyphs = (markup: string) => markup.split(GLYPH).length - 1;
 
+/** The first element of `type` in the tree, calling the function components on the way (server components are pure). */
+function findElement<P>(node: ReactNode, type: (props: P) => ReactNode): ReactElement<P> | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node as ReactNode[]) {
+      const found = findElement(child, type);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  }
+  if (!isValidElement(node)) return undefined;
+  const element = node as ReactElement<{ children?: ReactNode }>;
+  if (element.type === type) return node as ReactElement<P>;
+  if (typeof element.type === 'function') {
+    return findElement((element.type as (props: unknown) => ReactNode)(element.props), type);
+  }
+  return findElement(element.props.children, type);
+}
+
 describe('PeerList', () => {
   it('shows the count and one table row per peer with the six columns', () => {
     const html = render();
@@ -100,7 +119,9 @@ describe('PeerList', () => {
 
     // Phone: basis and flag share a cell, so "KI-generert" is said once for both.
     const phone = cards(html);
-    const shared = [...phone.matchAll(/<dd class="m-0 flex[^"]*">([\s\S]*?)<\/dd>/g)].map((m) => m[1] ?? '');
+    const shared = [...phone.matchAll(/<li data-testid="peer-card">([\s\S]*?)<\/li>/g)].map(
+      (m) => [...(m[1] ?? '').matchAll(/<dd>([\s\S]*?)<\/dd>/g)].at(-1)?.[1] ?? '',
+    );
     expect(shared.map(glyphs)).toEqual([2, 1, 0, 1, 0]);
     expect(shared.map(spokenKi)).toEqual([1, 1, 0, 1, 0]);
   });
@@ -121,16 +142,29 @@ describe('PeerList', () => {
     );
   });
 
-  it(`shows ${PHONE_CARDS} cards on the phone, the rest behind "Vis alle {n}"`, () => {
+  it(`shows ${PHONE_CARDS} cards on the phone, the rest sent as strings to "Vis alle {n}"`, () => {
     const many = Array.from({ length: 11 }, (_, i) => row({ navn: `P${i} AS` }));
     const phone = cards(render({ rows: many }));
     const lists = [...phone.matchAll(/<ul([^>]*)>([\s\S]*?)<\/ul>/g)];
     expect(lists).toHaveLength(2);
     expect(lists[0]?.[2]?.match(/data-testid="peer-card"/g)).toHaveLength(PHONE_CARDS);
+    // The rest are not in the HTML: the toggle draws them when pressed.
     expect(lists[1]?.[1]).toContain('hidden');
-    expect(lists[1]?.[2]?.match(/data-testid="peer-card"/g)).toHaveLength(3);
+    expect(lists[1]?.[2]).toBe('');
+    expect(phone).not.toContain('P8 AS');
     expect(phone).toContain(`>${nb['peers.showAll'].replace('{n}', '11')}</button>`);
     expect(phone).toMatch(/<button type="button" aria-expanded="false" aria-controls="flere-sammenlignbare"/);
+    // What the toggle receives: the remaining rows in order and the card labels, all strings.
+    const toggle = findElement(createElement(PeerList, { rows: many, counts, emptyReason: null, filingYear: 2025 }), ShowAllToggle);
+    expect(toggle?.props.rows).toEqual(many.slice(PHONE_CARDS));
+    expect(toggle?.props.label).toBe(nb['peers.showAll'].replace('{n}', '11'));
+    expect(toggle?.props.labels).toEqual({
+      omsetning: nb['peers.col.omsetning'],
+      driftsmargin: nb['fig.driftsmargin'],
+      reason: nb['peers.col.reason'],
+      basis: nb['peers.col.basis'],
+      ki: nb['peers.ai'],
+    });
   });
 
   it('shows no "Vis alle" when every card fits', () => {

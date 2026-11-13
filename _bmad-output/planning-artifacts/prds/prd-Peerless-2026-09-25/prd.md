@@ -148,7 +148,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Business type** — one of `produkt`, `konsulent`, `forhandler` or `annet`, defined once in `src/engine/fingerprint.ts` and shared by the fingerprint (stage 4) and classification (stage 5). A company whose type depends on a category its accounts leave unknown is **undetermined**: it has no type, is never excluded for it, and is counted as undetermined rather than `annet`.
 - **Classification** — stage 5, model. Judges whether a candidate is the same type of business, from company name, secondary industry codes, statement of purpose and business description. Answers only in fixed categories.
 - **Unclassified** — a company with nothing useful to classify on. Stored as unclassified, **never guessed at**, and still eligible as a peer through stages 1–4.
-- **Match basis** — what a peer's inclusion rests on, one of four tiers: *description and accounts* / *accounts alone* / *description alone* / *industry and size alone* (FR-16).
+- **Match basis** — which signals took part in keeping a peer in the group, one of four tiers: *description and accounts* / *accounts alone* / *description alone* / *industry and size alone*. A signal counts only when it gives a business type for both the subject and the peer (FR-16).
 - **Inclusion reason** — the short statement of why a peer was included. Generated deterministically from shared profile fields. **Rules-written, never model-written.**
 - **Coarse band** — the banded form in which a measure that is *also* benchmarked may enter selection. Today: cost of goods share and personnel cost share. Selecting on exact values would drive that gap to zero by construction.
 
@@ -337,7 +337,7 @@ A company with nothing useful to classify on is stored as unclassified — never
 
 **Consequences (testable):**
 - An unclassified company is never assigned a category by inference.
-- A peer that reached the group without stage-5 confirmation carries the match basis *accounts alone* or *industry and size alone* (FR-16).
+- An unclassified peer, like one the model answered `uklart`, gives no text signal, so its match basis is *accounts alone* or *industry and size alone* (FR-16).
 
 #### FR-13: Never select on a measure that is benchmarked · v1
 
@@ -375,11 +375,18 @@ Each peer carries a short statement of why it was included, and a flag for what 
 
 **Consequences (testable):**
 - The inclusion reason is generated deterministically from the profile fields the peer shares with the subject. **The model classifies; it does not write the justification.**
-- The match basis is exactly one of four, in this order: *description and accounts* (classified and fingerprinted), *accounts alone* (fingerprinted, unclassified), *description alone* (classified from its description with no fingerprint, because the company has no reconciled accounts), *industry and size alone* (neither). The two that rest on a classification carry the AI marking in the interface.
+- **The match basis names the signals that took part in keeping the peer in the group.** A signal counts only when it gives a business type for both the subject and the peer, exactly when `signals()` in `src/engine/peers.ts` returns a value rather than null for it. It is exactly one of four, in this order:
+  - fingerprint and text → *description and accounts* ("Beskrivelse og regnskap");
+  - fingerprint only → *accounts alone* ("Kun regnskap");
+  - text only → *description alone* ("Kun beskrivelse");
+  - neither → *industry and size alone* ("Kun bransje og størrelse").
+- A fingerprint with no business type (undetermined, FR-10), the model's abstention `uklart`, an unclassified company and a subject with no type of its own give no signal, and so no basis.
+- A flagged peer (FR-14) has both signals, so its basis is *description and accounts*, with the tag "Usikker klassifisering" beside it.
+- The two bases that rest on a classification, *description and accounts* and *description alone*, carry the AI marking in the interface.
+- The basis depends on the subject, so it is computed in the request and never stored, like the flag.
 - Where the match rests on industry and size alone, the product says so rather than presenting a guess as a judgement.
 - Peers are shown by name.
 
-**Notes.** `[NOTE FOR PM]` Open before Story 2.7: which tier an **undetermined** peer belongs to — fingerprinted but with no business type (FR-10). `epic-2-context.md` treats every fingerprinted peer as *accounts alone*; the technical note bases the tiers on whether a company has a type, which would put it under *industry and size alone* (§11, question 24).
 
 #### FR-17: Exclude a peer · v1
 
@@ -1223,6 +1230,7 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 17. **Whether unfiled figures may ever enter a group aggregate.** Never, enforced structurally (FR-37). Closed in the technical note as well.
 21. **Lines no reconciliation check covers.** A misread `bankinnskudd`, `kundefordringer`, `salgsinntekt` or `leverandorgjeld` could reach the engine in a reconciled column (FR-58). Answered by Story 2.5c (Meinich, 2026-11-06, R1 and R3): the width rule at reading applies to every figure, these four included, and refuses a digit token too narrow for its digits (a leading digit read as two, the error the probe found). In addition, a current-year `kundefordringer` or `bankinnskudd` above the key-figures API's `sumOmloepsmidler` of the same filing + max(5 kr, 0.001 % of it) is absent in the engine with a named reason (`exceeds_api_subtotal`; `docs/key-figures.md`), since a part cannot exceed its sum (the line or the subtotal is wrong); not for a prior-year column, nor for the two lines together. `salgsinntekt` and `leverandorgjeld` get no part-against-sum rule: in 40 of 56 current 2.1b columns where `salgsinntekt` exceeds sum driftsinntekter, a negative "Annen driftsinntekt" makes that genuine (`analysis/output/cost-sum-probe.md`). Nothing is shown as unverified. *(2026-11-06)*
 22. **What v1 ships on, and the two pieces of work no story owned.** v1 ships on the demo data (FR-73), with everything already read: the documents in the seed (the demo companies and the OCR reference set), and the labelled set's local documents and fingerprints, which Story 5.2 measures against. `62.100` counts as covered for the companies in the seed, measured against the labelled set; every other `62.100` company gets stages 1–3 and classification (FR-3, FR-59). The document run over the rest of `62.100` (about 190 hours) is not part of v1; `pnpm ingest --documents <list>` performs it later with no new code (FR-28). Reading `aarsverk` moves to stage 2, so key figures 7 and 8 and the pay-level view are absent in v1 with that reason (FR-21, FR-22, FR-26, §6.2). Decided by Meinich on Bård Pettersen's PRD feedback (2026-11-12, point 4.2). *(2026-11-13)*
+24. **The match basis of an undetermined peer.** The match basis names the signals that took part in keeping a peer in the group, and a signal counts only when it gives a business type for both the subject and the peer (FR-16). An undetermined fingerprint, the model's `uklart` and a subject with no type give no basis: a fingerprinted peer with no type is *industry and size alone* unless its text counts. A flagged peer is *description and accounts*, with its tag. The basis depends on the subject and is not stored. Decided by Meinich. *(2026-11-13)*
 
 **Gated on measurement** (answers arrive from work already scheduled)
 
@@ -1234,7 +1242,6 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 **Open from the build** (added 2026-11-04, when this PRD was brought in line with Epics 1–2)
 
 23. **Does a dissolved company stay a peer?** Nothing in the request path reads `slettedato` yet, so a dissolved company remains a candidate and its filings count in aggregates (FR-66; `deferred-work.md`, Story 2.4).
-24. **The match basis of an undetermined peer** — fingerprinted, but with no business type (FR-16, FR-10). To be settled before Story 2.7, which now names it as a precondition in `epics.md` (2026-11-06).
 
 **Pre-deployment gates** (not v1 requirements; blocking before anything is public)
 

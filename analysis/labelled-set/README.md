@@ -1,6 +1,6 @@
 # The labelled set
 
-Hand-labelled truth for measuring peer selection (SM-1, FR-70, Story 5.1). Issue [#13](https://github.com/IBE160-2026/G97-meinich/issues/13). Story 5.2 measures each funnel layer against it.
+Labelled truth for measuring peer selection (SM-1, FR-70, Story 5.1). The blind pairs are labelled by a person; the second round of the other 720 pairs by a ChatGPT model, checked and accepted by a person ("Labelling record"). Issue [#13](https://github.com/IBE160-2026/G97-meinich/issues/13). Story 5.2 measures each funnel layer against it.
 
 The rules and the rubric below were committed **before** the draw was run and before any pair was labelled. The commit dates show that the rubric was written before Story 2.5 fixed the fingerprint's feature list.
 
@@ -36,7 +36,7 @@ The word-list proxy in `analysis/industry_screening.py` is not used. It is gener
 
 **Blind subsample.** 6 subjects, the first 3 of each stratum in shuffled order, about 180 pairs, are labelled **first**, from description and website only. Their sheet, `labels-blind.csv`, has no figures, and the labeller does not open accounts for those companies before the blind pairs are done. The pairs are marked `blind` in the data.
 
-**Second labeller.** 50 pairs are drawn at random (seed `SEED + 1`) from the 24 non-blind subjects' pairs, after the first labeller is done. A second person labels them with the same rubric and the same information, without seeing the first labels. Cohen's κ is reported with the 50 pairs listed.
+**Second labeller.** 50 pairs are drawn at random (seed `SEED + 1`) from the 24 non-blind subjects' pairs, after the first labeller is done. A second person labels them with the same rubric and the same information, without seeing the first labels. Cohen's κ is reported with the 50 pairs listed. Not achieved in v1 ("Labelling record").
 
 ## The rubric
 
@@ -82,11 +82,20 @@ What the first round showed:
 - 12 of the 24 subjects have no `ja`.
 - `usikker` rose through the sheet: 0, 8, 12 and 20 per 180 rows.
 
-**Second round of the 720 pairs: filled 2026-11-09 by a ChatGPT model, not by hand.** The rubric above applies; sector and wording do not count. `labels-revenue-model.csv` holds the 685 companies in those pairs, one row each, in shuffled order (seed 20261109), with no pair shown. For each company the labeller sets its main revenue model in `model`: `p` product, `k` project and consulting, `b` staffing, `v` resale, `d` operations, `i` not operating, `u` the information does not let you decide (with what was missing in `notes`). Each pair's label is then computed, not chosen: `nei` if either company is `i`; otherwise `usikker` if either is `u`; otherwise `ja` for the same letter and `nei` for different letters. Story 5.2 measures against this round and the blind pairs, and may show the first round beside them, named as the stricter reading. The second labeller uses this same method, and whether the draw of 50 pairs needs changing is decided when the share of `ja` in this round is known.
+**Second round of the 720 pairs: filled 2026-11-09 by a ChatGPT model, not by hand.** The rubric above applies; sector and wording do not count. `labels-revenue-model.csv` holds the 685 companies in those pairs, one row each, in shuffled order (seed 20261109), with no pair shown. For each company the labeller sets its main revenue model in `model`: `p` product, `k` project and consulting, `b` staffing, `v` resale, `d` operations, `i` not operating, `u` the information does not let you decide (with what was missing in `notes`). Each pair's label is then computed, not chosen: `nei` if either company is `i`; otherwise `usikker` if either is `u`; otherwise `ja` for the same letter and `nei` for different letters. Story 5.2 measures against this round and the blind pairs, and may show the first round beside them, named as the stricter reading.
 
-**Who labelled the second round.** Meinich had a ChatGPT model (OpenAI; the version was not recorded) fill in `model` and `notes` for all 685 companies on 2026-11-09, went through the answers and accepted them on 2026-11-11, because of the time left for the remaining stories and because the project is itself about using AI. The notes are the model's. The review session had advised labelling by hand, because the set measures a Claude model's classification; it noticed the AI filling from the timing (685 rows in under 30 minutes) and the uniform notes, and Meinich confirmed it. For these pairs the measurement is therefore one AI's classification against another's, from another vendor; only the blind pairs are labelled by a person. Story 5.2 states this, and the second labeller's 50 pairs are the human check on this round.
+**Who labelled the second round.** Meinich had a ChatGPT model (OpenAI; the version was not recorded) fill in `model` and `notes` for all 685 companies on 2026-11-09, went through the answers and accepted them on 2026-11-11, because of the time left for the remaining stories and because the project is itself about using AI. The notes are the model's. The review session had advised labelling by hand, because the set measures a Claude model's classification; it noticed the AI filling from the timing (685 rows in under 30 minutes) and the uniform notes, and Meinich confirmed it. For these pairs the measurement is therefore one AI's classification against another's, from another vendor; only the blind pairs are labelled by a person. Story 5.2 states this.
 
 Result: 685 companies, `p` 222, `k` 226, `u` 171, `i` 30, `v` 21, `d` 13, `b` 2. The 720 pairs: 166 `ja` (23 %, against 25 % in the blind pairs), 231 `nei`, 323 `usikker`. 7 of the 24 subjects are `u`, so all their pairs are `usikker`.
+
+**Shortfall: no second labeller and no κ in v1.** The 50-pair draw above was not made, nobody else has labelled any pair, and no Cohen's κ is reported. Meinich decided on 2026-11-13 to take the second labeller and κ in stage 2. So nothing in v1 checks one labeller against another: the blind pairs rest on one person's judgement, and the second round on one model's, accepted by that person. Story 5.2 states this with its result.
+
+**Counts achieved** (FR-70):
+- Subjects: 30 of 30, 15 informative and 15 uninformative, so the strata are not pooled.
+- Pairs: 900 of about 900.
+- Blind subsample: 6 subjects, 180 pairs (3 per stratum), labelled by a person.
+- The other 24 subjects, 720 pairs: a first round by a person, kept as the stricter reading, and a second round by a ChatGPT model, accepted by a person, which is the measure.
+- Second labeller: 0 of about 50 pairs; κ not reported (above).
 
 ## Files
 
@@ -97,6 +106,5 @@ Result: 685 companies, `p` 222, `k` 226, `u` 171, `i` 30, `v` 21, `d` 13, `b` 2.
 - `drawn.json`: the 30 subjects and their candidates.
 - `labels-blind.csv`, `labels.csv`: the labelling sheets, then the labels (`subject_orgnr`, `candidate_orgnr`, `label`, `labelled_by`, `labelled_on`, `notes`). `labels.csv` is the first round of the 720 non-blind pairs.
 - `labels-revenue-model.csv`: the second round, one row per company (`orgnr`, `navn`, `beskrivelse`, `hjemmeside`, `model`, `notes`).
-- `kappa.csv`: the 50 pairs of the second labeller.
 
 The sheets are semicolon-separated UTF-8, so they open column by column in a Norwegian Excel, like the OCR reference set.

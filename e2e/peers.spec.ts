@@ -159,20 +159,29 @@ const labelled = new Set(
 const GLYPH = '✦';
 
 /**
- * A covered AS outside the labelled set whose group mixes match bases,
- * picked from the seed when the test runs. Its orgnr is never named in a
- * title.
+ * The first covered AS outside the labelled set whose expected rows pass
+ * `wanted`, picked from the seed when the test runs. Its orgnr is never
+ * named in a title.
  */
-function mixedBasisSubject(): string {
+function seedSubject(wanted: (rows: readonly PeerDisplayRow[]) => boolean, missing: string): string {
   for (const c of companies) {
     const orgnr = c.orgnr ?? '';
     if (!covered.has(c.naeringskode1 ?? '') || c.organisasjonsform !== 'AS' || !withFiling.has(orgnr)) continue;
     if (labelled.has(orgnr)) continue;
-    const rows = expectedRows(orgnr, 0);
-    if (rows.length > 0 && new Set(rows.map((row) => row.grunnlag)).size >= 2) return orgnr;
+    if (wanted(expectedRows(orgnr, 0))) return orgnr;
   }
-  throw new Error('no covered AS outside the labelled set with mixed match bases in the seed');
+  throw new Error(`no covered AS outside the labelled set ${missing} in the seed`);
 }
+
+/** A subject whose group mixes match bases, at least one of them resting on a classification (✦). */
+const mixedBasisSubject = () =>
+  seedSubject(
+    (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2 && rows.some((row) => row.grunnlagKi),
+    'with mixed match bases and a ✦ basis',
+  );
+
+/** A subject whose group has at least one flagged peer. */
+const flaggedSubject = () => seedSubject((rows) => rows.some((row) => row.flagg !== null), 'with a flagged peer');
 
 /** ✦ is hidden from screen readers wherever it is drawn: one read of every marker, not one wait per marker. */
 async function expectEveryMarkHidden(page: Page): Promise<void> {
@@ -222,25 +231,42 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     await expectEveryMarkHidden(page);
   });
 
-  // The mixed-basis subject's peers may be in the labelled set, so a failure
-  // must not print a basis or a flag next to a name: the test compares
-  // totals per basis and per flag only, and the row count.
-  test('a mixed-basis subject from the seed: the totals per basis and flag match the engine', async ({ page }) => {
-    const orgnr = mixedBasisSubject();
-    const rows = expectedRows(orgnr, 0);
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`/analyse/${orgnr}/peers`);
-    const shown = desktopRows(page);
-    await expect(shown).toHaveCount(rows.length);
-    const tally = (texts: readonly string[]) => {
-      const counts: Record<string, number> = {};
-      for (const text of texts) counts[text] = (counts[text] ?? 0) + 1;
-      return counts;
-    };
-    expect(tally(await shown.getByTestId('peer-basis').allTextContents())).toEqual(tally(rows.map(basisText)));
-    expect(tally(await shown.locator('td:nth-child(6)').allTextContents())).toEqual(tally(rows.map(flagText)));
-    await expectEveryMarkHidden(page);
-  });
+  // These subjects' peers may be in the labelled set, so a failure must not
+  // print a basis or a flag next to a name: the tests compare totals per
+  // basis and per flag only, and the row count.
+  const tally = (texts: readonly string[]) => {
+    const counts: Record<string, number> = {};
+    for (const text of texts) counts[text] = (counts[text] ?? 0) + 1;
+    return counts;
+  };
+  for (const [label, subjectOf, needsFlag] of [
+    ['a mixed-basis subject from the seed', mixedBasisSubject, false],
+    ['a subject with a flagged peer from the seed', flaggedSubject, true],
+  ] as const) {
+    test(`${label}: the totals per basis and flag match the engine`, async ({ page }) => {
+      const orgnr = subjectOf();
+      const rows = expectedRows(orgnr, 0);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`/analyse/${orgnr}/peers`);
+      const shown = desktopRows(page);
+      await expect(shown).toHaveCount(rows.length);
+      const bases = await shown.getByTestId('peer-basis').allTextContents();
+      const flags = await shown.locator('td:nth-child(6)').allTextContents();
+      expect(tally(bases)).toEqual(tally(rows.map(basisText)));
+      expect(tally(flags)).toEqual(tally(rows.map(flagText)));
+      expect(bases.filter((text) => text.startsWith(GLYPH)).length).toBeGreaterThan(0);
+      if (needsFlag) expect(flags.filter((text) => text !== '').length).toBeGreaterThan(0);
+      await expectEveryMarkHidden(page);
+    });
+
+    test(`${label}: the HTML and the RSC payload carry no peer orgnr, peer key-figure amount or server field`, async ({ request }) => {
+      const orgnr = subjectOf();
+      await expectNoPeerFields(request, `/analyse/${orgnr}/peers`, {
+        pool: expectedPool(orgnr, 0),
+        marker: nb['peers.funnel.stage5'],
+      });
+    });
+  }
 
   test('the caption carries the key "✦ KI-generert", and the flag column has a screen-reader header', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -272,13 +298,13 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       const visibleCards = page.getByTestId('peer-cards').locator('[data-testid="peer-card"]:visible');
       await expect(visibleCards).toHaveCount(Math.min(rows.length, PHONE_CARDS));
       await expect(visibleCards.first()).toContainText(rows[0]?.navn ?? '');
-      if (rows.length > PHONE_CARDS) {
-        const more = page.getByRole('button', { name: nb['peers.showAll'].replace('{n}', String(rows.length)) });
-        await more.focus();
-        await page.keyboard.press('Enter');
-        await expect(visibleCards).toHaveCount(rows.length);
-        await expect(page.locator(':focus')).toHaveText(rows[PHONE_CARDS]?.navn ?? '');
-      }
+      // Demo A's group is larger than the first cards, so "Vis alle" is tested.
+      expect(rows.length).toBeGreaterThan(PHONE_CARDS);
+      const more = page.getByRole('button', { name: nb['peers.showAll'].replace('{n}', String(rows.length)) });
+      await more.focus();
+      await page.keyboard.press('Enter');
+      await expect(visibleCards).toHaveCount(rows.length);
+      await expect(page.locator(':focus')).toHaveText(rows[PHONE_CARDS]?.navn ?? '');
       // Every target at least 24 × 24 px.
       const small = await page.evaluate(
         () =>

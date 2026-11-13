@@ -13,12 +13,12 @@ import {
   expectedGroup,
   expectedPool,
   h1,
-  keyFigureRow,
   noSidewaysScroll,
   nonCalendar,
   notice,
   rendered,
 } from './seed.ts';
+import { expectNoPeerFields } from './payload.ts';
 
 test.describe('the Oversikt hero (Story 1.9)', () => {
   const hero = (page: Page) => page.getByTestId('hero');
@@ -160,30 +160,13 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     ['', 0],
     [withSettings, 1],
   ] as const) {
-    test(`the HTML and the RSC payload of Oversikt carry no peer orgnr and no peer key-figure amount (${query === '' ? 'default' : query})`, async ({ request }) => {
-      const bandPool = expectedPool(A.orgnr ?? '', band);
-      const url = `/analyse/${A.orgnr}/oversikt${query}`;
-      const html = await (await request.get(url)).text();
-      const payload = await (await request.get(url, { headers: { RSC: '1' } })).text();
+    test(`the HTML and the RSC payload of Oversikt carry no peer orgnr, peer key-figure amount or server field (${query === '' ? 'default' : query})`, async ({ request }) => {
       // The excluded peer is in the URL, and the tab links keep it.
-      const scanned = bandPool.filter((peer) => !(query !== '' && peer.orgnr === firstPeer));
-      // Every non-null key-figure amount of every pool peer, excluded or not, as
-      // its øre digits without the sign; under 6 digits skipped, as in Story 1.8's test.
-      const amounts = bandPool
-        .flatMap((peer) => Object.values(keyFigureRow(String(peer.brregId))))
-        .filter((ore): ore is string => ore !== null)
-        .map((ore) => ore.replace(/^-/, ''))
-        .filter((digits) => digits.length >= 6);
-      expect(amounts.length).toBeGreaterThan(bandPool.length);
-      for (const [label, body] of [
-        ['html', html],
-        ['rsc', payload],
-      ] as const) {
-        expect(body, label).toContain(nb['hero.kicker']);
-        expect(scanned.filter((peer) => body.includes(peer.orgnr)).map((peer) => peer.orgnr), label).toEqual([]);
-        const leaked = amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body));
-        expect(leaked, label).toEqual([]);
-      }
+      await expectNoPeerFields(request, `/analyse/${A.orgnr}/oversikt${query}`, {
+        pool: expectedPool(A.orgnr ?? '', band),
+        marker: nb['hero.kicker'],
+        inUrl: query === '' ? [] : [firstPeer],
+      });
     });
   }
 });

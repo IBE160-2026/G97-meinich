@@ -6,7 +6,7 @@
 // replaces each one with vars[name]; a placeholder without a value throws,
 // so a message never reaches the page with "{n}" in it.
 import type { ReactNode } from 'react';
-import nb from './nb.json';
+import nb from './nb.json' with { type: 'json' };
 
 export type MessageId = keyof typeof nb;
 

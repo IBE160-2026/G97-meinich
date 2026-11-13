@@ -14,6 +14,7 @@ import { formatMillions, formatOrgnr, formatReadDate } from '../src/engine/forma
 import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { assemblePeerGroup, type CandidateFiling, type SizeBand, type SubjectFiling } from '../src/engine/peers.ts';
+import { peerRows, type PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
@@ -143,10 +144,11 @@ export const classificationOf = (orgnr: string | undefined) => classifications.g
 export const fingerprintOf = (orgnr: string | undefined, year: string | undefined) =>
   fingerprints.get(`${orgnr ?? ''}/${year ?? ''}`) ?? null;
 export type SeedCandidate = CandidateFiling & { readonly navn: string };
-export function expectedPeerGroup(orgnr: string, band: SizeBand) {
+/** The subject's benchmark filing as the funnel reads it. */
+export function expectedSubject(orgnr: string): SubjectFiling {
   const own = company(orgnr);
   const filing = newestFiling(orgnr);
-  const subject: SubjectFiling = {
+  return {
     orgnr,
     naeringskode1: orNull(own.naeringskode1),
     filingYear: Number(filing.filing_year),
@@ -155,6 +157,11 @@ export function expectedPeerGroup(orgnr: string, band: SizeBand) {
     classification: classificationOf(orgnr),
     ...comparability(filing),
   };
+}
+export function expectedPeerGroup(orgnr: string, band: SizeBand) {
+  const own = company(orgnr);
+  const filing = newestFiling(orgnr);
+  const subject = expectedSubject(orgnr);
   const candidates: SeedCandidate[] = allFilings
     .filter((f) => f.filing_year === filing.filing_year && f.orgnr !== orgnr)
     .filter((f) => companyByOrgnr.get(f.orgnr ?? '')?.naeringskode1 === own.naeringskode1)
@@ -251,3 +258,18 @@ export const pick = (label: string, test: (c: Record<string, string>) => boolean
 };
 // Positive revenue and a non-calendar financial year: an empty group, with its reason.
 export const nonCalendar = pick('a non-calendar year and positive revenue', (c) => /^\d+$/.test(revenueOf(c)) && revenueOf(c) !== '0' && !isCalendar(c));
+
+// Story 2.7: the Peers tab's rows as the engine computes them from the seed,
+// the same peerRows the page renders.
+export function expectedRows(orgnr: string, band: SizeBand): PeerDisplayRow[] {
+  const own = company(orgnr);
+  const group = expectedPeerGroup(orgnr, band);
+  const peers = group.group.map((peer) => ({ ...peer, keyFigures: keyFigureRow(String(peer.brregId)) }));
+  return peerRows(
+    expectedSubject(orgnr),
+    own.navn === undefined || own.navn === '' ? formatOrgnr(orgnr) : own.navn,
+    peers,
+    group.flagged,
+    orNull(newestFiling(orgnr).valuta),
+  );
+}

@@ -18,12 +18,12 @@ import {
   expectedBenchmark,
   expectedGroup,
   expectedPool,
-  keyFigureRow,
   newestFiling,
   noSidewaysScroll,
   notice,
   withFiling,
 } from './seed.ts';
+import { expectNoPeerFields } from './payload.ts';
 
 test.describe('the key-figure table (Story 1.8)', () => {
   const NBSP = ' ';
@@ -187,33 +187,10 @@ test.describe('the key-figure table (Story 1.8)', () => {
     });
   }
 
-  test('the HTML and the RSC payload carry no peer orgnr and no peer key-figure amount', async ({ request }) => {
-    const pool = expectedPool(A.orgnr ?? '', 0);
-    const url = `/analyse/${A.orgnr}/nokkeltall`;
-    const html = await (await request.get(url)).text();
-    const rsc = await request.get(url, { headers: { RSC: '1' } });
-    expect(rsc.headers()['content-type']).toContain('text/x-component');
-    const payload = await rsc.text();
-    for (const [label, body] of [
-      ['html', html],
-      ['rsc', payload],
-    ] as const) {
-      // The table is in the body, so the scan is not of an empty page.
-      expect(body, label).toContain(nb['keyFigures.regionLabel']);
-      const orgnrs = pool.filter((peer) => body.includes(peer.orgnr)).map((peer) => peer.orgnr);
-      expect(orgnrs, label).toEqual([]);
-      // Every non-null key-figure amount of every pool peer (the seven inputs
-      // the candidate read now carries), as its øre digits without the sign.
-      // Amounts under 6 digits (below 10 000 kr) are skipped: such short digit
-      // runs occur in ordinary page text, ids and asset hashes.
-      const amounts = pool
-        .flatMap((peer) => Object.values(keyFigureRow(String(peer.brregId))))
-        .filter((ore): ore is string => ore !== null)
-        .map((ore) => ore.replace(/^-/, ''))
-        .filter((digits) => digits.length >= 6);
-      expect(amounts.length, label).toBeGreaterThan(pool.length);
-      const leaked = amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body));
-      expect(leaked, label).toEqual([]);
-    }
+  test('the HTML and the RSC payload carry no peer orgnr, peer key-figure amount or server field', async ({ request }) => {
+    await expectNoPeerFields(request, `/analyse/${A.orgnr}/nokkeltall`, {
+      pool: expectedPool(A.orgnr ?? '', 0),
+      marker: nb['keyFigures.regionLabel'],
+    });
   });
 });

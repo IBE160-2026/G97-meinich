@@ -1,8 +1,9 @@
 // The funnel (Story 2.7; FR-15, FR-9, FR-14; DESIGN.md "Funnel"): the five
 // stages with the count each one leaves, shown whether or not the group
-// clears the 10-peer floor. Segment names each criterion it applies with
-// its own count (in v1 legal form only, worded so the user learns v1 admits
-// AS only). Below it, the flagged count with ✦.
+// clears the 10-peer floor, under the heading "Slik ble peer-gruppen
+// valgt", which names the list. Segment names each criterion it applies
+// with its own count (in v1 legal form only) and says that v1 admits AS
+// only, in FR-9's words. Below it, the flagged count with ✦.
 //
 // Five columns from `md`, a vertical list below it (name left, count right,
 // bar beneath). Each bar is an 8px navy-700 bar proportional to stage 1,
@@ -20,6 +21,8 @@ type Stage = {
   readonly count: number;
   /** Each criterion the stage applies, with the count left after it. */
   readonly criteria?: readonly { readonly name: MessageId; readonly count: number }[];
+  /** A sentence under the criteria. */
+  readonly note?: MessageId;
 };
 
 function stages(counts: FunnelCounts): readonly Stage[] {
@@ -30,6 +33,7 @@ function stages(counts: FunnelCounts): readonly Stage[] {
       name: 'peers.funnel.stage3',
       count: counts.stage3.legalForm,
       criteria: [{ name: 'peers.funnel.segment.legalForm', count: counts.stage3.legalForm }],
+      note: 'peers.funnel.segment.note',
     },
     { name: 'peers.funnel.stage4', count: counts.stage4.businessModel },
     { name: 'peers.funnel.stage5', count: counts.stage5.classification },
@@ -49,10 +53,15 @@ function Bar({ count, stage1 }: { readonly count: number; readonly stage1: numbe
   );
 }
 
+const HEADING_ID = 'trakt-tittel';
+
 export function PeerFunnel({ counts }: { readonly counts: FunnelCounts }) {
   return (
     <div className="mt-4" data-testid="peer-funnel">
-      <ol aria-label={t('peers.funnel.label')} className="m-0 list-none p-0 md:grid md:grid-cols-5">
+      <h3 id={HEADING_ID} className="m-0 mb-2 text-base font-semibold">
+        {t('peers.funnel.heading')}
+      </h3>
+      <ol aria-labelledby={HEADING_ID} className="m-0 list-none p-0 md:grid md:grid-cols-5">
         {stages(counts).map((stage) => (
           <li
             key={stage.name}
@@ -74,6 +83,11 @@ export function PeerFunnel({ counts }: { readonly counts: FunnelCounts }) {
                 </span>
               </p>
             ))}
+            {stage.note === undefined ? null : (
+              <p className="m-0 mt-1 text-[12px] text-slate" data-testid="funnel-note">
+                {t(stage.note)}
+              </p>
+            )}
           </li>
         ))}
       </ol>

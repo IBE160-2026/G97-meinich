@@ -46,7 +46,9 @@ describe('PeerFunnel', () => {
     // Segment names its criterion, AS only, with its own count.
     expect(text(stages[2] ?? '')).toContain(nb['peers.funnel.segment.legalForm']);
     expect(/data-testid="funnel-criterion-count">(\d+)</.exec(stages[2] ?? '')?.[1]).toBe('27');
-    expect(nb['peers.funnel.segment.legalForm']).toMatch(/aksjeselskaper/);
+    // FR-9's words: v1 admits AS only.
+    expect(text(stages[2] ?? '')).toContain(nb['peers.funnel.segment.note']);
+    expect(nb['peers.funnel.segment.note']).toBe('Peerless sammenligner foreløpig bare aksjeselskaper.');
     // The flagged count with ✦, said once as "KI-generert".
     const flagged = /data-testid="funnel-flagged">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? '';
     expect(text(flagged)).toBe(`${GLYPH}${nb['peers.ai']} ${nb['peers.funnel.flagged'].replace('{n}', '2')}`);
@@ -57,8 +59,10 @@ describe('PeerFunnel', () => {
     for (const stage of stagesOf(render(seven))) expect(stage).not.toContain(GLYPH);
   });
 
-  it('is an ordered list with an accessible name', () => {
-    expect(render(seven)).toMatch(new RegExp(`<ol aria-label="${nb['peers.funnel.label']}"`));
+  it('is an ordered list named by its visible heading', () => {
+    const html = render(seven);
+    expect(html).toContain(`<h3 id="trakt-tittel" class="m-0 mb-2 text-base font-semibold">${nb['peers.funnel.heading']}</h3>`);
+    expect(html).toMatch(/<ol aria-labelledby="trakt-tittel"/);
   });
 
   it('draws no bar, and divides by nothing, when stage 1 is empty', () => {

@@ -75,7 +75,7 @@ describe('inclusionReason', () => {
     const subject = profile({
       fingerprint: { ...KONSULENT, costOfGoods: known('mid'), inventory: true, capitalisedIntangibles: true, personnelCost: known('low') },
     });
-    expect(inclusionReason(subject, both, 'A AS')).toBe('Samme bransje, omsetning 1× A AS, varige driftsmidler i samme bånd');
+    expect(inclusionReason(subject, both, 'A AS')).toBe('Samme bransje, omsetning 1× A AS, kapitalbinding i samme bånd');
   });
 
   it('names no category when one side has no fingerprint, or nothing is shared', () => {

@@ -423,14 +423,15 @@ Peer group assembly returns in under one second.
 
 #### FR-70: The labelled set · v1
 
-A hand-labelled set of genuine comparables is built to a stated sampling frame, beginning in week 1, and is what SM-1 is measured against.
+A labelled set of genuine comparables is built to a stated sampling frame, beginning in week 1, and is what SM-1 is measured against.
 
 **Consequences (testable):**
 - **30 subject companies in `62.100`**, and **30 candidates for each**, drawn **at random from the subject's size band** rather than from the funnel's output. About **900 judgements** in total — the effort budgeted when three industries were planned, now spent on the one v1 covers. Each industry stage 3 adds needs its own set before it is offered (FR-3).
 - Drawing candidates from the size band and not from the funnel is what gives recall a denominator: a candidate the funnel never proposed can still be labelled a genuine comparable, and missing it counts against recall.
 - The labelling rubric is written and dated **before** the fingerprint's feature list is fixed, so the criterion cannot be tuned to the method after the fact.
 - A **subsample is labelled from the description and website only, blind to the accounts**, so at least part of the set is not an expression of the fingerprint's own criterion.
-- A **second labeller judges about 50 pairs**, and **Cohen's κ is reported** with the result. `[ASSUMPTION]` Who the second labeller is has still to be confirmed.
+- **Who labels.** The blind subsample is labelled by a person. The other pairs are labelled through each company's main revenue model, and each pair's label is computed from the two; in v1 that revenue model is filled in by a ChatGPT model and checked and accepted by a person, so for those pairs, the text layer (stage 5) is one AI's classification measured against another's, and the result says so. A person's own first round of those pairs may be reported beside it as a stricter reading, never as the measure.
+- **A second labeller and Cohen's κ are stage 2.** v1 has no second labeller and reports no κ, and the result states that shortfall: nothing in v1 checks one labeller against another. In stage 2 a second person judges about 50 pairs and κ is reported with them.
 - **Fallback if the set comes in small:** the description cohorts pooled rather than reported separately. The fallback is stated in advance so a thin set is a smaller claim rather than a silent one.
 - Every count above is reported as achieved, not as planned, and any shortfall is stated with the result.
 
@@ -1159,13 +1160,13 @@ This section exists because Peerless is coursework as well as a product, and the
 
 **The claim under test:** **how much each layer of the funnel adds, and whether reading free text with a model adds anything beyond what the accounts alone already say.** That is the headline, and it can come back "the model was not needed" — which is a real result and one the rules-before-model principle actively predicts.
 
-**Why the claim is framed that way, and not the other way.** The obvious framing — "reading what a company does beats industry classification alone" — **cannot fail under this protocol, so it is not the headline.** The labelled set is judged by the person who designed the method, on the same criteria the fingerprint encodes: cost composition, inventory, asset intensity, what the business actually is. Industry code demonstrably does not capture those criteria, so it must lose. Blinding the labeller to which funnel stage proposed a candidate removes *provenance* bias; it does not remove the circularity of the criterion itself. That comparison is kept as **SM-1b, a sanity check** — if industry code alone won, something would be wrong — but a check that is expected to pass is not a finding.
+**Why the claim is framed that way, and not the other way.** The obvious framing — "reading what a company does beats industry classification alone" — **cannot fail under this protocol, so it is not the headline.** The labelled set is judged by the person who designed the method, or, for most pairs in v1, by a model that person checked (FR-70), on the same criteria the fingerprint encodes: cost composition, inventory, asset intensity, what the business actually is. Industry code demonstrably does not capture those criteria, so it must lose. Blinding the labeller to which funnel stage proposed a candidate removes *provenance* bias; it does not remove the circularity of the criterion itself. That comparison is kept as **SM-1b, a sanity check** — if industry code alone won, something would be wrong — but a check that is expected to pass is not a finding.
 
 **What makes the headline claim measurable:**
 
 - The labelled set of FR-70, to a stated sampling frame: 30 subjects in `62.100`, 30 candidates each drawn **at random from the subject's size band rather than from the funnel's output**, so a comparable the funnel never proposed still counts against recall. Roughly 900 judgements, from week 1.
 - **What one industry can and cannot say.** With v1 covering `62.100` only, the result says whether the model adds anything within that industry, where codes are most heterogeneous. It can no longer contrast an industry like that against a homogeneous one such as `69.202`, and so cannot say *when* the model earns its place; that contrast comes with stage 3, each industry with its own set.
-- **Three defences against the circularity**, none of which fully removes it and all of which are reported: the labelling rubric is written and dated **before** the fingerprint's feature list is fixed; a **subsample is labelled from description and website only, blind to the accounts**; and a **second labeller judges about 50 pairs with Cohen's κ reported**.
+- **Three defences against the circularity**, none of which fully removes it and all of which are reported: the labelling rubric is written and dated **before** the fingerprint's feature list is fixed; a **subsample is labelled from description and website only, blind to the accounts**; and a **second labeller judges about 50 pairs with Cohen's κ reported**. v1 has the first two; the third is stage 2 and its absence is stated with the result (FR-70).
 - **Layer-by-layer ablation:** each layer scored standalone and cumulatively, so the result shows where any improvement comes from — rules, or the model. Stratified by description quality, because the model can only help where there is text to read, and pooling the cohorts would hide that.
 
 **Anticipated findings that are results, not failures:**

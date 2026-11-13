@@ -3,7 +3,7 @@
 **Date:** 2026-11-13
 **Tool:** Claude Code (Opus 5.5): the BMAD session (`bmad-build`), and an implementation subagent dispatched by it
 **Story / issue:** #56, Story 2.7 (FR-9 wording, FR-14 flagged count, FR-15, FR-16)
-**Result:** commits `d6f6ffc` to `999c9f0` on `story/2.7-peers-why`; PR not opened yet
+**Result:** commits `d6f6ffc` to `d193e10` on `story/2.7-peers-why`; PR not opened yet (no push before Meinich says so)
 
 ## Goal
 
@@ -57,7 +57,7 @@ The BMAD session dispatched the spec to the implementation subagent with the bma
   - The spec is kept whole, with the e2e split as a move-only first commit.
   - The intangibles trait states the fingerprint's rule, with `{andel}` formatted from `INTANGIBLES_SHARE`.
 - **Accepted from the subagent, one commit per step:**
-  - the e2e split: the BMAD session checked the 53 `test(` titles of the old file against the four new specs, and they are identical
+  - the e2e split: the BMAD session checked the 53 `test(` calls of the old file against the four new specs, and they are identical; Playwright lists 66 tests from them, because some calls sit in loops over widths and queries
   - `matchBasis` beside `signals()` and its matrix tests, plus the not-stored test
   - `inclusionReason`, `peerRows`, and the counts and flag through `shownGroup`
   - the funnel, the six-column table, the phone cards and "Vis alle"
@@ -77,6 +77,31 @@ The BMAD session dispatched the spec to the implementation subagent with the bma
 - **Kept, and noted:**
   - `src/analysis/peer-rows.ts` imports `undefinedText` from `src/components/analysis/api-figures.tsx`, as the spec's code map said to reuse it.
   - A fingerprint can have known categories but no type, so a peer may show traits in "Hvorfor med" while its basis reads "Kun bransje og størrelse". Both are true; the reason names shared categories, and the basis names signals.
+
+## Review
+
+Three review subagents read the diff (Blind Hunter, Edge Case Hunter, Verification Gap); the BMAD session verified each finding and logged all 16 in the spec's Review Triage Log.
+
+- **Found by the BMAD session in the full e2e run against the seed:** every peer was rendered twice, as a table row (458 B) and a phone card (651 B), each with its utility classes, and the RSC payload inlined in the HTML carried both trees again: demo A's Peers page was 1.3 MB of HTML at band 0 and 2.0 MB at band 1 (629 peers), and a soft navigation to it outran the 5 s expect timeout when the specs ran in parallel. Fixed in `2359b6f`: the cards past the first 8 travel as display strings and are drawn by the client only when "Vis alle" is pressed, with the same card markup (`peer-card.tsx`), and table cells and card fields take their classes from the table and the list. 0.61 MB at band 1, 0.40 MB at band 0.
+- **Fixed:**
+  - a silent `[]` in `peersShown` now throws (`7c35c3d`, Edge Case Hunter and Blind Hunter)
+  - `undefinedText` moved out of a component into `src/analysis/figure-text.ts` (`ab11276`, Blind Hunter)
+  - the payload scan refuses the basis ids and runs on pages with ✦ and a flag (`6f5103d`, `ab4d7e0`, Blind Hunter)
+  - a flagged peer's tag is now tested through the page, and "Vis alle" can no longer be skipped silently (`ab4d7e0`, Verification Gap and Blind Hunter)
+  - the not-stored test also refuses the basis ids as values (`2553f4f`, Blind Hunter)
+  - one read for every ✦ marker's `aria-hidden` (`de9efcc`); fast, kept subject pickers and a wait for the streamed funnel (`d193e10`). The BMAD session found both in e2e runs.
+  - sprint status `review`, the AI log, this file (Blind Hunter)
+- **Deferred to Story 2.8** (`deferred-work.md`): with `ekskl` the funnel counts before the exclusion and the list after, and "Vis alle" keeps its state across a navigation. Both are reachable only by a hand-edited URL until 2.8 (Edge Case Hunter, Blind Hunter).
+- **Rejected:**
+  - `INTANGIBLES_SHARE` "not a whole percent": it is 0.05, fixed by FR-10's rule.
+  - An empty-string name: `register.company` has none.
+- **The matrix row "Rendered"** names a test title that `999c9f0` split in two; recorded in the spec's change log, not the frozen block.
+
+## Verification
+
+- **Against the committed seed:** `check:pins`, `check:env`, `lint`, `typecheck`, `test`, `test:db`, `test:ingest`, `build` and `check:routes` passed after the review fixes. `test:e2e` passed 125 of 125 with `--workers=1`; the run with two workers was stopped by Claude Code when the machine ran low on memory.
+- **Before the seed load:** the document rows outside the allow-list were dumped to `.local/before-2.7-suite/` and equal `.local/document-run-2.5d/` row for row.
+- **Afterwards:** `.local/document-run-2.5d/` was restored and `pnpm derive` run. That gives 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, and the restored rows equal the dump. No dump was deleted.
 
 ## Links
 

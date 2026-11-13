@@ -75,10 +75,11 @@ test('a direct load with an error does not navigate away', async ({ page }) => {
   const path = `/analyse/${ORGNR}/peers?band=1`;
   await page.goto(path);
   await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
+  const entries = await page.evaluate(() => window.history.length);
   // Long enough for a Back the boundary would have sent.
   await page.waitForTimeout(1000);
   const url = new URL(page.url());
   expect(`${url.pathname}${url.search}`).toBe(path);
-  expect(await page.evaluate(() => window.history.length)).toBe(1);
+  expect(await page.evaluate(() => window.history.length)).toBe(entries);
   await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
 });

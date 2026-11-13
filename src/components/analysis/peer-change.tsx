@@ -21,10 +21,12 @@
 //   - which band "Vis alle" is open at (Story 2.7 triage row 14): open
 //     across exclude and restore, closed by a band change.
 //
-// Next.js keys the page segment by its query, so a change remounts the page:
-// the button that was pressed is a new element. After the commit the
-// provider focuses its counterpart (the same peer's action, the chosen band
-// step) or, after a reset, the panel's h2.
+// A query-only change keeps the page's elements (checked in a browser: the
+// pressed button is the same element after the commit), so focus normally
+// stays where it was. After the commit the provider still puts focus on
+// the change's target when it is elsewhere: the same peer's action, the
+// chosen band step (also after "Utvid størrelsesintervallet" or "Tilbake
+// til standard", whose link is gone), or after a reset the panel's h2.
 //
 // A change refused by the rate limit (429) is not an RSC payload: Next.js
 // loads the new URL as a full page, which shows the refusal there (the

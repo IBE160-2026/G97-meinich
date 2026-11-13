@@ -1,6 +1,6 @@
 // "Vis alle {n}" across peer-group changes (Story 2.8; Story 2.7 triage row
-// 14). A change remounts the page, so the open state is the band it was
-// opened at, held by the peer-change provider in the layout: drawn open
+// 14). The open state is the band it was opened at, held by the
+// peer-change provider in the layout: drawn open
 // again after an exclude or a restore at the same band, closed at another
 // band. PeerList keys the toggle by the band as well
 // (test/analysis/peer-list.test.ts).

@@ -8,12 +8,13 @@
 // Rendering them up front in the HTML doubled a large group's page.
 // This module imports no engine module and formats nothing.
 //
-// Story 2.8 (Story 2.7 triage row 14): a peer-group change remounts the page
-// (Next.js keys the page by its query), so the open state lives in the
-// peer-change provider in the layout, as the band it was opened at. It
-// stays open across exclude and restore, so focus can stay on the pressed
-// button in a revealed card, and closes when the band changes. Without the
-// provider (a component test) it is local. Never in the URL or storage.
+// Story 2.8 (Story 2.7 triage row 14): the open state lives in the
+// peer-change provider in the layout, as the band it was opened at, so it
+// does not depend on whether Next.js keeps the page's state across a
+// navigation. It stays open across exclude and restore, so focus can stay
+// on the pressed button in a revealed card, and closes when the band
+// changes; PeerList also keys the toggle by the band. Without the provider
+// (a component test) it is local. Never in the URL or storage.
 import { useEffect, useRef, useState } from 'react';
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
 import type { Band } from '@/url/analysis-state';

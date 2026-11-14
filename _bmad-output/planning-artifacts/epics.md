@@ -353,7 +353,7 @@ FR-4: Epic 1 — Uncovered-industry state (demo C chosen in Story 1.3a; the stat
 FR-6: Epic 1 — Per-IP rate limit (stage-2 part in Epic 6)
 FR-7: Epic 1 — Funnel stage 1
 FR-8: Epic 1 — Funnel stage 2, comparability
-FR-9: Epic 1 — Funnel stage 3, segmentation
+FR-9: Epic 1, 2 — Funnel stage 3, segmentation (the "AS only" wording on the Peers tab in Story 2.7)
 FR-10: Epic 2 — Funnel stage 4, fingerprint
 FR-11: Epic 2 — Funnel stage 5, classification
 FR-12: Epic 2 — Unclassified companies stay eligible
@@ -380,20 +380,20 @@ FR-32: Epic 3 — EV at a user multiple
 FR-52: Epic 4 — Stored explanation (regeneration in Epic 6)
 FR-53: Epic 4 — The model never calculates — figure test
 FR-54: Epic 4, 5 — Explains, never recommends — phrase test in Epic 4; the 30-explanation review in Epic 5
-FR-55: Epic 1 — Reflow to phone width
-FR-56: Epic 1 — Tables and charts scroll in their own containers
+FR-55: Epic 1, 2 — Reflow to phone width (the Epic 2 surfaces in Stories 2.8 and 2.9)
+FR-56: Epic 1, 2 — Tables and charts scroll in their own containers (the Epic 2 surfaces in Stories 2.8 and 2.9)
 FR-57: Epic 2 — Data quality flag per filing
 FR-58: Epic 2 — Reconciliation rules
-FR-59: Epic 1 — No OCR or fetch at query time (Stories 1.3a, 1.7); the run over the rest of `62.100` is not part of v1
+FR-59: Epic 1, 2 — No OCR or fetch at query time (Stories 1.3a, 1.7; documents read in the batch only, Story 2.1b); the run over the rest of `62.100` is not part of v1
 FR-60: Epic 3 — Traceability to filed values
 FR-61: Epic 1 — Front page (industry overviews in Epic 6)
 FR-62: Epic 1, 3 — Tabs: Oversikt, Peers and Nøkkeltall og gap in Epic 1 (three tabs during Epics 1–2); Verdi added in Epic 3, so four open tabs once Epic 3 is done (Utvikling in Epic 6)
-FR-64: Epic 1, 3 — Filing year and read date: stored by Story 1.3a, and shown for the subject in the company header by Story 1.6b; for peer aggregates and in every provenance drill-down in Epic 3 (PDF and saved parts in Epic 6)
+FR-64: Epic 1, 2, 3 — Filing year and read date: stored by Story 1.3a (and per document by Story 2.1b), and shown for the subject in the company header by Story 1.6b; for peer aggregates and in every provenance drill-down in Epic 3 (PDF and saved parts in Epic 6)
 FR-65: Epic 1, 5 — Source credit in Story 1.6b; the document-figure paragraph published in Story 5.4, with the licence assessment
 FR-66: Epic 2 — Withdrawn company removed from stored data (saved-analysis part in Epic 6)
 FR-68: Epic 5 — Embeddings for the ablation, cut first
 FR-69: Epic 1 — URL is the state: the URL module in Story 1.6a, the route in Story 1.6b (stage-2 part in Epic 6)
-FR-70: Epic 5 — Labelled set, from week 1
+FR-70: Epic 5, 2 — Labelled set, from week 1 (its documents read in Story 2.5d)
 FR-71: Epic 2, 3 — Subject's filing fails reconciliation (engine and header in Epic 2; document rows in Story 3.1b)
 FR-72: Epic 1, 5 — Slik fungerer Peerless: the page and its "Kilder og lisens" section in Story 1.6b; the document-figure paragraph in Story 5.4; the rest in Story 5.6, and the four-layer result in Story 5.3
 FR-73: Epic 1, 5 — Running locally: step-1 ingest in Story 1.3a and the seed path in Story 1.3b; complete in Epic 5 (demo seed 5.4, explanations in the seed 5.5, `pnpm seed:full` and the fresh clone 5.7)
@@ -407,7 +407,7 @@ Kari or Anders searches by name or organisation number and gets the company head
 
 ### Epic 2: Trust the peer group
 The user sees why each company was chosen: funnel counts per stage, "Hvorfor med", "Grunnlag for treff" and "Usikker klassifisering" per peer, and can exclude a peer or widen the size band. Behind it: OCR, reconciliation and per-filing status (batch step 1, 2021–2025 as data and SM-2 measurement), fingerprint and classification (batch step 2), `410 Gone` deletion, and the state for a subject whose own filing fails reconciliation.
-**FRs covered:** FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-23, FR-57, FR-58, FR-66, FR-71, FR-28 (batch part)
+**FRs covered:** FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-21 (key figures 7 and 8), FR-23, FR-57, FR-58, FR-66, FR-71, FR-28 (batch part); in part FR-7, FR-8, FR-9, FR-55, FR-56, FR-59, FR-64, FR-70, FR-73
 
 ### Epic 3: See every gap in kroner and what closing it is worth
 The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), and the no-double-counting tests.
@@ -433,7 +433,7 @@ For sprint planning. Story numbers stay as they are; five stories are split into
 - **The OCR reference set has its own issue from week 1** ([#14](https://github.com/IBE160-2026/G97-meinich/issues/14)). It is not a story with a branch and PR of its own, but it is tracked as its own GitHub issue, opened in week 1, so its progress is visible before Story 2.3 starts; Story 2.3 links that issue.
 - **Sequence:**
   1. Epic 1 (1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5a → 1.5b → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10)
-  2. Epic 2 (2.1a → 2.1b → 2.2 → … → 2.9)
+  2. Epic 2 (2.1a → 2.1b → 2.2 → … → 2.9 → 2.10, the follow-ups the Epic 2 retrospective added)
   3. Story 5.2, the layer-by-layer measurement, directly after Epic 2: it needs only the funnel and the labelled set, and the teacher calls the measurement the core of the project.
   4. Epic 3 (3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7)
   5. Story 5.4, the demo seed, directly after Epic 3, so the sensor sees document figures and kroner even if Epic 4 or the rest of Epic 5 slips.
@@ -1872,6 +1872,45 @@ So that I never mistake an unreadable filing, an undefined ratio or a thin group
 **When** it is opened
 **Then** it states what could go wrong with absence reasons and derived components in money figures (AGENTS.md Working style), and the reasoning is recorded in `docs/ai-log.md`
 
+### Story 2.10: Epic 2 follow-ups
+
+As Kari or Anders,
+I want the gaps Epic 2 left closed before the document figures arrive,
+So that an empty group always says why, an exclusion button never blames the link, and the code reads like the peer group it builds.
+
+**Implements:** FR-7 (the reason for no size band), FR-8 (the reason for an empty group), FR-17 (the exclusion cap), FR-73 (the README's test and restore steps) · **Invariants:** AD-1, AD-5, AD-6 · **UX:** UX-DR24, UX-DR68 · **Issue / branch / PR:** one issue, branch `story/2.10-epic-2-follow-ups`, one PR (AGENTS.md Git workflow). Added by the Epic 2 retrospective (Meinich, 2026-11-14, `epic-2-retro-2026-11-14.md`, W1, W2 and actions 5 and 9); Epic 2 stays `in-progress` until it is merged.
+
+**Acceptance Criteria:**
+
+**Given** a subject whose stated `sumDriftsinntekter` is empty while `driftsresultat` and `sumDriftskostnad` are stated (R2 of the Epic 1 retrospective)
+**When** its analysis renders
+**Then** the empty-group sentence and the hero say that the revenue is not stated, in a message of its own, never "… har ingen positiv omsetning å sammenligne med"
+**And** the rule "not stated → no size band" is unchanged (`docs/key-figures.md`), and a test with a null stated revenue fails if the message is the no-positive-revenue one
+
+**Given** a subject whose candidates all leave at stage 2 on a comparability field it does not state, or on a `valuta` other than NOK (R3 of the Epic 1 retrospective)
+**When** the funnel ends with no peer
+**Then** the empty state names that reason, from the engine's empty reason, never a bare "0 av 10"
+**And** the copy is shown to Meinich before it goes into `nb.json` and EXPERIENCE
+
+**Given** an analysis with 20 excluded peers (`MAX_EKSKL`)
+**When** the Peers tab renders
+**Then** every "Ekskluder" button is `aria-disabled`, still focusable, and described by "Du kan ekskludere opptil 20 selskaper. Ta med et selskap igjen for å ekskludere et annet." (approved by Meinich, 2026-11-14)
+**And** pressing it pushes nothing, so the invalid-settings notice never appears for a button press (test)
+
+**Given** the code Epic 2 left behind (Epic 1 retro action 6; Epic 2 retro B4)
+**When** it is read
+**Then** there is one shared list of the API key-figure columns, one `SubjectFiling` type, and the URL module strips an orgnr's spaces through `src/engine/orgnr.ts`
+**And** the comments in `src/analysis/shown-group.ts`, `src/engine/peers.ts` and `src/components/analysis/analysis-page.tsx` say that `group` is the pool after stages 4 and 5
+
+**Given** the README and the scripts (Epic 2 retro P2, P11)
+**When** a developer follows them
+**Then** `pnpm test:e2e` runs with one worker, and the README says why
+**And** restoring the local document dump after a seed load and running `pnpm derive` is one documented step whose counts are printed, so no prompt has to carry it
+
+**Given** the PR
+**When** it is opened
+**Then** it states what could go wrong with these changes (AGENTS.md Working style), and the reasoning is recorded in `docs/ai-log.md`
+
 ## Epic 3: See every gap in kroner and what closing it is worth
 
 The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), and the no-double-counting tests.
@@ -1922,6 +1961,10 @@ So that every figure the table will show can be traced to a formula and a hand c
 **When** the engine reads the document figures, through `documentFigures` and then `guardCurrentAssets`
 **Then** that line is absent with the reason `exceeds_api_subtotal`, and a figure that needs it — receivable days (9), operating-asset turnover (11) — is undefined for that company, never computed from the stored figure (test)
 **And** the absent figure is shown with its reason in Story 2.9's copy (`src/messages/nb.json`), as every other absence is
+
+**Given** the fingerprint and the analysis read the same document column (Epic 2 retro B1, B2, B3)
+**When** Story 3.1a's spec is written
+**Then** it decides, with a test for each: whether the fingerprint takes a derived `sumDriftsinntekter` as the analysis does; one source for the filing a document belongs to, so R3 uses the same `sumOmloepsmidler` in `pnpm derive` and in the request, with the number of columns where the two differ today; and which of the two reconciliation rules the fingerprint's balance bounds take against the API subtotals
 
 **Given** the PR
 **When** it is opened
@@ -2190,6 +2233,10 @@ So that the kroner reflect a realistic ambition, not only full convergence.
 **Given** Verdi at 375 px and 320 px
 **When** it renders
 **Then** the control is a full-width grid, the cards stack, every target is at least 24 × 24 px, and the body does not scroll horizontally
+
+**Given** an analysis URL with `andel=median` where the median step exists (Epic 2 retro B6)
+**When** the user excludes or restores a peer, or changes the size band
+**Then** the new URL keeps `andel=median`: the peer-change provider parses its base URL with the same median-step context as the server, and a test fails if it falls back to 50 %
 
 **Given** the PR
 **When** it is opened

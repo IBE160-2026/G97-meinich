@@ -242,6 +242,23 @@ describe('stage 2 emptied by the subject: its reason', () => {
     expect(group.emptyReason).toBe('subject_currency');
   });
 
+  // Review pass 1, row 1: the currency sentence says no company files in
+  // the subject's valuta, so a stage-1 candidate in that valuta makes it
+  // not comparable instead.
+  it('a USD subject with a USD stage-1 candidate failing another field: subject_not_comparable', () => {
+    const usd = { ...subject, valuta: 'USD' };
+    const group = assemblePeerGroup(usd, [...full, candidate('900000003', { valuta: 'USD', smaaForetak: false })], 0);
+    expect(group.counts.stage1).toBe(3);
+    expect(group.counts.stage2).toBe(0);
+    expect(group.emptyReason).toBe('subject_not_comparable');
+  });
+
+  it('a USD subject with only NOK stage-1 candidates: subject_currency', () => {
+    const group = assemblePeerGroup({ ...subject, valuta: 'USD' }, full, 0);
+    expect(group.counts.stage1).toBe(2);
+    expect(group.emptyReason).toBe('subject_currency');
+  });
+
   it('an unknown code is subject_currency even when a candidate files in the same code', () => {
     const edt = { ...subject, valuta: 'EDT' };
     expect(assemblePeerGroup(edt, [candidate('900000001', { valuta: 'EDT' })], 0).emptyReason).toBe('subject_currency');

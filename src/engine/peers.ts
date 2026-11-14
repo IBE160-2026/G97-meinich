@@ -121,8 +121,9 @@ export type FunnelCounts = {
  *
  *   `subject_field_not_stated`    one of STATED_FIELDS is null on the subject
  *                                 (the first, in that order, is the one named)
- *   `subject_currency`            its `valuta` is not NOK, also one that is
- *                                 not an ISO 4217 code
+ *   `subject_currency`            its `valuta` is not NOK, and either is not
+ *                                 an ISO 4217 code or no stage-1 candidate
+ *                                 files in it (amended 2026-11-14)
  *   `subject_not_comparable`      any other empty stage 2, such as a stated
  *                                 field no candidate shares
  *
@@ -147,10 +148,21 @@ export function firstUnstatedField(filing: Pick<Comparability, StatedField>): St
   return STATED_FIELDS.find((field) => filing[field] === null) ?? null;
 }
 
-/** Why stage 2 kept no one, from the subject's own fields: the last three reasons of EmptyReason, in order. */
-function stage2Reason(subject: Comparability): 'subject_field_not_stated' | 'subject_currency' | 'subject_not_comparable' {
+/**
+ * Why stage 2 kept no one, from the subject's own fields and the stage-1
+ * candidates' currencies: the last three reasons of EmptyReason, in order.
+ * A known currency some stage-1 candidate shares is not the reason, so the
+ * currency sentence ("no company … files in {valuta}") is never false.
+ */
+function stage2Reason(
+  subject: Comparability,
+  stage1: readonly Pick<Comparability, 'valuta'>[],
+): 'subject_field_not_stated' | 'subject_currency' | 'subject_not_comparable' {
   if (firstUnstatedField(subject) !== null) return 'subject_field_not_stated';
-  if (subject.valuta !== 'NOK') return 'subject_currency';
+  if (subject.valuta !== 'NOK') {
+    if (!isKnownCurrency(subject.valuta)) return 'subject_currency';
+    if (!stage1.some((candidate) => candidate.valuta === subject.valuta)) return 'subject_currency';
+  }
   return 'subject_not_comparable';
 }
 
@@ -366,7 +378,7 @@ export function assemblePeerGroup<C extends CandidateFiling>(
   if (s === null) emptyReason = 'subject_revenue_not_stated';
   else if (!subjectHasRevenue) emptyReason = 'subject_no_revenue';
   else if (!isCalendarYear(subject)) emptyReason = 'subject_non_calendar';
-  else if (stage1.length > 0 && stage2.length === 0) emptyReason = stage2Reason(subject);
+  else if (stage1.length > 0 && stage2.length === 0) emptyReason = stage2Reason(subject, stage1);
 
   return {
     pool,

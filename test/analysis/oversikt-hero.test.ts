@@ -233,6 +233,28 @@ describe('an empty group with a reason, as on the Peers tab', () => {
     expect(html).not.toMatch(/\d kr/);
   });
 
+  // Story 2.10, review pass 1 row 5: the hero shows a stage-2 reason's
+  // sentence, with what it names, as the Peers tab does.
+  it.each([
+    ['subject_field_not_stated', 'NOK', 'smaaForetak', 'Regnskapet for 2025 oppgir ikke om selskapet er et lite foretak, og Peerless sammenligner bare regnskap der dette er oppgitt.'],
+    ['subject_currency', 'USD', null, 'Regnskapet for 2025 er ført i USD, og ingen selskaper i samme næring og størrelse fører regnskap i USD.'],
+    ['subject_not_comparable', 'NOK', null, 'Ingen selskaper i samme næring og størrelse fører regnskapet etter de samme reglene som regnskapet for 2025.'],
+  ] as const)('%s: the hero shows the Peers tab’s sentence', (emptyReason, valuta, unstatedField, sentence) => {
+    const hero = text(
+      renderToString(
+        createElement(OversiktHero, { figure: amountOf(CLIMAX, []).driftsmargin, state: STATE, emptyReason, filingYear: 2025, valuta, unstatedField }),
+      ),
+    );
+    const peers = text(
+      renderToString(
+        createElement(PeerList, { rows: [], counts: { ...NO_COUNTS, stage1: 3 }, emptyReason, filingYear: 2025, valuta, unstatedField, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 }),
+      ),
+    );
+    expect(hero).toContain(sentence);
+    expect(peers).toContain(sentence);
+    expect(hero).not.toContain('0 av 10');
+  });
+
   // Story 2.10 (R2).
   it('no stated revenue: the Peers tab’s not-stated sentence with the year, never the no-revenue one', () => {
     const html = render(amountOf({ ...CLIMAX, sumDriftsinntekter: null }, []), 'subject_revenue_not_stated');

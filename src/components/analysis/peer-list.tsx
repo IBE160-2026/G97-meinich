@@ -34,8 +34,8 @@
 // table and the cards is aria-disabled and described by it.
 import { exclusionCapReached, isStandardGroup, nextState } from '@/analysis/peer-change';
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
-import { bandFactors, groupTooSmall, type BandStep } from '@/analysis/size-band';
-import type { EmptyReason, FunnelCounts, StatedField } from '@/engine/peers';
+import { bandFactors, groupTooSmall, widerBand, type BandStep } from '@/analysis/size-band';
+import { isKnownCurrency, type EmptyReason, type FunnelCounts, type StatedField } from '@/engine/peers';
 import { t } from '@/messages';
 import { DEFAULT_BAND, serialize, type AnalysisState } from '@/url/analysis-state';
 import { AiMark } from './ai-mark';
@@ -83,6 +83,26 @@ export function emptyText(reason: NonNullable<EmptyReason>, { filingYear, valuta
       return t('peers.currency', { aar, valuta });
     case 'subject_not_comparable':
       return t('peers.notComparable', { aar });
+  }
+}
+
+/**
+ * Whether a wider size band can help a group stage 2 emptied (Story 2.10,
+ * decision 2 as amended): a known currency no stage-1 candidate shares, or
+ * any other not-comparable reason, may meet a match further out; an
+ * unstated field or an unknown currency matches nothing at any band.
+ */
+function wideningHelps(reason: NonNullable<EmptyReason>, valuta: string | null): boolean {
+  switch (reason) {
+    case 'subject_currency':
+      return isKnownCurrency(valuta);
+    case 'subject_not_comparable':
+      return true;
+    case 'subject_no_revenue':
+    case 'subject_revenue_not_stated':
+    case 'subject_non_calendar':
+    case 'subject_field_not_stated':
+      return false;
   }
 }
 
@@ -231,11 +251,13 @@ function GroupBlocks({
   readonly state: AnalysisState;
   readonly memberCount: number;
   readonly analysisCount: number;
-  /** The sentence for a stage-2 reason, in place of "Fant ingen …"; null without one. */
-  readonly emptySentence: string | null;
+  /** A stage-2 reason's sentence, in place of "Fant ingen …", and whether a wider band can help; null without one. */
+  readonly emptySentence: { readonly text: string; readonly widen: boolean } | null;
 }) {
   const tooSmall =
-    emptySentence !== null ? { text: emptySentence, widen: null } : groupTooSmall(memberCount, analysisCount, state.band);
+    emptySentence !== null
+      ? { text: emptySentence.text, widen: emptySentence.widen ? widerBand(state.band) : null }
+      : groupTooSmall(memberCount, analysisCount, state.band);
   return (
     <>
       {state.band === DEFAULT_BAND ? null : (
@@ -316,7 +338,16 @@ export function PeerList({
         <p className="m-0 mt-4">{emptySentence}</p>
       ) : (
         <>
-          <GroupBlocks state={state} memberCount={rows.length} analysisCount={analysisCount} emptySentence={emptySentence} />
+          <GroupBlocks
+            state={state}
+            memberCount={rows.length}
+            analysisCount={analysisCount}
+            emptySentence={
+              emptyReason === null || emptySentence === null
+                ? null
+                : { text: emptySentence, widen: wideningHelps(emptyReason, valuta) }
+            }
+          />
           <SizeBandControl steps={steps} band={state.band} label={t('peers.band.label')} note={t('peers.band.fixed')} />
           <PeerFunnel counts={counts} excluded={excludedCount} analysisCount={analysisCount} />
           {isStandardGroup(state) ? null : (

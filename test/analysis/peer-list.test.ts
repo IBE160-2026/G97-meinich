@@ -311,6 +311,26 @@ describe('PeerList', () => {
       );
     });
 
+    // Review pass 1, row 2: "Utvid størrelsesintervallet" stays where a
+    // wider band can help, and only when a wider step exists.
+    const widenLink = (html: string) => html.includes(`>${nb['peers.tooSmallWiden']}</a>`);
+    it.each([
+      ['a known currency', { emptyReason: 'subject_currency', valuta: 'USD' }],
+      ['not comparable', { emptyReason: 'subject_not_comparable' }],
+    ] as const)('%s keeps the one-step widen action, except at the widest band', (_label, overrides) => {
+      expect(widenLink(empty({ ...overrides }))).toBe(true);
+      expect(empty({ ...overrides })).toContain('band=1');
+      expect(widenLink(empty({ ...overrides, state: at({ band: 1 }) }))).toBe(true);
+      expect(widenLink(empty({ ...overrides, state: at({ band: 2 }) }))).toBe(false);
+    });
+
+    it.each([
+      ['an unstated field', { emptyReason: 'subject_field_not_stated', unstatedField: 'smaaForetak' }],
+      ['an unknown currency', { emptyReason: 'subject_currency', valuta: 'EDT' }],
+    ] as const)('%s offers no widen action', (_label, overrides) => {
+      expect(widenLink(empty({ ...overrides }))).toBe(false);
+    });
+
     it('refuses a reason without what its sentence names, rather than a sentence with a gap', () => {
       expect(() => empty({ emptyReason: 'subject_field_not_stated', unstatedField: null })).toThrow(/without an unstated field/);
       expect(() => empty({ emptyReason: 'subject_currency', valuta: null })).toThrow(/without a valuta/);

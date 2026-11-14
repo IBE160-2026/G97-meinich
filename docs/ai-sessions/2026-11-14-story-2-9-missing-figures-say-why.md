@@ -3,7 +3,7 @@
 **Date:** 2026-11-14
 **Tool:** Claude Code (Opus 5.5): the BMAD session (`bmad-build`), an implementation subagent dispatched by it, a subagent that recompiled the Epic 2 context, and three review subagents
 **Story / issue:** #60, Story 2.9 (FR-21, FR-23, FR-55, FR-56, FR-71)
-**Result:** commits `dec1b33` to `c5a6a72` and the closing docs commit on `story/2.9-missing-figures-reasons`; the PR is opened when Meinich says to push
+**Result:** [PR #61](https://github.com/IBE160-2026/G97-meinich/pull/61), commits `dec1b33` to `d68a47e` on `story/2.9-missing-figures-reasons`
 
 ## Goal
 

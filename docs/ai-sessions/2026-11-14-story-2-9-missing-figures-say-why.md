@@ -101,6 +101,10 @@ The BMAD session dispatched the spec to the implementation subagent with the bma
   - An unmeasured candidate query. `peer-assembly-time` ran with it.
   - An alias typo yielding `undefined`. `parseOre` throws on it.
 
+## Merge
+
+CI was green on `e67f38d` (9 min 3 s). Before merging, the review session checked `documentBasis` against decision 3, AD-15's one exception for `document_missing`, that the committing e2e test writes only to a local host and had cleaned up (no synthetic company left, 20 orgnrs on the manifest list), AGENTS.md's record of the exception, the copy in `nb.json` against what Meinich approved, the restored row counts and the PR text. At Meinich's request it posted the review with five line comments ([review 5903824562](https://github.com/IBE160-2026/G97-meinich/pull/61#pullrequestreview-5903824562)): one check of the basis order and four of Meinich's decisions. Nothing needed changing. Merged at 10:32 UTC on 2026-11-14 as `9c31a58`.
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-2-9-missing-figures-say-why.md` (decisions, I/O matrix, change log, triage log)

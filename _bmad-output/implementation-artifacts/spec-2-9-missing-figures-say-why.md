@@ -77,12 +77,12 @@ All `document-absence` tests use synthetic companies.
 ## Tasks & Acceptance
 
 **Execution (one commit each):**
-- [ ] `types.ts`, `document-inputs.ts`, `document-absence.ts` + `test/engine/document-absence.test.ts`, `document-inputs.test.ts`, `document-years.test.ts`, `benchmark.test.ts`.
-- [ ] `absence-state.ts`, `figure-text.ts` + tests.
-- [ ] `ingest/tests/test_documents_write.py` as-filed write test.
-- [ ] Copy into `nb.json` and the EXPERIENCE states.
-- [ ] `logger.ts`, `server/analysis.ts`, `view.ts`, `company-header.tsx` + tests; check at 375/320 px.
-- [ ] `e2e/synthetic.ts`, `e2e/failed-subject.spec.ts`, `playwright.config.ts`; AGENTS.md exception.
+- [x] `types.ts`, `document-inputs.ts`, `document-absence.ts` + `test/engine/document-absence.test.ts`, `document-inputs.test.ts`, `document-years.test.ts`, `benchmark.test.ts`.
+- [x] `absence-state.ts`, `figure-text.ts` + tests.
+- [x] `ingest/tests/test_documents_write.py` as-filed write test.
+- [x] Copy into `nb.json` and the EXPERIENCE states.
+- [x] `logger.ts`, `server/analysis.ts`, `view.ts`, `company-header.tsx` + tests; check at 375/320 px.
+- [x] `e2e/synthetic.ts`, `e2e/failed-subject.spec.ts`, `playwright.config.ts`; AGENTS.md exception.
 - [ ] Review fixes; `docs/ai-log.md`; `docs/key-figures.md`; technical note AD-15 (eight reasons; `document_missing` the one decided from a missing row, and why); `epics.md` 2.9 (reasons, derivation AC); PRD if moved; session file; sesjonslogg.
 
 **Acceptance Criteria:** `epics.md` Story 2.9 as settled by the decisions. The PR states what can go wrong with absence reasons and derived components in money figures and has a "Planning documents:" line.

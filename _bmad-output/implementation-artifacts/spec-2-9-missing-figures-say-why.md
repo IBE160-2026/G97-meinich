@@ -2,7 +2,7 @@
 title: 'Story 2.9: Missing figures say why'
 type: 'feature'
 created: '2026-11-14'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '291c5cf54cabf92966c6cb9d0be5c6e7e21d3929'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -83,15 +83,47 @@ All `document-absence` tests use synthetic companies.
 - [x] Copy into `nb.json` and the EXPERIENCE states.
 - [x] `logger.ts`, `server/analysis.ts`, `view.ts`, `company-header.tsx` + tests; check at 375/320 px.
 - [x] `e2e/synthetic.ts`, `e2e/failed-subject.spec.ts`, `playwright.config.ts`; AGENTS.md exception.
-- [ ] Review fixes; `docs/ai-log.md`; `docs/key-figures.md`; technical note AD-15 (eight reasons; `document_missing` the one decided from a missing row, and why); `epics.md` 2.9 (reasons, derivation AC); PRD if moved; session file; sesjonslogg.
+- [x] Review fixes; `docs/ai-log.md`; `docs/key-figures.md`; technical note AD-15 (eight reasons; `document_missing` the one decided from a missing row, and why); `epics.md` 2.9 (reasons, derivation AC); PRD if moved; session file; sesjonslogg.
 
 **Acceptance Criteria:** `epics.md` Story 2.9 as settled by the decisions. The PR states what can go wrong with absence reasons and derived components in money figures and has a "Planning documents:" line.
 
 ## Implementation Notes
 
+- Seven implementation commits, `3b524e7` to `27022ad`, and the review fixes `c5a6a72`, by the implementation subagent. The SQL fragments and the row-to-basis mapping live in `src/analysis/document-basis.ts`, shared by `SUBJECT_SQL` and `CANDIDATES_SQL`; the reads log (`logSubjectRead`, `logCandidatesRead`), `documentBasisOf` does not.
+- A document with no current column, which step 1 never writes, takes the document's own status: `failed_reconciliation`, otherwise `not_reconciled`.
+- For a read basis, 2.9 decides only R3's lines (`line_not_read_safely`), an underivable revenue and revenue growth's prior column (`component_missing`); every other empty line, a denominator's sign and the 5 kr bound on a derived revenue are Story 3.1a's (its AC, `epics.md`).
+- The synthetic e2e company is orgnr 999999905 with 2 500 000 kr revenue, outside demo A's (26,2 mill. kr) and B's (24,9 mill. kr) bands at 0,25–4×.
+- Verified on the committed seed (BMAD session, after the review fixes): check:pins, check:env, lint, typecheck; `pnpm test` 1 271; `pnpm seed:export` unchanged; `pnpm test:db` 193; `pnpm test:ingest` 392; build; check:routes; `pnpm test:e2e --workers=1` 150, the 375 and 320 px checks among them. Then `.local/document-run-2.5d/` restored and `pnpm derive`: 2 785 documents, 5 556 columns, 2 537 fingerprints, 10 371 classification rows.
+
 ## Spec Change Log
 
+- 2026-11-14, Meinich, after a proposal from the review session: decision 7's "`.env.example` shows the variable without a password" is superseded. The owner connection is the existing `SUPABASE_DB_URL`, whose `postgres:postgres` is the Supabase CLI's public default for the local database, not a secret, so a fresh clone runs without filling anything in. What protects is the refusal of any host but `localhost` and `127.0.0.1` (`e2e/synthetic.ts`, `ownerSql`). KEEP: `.env.example` unchanged apart from its comment; no new variable.
+
 ## Review Triage Log
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | Verification gap | `document_missing` never runs through `SUBJECT_SQL`/`CANDIDATES_SQL`, and no test asserts a candidate's basis | medium | every listed seed orgnr has a document row (`seed-export.ts` builds the list from them); the log and absence tests build rows by hand | patch (a rolled-back db test) |
+| 2 | Verification gap | the `not_reconciled` side of "no current column" is untested | low | only the `failed_reconciliation` side is asserted | patch (one assertion) |
+| 3 | Edge case, Blind | the e2e cleanup deletes orgnr 999999905 whatever company holds it, cascading its document rows | medium | `remove()` deletes by orgnr alone; a full ingest could store a real company under it | patch (refuse unless the name is the synthetic one) |
+| 4 | Edge case, Blind | `analysis.documentMissing` is logged per company per request, every candidate included, not once | medium | `documentBasisOf` logs inside `toSubject` and `toCandidate`, so the whole industry is logged on every view | patch (subject once; candidates once per read) |
+| 5 | Edge case, Blind | with no `register.dataset` row every company is silently `not_in_dataset` | low | `coalesce(…, false)`; L9 forbids a silent fallback | patch (one warn line) |
+| 6 | Blind | revenue growth with a failed prior column reads "Regnskapet for 2025 kunne ikke leses sikkert", the wrong year and a state the header contradicts | medium | `readAbsence` returns the prior column's reason; Story 3.1a's AC says undefined | patch (undefined, `component_missing`) |
+| 7 | Edge case | the phone-width table check passes with zero tables | low | `tables` may be empty | patch (at least one on nokkeltall) |
+| 8 | BMAD session | a crashed run leaves the synthetic company in place while the next run's other projects execute, where it can join a small subject's pool | medium | cleanup runs only in the last project's `beforeAll` | patch (also clean in Playwright's global setup) |
+| 9 | Edge case, Blind | the e2e test writes `register.dataset`, which AD-16 calls loader-only | low | AGENTS.md names it; the technical note does not | patch (AD-16 note) |
+| 10 | Blind | "a failed document leaves the API benchmark unchanged" cannot fail in its API half | low | `benchmarkApiFigures` takes no document input; the guarantee is the signature, and the e2e on/off-list check | patch (comment and AI log say so) |
+| 11 | Blind | the derived-revenue 5 kr bound is deferred to 3.1a without a record | low | AGENTS.md: deferred v1 work goes into `epics.md` | patch (3.1a AC) |
+| 12 | Blind | `epic-2-context.md` lost the AD-4 payload rule and the performance targets | low | the same as Story 2.8's row 11; this story adds fields to `Subject` and `Candidate` (none reaches a client component: checked) | patch (docs) |
+| 13 | Blind | the README's leftover note omits that `pnpm seed:export` refuses and `pnpm seed` removes it | low | README line 51 | patch |
+| 14 | Blind | the spec at `in-review` while sprint-status says `in-progress` | low | AGENTS.md vocabularies | patch (sprint-status to `review`) |
+| 15 | Edge case | `statusOf` throws on an unknown stored status, so "nothing throws" is false | false | the column `status` CHECK allows only `reconciled`, `failed_reconciliation` or NULL; a loud failure on an unreachable value is correct | reject |
+| 16 | Edge case | `documentFigureAbsence` has no `default` and returns `undefined` for an unknown kind | false | the switch returns on every member of `DocumentBasis`; a new member fails the return type at compile time | reject |
+| 17 | Edge case | a `?host=` parameter in `SUPABASE_DB_URL` could bypass the local-host check | low | needs the developer's own `.env` to point elsewhere; the fix adds a guard | reject |
+| 18 | Edge case, Blind | a failure in another project skips the synthetic project | low | the run is red anyway; Playwright reports the project as not run | reject |
+| 19 | Edge case | `.env.example` shows a password, against decision 7 | false | superseded by Meinich's decision in the Spec Change Log | reject |
+| 20 | Blind | the wider candidate query is unmeasured against the 1 s target, and the candidate basis is unused | false | `test/db/peer-assembly-time.test.ts` ran in `pnpm test:db` with the new query; the basis is row 1's and Story 3.1a's input | reject |
+| 21 | Blind | an alias typo in `DOCUMENT_SELECT` yields `undefined` silently | false | `parseOre(undefined)` throws a TypeError, and `test/db/analysis.test.ts` reads real rows to a `read` basis | reject |
 
 ## Verification
 

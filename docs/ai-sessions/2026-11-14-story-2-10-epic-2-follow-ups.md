@@ -20,6 +20,8 @@ Close the gaps Epic 2 left before the document figures arrive:
 
 ## Prompts that mattered
 
+The review session wrote every prompt below. Meinich pasted them into this session, and the review session also recommended the answers. Where a decision is credited to Meinich below, Meinich made it on the review session's recommendation.
+
 Meinich, opening the session (verbatim):
 
 > /bmad-build Story 2.10: Epic 2 follow-ups (epics.md, Story 2.10). Lag branchen story/2.10-epic-2-follow-ups fra origin/main, og opprett issuet.
@@ -68,13 +70,21 @@ Other findings:
 
 ### Decisions
 
-These are in the spec's frozen block:
+These are in the spec's frozen block. Each is Meinich's decision.
+
+**At the checkpoint:**
 - Three stage-2 reasons and `subject_revenue_not_stated`.
 - The funnel kept beside a stage-2 sentence.
-- The `FunnelSubject` rename.
-- `workers: 1` everywhere.
 - The approved copy.
-- The restore reading each dump's header.
+- On the review session's recommendation:
+  - Merging the two currency reasons into one. This later made the currency sentence false, and the BMAD session's review found it (triage 1).
+  - Renaming the engine's type to `FunnelSubject`, and correcting the test title in `shown-group.test.ts`.
+  - `workers: 1`, locally and on CI.
+  - `pnpm restore:documents` taking each table's column names from the first line of the dump.
+
+**After the review, on the review session's recommendation:**
+- Option (a) on all four intent questions: the narrowed currency reason, "Utvid" kept, the correction to "three", and the synthetic USD company.
+- Giving triage row 14 an owner story (5.7).
 
 ### Accepted from the implementation subagent
 
@@ -90,10 +100,10 @@ Commits `bd77ec3` to `2fc0acb`:
 ### Corrected in review
 
 The spec's triage log has 24 findings: 12 patched, 1 deferred, 11 rejected. The patches are `4834886`, `f07c520`, `99545fd`, `23cc0b2` and `409dd63`. Each finding is credited to the layer that made it:
-- The currency sentence was false for 7 of 10 seed cases (Blind, Edge case). Meinich narrowed the reason.
-- A stage-2 sentence dropped "Utvid" (Blind). Meinich kept it where a wider band helps.
-- The frozen decision said "four" stage-2 reasons (Edge case). Meinich corrected it to three.
-- The e2e currency subject was a seeded non-demo company (the BMAD session, against Meinich's rule). It is now a synthetic USD company. The older zero, negative and null cases predate the rule and stay.
+- The currency sentence was false for 7 of 10 seed cases (Blind, Edge case). Meinich narrowed the reason, on the review session's recommendation.
+- A stage-2 sentence dropped "Utvid" (Blind). Meinich kept it where a wider band helps, on the review session's recommendation.
+- The frozen decision said "four" stage-2 reasons (Edge case). Meinich corrected it to three, on the review session's recommendation.
+- The e2e currency subject was a seeded non-demo company (the BMAD session, against Meinich's rule). Meinich chose a synthetic USD company, on the review session's recommendation. The older zero, negative and null cases predate the rule and stay.
 - The hero was untested with a stage-2 reason (Verification gap, Blind).
 - "An empty group never stands without a reason" overstated the code in the PRD and EXPERIENCE (Blind, Edge case).
 - The derive after a restore was not host-checked (Blind, Edge case).
@@ -109,7 +119,7 @@ The implementation report said the provider's cap guard was covered but had not 
 
 ### Deferred
 
-Triage 14 is deferred to Story 5.7 (`deferred-work.md`): no test runs the restore's real `loader` and derive path.
+Triage 14 is deferred to Story 5.7 (`deferred-work.md`); Meinich gave it that owner story, on the review session's recommendation: no test runs the restore's real `loader` and derive path.
 
 ### Rejected in review
 

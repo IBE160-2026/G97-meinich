@@ -53,8 +53,16 @@ vi.mock('next/navigation', () => navigation);
 vi.mock('next/server', () => ({ connection: async () => {} }));
 
 // The subject read left-joins register.fingerprint (Story 2.5): no row is
-// every category column null.
+// every category column null. It also left-joins the filing year's document
+// (Story 2.9): outside the dataset's list, with no document row.
 const NO_FINGERPRINT = {
+  in_manifest: false,
+  document_status: null,
+  has_current: false,
+  current_status: null,
+  has_prior: false,
+  prior_status: null,
+  sum_omloepsmidler_ore: null,
   classification: null,
   cost_of_goods_lo: null,
   cost_of_goods_hi: null,

@@ -21,6 +21,7 @@ const filing: SubjectFiling = {
   readAt: new Date('2026-10-02T23:30:00Z'),
   fingerprint: null,
   classification: null,
+  documentBasis: { kind: 'not_in_dataset' },
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',
@@ -99,5 +100,54 @@ describe('CompanyHeader peer count (Story 1.7)', () => {
     const widened = renderToString(createElement(CompanyHeader, { subject, peerCount: 23, widened: true }));
     expect(widened).toMatch(/data-testid="header-peer-count">23 sammenlignbare<span[^>]*data-testid="widened-tag">Utvidet<\/span>/);
     expect(renderToString(createElement(CompanyHeader, { subject, peerCount: 23 }))).not.toContain('widened-tag');
+  });
+});
+
+// Story 2.9 (FR-57, FR-71): a slate subline below the meta line says why the
+// subject's own document is not read; no badge.
+describe('CompanyHeader document subline', () => {
+  const html = (documentBasis: SubjectFiling['documentBasis']): string =>
+    renderToString(createElement(CompanyHeader, { subject: { ...subject, filing: { ...filing, documentBasis } }, peerCount: 23 }));
+  const sublineOf = (documentBasis: SubjectFiling['documentBasis']): string | null => {
+    const match = /<p[^>]*data-testid="document-subline"[^>]*>([^<]*)<\/p>/.exec(html(documentBasis));
+    return match === null ? null : (match[1] ?? '');
+  };
+
+  it('a failed filing shows the subline', () => {
+    const shown = html({ kind: 'failed_reconciliation', filingYear: 2025 });
+    expect(sublineOf({ kind: 'failed_reconciliation', filingYear: 2025 })).toBe('Regnskapet for 2025 kunne ikke leses sikkert');
+    // Below the meta line, in slate, and the meta line is unchanged.
+    expect(shown.indexOf('data-testid="company-meta"')).toBeLessThan(shown.indexOf('data-testid="document-subline"'));
+    expect(shown).toMatch(/<p class="[^"]*text-slate[^"]*" data-testid="document-subline"/);
+    expect(shown).toContain('23 sammenlignbare');
+  });
+
+  it('a refused filing shows the failed subline', () => {
+    expect(sublineOf({ kind: 'refused', filingYear: 2025 })).toBe('Regnskapet for 2025 kunne ikke leses sikkert');
+    expect(sublineOf({ kind: 'not_reconciled', filingYear: 2025 })).toBe('Regnskapet for 2025 kunne ikke leses sikkert');
+  });
+
+  it('a filing year not read shows its subline', () => {
+    expect(sublineOf({ kind: 'not_read_in_v1', scope: 'filing_year', filingYear: 2026 })).toBe(
+      'Regnskapet for 2026 er ikke lest i denne versjonen',
+    );
+    expect(sublineOf({ kind: 'not_read_in_v1', scope: 'paper', filingYear: 2025 })).toBe(
+      'Regnskapet for 2025 er ikke lest i denne versjonen',
+    );
+  });
+
+  it('a listed company with no stored document shows that it is not read in', () => {
+    expect(sublineOf({ kind: 'document_missing', filingYear: 2025 })).toBe('Regnskapet for 2025 er ikke lest inn');
+  });
+
+  it('shows no subline outside the demo data or for a document that was read', () => {
+    expect(sublineOf({ kind: 'not_in_dataset' })).toBeNull();
+    expect(text(subject)).not.toContain('Regnskapet for');
+  });
+
+  it('shows no subline without a filing', () => {
+    expect(renderToString(createElement(CompanyHeader, { subject: { ...subject, filing: null } }))).not.toContain(
+      'document-subline',
+    );
   });
 });

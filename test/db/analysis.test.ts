@@ -71,7 +71,38 @@ describe('loadSubject', () => {
   it('is one parameterised query that reads only the register tables it needs', () => {
     expect(SUBJECT_SQL).toContain('$1::char(9)');
     const tables = [...SUBJECT_SQL.matchAll(/register\.(\w+)/g)].map((m) => m[1]);
-    expect(new Set(tables)).toEqual(new Set(['company', 'covered_industry', 'filing', 'key_figures', 'fingerprint', 'classification']));
+    expect(new Set(tables)).toEqual(
+      new Set([
+        'company',
+        'covered_industry',
+        'filing',
+        'key_figures',
+        'fingerprint',
+        'classification',
+        // Story 2.9: the manifest's list, and the filing year's document and its columns.
+        'dataset',
+        'document',
+        'document_column',
+      ]),
+    );
+  });
+
+  // Story 2.9: the document basis comes from the manifest's list, never from
+  // a missing row. Totals only: no company on the list is named.
+  it('reads the document basis from the manifest list and the stored document', async () => {
+    const listed = await readerSql()<{ orgnr: string }[]>`
+      select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') as orgnr from register.dataset`;
+    expect(listed.length).toBeGreaterThan(0);
+    const kinds = new Map<string, number>();
+    for (const { orgnr } of listed) {
+      const kind = (await loadSubject(orgnr))?.filing?.documentBasis.kind ?? 'no filing';
+      kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+    }
+    expect(kinds.get('not_in_dataset')).toBeUndefined();
+    expect(kinds.get('read') ?? 0).toBeGreaterThan(0);
+    // Demo A is not on the list: not in the dataset, whatever rows a local
+    // document run left behind.
+    expect((await loadSubject(DEMO_A.orgnr))?.filing?.documentBasis).toEqual({ kind: 'not_in_dataset' });
   });
 });
 

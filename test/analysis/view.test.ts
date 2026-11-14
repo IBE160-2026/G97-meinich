@@ -32,6 +32,7 @@ const filing = {
   readAt: new Date('2026-10-11T13:36:34Z'),
   fingerprint: null,
   classification: null,
+  documentBasis: { kind: 'not_in_dataset' },
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',
@@ -62,6 +63,24 @@ function view(subject: Subject | null, segments: { orgnr: string; fane?: string 
 }
 
 describe('covered company with a filing', () => {
+  // FR-71 (Story 2.9): a subject whose own document failed reconciliation,
+  // or that has none at all, keeps its tabs and peer group.
+  it('a failed filing stays covered', () => {
+    for (const documentBasis of [
+      { kind: 'failed_reconciliation', filingYear: 2025 },
+      { kind: 'refused', filingYear: 2025 },
+      { kind: 'document_missing', filingYear: 2025 },
+      { kind: 'not_read_in_v1', scope: 'paper', filingYear: 2025 },
+    ] as const) {
+      const failed: Subject = { ...covered, filing: { ...filing, documentBasis } };
+      expect(view(failed, { orgnr: COVERED, fane: 'peers' }), documentBasis.kind).toEqual(
+        view(covered, { orgnr: COVERED, fane: 'peers' }),
+      );
+      expect(view(failed, { orgnr: COVERED, fane: 'nokkeltall' }).state).toBe('covered');
+      expect(view(failed, { orgnr: COVERED }).redirect).toBe(`/analyse/${COVERED}/oversikt`);
+    }
+  });
+
   it('redirects the bare path to Oversikt', () => {
     expect(view(covered, { orgnr: COVERED })).toEqual({
       state: 'covered',

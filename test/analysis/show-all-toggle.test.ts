@@ -48,7 +48,7 @@ function provider(showAllBand: Band | null): PeerChangeValue {
 }
 
 function render(showAllBand: Band | null, band: Band): string {
-  const toggle = createElement(ShowAllToggle, { listId: 'flere', label: 'Vis alle 3', rows: [row(0), row(1), row(2)], labels, band });
+  const toggle = createElement(ShowAllToggle, { listId: 'flere', label: 'Vis alle 3', rows: [row(0), row(1), row(2)], labels, band, capReached: false });
   return renderToString(createElement(PeerChangeContext.Provider, { value: provider(showAllBand) }, toggle));
 }
 

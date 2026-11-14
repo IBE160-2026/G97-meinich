@@ -1,8 +1,9 @@
-// Funnel stages 1–4 (Stories 1.7, 2.5; FR-8, FR-10): which companies are
-// comparable with the subject, decided by rules only. Pure: the subject's
+// Funnel stages 1–5 (Stories 1.7, 2.5, 2.6; FR-8, FR-10): which companies
+// are comparable with the subject, decided by rules (stage 5 reads the
+// stored classification; the rules compare it). Pure: the subject's
 // benchmark-year filing and every same-industry company's filings for that
-// year in, the candidate pool at one size band, the group after stage 4 and
-// a count per stage out.
+// year in, the candidate pool at one size band, the group after stages 4
+// and 5 and a count per stage out.
 //
 //   stage 1  same naeringskode1, and sumDriftsinntekter inside the size band
 //            around the subject's (both bounds included, exact in øre)
@@ -64,7 +65,7 @@ export type Comparability = {
 };
 
 /** The subject's benchmark-year filing: the newest SELSKAP filing. */
-export type SubjectFiling = Comparability & {
+export type FunnelSubject = Comparability & {
   readonly orgnr: string;
   readonly naeringskode1: string | null;
   readonly filingYear: number;
@@ -106,12 +107,64 @@ export type FunnelCounts = {
 };
 
 /**
- * Why the group is empty when the subject itself cannot have peers:
- * `subject_no_revenue` — its revenue is null, zero or negative (stage 1);
- * `subject_non_calendar` — its filing does not run 1 January – 31 December
- * (stage 2). Null otherwise, also when the group is empty for another reason.
+ * Why the group is empty, from the subject's own fields (Stories 1.7, 2.10;
+ * FR-7, FR-8). One reason at most, in this order:
+ *
+ *   `subject_no_revenue`          its stated revenue is zero or negative (stage 1)
+ *   `subject_revenue_not_stated`  its revenue is not stated (stage 1)
+ *   `subject_non_calendar`        its filing does not run 1 January –
+ *                                 31 December (stage 2)
+ *
+ * Those three mean the subject cannot have peers at any band. The other three
+ * are set only when stage 1 kept someone and stage 2 kept no one, from the
+ * subject's fields, in this order:
+ *
+ *   `subject_field_not_stated`    one of STATED_FIELDS is null on the subject
+ *                                 (the first, in that order, is the one named)
+ *   `subject_currency`            its `valuta` is not NOK, and either is not
+ *                                 an ISO 4217 code or no stage-1 candidate
+ *                                 files in it (amended 2026-11-14)
+ *   `subject_not_comparable`      any other empty stage 2, such as a stated
+ *                                 field no candidate shares
+ *
+ * Null otherwise: the group is not empty for the subject's own reason, or
+ * stage 1 kept no one (the size band found nobody).
  */
-export type EmptyReason = 'subject_no_revenue' | 'subject_non_calendar' | null;
+export type EmptyReason =
+  | 'subject_no_revenue'
+  | 'subject_revenue_not_stated'
+  | 'subject_non_calendar'
+  | 'subject_field_not_stated'
+  | 'subject_currency'
+  | 'subject_not_comparable'
+  | null;
+
+/** The stage-2 fields a subject may leave unstated, in the order `subject_field_not_stated` names them. */
+export const STATED_FIELDS = ['valuta', 'regnskapsregler', 'smaaForetak', 'avviklingsregnskap'] as const;
+export type StatedField = (typeof STATED_FIELDS)[number];
+
+/** The first of STATED_FIELDS that is null on `filing`, or null when every one is stated. */
+export function firstUnstatedField(filing: Pick<Comparability, StatedField>): StatedField | null {
+  return STATED_FIELDS.find((field) => filing[field] === null) ?? null;
+}
+
+/**
+ * Why stage 2 kept no one, from the subject's own fields and the stage-1
+ * candidates' currencies: the last three reasons of EmptyReason, in order.
+ * A known currency some stage-1 candidate shares is not the reason, so the
+ * currency sentence ("no company … files in {valuta}") is never false.
+ */
+function stage2Reason(
+  subject: Comparability,
+  stage1: readonly Pick<Comparability, 'valuta'>[],
+): 'subject_field_not_stated' | 'subject_currency' | 'subject_not_comparable' {
+  if (firstUnstatedField(subject) !== null) return 'subject_field_not_stated';
+  if (subject.valuta !== 'NOK') {
+    if (!isKnownCurrency(subject.valuta)) return 'subject_currency';
+    if (!stage1.some((candidate) => candidate.valuta === subject.valuta)) return 'subject_currency';
+  }
+  return 'subject_not_comparable';
+}
 
 export type PeerGroup<C extends CandidateFiling> = {
   /** Stages 1–3 at the band, one filing per company, by revenue descending, then orgnr. */
@@ -216,7 +269,7 @@ export function isComparable(subject: Comparability, candidate: Comparability): 
  * counts as missing for every candidate.
  */
 function signals(
-  subject: Pick<SubjectFiling, 'fingerprint' | 'classification'>,
+  subject: Pick<FunnelSubject, 'fingerprint' | 'classification'>,
   candidate: Pick<CandidateFiling, 'fingerprint' | 'classification'>,
 ): { readonly fingerprint: boolean | null; readonly text: boolean | null } {
   const agree = (a: BusinessType | null, b: BusinessType | null) => (a === null || b === null ? null : a === b);
@@ -252,7 +305,7 @@ export type MatchBasis = (typeof MATCH_BASES)[number];
  * request, never stored (the basis depends on the subject).
  */
 export function matchBasis(
-  subject: Pick<SubjectFiling, 'fingerprint' | 'classification'>,
+  subject: Pick<FunnelSubject, 'fingerprint' | 'classification'>,
   candidate: Pick<CandidateFiling, 'fingerprint' | 'classification'>,
 ): MatchBasis {
   const { fingerprint, text } = signals(subject, candidate);
@@ -268,7 +321,7 @@ export function matchBasis(
  * company without a filing in the subject's year is out before stage 1.
  */
 export function assemblePeerGroup<C extends CandidateFiling>(
-  subject: SubjectFiling,
+  subject: FunnelSubject,
   candidates: readonly C[],
   band: SizeBand,
 ): PeerGroup<C> {
@@ -322,8 +375,10 @@ export function assemblePeerGroup<C extends CandidateFiling>(
     .map((candidate) => candidate.orgnr);
 
   let emptyReason: EmptyReason = null;
-  if (!subjectHasRevenue) emptyReason = 'subject_no_revenue';
+  if (s === null) emptyReason = 'subject_revenue_not_stated';
+  else if (!subjectHasRevenue) emptyReason = 'subject_no_revenue';
   else if (!isCalendarYear(subject)) emptyReason = 'subject_non_calendar';
+  else if (stage1.length > 0 && stage2.length === 0) emptyReason = stage2Reason(subject, stage1);
 
   return {
     pool,

@@ -7,11 +7,17 @@ import { defineConfig, devices } from '@playwright/test';
 //   e2e/db-down.spec.ts: the front page and the analysis answer 500 with the
 //   lookup-error state, and the search endpoint 500 {}.
 //
-// e2e/failed-subject.spec.ts (Story 2.9) commits a synthetic company to the
-// local database for its own run and removes it after (e2e/synthetic.ts).
-// It is a project of its own that depends on the other two, so it runs
-// last and no other spec sees the company; the global setup removes one a
-// crashed run left behind before any project starts.
+// e2e/failed-subject.spec.ts (Story 2.9) and e2e/synthetic-currency.spec.ts
+// (Story 2.10) each commit a synthetic company to the local database for
+// their own run and remove it after (e2e/synthetic.ts). They form a
+// project of their own that depends on the other two, so it runs last and
+// no other spec sees either company; the global setup removes one a crashed
+// run left behind before any project starts.
+//
+// One worker, locally and on CI (Story 2.10): full runs with Playwright's
+// default worker count stopped on low memory in Stories 2.7 and 2.8 (each
+// worker a Chromium beside the two production servers), and passed with
+// `--workers=1`. The setting lives here, not in a prompt.
 const port = 3100;
 const dbDownPort = 3101;
 // Port 1 on the loopback interface: nothing listens, so every read is refused.
@@ -19,6 +25,7 @@ const UNREACHABLE_READER_URL = 'postgresql://reader:unreachable@127.0.0.1:1/post
 
 export default defineConfig({
   testDir: 'e2e',
+  workers: 1,
   // Removes a synthetic company left by a crashed run before anything runs.
   globalSetup: './e2e/global-setup.ts',
   forbidOnly: !!process.env.CI,
@@ -30,7 +37,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: [/db-down\.spec\.ts/, /failed-subject\.spec\.ts/],
+      testIgnore: [/db-down\.spec\.ts/, /failed-subject\.spec\.ts/, /synthetic-currency\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
     },
     {
@@ -40,7 +47,7 @@ export default defineConfig({
     },
     {
       name: 'synthetic',
-      testMatch: /failed-subject\.spec\.ts/,
+      testMatch: /(failed-subject|synthetic-currency)\.spec\.ts/,
       dependencies: ['chromium', 'db-down'],
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
     },

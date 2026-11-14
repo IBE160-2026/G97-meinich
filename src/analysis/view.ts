@@ -23,8 +23,8 @@
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { formatOrgnr } from '../engine/format.ts';
 import type { BusinessType, Fingerprint } from '../engine/fingerprint.ts';
-import { parseOre, type KeyFiguresRow } from '../engine/inputs.ts';
-import { PEER_LEGAL_FORM, type SubjectFiling as FunnelSubject } from '../engine/peers.ts';
+import { parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
+import { PEER_LEGAL_FORM, type FunnelSubject } from '../engine/peers.ts';
 import { t } from '../messages/index.ts';
 import {
   defaultState,
@@ -68,17 +68,8 @@ export const PANEL_HEADING_ID = 'fane-tittel';
 export const OPEN_FANER = ['oversikt', 'peers', 'nokkeltall'] as const satisfies readonly Fane[];
 export type OpenFane = (typeof OPEN_FANER)[number];
 
-/** The amounts of the subject's filing the header and the API figures read. */
-export type SubjectKeyFigures = Pick<
-  KeyFiguresRow,
-  | 'sum_driftsinntekter_ore'
-  | 'driftsresultat_ore'
-  | 'sum_driftskostnad_ore'
-  | 'sum_eiendeler_ore'
-  | 'sum_egenkapital_gjeld_ore'
-  | 'sum_egenkapital_ore'
-  | 'sum_gjeld_ore'
->;
+/** The amounts of the subject's filing the header and the API figures read (src/engine/inputs.ts). */
+export type SubjectKeyFigures = ApiKeyFiguresRow;
 
 /** The subject's newest SELSKAP filing by filing_year: the benchmark-year filing. */
 export type SubjectFiling = {

@@ -86,11 +86,14 @@ export function PeerCard({
   row,
   labels,
   first,
+  capReached,
 }: {
   readonly row: PeerDisplayRow;
   readonly labels: PeerCardLabels;
   /** The first card "Vis alle" reveals: it takes focus. */
   readonly first: boolean;
+  /** The URL holds MAX_EKSKL exclusions (peer-action.tsx). */
+  readonly capReached: boolean;
 }) {
   return (
     <li data-testid="peer-card" data-excluded={row.excluded ? 'true' : undefined} className={row.excluded ? 'text-slate' : undefined}>
@@ -109,7 +112,7 @@ export function PeerCard({
         <dd>
           <Basis row={row} ki={labels.ki} />
           {row.flagg === null ? null : <Flag text={row.flagg} ki={row.grunnlagKi ? null : labels.ki} />}
-          <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} />
+          <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} capReached={capReached} />
         </dd>
       </dl>
     </li>

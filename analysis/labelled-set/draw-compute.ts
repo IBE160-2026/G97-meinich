@@ -8,7 +8,7 @@
 // scripts/document-set-compute.ts: src/server begins with
 // `import 'server-only'`, which needs the bundler's resolution.
 import { funnelSubject } from '../../src/analysis/view.ts';
-import { type SubjectFiling as FunnelSubject, assemblePeerGroup, isCalendarYear } from '../../src/engine/peers.ts';
+import { type FunnelSubject, assemblePeerGroup, isCalendarYear } from '../../src/engine/peers.ts';
 import { loadCandidates, loadSubject } from '../../src/server/analysis.ts';
 import { readerSql } from '../../src/server/db.ts';
 

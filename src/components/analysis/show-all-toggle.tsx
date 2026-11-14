@@ -27,6 +27,7 @@ export function ShowAllToggle({
   rows,
   labels,
   band,
+  capReached,
 }: {
   /** The revealed list's id, unique on the page. */
   readonly listId: string;
@@ -37,6 +38,8 @@ export function ShowAllToggle({
   readonly labels: PeerCardLabels;
   /** The band the list was rendered at: the toggle is open only at the band it was opened at. */
   readonly band: Band;
+  /** The URL holds MAX_EKSKL exclusions (peer-action.tsx). */
+  readonly capReached: boolean;
 }) {
   const peerChange = usePeerChange();
   const [localOpen, setLocalOpen] = useState(false);
@@ -61,7 +64,7 @@ export function ShowAllToggle({
   return (
     <>
       <ul id={listId} ref={list} hidden={!open} className={CARD_LIST_CLASS}>
-        {open ? rows.map((row, index) => <PeerCard key={index} row={row} labels={labels} first={index === 0} />) : null}
+        {open ? rows.map((row, index) => <PeerCard key={index} row={row} labels={labels} first={index === 0} capReached={capReached} />) : null}
       </ul>
       {open ? null : (
         <button

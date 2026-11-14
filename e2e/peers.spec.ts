@@ -140,19 +140,26 @@ test.describe('the peer group (Story 1.7)', () => {
 });
 
 test.describe('a covered AS that cannot have peers', () => {
+  // Story 2.10 (R2): no stated revenue has its own sentence, never the no-revenue one.
   const noRevenue = [
-    ['zero', pick('zero revenue', (c) => revenueOf(c) === '0')],
-    ['negative', pick('negative revenue', (c) => revenueOf(c).startsWith('-'))],
-    ['null', pick('no stated revenue', (c) => revenueOf(c) === '')],
+    ['zero', pick('zero revenue', (c) => revenueOf(c) === '0'), 'peers.noRevenue'],
+    ['negative', pick('negative revenue', (c) => revenueOf(c).startsWith('-')), 'peers.noRevenue'],
+    ['null', pick('no stated revenue', (c) => revenueOf(c) === ''), 'peers.revenueNotStated'],
   ] as const;
 
-  for (const [label, subject] of noRevenue) {
-    test(`${label} revenue: "0 sammenlignbare" and the no-revenue sentence with the year`, async ({ page }) => {
+  for (const [label, subject, sentenceId] of noRevenue) {
+    test(`${label} revenue: "0 sammenlignbare" and its sentence with the year, on Peers and the hero`, async ({ page }) => {
+      const aar = newestFiling(subject.orgnr ?? '').filing_year ?? '';
+      const other = sentenceId === 'peers.noRevenue' ? 'peers.revenueNotStated' : 'peers.noRevenue';
       await page.goto(`/analyse/${subject.orgnr}/peers`);
       await expect(page.getByTestId('company-meta')).toContainText(nb['analysis.peerCount'].replace('{n}', '0'));
       await expect(page.getByTestId('peer-count')).toHaveText(nb['peers.count'].replace('{n}', '0'));
-      await expect(page.getByText(nb['peers.noRevenue'].replace('{aar}', newestFiling(subject.orgnr ?? '').filing_year ?? ''))).toBeVisible();
+      await expect(page.getByText(nb[sentenceId].replace('{aar}', aar))).toBeVisible();
+      await expect(page.getByText(nb[other].replace('{aar}', aar))).toHaveCount(0);
       await expect(page.getByText(nb['peers.none'])).toHaveCount(0);
+      await page.goto(`/analyse/${subject.orgnr}/oversikt`);
+      await expect(page.getByTestId('hero')).toContainText(nb[sentenceId].replace('{aar}', aar));
+      await expect(page.getByTestId('hero')).not.toContainText(nb[other].replace('{aar}', aar));
     });
   }
 

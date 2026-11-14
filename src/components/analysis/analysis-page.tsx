@@ -108,7 +108,7 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
   // A subject without a peer group has an empty pool: every `ekskl` item
   // is dropped with the notice. `ekskl` is checked against the candidate
   // pool (stages 1–3); the shown group and every aggregate use the group
-  // after stage 4 (Story 2.5).
+  // after stages 4 and 5 (Stories 2.5, 2.6).
   const parsed = parseSegments(segments, search, urlContext((band) => groupAt(band)?.orgnrs ?? NO_POOL));
   const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
   const filing = subject?.filing ?? null;
@@ -206,6 +206,8 @@ function Covered({
               state={state}
               emptyReason={group.emptyReason}
               filingYear={group.filingYear}
+              valuta={group.valuta}
+              unstatedField={group.unstatedField}
             />
           ) : null}
           {peers !== null ? (
@@ -214,6 +216,8 @@ function Covered({
               counts={group.counts}
               emptyReason={group.emptyReason}
               filingYear={group.filingYear}
+              valuta={group.valuta}
+              unstatedField={group.unstatedField}
               state={state}
               steps={peers.steps}
               analysisCount={group.analysisCount}

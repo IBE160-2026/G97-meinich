@@ -60,6 +60,8 @@ function props(overrides: Partial<Props> = {}): Props {
     counts,
     emptyReason: null,
     filingYear: 2025,
+    valuta: 'NOK',
+    unstatedField: null,
     state: defaultState(SUBJECT),
     steps: bandSteps(1_000_000_000n, 'NOK'),
     analysisCount: shown.filter((r) => !r.excluded).length,
@@ -260,6 +262,126 @@ describe('PeerList', () => {
       expect(html).not.toContain('data-testid="peer-funnel"');
       expect(html).not.toContain('<table');
     }
+  });
+
+  // Story 2.10 (R2): no stated revenue has its own sentence, never "ingen positiv omsetning".
+  it('a subject with no stated revenue shows its own sentence alone, never the no-revenue one', () => {
+    const zero: FunnelCounts = { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
+    const html = render({ rows: [], counts: zero, emptyReason: 'subject_revenue_not_stated', filingYear: 2024 });
+    expect(html).toContain('Peerless finner sammenlignbare selskaper ut fra omsetning, og regnskapet for 2024 oppgir ikke omsetningen.');
+    expect(html).not.toContain(nb['peers.noRevenue'].replace('{aar}', '2024'));
+    expect(html).not.toContain(nb['peers.none']);
+    expect(html).not.toContain('data-testid="peer-funnel"');
+  });
+
+  // Story 2.10 (R3): a group stage 2 emptied for the subject's own fields
+  // says why, with the funnel, never "Fant ingen …" alone.
+  describe('stage 2 emptied by the subject: the sentence with the funnel', () => {
+    const stage2Empty: FunnelCounts = { stage1: 7, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
+    const empty = (overrides: Partial<Props>) => render({ rows: [], counts: stage2Empty, ...overrides });
+    const withFunnel = (html: string, sentence: string) => {
+      expect(html).toContain(sentence);
+      expect(html).toContain('data-testid="peer-funnel"');
+      expect(html.indexOf(sentence)).toBeLessThan(html.indexOf('data-testid="peer-funnel"'));
+      expect(html).not.toContain(nb['peers.none']);
+      expect(html).not.toContain('<table');
+    };
+
+    it.each([
+      ['valuta', 'valuta'],
+      ['regnskapsregler', 'regnskapsregler'],
+      ['smaaForetak', 'om selskapet er et lite foretak'],
+      ['avviklingsregnskap', 'om regnskapet er et avviklingsregnskap'],
+    ] as const)('%s not stated: the sentence names it', (field, felt) => {
+      const html = empty({ emptyReason: 'subject_field_not_stated', unstatedField: field, valuta: field === 'valuta' ? null : 'NOK' });
+      withFunnel(html, `Regnskapet for 2025 oppgir ikke ${felt}, og Peerless sammenligner bare regnskap der dette er oppgitt.`);
+    });
+
+    it.each(['USD', 'EDT'])('a subject in %s: the sentence names the currency twice', (valuta) => {
+      withFunnel(
+        empty({ emptyReason: 'subject_currency', valuta }),
+        `Regnskapet for 2025 er ført i ${valuta}, og ingen selskaper i samme næring og størrelse fører regnskap i ${valuta}.`,
+      );
+    });
+
+    it('any other empty stage 2: the not-comparable sentence', () => {
+      withFunnel(
+        empty({ emptyReason: 'subject_not_comparable' }),
+        'Ingen selskaper i samme næring og størrelse fører regnskapet etter de samme reglene som regnskapet for 2025.',
+      );
+    });
+
+    // Review pass 1, row 2: "Utvid størrelsesintervallet" stays where a
+    // wider band can help, and only when a wider step exists.
+    const widenLink = (html: string) => html.includes(`>${nb['peers.tooSmallWiden']}</a>`);
+    it.each([
+      ['a known currency', { emptyReason: 'subject_currency', valuta: 'USD' }],
+      ['not comparable', { emptyReason: 'subject_not_comparable' }],
+    ] as const)('%s keeps the one-step widen action, except at the widest band', (_label, overrides) => {
+      expect(widenLink(empty({ ...overrides }))).toBe(true);
+      expect(empty({ ...overrides })).toContain('band=1');
+      expect(widenLink(empty({ ...overrides, state: at({ band: 1 }) }))).toBe(true);
+      expect(widenLink(empty({ ...overrides, state: at({ band: 2 }) }))).toBe(false);
+    });
+
+    it.each([
+      ['an unstated field', { emptyReason: 'subject_field_not_stated', unstatedField: 'smaaForetak' }],
+      ['an unknown currency', { emptyReason: 'subject_currency', valuta: 'EDT' }],
+    ] as const)('%s offers no widen action', (_label, overrides) => {
+      expect(widenLink(empty({ ...overrides }))).toBe(false);
+    });
+
+    it('refuses a reason without what its sentence names, rather than a sentence with a gap', () => {
+      expect(() => empty({ emptyReason: 'subject_field_not_stated', unstatedField: null })).toThrow(/without an unstated field/);
+      expect(() => empty({ emptyReason: 'subject_currency', valuta: null })).toThrow(/without a valuta/);
+    });
+  });
+
+  // Story 2.10 (FR-17): at the cap every "Ekskluder" is aria-disabled,
+  // still a focusable button, described by the cap text shown once.
+  describe('the exclusion cap', () => {
+    const peers = Array.from({ length: 22 }, (_, i) => row({ orgnr: `9000000${String(i).padStart(2, '0')}`, navn: `P${i} AS` }));
+    const capped = (excludedCount: number) => {
+      // The last ones excluded, so the first phone cards hold both actions.
+      const ekskl = peers.slice(peers.length - excludedCount).map((peer) => peer.orgnr);
+      const shownRows = peers.map((peer) => ({ ...peer, excluded: ekskl.includes(peer.orgnr) }));
+      return { rows: shownRows, state: at({ ekskl }) };
+    };
+    const buttons = (markup: string) => [...markup.matchAll(/<button[^>]*data-peer-action[^>]*>/g)].map((m) => m[0]);
+
+    it('with 20 exclusions: every "Ekskluder" aria-disabled and described by the cap text, shown once', () => {
+      const html = render(capped(20));
+      expect(html.split(`id="ekskluderingsgrense"`)).toHaveLength(2);
+      expect(html).toContain(`<p id="ekskluderingsgrense" class="m-0 mt-3 text-[13px] text-slate" data-testid="exclusion-cap">${nb['peers.exclusionCap']}</p>`);
+      for (const markup of [table(html), cards(html)]) {
+        const all = buttons(markup);
+        const exclude = all.filter((b) => b.includes(`aria-label="${nb['peers.action.excludeName'].split(' ')[0]} `));
+        const restore = all.filter((b) => b.includes(`aria-label="${nb['peers.action.restoreName'].replace(' {navn}', '')} `));
+        expect(exclude.length).toBeGreaterThan(0);
+        expect(restore.length).toBeGreaterThan(0);
+        for (const b of exclude) {
+          expect(b).toContain('aria-disabled="true"');
+          expect(b).toContain('aria-describedby="ekskluderingsgrense"');
+          // aria-disabled, never disabled: it stays in the tab order.
+          expect(b).not.toMatch(/\sdisabled[\s=>]/);
+          expect(b).not.toContain('tabindex="-1"');
+        }
+        for (const b of restore) {
+          expect(b).not.toContain('aria-disabled="');
+          expect(b).not.toContain('aria-describedby');
+        }
+      }
+      const toggle = findElement(createElement(PeerList, props(capped(20))), ShowAllToggle);
+      expect(toggle?.props.capReached).toBe(true);
+    });
+
+    it('with 19 exclusions: no button aria-disabled and no cap text', () => {
+      const html = render(capped(19));
+      expect(html).not.toContain('aria-disabled="');
+      expect(html).not.toContain('ekskluderingsgrense');
+      expect(html).not.toContain(nb['peers.exclusionCap']);
+      expect(findElement(createElement(PeerList, props(capped(19))), ShowAllToggle)?.props.capReached).toBe(false);
+    });
   });
 
   // Story 2.8 (FR-17): an excluded peer stays in the list.

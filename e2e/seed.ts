@@ -13,7 +13,7 @@ import { benchmarkApiFigures, type ApiBenchmark } from '../src/engine/benchmark.
 import { formatMillions, formatOrgnr, formatReadDate } from '../src/engine/format.ts';
 import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
-import { assemblePeerGroup, type CandidateFiling, type SizeBand, type SubjectFiling } from '../src/engine/peers.ts';
+import { assemblePeerGroup, type CandidateFiling, type SizeBand, type FunnelSubject } from '../src/engine/peers.ts';
 import { peerRows, type PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
@@ -145,7 +145,7 @@ export const fingerprintOf = (orgnr: string | undefined, year: string | undefine
   fingerprints.get(`${orgnr ?? ''}/${year ?? ''}`) ?? null;
 export type SeedCandidate = CandidateFiling & { readonly navn: string };
 /** The subject's benchmark filing as the funnel reads it. */
-export function expectedSubject(orgnr: string): SubjectFiling {
+export function expectedSubject(orgnr: string): FunnelSubject {
   const own = company(orgnr);
   const filing = newestFiling(orgnr);
   return {
@@ -182,7 +182,7 @@ export function expectedPeerGroup(orgnr: string, band: SizeBand) {
     });
   return assemblePeerGroup(subject, candidates, band);
 }
-/** The group after stage 4: what the Peers tab lists and every aggregate uses. */
+/** The group after stages 4 and 5: what the Peers tab lists and every aggregate uses. */
 export const expectedGroup = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).group;
 /** The candidate pool, stages 1–3: what `ekskl` is checked against. */
 export const expectedPool = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).pool;

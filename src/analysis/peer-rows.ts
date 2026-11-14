@@ -19,7 +19,7 @@
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';
-import { matchBasis, type CandidateFiling, type MatchBasis, type SubjectFiling } from '../engine/peers.ts';
+import { matchBasis, type CandidateFiling, type MatchBasis, type FunnelSubject } from '../engine/peers.ts';
 import { absenceText } from './figure-text.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { inclusionReason } from './inclusion-reason.ts';
@@ -75,7 +75,7 @@ function marginText(peer: PeerInput, filingYear: number): string {
  * URL's exclusions.
  */
 export function peerRows(
-  subject: SubjectFiling,
+  subject: FunnelSubject,
   subjectName: string,
   peers: readonly PeerInput[],
   flagged: readonly string[],

@@ -21,7 +21,7 @@
 // are ignored without the flag and are not written back.
 
 import { Decimal } from '../engine/decimal.ts';
-import { isValidOrgnr } from '../engine/orgnr.ts';
+import { compactOrgnr, isValidOrgnr } from '../engine/orgnr.ts';
 import type { SizeBand } from '../engine/peers.ts';
 
 const PATH_PREFIX = '/analyse/';
@@ -94,10 +94,6 @@ export function defaultState(orgnr: string): AnalysisState {
   return { orgnr, fane: null, ekskl: [], band: DEFAULT_BAND, andel: DEFAULT_ANDEL, multippel: null };
 }
 
-function stripSpaces(text: string): string {
-  return text.replace(/\s/g, '');
-}
-
 function decodeSegment(segment: string): string {
   try {
     return decodeURIComponent(segment);
@@ -160,7 +156,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
   if (segments.length > 2) return { kind: 'not-analysis' };
 
   const input = decodeSegment(segments[0] ?? '');
-  const orgnr = stripSpaces(input);
+  const orgnr = compactOrgnr(input);
   if (!/^\d{9}$/.test(orgnr)) return { kind: 'invalid-orgnr', reason: 'length', input };
   if (!isValidOrgnr(orgnr)) return { kind: 'invalid-orgnr', reason: 'checksum', input };
 
@@ -203,7 +199,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
   if (eksklText !== null) {
     // Split, strip, de-duplicate, drop what is not a candidate, sort, then
     // cap — so a rejected item never takes one of the 20 places.
-    const items = new Set(eksklText.split(',').map(stripSpaces).filter((item) => item !== ''));
+    const items = new Set(eksklText.split(',').map(compactOrgnr).filter((item) => item !== ''));
     const kept: string[] = [];
     for (const item of items) {
       if (isValidOrgnr(item) && item !== orgnr && context.isCandidate(item, band)) {

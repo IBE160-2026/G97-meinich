@@ -31,7 +31,7 @@ import {
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
-import { parseOre } from '../engine/inputs.ts';
+import { API_KEY_FIGURE_COLUMNS, apiKeyFigures, parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
 import type { CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
@@ -62,10 +62,14 @@ interface SubjectRowFields extends SubjectKeyFigures, FingerprintColumns {
   filing_read_at: Date | null;
 }
 
+// The key-figure columns both reads select: the seven the engine's API
+// inputs read (API_KEY_FIGURE_COLUMNS in src/engine/inputs.ts), from the
+// join aliased `k`. `bigint` arrives as a string.
+const KEY_FIGURE_SELECT = API_KEY_FIGURE_COLUMNS.map((column) => `k.${column}`).join(',\n       ');
+
 // The newest SELSKAP filing by filing_year (then by period end, should two
 // periods end in one year, then by period start and the register's id, so
-// the choice is deterministic). The key-figure columns are the seven the engine's
-// API inputs read (src/engine/inputs.ts); `bigint` arrives as a string.
+// the choice is deterministic), with KEY_FIGURE_SELECT.
 export const SUBJECT_SQL = `
 select c.orgnr,
        c.navn,
@@ -84,13 +88,7 @@ select c.orgnr,
        f.smaa_foretak,
        f.avviklingsregnskap,
        f.read_at as filing_read_at,
-       k.sum_driftsinntekter_ore,
-       k.driftsresultat_ore,
-       k.sum_driftskostnad_ore,
-       k.sum_eiendeler_ore,
-       k.sum_egenkapital_gjeld_ore,
-       k.sum_egenkapital_ore,
-       k.sum_gjeld_ore,
+       ${KEY_FIGURE_SELECT},
        fp.cost_of_goods_lo,
        fp.cost_of_goods_hi,
        fp.personnel_cost_lo,
@@ -136,15 +134,7 @@ export function toSubject(row: SubjectRow): Subject {
           fingerprint: fingerprintFromColumns(row),
           classification: businessTypeFromColumn(row.classification),
           documentBasis: documentBasisOf(row, row.filing_year),
-          keyFigures: {
-            sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
-            driftsresultat_ore: row.driftsresultat_ore,
-            sum_driftskostnad_ore: row.sum_driftskostnad_ore,
-            sum_eiendeler_ore: row.sum_eiendeler_ore,
-            sum_egenkapital_gjeld_ore: row.sum_egenkapital_gjeld_ore,
-            sum_egenkapital_ore: row.sum_egenkapital_ore,
-            sum_gjeld_ore: row.sum_gjeld_ore,
-          },
+          keyFigures: apiKeyFigures(row),
         };
   return {
     orgnr: row.orgnr,
@@ -207,7 +197,7 @@ export type Candidate = CandidateFiling & {
 
 export type CandidateRow = CandidateRowFields & DocumentBasisColumns;
 
-interface CandidateRowFields extends FingerprintColumns {
+interface CandidateRowFields extends FingerprintColumns, ApiKeyFiguresRow {
   classification: string | null;
   orgnr: string;
   navn: string | null;
@@ -222,20 +212,13 @@ interface CandidateRowFields extends FingerprintColumns {
   regnskapsregler: string | null;
   smaa_foretak: boolean | null;
   avviklingsregnskap: boolean | null;
-  sum_driftsinntekter_ore: string | null;
-  driftsresultat_ore: string | null;
-  sum_driftskostnad_ore: string | null;
-  sum_eiendeler_ore: string | null;
-  sum_egenkapital_gjeld_ore: string | null;
-  sum_egenkapital_ore: string | null;
-  sum_gjeld_ore: string | null;
 }
 
 // Every filing in the benchmark year ($3) of every company with the
 // subject's primary industry ($2), other than the subject ($1). The engine
 // picks each company's benchmark filing and runs stages 1–3; the band is
 // applied there, so one read serves every band. The key-figure columns are
-// the seven the engine's API inputs read, as in SUBJECT_SQL.
+// KEY_FIGURE_SELECT, as in SUBJECT_SQL.
 export const CANDIDATES_SQL = `
 select c.orgnr,
        c.navn,
@@ -250,13 +233,7 @@ select c.orgnr,
        f.regnskapsregler,
        f.smaa_foretak,
        f.avviklingsregnskap,
-       k.sum_driftsinntekter_ore,
-       k.driftsresultat_ore,
-       k.sum_driftskostnad_ore,
-       k.sum_eiendeler_ore,
-       k.sum_egenkapital_gjeld_ore,
-       k.sum_egenkapital_ore,
-       k.sum_gjeld_ore,
+       ${KEY_FIGURE_SELECT},
        fp.cost_of_goods_lo,
        fp.cost_of_goods_hi,
        fp.personnel_cost_lo,
@@ -298,15 +275,7 @@ export function toCandidate(row: CandidateRow): Candidate {
     fingerprint: fingerprintFromColumns(row),
     classification: businessTypeFromColumn(row.classification),
     documentBasis: documentBasisOf(row, row.filing_year),
-    keyFigures: {
-      sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
-      driftsresultat_ore: row.driftsresultat_ore,
-      sum_driftskostnad_ore: row.sum_driftskostnad_ore,
-      sum_eiendeler_ore: row.sum_eiendeler_ore,
-      sum_egenkapital_gjeld_ore: row.sum_egenkapital_gjeld_ore,
-      sum_egenkapital_ore: row.sum_egenkapital_ore,
-      sum_gjeld_ore: row.sum_gjeld_ore,
-    },
+    keyFigures: apiKeyFigures(row),
   };
 }
 

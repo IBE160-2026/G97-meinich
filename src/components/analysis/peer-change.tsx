@@ -21,6 +21,10 @@
 //   - which band "Vis alle" is open at (Story 2.7 triage row 14): open
 //     across exclude and restore, closed by a band change.
 //
+// Story 2.10: an exclude is refused at MAX_EKSKL exclusions
+// (exclusionCapReached): the second guard after the aria-disabled button,
+// and the only one for a press made while the 20th is in flight.
+//
 // A query-only change keeps the page's elements (checked in a browser: the
 // pressed button is the same element after the commit), so focus normally
 // stays where it was. After the commit the provider still puts focus on
@@ -36,7 +40,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { PANEL_HEADING_ID, PATH_CONTEXT } from '@/analysis/view';
 import { t } from '@/messages';
 import { StateBlock } from './state-block';
-import { announcement, nextState, type PeerChange, type PeerCommit } from '@/analysis/peer-change';
+import { announcement, exclusionCapReached, nextState, type PeerChange, type PeerCommit } from '@/analysis/peer-change';
 import { parse, serialize, type Band } from '@/url/analysis-state';
 
 export type { PeerChange, PeerCommit };
@@ -98,6 +102,12 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
       const baseHref = inFlight.current?.href ?? lastGood.current ?? `${window.location.pathname}${window.location.search}`;
       const base = parse(baseHref, PATH_CONTEXT);
       if (base.kind !== 'analysis') return;
+      // At the cap the aria-disabled button does not call this; if anything
+      // does, it ends here: no push, so no 21st exclusion and no
+      // invalid-settings notice. Built on
+      // the change in flight, this also refuses a second press while the
+      // 20th is pending, before any page has rendered the cap.
+      if (requested.kind === 'exclude' && exclusionCapReached(base.state)) return;
       const href = serialize(nextState(base.state, requested));
       if (href === baseHref) return;
       inFlight.current = { change: requested, href };

@@ -6,6 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
 // - port 3101 with READER_DATABASE_URL pointing at a closed port, for
 //   e2e/db-down.spec.ts: the front page and the analysis answer 500 with the
 //   lookup-error state, and the search endpoint 500 {}.
+//
+// e2e/failed-subject.spec.ts (Story 2.9) commits a synthetic company to the
+// local database for its own run and removes it after (e2e/synthetic.ts).
+// It is a project of its own that depends on the other two, so it runs
+// last and no other spec sees the company.
 const port = 3100;
 const dbDownPort = 3101;
 // Port 1 on the loopback interface: nothing listens, so every read is refused.
@@ -22,13 +27,19 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: /db-down\.spec\.ts/,
+      testIgnore: [/db-down\.spec\.ts/, /failed-subject\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
     },
     {
       name: 'db-down',
       testMatch: /db-down\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${dbDownPort}` },
+    },
+    {
+      name: 'synthetic',
+      testMatch: /failed-subject\.spec\.ts/,
+      dependencies: ['chromium', 'db-down'],
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
     },
   ],
   webServer: [

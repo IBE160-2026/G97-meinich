@@ -1079,6 +1079,12 @@ The container paused while the machine slept and resumed on wake. The BMAD sessi
 Fra meg: ikke start watcheren igjen. Jeg sier fra når containeren er ferdig. fullfør resterende
 ```
 
+**16:43**, sent while the BMAD session was working.
+```
+vi må vel laste inn alle selskpaer først?
+```
+*Changed:* nothing to load: the BMAD session answered that the local database already held the register load from the committed seed, checked that every orgnr in `seed/document-run.json` was a stored company in a covered industry, and added to the README that the dump restores only onto the same seed (`9a662c1`).
+
 **16:46**: the session file credited every decision to the human and never mentioned the review session, the error retro finding L5 describes.
 ```
 Fra meg: før push, rett krediteringen i session-fila (AGENTS.md: "When a
@@ -1918,19 +1924,19 @@ A Claude Desktop session on 2026-11-04 reviewed the PRD against what Epics 1–2
 
 ### Prompts to the review session
 
-**2026-11-05 19:40**
+**2026-11-05 18:40**
 ```
 Kan du se på denne fra chat med claude i desktop - er lagt til filer for endringer som gjelder prd og konkurrenter:
 ```
 The review session found that the 12 patches applied without conflict, changed no code, and held no secret or demo orgnr. Every commit hash differed from the instructions, so it did not push. The instructions said not to push if the hashes did not match.
 
-**19:43**
+**18:43**
 ```
 ja gjør det du anbefaler
 ```
-The series landed on `main` from `21ae99e` to `165e1cf`, and was pushed with the 2.5 session log (`f9249a6`). The new hashes still differ, for a cause the review session did not find. `4e1b9d7` adds a table from the old hashes to the new ones, because the documents cite the old ones. The series brought the AGENTS.md rule "A decision travels upstream in the PR that makes it", so the review session drafted the prompt that merged `main` into the 2.5b branch (below, 19:51).
+The series landed on `main` from `21ae99e` to `165e1cf`, and was pushed with the 2.5 session log (`f9249a6`). The new hashes still differ, for a cause the review session did not find. `4e1b9d7` adds a table from the old hashes to the new ones, because the documents cite the old ones. The series brought the AGENTS.md rule "A decision travels upstream in the PR that makes it", so the review session drafted the prompt that merged `main` into the 2.5b branch (below, 18:51).
 
-`hvordan blir dette bli ferdig med 2.6 først - også merges de?` (19:46): the review session explained that 2.5b is finished and merged first, and 2.6 starts from `main` after that.
+`hvordan blir dette bli ferdig med 2.6 først - også merges de?` (18:46): the review session explained that 2.5b is finished and merged first, and 2.6 starts from `main` after that.
 
 *Open:* the four new open questions in PRD §11 (21–24) are not GitHub issues yet.
 
@@ -1942,7 +1948,7 @@ Every `Fra meg:` prompt and menu answer below was drafted by the review session 
 
 ### Prompts to the BMAD session
 
-**2026-11-01 21:41**
+**2026-11-01 20:41**
 ```
 /bmad-build Story 2.5b: les kostnadslinjene og delene av immaterielle
 eiendeler (deferred-work.md, de to postene fra Story 2.5). Opprett
@@ -1955,13 +1961,13 @@ fingeravtrykk-resultater for orgnr i fasitsettet. Omlesing og
 dokumentkjøringen for fasitsettet starter bare etter eget ja fra meg.
 ```
 
-**21:52**: four questions in the menu. The human chose the recommended option in each:
+**20:52**: four questions in the menu. The human chose the recommended option in each:
 - "All four lines", meaning every printed part of intangible assets becomes a field;
 - "You transcribe them": the human transcribes the parts in the reference set;
 - "Decide after probe" for a cost-line sum gate;
 - "No, after merge" for the labelled set's document run.
 
-**21:53**
+**20:53**
 ```
 Fra meg: approve and continue, med tre endringer. Skriv dem inn i spec-en
 før du starter:
@@ -1988,7 +1994,7 @@ før du starter:
 - **The seed steps were reordered.** The spec would have run `seed:export` while the 2.1b rows were in the database, and the export refuses them.
 - **The watchdog came into the story.** The 2.3b re-read had hung on a fetch.
 
-**2026-11-05 19:51**: after the PRD drift series landed on `main` (above).
+**2026-11-05 18:51**: after the PRD drift series landed on `main` (above).
 ```
 Fra meg: main er oppdatert med PRD-rettelsene (f9249a6), også AGENTS.md.
 Hent origin/main inn i story/2.5b-read-cost-lines nå, og les den nye regelen
@@ -2002,7 +2008,7 @@ er committet.
 ```
 The merge is `7174937`, and the watchdog is `6978bde`.
 
-**20:17**
+**19:17**
 ```
 Fra meg: avskriften av de fire delene er committet (8e97232). Review-sesjonen
 sjekket uten OCR-verdier at delene summerer til totalen i alle 23 kolonner.
@@ -2018,7 +2024,7 @@ The probe is `bb9d4f4` (`analysis/output/empty-lines-probe.md`). It found four c
 - note references read as letters;
 - plurals.
 
-**20:48**: the checkpoint, answered in the menu.
+**19:48**: the checkpoint, answered in the menu.
 ```
 Fra meg: godkjent F1–F3, med disse vilkårene (skriv dem i Spec Change Log):
 F3: et tall fra sifferpasset slippes bare inn når alle operandene i
@@ -2047,9 +2053,9 @@ In the same menu, the human chose "Som 0, bare i sperren" for a line that was ne
 
 The regression check that every old match still holds became part of F1. That check is the 1 486 matches, all unchanged. The fixes are `281f134`, `8c85ca8` and `bd94b80`.
 
-**21:06**: a follow-up question, answered "Uten rad regnes som 0". The review session's reasoning was that a missing line counted as 0 can never make a wrong figure pass: the sum then does not add up, and nothing is admitted. A row that matched but could not be read leaves the gate not evaluable.
+**20:06**: a follow-up question, answered "Uten rad regnes som 0". The review session's reasoning was that a missing line counted as 0 can never make a wrong figure pass: the sum then does not add up, and nothing is admitted. A row that matched but could not be read leaves the gate not evaluable.
 
-**21:41**: two questions in the menu. "Utvikling" as a variant of research and development was kept ("Ja, behold"). For a blank printed row:
+**20:41**: two questions in the menu. "Utvikling" as a variant of research and development was kept ("Ja, behold"). For a blank printed row:
 ```
 1, som 0 i sperren, med to tillegg: (a) en test med 994176021/2021-tilfellet
 som viser at sperren ikke slipper inn noe når en trykt linje mangler,
@@ -2058,7 +2064,7 @@ og hvor mange av dem som bygde på en blank rad regnet som 0, som samletall.
 ```
 *Changed:* the gate's report counts what it admitted and how many of those rested on an operand counted as 0 (`1514ef5`, `scripts/sum-gates.ts`).
 
-**21:45**
+**20:45**
 ```
 Fra meg: begge avskriftscellene er sjekket mot PDF-en, ikke blindt, fordi
 proben hadde vist OCR-verdien. Avskriften stemmer i begge, og ingenting
@@ -2075,7 +2081,7 @@ Omlesingen starter først etter ja fra meg.
 ```
 The check is `3d32823`.
 
-**21:57**: the BMAD session's review found that an abandoned fetch keeps running. If the network hung, every remaining document would wait 600 s, about 330 hours in all.
+**20:57**: the BMAD session's review found that an abandoned fetch keeps running. If the network hung, every remaining document would wait 600 s, about 330 hours in all.
 ```
 1, stopp etter 3 utløpte hentinger på rad, med tre presiseringer:
 (a) En forlatt henting skal aldri føre til en skriving. Resultatet kastes
@@ -2089,7 +2095,7 @@ en henting lykkes. En ny kjøring fortsetter der den slapp.
 ```
 The stop is `89f45f7` and `19b541b`, with a test for each of (a) to (c).
 
-**22:13**
+**21:13**
 ```
 Fra meg: ja til C2, med to endringer:
 0. Først: supabase migration up (ingen reset). De fire nye kolonnene
@@ -2107,7 +2113,7 @@ slapp inn), før noe slettes i steg 4. Ingen push før jeg sier fra.
 
 *Changed:* the BMAD session had read "about 40 hours" as the re-read alone. That figure was the review session's, for the re-read and the labelled-set run together. The measured estimate was 20–23 hours; the 2.1b re-read took 11 h 44 min.
 
-**22:46**
+**21:46**
 ```
 Fra meg: (a). Jeg kjører keep-awake og omlesingen av 2.1b-radene i mine
 egne PowerShell-vinduer. Omlesingen venter til referansesettet er ferdig,
@@ -2118,19 +2124,19 @@ viser meg tallene fra steg 2 før noe slettes.
 ```
 Claude Code had stopped the BMAD session's three background commands because the machine was low on memory. The human ran the re-read in their own windows from then on.
 
-**2026-11-06 10:55**: the review session's check of the finished re-read found the misread.
+**2026-11-06 09:55**: the review session's check of the finished re-read found the misread.
 ```
 Fra meg: Kjøringen er ferdig, og review-sesjonen har sjekket den mot databasen og .local/document-run-2.4/. 1 947 dokumenter er erstattet, ingen tall er tapt eller endret, og 2 941 tall er lagt til. Ett funn som skal med i rapporten og PR-en: av 1 291 kolonner der avskrivninger er nytt og alle kostnadslinjene finnes, summerer 48 ikke til sum_driftskostnad innenfor 5 kr. 36 kolonner i 25 selskaper overstiger totalen (negative_unexplained gikk fra 21 til 35), og 10 av dem i 8 selskaper ligger nøyaktig 21 000 000 kr over, med avskrivninger lest som omtrent 23 mill. Undersøk ett av de åtte selskapene lokalt i PDF-en og si hvorfor: hvilken linje og hvilket siffer. Ikke endre noe i ingest/ nå, for det krever en ny omlesing. Legg rettingen inn i deferred-work.md med tallene, totaler uten orgnr. Vis meg så punkt 3 og 4, med sperrenes tall. Før steg 4: ta en ny dump av dokumenttabellene etter omlesingen til .local/ og en kopi til peerless-backups, og sjekk sha256. Den erstatter .local/document-run-2.4/ som kilde for gjenoppretting. Oppdater README «Seed» til det. Stopp og vis meg sha256 og radtallene (2 044 dokumenter, 4 086 kolonner) før du sletter noe.
 ```
 *Found:* in one PDF, the BMAD session showed that Tesseract reads the leading "2" of a seven-digit depreciation figure as "23" in both passes. That is 21 000 000 kr too much. The column still reconciles, because no check within a document sums the cost lines. Before 2.5b this line was never matched. The BMAD session's count was 7 companies, not 8: the review session had used a looser bound. It also found something more important: all 17 current columns under the total have a fingerprint. The entry is `3d1a03d`, and the new restore source is `.local/document-run-2.5b/` (`970d572`).
 
-**11:04**
+**10:04**
 ```
 Fra meg: ja til steg 4–9. Review-sesjonen har sjekket dumpene (sha256 er lik i peerless-backups, og ingen rader i document-run-2.5b/ er på allow-listen) og at document_column i dumpen er identisk med databasen. Kjør slettingen i én kontrollert transaksjon, deretter derive, seed:export i en egen commit, pnpm seed to ganger med uendret re-eksport, gjenoppretting fra .local/document-run-2.5b/, og derive til slutt. Bekreft etter gjenopprettingen: 1 947 + 97 dokumenter, 3 892 + 194 kolonner, og 1 865 fingeravtrykk som er like dem i document-tables-after-2.5b-reread/fingerprint.csv (sammenlign input_digest). Skriv rapporten og PR-utkastet, og ta med: 21-millionersfunnet med lenke til 3d1a03d, de 17 innværende kolonnene under totalen som har fått fingeravtrykk, og linjen «Planning documents:». Stopp før push og vis meg utkastet.
 ```
 The seed is `9b82409`. `test/db/seed.test.ts` hard-coded 85 seed fingerprints, but the re-read makes 86 (`27a9743`).
 
-**11:14**: the BMAD session pointed out that AGENTS.md wants deferred v1 work that no story owns to be a story in `epics.md`, not only an entry in `deferred-work.md`.
+**10:14**: the BMAD session pointed out that AGENTS.md wants deferred v1 work that no story owns to be a story in `epics.md`, not only an entry in `deferred-work.md`.
 ```
 Fra meg: Story 2.5c i epics.md, ordnet etter 2.5b og før dokumentkjøringen for fasitsettet. Omfang: (1) nekt et siffertoken som er smalere enn antall sifre tilsier (3d1a03d); (2) finn årsaken til de 17 innværende kolonnene som summerer under totalen; (3) vurder en regel i src/engine: når alle kostnadslinjene er lest og ikke summerer til sum_driftskostnad innenfor 5 kr, brukes ikke kolonnen til fingeravtrykk, og grunnen registreres. Denne regelen krever ingen omlesing. Rett «Planning documents:» i PR-utkastet så den nevner 2.5c, og pek oppføringen i deferred-work.md til storyen. Commit det, og push deretter branchen og opprett PR-en. Gi meg lenken, og si fra når CI er grønn.
 ```
@@ -2141,9 +2147,9 @@ Fra meg: Story 2.5c i epics.md, ordnet etter 2.5b og før dokumentkjøringen for
 - `tenkte ikke at jeg trengte labels.csv før story 5.1?` (11-01): the review session confirmed that the 720 remaining pairs are needed only before Story 5.2.
 - `hva skal jeg nå da , på 2.5 er det csv` and `hvilke rader skal vi fylle ut` (11-05): the review session listed the 23 columns to transcribe and the rules: empty when a line is not printed, `0` when 0 is printed.
 - `Ser du hva som er lagret nå? Har lagt inn for alle - markert i grønt er fordi det ikke står 0 - er tom`, `Står faktisk immatrielle eiendeler og 0 her` and `Ja gjør det nå` (11-05): the review session checked that the parts summed to the total in all 23 columns, with 0 kr off. It reverted Excel's rewrite of every `transcribed_on` date, and committed the transcription as `8e97232`.
-- `står dette på den første:` and `Dette på den andre:` (11-05, with screenshots of the two PDFs): the review session confirmed both transcribed cells against the screenshots and drafted the 21:45 prompt.
+- `står dette på den første:` and `Dette på den andre:` (11-05, with screenshots of the two PDFs): the review session confirmed both transcribed cells against the screenshots and drafted the 20:45 prompt.
 - `kan jeg få det til powershell slik at maskinen ikke sovner` (11-05): the review session gave a keep-awake command for the human's own window, which ends when no ingest container is running.
-- `sjekk` (11-06, four times): the review session followed the re-read from the log and the database. It compared every column with the dump taken before the re-read, which found the overshoot and drafted the 10:55 prompt.
+- `sjekk` (11-06, four times): the review session followed the re-read from the log and the database. It compared every column with the dump taken before the re-read, which found the overshoot and drafted the 09:55 prompt.
 
 ### Result
 
@@ -2167,7 +2173,7 @@ Every `Fra meg:` prompt below was drafted by the review session and pasted by th
 
 ### Prompts to the BMAD session
 
-**2026-11-06 11:43**
+**2026-11-06 10:43**
 ```
 /bmad-build Story 2.5c: nekt et siffer lest som to, og kostnadslinjer som ikke summerer (epics.md, Story 2.5c, punkt 1–4). Hent main først (f80febf). Opprett issuet og branchen.
 Start med en probe, read-only, før noe rettes:
@@ -2181,7 +2187,7 @@ Små commits underveis. PR-en skal ha linjen «Planning documents:».
 ```
 *Changed:* the probe came first, read-only, and the digit-width rule was measured on stored words before it was built (`e6c1cde`). The issue is #47.
 
-**12:08**
+**11:08**
 ```
 Fra meg: fortsett proben, med ett tillegg til (c). Review-sesjonen finner 55 avstemte innværende kolonner i 44 selskaper der salgsinntekt ligger mer enn 5 kr over sum_driftsinntekter, ikke bare de 13 med forhold ≥ 1,4. Noen av avvikene er runde på mindre skala (5 000 000, 300 000, 10 000). Vis i sjekkpunktet, som totaler:
 1. hvor mange av de 55 som er siffer-lest-som-to (runde avvik i alle størrelser), hvor mange som er andre lesefeil, og hvor mange som er ekte (for eksempel negativ annen driftsinntekt), med bevis fra et utvalg;
@@ -2191,19 +2197,19 @@ Ingen kodeendring før sjekkpunktet.
 ```
 *Changed:* the review session had found 55 reconciled current columns with `salgsinntekt` above `sum_driftsinntekter`, not only the 13 the probe first counted. The probe then measured that 40 of 56 current cases are genuine (a negative revenue row), which is why R3 does not guard `salgsinntekt`.
 
-**12:13**
+**11:13**
 ```
 Fra meg: fint. Ta med i sjekkpunktet om forrige års kolonne når motoren i dag (documentFigures og fingeravtrykket), slik at det er klart om de 123 i forrige års kolonne betyr noe nå eller bare ved en senere bruk.
 ```
 *Changed:* the BMAD session confirmed that the prior column does not reach the engine (`scripts/derive.ts` reads `role = 'current'`), so the 123 prior-column cases matter only for a later use.
 
-**14:08**: the human's own words, not drafted by the review session.
+**13:08**: the human's own words, not drafted by the review session.
 ```
 er den ikke ferdig nå?
 ```
 *Changed:* none; the probe was still running.
 
-**14:19**: the answers to the four decisions at the probe checkpoint.
+**13:19**: the answers to the four decisions at the probe checkpoint.
 ```
 Fra meg: 1 k = 0,6 med «1» som et helt siffer, 2 ja, 3 ja til begge, 4 ja. Skriv beslutningene og målingene inn i spec-en.
 1: begrunnelsen er tallene fra proben: 0 riktige tall tapt i referansesettet, de 7 kolonnene på nøyaktig 21 mill. fanget, og 10 av 11 og 37 av 45 bekreftede salgsinntektsfeil, mot 3 og 3 med k = 0,5. Et nektet token gir et tomt felt, aldri en reparasjon. Testene skal bruke «23 375 956» og «123»-tilfellene fra proben, og et riktig tall med mange «1»-ere som ikke nektes.
@@ -2214,25 +2220,25 @@ Omlesingen venter på eget ja. Mål tiden, og bruk samme ni steg som i 2.5b.
 ```
 *Changed:* R1 to R4 were written into the spec as decided (`e8f97b3`). Item 4, `varer` read from the income statement, came from the review session: 18 current columns had a negative `varer`, and the 10 with a fingerprint all had `inventory = false`.
 
-**14:23**: the answer to the BMAD session's question whether R2 needs (a) the four main lines read, or (b) every line.
+**13:23**: the answer to the BMAD session's question whether R2 needs (a) the four main lines read, or (b) every line.
 ```
 Fra meg: (a). Skriv i spec-en at R2 bare gjelder når de fire hovedlinjene er lest, og at en kolonne uten varekostnad eller en annen hovedlinje følger intervallregelen som i dag. Ta med kostnaden fra proben: én trykt nedskrivning som ikke ble lest (1 649 988 kr) mister fingeravtrykket. Tell i rapporten etter omlesingen hvor mange kolonner cost_lines_short_of_total gjelder, og hvor mange av dem som har nedskrivninger NULL. Begge valgene dine er godkjent. Behold spec-en samlet. Sett den til ready-for-dev og fortsett med kode og tester i små commits. Omlesingen venter på eget ja.
 ```
 *Changed:* R2 applies only when the four main lines are read (`58c5b71`). The cost of one printed `nedskrivninger` that was not read is in the spec.
 
-**15:10**: the answers to the two findings of review pass 1 that the BMAD session put to the human (triage 1 and 19).
+**14:10**: the answers to the two findings of review pass 1 that the BMAD session put to the human (triage 1 and 19).
 ```
 Fra meg: 1: mål det først. Kjør R1 med minustegnet regnet som et tegn på de lagrede ordene i hurtigbufferen, uten OCR, og vis meg hvor mange tall som nektes og hvor mange riktige tall referansesettet mister. Er det 0 tapte riktige tall, tas endringen inn med en test for «-23»-tilfellet, og beslutningen skrives i Spec Change Log. Ellers står hullet som en kjent begrensning i AI-loggen. 2: ja. R3 skal bruke regelen for sammenligning mellom kilder, max(5 kr, 0,001 % av API-tallet), som AGENTS.md krever. Legg verdien ett sted i src/engine, med en test som feiler hvis den avviker fra [reconciliation] i ingest/config.toml. Skriv det i Spec Change Log. Finn årsaken til tidsavbruddene i test:db før PR-en, ikke bare kjør på nytt. Omlesingen venter fortsatt på eget ja.
 ```
 *Changed:* the minus was measured first, with 0 correct figures lost, and then taken in (`b57aaba`). R3 uses the between-sources rule, set once and tested against `ingest/config.toml` (`e9ce2ae`). The `test:db` timeouts were traced to a loader transaction left open after a deliberate foreign-key error, and deferred (`a7465b5`).
 
-**15:25**
+**14:25**
 ```
 Fra meg: ja til omlesingen med de ni stegene fra 2.5b. Ta steg 1 (dump og backup, sjekk sha256) nå og si fra når den er ferdig. Omlesingen kjører jeg selv i mine egne PowerShell-vinduer: først referansesettet, så 2.1b-radene, med logg til .local\reread-ref-2.5c.log og .local\reread-2.1b-2.5c.log. Ikke start noe selv. Når jeg sier at kjøringen er ferdig, sjekker du run.step1 for begge kjøringene, at alle dokumenter har ny reader_commit, og at pnpm derive har kjørt. Vis meg tallene fra steg 2 og tiden kjøringen tok, før noe slettes i steg 4. Ingen push før jeg sier fra.
 ```
 *Changed:* the human ran the re-read in their own windows. The review session had recommended a full re-read that night instead of only the reference set: the labelled set's run comes later, and a combined run would have taken about 20 hours.
 
-**2026-11-07 11:06**
+**2026-11-07 10:06**
 ```
 Fra meg: omlesingen er ferdig, og review-sesjonen har sjekket den mot .local/document-tables-before-2.5c-reread/. Run 782 og 783 endte med 0 ikke erstattet og 0 feil, og alle 2 044 dokumenter har reader_commit b57aaba. Ingen kolonne har gått fra avstemt til ikke avstemt. 139 tall ble tomme: 130 større enn sin egen total, 6 nøyaktig 21 mill. over kostnadstotalen, og resten varer fra resultatregnskapet. Det eneste tallet som kan ha vært riktig, ligger i en fjorårskolonne. Ingen andre tall er endret enn varer. Ett funn til PR-en: i ett selskap-år er beholdning nå ukjent fordi R4 ikke fant varer på balansen, mens neste års regnskap har 3,6 mill. kr som fjorårstall. Det er et tomt felt, ikke et galt tall; noter det i SM-2-rapporten og sesjonsfilen som totaler, uten orgnr.
 
@@ -2243,13 +2249,13 @@ Gjør i denne rekkefølgen:
 ```
 *Changed:* the local OCR word cache was proposed by the review session after three re-reads of about 12 hours each; it is Story 2.5d (`6ee327b`). The BMAD session added the Tesseract options of both passes to the cache key, and the human kept it. The seed is `29bf5fc`, and the restore source is now `.local/document-run-2.5c/` (`46ae913`).
 
-**11:23**
+**10:23**
 ```
 Fra meg: review-sesjonen har sjekket steg 3–9, og alt stemmer, med ett unntak. 29bf5fc sier «three figures in the reference set's prior-year columns (salgsinntekt, varekostnad, sum_kortsiktig_gjeld); no current column changed». Diffen viser salgsinntekt i en fjorårskolonne (avstemt), varekostnad i en fjorårskolonne (ikke avstemt) og leverandorgjeld i en nåårskolonne (avstemt). Alle tre er større enn sin egen total, og leverandorgjeld er ikke med i fingeravtrykket. Rett dette i spec-en (C2-avsnittet, steg 6) og i sesjonsfilen, krediter funnet til review-sesjonen, og skriv i PR-teksten at commit-meldingen til 29bf5fc er feil på dette punktet og ikke skrives om. Tesseract-innstillingene i nøkkelen til 2.5d beholdes. e2e: ikke kjør en ny seed-runde, la CI avgjøre det, og skriv årsaken du mener ligger bak i PR-en som en antakelse som CI skal bekrefte. Commit rettingen for seg, push og åpne PR-en mot main.
 ```
 *Changed:* the review session found that `29bf5fc`'s message names the wrong fields and says no current column changed. The BMAD session had split the CSV lines on commas, which shifts the fields after a quoted `digits_pass_fields`. The spec and the session file were corrected (`40e8bf4`), and the commit message was not rewritten. PR #48 was opened.
 
-**11:35**
+**10:35**
 ```
 Fra meg: reviewen min er postet på PR #48, med seks linjekommentarer på 5f3d91e. Før merge:
 1. Rett PR-teksten. (a) R4-linjen: «emptied or changed in 22 current and 17 prior columns» er feil. Skriv det slik document-run-counts-after-2.5c.json har det: endret 22 og 17, tømt 15 og 14, nylest 4 og 7. (b) Fingeravtrykkene: skriv at 1 757 er de gamle tallene regnet med denne storyens motor, og at tabellen faktisk hadde 1 779 for 2.1b-radene før storyen, så det lagrede tallet gikk fra 1 779 til 1 770. Legg samme presisering i ocr-sm2.md ved raden «1757 of 1946».
@@ -2261,8 +2267,8 @@ Commit i logiske steg, push, og si fra når CI har kjørt på nytt. Ikke merge.
 
 ### Prompts to the review session
 
-- `hva anbefaler du`, `gjerne` and `vil starte` (11-06): the review session recommended that PRD open question 21 go into Story 2.5c and that question 24 become a precondition of Story 2.7 (`f80febf`), and drafted the 11:43 prompt.
-- Five pastes of the BMAD session's output during the probe and the build (11-06): the review session checked them against the database and the probe's JSON, and drafted the 12:08, 12:13, 14:19, 14:23 and 15:10 prompts. For R1 it recommended k = 0,6 with "1" counted as a full digit, because the probe showed 0 correct reference figures lost.
+- `hva anbefaler du`, `gjerne` and `vil starte` (11-06): the review session recommended that PRD open question 21 go into Story 2.5c and that question 24 become a precondition of Story 2.7 (`f80febf`), and drafted the 10:43 prompt.
+- Five pastes of the BMAD session's output during the probe and the build (11-06): the review session checked them against the database and the probe's JSON, and drafted the 11:08, 11:13, 13:19, 13:23 and 14:10 prompts. For R1 it recommended k = 0,6 with "1" counted as a full digit, because the probe showed 0 correct reference figures lost.
 - `okei så får vi nå igjen en ny lang kjøring?`, `okei, men må alt lastes inn på nytt? for noen småfeil i noen tall=` and `Ja tenker du at dette er det beste eller burde vi ha en lang kjøring nå?` (11-06): the review session explained why R1 and R4 need a re-read while R2 and R3 do not, and recommended the full re-read that night.
 - `Vindu 1 ; og vindu 2:` (11-06, with screenshots): the review session confirmed that the re-read and the keep-awake command were running.
 - `er det slik at man må gjennom denne prosessen på nytt igjen kanskje etter denne lange kjøringen også?`, `okei, og ved gjennomgang synes du dette er en god idee=`, `okei, skal jeg skrive til bmad nå?`, `Okei, men burde jeg vente med denne etter kjøringen da eller=` and `okei, men hvis det er likt er ikke det dumt?` (11-06): the review session proposed the local OCR word cache, with its conditions, and advised sending it after the re-read, so the BMAD session would not touch the branch while the run used it.
@@ -2287,11 +2293,11 @@ CI was green on `5f3d91e`, with 116 of 116 e2e tests, which confirmed why 7 fail
 
 ## Story 2.5d: the labelled set's document run, with a local OCR word cache (#49, PR #50)
 
-Every `Fra meg:` prompt below, and the 12:04 prompt, was drafted by the review session and pasted by the human, who made the decisions in it. Results for the labelled set are given as totals only: its 720 pairs are not labelled yet.
+Every `Fra meg:` prompt below, and the 11:04 prompt, was drafted by the review session and pasted by the human, who made the decisions in it. Results for the labelled set are given as totals only: its 720 pairs are not labelled yet.
 
 ### Prompts to the BMAD session
 
-**2026-11-07 12:04**
+**2026-11-07 11:04**
 ```
 /bmad-build Story 2.5d: dokumentkjøringen for fasitsettet, med en lokal hurtigbuffer for OCR-ordene (epics.md, Story 2.5d, punkt 1–3). Hent main først (dc4f737). Opprett issuet og branchen.
 
@@ -2307,7 +2313,7 @@ D1 er låst: ingen endring i terskler eller typeregel. Vis ingen fingeravtrykk-r
 ```
 *Changed:* the probe came first, read-only (`6a222e5`), and the BMAD session stopped at the checkpoint. The probe showed that every rule that would bring a figure back brings back a wrong one. The issue is #49.
 
-**12:27**: the answers to the four decisions at the checkpoint.
+**11:27**: the answers to the four decisions at the checkpoint.
 ```
 Fra meg: 1 ingen retting; proben viser at hver regel som henter tilbake et tall, henter tilbake et galt tall. Skriv det i spec-en.
 2 (a), med én kontroll lagt til før fasitsettet: etter at hurtigbufferen er bygget, kjører jeg --reread av referansesettet to ganger, først med OCR (fyller hurtigbufferen), så fra hurtigbufferen. Begge skal gi nøyaktig de samme tallene, status og kontrollene som seeden har nå, og den andre skal ha bare treff. Tell treff og bom, og skriv resultatet i spec-en og PR-en. Det beviser på ekte data at hurtigbufferkoden ikke endrer det som leses. Avvik er en feil som stopper storyen før fasitsettet.
@@ -2317,25 +2323,25 @@ Spec-en kan beholdes samlet. De 720 parene i labels.csv er ikke merket ennå: in
 ```
 *Changed:* written into the spec (`0c57cb0`), and Story 5.1's draw merged unchanged (`7c27af8`). The control before the labelled set, the reference set read twice, was proposed by the review session.
 
-**12:40**
+**11:40**
 ```
 Fra meg: (a), --reread-all <file>. Godt fanget. Vilkår: den har nøyaktig de samme reglene som --reread for nekting av orgnr, ikke erstattet, frister, stopp etter tre frister på rad og exit-kode, og forskjellen er bare at reader_commit ikke sjekkes. Test at den leser et dokument som allerede har gjeldende reader_commit, og at --reread fortsatt hopper over det. Den skal også kjøre pnpm derive etterpå, som --reread. Linje i AGENTS.md. Skriptet som sammenligner med seeden skal også telle treff og bom fra run.step1, og bare skrive totaler. Sett spec-en til ready-for-dev og fortsett med kode og tester i små commits. Kjøringene venter på eget ja.
 ```
 *Changed:* `--reread-all` (`2db61f5`, `c460e70`). The BMAD session found that a second `--reread` at the same commit reads nothing, so the control as the review session had drafted it would have proved nothing.
 
-**14:25**: the answers to the three findings of review pass 1 that the BMAD session put to the human (triage 2, 14 and 17), and the CPU features in the key.
+**13:25**: the answers to the three findings of review pass 1 that the BMAD session put to the human (triage 2, 14 and 17), and the CPU features in the key.
 ```
 Fra meg: 1. Ja, legg til sha256 av ocr.py som en sjette del av nøkkelen, lest fra modulfila når kjøringen starter, ikke en konstant, med eget navn i tellingen når den er ulik. Test at en endret ocr.py gir bom med den delen navngitt, at en uendret gir treff, og at sletting av sjekken får en test til å feile. Oppdater spec-en (i Spec Change Log, med dato og meg som beslutningstaker), AGENTS.md og den tekniske notatet. 2. Behold ingest med skrivebeskyttet tilkobling, ingen migrasjon: reader er rollen nettsiden bruker, og skal ikke se run-skjemaet. 3. 36b6117 blir på branchen og går inn med PR-en. Si det i én linje i PR-teksten. CPU-funksjonene i nøkkelen godtar jeg, siden hurtigbufferen er lokal. Kjør hele testsuiten, så åpner du PR-en med «Planning documents:»-linjen. Kjøringene venter på mitt eget ja.
 ```
 *Changed:* `ocr_code_sha256` in the key (`ac61135`) and the decisions in the spec (`f1eb27b`). PR #50 was opened.
 
-**14:41**
+**13:41**
 ```
 Fra meg: CI er grønn. Ja til kjøringene. Ta dumpen og backupen nå med sha256, som i 2.5c, og vis meg stiene og hashene. Gi meg så kommandoene for de to kjøringene av referansesettet, med sjekken etter hver, og keep-awake-kommandoen. Jeg kjører dem selv i egne vinduer. Mens en kjøring går, rører du ikke ingest/, databasen eller Docker, og du committer ingenting som endrer ingest/, fordi det endrer reader_commit. Fasitsettet starter jeg først når begge sjekkene har gitt exit 0, og etter mitt eget ja.
 ```
 *Changed:* the dump `.local/document-tables-before-2.5d-runs/` and its backup. The human ran the first proof in their own windows: runs 1242 and 1243.
 
-**16:11**
+**15:11**
 ```
 Fra meg: Begge kjøringene av referansesettet er ferdige, og du kan røre ingest/ igjen. Resultat: run 1242 (--reread) og 1243 (--reread-all) leste 97 av 97, 0 feilet og 0 ikke erstattet, 87 avstemt og 10 ikke avstemt, og ga 0 treff og 97 bom «absent» hver. pnpm analysis:seed-documents ga exit 0 etter begge: 97 dokumenter og 194 kolonner er like seeden, og alle er lest av ac61135. --cache-proof ga exit 1 med «0 hits of 97 read» og «97 absent, must be 0». OCR ga altså samme tall tre ganger, men hurtigbufferen traff aldri.
 
@@ -2349,7 +2355,7 @@ Skriv det inn som en API-felle i docs/data-sources-brreg.md og under «Known API
 ```
 *Changed:* the review session found the defect, and the key now hashes the PDF with its `/ID` array fixed (`df34a2d`, `f8e0d1e`). The trap is in `AGENTS.md` and `docs/data-sources-brreg.md` (`951c24b`), and the failed proof is in the spec and the session file (`2f4e3f5`, `53c3fd6`).
 
-**18:09**
+**17:09**
 ```
 Fra meg: Beviset er bestått. Run 1410 (--reread, OCR) tok 38 min med 0 treff og 97 bom «absent», og pnpm analysis:seed-documents ga exit 0. Run 1411 (--reread-all) tok 2 min 30 s med 97 treff, 0 bom, 0 uten brukbar /ID og 0 skrivefeil, og --cache-proof ga exit 0. Begge leste 97, med 0 feilet, 0 ikke erstattet og 0 tapte tall, og 87 avstemt og 10 ikke avstemt. Alle 97 er lest av df34a2d. Før det inn i spec-en og PR-en som det andre, beståtte forsøket. Review-sesjonen har sjekket tellingene mot run.step1.
 
@@ -2357,7 +2363,7 @@ Ja til fasitsettet. Før jeg starter: ta en ny dump og backup med sha256 av de t
 ```
 *Changed:* the passed proof in the spec, and the dump before the labelled set (`b4b5ee7`); the counts before the run (`90175c9`). The human then ran run 1412.
 
-**23:01**
+**22:01**
 ```
 Fra meg: Fasitkjøringen er ferdig. Run 1412 (--documents) gikk fra 18:22 til 22:55. 845 listet og 0 nektet. 104 var allerede lagret for 2025. 741 ble lest, med 0 feilet, 0 OCR-feil og 0 asked_not_listed. Av de 741 ble 690 avstemt, 45 ikke avstemt og 6 ikke lest ut. Lagrede dokumenter for de samme selskapene ble avstemt på nytt: 448 avstemt og 39 ikke avstemt. Hurtigbufferen ga 741 bom «absent», 0 uten /ID og 0 skrivefeil. Alle 741 er lest av df34a2d. Dokumenter: 2 044 → 2 785. Fingeravtrykk: 1 856 → 2 537. Review-sesjonen har sjekket dette mot run.step1. Gjør resten nå:
 1. pnpm analysis:document-run after-2.5d.
@@ -2369,7 +2375,7 @@ Slett ingen dump. Kjør hele testsuiten, push, og si fra når CI er grønn. Da l
 ```
 *Changed:* the counts after the run (`ee35396`), the new restore source in README "Seed" (`a1edd4c`), the seed (`eadadab`), the totals in the spec (`baec193`), and three step-1 tests deferred (`cc2446a`).
 
-**2026-11-08 09:07**
+**2026-11-08 08:07**
 ```
 Fra meg: Review-sesjonen har sjekket dumpene, databasen, seed-commiten og CI, og alt stemmer. Utsettelsen av de tre stegtestene godtar jeg. Push sesjonsloggen 87a5d5d, så den kommer med i PR-en. Reviewen min kommer på GitHub, og så merger jeg når CI er grønn.
 ```
@@ -2377,8 +2383,8 @@ Fra meg: Review-sesjonen har sjekket dumpene, databasen, seed-commiten og CI, og
 
 ### Prompts to the review session
 
-- `okei, gi meg prompt` (11-07): the review session drafted the 12:04 prompt for Story 2.5d.
-- Pastes of the BMAD session's output at the checkpoint, after the build and after the PR (11-07): the review session checked them against the code and the branch, and drafted the 12:27, 12:40 and 14:25 prompts. It recommended a sixth key part for `ocr.py`, because stored words would otherwise survive a change to `read_tsv`, and it recommended keeping `reader` away from schema `run`.
+- `okei, gi meg prompt` (11-07): the review session drafted the 11:04 prompt for Story 2.5d.
+- Pastes of the BMAD session's output at the checkpoint, after the build and after the PR (11-07): the review session checked them against the code and the branch, and drafted the 11:27, 11:40 and 13:25 prompts. It recommended a sixth key part for `ocr.py`, because stored words would otherwise survive a change to `read_tsv`, and it recommended keeping `reader` away from schema `run`.
 - `hva skal jeg nå?`, `Sånn?`, `da har jeg begynt denne i nytt vindu: …`, `når skal jeg kjøre denne …`, `Skal jeg holde dette vinduet åpent mener du?`, `Har kjøringen da startet?` and `Nå kjører den?` (11-07): the review session gave the commands for each run and confirmed from `run.step1` that it had started.
 - `sjekk`, `nå`, `hvordan ligger vi an nå`, `okei, kan du se hvor lang tid kjøring 2 har brukt nå`, `ferdig nå?` and `kan du sjekke` (11-07): the review session followed the runs in the database. Following the second run of the first proof, it saw about 20 seconds per document and new cache entries instead of hits. It compared the stored keys, then fetched three reference documents twice each and found that the register writes a new random `/ID` on every fetch.
 - `ci er grønn`, `post review` and `merget` (11-08): the review session confirmed CI, posted the review and did the housekeeping on `main`.
@@ -2403,7 +2409,7 @@ Every `Fra meg:` prompt below was drafted by the review session and pasted by th
 
 ### Prompts to the BMAD session
 
-**2026-11-08 09:58**: the answers at Story 2.6's checkpoint, where 2.6a was split out. The prompt that opened Story 2.6 belongs to that story's section.
+**2026-11-08 08:58**: the answers at Story 2.6's checkpoint, where 2.6a was split out. The prompt that opened Story 2.6 belongs to that story's section.
 ```
 Fra meg: 
 1. Ja til «uklart». Det er ikke en femte type: BUSINESS_TYPES står fast, skjemaet er de fire pluss avstå, og det lagres uten type, som fingeravtrykkets null. Det telles for seg i run-recorden, og andelen skal med i 5.2. Rett AC-en i epics.md.
@@ -2417,7 +2423,7 @@ Bygg 2.6a først. Stopp før --companies-only og gi meg kommandoen. Jeg kjører 
 ```
 *Changed:* Story 2.6a got its own issue (#52), epics story and spec (`6a3f42c`); columns, parser and docs followed (`a5bc619`, `556379a`, `ce45e0d`), and the review fixes (`e5295f5`). The review session had withdrawn the human's earlier starting point that only allow-listed companies could be stored, because FR-73 gates only fingerprints.
 
-**10:13**: the answer to whether text is stored for every company or for an AS only, and three findings by the review session.
+**09:13**: the answer to whether text is stored for every company or for an AS only, and three findings by the review session.
 ```
 Fra meg: Bare AS. Andre organisasjonsformer skal ha aktivitet og vedtektsfestet_formaal NULL, også hvis et selskap slutter å være AS og hadde tekst fra før. Tell hvor mange som hoppes over i run.step1, aldri stille, og test begge deler. Grunnen er den samme som for ENK-kommunen i docs/data-sources-brreg.md: offentlig i registeret, men ikke noe Peerless skal samle uten at noe bruker det.
 
@@ -2430,7 +2436,7 @@ Kjør hele testsuiten, også pnpm lint, og commit i små steg. Så gir du meg ko
 ```
 *Changed:* the AS rule (`ab27ed0`), the three tests on an orgnr no run stores (`f10ccf6`, `1eeb878`) and the deferred entry closed (`aa57ab0`). Without point 2, `seed:export` would have refused the local database. The human then ran `--companies-only`: run 1708.
 
-**15:19**
+**14:19**
 ```
 Fra meg: --companies-only er ferdig, run 1708: 17 802 oppdatert, 81 ikke i bulkfila, 7 475 uten tekst fordi de ikke er AS, 0 feilet. Review-sesjonen har sjekket: 10 327 AS med begge tekstene, 0 andre former med tekst, 2 785 dokumenter, 5 556 kolonner og 2 537 fingeravtrykk.
 
@@ -2444,7 +2450,7 @@ Kjør hele testsuiten etterpå, også de to seed-testene og pnpm lint. Vis meg r
 ```
 *Changed:* the seed alone in `c6d990e`, the seed test's column list (`c023e7c`), the sequence in the spec and the session file (`110ba8d`), and identical text sent once in Story 2.6's spec (`1c9c70e`, still on that branch). The review session named the expected diff of `company.csv` before the BMAD session read it, and the comparison found nothing else.
 
-**15:34**
+**14:34**
 ```
 Fra meg: Review-sesjonen har sjekket seed-commiten, tellingene, backupen og PR-teksten, og alt stemmer. Du kan pushe story/2.6a-company-text-fields og åpne PR-en med teksten du har skrevet. Identisk tekst under vedtektsfestet_formaal er greit.
 
@@ -2452,7 +2458,7 @@ Si fra med PR-nummeret når den er åpen. Ikke merge. Ikke start på 2.6 før 2.
 ```
 *Changed:* the branch was pushed and PR #53 opened.
 
-**15:38**
+**14:38**
 ```
 Fra meg: Ja, push sesjonsloggen til PR-en, AGENTS.md krever det på en story-branch. Ingen andre endringer. Ikke merge, og ikke start på 2.6.
 ```
@@ -2461,9 +2467,9 @@ Fra meg: Ja, push sesjonsloggen til PR-en, AGENTS.md krever det på en story-bra
 ### Prompts to the review session
 
 - `kan vi starte med 2.6 før denne De 720 parene i labels.csv må merkes før Story 5.2. …`, and `hvor mye koster det da? …` (11-08): the review session drafted the prompt that opened Story 2.6. The human's condition, `ikke kjør noe før jeg vet kostnadsanslag ved en kjøring og har sagt OK`, became a rule in it: no model call without an OK for that run.
-- Pastes of the BMAD session's output at the Story 2.6 checkpoint and after the 2.6a build (11-08): the review session checked them against the branch and the database, recommended AS only, found the cause of the three failing tests in `deferred-work.md`, and pointed out that a bare `seed:export` would be refused. It drafted the 09:58 and 10:13 prompts.
-- `okei limt inn i powershell og kjører nå? Hvor lang tid?` and `ferdig nå` (11-08): the review session confirmed the run had started and checked run 1708 and the counts. It found the 2 236 companies with identical text and the 28 changed municipalities and descriptions, by comparing the old seed with the database, and drafted the 15:19 prompt.
-- A paste of the BMAD session's report after the seed (11-08): the review session checked the seed commit, the counts, the backup and the PR text, and drafted the 15:34 prompt.
+- Pastes of the BMAD session's output at the Story 2.6 checkpoint and after the 2.6a build (11-08): the review session checked them against the branch and the database, recommended AS only, found the cause of the three failing tests in `deferred-work.md`, and pointed out that a bare `seed:export` would be refused. It drafted the 08:58 and 09:13 prompts.
+- `okei limt inn i powershell og kjører nå? Hvor lang tid?` and `ferdig nå` (11-08): the review session confirmed the run had started and checked run 1708 and the counts. It found the 2 236 companies with identical text and the 28 changed municipalities and descriptions, by comparing the old seed with the database, and drafted the 14:19 prompt.
+- A paste of the BMAD session's report after the seed (11-08): the review session checked the seed commit, the counts, the backup and the PR text, and drafted the 14:34 prompt.
 - `ci er grønn`, `post review` and `merget` (11-08): the review session confirmed CI, posted the review and did the housekeeping on `main`.
 
 ### Result
@@ -2486,7 +2492,7 @@ Every `Fra meg:` prompt below was drafted by the review session and pasted by th
 
 ### Prompts to the BMAD session
 
-**2026-11-08 09:29**: the prompt that opened Story 2.6.
+**2026-11-08 08:29**: the prompt that opened Story 2.6.
 ```
 /bmad-build Story 2.6: klassifisering, steg 5 (epics.md, Story 2.6). Hent main først (9d43524). Opprett issuet og branchen.
 
@@ -2507,7 +2513,7 @@ Ingen dump slettes. .local/document-run-2.5d/ er gjenopprettingskilden etter see
 ```
 *Changed:* issue #51, the branch and the draft spec with these decisions (`70d3187`). At the checkpoint the register text was found missing, and Story 2.6a was split out; its prompts are in the section above. The cost rule (no model call without an OK for that run) and the blinding rule held for the whole story.
 
-**15:53**, after Story 2.6a was merged.
+**14:53**, after Story 2.6a was merged.
 ```
 Fra meg: 2.6a er merget. Hent main (a71eb51) og oppdater story/2.6-classification-stage-5 med den. Fortsett Story 2.6 etter svarene jeg allerede har gitt ved sjekkpunktet, og med teksten sendt én gang der feltene er like.
 
@@ -2517,7 +2523,7 @@ Bygg og test uten nøkkel, med lagret output. Stopp før 300-prøven og vis meg 
 ```
 *Changed:* the branch was brought up to date with `main`, and the build followed: the SDK pinned (`d51dee9`), the table and the run record (`9965de9`), stages 4 and 5 (`370c6ce`), `pnpm classify` (`c486873`), the seed and `run.step2` (`d674075`), and docs (`ce3b80b`). The BMAD session stopped before the sample with an estimate.
 
-**16:22**, the OK to the first sample.
+**15:22**, the OK to the first sample.
 ```
 Fra meg: OK til 300-prøven med --max-usd 0.20. Jeg setter nøkkelen og kjører den selv. Du kjører ikke pnpm classify igjen med noe annet enn --plan, uansett flagg. Det gjelder også kjøringer du regner med stopper av seg selv. Ikke rør databasen eller koden mens prøven går.
 
@@ -2525,7 +2531,7 @@ Når jeg sier at den er ferdig: logg batch-ID-en rett etter innsending, før rad
 ```
 *Changed:* the human ran run 14 himself. The BMAD session had run `pnpm classify` with a $0.01 cap without an OK for that run; nothing was sent, and this prompt limited it to `--plan`.
 
-**16:35**, after run 14.
+**15:35**, after run 14.
 ```
 Fra meg: Prøven er ferdig: run 14, 300 sendt, 0 feilet, 186 154 tokens inn og 16 827 ut, omtrent $0,0135. Fordeling: produkt 126, konsulent 56, forhandler 2, annet 53, uklart 63. Review-sesjonen har sjekket at ingen av de 300 er i fasitsettet.
 
@@ -2537,7 +2543,7 @@ Ingen kjøring uten nøkkel-OK fra meg. Du kjører bare --plan. Full kjøring ve
 ```
 *Changed:* the batch id is logged before any row is written (`2a3bb91`, with a test), and the BMAD session proposed tighter categories.
 
-**16:36**, sent while the BMAD session was still working on 16:35, as an addition to its point 2.
+**15:36**, sent while the BMAD session was still working on 15:35, as an addition to its point 2.
 ```
 Fra meg: Tillegg til punkt 2. Bruk disse grensene i prompten:
 
@@ -2551,9 +2557,9 @@ Blandede tekster: det som står først og er konkret gjelder hvis resten kommer 
 
 Prompten skal ikke inneholde selskapsnavn. Eksempler bare fra de 300 i prøven, aldri fra de 845. Vis meg den endelige prompten, hvor mange av de 300 du venter endres, og anslaget for en ny prøve. Stopp der.
 ```
-*Changed:* these limits, with the human's answer at 16:40, became the prompt's categories (`47d4675`).
+*Changed:* these limits, with the human's answer at 15:40, became the prompt's categories (`47d4675`).
 
-**16:40**, the human's answer to the proposed prompt.
+**15:40**, the human's answer to the proposed prompt.
 ```
 Fra meg: Punkt 4: begrens produkt til programvare. Bruk «a software product of the company's own that is sold or rented out, such as a platform, a computer game, a licence or a subscription». Fysiske produkter blir annet.
 
@@ -2565,7 +2571,7 @@ Commit prompten, kjør testene og --plan, og gi meg den endelige kommandoen. OK 
 ```
 *Changed:* the prompt was committed (`47d4675`) and the spec said when it stands (`57d7bb4`). The human ran sample run 17 himself.
 
-**22:12**, after run 17.
+**21:12**, after run 17.
 ```
 Fra meg: Prøve 2 er ferdig (run 17, prompt 2810d26aa8dc): 300 sendt, 0 feilet, produkt 45, konsulent 45, forhandler 0, annet 47, uklart 163. 234 754 tokens inn, 15 171 ut, ca. $0,0155.
 
@@ -2579,7 +2585,7 @@ Ikke endre prompten. Ikke start full kjøring: den venter på at merkingen er fe
 ```
 *Changed:* the finding and the decision went into the spec's change log (`1c30dd2`), and `--plan --all` gave the estimate for the full run: $0.73 central, $5.81 ceiling.
 
-**2026-11-13 19:22**, after full run 18, with an addition on Bård Pettersen's PRD feedback pasted in the same message.
+**2026-11-13 18:22**, after full run 18, with an addition on Bård Pettersen's PRD feedback pasted in the same message.
 ```
 Fra meg: Full kjøring er ferdig (run 18, prompt 2810d26aa8dc, claude-haiku-5-5, 9 min): 10 326 sendt, 0 feilet, produkt 1 315, konsulent 1 699, forhandler 43, annet 1 379, uklart 5 890 (57 %), no_text 45. 8 069 842 tokens inn, 530 218 ut, ca. $0,54. Ingen rader er pending, failed eller sample. Review-sesjonen har sjekket run.step2 og tabellen.
 
@@ -2599,7 +2605,7 @@ Skriv det som regel og konsekvenser, ikke historikk, og legg historikken i .meml
 ```
 *Changed:* run 18 in the spec (`9b7eb53`), FR-11 and §8 Cost (`c0acc0c`), the seed (`77b8813`), the fixes the BMAD session found in the seed sequence (`869a82c`, `4af1694`, `8045ca1`), the docs (`e763091`) and PR #54.
 
-**19:51**: pasted before the review was posted, so the BMAD session found no review and changed nothing.
+**18:51**: pasted before the review was posted, so the BMAD session found no review and changed nothing.
 ```
 Fra meg: Review på PR #54 er postet. Gjør dette, og ikke noe mer:
 1. Rett blinding-påstanden i docs/ai-log.md (linje 825), PR-teksten og session-fila som foreslått i linjekommentaren. Seedens classification.csv har alle 845 selskapene i fasitsettet. Det er riktig at de er der, men teksten skal si det. Merkingen var ferdig før run 18, og den andre merkeren får ikke se fila.
@@ -2609,7 +2615,7 @@ Fra meg: Review på PR #54 er postet. Gjør dette, og ikke noe mer:
 ```
 *Changed:* nothing; see the next prompt.
 
-**19:53**, after the review was posted.
+**18:53**, after the review was posted.
 ```
 Fra meg: Reviewen er postet nå (https://github.com/IBE160-2026/G97-meinich/pull/54#pullrequestreview-5896391765). Gjør de tre punktene fra forrige melding:
 1. Blinding-påstanden: ordlyden står i kommentaren på docs/ai-log.md:825 (https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327631).
@@ -2625,11 +2631,11 @@ Fra meg: Reviewen er postet nå (https://github.com/IBE160-2026/G97-meinich/pull
 
 - `ikke kjør noe før jeg vet kostnadsanslag ved en kjøring og har sagt OK` (11-08, in the 2.6a section): the rule every model run in this story followed.
 - `hvordan finner jeg nøkkelen? …`, `står at max abbonnement inkluderer 100 USD i mnd` and the following questions (11-08): the review session explained the API credit included in the plan, where the key goes, and that it stays in `.env`. The key was saved in `.env.example` by mistake; the human restored that file before any commit, and the review session checked that the key is in no commit on any ref.
-- `limt inn til BMAD - men føler vi må ha det mer klart ja` (11-08): the review session drafted the 16:35 and 16:40 prompts after reading run 14's answers on the 300 sample companies only.
-- `svart igjen:` with run 17's output (11-08): the review session read the `uklart` texts, found that an estimated 20-25 of 163 describe a product of the company's own, and recommended letting the prompt stand. The human did (22:12).
+- `limt inn til BMAD - men føler vi må ha det mer klart ja` (11-08): the review session drafted the 15:35 and 15:40 prompts after reading run 14's answers on the 300 sample companies only.
+- `svart igjen:` with run 17's output (11-08): the review session read the `uklart` texts, found that an estimated 20-25 of 163 describe a product of the company's own, and recommended letting the prompt stand. The human did (21:12).
 - `okei så må først bli ferdige med labels` (11-08) to `vi brukte her Chat GPT sin modell til å fylle ut. …` (11-11): the labelling of the 720 pairs, which the full run waited for. That exchange belongs to Story 5.1 and goes in its section.
 - `okei, så nå kjører vi full batch kjøring?` (11-11): the review session checked the branch, the database and that no batch was pending; the human had already started run 18.
-- `Se svaret:` with run 18's output, and `Først se at sensor har pushet noe som jeg må pulle` (11-13): the review session checked run 18, brought `main` up to date with Bård Pettersen's two commits, summarised his PRD feedback and drafted the 19:22 prompt's addition.
+- `Se svaret:` with run 18's output, and `Først se at sensor har pushet noe som jeg må pulle` (11-13): the review session checked run 18, brought `main` up to date with Bård Pettersen's two commits, summarised his PRD feedback and drafted the 18:22 prompt's addition.
 - The BMAD session's report on PR #54, `post review` and `merget` (11-13): the review session reviewed the PR, posted the review at the human's request and did the housekeeping on `main`.
 
 ### Result
@@ -2652,9 +2658,9 @@ The rules, the draw and most of the labelling were done with the review session,
 
 ### Prompts to the BMAD session
 
-Before these, the 2.5d section's prompt of 2026-11-07 12:27 merged the draw's commits into Story 2.5d, so the labelled set's document run could read its list.
+Before these, the 2.5d section's prompt of 2026-11-07 11:27 merged the draw's commits into Story 2.5d, so the labelled set's document run could read its list.
 
-**2026-11-13 20:15**: question 22 on `main`, then the Story 5.1 PR.
+**2026-11-13 19:15**: question 22 on `main`, then the Story 5.1 PR.
 ```
 Fra meg: To oppgaver, i denne rekkefølgen.
 
@@ -2676,7 +2682,7 @@ Ikke åpne labels.csv, labels-blind.csv eller labels-revenue-model.csv. Det du t
 ```
 *Changed:* part 1 on `main`: the PRD (`d9fb281`), `epics.md` (`de07de3`), the technical note (`cb00c4c`), `docs/key-figures.md` (`1998731`) and `deferred-work.md` (`d704fd2`); the BMAD session added that the pay-level-versus-productivity view is absent too. Part 2: `main` merged into the branch (`8144423`), the shortfall and the counts in the README (`e73a3c8`), FR-70, `epics.md`, PRD §10 and the technical note (`fe34951`, `8a2a9b0`, `f3cb055`), the session file (`f317cda`, `4100f59`) and PR #55. The first point was replaced before it was pasted, after the human asked whether the document runs already made were left out of v1; they were not.
 
-**20:27**, sent while the BMAD session was working, after the review was posted.
+**19:27**, sent while the BMAD session was working, after the review was posted.
 ```
 Fra meg: Reviewen på PR #55 er postet (https://github.com/IBE160-2026/G97-meinich/pull/55#pullrequestreview-5896815047). Gjør dette i worktreen .local/wt-5.1, og ikke noe mer:
 1. Formuleringen "one AI's classification with another's" gjelder bare tekstlaget (trinn 5), ikke fingeravtrykket eller bransjekoden. Rett den slik kommentaren foreslår (https://github.com/IBE160-2026/G97-meinich/pull/55#discussion_r4567668083) på alle fire stedene: PRD FR-70, den tekniske notatet (linje 516), README-en for fasitsettet (linje 87) og session-fila. Kreditér funnet til review-sesjonen, og si at feilen startet i README-teksten den skrev selv.
@@ -2686,7 +2692,7 @@ Fra meg: Reviewen på PR #55 er postet (https://github.com/IBE160-2026/G97-meini
 ```
 *Changed:* the wording corrected in four files (`d46ebb6`), the BMAD session's own session log pushed (`e2d5697`), and the review in the session file (`15c63f0`).
 
-**20:27**: `pnpm seed:full`.
+**19:27**: `pnpm seed:full`.
 ```
 Fra meg: pnpm seed:full (FR-73, Story 5.7). Min beslutning, etter Q22: kommandoen lover ikke lenger hele datasettet.
 - pnpm seed:full bygger registerdata og API-nøkkeltall for hele 62.100 (pnpm ingest), og leser dokumenter bare for selskapene i en liste brukeren gir (pnpm ingest --documents <liste>). Uten liste leser den ingen dokumenter. Den kaller ingen modell og trenger ingen nøkkel.
@@ -2696,7 +2702,7 @@ Skriv det som regel og konsekvenser, ikke historikk. Små commits rett på main,
 ```
 *Changed:* the BMAD session paused and asked where the full dataset's classifications and explanations come from, and proposed the popover text.
 
-**20:39**: the answer.
+**19:39**: the answer.
 ```
 Fra meg:
 1. PR #55: rett PR-beskrivelsen til samme formulering som i d46ebb6 (tekstlaget, trinn 5). Ingenting annet. Jeg merger etterpå.
@@ -2722,7 +2728,7 @@ Rett FR-73, Story 5.7, den tekniske notatet og EXPERIENCE i små commits rett p�
 - `okei, har readme fått med seg at vi går tilbake til det vi opprinnelig ble enige om - ikke sektor nå i første omgang` (11-09): the README was corrected to say so.
 - `har fylt ut nå` (11-09), then `vi brukte her Chat GPT sin modell til å fylle ut. Må være OK i denne omgang. …` and `gått gjennom og ser OK ut - noe av oppgaven er jo også basert på å bruke AI så synes det er greit` (11-11): the review session noticed from the timing and the notes that the sheet had not been filled in by hand and asked; the human confirmed it and accepted the round, and the README says so (`c799ff1`, `3a7f322`, `60ae244`).
 - `1. enig 2. ok for nå - får eventuelt gjøre dette i steg 2` (11-13): the human accepted the review session's proposal for question 22 and moved the second labeller and κ to stage 2.
-- `okei vent 2 sek - all den dokumentkjøringen vi har gjort skal ikke med i v1?` (11-13): the review session clarified that everything already read stays in v1 and rewrote the first point of the 20:15 prompt.
+- `okei vent 2 sek - all den dokumentkjøringen vi har gjort skal ikke med i v1?` (11-13): the review session clarified that everything already read stays in v1 and rewrote the first point of the 19:15 prompt.
 - `A (anbefalt): endre løftet. …` and `1. ja` (11-13): the human chose to change what `seed:full` promises, and asked for the review to be posted.
 - A screenshot of the merge conflict (11-13): the review session merged `main` into the branch and kept both `.memlog.md` lines (`b07322c`).
 
@@ -2740,7 +2746,7 @@ Planning work committed straight to `main` by the BMAD session. Every `Fra meg:`
 
 ### Prompts to the BMAD session
 
-**2026-11-13 21:03**: question 24 alone, pasted first.
+**2026-11-13 20:03**: question 24 alone, pasted first.
 ```
 Fra meg: Q24 (PRD §11), rett på main som planarbeid. Min beslutning:
 Grunnlaget for treff viser hvilke signaler som var med på å holde peeren i gruppa. Et signal teller bare når det gir en forretningstype både for subjektet og for peeren, altså nøyaktig når signals() i src/engine/peers.ts ikke gir null:
@@ -2754,7 +2760,7 @@ Skriv det som regel og konsekvenser, ikke historikk. Små commits rett på main,
 ```
 *Changed:* the PRD (`6505191`), Story 2.7 (`f0210f8`), the Epic 2 context (`7ca31ea`) and the technical note (`a284299`).
 
-**21:04**, sent while the BMAD session was working: the three decisions together, replacing the prompt above.
+**20:04**, sent while the BMAD session was working: the three decisions together, replacing the prompt above.
 ```
 Fra meg: Tre beslutninger, rett på main som planarbeid. Små commits, (change)-linje i .memlog.md for hver, skrevet som regel og konsekvenser, ikke historikk. Vis meg hashene.
 
@@ -2771,7 +2777,7 @@ Fingeravtrykk uten type, uklart fra modellen og et subjekt uten type gir altså 
 ```
 *Changed:* question 24 was already done with the same content; the decision rule for stage 5 in the PRD (`bca8a98`, in FR-11 and §9) and Story 5.2 (`8b08034`); total cost share with no direction in `docs/key-figures.md` (`544250c`), FR-27 (`acdc504`) and `epics.md` (`6f969b2`).
 
-**21:07**: question 11.
+**20:07**: question 11.
 ```
 Fra meg: Flytt Q11 til "Answered" i PRD §11. Spørsmålet var om v1 skal ha et mål eller bare måle, og det er besvart: en beslutningsregel, ikke et kvalitetsmål. (change)-linje i .memlog.md, én commit rett på main, og push den sammen med loggcommiten c14a7cc. Vis meg hashen.
 ```
@@ -2794,7 +2800,7 @@ Every `Fra meg:` prompt below was drafted by the review session and pasted by th
 
 ### Prompts to the BMAD session
 
-**2026-11-13 21:09**: the prompt that opened Story 2.7.
+**2026-11-13 20:09**: the prompt that opened Story 2.7.
 ```
 /bmad-build Story 2.7: The Peers tab shows why (epics.md, Story 2.7). Hent main først (85cf736). Opprett issuet og branchen story/2.7-peers-why.
 
@@ -2809,7 +2815,7 @@ Regler: hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Eks
 ```
 *Changed:* issue #56, the branch and the spec (`d6f6ffc`), stopped at the checkpoint with two findings: demo A and B show nothing from stages 4 and 5 in the committed seed, and no seeded subject shows all four bases.
 
-**21:22**: the answers at the checkpoint.
+**20:22**: the answers at the checkpoint.
 ```
 Fra meg:
 1. Subjektets navn ({ref}), som du anbefaler.
@@ -2825,7 +2831,7 @@ Godkjent: skriv svarene inn i den låste delen og fortsett med implementeringen.
 ```
 *Changed:* the spec approved, Story 5.4's demo note (`be7711b`), the e2e split as a pure move (`efa1cea`), the engine, copy, page and e2e (`7d32c87`…`2c05f22`), and the review fixes, among them the six approved strings the implementation subagent had rewritten (`5f73ab6`) and the mixed-basis test comparing totals only (`999c9f0`).
 
-**22:19**, after the full suite was stopped for lack of memory during e2e.
+**21:19**, after the full suite was stopped for lack of memory during e2e.
 ```
 Fra meg: Kjør pnpm test:e2e --workers=1 mot den committede seeden. Når den er grønn:
 1. Gjenopprett .local/document-run-2.5d/ og kjør pnpm derive. Vis radtallene: 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader.
@@ -2836,7 +2842,7 @@ Ingen dump slettes.
 ```
 *Changed:* e2e passed 125 of 125 with one worker after two test fixes (`d193e10`); the 2.5d rows were restored and checked; the docs and log (`6063723`, `8703b80`); the page weight fix was explained (`2359b6f`).
 
-**22:35**.
+**21:35**.
 ```
 Fra meg: Push branchen og opprett PR-en med teksten i pr-2-7.md. Gi meg PR-nummeret og si fra når CI er grønn. Ikke merge.
 ```
@@ -2844,10 +2850,10 @@ Fra meg: Push branchen og opprett PR-en med teksten i pr-2-7.md. Gi meg PR-numme
 
 ### Prompts to the review session
 
-- `gjerne` (11-13): the review session drafted the 21:09 prompt.
-- The BMAD session's checkpoint (11-13): the review session checked demo A and B in the database. Both have fingerprints locally; only the committed seed lacks them, because the allow-list holds only the OCR reference set until Story 5.4. Their text is `uklart`, so they would show no ✦ basis even after 5.4, which became the Story 5.4 note. It recommended the BMAD session's answers and the exact 5 % wording for intangibles, and drafted the 21:22 prompt.
-- The BMAD session's report that the suite had stopped (11-13): the review session measured the free memory (2.1 GB of 15.7) and drafted the 22:19 prompt with one worker.
-- The BMAD session's final report (11-13): the review session read `matchBasis`, `inclusionReason`, the copy in `nb.json` and the PR text, and recommended the push (22:35).
+- `gjerne` (11-13): the review session drafted the 20:09 prompt.
+- The BMAD session's checkpoint (11-13): the review session checked demo A and B in the database. Both have fingerprints locally; only the committed seed lacks them, because the allow-list holds only the OCR reference set until Story 5.4. Their text is `uklart`, so they would show no ✦ basis even after 5.4, which became the Story 5.4 note. It recommended the BMAD session's answers and the exact 5 % wording for intangibles, and drafted the 20:22 prompt.
+- The BMAD session's report that the suite had stopped (11-13): the review session measured the free memory (2.1 GB of 15.7) and drafted the 21:19 prompt with one worker.
+- The BMAD session's final report (11-13): the review session read `matchBasis`, `inclusionReason`, the copy in `nb.json` and the PR text, and recommended the push (21:35).
 - `post review`, `grønn nå` and `merget` (11-13): the review session waited for green CI, posted the review and did the housekeeping on `main`.
 
 ### Result
@@ -2864,7 +2870,7 @@ Every `Fra meg:` prompt below was drafted by the review session and pasted by th
 
 ### Prompts to the BMAD session
 
-**2026-11-13 22:50**: the prompt that opened Story 2.8.
+**2026-11-13 21:50**: the prompt that opened Story 2.8.
 ```
 /bmad-build Story 2.8: Adjust the peer group (epics.md, Story 2.8). Lag branchen story/2.8-adjust-peer-group fra origin/main (042fbe1), og opprett issuet.
 
@@ -2880,7 +2886,7 @@ Regler: hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Eks
 ```
 *Changed:* issue #58, the branch and the spec (`ebf0792`), stopped at the checkpoint with three questions: whether a peer's orgnr may reach the page (AD-4), whether the tab links should keep prefetching, which made a change cost three requests against the rate limit, and what the user sees at a 429 in the middle of a series of changes.
 
-**23:03**: the answers at the checkpoint.
+**22:03**: the answers at the checkpoint.
 ```
 Fra meg:
 1. AD-4: enig. Tillat orgnr for peerne i gruppa (også ekskluderte rader), forby fortsatt orgnr for dem trinn 4 og 5 fjernet, og rett AD-4 i den tekniske notatet i denne PR-en.
@@ -2898,7 +2904,7 @@ Behold hele spec-en. Approve and continue: skriv dette inn i den låste delen og
 ```
 *Changed:* the spec approved with the error boundary's guard written into it, the engine, copy, provider, Peers tab and e2e (`b3f7689`…`b658cae`), AD-4 and AD-6 amended and the 429 exception in `epics.md` (`f348250`), and the review fixes (`95f5343`, `c2e57cb`, `1c1eadd`, `d7e08d1`); the BMAD session restored the six singular strings the implementation subagent had reworded, and the full e2e run was stopped for lack of memory.
 
-**2026-11-14 09:05**.
+**2026-11-14 08:05**.
 ```
 Fra meg:
 
@@ -2912,7 +2918,7 @@ Commit rettelsene som en egen review-fix-commit. Ikke push før jeg sier fra.
 ```
 *Changed:* the singular corrected to "1 sammenlignbart" and the 21st exclusion moved from rejected to deferred (`eb38d33`); e2e passed 145 of 145 with one worker, the 2.5d rows were restored and checked, and the session file got the timings (`9f68b6c`).
 
-**09:25**.
+**08:25**.
 ```
 Fra meg:
 
@@ -2930,10 +2936,10 @@ Si fra når CI er grønn.
 
 ### Prompts to the review session
 
-- `gjerne` (11-13): the review session drafted the 22:50 prompt.
-- The BMAD session's checkpoint (11-13): the review session recommended allowing the orgnr of peers in the group but not of those stages 4 and 5 removed, no prefetch on the tab links, the 429 as a documented exception, and three wordings, and found that the new segment error boundary would also catch a first load, where `router.back()` would send the user out of Peerless. It drafted the 23:03 prompt with the guard.
-- The BMAD session's report (11-14): the review session checked the strings and found that the singular the human had approved at the checkpoint was wrong, because the word agrees with the neuter "selskap"; it recommended deferring rather than rejecting the 21st exclusion, because the notice blames the link, and drafted the 09:05 prompt.
-- The BMAD session's next report (11-14): the review session checked the error boundary, its tests, AD-4 and the restored row counts, and drafted the 09:25 prompt.
+- `gjerne` (11-13): the review session drafted the 21:50 prompt.
+- The BMAD session's checkpoint (11-13): the review session recommended allowing the orgnr of peers in the group but not of those stages 4 and 5 removed, no prefetch on the tab links, the 429 as a documented exception, and three wordings, and found that the new segment error boundary would also catch a first load, where `router.back()` would send the user out of Peerless. It drafted the 22:03 prompt with the guard.
+- The BMAD session's report (11-14): the review session checked the strings and found that the singular the human had approved at the checkpoint was wrong, because the word agrees with the neuter "selskap"; it recommended deferring rather than rejecting the 21st exclusion, because the notice blames the link, and drafted the 08:05 prompt.
+- The BMAD session's next report (11-14): the review session checked the error boundary, its tests, AD-4 and the restored row counts, and drafted the 08:25 prompt.
 - `ci er grønn` and `post review` (11-14): the review session confirmed CI on `27fa837` and posted the review.
 - `hvorfor får jeg ikke pullet?` (11-14): the merged branch had been deleted on GitHub; the review session moved the main folder to `main` and did the housekeeping.
 

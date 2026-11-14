@@ -2951,6 +2951,104 @@ Peers can be excluded and restored, the size band widened one fixed step at a ti
 
 The review session checked that the segment's error boundary goes back only while a change is in flight, with tests for both branches, AD-4 as the human amended it, the tab links without prefetch, the two items deferred from Story 2.7, the copy, the restored row counts and the PR text. CI was green on `27fa837`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 08:38 UTC on 2026-11-14 as `f583b7f`.
 
+## Story 2.9: missing figures say why (#60, PR #61)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-14 08:50**: the prompt that opened Story 2.9.
+```
+/bmad-build Story 2.9: Missing figures say why (epics.md, Story 2.9). Lag branchen story/2.9-missing-figures-reasons fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Fraværsgrunnene: Absence i src/engine/types.ts har i dag seks grunner (undefined, below_floor, not_in_dataset, failed_reconciliation, not_reconciled, exceeds_api_subtotal), og storyen nevner fem, med «ikke lest i v1» som ny. Vis den fulle unionen etterpå, og hvilken EXPERIENCE-tilstand hver grunn går til gjennom den uttømmende switchen. Foreslå særlig hva not_reconciled og exceeds_api_subtotal skal vise, og hvorfor.
+(b) De tolv dokumenttallene: hvilke er de, og hva finnes i motoren før Story 3.1a? Si nøyaktig hva 2.9 leverer (motorens resultat og undertittelen i overskriften) og hva som venter til Epic 3.
+(c) Avledning: hvor i src/engine langsiktigGjeld utledes fra sumGjeld og sumKortsiktigGjeld, at ingen avledning skjer i steg 1 (testen over dokumenttabellen), og at et tall som ikke kan utledes, er undefined, aldri 0.
+(d) Subjekt med failed_reconciliation: hvilket selskap brukes i e2e-testen og på 375 og 320 px? Et demoselskap, et selskap fra seeden som ikke er i fasitsettet, eller et syntetisk selskap? Vis at det beholder fanene og peer-gruppen og ikke vises som udekket.
+(e) not_in_dataset: at grunnen avgjøres fra manifestets document_figure_orgnrs og aldri fra en manglende rad, og hva demo A og B viser i den committede seeden før Story 5.4.
+(f) Peers med failed_reconciliation: at de går ut av fordelingen for hvert dokumenttall, men teller for API-tallene, og at antallet utelatte returneres.
+(g) Norsk tekst: all ny tekst som ikke står ordrett i Story 2.9, særlig tilstanden for «ikke lest i v1» og eventuelle tilstander for de to ekstra grunnene. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler: hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Eksempler og testdata kommer fra demoselskapene eller syntetiske selskaper. Tester som bruker andre subjekter, sammenligner bare totaler og navngir ingen selskaper fra fasitsettet. PR-en sier hva som kan gå galt med fraværsgrunner og utledede komponenter i pengetall, med begrunnelse i ai-log. Små commits, sjekk på 375 og 320 px underveis, hele suiten før første push. Kjør e2e med --workers=1. Hvis den stopper på grunn av minne, si fra i stedet for å starte på nytt. Etter siste seed-lasting: gjenopprett .local/document-run-2.5d/, kjør pnpm derive og bekreft 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #60, the branch and the spec draft (`dec1b33`), stopped at the checkpoint with six questions: where the engine stops before Story 3.1a, the two reasons beyond the story's five, the `langsiktigGjeld` test, the synthetic failed subject in e2e, a listed company with no document row, and the copy.
+
+**09:04**: the answers to the first five.
+```
+Fra meg:
+1. A.
+2. A, med ett krav: teksten for line_exceeds_api_subtotal sier at en regnskapslinje ikke kunne leses sikkert, ikke at den mangler.
+3. B. Rett AC-en i epics.md i denne PR-en.
+4. A, med disse kravene: testen rydder både før og etter seg (idempotent, så en krasj ryddes neste gang), det syntetiske orgnr-et står på ett sted, omsetningen ligger utenfor båndene til demo A og B så selskapet aldri havner i en annen tests gruppe, og prosjektet kjører sist. Dette bryter AGENTS.md («The database tests also create objects, but only inside transactions they roll back»), så endre AGENTS.md i samme PR og si hvorfor. Bekreft til slutt tallene i databasen som vanlig.
+5. Ikke A. Review-sesjonen fant at det skjer i den committede seeden: 1 av 20 selskaper i manifestet mangler dokumentrad for sitt siste regnskapsår, og lokalt 1 av 1 168. En kastet feil gir 500 for det selskapet og for alle som har det som peer. Finn ut hvorfor raden mangler (bare totaler, ingen orgnr fra fasitsettet), og foreslå enten en egen grunn med egen tekst eller vis at en eksisterende grunn dekker det ærlig. «Kunne ikke leses sikkert» stemmer ikke for et dokument som aldri ble lest. Vis meg det før du går videre.
+6. Teksten svarer jeg på når jeg har sett den.
+```
+*Changed:* the BMAD session traced the listed company with no row, totals only, to a non-calendar year whose filing year, 2026, step 1 never fetches, and proposed `not_read_in_v1` with a scope, `refused` and `document_missing` instead of throwing, with new copy.
+
+**09:09**: the proposal and the copy.
+```
+Fra meg:
+Ja til forslaget: not_read_in_v1 med scope (notes, filing_year, paper), refused, document_missing med logglinje, og de åtte toppgrunnene. Rett grunnlisten i epics.md og AD-15 i denne PR-en. AD-15 skal si at document_missing er det eneste tilfellet som avgjøres av en manglende rad, og hvorfor.
+
+Teksten er godkjent, med to endringer:
+- notReadInV1.filingYear: «I denne versjonen leser Peerless årsregnskapene for {fra}–{til}. Regnskapet for {aar} er ikke lest.»
+- document_missing får også undertittel i overskriften, samme tekst: «Regnskapet for {aar} er ikke lest inn».
+Undertittelen «Regnskapet for {aar} er ikke lest i denne versjonen» for filing_year og paper er godkjent.
+
+Krav:
+- Logglinja for document_missing går gjennom src/logger.ts med de faste feltene.
+- DOCUMENT_YEARS står på ett sted motoren leser, og en test feiler hvis den og run.py er ulike.
+- I/O-matrisen får rader for filing_year (syntetisk selskap med avvikende regnskapsår), refused, paper og document_missing, hver med testen som feiler hvis koden fjernes.
+
+Svarene mine på 1–4 fra forrige runde gjelder. Skriv alt inn i spec-en og vis den før godkjenning.
+```
+*Changed:* the decisions written into the spec's frozen part, with the eight reasons and the order the basis is decided in.
+
+**09:17**: two additions, then approval.
+```
+Fra meg:
+To tillegg før godkjenning, i den låste delen under beslutning 7:
+- Tilkoblingen som databaseeier i e2e-testen kommer fra en miljøvariabel, og testen nekter å kjøre hvis verten ikke er lokal (localhost/127.0.0.1). Ingen ny hemmelighet i noen commit, og .env.example viser variabelen uten passord.
+- Det syntetiske selskapet heter noe som tydelig sier at det er syntetisk, for eksempel «Syntetisk Testselskap AS», så det er lett å forstå hvis søket finner det etter en krasj.
+
+Deretter: godkjenn og fortsett. Samme regler som før: små commits, sjekk på 375 og 320 px, hele suiten før push, e2e med --workers=1, gjenopprett 2.5d-dumpen og kjør derive til slutt, og ingen push før jeg sier fra.
+```
+*Changed:* the spec approved; the engine, copy, states, step-1 test, server and header, and the synthetic e2e subject (`3b524e7`…`338b3f1`), and the docs upstream (`27022ad`). The BMAD session asked whether `.env.example` should lose the local password.
+
+**09:55**: the answer.
+```
+Fra meg:
+Behold SUPABASE_DB_URL slik den er. postgres:postgres er Supabase CLI-ens offentlige standardverdi for den lokale databasen og ingen hemmelighet, og en ny klone skal virke uten å fylle inn noe. Det som beskytter, er at testen nekter å kjøre hvis verten ikke er localhost/127.0.0.1. Rett formuleringen i beslutning 7 under Spec Change Log (min beslutning, etter forslag fra review-sesjonen), og fortsett.
+```
+*Changed:* the wording of decision 7 corrected in the spec change log; the review fixes (`c5a6a72`) and the triage, session file and AI log (`d68a47e`); e2e passed 150 of 150 with one worker, and the 2.5d rows were restored and checked.
+
+**10:20**.
+```
+Fra meg:
+Push branchen og åpne PR-en mot main med Closes #60. PR-teksten skal ha FR-listen, avsnittet om hva som kan gå galt med fraværsgrunner og utledede komponenter i pengetall, testresultatene (1 271 / 193 / 392 / e2e 150 av 150 med --workers=1, seed:export uendret), at dumpen er gjenopprettet med tallene, hva som ble rettet og avvist i reviewen og hvem som fant hva, og linjen «Planning documents:» slik du listet den. Si fra når CI er grønn.
+```
+*Changed:* the branch pushed and PR #61 opened (`e67f38d`).
+
+### Prompts to the review session
+
+- `okei, men kan vi gå videre på 2.9?` (11-14): the review session read Story 2.9 against the code and the seed: `Absence` already had six reasons, the twelve document figures are not computed before Story 3.1a, demo A and B are not on the manifest list before Story 5.4, and the seed holds failed documents. It drafted the 08:50 prompt.
+- `okei svarer vi på noen av disse spm da?` and `hva anbefaler du, nå eller senere? Ja den er grei` (11-14): the open items; the human approved the text for the 21st exclusion, and the review session corrected the prompt log on `main` (`7e581ce`, `291c5cf`).
+- The BMAD session's checkpoint (11-14): the review session checked that no key figure reads `langsiktigGjeld` and that the seed's only failed 2025 document belongs to a labelled-set company, and found that 1 of the 20 companies on the manifest list, and 1 of 1 168 locally, has no document row for its latest filing year, so throwing would answer 500 for that company. It drafted the 09:04 prompt.
+- The BMAD session's proposal (11-14): the review session confirmed `DOCUMENT_YEARS`, the non-calendar empty group and the refusal counts, proposed the subline for `document_missing` and a more natural word order, and drafted the 09:09 prompt.
+- The spec (11-14): the review session read its frozen part and drafted the 09:17 prompt with the local-host guard and an obviously synthetic name.
+- The BMAD session's question on `.env.example` (11-14): the review session recommended keeping `SUPABASE_DB_URL`, the Supabase CLI's public default, because the local-host guard protects and a fresh clone must run without extra steps. It drafted the 09:55 prompt.
+- The BMAD session's final report (11-14): the review session checked the row counts, that no synthetic company was left, the host guard, AGENTS.md and the copy, and drafted the 10:20 prompt.
+- `post review` and `kan du fikse mergen og deretter resten?` (11-14): the review session posted the review after green CI, moved the main folder to `main` and did the housekeeping.
+
+### Result
+
+Every missing figure carries one of eight absence reasons, decided in the engine and worded through one exhaustive switch. The header shows a slate subline when the subject's own document cannot be used. A listed company with no document row is `document_missing`, logged, and never a 500. One e2e test commits a synthetic company to the local database, the one exception AGENTS.md records.
+
+### Checks before merging
+
+The review session checked `documentBasis` against decision 3, AD-15's exception, the e2e test's host guard and cleanup, AGENTS.md, the copy, the restored row counts and the PR text. CI was green on `e67f38d`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 10:32 UTC on 2026-11-14 as `9c31a58`.
+
 ---
 
 ## Going forward

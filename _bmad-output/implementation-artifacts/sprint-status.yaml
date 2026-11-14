@@ -51,7 +51,7 @@ development_status:
   1-10-the-open-route-is-rate-limited-without-storing-anyone: done  # issue #12
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1a-read-a-filed-document-ocr-library-and-image: done  # issue #31
   2-1b-store-the-filed-accounts-ocr-ingest: done  # issue #32; acceptance run done (1 947 documents)
   2-2-accept-only-figures-that-reconcile: done  # issue #35
@@ -67,7 +67,7 @@ development_status:
   2-7-the-peers-tab-shows-why: done
   2-8-adjust-the-peer-group: done
   2-9-missing-figures-say-why: done
-  2-10-epic-2-follow-ups: review  # added by the Epic 2 retrospective (Meinich, 2026-11-14): W1, W2, actions 5 and 9
+  2-10-epic-2-follow-ups: done  # added by the Epic 2 retrospective (Meinich, 2026-11-14): W1, W2, actions 5 and 9
   epic-2-retrospective: done
 
   epic-3: backlog
@@ -143,7 +143,7 @@ action_items:
       not stated -> no band, plus a test; with R3 (empty peer group without a reason).
       Recorded in deferred-work under Story 2.9"
     owner: "Dev (Story 2.9)"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-4-ban-next-next-react-and-react-dom-in-the"
     epic: 1
@@ -165,7 +165,7 @@ action_items:
     action: "One shared API key-figure column list, rename one SubjectFiling, URL
       module orgnr stripping through src/engine/orgnr.ts. Before Epic 3"
     owner: "Dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-7-reconcile-planning-docs-epic-1-context-4"
     epic: 1
@@ -243,5 +243,5 @@ action_items:
       Epic 1 action 6 and the stage-4 comments (action 5), one-worker e2e and the
       restore step (action 9); Epic 2 to done after its merge"
     owner: "Story 2.10 / Meinich"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"

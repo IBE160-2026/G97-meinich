@@ -105,11 +105,11 @@ Three review subagents read the diff (Blind Hunter, Edge Case Hunter, Verificati
 - **After the review fixes, against the committed seed:**
   - Passed: `check:pins`, `check:env`, `lint`, `typecheck`, `test` (1 217), `test:db` (191), `build` and `check:routes`.
   - `test:ingest` passed 390 of 391. The one failure was a `PermissionError` from a Windows temp file in `tests/test_run_record.py`; it passed on a rerun, and `ingest/` is unchanged in this story.
-  - Claude Code stopped the full e2e run for low memory before it finished. Before the review, the subagent's full `test:e2e --workers=1` run passed 141 of 141, counting the rerun of the one fixed test. Since the review, the touched e2e tests have passed.
+  - The first full e2e run after the review fixes was stopped by Claude Code for low memory. With Meinich's go-ahead it ran again after `eb38d33`, on a fresh build: `test:e2e --workers=1` passed 145 of 145 (4.1 min).
 - **Timings (NFR1, NFR2):**
   - Assembly for demo A and B at every band with three exclusions: 87–145 ms.
-  - Click to the filled announcement on demo A's Peers tab, median of three runs: load 553 ms, exclude 498 ms, restore 406 ms, band 511 ms, reset 471 ms.
-- **Local data:** before each seed load, the document rows outside the allow-list were dumped (`.local/before-2.8-suite/`, `.local/before-2.8-review/`). Both equal `.local/document-run-2.5d/` row for row. No dump was deleted, and `pnpm classify` was not run.
+  - Click to the filled announcement on demo A's Peers tab, median of three runs, in the final e2e run: load 474 ms, exclude 439 ms, restore 380 ms, band 523 ms, reset 426 ms. The subagent's run before review gave 406–553 ms.
+- **Local data:** before each seed load, the document rows outside the allow-list were dumped (`.local/before-2.8-suite/`, `.local/before-2.8-review/`). Both equal `.local/document-run-2.5d/` row for row. No dump was deleted, and `pnpm classify` was not run. After the final e2e run, `.local/document-run-2.5d/` was restored and `pnpm derive` run: 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, and the restored rows equal the dump.
 
 ## Links
 

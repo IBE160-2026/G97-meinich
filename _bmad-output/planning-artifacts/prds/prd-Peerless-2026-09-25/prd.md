@@ -130,7 +130,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Portfolio** — a signed-in user's front page, listing every company they follow — that is, every company with a saved analysis in one of their workspaces (FR-63). Stage 2.
 - **Peer** — a company included in the subject's peer group. Named and visible, never anonymised.
 - **Peer group** — the set of peers assembled for a subject by the funnel (§4.2). Visible, adjustable, and never used for an aggregate below the minimum group size. Every aggregate uses the group the funnel leaves after stages 4 and 5, less the user's exclusions.
-- **Candidate pool** — the companies left after funnel stages 1–3, before the fingerprint. An exclusion in the URL is checked against the pool, and the labelled set's frame and the document run read it; aggregates never do. In the code the pool is `pool` and the peer group is `group` (`src/engine/peers.ts`).
+- **Candidate pool** — the companies left after funnel stages 1–3, before the fingerprint. An exclusion in the URL is checked against the pool, and the labelled set's frame and the document run read it; aggregates never do.
 - **Covered industry** — an industry Peerless offers peer analysis for. An industry becomes covered only once its peer selection has been measured against a labelled set **and** the filings of the companies it is offered with are extracted and reconciled. In v1 `62.100` is covered for the companies whose document figures are in the seed (FR-3). Unmeasured industries are not offered.
 - **Workspace** — the unit of saved work, typically one per company. Has one **owner** and any number of invited **viewers**. Workspaces, owners and viewers arrive in stage 2.
 - **Owner** — creates a workspace, owns it, writes unfiled figures, invites viewers.
@@ -145,7 +145,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Comparability filter** — stage 2, rules. Requires subject and candidate to match on currency (`valuta`), accounting framework (`regnskapsregler`), `smaaForetak`, `avviklingsregnskap`, financial period and `regnskapstype`.
 - **Segmentation** — stage 3, rules. Legal form, and geography where the industry calls for it. Size is settled by the coarse filter alone (FR-9).
 - **Business-model fingerprint** — stage 4, rules. Reads *what kind* of business a company is from its own reconciled accounts, in five categories: cost-of-goods band, personnel-cost band, asset-intensity band, inventory yes/no and capitalised intangibles yes/no. A fixed rule turns the categories into a business type. Separates a reseller from a product company from a consultancy even when all three call themselves "Programvareutvikling". Band edges and the rule are in the technical note, "Rules fixed by the stories" (FR-10).
-- **Business type** — one of `produkt`, `konsulent`, `forhandler` or `annet`, defined once in `src/engine/fingerprint.ts` and shared by the fingerprint (stage 4) and classification (stage 5). A company whose type depends on a category its accounts leave unknown is **undetermined**: it has no type, is never excluded for it, and is counted as undetermined rather than `annet`.
+- **Business type** — one of `produkt`, `konsulent`, `forhandler` or `annet`, defined once and shared by the fingerprint (stage 4) and classification (stage 5). A company whose type depends on a category its accounts leave unknown is **undetermined**: it has no type, is never excluded for it, and is counted as undetermined rather than `annet`.
 - **Classification** — stage 5, model. Gives each AS one business type, or the abstention `uklart`, from company name, secondary industry codes, statement of purpose and business description; the funnel compares the candidate's type with the subject's by rule. Answers only in fixed categories.
 - **Unclassified** — a company with nothing useful to classify on. Stored as unclassified, **never guessed at**, and still eligible as a peer through stages 1–4.
 - **Match basis** — which signals took part in keeping a peer in the group, one of four tiers: *description and accounts* / *accounts alone* / *description alone* / *industry and size alone*. A signal counts only when it gives a business type for both the subject and the peer (FR-16).
@@ -166,7 +166,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Minimum group size** — 10 peers, counted **per key figure** after companies with an undefined value for that figure are excluded. Below it, no aggregate is shown for that figure. A quality threshold, not a confidentiality control.
 - **Undefined** — a key figure that cannot be computed for a company because a denominator is zero or negative (a derived denominator of 5 kr or less counts as not positive, FR-23), or a component is missing and cannot be derived from a stated total. **Undefined is not zero.** The company leaves that figure's distribution and the excluded count is shown.
 - **Data quality flag** — a per-filing status, `reconciled` or `failed_reconciliation`: the status of the filing's current-year column, derived **only** from the reconciliation rules, never from OCR confidence (FR-57). A generic engine reported mean confidence 0.974 while misreading several figures; confidence is not a signal.
-- **Reconciliation** — two rules, neither exact equality and never collapsed into one. *Within* a document: five checks (c1–c5) on stated subtotals against their components, each within a tight absolute bound of a few kroner, because the register prints whole kroner rounded from øre. *Between* document and API: max(a few kroner, a very small proportion of the register's figure); the proportional part admits a millions reporter's rounding as the register states it, and stays tiny because documents in scaled reporting units are refused at reading. Decided **per column**, not per figure (FR-58). Values in `ingest/config.toml` and `docs/data-sources-brreg.md`.
+- **Reconciliation** — two rules, neither exact equality and never collapsed into one. *Within* a document: five checks (c1–c5) on stated subtotals against their components, each within a tight absolute bound of a few kroner, because the register prints whole kroner rounded from øre. *Between* document and API: max(a few kroner, a very small proportion of the register's figure); the proportional part admits a millions reporter's rounding as the register states it, and stays tiny because documents in scaled reporting units are refused at reading. Decided **per column**, not per figure (FR-58). Values in `docs/data-sources-brreg.md`.
 - **Withdrawn company** — one the register answers `410 Gone` for. Deleted from stored data (FR-66).
 - **Dissolved company** — one the register still answers for, with a `slettedato`. Kept, with its date stored; it is not withdrawn (FR-66).
 
@@ -458,7 +458,7 @@ A vector representation of each company's description is computed at ingestion a
 
 ### 4.3 Key figures and the benchmark display
 
-**Description.** Around a dozen measures across margin, cost structure, working capital, capital efficiency and productivity, with revenue growth for context. For each, the subject's own value, the peer median, the favourable quartile and a percentile marker. Strengths are shown as clearly as weaknesses — a company better capitalised than its peers should know that, because it changes what it can afford to do about everything else. Realises UJ-1, UJ-2.
+**Description.** Fourteen numbered measures and cash share, across margin, cost structure, working capital, capital efficiency and productivity, with revenue growth for context. For each, the subject's own value, the peer median, the favourable quartile and a percentile marker. Strengths are shown as clearly as weaknesses — a company better capitalised than its peers should know that, because it changes what it can afford to do about everything else. Realises UJ-1, UJ-2.
 
 **Formulas are not restated here.** `docs/key-figures.md` defines all 14 numbered figures plus cash share, and the engine implements exactly those definitions.
 
@@ -627,6 +627,11 @@ Unfiled current-year figures are compared against the peers' latest filed year, 
 
 When the filing for the same year arrives it takes precedence, and the user-entered figures are kept only as history. Realises UJ-4.
 
+**Consequences (testable):**
+- Once a filing for a year is stored, every figure, aggregate and kroner amount for that year comes from the filing, not from the user-entered figures.
+- The user-entered figures for that year stay visible as history, labelled as entered by the user.
+- A user-entered figure never overwrites a filed one.
+
 #### FR-37: Unfiled figures never enter an aggregate · Stage 2
 
 No user-entered figure contributes to any peer median, quartile, distribution or percentile.
@@ -668,6 +673,11 @@ The security-relevant subtlety: anonymous users hold the `authenticated` Postgre
 #### FR-39: Anonymous session on arrival · Stage 2
 
 A visitor without an account receives a Supabase anonymous sign-in, so every request carries a real `auth.uid()`.
+
+**Consequences (testable):**
+- A first request without a session gets an anonymous sign-in, and every later request in that session carries its `auth.uid()`.
+- An anonymous session can neither read nor write saved or user-entered data (FR-47); covered by a case in the authorisation suite.
+- A complete analysis needs no sign-in beyond the anonymous one (SM-8).
 
 #### FR-40: Conversion in place · Stage 2
 
@@ -722,6 +732,11 @@ No user can reach a workspace they are not a member of. Realises UJ-3.
 
 Removing a member revokes access immediately, because every policy goes through membership.
 
+**Consequences (testable):**
+- After the owner removes a viewer, the next request from the viewer's still-valid session against that workspace returns no rows, without a new sign-in.
+- The same holds for an editor: the next write is refused.
+- Covered by a case in the authorisation suite.
+
 #### FR-47: The anonymous boundary in policy · Stage 2
 
 Every policy on saved or user-entered data requires `is_anonymous` to be false in the JWT, not merely that a user is authenticated.
@@ -759,9 +774,19 @@ Everything an anonymous visitor changes — the organisation number, the active 
 
 A signed-in owner can save an analysis into a workspace.
 
+**Consequences (testable):**
+- A saved analysis reopens with the peer-group settings it was saved with: the exclusions and the size band.
+- An anonymous session cannot save (FR-47), and a viewer cannot save into a workspace they only view.
+- A saved analysis is readable only by members of its workspace (FR-45).
+
 #### FR-50: History · Stage 2
 
 A saved analysis accumulates history, so a later visit shows movement against the peer group rather than a fresh start.
+
+**Consequences (testable):**
+- A later visit shows each key figure's value at the saved state beside its current value.
+- A figure absent then or now shows its reason, never a change computed against zero (FR-23).
+- History is readable only by members of the workspace (FR-45).
 
 #### FR-51: PDF export · Stage 2
 
@@ -1148,6 +1173,11 @@ Each metric names what it validates. v1 states no quality target for SM-1 or SM-
 - **SM-3 — Authorisation.** From stage 2, when user data is first stored. Zero successful forbidden accesses across the full suite, including between workspaces held by the same owner and from an anonymous session against saved data. Validates FR-34, FR-45, FR-47.
 - **SM-4 — The model never calculates.** No generated text contains a figure absent from the engine's output, asserted by automated test. Validates FR-53.
 
+**What must be built before each primary metric can be reported.**
+- **SM-1:** funnel stages 1–5 (FR-7 to FR-12) and the labelled set (FR-70). Embeddings (FR-68) add a fourth layer and are not required.
+- **SM-2:** documents read and stored with a status per column (FR-57) and the blocking rule (FR-58), measured against the hand-transcribed reference set.
+- **SM-9:** a complete analysis from an organisation number (FR-1, FR-21 to FR-24), the AI test mode (FR-53) and the README sequence on the committed seed (FR-73).
+
 **Secondary**
 
 - **SM-5 — Latency.** Peer group assembly under one second; complete analysis within a few seconds. Validates FR-20.
@@ -1256,6 +1286,8 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 Every `[ASSUMPTION]` in this document, for explicit confirmation:
 
 - **§2.3, names and illustrative figures only** — the four situations are captured and confirmed, but the protagonists' names are invented, and each subject company's own margin is invented because no real subject exists. The peer statistics around them are real screening figures, standing in for a narrower peer group.
+
+- **§10, non-small subjects** — the share of companies that are not `smaaForetak` is per industry, not one figure: about 9 % in `62.100` after comparability and about 1 % in `69.202`, from the screening samples.
 
 **Resolved, kept for the trail:**
 

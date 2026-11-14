@@ -15,8 +15,10 @@
 // Story 2.10 (FR-17): at MAX_EKSKL exclusions every "Ekskluder" is
 // `aria-disabled="true"`, never `disabled`, so it stays focusable and its
 // reason can be read: `aria-describedby` points at the cap text, which the
-// list renders once with EXCLUSION_CAP_ID. A press still asks the provider,
-// which refuses an exclude at the cap; "Ta med igjen" is never disabled.
+// list renders once with EXCLUSION_CAP_ID. A press then does nothing, and
+// the provider refuses an exclude at the cap as well, also one pressed while
+// the 20th is in flight, before the page shows the cap; "Ta med igjen" is
+// never disabled.
 //
 // The one-off actions are links to the URL the server serialised for the
 // same change, so they work without JavaScript; with it, a click is the
@@ -50,7 +52,11 @@ export function PeerAction({
       aria-label={excluded ? t('peers.action.restoreName', { navn }) : t('peers.action.excludeName', { navn })}
       aria-disabled={capped ? 'true' : undefined}
       aria-describedby={capped ? EXCLUSION_CAP_ID : undefined}
-      onClick={() => peerChange?.change(excluded ? { kind: 'restore', orgnr, navn } : { kind: 'exclude', orgnr, navn })}
+      onClick={() => {
+        // At the cap a press does nothing; the provider refuses it too.
+        if (capped) return;
+        peerChange?.change(excluded ? { kind: 'restore', orgnr, navn } : { kind: 'exclude', orgnr, navn });
+      }}
       className="inline-flex min-h-11 min-w-6 items-center px-1 whitespace-nowrap text-link underline aria-disabled:cursor-not-allowed aria-disabled:text-slate aria-disabled:no-underline md:min-h-6"
     >
       {excluded ? t('peers.action.restore') : t('peers.action.exclude')}

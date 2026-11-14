@@ -22,7 +22,8 @@
 //     across exclude and restore, closed by a band change.
 //
 // Story 2.10: an exclude is refused at MAX_EKSKL exclusions
-// (exclusionCapReached), the one place the cap is enforced in the client.
+// (exclusionCapReached): the second guard after the aria-disabled button,
+// and the only one for a press made while the 20th is in flight.
 //
 // A query-only change keeps the page's elements (checked in a browser: the
 // pressed button is the same element after the commit), so focus normally
@@ -101,8 +102,9 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
       const baseHref = inFlight.current?.href ?? lastGood.current ?? `${window.location.pathname}${window.location.search}`;
       const base = parse(baseHref, PATH_CONTEXT);
       if (base.kind !== 'analysis') return;
-      // At the cap the button is aria-disabled, and its press ends here: no
-      // push, so no 21st exclusion and no invalid-settings notice. Built on
+      // At the cap the aria-disabled button does not call this; if anything
+      // does, it ends here: no push, so no 21st exclusion and no
+      // invalid-settings notice. Built on
       // the change in flight, this also refuses a second press while the
       // 20th is pending, before any page has rendered the cap.
       if (requested.kind === 'exclude' && exclusionCapReached(base.state)) return;

@@ -48,6 +48,8 @@ pnpm build && pnpm check:routes         # the built app serves only the allowed 
 pnpm test:e2e                           # Playwright against the built app and the seeded database, at 375 and 320 px
 ```
 
+`pnpm test:e2e` runs one worker, locally and on CI (`workers: 1` in `playwright.config.ts`): with Playwright's default, a Chromium for each of half the CPU cores, beside the two production servers, full runs in Stories 2.7 and 2.8 stopped on low memory, and with one worker they passed.
+
 The last e2e spec, `e2e/failed-subject.spec.ts`, adds a synthetic company ("SYNTETISK TESTSELSKAP AS") to the local database through `SUPABASE_DB_URL` and removes it again when it ends; it refuses any host but `localhost` and `127.0.0.1`. A run stopped halfway leaves it behind; while it is there `pnpm seed:export` refuses (its document column is not on the allow-list), and `pnpm seed` or the next e2e run (its global setup) removes it.
 
 ### Local database

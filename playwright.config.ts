@@ -12,6 +12,11 @@ import { defineConfig, devices } from '@playwright/test';
 // It is a project of its own that depends on the other two, so it runs
 // last and no other spec sees the company; the global setup removes one a
 // crashed run left behind before any project starts.
+//
+// One worker, locally and on CI (Story 2.10): full runs with Playwright's
+// default worker count stopped on low memory in Stories 2.7 and 2.8 (each
+// worker a Chromium beside the two production servers), and passed with
+// `--workers=1`. The setting lives here, not in a prompt.
 const port = 3100;
 const dbDownPort = 3101;
 // Port 1 on the loopback interface: nothing listens, so every read is refused.
@@ -19,6 +24,7 @@ const UNREACHABLE_READER_URL = 'postgresql://reader:unreachable@127.0.0.1:1/post
 
 export default defineConfig({
   testDir: 'e2e',
+  workers: 1,
   // Removes a synthetic company left by a crashed run before anything runs.
   globalSetup: './e2e/global-setup.ts',
   forbidOnly: !!process.env.CI,

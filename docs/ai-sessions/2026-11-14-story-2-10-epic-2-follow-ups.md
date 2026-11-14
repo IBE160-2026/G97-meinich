@@ -122,7 +122,9 @@ When Meinich asked the PR text to say that the button does nothing at the cap an
 The three mutations, run on `e2e/peer-adjust.spec.ts`:
 - Provider guard removed: the in-flight test fails.
 - Both removed: "with 20 exclusions …" fails too.
-- Button guard removed: nothing fails, because the provider holds.
+- Button guard removed: no e2e test fails, because the provider holds.
+
+Before merge, Meinich pointed out that the button guard then had no test that failed when it was removed, and asked for one. `test/analysis/peer-action.test.ts` (`fccfa08`) renders `PeerAction` inside a provider whose `change` is a spy and presses it. With `if (capped) return;` removed, "a press on a capped \"Ekskluder\" does not call the provider" fails: `expected "vi.fn()" to not be called at all, but actually been called 1 times`.
 
 One correction: the BMAD session had first said that removing the button guard alone would fail the 20-exclusion test. It does not, because the provider still refuses.
 

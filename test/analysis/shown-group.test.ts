@@ -1,5 +1,5 @@
 // The page's group-and-benchmark assembly (Stories 1.8, 2.5, 2.7): the group
-// after funnel stage 4 minus `ekskl`, never the stage 1–3 pool, and the
+// after funnel stages 4 and 5 minus `ekskl`, never the stage 1–3 pool, and the
 // subject's own `valuta` passed to the engine, so a filing not in NOK gets no
 // kroner amount.
 import { describe, expect, it } from 'vitest';
@@ -59,7 +59,7 @@ describe('shownGroup', () => {
 
   // Story 2.5, review pass 1 (triage 3): stage 4 removed two peers, so pool
   // and group differ. The shown peers and every figure use the group.
-  it('shows and benchmarks the group after stage 4, not the pool', () => {
+  it('shows and benchmarks the group after stages 4 and 5, not the pool', () => {
     const removed = [pool[10]?.orgnr ?? '', pool[11]?.orgnr ?? ''];
     const afterStage4 = { pool, group: pool.filter((peer) => !removed.includes(peer.orgnr)), flagged: [], counts, emptyReason: null };
     const shown = shownGroup(afterStage4, [], filing('NOK'));

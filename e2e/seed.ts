@@ -182,7 +182,7 @@ export function expectedPeerGroup(orgnr: string, band: SizeBand) {
     });
   return assemblePeerGroup(subject, candidates, band);
 }
-/** The group after stage 4: what the Peers tab lists and every aggregate uses. */
+/** The group after stages 4 and 5: what the Peers tab lists and every aggregate uses. */
 export const expectedGroup = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).group;
 /** The candidate pool, stages 1–3: what `ekskl` is checked against. */
 export const expectedPool = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).pool;

@@ -2,9 +2,9 @@
 // flagged peers (Story 2.7), and the subject's three API
 // figures benchmarked against it (Stories 1.7–1.8, 2.5). Pure: the peer
 // group at the URL's band, the `ekskl` list and the subject's filing in;
-// the shown group (the group after funnel stage 4, minus `ekskl`, the same
-// group the Peers tab lists) and the benchmark out. The choice of the
-// stage-4 group over the stage 1–3 pool is made here, where it is tested
+// the shown group (the group after funnel stages 4 and 5, minus `ekskl`, the
+// same group the Peers tab lists) and the benchmark out. The choice of the
+// group after stages 4 and 5 over the stage 1–3 pool is made here, where it is tested
 // (test/analysis/shown-group.test.ts). Story 2.8: the Peers tab lists the
 // whole group, excluded peers marked, so `members` keeps them, while
 // `peers`, the benchmark, `analysisCount` and the funnel's flagged count
@@ -50,7 +50,7 @@ export type ShownGroup<P> = {
 export type FunnelResult<P> = {
   /** Stages 1–3: never shown or aggregated here. */
   readonly pool: readonly P[];
-  /** The pool after stage 4. */
+  /** The pool after stages 4 and 5. */
   readonly group: readonly P[];
   readonly flagged: readonly string[];
   readonly counts: FunnelCounts;

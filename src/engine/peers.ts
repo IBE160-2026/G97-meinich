@@ -1,8 +1,9 @@
-// Funnel stages 1–4 (Stories 1.7, 2.5; FR-8, FR-10): which companies are
-// comparable with the subject, decided by rules only. Pure: the subject's
+// Funnel stages 1–5 (Stories 1.7, 2.5, 2.6; FR-8, FR-10): which companies
+// are comparable with the subject, decided by rules (stage 5 reads the
+// stored classification; the rules compare it). Pure: the subject's
 // benchmark-year filing and every same-industry company's filings for that
-// year in, the candidate pool at one size band, the group after stage 4 and
-// a count per stage out.
+// year in, the candidate pool at one size band, the group after stages 4
+// and 5 and a count per stage out.
 //
 //   stage 1  same naeringskode1, and sumDriftsinntekter inside the size band
 //            around the subject's (both bounds included, exact in øre)

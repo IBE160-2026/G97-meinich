@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 14-11-2026 10:17
+last_updated: 11-14-2026 12:17
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -67,7 +67,8 @@ development_status:
   2-7-the-peers-tab-shows-why: done
   2-8-adjust-the-peer-group: done
   2-9-missing-figures-say-why: done
-  epic-2-retrospective: optional
+  2-10-epic-2-follow-ups: backlog  # added by the Epic 2 retrospective (Meinich, 2026-11-14): W1, W2, actions 5 and 9
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1a-the-engine-computes-every-key-figure: backlog
@@ -108,7 +109,7 @@ delivery_order:
     - ocr-reference-set  # not a story: GitHub issue #14, consumed by 2-3; seeded draw from all of 62.100
   sequence:
     - epic-1    # 1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5a → 1.5b → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10
-    - epic-2    # 2.1a → 2.1b → 2.2 → 2.9
+    - epic-2    # 2.1a → 2.1b → 2.2 → … → 2.9 → 2.10
     - 5-2-layer-by-layer-measurement
     - epic-3    # 3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7
     - 5-4-the-demo-seed
@@ -142,7 +143,7 @@ action_items:
       not stated -> no band, plus a test; with R3 (empty peer group without a reason).
       Recorded in deferred-work under Story 2.9"
     owner: "Dev (Story 2.9)"
-    status: done
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
   - id: "epic-1-retro-item-4-ban-next-next-react-and-react-dom-in-the"
     epic: 1
@@ -194,8 +195,9 @@ action_items:
     epic: 1
     action: "Process changes for Epic 2: deletion-mutation column in the spec I/O
       matrix, AI-log claims cite tests, reviewer prompt states both status vocabularies
-      and the silent-fallback rule, line-comment PR review submitted as Comment before merge, session-file
-      check before merge, spec change-log heading. Before Story 2.1"
+      and the silent-fallback rule, line-comment PR review submitted as Comment before
+      merge, session-file check before merge, spec change-log heading. Before Story
+      2.1"
     owner: "Meinich"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
@@ -204,5 +206,42 @@ action_items:
     action: "Split e2e/analysis.spec.ts by surface and make the AD-4 payload scan
       a shared helper for every tab. In Story 2.7"
     owner: "Dev (Story 2.7)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md"
+  - id: "epic-2-retro-item-12-story-3-1a-spec-decides-b1-stated-or-der"
+    epic: 2
+    action: "Story 3.1a spec decides B1 (stated or derived revenue in the fingerprint),
+      B2 (one source for the filing a document belongs to, with a count of differing
+      columns) and B3 (which rule the balance bounds take), and applies the 5 kr bound
+      to a derived document revenue"
+    owner: "BMAD session, at the 3.1a checkpoint"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"
+  - id: "epic-2-retro-item-13-story-3-5-keeps-andel-median-across-a-pe"
+    epic: 2
+    action: "Story 3.5 keeps andel=median across a peer change (B6)"
+    owner: "Story 3.5"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"
+  - id: "epic-2-retro-item-14-the-prompt-extraction-checks-itself-ever"
+    epic: 2
+    action: "The prompt extraction checks itself: every prompt in the transcript,
+      mid-turn ones included, is in docs/ai-prompts.md, with UTC times (P4)"
+    owner: "review session"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"
+  - id: "epic-2-retro-item-15-cut-the-rest-of-the-prd-frs-with-build-h"
+    epic: 2
+    action: "Cut the rest of the PRD FRs with build history (about 22) to rule and
+      consequences, as FR-1, FR-24, FR-58 and FR-73 were. Before Epic 5"
+    owner: "BMAD session"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"
+  - id: "epic-2-retro-item-16-story-2-10-epic-2-follow-ups-r2-and-r3-w"
+    epic: 2
+    action: "Story 2.10 Epic 2 follow-ups: R2 and R3 (W1), the 21st exclusion (W2),
+      Epic 1 action 6 and the stage-4 comments (action 5), one-worker e2e and the
+      restore step (action 9); Epic 2 to done after its merge"
+    owner: "Story 2.10 / Meinich"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"

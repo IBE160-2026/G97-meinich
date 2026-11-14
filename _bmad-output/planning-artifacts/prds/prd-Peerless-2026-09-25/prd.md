@@ -20,7 +20,7 @@ It states **what Peerless does**, not how. Four hand-written documents remain au
 | `docs/data-sources-brreg.md` | Data sources, verified field sets, API traps |
 | `docs/key-figures.md` | Every key figure's formula, source, direction and kroner translation |
 
-Where this PRD and one of those four disagree, **the other document wins and this one is wrong** — fix it here. Technical depth that surfaced during discovery sits in `addendum.md` as pointers into those documents, never as a second copy.
+Where this PRD and one of those four disagree, **the other document wins and this one is wrong**. A disagreement is a defect, not a rule to lean on: it is fixed in the same pull request that made it (AGENTS.md, "A decision travels upstream"). Technical depth that surfaced during discovery sits in `addendum.md` as pointers into those documents, never as a second copy.
 
 Structure: vocabulary is fixed in §3 Glossary and used verbatim everywhere after. Features are grouped in §4 with functional requirements nested and numbered globally FR-1 to FR-73 so epics can cite stable IDs. **An FR number is stable and never reused**, so a requirement added later sits at the end of its section out of numeric order rather than pushing existing numbers along. Every FR carries its stage on its heading line — `v1`, `Stage 2` or `Stage 3`, as the brief defines them — and an FR that spans stages states the split in its first bullet; §6 groups them. Assumptions are tagged `[ASSUMPTION]` inline and indexed in §12.
 
@@ -200,13 +200,11 @@ Honesty at this boundary is load-bearing: a company outside a covered industry g
 A visitor, with or without an account, can search by company name or organisation number in one field and reach an analysis. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
-- One field accepts either. Input made only of digits (spaces ignored) is always read as an organisation number: nine digits that pass the modulus-11 check are matched exactly, and any other length or a failed check gets its own message (`/api/sok` answers 400). Anything else is a fuzzy match on company name. A company whose name is only digits, such as "1881", can therefore not be found by name — accepted in the Epic 1 retrospective (R9, 2026-10-16).
-- A name search needs at least 2 characters and returns at most 8 results.
+- One field accepts either. Input made only of digits (spaces ignored) is always read as an organisation number: nine digits that pass the modulus-11 check are matched exactly, and any other length or a failed check gets its own message. Anything else is a fuzzy match on company name, so a company whose name is only digits, such as "1881", cannot be found by name.
+- A name search needs at least 2 characters and returns at most 8 results, each with name, organisation number, primary industry and municipality, so two companies with similar names can be told apart. It matches companies by name, never by financial criteria (§5, screening).
 - The search runs against the companies in Peerless's own database (the seed, FR-73), never against the register live.
-- Each result shows name, organisation number, primary industry and municipality, so two companies with similar names can be told apart. One company at a time: the search returns companies matching a name, never companies matching financial criteria (§5, screening).
-- Choosing a result resolves on organisation number. Companies are matched across filings and years on organisation number only; a name match never identifies a company.
-- A valid organisation number for a company in a covered industry returns a complete analysis.
-- A malformed number, or a search with no match, returns a clear message, not an empty analysis.
+- Choosing a result resolves on organisation number, and companies are matched across filings and years on organisation number only; a name match never identifies a company.
+- A valid organisation number for a company in a covered industry returns a complete analysis; a malformed number, or a search with no match, returns a clear message, not an empty analysis.
 
 #### FR-2: Company identification · v1
 
@@ -501,13 +499,13 @@ A key figure that cannot be computed for a company is undefined for that company
 
 #### FR-24: Same basis for subject and peers · v1
 
-A key figure's **comparison** — median, favourable quartile, percentile and any kroner amount — is shown only if the figure can be computed for the subject and for at least the minimum group size of peers **from the same source**. The subject's own value is governed by FR-22, not by this requirement.
+A key figure's comparison — median, favourable quartile, percentile and any kroner amount — is shown only if the subject and at least the minimum group size of peers (FR-22) have that figure from the same source. The rule withholds only the comparison; the subject's own value is governed by FR-22.
 
 **Consequences (testable):**
-- A figure the subject has from OCR and the peers do not gets no comparison: no median, no quartile, no percentile, no kroner amount.
-- The subject's own value still appears in the row, with the reason the comparison is absent, exactly as below the minimum group size (FR-22). The two cases are displayed the same way because they are the same thing to the user: a figure with nothing trustworthy to compare against.
+- A subject value from OCR against peers with API values only yields no median, no favourable quartile, no percentile and no kroner amount.
+- The subject's own value is still shown in the row, with the reason the comparison is absent, displayed the same way as below the minimum group size (FR-22).
 - Where the subject's own value cannot be computed either, the row states that instead (FR-23).
-- **This requirement withholds a comparison; it never withholds the company's own figure.** An earlier wording said the figure itself was not shown, which contradicted FR-22.
+- No case under this rule removes the subject's own value from the row.
 
 #### FR-25: Same year · v1
 
@@ -873,15 +871,15 @@ Each filing carries a data quality flag derived from the reconciliation rules (F
 
 #### FR-58: A figure that fails reconciliation is withheld · v1
 
-A figure is accepted only where its column reconciles, and a failure blocks the column rather than degrading the analysis silently. Acceptance is decided **per column, not per figure**: every figure of a reconciled column reaches the engine, and none of a failed one does (`documentFigures`, `src/engine/document-inputs.ts`).
-
-**Known limit: a misread that keeps the token's width, in a line no check covers.** Some lines are covered by no within-document check and have no register counterpart — `bankinnskudd`, `kundefordringer`, `salgsinntekt` and `leverandorgjeld` among them — so a misread there can sit in a reconciled column and reach the engine. SM-2 found none in the reference set after the transcription corrections (§10), but the set is 20 filings. Recorded in `deferred-work.md` (Story 2.3 review, B9); answered by Story 2.5c (§11, question 21). Story 2.5b guards one path in: a cost line or a part of intangible assets the plain read refused can enter from the digits-only read only when the lines sum to their plain-read total within the within-document bound. Story 2.5c (Meinich, 2026-11-06) checks every figure token at reading and refuses one too narrow for its digits (R1): the plain read's "23" for a printed "2" is refused, and the digits-only read, which merges the groups into one wide token, is kept out by the sum gates and the checks. In the engine, a current `kundefordringer` or `bankinnskudd` above the register's `sumOmloepsmidler` + max(5 kr, 0.001 % of it) is absent with a named reason (R3; the line or the subtotal is wrong, so a correct line can be dropped), and a column whose four main cost lines are read and fall short of sum kostnader by more than 5 kr gets no fingerprint (R2). Still unguarded: a misread of the same width (8 read as 3) in `salgsinntekt`, `leverandorgjeld` or a cost line of a column without every main line read; a prior-year `kundefordringer` or `bankinnskudd`; and the two together above the subtotal while each is within it.
+A figure is accepted only where its column reconciles, and a failure blocks the column rather than degrading the analysis silently. Acceptance is decided **per column, not per figure**: every figure of a reconciled column reaches the engine, and none of a failed one does.
 
 **Consequences (testable):**
 - *Within* a document, stated subtotals must agree with their components within a tight absolute bound of a few kroner — because the register prints whole kroner rounded from øre, a legitimate filing can be a krone off.
-- *Between* document and the register's structured figures, a figure agrees within max(a few kroner, a very small proportion of the register's figure): the proportional part admits the rounding of a company reporting in millions as the register states it, and is kept small because documents in scaled reporting units are refused, so a coarse tolerance would only admit misread digits (values and measurements in `docs/data-sources-brreg.md`).
+- *Between* document and the register's structured figures, a figure agrees within max(a few kroner, a very small proportion of the register's figure): the proportional part admits the rounding of a company reporting in millions as the register states it, and is kept small because documents in scaled reporting units are refused (`docs/data-sources-brreg.md`).
 - Neither check is exact equality, and the two are never collapsed into one: the filing's own rounding is a krone or two, while recognition errors are wrong by orders of magnitude.
-- A failing figure is not shown with a caveat and not substituted.
+- A failing figure is not shown with a caveat and not substituted, and no OCR digit is repaired.
+- A digit token too narrow for its digits is refused at reading, and a current-year `kundefordringer` or `bankinnskudd` above the register's `sumOmloepsmidler` is not used by the engine (`docs/key-figures.md`).
+- **Known limit:** a misread that keeps the token's width, in a line no check covers (`salgsinntekt`, `leverandorgjeld`, a prior-year current asset), can still reach the engine in a reconciled column. What guards each path is in the technical note (AD-15).
 
 #### FR-59: Nothing is extracted at query time · v1
 
@@ -1004,32 +1002,16 @@ A public page explains, in plain Norwegian, how peers are chosen, where AI is us
 
 #### FR-73: Running locally · v1
 
-Peerless runs from a fresh clone on a local database loaded with seed data, and nothing it does at runtime needs OCR, the register API, a model or email.
+Peerless runs from a fresh clone on a local database loaded with seed data, and nothing it does at runtime needs OCR, the register API, a model, email or a secret.
 
 **Consequences (testable):**
-- **Local database.** The Supabase CLI runs Postgres locally in Docker (`supabase db start`); v1 has no accounts, so local auth arrives with stage 2. Every table, policy and function is a migration in the repository, and a fresh database reaches the full schema from the migrations alone.
-- **Seed data, one command.** The seed holds register data, API key figures, document-derived figures that reconcile, business-model fingerprint results and the stored AI classifications for every AS in `62.100`, and a stored explanation for every `62.100` company's default peer group, generated against the dataset it ships in — outside the demo set it cites only the API figures present there. It loads with one command, and loading it twice leaves the same state.
-- **No runtime dependency on the pipeline or the network.** With the register API and every model host unreachable and no model key set, a lookup of a seeded company produces the complete analysis. A test asserts that no request to the register or to a model leaves the app during an analysis.
-- **AI test mode.** Without a model key, the explanation comes from the stored output for the seed companies' default peer groups (FR-52), and the figure-validation test (FR-53) runs against those fixtures at generation and again when a seed is loaded, against the engine output for the loaded dataset; an explanation that fails is not shown, and nor is one whose stored digest no longer matches the current engine output (technical note, AD-13). A subject with no stored explanation, or none that passes, shows none and says so; nothing is generated.
-- **No email in v1.** Nothing in v1 sends email, so no mail service or credential is needed to run it.
-- **Two seed levels, built in from the start.** The register states no licence for the filed documents and the repository is public, so:
-  - **demo** — committed, loaded with `pnpm seed`:
-    - register data and API key figures for all of `62.100`, and stored AI classifications for every AS in it;
-    - **fingerprint results for the declared set below** — the derived categories stage 4 uses (inventory yes/no, cost-of-goods band, capitalised intangibles yes/no, asset-intensity band, personnel-cost band), never the raw document figures behind them — so B still shows fingerprint separation. A fingerprint exists only for a company whose documents are read, and v1 reads no other `62.100` company's documents for the seed (FR-3), so every company outside the declared set gets stages 1–3 plus classification (Story 5.4). The licence gate below decides whether fingerprint categories may be committed for companies outside the declared set once their documents are read;
-    - **full document-derived figures for demo companies A and B and for every peer of A and B at all three size-band steps** (0,5–2×, 0,33–3× and 0,25–4×), so widening the band on A or B still yields a complete analysis, waterfall included, and for the 20 OCR reference companies (a seeded draw of 20 filings from all of `62.100`, SM-2). The allow-list (`seed/allow-list.json`) is per company, so the seed holds every 2021–2025 document of each reference company — 97 documents — failed columns included; the engine never uses a failed column (FR-58). C needs API figures only. The README states the count.
-    - A check asserts that the committed seed holds document-derived figures for no company outside that declared set, and holds nothing for other companies beyond the fingerprint categories.
-    - **Gate:** before the demo seed is first published, a short licence assessment is recorded in the repository, assessing whether committing derived categories carries low risk compared with reproducing document figures. The gate opens only if the assessment concludes that it does; otherwise the fingerprint categories are not committed for companies outside the allow-list. The gate is the file `docs/licence-gate.json` (`{open, assessment, date}`, written by Story 5.4); an absent or unreadable file counts as closed, and `pnpm seed:export` says so.
-  - **full** — built locally with `pnpm seed:full`, from batch steps 1 and 2 without a model: `pnpm ingest`, which loads register data and API key figures for all of `62.100` and ends with `pnpm derive`, and, only when the user gives a list, `pnpm ingest --documents <list>` for the listed companies' documents (about 21 s per document). Without a list it reads no document. It does not promise the full dataset: a company whose documents are not read shows its document-based figures as absent, as in the demo seed.
-    - **It never calls a model and needs no key.** Classifications are taken from the committed seed, which holds every AS in `62.100`; new ones come only from running `pnpm classify` separately, with a key. The stored explanations are the committed seed's, each shown only where its stored digest matches the engine output for the loaded dataset; otherwise none is shown, with a notice (AI test mode above, AD-13).
-    - Its output path is gitignored, and it is never committed while the filed documents' licence is unresolved.
-- **Three named demo companies, each showing a different state:**
-  - **A** — a typical `62.100` consultancy with its full peer group: the whole analysis.
-  - **B** — a loss-making `62.100` product company with its peer group: the fingerprint separating a product company from consultancies, and a large gap.
-  - **C** — a `69.202` bookkeeping firm: the uncovered-industry state (FR-4), from API figures alone, with no document figures needed.
-- **What any other company shows in the demo seed, stated rather than hidden.** Any other `62.100` company gets the full funnel and a peer group, with its API key figures (operating margin, return on assets, equity ratio) compared as normal. Its own document-based figures read *"Ikke i demodataene"*, with the explanation *"Tallene fra årsregnskapsdokumentene er i denne versjonen bare lest inn for demoselskapene og sammenligningsgruppene deres. For dette selskapet sammenlignes bare nøkkeltallene fra Regnskapsregisterets API."*, which names no command and promises no full dataset; a figure that needs the peers' document figures is withheld the same way, never filled from elsewhere. Concretely: the peer group, the three API rows, the margin-or-capital decomposition (both factors are API) and the annual profit uplift with its valuation are shown, and so is the stored explanation, built from the API figures present; the margin waterfall, the pay-or-productivity decomposition and the capital amounts read "Ikke i demodataene". *"For få sammenlignbare"* is kept for genuine below-floor cases (FR-22) and is never used for this one. A `62.100` company in the register with no filed accounts in the loaded data has no benchmark year (FR-25) and is shown with identification only and *"Vi har ikke et levert regnskap for dette selskapet ennå."* The README says what `pnpm seed:full` builds: register data and API key figures for all of `62.100`, and documents only for a list the user gives.
-- **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh — with no change to the application or the schema. `[NOTE FOR PM]` `deferred-work.md` (Story 1.7) plans an index on `naeringskode1`, a migration, for when a second industry is covered; whether a performance-only migration counts as a schema change here is not decided.
-- **README.** A short, fixed sequence takes a fresh clone to a running app — `corepack enable`, `pnpm install --frozen-lockfile`, `pnpm db:start`, `pnpm db:roles`, `pnpm seed`, `pnpm build`, `pnpm start` — and a run from a fresh clone on a clean machine is part of v1's acceptance (SM-9). The app runs as a production build, never `next dev`, because the rate limit and every test assume it. The README lists the three demo organisation numbers and what each demonstrates.
-- No secret is needed to run v1, and nothing has to be typed in: `pnpm db:roles` generates the local role passwords and writes them, with the connection URLs, into the gitignored `.env`; every other value is a local default or optional.
+- **From a fresh clone by the README alone.** A short, fixed sequence — `corepack enable`, `pnpm install --frozen-lockfile`, `pnpm db:start`, `pnpm db:roles`, `pnpm seed`, `pnpm build`, `pnpm start` — reaches a running production build, never `next dev`, with nothing typed in: local role passwords are generated into the gitignored `.env`, and every other value is a local default or optional (SM-9). Every table, policy and function is a migration, and a fresh database reaches the full schema from the migrations alone.
+- **No runtime dependency on the pipeline or the network.** With the register API and every model host unreachable and no model key set, a lookup of a seeded company produces the complete analysis, and a test asserts that no request to the register or to a model leaves the app. Without a key the explanation comes from stored output that passes the figure-validation test against the loaded dataset (FR-52, FR-53); a subject with none that passes shows none and says so. Nothing in v1 sends email.
+- **The demo seed, committed, loads with one command and twice gives the same state.** It holds register data and API key figures for all of `62.100`, the stored classification of every AS in it, a stored explanation for every company's default peer group, and document-derived figures only for a declared set: demo companies A and B, every peer of A and B at all three size-band steps, and the OCR reference companies (SM-2). Fingerprint categories, never the figures behind them, are committed for the declared set, and for other companies only if a recorded licence assessment opens the gate. A check asserts that the seed holds nothing else.
+- **The full seed is built locally and never committed.** `pnpm seed:full` runs batch steps 1 and 2 without a model: register data and API key figures for all of `62.100`, and documents only for a list the user gives. It promises no full dataset, and a company whose documents are not read shows its document-based figures as absent.
+  - The README says what `pnpm seed:full` builds. Classifications come from the committed seed, and new ones only from running `pnpm classify` separately, with a key.
+- **Three demo companies show three states, and every other company shows what it is.** A, a typical `62.100` consultancy, shows the whole analysis; B, a loss-making `62.100` product company, shows the fingerprint separating it from consultancies and a large gap; C, a `69.202` bookkeeping firm, shows the uncovered-industry state from API figures alone (FR-4). Any other `62.100` company gets the full funnel and its API figures compared as normal, and its document-based figures — and any figure that needs its peers' — read "Ikke i demodataene", with an explanation that names no command and promises no full dataset (EXPERIENCE.md); "For få sammenlignbare" is kept for genuine below-floor cases (FR-22). A `62.100` company with no filed accounts in the loaded data shows identification only (FR-25). The README lists the three demo organisation numbers and what each demonstrates.
+- **Adding an industry is data, not code.** A stage-3 industry arrives through the pipeline, its own labelled set and measurement, and a seed refresh, with no change to the application or the schema.
 
 ## 5. Non-Goals (Explicit)
 
@@ -1274,6 +1256,8 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 **Open from the build** (added 2026-11-04, when this PRD was brought in line with Epics 1–2)
 
 23. **Does a dissolved company stay a peer?** Nothing in the request path reads `slettedato` yet, so a dissolved company remains a candidate and its filings count in aggregates (FR-66; `deferred-work.md`, Story 2.4).
+
+25. **Whether an index-only migration counts as a schema change for "adding an industry is data, not code" (FR-73).** `deferred-work.md` plans an index on `naeringskode1`, a migration, for when a second industry is covered. Owner: stage 3.
 
 **Pre-deployment gates** (not v1 requirements; blocking before anything is public)
 

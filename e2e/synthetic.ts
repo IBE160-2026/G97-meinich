@@ -80,6 +80,13 @@ async function list(tx: postgres.TransactionSql): Promise<void> {
 }
 
 async function remove(tx: postgres.TransactionSql): Promise<void> {
+  // Never delete a real company that happens to hold the orgnr: refuse,
+  // with nothing deleted.
+  const held = await tx<{ navn: string | null }[]>`select navn from register.company where orgnr = ${SYNTHETIC.orgnr}`;
+  const holder = held[0];
+  if (holder !== undefined && holder.navn !== SYNTHETIC.navn) {
+    throw new Error(`orgnr ${SYNTHETIC.orgnr} is held by another company; the synthetic e2e company refuses to delete it`);
+  }
   await tx`delete from register.company where orgnr = ${SYNTHETIC.orgnr}`;
   await unlist(tx);
 }

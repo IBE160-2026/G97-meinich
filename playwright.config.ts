@@ -10,7 +10,8 @@ import { defineConfig, devices } from '@playwright/test';
 // e2e/failed-subject.spec.ts (Story 2.9) commits a synthetic company to the
 // local database for its own run and removes it after (e2e/synthetic.ts).
 // It is a project of its own that depends on the other two, so it runs
-// last and no other spec sees the company.
+// last and no other spec sees the company; the global setup removes one a
+// crashed run left behind before any project starts.
 const port = 3100;
 const dbDownPort = 3101;
 // Port 1 on the loopback interface: nothing listens, so every read is refused.
@@ -18,6 +19,8 @@ const UNREACHABLE_READER_URL = 'postgresql://reader:unreachable@127.0.0.1:1/post
 
 export default defineConfig({
   testDir: 'e2e',
+  // Removes a synthetic company left by a crashed run before anything runs.
+  globalSetup: './e2e/global-setup.ts',
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',

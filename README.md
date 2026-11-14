@@ -48,7 +48,7 @@ pnpm build && pnpm check:routes         # the built app serves only the allowed 
 pnpm test:e2e                           # Playwright against the built app and the seeded database, at 375 and 320 px
 ```
 
-The last e2e spec, `e2e/failed-subject.spec.ts`, adds a synthetic company ("SYNTETISK TESTSELSKAP AS") to the local database through `SUPABASE_DB_URL` and removes it again when it ends; it refuses any host but `localhost` and `127.0.0.1`. A run stopped halfway leaves it until the next e2e run removes it.
+The last e2e spec, `e2e/failed-subject.spec.ts`, adds a synthetic company ("SYNTETISK TESTSELSKAP AS") to the local database through `SUPABASE_DB_URL` and removes it again when it ends; it refuses any host but `localhost` and `127.0.0.1`. A run stopped halfway leaves it behind; while it is there `pnpm seed:export` refuses (its document column is not on the allow-list), and `pnpm seed` or the next e2e run (its global setup) removes it.
 
 ### Local database
 

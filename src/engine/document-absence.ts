@@ -15,7 +15,8 @@
 //    subtotal) is undefined, `line_not_read_safely`; a figure reading
 //    `sumDriftsinntekter` that is neither stated nor derivable from its parts
 //    is undefined, `component_missing`; revenue growth (14) also needs the
-//    prior column, and takes its reason when that column passes nothing.
+//    prior column's revenue, and is `component_missing` when that column is
+//    absent or passes no value (its own reason would name the wrong year).
 //    Every other empty line, and the sign of a denominator, is Story 3.1a's
 //    to decide with the formula.
 import {
@@ -112,8 +113,10 @@ function readAbsence(
     if (absent !== null) return absent;
   }
   if ('prior' in definition) {
-    if (prior === null) return COMPONENT_MISSING;
-    return revenueAbsence(prior);
+    // A missing, failed or unreconciled prior column, or one whose revenue
+    // cannot be derived: the growth lacks a component. Its own reason would
+    // be worded with the filing year, not the prior year it is about.
+    if (prior === null || revenueAbsence(prior) !== null) return COMPONENT_MISSING;
   }
   return null;
 }

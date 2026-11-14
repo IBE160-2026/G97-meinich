@@ -1889,6 +1889,7 @@ So that every figure the table will show can be traced to a formula and a hand c
 **Given** reconciled document figures and API figures for a subject and its peers
 **When** the engine computes the key figures
 **Then** it computes every key figure in `docs/key-figures.md` — 1 to 14 and cash share — by the formula written there, as exact decimals from øre, with missing components derived first from stated totals (Story 2.9) and nothing else
+**And** a derived document `sumDriftsinntekter` (`documentRevenue` marks it `derived`, Story 2.9) of 5 kr or less counts as not positive, so a figure over it is undefined with the cause denominator not positive, as for a derived API denominator (`docs/key-figures.md`, "Deriving a missing API input")
 **And** each figure has a formula test against a hand-calculated value, and a figure whose formula differs from the document fails its test
 
 **Given** the two identities in `docs/key-figures.md`

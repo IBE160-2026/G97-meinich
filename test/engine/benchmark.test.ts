@@ -145,8 +145,12 @@ describe('benchmarkApiFigures: the driftsmargin gap in kroner', () => {
     expect(result.egenkapitalandel.comparison).toMatchObject({ kind: 'below_floor', count: 9, leftOut: 1 });
   });
   // FR-71 (Story 2.9): the subject's own document failed reconciliation. Its
-  // document figures are absent with that reason; the three API figures and
-  // the driftsmargin kroner do not read the document at all.
+  // document figures are absent with that reason. The API half of this test
+  // cannot fail on its own: the guarantee that a document cannot move the
+  // three API figures or the driftsmargin kroner is benchmarkApiFigures'
+  // signature, which takes no document input, and the e2e comparison of every
+  // API cell with the company on and off the dataset's list
+  // (e2e/failed-subject.spec.ts).
   it('a failed document leaves the API benchmark unchanged', () => {
     const failed = documentBasis({
       inManifest: true,

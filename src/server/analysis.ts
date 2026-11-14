@@ -20,7 +20,14 @@ import 'server-only';
 // engine can decide each company's document basis (src/analysis/
 // document-basis.ts, which logs a listed company with no stored document).
 import { cache } from 'react';
-import { DOCUMENT_JOINS, DOCUMENT_SELECT, documentBasisOf, type DocumentBasisColumns } from '../analysis/document-basis.ts';
+import {
+  DOCUMENT_JOINS,
+  DOCUMENT_SELECT,
+  documentBasisOf,
+  logCandidatesRead,
+  logSubjectRead,
+  type DocumentBasisColumns,
+} from '../analysis/document-basis.ts';
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
@@ -32,6 +39,8 @@ import { readerSql } from './db.ts';
 export type SubjectRow = SubjectRowFields & DocumentBasisColumns;
 
 interface SubjectRowFields extends SubjectKeyFigures, FingerprintColumns {
+  /** A register.dataset row exists: without one, every company is outside the dataset (Story 2.9). */
+  dataset_loaded: boolean;
   classification: string | null;
   orgnr: string;
   navn: string | null;
@@ -65,6 +74,7 @@ select c.orgnr,
        c.naeringskode1_beskrivelse,
        c.forretningsadresse_kommune,
        exists (select 1 from register.covered_industry ci where ci.code = c.naeringskode1) as covered,
+       exists (select 1 from register.dataset) as dataset_loaded,
        f.filing_year,
        f.regnskapstype,
        f.periode_fra::text as periode_fra,
@@ -152,7 +162,10 @@ export function toSubject(row: SubjectRow): Subject {
 export async function loadSubject(orgnr: string): Promise<Subject | null> {
   const rows = await readerSql().unsafe<SubjectRow[]>(SUBJECT_SQL, [orgnr]);
   const row = rows[0];
-  return row === undefined ? null : toSubject(row);
+  if (row === undefined) return null;
+  const subject = toSubject(row);
+  logSubjectRead(row.dataset_loaded, subject.filing?.documentBasis ?? null);
+  return subject;
 }
 
 /**
@@ -300,7 +313,9 @@ export function toCandidate(row: CandidateRow): Candidate {
 /** The candidate filings for a subject: same naeringskode1, the benchmark year. Throws when the read fails. */
 export async function loadCandidates(orgnr: string, naeringskode1: string, filingYear: number): Promise<Candidate[]> {
   const rows = await readerSql().unsafe<CandidateRow[]>(CANDIDATES_SQL, [orgnr, naeringskode1, filingYear]);
-  return rows.map(toCandidate);
+  const candidates = rows.map(toCandidate);
+  logCandidatesRead(candidates.map((candidate) => candidate.documentBasis));
+  return candidates;
 }
 
 /**

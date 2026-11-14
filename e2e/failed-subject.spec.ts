@@ -106,6 +106,7 @@ for (const width of [1280, 375, 320]) {
             };
           }),
       );
+      if (fane === 'nokkeltall') expect(tables.length, fane).toBeGreaterThanOrEqual(1);
       for (const table of tables) {
         if (width >= 768) expect(table.inRegion && table.regionOwn, fane).toBe(true);
         else expect((table.inRegion && table.regionOwn) || table.right <= width, fane).toBe(true);

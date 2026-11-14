@@ -163,6 +163,13 @@ describe('documentFigureAbsence', () => {
     expect(documentBasis({ ...READ, document: { status: 'failed_reconciliation', current: null, prior: null } }).kind).toBe(
       'failed_reconciliation',
     );
+    // Any other status with no current column: nothing checked can be read.
+    for (const status of ['reconciled', 'extracted']) {
+      expect(documentBasis({ ...READ, document: { status, current: null, prior: null } }), status).toEqual({
+        kind: 'not_reconciled',
+        filingYear: 2025,
+      });
+    }
   });
 
   it('a column not yet reconciled gives no document figure', () => {
@@ -200,14 +207,32 @@ describe('documentFigureAbsence', () => {
     expect(documentFigureAbsence(basis, 'kfd')).toBeNull();
   });
 
-  it('revenue growth takes the prior column’s reason', () => {
+  it('revenue growth lacks a component when the prior column is absent or passes no value', () => {
+    // Never the prior column's own reason: its words would name the filing
+    // year ("Regnskapet for 2025 …"), not the prior year it is about.
+    const missing = { reason: 'undefined', cause: 'component_missing' };
     const noPrior = documentBasis({ ...READ, document: { status: 'reconciled', current: column('reconciled'), prior: null } });
-    expect(documentFigureAbsence(noPrior, 'vekst')).toEqual({ reason: 'undefined', cause: 'component_missing' });
+    expect(documentFigureAbsence(noPrior, 'vekst')).toEqual(missing);
     const failedPrior = documentBasis({
       ...READ,
       document: { status: 'reconciled', current: column('reconciled'), prior: column('failed_reconciliation') },
     });
-    expect(documentFigureAbsence(failedPrior, 'vekst')).toEqual({ reason: 'failed_reconciliation' });
+    expect(documentFigureAbsence(failedPrior, 'vekst')).toEqual(missing);
+    const unreconciledPrior = documentBasis({
+      ...READ,
+      document: { status: 'reconciled', current: column('reconciled'), prior: column(null) },
+    });
+    expect(documentFigureAbsence(unreconciledPrior, 'vekst')).toEqual(missing);
+    const underivablePrior = documentBasis({
+      ...READ,
+      document: {
+        status: 'reconciled',
+        current: column('reconciled'),
+        prior: column('reconciled', { sumDriftsinntekter: null, sumDriftskostnad: null }),
+      },
+    });
+    expect(documentFigureAbsence(underivablePrior, 'vekst')).toEqual(missing);
+    expect(documentFigureAbsence(documentBasis(READ), 'vekst')).toBeNull();
     // A failed prior column fails nothing else.
     expect(documentFigureAbsence(failedPrior, 'vare')).toBeNull();
   });

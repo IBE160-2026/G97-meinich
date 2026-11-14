@@ -1,9 +1,12 @@
 // The document basis of one company as the analysis reads it (Story 2.9):
 // the columns SUBJECT_SQL and CANDIDATES_SQL (src/server/analysis.ts) select
 // for the benchmark filing's document, turned into the engine's input, and
-// the engine's `documentBasis` decided from them. A listed company with no
-// stored document is the one basis decided from a missing row, and it is
-// logged once, as `analysis.documentMissing`, with no orgnr (an orgnr looked
+// the engine's `documentBasis` decided from them. Pure: the reads in
+// src/server/analysis.ts log (`logSubjectRead`, `logCandidatesRead`): one
+// `analysis.documentMissing` for a subject read whose subject is listed with
+// no stored document, one per candidate read when any candidate is, and one
+// `analysis.datasetMissing` for a subject read with no loaded dataset, when
+// every company is outside the dataset. No orgnr is logged (an orgnr looked
 // up is visitor activity; src/logger.ts).
 //
 // The SQL fragments live here, next to the row type they fill, so the two
@@ -69,10 +72,7 @@ function column(row: DocumentBasisColumns, prefix: 'cur_' | 'pri_', status: stri
   return { status, ...figures } as DocumentColumnRow;
 }
 
-/**
- * The company's document basis for `filingYear`, its benchmark filing's
- * year. Logs one warning when the basis is `document_missing`.
- */
+/** The company's document basis for `filingYear`, its benchmark filing's year. */
 export function documentBasisOf(row: DocumentBasisColumns, filingYear: number): DocumentBasis {
   const basis = documentBasis({
     inManifest: row.in_manifest,
@@ -87,6 +87,20 @@ export function documentBasisOf(row: DocumentBasisColumns, filingYear: number): 
           },
     sumOmloepsmidler: parseOre(row.sum_omloepsmidler_ore),
   });
-  if (basis.kind === 'document_missing') log('warn', 'analysis.documentMissing');
   return basis;
+}
+
+/**
+ * The warnings of one subject read: no `register.dataset` row (every
+ * company is then outside the dataset), and a subject listed with no stored
+ * document. At most one line each.
+ */
+export function logSubjectRead(datasetLoaded: boolean, basis: DocumentBasis | null): void {
+  if (!datasetLoaded) log('warn', 'analysis.datasetMissing');
+  if (basis?.kind === 'document_missing') log('warn', 'analysis.documentMissing');
+}
+
+/** The warning of one candidate read: one line when any candidate is listed with no stored document. */
+export function logCandidatesRead(bases: readonly DocumentBasis[]): void {
+  if (bases.some((basis) => basis.kind === 'document_missing')) log('warn', 'analysis.documentMissing');
 }

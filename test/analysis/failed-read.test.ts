@@ -56,6 +56,7 @@ vi.mock('next/server', () => ({ connection: async () => {} }));
 // every category column null. It also left-joins the filing year's document
 // (Story 2.9): outside the dataset's list, with no document row.
 const NO_FINGERPRINT = {
+  dataset_loaded: true,
   in_manifest: false,
   document_status: null,
   has_current: false,

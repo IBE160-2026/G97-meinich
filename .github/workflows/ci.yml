@@ -126,6 +126,7 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
+      # One worker, as locally (playwright.config.ts, Story 2.10).
       - name: End-to-end tests
         run: pnpm test:e2e
 

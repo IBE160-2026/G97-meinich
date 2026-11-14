@@ -2858,6 +2858,93 @@ The Peers tab shows the five-stage funnel with the flagged count, and a peer lis
 
 The review session checked `matchBasis` against question 24's rule, that "Hvorfor med" reads no model field, the copy against what the human approved, the restored row counts and the PR text. CI was green on `8703b80`. At the human's request (`post review`), the review session posted the GitHub review with four line comments. The PR was merged at 21:46 UTC on 2026-11-13 as `087d6ef`.
 
+## Story 2.8: adjust the peer group (#58, PR #59)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-13 22:50**: the prompt that opened Story 2.8.
+```
+/bmad-build Story 2.8: Adjust the peer group (epics.md, Story 2.8). Lag branchen story/2.8-adjust-peer-group fra origin/main (042fbe1), og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Flyten for ekskluder, ta med igjen, utvid og tilbakestill: serialize, router.push og server-rendering, at ingenting skrives til noen tabell, og hvordan ekskl utenfor poolen ved nytt bånd droppes med merknaden én gang.
+(b) Venting og feil: hvordan aria-busy, dimmede tall og "Oppdaterer …" virker med myk navigasjon, og hvordan en feilet endring oppdages, viser role="alert" og lar tallene og URL-en stå på siste gode tilstand. Si hvilken Next.js-mekanisme du bruker, og hvordan testen tvinger fram feilen.
+(c) Rate-grensen: analysebudsjettet er 60 forespørsler i minuttet per adresse (src/rate-limit/budgets.ts). Hvor mange forespørsler koster én endring, prefetch medregnet? Hva ser brukeren ved 429 midt i en serie endringer?
+(d) De to punktene utsatt fra 2.7 i deferred-work.md: traktens tall med ekskl, og "Vis alle" som husker tilstand på tvers av navigasjon. Hvordan blir begge riktige nå, og med hvilke tester?
+(e) Tidsmålingen: testen for at peer-gruppen bygges på under 1 s, og hvordan tiden til ferdig rendret analyse måles og føres i PR-en (NFR1, NFR2).
+(f) Norsk tekst: all ny tekst som ikke står ordrett i Story 2.8. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler: hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Eksempler og testdata kommer fra demoselskapene eller syntetiske selskaper. Tester som bruker andre subjekter, sammenligner bare totaler og navngir ingen selskaper fra fasitsettet. PR-en sier hva som kan gå galt når URL-tilstand når motoren og når en omregning feiler, med begrunnelse i ai-log. Små commits, sjekk på 375 og 320 px underveis, hele suiten før første push. Kjør e2e med --workers=1 hvis minnet blir knapt. Ingen push før jeg sier fra. PR-en skal ha linjen "Planning documents:". pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #58, the branch and the spec (`ebf0792`), stopped at the checkpoint with three questions: whether a peer's orgnr may reach the page (AD-4), whether the tab links should keep prefetching, which made a change cost three requests against the rate limit, and what the user sees at a 429 in the middle of a series of changes.
+
+**23:03**: the answers at the checkpoint.
+```
+Fra meg:
+1. AD-4: enig. Tillat orgnr for peerne i gruppa (også ekskluderte rader), forby fortsatt orgnr for dem trinn 4 og 5 fjernet, og rett AD-4 i den tekniske notatet i denne PR-en.
+2. Prefetch: (a), prefetch={false} på fanelenkene.
+3. 429: (a). Skriv unntaket inn i EXPERIENCE "Recompute" og epics.md, med e2e-testen som viser avvisningssiden.
+4. Teksten er godkjent med tre endringer:
+   - "Omsetning {fra}–{til} mill. kr", for eksempel "Omsetning 3,1–12,4 mill. kr".
+   - "Bare størrelsesintervallet kan utvides. Kravene til sammenlignbart regnskap, selskapsform og bransje løsnes aldri."
+   - "Du har ekskludert alle sammenlignbare selskaper. Ta med et selskap igjen, eller tilbakestill til standard."
+   Dine to egne valg (utvid-knappen på 0,33–3× og formatBandFactor) er greie.
+
+Ett krav til feilhåndteringen: den nye src/app/analyse/[orgnr]/error.tsx fanger også feil ved første lasting av siden. Der må den ikke kalle router.back(), for da sendes en som åpnet lenken direkte tilbake til forrige side, kanskje ut av Peerless. Den skal bare gå tilbake når provideren har en peer-gruppe-endring som venter. Ellers viser den samme feiltilstand som i dag (role="alert", ingen detaljer). e2e/db-down.spec.ts skal fortsatt passere uendret, og legg til en test for at direkte lasting med feil ikke navigerer bort.
+
+Behold hele spec-en. Approve and continue: skriv dette inn i den låste delen og start implementeringen. Samme regler som før, og ingen push før jeg sier fra.
+```
+*Changed:* the spec approved with the error boundary's guard written into it, the engine, copy, provider, Peers tab and e2e (`b3f7689`…`b658cae`), AD-4 and AD-6 amended and the 429 exception in `epics.md` (`f348250`), and the review fixes (`95f5343`, `c2e57cb`, `1c1eadd`, `d7e08d1`); the BMAD session restored the six singular strings the implementation subagent had reworded, and the full e2e run was stopped for lack of memory.
+
+**2026-11-14 09:05**.
+```
+Fra meg:
+
+1. Entall: endre de seks nye strengene til «sammenlignbart» (peers.tooSmallOne, peers.tooSmallWidestOne og de fire peers.announce.*One). Ordet bøyes etter «selskap», som er intetkjønn, også når ordet står alene, og da blir det likt med analysis.peerCountOne fra Story 1.7. Det jeg godkjente ved sjekkpunktet var feil. Skriv i spec change log at jeg rettet det etter review-sesjonens påpekning, og rett testen hvis den låser den gamle teksten.
+
+2. Ekskludering nr. 21: ikke avvis funnet, legg det i deferred-work.md. Melding vises, men den skylder på lenken når brukeren har klikket på en knapp. Foreslått løsning: knappen deaktiveres ved MAX_EKSKL ekskluderte, med en egen tekst. Flytt det fra avvist til utsatt i triage-loggen og session-fila.
+
+3. Full e2e: ja, med --workers=1. Hvis den stopper på grunn av minne, si fra i stedet for å starte på nytt. Etterpå: gjenopprett .local/document-run-2.5d/, kjør pnpm derive, og bekreft 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader. Ingen dump slettes.
+
+Commit rettelsene som en egen review-fix-commit. Ikke push før jeg sier fra.
+```
+*Changed:* the singular corrected to "1 sammenlignbart" and the 21st exclusion moved from rejected to deferred (`eb38d33`); e2e passed 145 of 145 with one worker, the 2.5d rows were restored and checked, and the session file got the timings (`9f68b6c`).
+
+**09:25**.
+```
+Fra meg:
+
+Push branchen og åpne PR-en mot main med Closes #58. PR-teksten skal ha:
+- Tidene fra den siste kjøringen (tabellen med median per handling, og 87–145 ms for å bygge peer-gruppen).
+- At e2e passerte 145 av 145 med --workers=1.
+- At test:ingest feilet én gang på en Windows-tilgangsfeil og passerte ved ny kjøring.
+- Linjen «Planning documents:» med AD-4 og AD-6 i den tekniske notatet, epics.md og EXPERIENCE.md.
+- Avsnittet om hva som kan gå galt.
+- Hva som ble rettet, utsatt og avvist i reviewen, og hvem som fant hva.
+
+Si fra når CI er grønn.
+```
+*Changed:* the branch pushed and PR #59 opened (`27fa837`).
+
+### Prompts to the review session
+
+- `gjerne` (11-13): the review session drafted the 22:50 prompt.
+- The BMAD session's checkpoint (11-13): the review session recommended allowing the orgnr of peers in the group but not of those stages 4 and 5 removed, no prefetch on the tab links, the 429 as a documented exception, and three wordings, and found that the new segment error boundary would also catch a first load, where `router.back()` would send the user out of Peerless. It drafted the 23:03 prompt with the guard.
+- The BMAD session's report (11-14): the review session checked the strings and found that the singular the human had approved at the checkpoint was wrong, because the word agrees with the neuter "selskap"; it recommended deferring rather than rejecting the 21st exclusion, because the notice blames the link, and drafted the 09:05 prompt.
+- The BMAD session's next report (11-14): the review session checked the error boundary, its tests, AD-4 and the restored row counts, and drafted the 09:25 prompt.
+- `ci er grønn` and `post review` (11-14): the review session confirmed CI on `27fa837` and posted the review.
+- `hvorfor får jeg ikke pullet?` (11-14): the merged branch had been deleted on GitHub; the review session moved the main folder to `main` and did the housekeeping.
+
+### Result
+
+Peers can be excluded and restored, the size band widened one fixed step at a time and the group reset, each a soft navigation to a URL from `serialize`, with nothing written. While a change is pending the figures are dimmed and marked busy; a failed change goes back to the last good URL, and only then. The tab links no longer prefetch, so a change costs one analysis request.
+
+### Checks before merging
+
+The review session checked that the segment's error boundary goes back only while a change is in flight, with tests for both branches, AD-4 as the human amended it, the tab links without prefetch, the two items deferred from Story 2.7, the copy, the restored row counts and the PR text. CI was green on `27fa837`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 08:38 UTC on 2026-11-14 as `f583b7f`.
+
 ---
 
 ## Going forward

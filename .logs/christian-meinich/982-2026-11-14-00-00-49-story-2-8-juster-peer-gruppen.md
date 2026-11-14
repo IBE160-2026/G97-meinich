@@ -37,6 +37,27 @@ Bygge Story 2.8 med `bmad-build`: ekskluder og ta med igjen en peer, utvid stør
 - **Lokale data:** dumper i `.local/before-2.8-suite/` og `.local/before-2.8-review/`, begge like `.local/document-run-2.5d/`. Ingen dump er slettet, og `pnpm classify` er ikke kjørt.
 
 ### Åpne punkter
-- Full e2e etter review-rettelsene ble stoppet av Claude Code på grunn av lite minne. Den må kjøres (`--workers=1`) før første push. Før review var den grønn (141/141).
-- Lokal database står på committed seed. Gjenopprett `.local/document-run-2.5d/` og kjør `pnpm derive` etter e2e-kjøringen.
-- Funn 18 er avvist: ekskludering nr. 21 droppes av `parse` med merknaden om «lenken». Lagt fram for Meinich; blir det utsatt, føres det i `deferred-work.md`.
+- Ekskludering nr. 21 er utsatt av Meinich i `_bmad-output/implementation-artifacts/deferred-work.md` (siste oppføring): knappen deaktiveres ved `MAX_EKSKL`, med egen tekst.
+
+## 2026-11-14 kl. 00:30 — Christian Meinich
+
+### Oppgave
+Meinichs svar etter oppsummeringen:
+- Entall skal være «1 sammenlignbart», som review-sesjonen påpekte.
+- Ekskludering nr. 21 skal utsettes, ikke avvises.
+- Full e2e med `--workers=1`, så gjenoppretting av dumpen.
+
+### Plan
+- Rette de seks strengene, testen og EXPERIENCE, med en oppføring i spec change log.
+- Flytte funn 18 til utsatt i triage-loggen, `deferred-work.md` og sesjonsfila.
+- Bygge, kjøre e2e, gjenopprette `.local/document-run-2.5d/` og kjøre `pnpm derive`.
+
+### Resultat
+- Review-fix-commit `eb38d33`.
+- Full e2e: 145/145 grønne (4,1 min).
+- Tidsmåling, median fra klikk til ferdig: 380–523 ms.
+- Dumpen er gjenopprettet og `pnpm derive` kjørt: 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader. Radene er identiske med dumpen. Ingen dump er slettet.
+- Den første delen av økten står over; sesjonsfila er oppdatert.
+
+### Åpne punkter
+- Ekskludering nr. 21 (`deferred-work.md`, siste oppføring), som over.

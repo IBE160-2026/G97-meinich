@@ -16,14 +16,14 @@
 import Link from 'next/link';
 import { heroContext, type FigureBenchmark } from '@/engine/benchmark';
 import { formatPercent, formatPercentagePoints, formatWholePercent } from '@/engine/format';
-import type { EmptyReason } from '@/engine/peers';
+import type { EmptyReason, StatedField } from '@/engine/peers';
 import { MIN_PEERS } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 import { serialize, type AnalysisState } from '@/url/analysis-state';
 import { absenceText } from '@/analysis/figure-text';
 import { DIRECTION_WORDS, FIGURES } from './api-figures';
 import { kronerAmountText } from './kroner-amount';
-import { emptyText } from './peer-list';
+import { emptyText, type EmptyContext } from './peer-list';
 
 const KICKER_ID = 'hero-kicker';
 
@@ -51,13 +51,14 @@ function driftsmarginDenominator(): MessageId {
   return found.denominator;
 }
 
-function heroModel(figure: FigureBenchmark, emptyReason: EmptyReason, filingYear: number): HeroModel {
+function heroModel(figure: FigureBenchmark, emptyReason: EmptyReason, empty: EmptyContext): HeroModel {
+  const { filingYear } = empty;
   const c = figure.comparison;
   const own =
     c.kind === 'subject_absent'
       ? absenceText(c.absence, { denominator: driftsmarginDenominator(), filingYear })
       : formatPercent(c.subject.toString());
-  if (emptyReason !== null) return { kind: 'empty', own, sentence: emptyText(emptyReason, filingYear) };
+  if (emptyReason !== null) return { kind: 'empty', own, sentence: emptyText(emptyReason, empty) };
   if (c.kind === 'subject_absent') return { kind: 'absent', own };
   if (c.kind === 'below_floor') {
     return { kind: 'below_floor', own, text: t('keyFigures.belowFloor', { n: String(c.count), min: String(MIN_PEERS) }) };
@@ -136,16 +137,22 @@ export function OversiktHero({
   state,
   emptyReason,
   filingYear,
+  valuta,
+  unstatedField,
 }: {
   /** The shown group's driftsmargin benchmark, the same the table reads. */
   readonly figure: FigureBenchmark;
   /** The URL's state; the link to the table keeps every setting. */
   readonly state: AnalysisState;
   readonly emptyReason: EmptyReason;
-  /** The subject's benchmark year, named when it has no revenue to compare. */
+  /** The subject's benchmark year, named by the empty group's sentence. */
   readonly filingYear: number;
+  /** The subject's `valuta`, named by `subject_currency`. */
+  readonly valuta: string | null;
+  /** The subject's first unstated stage-2 field, named by `subject_field_not_stated`. */
+  readonly unstatedField: StatedField | null;
 }) {
-  const model = heroModel(figure, emptyReason, filingYear);
+  const model = heroModel(figure, emptyReason, { filingYear, valuta, unstatedField });
   return (
     <div className="mt-2" data-testid="oversikt">
       {model.kind === 'compared' ? <p className="m-0 text-[13px] text-slate">{t('keyFigures.topNote')}</p> : null}

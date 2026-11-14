@@ -61,7 +61,7 @@ const STATE: AnalysisState = {
 
 function render(benchmark: ApiBenchmark, emptyReason: EmptyReason = null, state: AnalysisState = STATE): string {
   return renderToString(
-    createElement(OversiktHero, { figure: benchmark.driftsmargin, state, emptyReason, filingYear: 2025 }),
+    createElement(OversiktHero, { figure: benchmark.driftsmargin, state, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null }),
   );
 }
 
@@ -211,7 +211,7 @@ describe('the hero without an amount', () => {
 describe('an empty group with a reason, as on the Peers tab', () => {
   const NO_COUNTS = { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
   const peersSentence = (emptyReason: EmptyReason) =>
-    text(renderToString(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 })));
+    text(renderToString(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 })));
 
   it('a non-calendar year: the own value and the Peers tab’s sentence, not "(0 av 10)"', () => {
     const html = render(amountOf(CLIMAX, []), 'subject_non_calendar');
@@ -231,5 +231,17 @@ describe('an empty group with a reason, as on the Peers tab', () => {
     expect(peersSentence('subject_no_revenue')).toContain(sentence);
     expect(text(html)).not.toContain('0 av 10');
     expect(html).not.toMatch(/\d kr/);
+  });
+
+  // Story 2.10 (R2).
+  it('no stated revenue: the Peers tab’s not-stated sentence with the year, never the no-revenue one', () => {
+    const html = render(amountOf({ ...CLIMAX, sumDriftsinntekter: null }, []), 'subject_revenue_not_stated');
+    const sentence = nb['peers.revenueNotStated'].replace('{aar}', '2025');
+    expect(text(html)).toContain(sentence);
+    expect(peersSentence('subject_revenue_not_stated')).toContain(sentence);
+    expect(text(html)).not.toContain(nb['peers.noRevenue'].replace('{aar}', '2025'));
+    expect(peersSentence('subject_revenue_not_stated')).not.toContain(nb['peers.noRevenue'].replace('{aar}', '2025'));
+    expect(text(html)).not.toContain('0 av 10');
+    for (const id of ['hero-amount', 'hero-vs', 'hero-context']) expect(byTestId(html, id), id).toBeNull();
   });
 });

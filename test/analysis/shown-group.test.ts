@@ -30,7 +30,9 @@ const funnel = { pool, group: pool, flagged: [], counts, emptyReason: null };
 const filing = (valuta: string) => ({
   keyFigures: row('100000000', '1000000'),
   valuta,
+  regnskapsregler: 'regnskapslovenAlminneligRegler',
   smaaForetak: true,
+  avviklingsregnskap: false,
   filingYear: 2025,
 });
 
@@ -70,6 +72,12 @@ describe('shownGroup', () => {
     expect(shownGroup({ pool: [], group: [], flagged: [], counts, emptyReason: 'subject_no_revenue' }, [], filing('NOK')).emptyReason).toBe(
       'subject_no_revenue',
     );
+  });
+
+  // Story 2.10 (R3): the sentence for subject_field_not_stated names the first unstated field.
+  it('gives the first stage-2 field the subject leaves unstated, or null', () => {
+    expect(shownGroup(funnel, [], filing('NOK')).unstatedField).toBeNull();
+    expect(shownGroup(funnel, [], { ...filing('NOK'), smaaForetak: null, avviklingsregnskap: null }).unstatedField).toBe('smaaForetak');
   });
 
   // Story 2.7: the Peers tab shows the funnel's counts and tags its flagged peers.

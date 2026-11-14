@@ -13,7 +13,7 @@
 // not in NOK.
 import { benchmarkApiFigures, type ApiBenchmark } from '../engine/benchmark.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
-import { withoutExcluded, type EmptyReason, type FunnelCounts } from '../engine/peers.ts';
+import { firstUnstatedField, withoutExcluded, type EmptyReason, type FunnelCounts, type StatedField } from '../engine/peers.ts';
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
 
 export type ShownGroup<P> = {
@@ -40,6 +40,8 @@ export type ShownGroup<P> = {
   /** The group's currency, the subject's: stage 2 makes every peer's equal. */
   readonly valuta: string | null;
   readonly emptyReason: EmptyReason;
+  /** The first stage-2 field the subject's filing leaves unstated, which `subject_field_not_stated` names; null when all are stated. */
+  readonly unstatedField: StatedField | null;
   /** The subject's benchmark year. */
   readonly filingYear: number;
 };
@@ -58,7 +60,7 @@ export type FunnelResult<P> = {
 export function shownGroup<P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures }>(
   funnel: FunnelResult<P>,
   ekskl: readonly string[],
-  filing: Pick<SubjectFiling, 'keyFigures' | 'valuta' | 'smaaForetak' | 'filingYear'>,
+  filing: Pick<SubjectFiling, 'keyFigures' | 'valuta' | 'regnskapsregler' | 'smaaForetak' | 'avviklingsregnskap' | 'filingYear'>,
 ): ShownGroup<P> {
   const emptyReason = funnel.emptyReason;
   const peers = withoutExcluded(funnel.group, ekskl);
@@ -80,6 +82,7 @@ export function shownGroup<P extends { readonly orgnr: string; readonly keyFigur
     smaaForetak: filing.smaaForetak,
     valuta: filing.valuta,
     emptyReason,
+    unstatedField: firstUnstatedField(filing),
     filingYear: filing.filingYear,
   };
 }

@@ -16,7 +16,9 @@
 // peer, the first PHONE_CARDS shown and the rest sent as strings to
 // "Vis alle {n}", which draws them in the client only when pressed.
 // A subject that cannot have peers shows its sentence and no funnel: the
-// zeros would only repeat it.
+// zeros would only repeat it. A group stage 2 emptied for the subject's own
+// fields (Story 2.10) shows its sentence in the empty-group block, where
+// "Fant ingen …" would stand, with the funnel.
 //
 // Story 2.8 (FR-17, FR-18): the rows are the whole group; an excluded peer
 // keeps its row, in slate, struck through, tagged "Ekskludert", with "Ta med
@@ -29,7 +31,7 @@
 import { isStandardGroup, nextState } from '@/analysis/peer-change';
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
 import { bandFactors, groupTooSmall, type BandStep } from '@/analysis/size-band';
-import type { EmptyReason, FunnelCounts } from '@/engine/peers';
+import type { EmptyReason, FunnelCounts, StatedField } from '@/engine/peers';
 import { t } from '@/messages';
 import { DEFAULT_BAND, serialize, type AnalysisState } from '@/url/analysis-state';
 import { AiMark } from './ai-mark';
@@ -45,14 +47,58 @@ export { PHONE_CARDS };
 
 const HIDDEN_CARDS_ID = 'flere-sammenlignbare';
 
+/** What an empty group's sentence names besides its reason. */
+export type EmptyContext = {
+  /** The subject's benchmark year. */
+  readonly filingYear: number;
+  /** The subject's `valuta`, named by `subject_currency`. */
+  readonly valuta: string | null;
+  /** The first stage-2 field the subject leaves unstated, named by `subject_field_not_stated`. */
+  readonly unstatedField: StatedField | null;
+};
+
 /**
- * The Peers tab's sentence for an empty group: the subject's own reason, or
- * none found. The Oversikt hero shows the same sentence (Story 1.9).
+ * The sentence for an empty group's reason (Stories 1.7, 2.10). The
+ * Oversikt hero shows the same sentence (Story 1.9). One case per reason
+ * and no default, so a new reason fails typecheck until it has its copy.
  */
-export function emptyText(emptyReason: EmptyReason, filingYear: number): string {
-  if (emptyReason === 'subject_no_revenue') return t('peers.noRevenue', { aar: String(filingYear) });
-  if (emptyReason === 'subject_non_calendar') return t('peers.nonCalendar');
-  return t('peers.none');
+export function emptyText(reason: NonNullable<EmptyReason>, { filingYear, valuta, unstatedField }: EmptyContext): string {
+  const aar = String(filingYear);
+  switch (reason) {
+    case 'subject_no_revenue':
+      return t('peers.noRevenue', { aar });
+    case 'subject_revenue_not_stated':
+      return t('peers.revenueNotStated', { aar });
+    case 'subject_non_calendar':
+      return t('peers.nonCalendar');
+    case 'subject_field_not_stated':
+      if (unstatedField === null) throw new TypeError('emptyText: subject_field_not_stated without an unstated field');
+      return t('peers.fieldNotStated', { aar, felt: t(`peers.field.${unstatedField}`) });
+    case 'subject_currency':
+      if (valuta === null) throw new TypeError('emptyText: subject_currency without a valuta');
+      return t('peers.currency', { aar, valuta });
+    case 'subject_not_comparable':
+      return t('peers.notComparable', { aar });
+  }
+}
+
+/**
+ * Whether the reason means the subject cannot have peers at any band (no
+ * revenue, revenue not stated, a non-calendar year): the Peers tab then
+ * shows the sentence alone, because the funnel's zeros would only repeat
+ * it. A stage-2 reason keeps the funnel (Story 2.10, decision 2).
+ */
+export function cannotHavePeers(reason: NonNullable<EmptyReason>): boolean {
+  switch (reason) {
+    case 'subject_no_revenue':
+    case 'subject_revenue_not_stated':
+    case 'subject_non_calendar':
+      return true;
+    case 'subject_field_not_stated':
+    case 'subject_currency':
+    case 'subject_not_comparable':
+      return false;
+  }
 }
 
 // The table's cells are styled from the table, not cell by cell, so a large
@@ -162,17 +208,21 @@ function PeerCards({ rows, band }: { readonly rows: readonly PeerDisplayRow[]; r
 }
 
 
-/** The State blocks above the size-band control: widened, then too small or all excluded. */
+/** The State blocks above the size-band control: widened, then the empty group's reason, too small or all excluded. */
 function GroupBlocks({
   state,
   memberCount,
   analysisCount,
+  emptySentence,
 }: {
   readonly state: AnalysisState;
   readonly memberCount: number;
   readonly analysisCount: number;
+  /** The sentence for a stage-2 reason, in place of "Fant ingen …"; null without one. */
+  readonly emptySentence: string | null;
 }) {
-  const tooSmall = groupTooSmall(memberCount, analysisCount, state.band);
+  const tooSmall =
+    emptySentence !== null ? { text: emptySentence, widen: null } : groupTooSmall(memberCount, analysisCount, state.band);
   return (
     <>
       {state.band === DEFAULT_BAND ? null : (
@@ -216,6 +266,8 @@ export function PeerList({
   counts,
   emptyReason,
   filingYear,
+  valuta,
+  unstatedField,
   state,
   steps,
   analysisCount,
@@ -225,8 +277,12 @@ export function PeerList({
   readonly rows: readonly PeerDisplayRow[];
   readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
-  /** The subject's benchmark year, named when it has no revenue to compare. */
+  /** The subject's benchmark year, named by the empty group's sentence. */
   readonly filingYear: number;
+  /** The subject's `valuta`, named by `subject_currency`. */
+  readonly valuta: string | null;
+  /** The subject's first unstated stage-2 field, named by `subject_field_not_stated`. */
+  readonly unstatedField: StatedField | null;
   /** The parsed URL state: the band, the exclusions, and every change link's base. */
   readonly state: AnalysisState;
   /** The size-band control's steps (src/analysis/size-band.ts). */
@@ -236,16 +292,17 @@ export function PeerList({
   /** Group peers in `ekskl`. */
   readonly excludedCount: number;
 }) {
+  const emptySentence = emptyReason === null ? null : emptyText(emptyReason, { filingYear, valuta, unstatedField });
   return (
     <div className="mt-2">
       <p className="m-0 text-slate" data-testid="peer-count">
         {analysisCount === 1 ? t('peers.countOne') : t('peers.count', { n: String(analysisCount) })}
       </p>
-      {emptyReason !== null ? (
-        <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
+      {emptyReason !== null && cannotHavePeers(emptyReason) ? (
+        <p className="m-0 mt-4">{emptySentence}</p>
       ) : (
         <>
-          <GroupBlocks state={state} memberCount={rows.length} analysisCount={analysisCount} />
+          <GroupBlocks state={state} memberCount={rows.length} analysisCount={analysisCount} emptySentence={emptySentence} />
           <SizeBandControl steps={steps} band={state.band} label={t('peers.band.label')} note={t('peers.band.fixed')} />
           <PeerFunnel counts={counts} excluded={excludedCount} analysisCount={analysisCount} />
           {isStandardGroup(state) ? null : (

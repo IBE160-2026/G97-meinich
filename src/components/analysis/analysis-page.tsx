@@ -206,6 +206,8 @@ function Covered({
               state={state}
               emptyReason={group.emptyReason}
               filingYear={group.filingYear}
+              valuta={group.valuta}
+              unstatedField={group.unstatedField}
             />
           ) : null}
           {peers !== null ? (
@@ -214,6 +216,8 @@ function Covered({
               counts={group.counts}
               emptyReason={group.emptyReason}
               filingYear={group.filingYear}
+              valuta={group.valuta}
+              unstatedField={group.unstatedField}
               state={state}
               steps={peers.steps}
               analysisCount={group.analysisCount}

@@ -60,6 +60,8 @@ function props(overrides: Partial<Props> = {}): Props {
     counts,
     emptyReason: null,
     filingYear: 2025,
+    valuta: 'NOK',
+    unstatedField: null,
     state: defaultState(SUBJECT),
     steps: bandSteps(1_000_000_000n, 'NOK'),
     analysisCount: shown.filter((r) => !r.excluded).length,
@@ -260,6 +262,59 @@ describe('PeerList', () => {
       expect(html).not.toContain('data-testid="peer-funnel"');
       expect(html).not.toContain('<table');
     }
+  });
+
+  // Story 2.10 (R2): no stated revenue has its own sentence, never "ingen positiv omsetning".
+  it('a subject with no stated revenue shows its own sentence alone, never the no-revenue one', () => {
+    const zero: FunnelCounts = { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
+    const html = render({ rows: [], counts: zero, emptyReason: 'subject_revenue_not_stated', filingYear: 2024 });
+    expect(html).toContain('Peerless finner sammenlignbare selskaper ut fra omsetning, og regnskapet for 2024 oppgir ikke omsetningen.');
+    expect(html).not.toContain(nb['peers.noRevenue'].replace('{aar}', '2024'));
+    expect(html).not.toContain(nb['peers.none']);
+    expect(html).not.toContain('data-testid="peer-funnel"');
+  });
+
+  // Story 2.10 (R3): a group stage 2 emptied for the subject's own fields
+  // says why, with the funnel, never "Fant ingen …" alone.
+  describe('stage 2 emptied by the subject: the sentence with the funnel', () => {
+    const stage2Empty: FunnelCounts = { stage1: 7, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
+    const empty = (overrides: Partial<Props>) => render({ rows: [], counts: stage2Empty, ...overrides });
+    const withFunnel = (html: string, sentence: string) => {
+      expect(html).toContain(sentence);
+      expect(html).toContain('data-testid="peer-funnel"');
+      expect(html.indexOf(sentence)).toBeLessThan(html.indexOf('data-testid="peer-funnel"'));
+      expect(html).not.toContain(nb['peers.none']);
+      expect(html).not.toContain('<table');
+    };
+
+    it.each([
+      ['valuta', 'valuta'],
+      ['regnskapsregler', 'regnskapsregler'],
+      ['smaaForetak', 'om selskapet er et lite foretak'],
+      ['avviklingsregnskap', 'om regnskapet er et avviklingsregnskap'],
+    ] as const)('%s not stated: the sentence names it', (field, felt) => {
+      const html = empty({ emptyReason: 'subject_field_not_stated', unstatedField: field, valuta: field === 'valuta' ? null : 'NOK' });
+      withFunnel(html, `Regnskapet for 2025 oppgir ikke ${felt}, og Peerless sammenligner bare regnskap der dette er oppgitt.`);
+    });
+
+    it.each(['USD', 'EDT'])('a subject in %s: the sentence names the currency twice', (valuta) => {
+      withFunnel(
+        empty({ emptyReason: 'subject_currency', valuta }),
+        `Regnskapet for 2025 er ført i ${valuta}, og ingen selskaper i samme næring og størrelse fører regnskap i ${valuta}.`,
+      );
+    });
+
+    it('any other empty stage 2: the not-comparable sentence', () => {
+      withFunnel(
+        empty({ emptyReason: 'subject_not_comparable' }),
+        'Ingen selskaper i samme næring og størrelse fører regnskapet etter de samme reglene som regnskapet for 2025.',
+      );
+    });
+
+    it('refuses a reason without what its sentence names, rather than a sentence with a gap', () => {
+      expect(() => empty({ emptyReason: 'subject_field_not_stated', unstatedField: null })).toThrow(/without an unstated field/);
+      expect(() => empty({ emptyReason: 'subject_currency', valuta: null })).toThrow(/without a valuta/);
+    });
   });
 
   // Story 2.8 (FR-17): an excluded peer stays in the list.

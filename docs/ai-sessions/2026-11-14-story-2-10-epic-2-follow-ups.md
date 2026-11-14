@@ -8,7 +8,7 @@
 - three review subagents
 
 **Story / issue:** #62, Story 2.10 (FR-7, FR-8, FR-17, FR-73)
-**Result:** branch `story/2.10-epic-2-follow-ups`, commits `f93541e` to `409dd63` and this docs commit; PR not yet opened (no push before Meinich says so)
+**Result:** branch `story/2.10-epic-2-follow-ups`, commits `f93541e` to `fe1065d` and the docs commits
 
 ## Goal
 
@@ -99,7 +99,7 @@ Commits `bd77ec3` to `2fc0acb`:
 
 ### Corrected in review
 
-The spec's triage log has 24 findings: 12 patched, 1 deferred, 11 rejected. The patches are `4834886`, `f07c520`, `99545fd`, `23cc0b2` and `409dd63`. Each finding is credited to the layer that made it:
+The spec's triage log has 25 findings: 13 patched, 1 deferred, 11 rejected. The patches are `4834886`, `f07c520`, `99545fd`, `23cc0b2`, `409dd63` and `fe1065d`. Each finding is credited to the layer that made it:
 - The currency sentence was false for 7 of 10 seed cases (Blind, Edge case). Meinich narrowed the reason, on the review session's recommendation.
 - A stage-2 sentence dropped "Utvid" (Blind). Meinich kept it where a wider band helps, on the review session's recommendation.
 - The frozen decision said "four" stage-2 reasons (Edge case). Meinich corrected it to three, on the review session's recommendation.
@@ -116,6 +116,15 @@ The spec's triage log has 24 findings: 12 patched, 1 deferred, 11 rejected. The 
 ### Checked by the BMAD session, not taken from the report
 
 The implementation report said the provider's cap guard was covered but had not run the mutation. With the guard removed, "with 20 exclusions … a press pushes nothing" failed; with it, all four cap tests passed.
+
+When Meinich asked the PR text to say that the button does nothing at the cap and the provider refuses as well, the BMAD session checked that text, written by the review session, against the code. It found that the button still called the provider, which deviated from checkpoint answer (d) (triage 25). Meinich chose to add the button guard (`fe1065d`).
+
+The three mutations, run on `e2e/peer-adjust.spec.ts`:
+- Provider guard removed: the in-flight test fails.
+- Both removed: "with 20 exclusions …" fails too.
+- Button guard removed: nothing fails, because the provider holds.
+
+One correction: the BMAD session had first said that removing the button guard alone would fail the 20-exclusion test. It does not, because the provider still refuses.
 
 ### Deferred
 

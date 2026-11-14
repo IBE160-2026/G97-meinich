@@ -3124,6 +3124,97 @@ Godkjent. Push main.
 
 Epic 2 is accepted with open items. The PRD, the technical note, `epics.md` and AGENTS.md match what Epic 2 built; four FRs are rule and consequences, the others follow before Epic 5. Story 2.10 carries R2, R3, the 21st exclusion, Epic 1 action 6 and the one-worker e2e, and Epic 2 stays in progress until it is merged.
 
+## Story 2.10: Epic 2 follow-ups (#62, PR #63)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-14 12:49**: the prompt that opened Story 2.10.
+```
+Fra meg:
+/bmad-build Story 2.10: Epic 2 follow-ups (epics.md, Story 2.10). Lag branchen story/2.10-epic-2-follow-ups fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 2.10 eller «Epic 2 follow-ups» (minst R2/R3 og ekskludering nr. 21). For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor (AGENTS.md, «A spec takes in the deferred work …»).
+(b) R2: hvor helten og setningen om tom gruppe henter omsetningen, og at regelen «ikke oppgitt gir ikke størrelsesbånd» står uendret (docs/key-figures.md). Foreslå teksten for «omsetningen er ikke oppgitt».
+(c) R3: hvilke felt hos subjektet som gjør trinn 2 tomt (valuta som ikke er NOK, regnskapsregler, smaaForetak eller avviklingsregnskap som mangler, og eventuelt andre), og hvor mange subjekter i seeden hvert felt gjelder, bare totaler. Foreslå de nye verdiene for emptyReason og teksten for hver. Filteret selv skal ikke endres.
+(d) Ekskludering nr. 21: hvordan knappen blir aria-disabled, kan fortsatt få fokus og beskrives av den godkjente teksten, og hvilken test som feiler hvis et trykk pusher URL-en.
+(e) Epic 1-punkt 6 og B4: hva den felles kolonnelista, den omdøpte SubjectFiling-typen og fjerningen av mellomrom i orgnr gjennom src/engine/orgnr.ts erstatter, fil for fil. Det er ren refaktorering: oppførselen endres ikke, og testene som finnes skal bestå uten å endres.
+(f) --workers=1: i playwright.config.ts eller i skriptet, og om CI også endres, med hvor lang tid CI bruker i dag og etterpå.
+(g) Gjenopprettingen: kommandonavnet, hvilken rolle som skriver, at den nekter alt som ikke er localhost eller 127.0.0.1, at den aldri sletter en dump, hva den gjør når .local/document-run-2.5d/ mangler (en fersk klone), og at den kjører pnpm derive og skriver ut de fire tallene. Hvor i README-en står den, og hvorfor?
+
+Regler: den godkjente teksten for ekskludering nr. 21 går ordrett inn i nb.json, og en test sjekker den ordrett. Underagenten skal ikke skrive om godkjent tekst. All ny tekst vises meg før den står i nb.json og EXPERIENCE. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. Testdata kommer fra demoselskapene eller syntetiske selskaper. Tester på andre subjekter sammenligner bare totaler og navngir ingen selskaper fra fasitsettet. PR-en sier hva som kan gå galt, med begrunnelse i ai-log. Små commits, og refaktoreringen i egne commits. Sjekk 375 og 320 px underveis. Kjør hele suiten før første push, og e2e med --workers=1. Hvis den stopper på grunn av minne, si fra i stedet for å starte på nytt. Etter siste seed-lasting: gjenopprett .local/document-run-2.5d/, kjør pnpm derive og bekreft 2 785 dokumenter, 5 556 kolonner, 2 537 fingeravtrykk og 10 371 klassifiseringsrader. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #62, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(g), the seed's totals per stage-2 field, and five questions: a reason for any other empty stage 2, the funnel with the sentence, which `SubjectFiling` to rename, workers on CI, and the copy.
+
+**13:32**: the answers at the checkpoint.
+```
+Fra meg:
+1. Ja, ta med subject_not_comparable med egen setning, så en tom gruppe aldri står uten grunn.
+2. Vis trakten sammen med setningen ved en R3-grunn.
+3. Omdøp motorens SubjectFiling til FunnelSubject og fjern aliaset i view.ts. Importlinjene i testene kan endres, og testtittelen i shown-group.test.ts:60 rettes til «after stages 4 and 5». Ingen assert endres.
+4. workers: 1 i playwright.config.ts, både lokalt og på CI. README-en sier hvorfor. Mål CI-tiden etter første push og skriv den i PR-en.
+5. Teksten er godkjent, med én endring: slå subject_unknown_currency sammen med subject_currency, slik at enhver valuta som ikke er NOK gir «Regnskapet for {aar} er ført i {valuta}, og ingen selskaper i samme næring og størrelse fører regnskap i {valuta}.» Grunnene for felt som ikke er oppgitt, testes med syntetiske subjekter, fordi seeden ikke har noen.
+Tillegg til (g): pnpm restore:documents tar kolonnenavnene fra første linje i dumpen, som README-en gjør i dag, slik at eldre dumper også kan gjenopprettes. Standard er .local/document-run-2.5d/.
+Spec-en kan holdes samlet. Skriv svarene inn i den frosne delen, sett story og spec til ready-for-dev og fortsett. Ingen push.
+```
+*Changed:* the spec approved (`f93541e`); the engine, copy, cap and e2e (`bd77ec3`…`8e7321f`), the refactoring in four commits (`872e4e9`…`e6dfcc7`), one worker (`b03a64b`, `4ca4280`), `pnpm restore:documents` (`ed602eb`) and the docs upstream (`2fc0acb`); the review stopped with four intent questions.
+
+**14:15**: the answers to the review's four questions.
+```
+Fra meg:
+1. (a): subject_currency bare når ingen kandidat i trinn 1 har subjektets valuta, eller når koden ikke er ISO 4217. Ellers subject_not_comparable. Teksten er uendret.
+2. (a): behold «Utvid» sammen med setningen når et bredere bånd kan hjelpe (subject_currency med kjent kode og subject_not_comparable), og bare når det finnes et bredere steg. Ikke ved et felt som ikke er oppgitt.
+3. Ja, rett til «three» med en oppføring i Spec Change Log, med dato og at jeg bestemte det.
+4. (a): et syntetisk USD-selskap i e2e/synthetic.ts. Omsetningen skal ligge utenfor båndene til demo A og B på alle steg, og det skal ha kandidater i trinn 1, men ingen i USD, slik at testen viser subject_currency. Det ryddes før og etter, og i global-setup, med samme vern som det første. AGENTS.md får en setning om det. De gamle testene for null og negativ omsetning får stå, og triagen sier at de er eldre enn regelen.
+Ikke rull tilbake. Skriv i triagen hvorfor. Rad 14 skal nevne en eier-story i deferred-work.md, for eksempel 5.7. Rett så rad 5–13 og 1–4 i én runde. Etter siste seed-lasting gjenoppretter du med pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten og e2e med én worker. Ingen push.
+```
+*Changed:* the review fixes (`4834886`…`23cc0b2`, `409dd63`), the triage and the spec change log (`34afaaf`), the session file and AI log (`d3ec6d7`); the suite and e2e passed with one worker, and the restore printed the four counts.
+
+**14:53**: two corrections before the push.
+```
+Fra meg:
+To rettelser før push:
+1. Session-fila og PR-teksten skal si hva review-sesjonen gjorde (AGENTS.md, «When a decision or correction came from the review session …»). Review-sesjonen skrev alle promptene jeg limte inn og anbefalte svarene. Ved sjekkpunktet: å slå valutagrunnene sammen (det gjorde setningen usann, og BMADs review fant det), FunnelSubject og rettingen av testtittelen, workers: 1 både lokalt og på CI, og at restore:documents tar kolonnenavnene fra første linje i dumpen. Etter reviewen: (a) på alle fire spørsmål, og at rad 14 skulle få en eier-story. Skriv for hver at jeg bestemte det, etter anbefaling fra review-sesjonen.
+2. I PR-teksten under «What could go wrong»: knappen gjør ingenting ved grensen, og provideren nekter i tillegg. Den er ikke det eneste vernet.
+Commit rettelsene, push så branchen og åpne PR-en mot main med Closes #62. Når CI er ferdig, skriv CI-tiden inn i PR-teksten i stedet for TBD, og si fra om CI er grønn.
+```
+*Changed:* the review session's part credited in the session file and PR draft (`b77619c`); the BMAD session refused the second correction, because the button still called the provider at the cap, and asked whether to describe the code or add the guard.
+
+**14:55**: the guard in the button.
+```
+Fra meg:
+(b). Du har rett: knappen pusher ved grensen i dag, og jeg sjekket ikke koden. Ved sjekkpunktet sa du (d) at onClick ikke skulle gjøre noe ved grensen, og at provideren skulle nekte i tillegg. Implementeringen fulgte ikke det. Legg vernet i knappen i en egen commit, og kjør de to mutasjonene du beskriver. Rett ai-log punkt 3 og PR-teksten, og før funnet i triagen som en ny rad: avvik fra planen ved sjekkpunktet, funnet av BMAD-sesjonen da review-sesjonens tekst ble sjekket mot koden. Kjør enhetstestene og e2e for peer-adjust med én worker. Commit, push branchen, åpne PR-en mot main med Closes #62, og fyll inn CI-tiden når CI er ferdig.
+```
+*Changed:* the guard (`fe1065d`) and triage row 25 (`7169715`); the branch pushed and PR #63 opened.
+
+**15:24**: the one fix the review required.
+```
+Fra meg:
+Én rettelse før merge: vernet i knappen (peer-action.tsx:57) har ingen test som feiler når det fjernes, fordi provideren også nekter. Legg til en enhetstest som rendrer PeerAction med capReached og en spion som provider, trykker og sjekker at change ikke kalles. Fjern `if (capped) return;` og vis at testen feiler, og sett den på plass igjen. Egen commit, før den i triage-rad 25 og rett «button guard removed: nothing fails» i PR-teksten og ai-log. Push og si fra når CI er grønn.
+```
+*Changed:* a unit test that fails without the button's guard (`fccfa08`, `7d04f22`).
+
+### Prompts to the review session
+
+- `okei, da kan vi gjøre 2.10?` (11-14): the review session read the deferred entries, the empty reasons in `src/engine/peers.ts` and the two `SubjectFiling` types, and drafted the 12:49 prompt, with the approved text checked verbatim by a test and the refactoring changing no test.
+- The BMAD session's checkpoint (11-14): the review session counted the subjects per currency and with unstated revenue in the database, checked the restore plan against the README and the dump, and recommended a reason for any other empty stage 2, the funnel, `FunnelSubject`, one worker everywhere, the column names from the dump's first line, and merging the two currency reasons. That last recommendation made the currency sentence false for most real cases, which the BMAD session's review found. It drafted the 13:32 prompt.
+- The BMAD session's report that the subagent was running (11-14): the review session checked that the frozen spec held the answers and the copy verbatim.
+- The BMAD session's four intent questions (11-14): the review session recommended (a) on all four, and that the deferred row name an owner story, and drafted the 14:15 prompt.
+- The BMAD session's final report (11-14): the review session checked the row counts, `stage2Reason`, the widen rule, the change log, the deferred entry and the PRD, found that the session file credited every decision to the human alone, and drafted the 14:53 prompt. Its second correction rested on the checkpoint's answer (d), not on the code.
+- The BMAD session's answer (11-14): the review session confirmed that the button still pushed at the cap, against (d), and drafted the 14:55 prompt.
+- `ci er grønn` and `post review` (11-14): the review session found that the button's guard had no test that failed without it, drafted the 15:24 prompt and posted the GitHub review with four line comments. It then removed the guard in a separate worktree and saw the new test fail.
+- `merget fikser du også treet i main?` (11-14): the review session moved the main folder to `main` and did the housekeeping.
+
+### Result
+
+An empty group says why: revenue not stated, an unstated stage-2 field, a currency no stage-1 candidate files in, or any other empty stage 2, with the funnel and "Utvid" where a wider band helps. At 20 exclusions every "Ekskluder" is `aria-disabled` and described by the approved text, and both the button and the provider refuse. One list of the API key-figure columns, `FunnelSubject`, `compactOrgnr`, e2e with one worker, and `pnpm restore:documents`.
+
+### Checks before merging
+
+The review session checked `stage2Reason` and the widen rule against the amended decisions, the restore's host check on both URLs, the synthetic USD company's bands and cleanup, the restored row counts, the spec change log, the deferred entry owned by Story 5.7, the PRD's change line and the PR text's credits, and confirmed the new test fails without the button's guard. CI was green on `7d04f22`. At the human's request (`post review`), the review session posted the GitHub review with four line comments. The PR was merged at 15:41 UTC on 2026-11-14 as `955e325`.
+
 ---
 
 ## Going forward

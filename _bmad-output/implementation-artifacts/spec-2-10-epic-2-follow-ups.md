@@ -153,3 +153,4 @@ Review pass 1 (2026-11-14). The intent gaps (rows 1, 2, 4) were not handled by r
 | 21 | ECH: the cap counts `ekskl` members outside the group | low | Only a hand-made URL holds them; `parse` caps the same list | reject |
 | 22 | ECH: an unstated `regnskapstype` is reported as not comparable | false | `Comparability.regnskapstype` is a non-null string; the subject SQL takes SELSKAP only | reject |
 | 23 | ECH: `counts()`, `end()` or a null rejection escapes as a crash | low | Each is a loud failure of a local developer command | reject |
+| 24 | BMAD (full one-worker e2e on a seed-only database): "at 375/320 px every Story 2.8 state fits" found no aria-disabled button | medium | The test excluded the first 20 peers, so every drawn phone card held "Ta med igjen"; the implementation report blamed the restored dump, wrongly | patch (`409dd63`: exclude the last 20) |

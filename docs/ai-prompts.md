@@ -3049,6 +3049,81 @@ Every missing figure carries one of eight absence reasons, decided in the engine
 
 The review session checked `documentBasis` against decision 3, AD-15's exception, the e2e test's host guard and cleanup, AGENTS.md, the copy, the restored row counts and the PR text. CI was green on `e67f38d`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 10:32 UTC on 2026-11-14 as `9c31a58`.
 
+## The Epic 2 retrospective (on `main`: `09c8e2a`…`9d64572`)
+
+Planning work committed straight to `main` by the BMAD session. Every prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-14 10:36**: the prompt that opened the retrospective.
+```
+/bmad-retrospective Epic 2: Trust the peer group (stories 2.1a–2.9, alle done i sprint-status.yaml). Retrospektiven skrives til _bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md, som for Epic 1. Planleggingsdokumenter går rett på main i små commits, én per dokument eller tema. Ingen push før jeg sier fra.
+
+Den skal dekke dette:
+
+1. PRD-en mot det Epic 2 bygde (AGENTS.md, «Each epic retrospective checks the PRD …»). Gå FR for FR gjennom FR-ene som epics.md sitt dekningskart gir Epic 2. Si for hver om PRD-en stemmer med koden, og rett avvik i PRD-en med en (change)-linje i .memlog.md. Gjør det samme for den tekniske notatet og epics.md der de er berørt.
+
+2. Faglærerens tilbakemelding på PRD-en (_bmad-output/planning-artifacts/prds/prd-Peerless-2026-09-25/tilbakemelding-prd.md, Bård Pettersen, 48cc54a). Vis meg først en tabell over hvert punkt (4.1–4.4, kvalitetsfunnene i §5 og listen i §6): hva som allerede er gjort (med commit), og hva som gjenstår. 4.1, å skille krav fra byggehistorikk, gjenstår. Foreslå hvordan det gjøres, med FR-24 som i hans eksempel: regelen og 3–6 konsekvenser i PRD-en, og «hvem bestemte hva og når» flyttet til .memlog.md eller addendumet. Ikke skriv om PRD-en før jeg har godkjent forslaget.
+
+3. Ekskludering nr. 21: legg den til som story i epics.md og i sprint-status.yaml (AGENTS.md, «Deferring v1 work that no story owns …»). Teksten under den deaktiverte knappen er godkjent: «Du kan ekskludere opptil 20 selskaper. Ta med et selskap igjen for å ekskludere et annet.» (deferred-work.md). Foreslå hvilken epic den hører til.
+
+4. Funn som gjentar seg, med kilde (commit, PR-review eller session-fil):
+- Underagenten skrev om godkjent tekst i både 2.7 og 2.8.
+- Full e2e stoppet på grunn av minne, og --workers=1 ble løsningen.
+- Review-sesjonen fant ved sjekkpunktet feil som ville gitt 500 eller en uærlig grunn (2.8: router.back() ved første lasting; 2.9: listet selskap uten dokumentrad).
+- Promptuttrekket mistet prompter som ble sendt mens BMAD jobbet, og tidene sto i norsk tid i stedet for UTC fra PRD-drift-serien til 2.8 (rettet i 7e581ce).
+Legg til andre mønstre du finner, men bare med kilde.
+
+5. Oppfølging av handlingspunktene fra Epic 1-retroen: hvilke er gjort, og hvilke står åpne.
+
+6. Handlingspunkter for Epic 3, hver med eier og hvor det skal skrives inn (AGENTS.md, spec-mal, epics.md).
+
+Regler: ingen klassifisering eller fingeravtrykk per orgnr for de 845 selskapene i fasitsettet, bare totaler. Ingen kode endres. pnpm classify kjøres ikke, og ingen dump slettes. Stopp og vis meg tabellen fra punkt 2 og forslaget til 4.1 før du skriver om PRD-en, og vis retrospektiven før den committes.
+```
+*Changed:* the draft retrospective, uncommitted: the boundary findings B1–B6, the drift D1–D11 in the PRD, the technical note and `epics.md`, the two deferred items Story 2.9 owned but did not do (W1, W2), the patterns P1–P13, the Epic 1 follow-through, ten action items, and the table of the lecturer's PRD feedback with a proposal for 4.1; it stopped with six questions.
+
+**10:48**: the answers to the six questions.
+```
+Fra meg:
+1. 4.1: skriv om FR-1, FR-24, FR-58 og FR-73 nå (Bårds egne eksempler), med FR-24 som mønster: regelen og 3–6 konsekvenser, og historikken flyttet til .memlog.md eller addendumet. Resten av FR-ene blir et eget handlingspunkt med frist før Epic 5.
+2. §0: behold rekkefølgen, men skriv at uenighet er en feil som rettes i samme PR (AGENTS.md, «A decision travels upstream»), ikke en regel man kan lene seg på. AGENTS.md endres ikke.
+3. Ja, ta med de små punktene: minimumslisten i 4.2, konsekvenser for FR-46 og de andre FR-ene for stage 2 i 4.3, fjern notatene for FR-16 og FR-27 (Q24 og FR-27 er avgjort), filstiene ut av glossaret, «Around a dozen», og antagelsene i §12.
+4. Én story, «2.10 Epic 2 follow-ups», i Epic 2: R2 og R3 (W1), ekskludering nr. 21 med den godkjente teksten (W2), handlingspunkt 5 (punkt 6 fra Epic 1 og kommentarene fra B4) og handlingspunkt 9 (--workers=1 og gjenopprettingen). Epic 2 står som in-progress til den er merget.
+5. Ja, skriv statusene fra Epic 1 slik tabellen foreslår.
+6. Ja. Godkjent retro med vurderingen accepted-with-open-items. Rett D1–D11, B4 og B5 med én commit per dokument på main, og oppdater retroen med svarene over. Handlingspunkt 8 er review-sesjonens ansvar.
+
+Vis meg diffen for PRD-en (FR-1, FR-24, FR-58, FR-73 og §0) før den committes. Ingen push før jeg sier fra.
+```
+*Changed:* the PRD's drift against the code (`09c8e2a`) and the small points of the lecturer's feedback (`860cfa5`); the diff for FR-1, FR-24, FR-58, FR-73 and §0 shown uncommitted, with a question whether two FR-73 items should come back.
+
+**11:13**: approval of the PRD diff, with two requirements.
+```
+Fra meg:
+Godkjent, med to krav:
+1. FR-58 sier at hver vei inn står i AD-15, men det gjør den ikke i dag. Flytt hele listen over det som fortsatt ikke er voktet inn i AD-15 i det tekniske notatet, i commiten for D10 eller før FR-58 committes, så ingenting forsvinner: feillesning med samme bredde (8 lest som 3) i salgsinntekt, leverandorgjeld eller en kostnadslinje i en kolonne der ikke alle hovedlinjene er lest; kundefordringer eller bankinnskudd for fjoråret; og de to sammen over delsummen mens hver for seg er under. Ta med fila for lisensporten (docs/licence-gate.json med {open, assessment, date}), som du sa.
+2. FR-73: legg begge tilbake som et halvt punkt under konsekvens 4: at README-en sier hva pnpm seed:full bygger, og at klassifiseringene kommer fra den committede seeden og nye bare fra pnpm classify.
+FR-24-teksten er Bårds eksempel, og den godkjenner jeg nå. Skriv det slik i memlog. Fortsett så med resten, én commit per dokument. Ingen push.
+```
+*Changed:* the technical note with every path into the engine, guarded and not, in AD-15 and the licence-gate file under AD-16 (`9b5954e`); FR-1, FR-24, FR-58 and FR-73 as rule and consequences, FR-73's half-point restored and FR-24 recorded in the memlog as the lecturer's example approved by the human (`ea68a7c`); Story 2.10 and the ACs for 3.1a and 3.5 in `epics.md` (`6e04f8c`); AGENTS.md (`ed5cbb8`); deferred work (`9da6ed3`); sprint status (`4ccd5fc`); the retrospective (`c680dde`) and the session file (`9d64572`).
+
+**12:44**.
+```
+Fra meg:
+Godkjent. Push main.
+```
+*Changed:* `main` pushed (`9887364..88fd8ac`).
+
+### Prompts to the review session
+
+- `gjerne` (11-14), after Story 2.9's merge: the review session drafted the 10:36 prompt, with the four recurring findings it had seen in Epic 2's sessions.
+- The BMAD session's draft and six questions (11-14): the review session recommended rewriting the lecturer's four examples now and the other FRs before Epic 5, keeping the order of authority in §0 but calling a disagreement a defect, one Story 2.10 in Epic 2 for the follow-ups, and taking action 8, the prompt-extraction check, itself. It drafted the 10:48 prompt.
+- The BMAD session's PRD diff (11-14): the review session found that the new FR-58 pointed to a list of unguarded paths that AD-15 did not hold, so two of them would have vanished, recommended restoring FR-73's two items as promises a grader can check against the README, and noted that FR-24's text was the lecturer's example, not one the human had approved before. It drafted the 11:13 prompt.
+- The BMAD session's final report (11-14): the review session read AD-15, AD-16, FR-73, the memlog line, Story 2.10, the new ACs and AGENTS.md's stage-4 sentence against `src/engine/peers.ts`, checked 420 against `analysis/output/fingerprint-spread-62100.json`, and recommended the push (12:44).
+
+### Result
+
+Epic 2 is accepted with open items. The PRD, the technical note, `epics.md` and AGENTS.md match what Epic 2 built; four FRs are rule and consequences, the others follow before Epic 5. Story 2.10 carries R2, R3, the 21st exclusion, Epic 1 action 6 and the one-worker e2e, and Epic 2 stays in progress until it is merged.
+
 ---
 
 ## Going forward

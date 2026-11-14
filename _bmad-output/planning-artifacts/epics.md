@@ -1829,14 +1829,16 @@ So that I never mistake an unreadable filing, an undefined ratio or a thin group
 
 **Given** the engine's input and output types
 **When** they are read
-**Then** each figure is a discriminated union of a value or an absence with exactly one reason: undefined; failed reconciliation; not in this dataset; below the floor; not read in v1
-**And** each reason maps to exactly one EXPERIENCE state — "Kan ikke beregnes" with its reason, "Regnskapet for {år} kunne ikke leses sikkert", "Ikke i demodataene", "For få sammenlignbare (n av 10)", and a state for not read in v1 whose copy this story adds to EXPERIENCE — through an exhaustive switch that fails to compile if a reason is added without a state
+**Then** each figure is a discriminated union of a value or an absence with exactly one of eight reasons: undefined (cause: denominator not positive, component missing, or a line not read safely); below the floor; not in this dataset; failed reconciliation; not reconciled; refused; document missing; not read in v1 (scope: the notes, the filing year, or a paper filing)
+**And** each reason maps to exactly one EXPERIENCE state — "Kan ikke beregnes" with its reason, "Regnskapet for {år} kunne ikke leses sikkert" (failed reconciliation, not reconciled, refused), "Ikke i demodataene", "For få sammenlignbare (n av 10)", "Regnskapet for {år} er ikke lest inn" (document missing), and "Ikke lest i denne versjonen" with its explanation, whose copy this story adds to EXPERIENCE — through an exhaustive switch that fails to compile if a reason is added without a state
+**And** each company's document basis is decided in the engine, in order, from the manifest, the filing year against the years step 1 fetches (2021–2025) and the stored statuses; document missing is the only reason decided from a missing row, and it is logged once without the orgnr
 
 **Given** a zero or negative denominator, or a missing component that cannot be derived
 **When** the figure is computed
 **Then** it is undefined, never zero; the company leaves only that figure's distribution, and the left-out count is returned
-**And** a missing component is first derived from its stated total, in `src/engine` only (test: `langsiktigGjeld` NULL with `sumGjeld` and `sumKortsiktigGjeld` present is derived; with `sumGjeld` also NULL it is undefined)
-**And** no derived component is stored by step 1 (test over the document-figure table)
+**And** a missing component is first derived from its stated total, in `src/engine` only (test: a document `sumDriftsinntekter` NULL is derived from `driftsresultat` + `sumDriftskostnad`; with either one also NULL it is undefined, component missing, never 0. Corrected in Story 2.9: the document table has no `langsiktigGjeld`, so the earlier example could not be tested)
+**And** no derived component is stored by step 1 (test: a read with a NULL total is written as NULL)
+**And** a figure reading a current `kundefordringer` or `bankinnskudd` above the API subtotal (R3) is undefined, a line not read safely
 
 **Given** a subject whose own latest filing has status `failed_reconciliation` (FR-71)
 **When** its analysis renders
@@ -1887,6 +1889,7 @@ So that every figure the table will show can be traced to a formula and a hand c
 **Given** reconciled document figures and API figures for a subject and its peers
 **When** the engine computes the key figures
 **Then** it computes every key figure in `docs/key-figures.md` — 1 to 14 and cash share — by the formula written there, as exact decimals from øre, with missing components derived first from stated totals (Story 2.9) and nothing else
+**And** a derived document `sumDriftsinntekter` (`documentRevenue` marks it `derived`, Story 2.9) of 5 kr or less counts as not positive, so a figure over it is undefined with the cause denominator not positive, as for a derived API denominator (`docs/key-figures.md`, "Deriving a missing API input")
 **And** each figure has a formula test against a hand-calculated value, and a figure whose formula differs from the document fails its test
 
 **Given** the two identities in `docs/key-figures.md`

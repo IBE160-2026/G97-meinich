@@ -106,3 +106,30 @@ describe('Story 2.8 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 2.9: the copy approved in the spec (Meinich, 2026-11-14, decision 6),
+// as EXPERIENCE.md quotes it.
+describe('Story 2.9 copy', () => {
+  it.each([
+    ['analysis.documentFailed', 'Regnskapet for {aar} kunne ikke leses sikkert'],
+    ['analysis.documentNotRead', 'Regnskapet for {aar} er ikke lest i denne versjonen'],
+    ['analysis.figures.documentMissing', 'Regnskapet for {aar} er ikke lest inn'],
+    ['analysis.figures.notReadInV1', 'Ikke lest i denne versjonen'],
+    [
+      'analysis.figures.notReadInV1.notes',
+      'Antall årsverk står i notene til årsregnskapet. Denne versjonen av Peerless leser ikke notene.',
+    ],
+    [
+      'analysis.figures.notReadInV1.filingYear',
+      'I denne versjonen leser Peerless årsregnskapene for {fra}–{til}. Regnskapet for {aar} er ikke lest.',
+    ],
+    [
+      'analysis.figures.notReadInV1.paper',
+      'Regnskapet for {aar} er levert på papir. Denne versjonen av Peerless leser ikke papirregnskap.',
+    ],
+    ['analysis.figures.reason.lineNotReadSafely', 'en regnskapslinje kunne ikke leses sikkert'],
+    ['analysis.figures.notInDataset', 'Ikke i demodataene'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

@@ -8,6 +8,7 @@ in CI, where the database holds the demo seed.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import psycopg
@@ -251,3 +252,23 @@ def test_document_records_reader_version(db: psycopg.Connection) -> None:
                    values (%s, 2024, 'not_extracted', %s, 'full', 'e09a413')""",
                 (ORGNR, READ_AT),
             )
+
+
+def test_a_missing_total_is_stored_null_not_derived(db: psycopg.Connection) -> None:
+    # Story 2.9: step 1 stores figures as filed (AD-15). A read with no
+    # "Sum inntekter" stores NULL, never driftsresultat + sum kostnader: the
+    # derivation lives in src/engine only (documentRevenue).
+    write.write_company(db, company(ORGNR, "STATEMENT AS"))
+    read = documents.read_words(*recorded_979607008_2025(), BOUND_KR)
+    assert read.current is not None
+    current = replace(read.current, figures={**read.current.figures, "sum_driftsinntekter": None})
+    outcome = write.document_outcome(2025, replace(read, current=current), {}, RULES)
+    write.write_document(db, ORGNR, 2025, outcome, None, READ_AT, READER_COMMIT)
+
+    stored = stored_column(db, ORGNR, 2025, "current")
+    assert stored["sum_driftsinntekter_ore"] is None
+    # Its parts are stored as printed, so a derivation was possible and not made.
+    assert stored["driftsresultat_ore"] == 12_200_300
+    assert stored["sum_driftskostnad_ore"] == 7_251_030_700
+    assert stored["c1"] == "not_evaluable"
+    assert stored_column(db, ORGNR, 2025, "prior")["sum_driftsinntekter_ore"] == 6_905_100_600

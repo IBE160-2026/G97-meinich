@@ -493,6 +493,7 @@ A key figure that cannot be computed for a company is undefined for that company
 **Consequences (testable):**
 - A zero or negative denominator, or a component that is missing and cannot be derived from a stated total, makes the figure undefined. A **derived** denominator of 5 kr or less counts as not positive, because it is within the register's rounding of zero (Story 1.4, human decision 2026-10-12; `docs/key-figures.md`).
 - A missing component is first attempted by derivation from a stated total — an empty element such as `<langsiktigGjeld/>` is recovered from the difference against its stated sum, not read as zero.
+- A document line the engine does not use because it exceeds its API subtotal (R3, Story 2.5c) makes a figure that reads it undefined with its own reason, "en regnskapslinje kunne ikke leses sikkert", not "en regnskapslinje mangler" (Story 2.9).
 - An undefined figure excludes that company from that figure's distribution only, not from the peer group.
 - The number of companies left out of each figure's distribution is shown to the user.
 - No figure is ever estimated or imputed.
@@ -879,7 +880,7 @@ Where the subject's own filed document fails reconciliation, the product shows t
 
 **Consequences (testable):**
 - The three API-sourced figures — operating margin, return on assets, equity ratio — are shown, because they do not depend on the document.
-- The twelve document-dependent figures are absent, and the product states that the subject's own filing could not be read reliably rather than showing a gap without a reason.
+- The twelve document-dependent figures are absent, and the product states that the subject's own filing could not be read reliably rather than showing a gap without a reason: "Regnskapet for {år} kunne ikke leses sikkert", in each absent figure and as a slate subline in the company header, with no badge (Story 2.9). The same words cover a document not yet reconciled and one refused at reading.
 - No figure is estimated, substituted from another year, or shown with a caveat (FR-58).
 - The subject is not silently demoted to an uncovered company: its industry **is** covered, its peers are unaffected, and the API-sourced figures still carry a full comparison (FR-24).
 - This is distinct from FR-4, where the industry itself is uncovered and there is no peer group at all.

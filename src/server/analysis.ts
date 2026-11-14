@@ -13,15 +13,34 @@ import 'server-only';
 // (register.fingerprint, written by batch step 2) for funnel stage 4. Its
 // categories are parsed by the engine's one validator, which throws on a
 // value outside a category's set; no fingerprint is null, never a default.
+//
+// Story 2.9: both reads also left-join the stored document of the filing
+// year and its two columns, and read whether the orgnr is on the loaded
+// dataset's list of orgnrs with document figures (register.dataset), so the
+// engine can decide each company's document basis (src/analysis/
+// document-basis.ts, which logs a listed company with no stored document).
 import { cache } from 'react';
+import {
+  DOCUMENT_JOINS,
+  DOCUMENT_SELECT,
+  documentBasisOf,
+  logCandidatesRead,
+  logSubjectRead,
+  type DocumentBasisColumns,
+} from '../analysis/document-basis.ts';
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
+import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
 import { parseOre } from '../engine/inputs.ts';
 import type { CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
 
-export interface SubjectRow extends SubjectKeyFigures, FingerprintColumns {
+export type SubjectRow = SubjectRowFields & DocumentBasisColumns;
+
+interface SubjectRowFields extends SubjectKeyFigures, FingerprintColumns {
+  /** A register.dataset row exists: without one, every company is outside the dataset (Story 2.9). */
+  dataset_loaded: boolean;
   classification: string | null;
   orgnr: string;
   navn: string | null;
@@ -55,6 +74,7 @@ select c.orgnr,
        c.naeringskode1_beskrivelse,
        c.forretningsadresse_kommune,
        exists (select 1 from register.covered_industry ci where ci.code = c.naeringskode1) as covered,
+       exists (select 1 from register.dataset) as dataset_loaded,
        f.filing_year,
        f.regnskapstype,
        f.periode_fra::text as periode_fra,
@@ -79,7 +99,8 @@ select c.orgnr,
        fp.asset_intensity_hi,
        fp.inventory,
        fp.capitalised_intangibles,
-       cl.business_type as classification
+       cl.business_type as classification,
+       ${DOCUMENT_SELECT}
   from register.company c
   left join lateral (
         select fi.brreg_id, fi.filing_year, fi.regnskapstype, fi.periode_fra, fi.periode_til, fi.valuta,
@@ -91,7 +112,7 @@ select c.orgnr,
        ) f on true
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
-  left join register.classification cl on cl.orgnr = c.orgnr
+  left join register.classification cl on cl.orgnr = c.orgnr${DOCUMENT_JOINS}
  where c.orgnr = $1::char(9)`;
 
 export function toSubject(row: SubjectRow): Subject {
@@ -114,6 +135,7 @@ export function toSubject(row: SubjectRow): Subject {
           readAt: row.filing_read_at,
           fingerprint: fingerprintFromColumns(row),
           classification: businessTypeFromColumn(row.classification),
+          documentBasis: documentBasisOf(row, row.filing_year),
           keyFigures: {
             sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
             driftsresultat_ore: row.driftsresultat_ore,
@@ -140,7 +162,10 @@ export function toSubject(row: SubjectRow): Subject {
 export async function loadSubject(orgnr: string): Promise<Subject | null> {
   const rows = await readerSql().unsafe<SubjectRow[]>(SUBJECT_SQL, [orgnr]);
   const row = rows[0];
-  return row === undefined ? null : toSubject(row);
+  if (row === undefined) return null;
+  const subject = toSubject(row);
+  logSubjectRead(row.dataset_loaded, subject.filing?.documentBasis ?? null);
+  return subject;
 }
 
 /**
@@ -176,9 +201,13 @@ export const lookupSubject = cache(async (orgnr: string): Promise<Subject | null
 export type Candidate = CandidateFiling & {
   readonly navn: string | null;
   readonly keyFigures: SubjectKeyFigures;
+  /** Where its document figures come from for the benchmark year, or why none do (Story 2.9). */
+  readonly documentBasis: DocumentBasis;
 };
 
-export interface CandidateRow extends FingerprintColumns {
+export type CandidateRow = CandidateRowFields & DocumentBasisColumns;
+
+interface CandidateRowFields extends FingerprintColumns {
   classification: string | null;
   orgnr: string;
   navn: string | null;
@@ -236,12 +265,13 @@ select c.orgnr,
        fp.asset_intensity_hi,
        fp.inventory,
        fp.capitalised_intangibles,
-       cl.business_type as classification
+       cl.business_type as classification,
+       ${DOCUMENT_SELECT}
   from register.company c
   join register.filing f on f.orgnr = c.orgnr and f.filing_year = $3::smallint
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
-  left join register.classification cl on cl.orgnr = c.orgnr
+  left join register.classification cl on cl.orgnr = c.orgnr${DOCUMENT_JOINS}
  where c.naeringskode1 = $2::text
    and c.orgnr <> $1::char(9)`;
 
@@ -267,6 +297,7 @@ export function toCandidate(row: CandidateRow): Candidate {
     sumDriftsinntekter: parseOre(row.sum_driftsinntekter_ore),
     fingerprint: fingerprintFromColumns(row),
     classification: businessTypeFromColumn(row.classification),
+    documentBasis: documentBasisOf(row, row.filing_year),
     keyFigures: {
       sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
       driftsresultat_ore: row.driftsresultat_ore,
@@ -282,7 +313,9 @@ export function toCandidate(row: CandidateRow): Candidate {
 /** The candidate filings for a subject: same naeringskode1, the benchmark year. Throws when the read fails. */
 export async function loadCandidates(orgnr: string, naeringskode1: string, filingYear: number): Promise<Candidate[]> {
   const rows = await readerSql().unsafe<CandidateRow[]>(CANDIDATES_SQL, [orgnr, naeringskode1, filingYear]);
-  return rows.map(toCandidate);
+  const candidates = rows.map(toCandidate);
+  logCandidatesRead(candidates.map((candidate) => candidate.documentBasis));
+  return candidates;
 }
 
 /**

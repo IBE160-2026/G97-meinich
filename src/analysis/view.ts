@@ -20,6 +20,7 @@
 // tab, or verdi) is not carried: an uncovered or no-filing company has no
 // tabs, so its redirect to the bare path drops the tab, and the target shows
 // the notice only if its query has a fallback.
+import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { formatOrgnr } from '../engine/format.ts';
 import type { BusinessType, Fingerprint } from '../engine/fingerprint.ts';
 import { parseOre, type KeyFiguresRow } from '../engine/inputs.ts';
@@ -98,6 +99,13 @@ export type SubjectFiling = {
   readonly fingerprint: Fingerprint | null;
   /** The stored classification's type (Story 2.6); null when there is none, or the model abstained. */
   readonly classification: BusinessType | null;
+  /**
+   * Where the subject's document figures come from for `filingYear`, or why
+   * none do (Story 2.9): the header's subline. It never changes the state:
+   * a subject whose own document failed keeps its tabs and peer group
+   * (FR-71), so `analysisView` does not read it.
+   */
+  readonly documentBasis: DocumentBasis;
 };
 
 /** One company as the analysis reads it: register.company, its coverage and its newest filing. */

@@ -21,6 +21,13 @@ export const LOG_EVENTS = [
   'analysis.subjectFailed',
   'analysis.candidatesFailed',
   'analysis.coverageFailed',
+  // Story 2.9: a company listed in the dataset's document figures, in a
+  // filing year v1 reads, has no stored document. A warning, not an error:
+  // the page renders, with every document figure absent as document_missing.
+  'analysis.documentMissing',
+  // Story 2.9: the subject read found no register.dataset row, so every
+  // company is outside the dataset and no document figure is read.
+  'analysis.datasetMissing',
 ] as const;
 
 export type LogEvent = (typeof LOG_EVENTS)[number];

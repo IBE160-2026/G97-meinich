@@ -1,5 +1,6 @@
 // The blocking rule for document figures (Story 2.2): only a reconciled
-// column passes values to the engine.
+// column passes values to the engine. Story 2.9: a missing revenue is
+// derived from its stated parts, never 0.
 import { describe, expect, it } from 'vitest';
 import {
   DOCUMENT_FIGURE_COLUMNS,
@@ -7,6 +8,7 @@ import {
   type DocumentField,
   GUARDED_CURRENT_ASSETS,
   documentFigures,
+  documentRevenue,
   exceedsApiSubtotal,
   guardCurrentAssets,
 } from '../../src/engine/document-inputs.ts';
@@ -144,5 +146,58 @@ describe('guardCurrentAssets', () => {
     expect(guardCurrentAssets(unread, 'current', 1n).kundefordringer).toEqual({ kind: 'value', ore: null });
     const failed = documentFigures(row('failed_reconciliation'));
     expect(guardCurrentAssets(failed, 'current', 1n)).toEqual(failed);
+  });
+});
+
+// Story 2.9: the one derivation of a document figure, on a synthetic
+// company's column (revenue 10 000 000 kr = driftsresultat 800 000 kr +
+// sum kostnader 9 200 000 kr).
+describe('documentRevenue', () => {
+  const synthetic = (overrides: Partial<Record<DocumentField, string | null>>) =>
+    documentFigures(
+      row('reconciled', {
+        ...FIGURES,
+        sumDriftsinntekter: '1000000000',
+        driftsresultat: '80000000',
+        sumDriftskostnad: '920000000',
+        ...overrides,
+      }),
+    );
+
+  it('uses a stated revenue as stated', () => {
+    expect(documentRevenue(synthetic({}))).toEqual({ kind: 'value', ore: 1_000_000_000n, derived: false });
+    // Stated wins over its parts, even where they disagree.
+    expect(documentRevenue(synthetic({ driftsresultat: '1' }))).toEqual({ kind: 'value', ore: 1_000_000_000n, derived: false });
+  });
+
+  it('a missing revenue is derived from its stated parts', () => {
+    expect(documentRevenue(synthetic({ sumDriftsinntekter: null }))).toEqual({
+      kind: 'value',
+      ore: 1_000_000_000n,
+      derived: true,
+    });
+    // A loss: driftsresultat −200 000 kr on costs of 10 200 000 kr.
+    expect(documentRevenue(synthetic({ sumDriftsinntekter: null, driftsresultat: '-20000000', sumDriftskostnad: '1020000000' }))).toEqual({
+      kind: 'value',
+      ore: 1_000_000_000n,
+      derived: true,
+    });
+  });
+
+  it('an underivable revenue is undefined, never 0', () => {
+    const undefinedRevenue = { kind: 'absent', absence: { reason: 'undefined', cause: 'component_missing' } };
+    expect(documentRevenue(synthetic({ sumDriftsinntekter: null, driftsresultat: null }))).toEqual(undefinedRevenue);
+    expect(documentRevenue(synthetic({ sumDriftsinntekter: null, sumDriftskostnad: null }))).toEqual(undefinedRevenue);
+    expect(documentRevenue(synthetic({ sumDriftsinntekter: null, driftsresultat: null, sumDriftskostnad: null }))).toEqual(
+      undefinedRevenue,
+    );
+  });
+
+  it('a column that passes nothing gives its own reason', () => {
+    expect(documentRevenue(documentFigures(row('failed_reconciliation')))).toEqual({
+      kind: 'absent',
+      absence: { reason: 'failed_reconciliation' },
+    });
+    expect(documentRevenue(documentFigures(row(null)))).toEqual({ kind: 'absent', absence: { reason: 'not_reconciled' } });
   });
 });

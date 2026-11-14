@@ -20,7 +20,7 @@ import type { EmptyReason } from '@/engine/peers';
 import { MIN_PEERS } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 import { serialize, type AnalysisState } from '@/url/analysis-state';
-import { undefinedText } from '@/analysis/figure-text';
+import { absenceText } from '@/analysis/figure-text';
 import { DIRECTION_WORDS, FIGURES } from './api-figures';
 import { kronerAmountText } from './kroner-amount';
 import { emptyText } from './peer-list';
@@ -55,7 +55,7 @@ function heroModel(figure: FigureBenchmark, emptyReason: EmptyReason, filingYear
   const c = figure.comparison;
   const own =
     c.kind === 'subject_absent'
-      ? undefinedText(c.absence, driftsmarginDenominator())
+      ? absenceText(c.absence, { denominator: driftsmarginDenominator(), filingYear })
       : formatPercent(c.subject.toString());
   if (emptyReason !== null) return { kind: 'empty', own, sentence: emptyText(emptyReason, filingYear) };
   if (c.kind === 'subject_absent') return { kind: 'absent', own };

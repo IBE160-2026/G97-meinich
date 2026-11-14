@@ -25,25 +25,46 @@ export type Source = 'api' | 'document';
 /** ↑ higher is better, ↓ lower is better, or no direction (`docs/key-figures.md`). */
 export type Direction = 'higher_is_better' | 'lower_is_better' | 'none';
 
-export type UndefinedCause = 'denominator_not_positive' | 'component_missing';
+/**
+ * Why a figure is undefined for one company (`docs/key-figures.md`,
+ * "Undefined is not zero"): a zero or negative denominator (a derived one of
+ * 5 kr or less counts as not positive), a missing component that cannot be
+ * derived from its stated total, or (Story 2.9) a document line the engine
+ * does not use because it cannot be right together with its API subtotal
+ * (`exceeds_api_subtotal` in `document-inputs.ts`, R3).
+ */
+export type UndefinedCause = 'denominator_not_positive' | 'component_missing' | 'line_not_read_safely';
 
-/** Why a figure or its comparison is absent. Exactly one reason. */
+/** What v1 does not read, for a figure absent as `not_read_in_v1` (Story 2.9). */
+export type NotReadScope = 'notes' | 'filing_year' | 'paper';
+
+/**
+ * Why a figure or its comparison is absent. Exactly one reason, and each
+ * reason maps to exactly one UI state (`src/analysis/absence-state.ts`, an
+ * exhaustive switch: a new member fails to compile there). Story 2.9.
+ */
 export type Absence =
   | { readonly reason: 'undefined'; readonly cause: UndefinedCause }
   | { readonly reason: 'below_floor'; readonly count: number }
-  | { readonly reason: 'not_in_dataset' } // produced from Story 2.9
+  // The company's orgnr is not on the loaded dataset's list of orgnrs with
+  // document figures (`register.dataset.manifest->'document_figure_orgnrs'`),
+  // never decided from a missing row.
+  | { readonly reason: 'not_in_dataset' }
   // A document column that failed reconciliation (Story 2.2, `documentFigures`).
   | { readonly reason: 'failed_reconciliation' }
   // A document column with no reconciliation status yet: read, not yet
   // checked (a row restored from a dump made before Story 2.2).
   | { readonly reason: 'not_reconciled' }
-  // A current asset line of a reconciled document column above the
-  // key-figures API's sum_omloepsmidler of the same filing by more than the
-  // between-sources rule, max(5 kr, 0.001 % of the subtotal):
-  // a part cannot exceed its sum, so the figure or the register's subtotal is
-  // wrong (the probe: 6 of 8 a misread figure, 2 the subtotal) and the figure
-  // is not used (R3, Story 2.5c; `guardCurrentAssets`).
-  | { readonly reason: 'exceeds_api_subtotal' };
+  // The document was fetched and refused at reading (`not_extracted`: an
+  // unknown layout, a scaled reporting unit, a year header or year that does
+  // not match, or an OCR error).
+  | { readonly reason: 'refused' }
+  // Listed in the dataset, filing year read by v1, yet no document row: the
+  // one reason decided from a missing row (logged as `analysis.documentMissing`).
+  | { readonly reason: 'document_missing' }
+  // What v1 does not read: the notes (key figures 7 and 8), a filing year
+  // outside `DOCUMENT_YEARS`, or a paper filing.
+  | { readonly reason: 'not_read_in_v1'; readonly scope: NotReadScope };
 
 /** A single company's figure cannot be below the floor; that is a comparison's absence. */
 export type FigureAbsence = Exclude<Absence, { readonly reason: 'below_floor' }>;

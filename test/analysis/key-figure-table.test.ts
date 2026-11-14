@@ -58,7 +58,7 @@ const EK = ['0.1', '0.2', '0.3', '0.35', '0.4', '0.45', '0.5', '0.55', '0.6', '0
 const TEN = MARGINS.map((m, i) => peer(m, EK[i] ?? '0.4'));
 
 function render(benchmark: ApiBenchmark, smaaForetak: boolean | null = true): string {
-  return renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'FJORDKODE AS', smaaForetak }));
+  return renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'FJORDKODE AS', smaaForetak, filingYear: 2025 }));
 }
 
 const standard = () => benchmarkApiFigures(SUBJECT, TEN, 'NOK');

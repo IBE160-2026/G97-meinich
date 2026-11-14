@@ -333,3 +333,57 @@ describe('sources under src/', () => {
     expect(found).toEqual([]);
   });
 });
+
+// Story 2.9 (review): a listed company whose document row for its filing
+// year is gone is document_missing through SUBJECT_SQL and CANDIDATES_SQL as
+// the page runs them, and an untouched listed candidate is still read. The
+// delete runs as the migration role in a transaction that is rolled back.
+// Totals only: no listed orgnr is named in an assertion.
+describe('a listed company with no document row', () => {
+  class Rollback extends Error {}
+
+  it('is document_missing as subject and as candidate, and an untouched listed candidate is read', async () => {
+    const listed = (
+      await readerSql()<{ orgnr: string }[]>`
+        select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') as orgnr from register.dataset`
+    ).map((r) => r.orgnr);
+    // Listed 62.100 companies whose subject read gives a read document.
+    const read: { orgnr: string; filingYear: number }[] = [];
+    for (const orgnr of listed) {
+      const subject = await loadSubject(orgnr);
+      if (subject?.naeringskode1 === '62.100' && subject.filing?.documentBasis.kind === 'read') {
+        read.push({ orgnr, filingYear: subject.filing.filingYear });
+      }
+    }
+    const [gone, viewer] = read;
+    expect(read.length).toBeGreaterThanOrEqual(3);
+    if (gone === undefined || viewer === undefined) return;
+
+    await expect(
+      admin.begin(async (tx) => {
+        await tx`delete from register.document where orgnr = ${gone.orgnr} and filing_year = ${gone.filingYear}`;
+        const [subjectRow] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [gone.orgnr]);
+        if (subjectRow === undefined) throw new Error('the listed company is not stored');
+        expect(toSubject(subjectRow).filing?.documentBasis).toEqual({ kind: 'document_missing', filingYear: gone.filingYear });
+
+        const candidates = (
+          await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, [viewer.orgnr, '62.100', viewer.filingYear])
+        ).map(toCandidate);
+        const kinds = (wanted: (orgnr: string) => boolean) =>
+          candidates.filter((c) => wanted(c.orgnr)).map((c) => c.documentBasis.kind);
+        expect(kinds((orgnr) => orgnr === gone.orgnr)).toContain('document_missing');
+        expect(kinds((orgnr) => orgnr === gone.orgnr)).not.toContain('read');
+        const untouched = new Set(read.filter((r) => r.orgnr !== gone.orgnr && r.filingYear === viewer.filingYear).map((r) => r.orgnr));
+        untouched.delete(viewer.orgnr);
+        const others = kinds((orgnr) => untouched.has(orgnr));
+        expect(others.length).toBeGreaterThan(0);
+        expect(others.filter((kind) => kind === 'read').length).toBeGreaterThan(0);
+        expect(others).not.toContain('document_missing');
+        // Unlisted candidates stay outside the dataset.
+        expect(kinds((orgnr) => !listed.includes(orgnr)).every((kind) => kind === 'not_in_dataset')).toBe(true);
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+    expect((await loadSubject(gone.orgnr))?.filing?.documentBasis.kind).toBe('read');
+  });
+});

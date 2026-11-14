@@ -9,7 +9,13 @@
 // Story 2.8: the count is the peers in the analysis (the group minus
 // `ekskl`), marked busy and dimmed while a peer-group change is in flight,
 // and a widened size band adds the tag "Utvidet" after it.
+//
+// Story 2.9 (FR-57, FR-71): below the meta line, a slate subline says in
+// words when the subject's own document cannot be read for its filing year
+// ("Regnskapet for 2025 kunne ikke leses sikkert"); never a badge. Which
+// words, if any, comes from the document basis (`documentSubline`).
 import { Fragment, type ReactNode } from 'react';
+import { documentSubline } from '@/analysis/absence-state';
 import { displayName, type Subject } from '@/analysis/view';
 import { formatKommune, formatMillions, formatOrgnr, formatReadDate } from '@/engine/format';
 import { t } from '@/messages';
@@ -78,6 +84,7 @@ export function CompanyHeader({
   readonly widened?: boolean;
 }) {
   const items = metaItems(subject, peerCount, widened);
+  const subline = subject.filing === null ? null : documentSubline(subject.filing.documentBasis);
   return (
     <div className="px-gutter-phone pt-4 md:px-gutter-desktop md:pt-[22px]">
       <h1 tabIndex={-1} className="m-0 mb-1 text-[21px] leading-[1.2] break-words md:text-2xl">
@@ -95,6 +102,11 @@ export function CompanyHeader({
           </Fragment>
         ))}
       </p>
+      {subline === null ? null : (
+        <p className="m-0 mt-1 text-[13px] break-words text-slate" data-testid="document-subline">
+          {t(subline.id, subline.vars)}
+        </p>
+      )}
     </div>
   );
 }

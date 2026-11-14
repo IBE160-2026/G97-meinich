@@ -13,6 +13,8 @@ import {
   type KronerGap,
 } from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
+import { DOCUMENT_KEY_FIGURE_KEYS, documentFigureAbsence } from '../../src/engine/document-absence.ts';
+import { documentBasis } from '../../src/engine/document-inputs.ts';
 import { formatKronerExact, formatPercentagePoints } from '../../src/engine/format.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
@@ -141,6 +143,30 @@ describe('benchmarkApiFigures: the driftsmargin gap in kroner', () => {
     expect(result.driftsmargin.comparison).toMatchObject({ kind: 'compared', count: 10, leftOut: 0 });
     expect(result.totalkapitalrentabilitet.comparison).toMatchObject({ kind: 'below_floor', count: 9, leftOut: 1 });
     expect(result.egenkapitalandel.comparison).toMatchObject({ kind: 'below_floor', count: 9, leftOut: 1 });
+  });
+  // FR-71 (Story 2.9): the subject's own document failed reconciliation. Its
+  // document figures are absent with that reason. The API half of this test
+  // cannot fail on its own: the guarantee that a document cannot move the
+  // three API figures or the driftsmargin kroner is benchmarkApiFigures'
+  // signature, which takes no document input, and the e2e comparison of every
+  // API cell with the company on and off the dataset's list
+  // (e2e/failed-subject.spec.ts).
+  it('a failed document leaves the API benchmark unchanged', () => {
+    const failed = documentBasis({
+      inManifest: true,
+      filingYear: 2025,
+      document: { status: 'failed_reconciliation', current: null, prior: null },
+      sumOmloepsmidler: null,
+    });
+    for (const figure of DOCUMENT_KEY_FIGURE_KEYS) {
+      if (figure === 'omsArsverk' || figure === 'lonnArsverk') continue;
+      expect(documentFigureAbsence(failed, figure), figure).toEqual({ reason: 'failed_reconciliation' });
+    }
+    const result = benchmarkApiFigures(SUBJECT, TEN, 'NOK');
+    expect(result.driftsmargin.comparison).toMatchObject({ kind: 'compared', count: 10, leftOut: 0 });
+    expect(amount(result.driftsmargin.gap)).toBe(`1${NBSP}170${NBSP}000${NBSP}kr`);
+    expect(result.totalkapitalrentabilitet.comparison.kind).toBe('compared');
+    expect(result.egenkapitalandel.comparison.kind).toBe('compared');
   });
 });
 

@@ -225,6 +225,7 @@ function Covered({
               benchmark={group.benchmark}
               companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
               smaaForetak={group.smaaForetak}
+              filingYear={group.filingYear}
             />
           ) : null}
         </PendingBody>

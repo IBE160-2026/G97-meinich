@@ -5,7 +5,7 @@
 // committed. The URL is always `serialize` of the state `nextState` returns,
 // never a string composed by hand.
 import { t } from '../messages/index.ts';
-import { DEFAULT_BAND, type AnalysisState, type Band } from '../url/analysis-state.ts';
+import { DEFAULT_BAND, MAX_EKSKL, type AnalysisState, type Band } from '../url/analysis-state.ts';
 
 export type PeerChange =
   | { readonly kind: 'exclude'; readonly orgnr: string; readonly navn: string }
@@ -32,6 +32,16 @@ export function nextState(base: AnalysisState, change: PeerChange): AnalysisStat
     case 'reset':
       return { ...base, ekskl: [], band: DEFAULT_BAND };
   }
+}
+
+/**
+ * Whether `state` already holds MAX_EKSKL exclusions (Story 2.10): every
+ * "Ekskluder" is then `aria-disabled` and described by the cap text, and the
+ * provider refuses an exclude, so a 21st is never pushed and never blamed
+ * on the link (the invalid-settings notice is for a link that holds more).
+ */
+export function exclusionCapReached(state: Pick<AnalysisState, 'ekskl'>): boolean {
+  return state.ekskl.length >= MAX_EKSKL;
 }
 
 /** Whether `state` is the standard peer group: no exclusion, the Standard band. A predicate on parsed state, not on the URL. */

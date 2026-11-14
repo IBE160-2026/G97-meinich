@@ -109,6 +109,7 @@
   "peers.action.restore": "Ta med igjen",
   "peers.action.restoreName": "Ta med igjen {navn}",
   "peers.excluded": "Ekskludert",
+  "peers.exclusionCap": "Du kan ekskludere opptil 20 selskaper. Ta med et selskap igjen for å ekskludere et annet.",
   "peers.reset": "Tilbakestill til standard",
   "peers.funnel.excluded": "{n} ekskludert av deg → {m} i analysen",
   "peers.allExcluded": "Du har ekskludert alle sammenlignbare selskaper. Ta med et selskap igjen, eller tilbakestill til standard.",

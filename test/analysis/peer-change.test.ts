@@ -2,10 +2,10 @@
 // change asks for, and the sentence that announces it, the singular form
 // for one peer included.
 import { describe, expect, it } from 'vitest';
-import { announcement, nextState, type PeerChange } from '../../src/analysis/peer-change.ts';
+import { announcement, exclusionCapReached, nextState, type PeerChange } from '../../src/analysis/peer-change.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
-import { defaultState, serialize, type AnalysisState } from '../../src/url/analysis-state.ts';
+import { MAX_EKSKL, defaultState, serialize, type AnalysisState } from '../../src/url/analysis-state.ts';
 
 const fill = (id: keyof typeof nb, vars: Record<string, string> = {}) =>
   Object.entries(vars).reduce((text, [name, value]) => text.replace(`{${name}}`, value), nb[id]);
@@ -63,5 +63,21 @@ describe('announcement', () => {
     expect(announcement(change, at(2))).toBe(two);
     expect(one).toContain('1 sammenlignbart');
     expect(two).toContain('2 sammenlignbare');
+  });
+});
+
+// Story 2.10 (FR-17): the cap is reached at MAX_EKSKL exclusions, and its
+// text is the approved copy, verbatim.
+describe('the exclusion cap', () => {
+  const ekskl = (n: number) => Array.from({ length: n }, (_, i) => `9000000${String(i).padStart(2, '0')}`);
+
+  it('is reached at 20 exclusions, not at 19', () => {
+    expect(MAX_EKSKL).toBe(20);
+    expect(exclusionCapReached({ ekskl: ekskl(19) })).toBe(false);
+    expect(exclusionCapReached({ ekskl: ekskl(20) })).toBe(true);
+  });
+
+  it('says so in the approved words', () => {
+    expect(nb['peers.exclusionCap']).toBe('Du kan ekskludere opptil 20 selskaper. Ta med et selskap igjen for å ekskludere et annet.');
   });
 });

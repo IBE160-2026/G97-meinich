@@ -317,6 +317,53 @@ describe('PeerList', () => {
     });
   });
 
+  // Story 2.10 (FR-17): at the cap every "Ekskluder" is aria-disabled,
+  // still a focusable button, described by the cap text shown once.
+  describe('the exclusion cap', () => {
+    const peers = Array.from({ length: 22 }, (_, i) => row({ orgnr: `9000000${String(i).padStart(2, '0')}`, navn: `P${i} AS` }));
+    const capped = (excludedCount: number) => {
+      // The last ones excluded, so the first phone cards hold both actions.
+      const ekskl = peers.slice(peers.length - excludedCount).map((peer) => peer.orgnr);
+      const shownRows = peers.map((peer) => ({ ...peer, excluded: ekskl.includes(peer.orgnr) }));
+      return { rows: shownRows, state: at({ ekskl }) };
+    };
+    const buttons = (markup: string) => [...markup.matchAll(/<button[^>]*data-peer-action[^>]*>/g)].map((m) => m[0]);
+
+    it('with 20 exclusions: every "Ekskluder" aria-disabled and described by the cap text, shown once', () => {
+      const html = render(capped(20));
+      expect(html.split(`id="ekskluderingsgrense"`)).toHaveLength(2);
+      expect(html).toContain(`<p id="ekskluderingsgrense" class="m-0 mt-3 text-[13px] text-slate" data-testid="exclusion-cap">${nb['peers.exclusionCap']}</p>`);
+      for (const markup of [table(html), cards(html)]) {
+        const all = buttons(markup);
+        const exclude = all.filter((b) => b.includes(`aria-label="${nb['peers.action.excludeName'].split(' ')[0]} `));
+        const restore = all.filter((b) => b.includes(`aria-label="${nb['peers.action.restoreName'].replace(' {navn}', '')} `));
+        expect(exclude.length).toBeGreaterThan(0);
+        expect(restore.length).toBeGreaterThan(0);
+        for (const b of exclude) {
+          expect(b).toContain('aria-disabled="true"');
+          expect(b).toContain('aria-describedby="ekskluderingsgrense"');
+          // aria-disabled, never disabled: it stays in the tab order.
+          expect(b).not.toMatch(/\sdisabled[\s=>]/);
+          expect(b).not.toContain('tabindex="-1"');
+        }
+        for (const b of restore) {
+          expect(b).not.toContain('aria-disabled="');
+          expect(b).not.toContain('aria-describedby');
+        }
+      }
+      const toggle = findElement(createElement(PeerList, props(capped(20))), ShowAllToggle);
+      expect(toggle?.props.capReached).toBe(true);
+    });
+
+    it('with 19 exclusions: no button aria-disabled and no cap text', () => {
+      const html = render(capped(19));
+      expect(html).not.toContain('aria-disabled="');
+      expect(html).not.toContain('ekskluderingsgrense');
+      expect(html).not.toContain(nb['peers.exclusionCap']);
+      expect(findElement(createElement(PeerList, props(capped(19))), ShowAllToggle)?.props.capReached).toBe(false);
+    });
+  });
+
   // Story 2.8 (FR-17): an excluded peer stays in the list.
   it('draws an excluded row struck through, tagged "Ekskludert", with "Ta med igjen {Navn}"', () => {
     const shown = [row({ orgnr: '900000001', navn: 'A AS' }), row({ orgnr: '900000002', navn: 'B AS', excluded: true })];

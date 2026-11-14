@@ -28,14 +28,18 @@
 // nothing else loosens. "Tilbakestill til standard" shows whenever the
 // group is not the standard one. Every change link's href is `serialize`
 // of the state the change asks for (src/analysis/peer-change.ts).
-import { isStandardGroup, nextState } from '@/analysis/peer-change';
+//
+// Story 2.10: with MAX_EKSKL exclusions in the URL, the cap text is shown
+// once, above the list, with EXCLUSION_CAP_ID, and every "Ekskluder" in the
+// table and the cards is aria-disabled and described by it.
+import { exclusionCapReached, isStandardGroup, nextState } from '@/analysis/peer-change';
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
 import { bandFactors, groupTooSmall, type BandStep } from '@/analysis/size-band';
 import type { EmptyReason, FunnelCounts, StatedField } from '@/engine/peers';
 import { t } from '@/messages';
 import { DEFAULT_BAND, serialize, type AnalysisState } from '@/url/analysis-state';
 import { AiMark } from './ai-mark';
-import { PeerAction, PeerChangeLink } from './peer-action';
+import { EXCLUSION_CAP_ID, PeerAction, PeerChangeLink } from './peer-action';
 import { Basis, CARD_LIST_CLASS, Flag, PeerCard, PeerName, type PeerCardLabels } from './peer-card';
 import { PeerFunnel } from './peer-funnel';
 import { PHONE_CARDS } from './phone-cards';
@@ -110,7 +114,7 @@ const TABLE_CLASS =
   '[&_:is(td,th):is(:nth-child(2),:nth-child(3))]:text-right [&_:is(td,th):is(:nth-child(2),:nth-child(3),:nth-child(5))]:whitespace-nowrap ' +
   '[&_td:is(:nth-child(2),:nth-child(3))]:figure [&_td:nth-child(4)]:min-w-56';
 
-function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
+function PeerTable({ rows, capReached }: { readonly rows: readonly PeerDisplayRow[]; readonly capReached: boolean }) {
   const ki = t('peers.ai');
   const excludedTag = t('peers.excluded');
   return (
@@ -156,7 +160,7 @@ function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
               </td>
               <td>{row.flagg === null ? null : <Flag text={row.flagg} ki={ki} />}</td>
               <td>
-                <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} />
+                <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} capReached={capReached} />
               </td>
             </tr>
           ))}
@@ -178,14 +182,22 @@ function cardLabels(): PeerCardLabels {
   };
 }
 
-function PeerCards({ rows, band }: { readonly rows: readonly PeerDisplayRow[]; readonly band: AnalysisState['band'] }) {
+function PeerCards({
+  rows,
+  band,
+  capReached,
+}: {
+  readonly rows: readonly PeerDisplayRow[];
+  readonly band: AnalysisState['band'];
+  readonly capReached: boolean;
+}) {
   const labels = cardLabels();
   const rest = rows.slice(PHONE_CARDS);
   return (
     <div className="mt-4 md:hidden" data-testid="peer-cards">
       <ul className={CARD_LIST_CLASS}>
         {rows.slice(0, PHONE_CARDS).map((row, index) => (
-          <PeerCard key={index} row={row} labels={labels} first={false} />
+          <PeerCard key={index} row={row} labels={labels} first={false} capReached={capReached} />
         ))}
       </ul>
       {/* The rest reach the client as strings and are drawn only on "Vis alle". */}
@@ -197,6 +209,7 @@ function PeerCards({ rows, band }: { readonly rows: readonly PeerDisplayRow[]; r
           label={t('peers.showAll', { n: String(rows.length) })}
           rows={rest}
           labels={labels}
+          capReached={capReached}
         />
       ) : null}
       <p className="m-0 mt-2 text-[12px] text-slate">
@@ -293,6 +306,7 @@ export function PeerList({
   readonly excludedCount: number;
 }) {
   const emptySentence = emptyReason === null ? null : emptyText(emptyReason, { filingYear, valuta, unstatedField });
+  const capReached = exclusionCapReached(state);
   return (
     <div className="mt-2">
       <p className="m-0 text-slate" data-testid="peer-count">
@@ -314,8 +328,13 @@ export function PeerList({
           )}
           {rows.length === 0 ? null : (
             <>
-              <PeerTable rows={rows} />
-              <PeerCards rows={rows} band={state.band} />
+              {capReached ? (
+                <p id={EXCLUSION_CAP_ID} className="m-0 mt-3 text-[13px] text-slate" data-testid="exclusion-cap">
+                  {t('peers.exclusionCap')}
+                </p>
+              ) : null}
+              <PeerTable rows={rows} capReached={capReached} />
+              <PeerCards rows={rows} band={state.band} capReached={capReached} />
             </>
           )}
         </>

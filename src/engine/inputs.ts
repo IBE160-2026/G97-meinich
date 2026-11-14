@@ -53,19 +53,35 @@ export type KeyFiguresRow = {
   readonly sum_langsiktig_gjeld_ore: string | null;
 };
 
+/**
+ * The seven `register.key_figures` columns the engine's API inputs read, the
+ * one list of them (Story 2.10): the request path's reads select these and
+ * no other key-figure column.
+ */
+export const API_KEY_FIGURE_COLUMNS = [
+  'sum_driftsinntekter_ore',
+  'driftsresultat_ore',
+  'sum_driftskostnad_ore',
+  'sum_eiendeler_ore',
+  'sum_egenkapital_gjeld_ore',
+  'sum_egenkapital_ore',
+  'sum_gjeld_ore',
+] as const satisfies readonly (keyof KeyFiguresRow)[];
+
+export type ApiKeyFigureColumn = (typeof API_KEY_FIGURE_COLUMNS)[number];
+
+/** The part of a key-figures row the API inputs read. */
+export type ApiKeyFiguresRow = Pick<KeyFiguresRow, ApiKeyFigureColumn>;
+
+/** Exactly the API_KEY_FIGURE_COLUMNS of `row`, so a wider row carries nothing further. */
+export function apiKeyFigures(row: ApiKeyFiguresRow): ApiKeyFiguresRow {
+  const picked: Partial<Record<ApiKeyFigureColumn, string | null>> = {};
+  for (const column of API_KEY_FIGURE_COLUMNS) picked[column] = row[column];
+  return picked as ApiKeyFiguresRow;
+}
+
 /** The engine's API inputs from a key-figures row, by its column names. */
-export function apiInputsFromRow(
-  row: Pick<
-    KeyFiguresRow,
-    | 'sum_driftsinntekter_ore'
-    | 'driftsresultat_ore'
-    | 'sum_driftskostnad_ore'
-    | 'sum_eiendeler_ore'
-    | 'sum_egenkapital_gjeld_ore'
-    | 'sum_egenkapital_ore'
-    | 'sum_gjeld_ore'
-  >,
-): ApiInputs {
+export function apiInputsFromRow(row: ApiKeyFiguresRow): ApiInputs {
   return {
     sumDriftsinntekter: parseOre(row.sum_driftsinntekter_ore),
     driftsresultat: parseOre(row.driftsresultat_ore),

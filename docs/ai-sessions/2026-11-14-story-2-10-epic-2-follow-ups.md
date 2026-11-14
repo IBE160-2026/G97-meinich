@@ -8,7 +8,7 @@
 - three review subagents
 
 **Story / issue:** #62, Story 2.10 (FR-7, FR-8, FR-17, FR-73)
-**Result:** branch `story/2.10-epic-2-follow-ups`, commits `f93541e` to `fe1065d` and the docs commits
+**Result:** branch `story/2.10-epic-2-follow-ups`, [PR #63](https://github.com/IBE160-2026/G97-meinich/pull/63), commits `f93541e` to `fe1065d` and the docs commits
 
 ## Goal
 
@@ -156,3 +156,7 @@ After the last seed load:
 - Spec: `_bmad-output/implementation-artifacts/spec-2-10-epic-2-follow-ups.md` (decisions, I/O matrix, change log, triage log)
 - AI log: "2026-11-14 — Story 2.10: empty-group reasons, the exclusion cap, and a restore that writes as loader"
 - Planning documents updated: the PRD's FR-7, FR-8, FR-17 and FR-73 (with a `.memlog.md` change line), EXPERIENCE, AGENTS.md, README, `deferred-work.md`
+
+## CI
+
+The first push was green: run 43607899346 on `7169715`, 10 m 15 s in all, of which e2e took 4 m 31 s with one worker. Before, run 43585950193 took about 8 m 53 s, and its e2e step about 3 m 16 s with two workers.

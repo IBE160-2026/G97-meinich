@@ -576,8 +576,10 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       await noSidewaysScroll(page);
 
       // Story 2.10: the exclusion cap, its text and the aria-disabled actions.
+      // The last 20 are excluded, so the first phone cards are not excluded
+      // and show an aria-disabled "Ekskluder".
       const twenty = group0
-        .slice(0, 20)
+        .slice(-20)
         .map((p) => p.orgnr)
         .sort()
         .join(',');

@@ -171,6 +171,32 @@ test.describe('a covered AS that cannot have peers', () => {
   });
 });
 
+// Story 2.10 (R3; FR-8): a group stage 2 emptied by the subject's own
+// currency says why, with the funnel, at every width. The subject is picked
+// from the seed outside the labelled set and named by no title.
+test.describe('an empty stage 2 says why', () => {
+  const subject = pick(
+    'a stage-2 currency reason, outside the labelled set',
+    (c) =>
+      !labelled.has(c.orgnr ?? '') &&
+      (newestFiling(c.orgnr ?? '').valuta ?? 'NOK') !== 'NOK' &&
+      expectedPeerGroup(c.orgnr ?? '', 0).emptyReason === 'subject_currency',
+  );
+  const filing = newestFiling(subject.orgnr ?? '');
+  const sentence = nb['peers.currency'].replace('{aar}', filing.filing_year ?? '').replaceAll('{valuta}', filing.valuta ?? '');
+
+  for (const width of [1280, 375, 320]) {
+    test(`at ${width} px: the currency sentence with the funnel, never "Fant ingen" alone, and no sideways scroll`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/analyse/${subject.orgnr}/peers`);
+      await expect(page.getByTestId('too-small-block')).toHaveText(sentence);
+      await expect(page.getByTestId('peer-funnel')).toBeVisible();
+      await expect(page.getByText(nb['peers.none'])).toHaveCount(0);
+      await noSidewaysScroll(page);
+    });
+  }
+});
+
 // Story 2.7: the funnel and why each peer is in the group.
 const GLYPH = '✦';
 

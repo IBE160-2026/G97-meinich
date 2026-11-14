@@ -2,8 +2,8 @@
 // production build and the loaded demo seed: exclude and restore, the size
 // band, reset, the history, the band change that drops exclusions, the
 // floor crossed both ways, "Vis alle" across changes, the pending and failed
-// states, the rate limit mid-series, one request per change, and phone
-// widths. Every expected count is the engine's on the seed (e2e/seed.ts).
+// states, the rate limit mid-series, one request per change, the exclusion
+// cap (Story 2.10), and phone widths. Every expected count is the engine's on the seed (e2e/seed.ts).
 // The floor subject is picked from the seed outside the labelled set and
 // named by no title; its peers are compared by count only.
 import type { Page, Route } from '@playwright/test';
@@ -418,6 +418,102 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     expect(requests).toEqual([PEERS]);
   });
 
+  // Story 2.10 (FR-17): at MAX_EKSKL exclusions every "Ekskluder" is
+  // aria-disabled, focusable and described by the cap text; a press pushes
+  // nothing and sets no notice. Below the cap a press pushes as before.
+  test.describe('the exclusion cap', () => {
+    const ekskl = (n: number) => group0.slice(0, n).map((peer) => peer.orgnr).sort();
+    const capPath = (n: number) => `${PEERS}?ekskl=${ekskl(n).join(',')}`;
+    const excludeButtons = (page: Page) =>
+      page.locator(`[data-peer-action]:visible[aria-label^="${nb['peers.action.exclude']} "]`);
+    const capText = (page: Page) => page.getByTestId('exclusion-cap');
+    const ekskOf = (page: Page) => new URL(page.url()).searchParams.get('ekskl')?.split(',') ?? [];
+
+    test('the seed gives demo A more than 20 peers', () => {
+      expect(group0.length).toBeGreaterThan(21);
+    });
+
+    test('with 20 exclusions every "Ekskluder" is aria-disabled and described by the cap text; a press pushes nothing', async ({
+      page,
+    }) => {
+      await open(page, capPath(20));
+      await expect(notice(page)).toHaveText('');
+      await expect(capText(page)).toHaveText(nb['peers.exclusionCap']);
+      await expect(capText(page)).toHaveText('Du kan ekskludere opptil 20 selskaper. Ta med et selskap igjen for å ekskludere et annet.');
+      const buttons = excludeButtons(page);
+      const n = await buttons.count();
+      expect(n).toBeGreaterThan(0);
+      await expect(page.locator('[data-peer-action]:visible[aria-disabled="true"]')).toHaveCount(n);
+      // "Ta med igjen" is never disabled.
+      await expect(page.locator(`[data-peer-action]:visible[aria-label^="${nb['peers.action.restore']} "][aria-disabled]`)).toHaveCount(0);
+      const target = action(page, group0[20]?.orgnr ?? '');
+      await expect(target).toHaveAttribute('aria-disabled', 'true');
+      await expect(target).toHaveAccessibleDescription(nb['peers.exclusionCap']);
+      await expect(target).not.toHaveAttribute('disabled');
+      await expect(target).not.toHaveAttribute('tabindex', '-1');
+      // Focusable, and Enter or a click pushes nothing.
+      const before = await historyLength(page);
+      const url = shown(page);
+      await target.focus();
+      await expect(target).toBeFocused();
+      await page.keyboard.press('Enter');
+      await target.click({ force: true });
+      await page.waitForTimeout(1000);
+      expect(shown(page)).toBe(url);
+      expect(await historyLength(page)).toBe(before);
+      await expect(notice(page)).toHaveText('');
+      await expect(status(page)).toHaveText('');
+      await expect(target).toBeFocused();
+    });
+
+    test('with 19 exclusions the buttons are enabled and a press takes the group to 20 and the cap', async ({ page }) => {
+      await open(page, capPath(19));
+      await expect(capText(page)).toHaveCount(0);
+      await expect(page.locator('[data-peer-action][aria-disabled]')).toHaveCount(0);
+      const before = await historyLength(page);
+      const peer = group0[19]?.orgnr ?? '';
+      await action(page, peer).click();
+      await expect.poll(() => shown(page)).toBe(capPath(20));
+      expect(await historyLength(page)).toBe(before + 1);
+      await expect(capText(page)).toHaveText(nb['peers.exclusionCap']);
+      await expect(action(page, group0[20]?.orgnr ?? '')).toHaveAttribute('aria-disabled', 'true');
+      await expect(notice(page)).toHaveText('');
+      // Restoring one lifts the cap.
+      await action(page, peer).click();
+      await expect.poll(() => shown(page)).toBe(capPath(19));
+      await expect(capText(page)).toHaveCount(0);
+      await expect(page.locator('[data-peer-action][aria-disabled]')).toHaveCount(0);
+    });
+
+    test('a second exclude pressed while the 20th is in flight is refused', async ({ page }) => {
+      await open(page, capPath(19));
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await page.route(
+        (url) => url.pathname.startsWith('/analyse/'),
+        async (route: Route) => {
+          if (route.request().headers()['rsc'] === '1') await held;
+          await route.continue();
+        },
+      );
+      const before = await historyLength(page);
+      await action(page, group0[19]?.orgnr ?? '').click();
+      // The page still shows 19: this button is not yet aria-disabled.
+      const late = action(page, group0[20]?.orgnr ?? '');
+      await expect(late).not.toHaveAttribute('aria-disabled');
+      await late.click();
+      release();
+      await expect.poll(() => shown(page)).toBe(capPath(20));
+      await page.waitForTimeout(1000);
+      expect(ekskOf(page)).not.toContain(group0[20]?.orgnr);
+      expect(shown(page)).toBe(capPath(20));
+      expect(await historyLength(page)).toBe(before + 1);
+      await expect(notice(page)).toHaveText('');
+    });
+  });
+
   for (const width of [375, 320]) {
     test(`at ${width} px every Story 2.8 state fits: no sideways body scroll, the band control a three-column grid`, async ({
       page,
@@ -459,6 +555,17 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
         .join(',');
       await open(page, `${peersPath(subject)}?ekskl=${ekskl}`, width);
       await expect(page.getByTestId('too-small-block')).toBeVisible();
+      await noSidewaysScroll(page);
+
+      // Story 2.10: the exclusion cap, its text and the aria-disabled actions.
+      const twenty = group0
+        .slice(0, 20)
+        .map((p) => p.orgnr)
+        .sort()
+        .join(',');
+      await open(page, `${PEERS}?ekskl=${twenty}`, width);
+      await expect(page.getByTestId('exclusion-cap')).toBeVisible();
+      await expect(page.locator('[data-peer-action]:visible[aria-disabled="true"]').first()).toBeVisible();
       await noSidewaysScroll(page);
     });
   }

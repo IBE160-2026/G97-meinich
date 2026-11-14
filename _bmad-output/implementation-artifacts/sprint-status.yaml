@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 13-11-2026 23:50
+last_updated: 14-11-2026 10:17
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -66,7 +66,7 @@ development_status:
   2-6-classification-stage-5: done
   2-7-the-peers-tab-shows-why: done
   2-8-adjust-the-peer-group: done
-  2-9-missing-figures-say-why: backlog
+  2-9-missing-figures-say-why: in-progress
   epic-2-retrospective: optional
 
   epic-3: backlog

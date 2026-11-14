@@ -20,13 +20,13 @@ import {
   type CandidateFiling,
   type MatchBasis,
   type SizeBand,
-  type SubjectFiling,
+  type FunnelSubject,
 } from '../../src/engine/peers.ts';
 
 // 10 000 000 kr, in øre: every band bound is a whole number of øre.
 const S = 1_000_000_000n;
 
-const subject: SubjectFiling = {
+const subject: FunnelSubject = {
   orgnr: '813235552',
   naeringskode1: '62.100',
   filingYear: 2025,
@@ -65,7 +65,7 @@ function candidate(orgnr: string, overrides: Partial<CandidateFiling> = {}): Can
   };
 }
 
-const poolOf = (candidates: readonly CandidateFiling[], band: SizeBand = 0, of: SubjectFiling = subject) =>
+const poolOf = (candidates: readonly CandidateFiling[], band: SizeBand = 0, of: FunnelSubject = subject) =>
   assemblePeerGroup(of, candidates, band).pool.map((peer) => peer.orgnr);
 
 describe('stage 1: the size band, both bounds included, exact to the øre', () => {
@@ -270,7 +270,7 @@ describe('stage 2 emptied by the subject: its reason', () => {
   it('when several apply: no revenue or not stated, then non-calendar, then the stage-2 reasons in order', () => {
     const nonCalendar = { periodeFra: '2024-07-01', periodeTil: '2025-06-30' };
     const all = { ...subject, ...nonCalendar, valuta: null, regnskapsregler: 'IFRS' };
-    const reason = (overrides: Partial<SubjectFiling>) => assemblePeerGroup({ ...all, ...overrides }, full, 0).emptyReason;
+    const reason = (overrides: Partial<FunnelSubject>) => assemblePeerGroup({ ...all, ...overrides }, full, 0).emptyReason;
     expect(reason({ sumDriftsinntekter: 0n })).toBe('subject_no_revenue');
     expect(reason({ sumDriftsinntekter: null })).toBe('subject_revenue_not_stated');
     expect(reason({})).toBe('subject_non_calendar');
@@ -502,7 +502,7 @@ describe('stages 4 and 5: the combination rule', () => {
   const F = 'forhandler' as const;
   const P = 'produkt' as const;
   const bothSignals = { ...subject, fingerprint: KONSULENT, classification: K };
-  const run = (subjectFiling: SubjectFiling, overrides: Partial<CandidateFiling>) =>
+  const run = (subjectFiling: FunnelSubject, overrides: Partial<CandidateFiling>) =>
     assemblePeerGroup(subjectFiling, [candidate('900000001', overrides)], 0);
 
   it('both give the subject type: kept, not flagged', () => {
@@ -609,7 +609,7 @@ type Forbidden =
   | `${string}${'aarsverk' | 'Aarsverk'}${string}`
   | `${string}${'share' | 'Share' | 'andel' | 'Andel' | 'ratio' | 'Ratio'}${string}`;
 type AssertNever<T extends never> = T;
-export type NoForbiddenSubjectField = AssertNever<Extract<keyof SubjectFiling, Forbidden>>;
+export type NoForbiddenSubjectField = AssertNever<Extract<keyof FunnelSubject, Forbidden>>;
 export type NoForbiddenCandidateField = AssertNever<Extract<keyof CandidateFiling, Forbidden>>;
 // Story 2.5: stage 4 reads a Fingerprint, whose fields are equally clean,
 // and benchmarked shares reach it only as band ids: no fingerprint field is

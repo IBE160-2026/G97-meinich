@@ -64,7 +64,7 @@ export type Comparability = {
 };
 
 /** The subject's benchmark-year filing: the newest SELSKAP filing. */
-export type SubjectFiling = Comparability & {
+export type FunnelSubject = Comparability & {
   readonly orgnr: string;
   readonly naeringskode1: string | null;
   readonly filingYear: number;
@@ -256,7 +256,7 @@ export function isComparable(subject: Comparability, candidate: Comparability): 
  * counts as missing for every candidate.
  */
 function signals(
-  subject: Pick<SubjectFiling, 'fingerprint' | 'classification'>,
+  subject: Pick<FunnelSubject, 'fingerprint' | 'classification'>,
   candidate: Pick<CandidateFiling, 'fingerprint' | 'classification'>,
 ): { readonly fingerprint: boolean | null; readonly text: boolean | null } {
   const agree = (a: BusinessType | null, b: BusinessType | null) => (a === null || b === null ? null : a === b);
@@ -292,7 +292,7 @@ export type MatchBasis = (typeof MATCH_BASES)[number];
  * request, never stored (the basis depends on the subject).
  */
 export function matchBasis(
-  subject: Pick<SubjectFiling, 'fingerprint' | 'classification'>,
+  subject: Pick<FunnelSubject, 'fingerprint' | 'classification'>,
   candidate: Pick<CandidateFiling, 'fingerprint' | 'classification'>,
 ): MatchBasis {
   const { fingerprint, text } = signals(subject, candidate);
@@ -308,7 +308,7 @@ export function matchBasis(
  * company without a filing in the subject's year is out before stage 1.
  */
 export function assemblePeerGroup<C extends CandidateFiling>(
-  subject: SubjectFiling,
+  subject: FunnelSubject,
   candidates: readonly C[],
   band: SizeBand,
 ): PeerGroup<C> {

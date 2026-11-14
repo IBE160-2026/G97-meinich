@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { inclusionReason, type ProfileFields } from '../../src/analysis/inclusion-reason.ts';
 import type { BandRange, Fingerprint } from '../../src/engine/fingerprint.ts';
-import type { SubjectFiling } from '../../src/engine/peers.ts';
+import type { FunnelSubject } from '../../src/engine/peers.ts';
 
 const NBSP = ' ';
 const known = (band: BandRange['lo']): BandRange => ({ lo: band, hi: band });
@@ -93,7 +93,7 @@ describe('inclusionReason', () => {
   });
 
   it('same inputs give the same text, whatever the classification', () => {
-    const base: SubjectFiling = {
+    const base: FunnelSubject = {
       orgnr: '813235552',
       naeringskode1: '62.100',
       filingYear: 2025,
@@ -113,8 +113,8 @@ describe('inclusionReason', () => {
       (['produkt', 'konsulent', 'forhandler', 'annet', null] as const).flatMap((classification) => {
         // A whole filing, classification included, passes as ProfileFields;
         // the function cannot read the field (its type has none).
-        const classifiedSubject: SubjectFiling = { ...base, classification };
-        const classifiedPeer: SubjectFiling = { ...peer, classification };
+        const classifiedSubject: FunnelSubject = { ...base, classification };
+        const classifiedPeer: FunnelSubject = { ...peer, classification };
         return [
           inclusionReason(classifiedSubject, peer, 'A AS'),
           inclusionReason(base, classifiedPeer, 'A AS'),

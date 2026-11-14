@@ -24,7 +24,7 @@ import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { formatOrgnr } from '../engine/format.ts';
 import type { BusinessType, Fingerprint } from '../engine/fingerprint.ts';
 import { parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
-import { PEER_LEGAL_FORM, type SubjectFiling as FunnelSubject } from '../engine/peers.ts';
+import { PEER_LEGAL_FORM, type FunnelSubject } from '../engine/peers.ts';
 import { t } from '../messages/index.ts';
 import {
   defaultState,

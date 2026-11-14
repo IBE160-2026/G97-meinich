@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { BASIS_DISPLAY, peerRows, type PeerInput } from '../../src/analysis/peer-rows.ts';
 import type { SubjectKeyFigures } from '../../src/analysis/view.ts';
 import type { BandRange, Fingerprint } from '../../src/engine/fingerprint.ts';
-import { MATCH_BASES, type SubjectFiling } from '../../src/engine/peers.ts';
+import { MATCH_BASES, type FunnelSubject } from '../../src/engine/peers.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 
 const NBSP = ' ';
@@ -29,7 +29,7 @@ const comparability = {
   avviklingsregnskap: false,
 };
 
-const subject: SubjectFiling = {
+const subject: FunnelSubject = {
   orgnr: '813235552',
   naeringskode1: '62.100',
   filingYear: 2025,

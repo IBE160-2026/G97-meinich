@@ -15,11 +15,11 @@
 import { Decimal } from '../engine/decimal.ts';
 import { INTANGIBLES_SHARE, type BandRange, type Fingerprint } from '../engine/fingerprint.ts';
 import { formatMultiple, formatWholePercent } from '../engine/format.ts';
-import type { SubjectFiling } from '../engine/peers.ts';
+import type { FunnelSubject } from '../engine/peers.ts';
 import { t, type MessageId } from '../messages/index.ts';
 
 /** The profile fields the reason reads: no model field. */
-export type ProfileFields = Pick<SubjectFiling, 'naeringskode1' | 'sumDriftsinntekter' | 'fingerprint'>;
+export type ProfileFields = Pick<FunnelSubject, 'naeringskode1' | 'sumDriftsinntekter' | 'fingerprint'>;
 
 /** At most this many shared categories are named. */
 export const MAX_TRAITS = 2;

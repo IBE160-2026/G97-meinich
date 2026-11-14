@@ -2,7 +2,7 @@
 title: 'Story 2.8: Adjust the peer group'
 type: 'feature'
 created: '2026-11-13'
-status: 'in-review'
+status: 'done'
 baseline_commit: '042fbe1a7083b8bcbfbad96e5183e8d1d94c6355'
 route: 'dispatch'
 review_loop_iteration: 0

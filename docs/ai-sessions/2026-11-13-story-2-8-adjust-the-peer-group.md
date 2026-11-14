@@ -111,6 +111,10 @@ Three review subagents read the diff (Blind Hunter, Edge Case Hunter, Verificati
   - Click to the filled announcement on demo A's Peers tab, median of three runs, in the final e2e run: load 474 ms, exclude 439 ms, restore 380 ms, band 523 ms, reset 426 ms. The subagent's run before review gave 406–553 ms.
 - **Local data:** before each seed load, the document rows outside the allow-list were dumped (`.local/before-2.8-suite/`, `.local/before-2.8-review/`). Both equal `.local/document-run-2.5d/` row for row. No dump was deleted, and `pnpm classify` was not run. After the final e2e run, `.local/document-run-2.5d/` was restored and `pnpm derive` run: 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, and the restored rows equal the dump.
 
+## Merge
+
+CI was green on `27fa837` (8 min 1 s). Before merging, the review session checked that the segment's error boundary goes back only while a peer-group change is in flight and that tests cover both branches, AD-4 as Meinich amended it, the tab links without prefetch, the two items deferred from Story 2.7, the copy in `nb.json` with the singular corrected, the restored row counts, and the PR text. At Meinich's request it posted the review with five line comments ([review 5903210335](https://github.com/IBE160-2026/G97-meinich/pull/59#pullrequestreview-5903210335)): one check of the error boundary and four of Meinich's decisions. Nothing needed changing. Merged at 08:38 UTC on 2026-11-14 as `f583b7f`.
+
 ## Links
 
 - AI log: "2026-11-13 — Story 2.8: URL state reaching the engine, and a failed recompute"

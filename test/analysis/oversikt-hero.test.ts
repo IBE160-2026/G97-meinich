@@ -150,7 +150,7 @@ describe('the hero amount and the table', () => {
     ],
   ])('are the same string for %s', (_label, inputs, expected) => {
     const benchmark = amountOf(inputs);
-    const table = renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'X AS', smaaForetak: true }));
+    const table = renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'X AS', smaaForetak: true, filingYear: 2025 }));
     const hero = byTestId(render(benchmark), 'hero-amount');
     expect(hero).toBe(expected);
     expect(hero).toBe(cell(table));

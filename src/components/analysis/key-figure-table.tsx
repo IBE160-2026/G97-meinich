@@ -19,7 +19,7 @@ import { stripPosition, type ApiBenchmark, type FigureBenchmark } from '@/engine
 import { formatPercent, formatPercentNumber, formatWholePercent } from '@/engine/format';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
-import { undefinedText } from '@/analysis/figure-text';
+import { absenceText } from '@/analysis/figure-text';
 import { DIRECTION_WORDS, FIGURES } from './api-figures';
 import { DistributionStrip, type StripMarks } from './distribution-strip';
 import { kronerAmountText } from './kroner-amount';
@@ -104,11 +104,20 @@ function gapCell(key: FigureKey, figure: FigureBenchmark): GapCell | null {
   return null;
 }
 
-function rowModel(key: FigureKey, label: MessageId, denominator: MessageId, figure: FigureBenchmark): RowModel {
+function rowModel(
+  key: FigureKey,
+  label: MessageId,
+  denominator: MessageId,
+  figure: FigureBenchmark,
+  filingYear: number,
+): RowModel {
   const c = figure.comparison;
   const direction = t(DIRECTION_WORDS[figure.direction]);
   const counts = t('keyFigures.counts', { n: String(c.count), k: String(c.leftOut) });
-  const own = c.kind === 'subject_absent' ? undefinedText(c.absence, denominator) : formatPercent(c.subject.toString());
+  const own =
+    c.kind === 'subject_absent'
+      ? absenceText(c.absence, { denominator, filingYear })
+      : formatPercent(c.subject.toString());
   const noDirection: CellText = { text: DASH, srOnly: t('keyFigures.notApplicableNoDirection') };
   let comparison: RowModel['comparison'];
   if (c.kind === 'compared') {
@@ -296,14 +305,19 @@ export function KeyFigureTable({
   benchmark,
   companyName,
   smaaForetak,
+  filingYear,
 }: {
   readonly benchmark: ApiBenchmark;
   /** The own column's head: the company's name. */
   readonly companyName: string;
   /** The subject's filing's smaaForetak: false shows the notice when any figure is below the floor. */
   readonly smaaForetak: boolean | null;
+  /** The benchmark filing's year, for an absence's words. */
+  readonly filingYear: number;
 }) {
-  const rows = FIGURES.map((figure) => rowModel(figure.key, figure.label, figure.denominator, benchmark[figure.key]));
+  const rows = FIGURES.map((figure) =>
+    rowModel(figure.key, figure.label, figure.denominator, benchmark[figure.key], filingYear),
+  );
   return (
     <div className="mt-2" data-testid="key-figure-table">
       <p className="m-0 text-[13px] text-slate">{t('keyFigures.topNote')}</p>

@@ -20,7 +20,7 @@ import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';
 import { matchBasis, type CandidateFiling, type MatchBasis, type SubjectFiling } from '../engine/peers.ts';
-import { undefinedText } from './figure-text.ts';
+import { absenceText } from './figure-text.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { inclusionReason } from './inclusion-reason.ts';
 import type { SubjectKeyFigures } from './view.ts';
@@ -62,10 +62,10 @@ function revenueText(peer: PeerInput, valuta: string | null): string {
   return formatMillions(peer.sumDriftsinntekter.toString());
 }
 
-function marginText(peer: PeerInput): string {
+function marginText(peer: PeerInput, filingYear: number): string {
   const result = computeApiKeyFigures(apiInputsFromRow(peer.keyFigures)).driftsmargin;
   if (result.kind === 'value') return formatPercent(result.value.toString());
-  return undefinedText(result.absence, 'analysis.figures.reason.revenueNotPositive');
+  return absenceText(result.absence, { denominator: 'analysis.figures.reason.revenueNotPositive', filingYear });
 }
 
 /**
@@ -91,7 +91,7 @@ export function peerRows(
       excluded: isExcluded.has(peer.orgnr),
       navn: peer.navn ?? formatOrgnr(peer.orgnr),
       omsetning: revenueText(peer, valuta),
-      driftsmargin: marginText(peer),
+      driftsmargin: marginText(peer, subject.filingYear),
       hvorforMed: inclusionReason(subject, peer, subjectName),
       grunnlag: t(basis.label),
       grunnlagKi: basis.ki,

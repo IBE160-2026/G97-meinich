@@ -2,7 +2,7 @@
 // totalkapitalrentabilitet and egenkapitalandel from computeApiKeyFigures,
 // each a percent from format.ts, or "Kan ikke beregnes" with its reason.
 // No median, beste fjerdedel, Plassering or kroner: there is no peer group.
-import { undefinedText } from '@/analysis/figure-text';
+import { absenceText } from '@/analysis/figure-text';
 import type { SubjectFiling } from '@/analysis/view';
 import { formatPercent, formatReadDate } from '@/engine/format';
 import { apiInputsFromRow } from '@/engine/inputs';
@@ -28,9 +28,9 @@ export const DIRECTION_WORDS: Readonly<Record<Direction, MessageId>> = {
   none: 'keyFigures.dir.none',
 };
 
-function shown(result: FigureResult, denominator: MessageId): string {
+function shown(result: FigureResult, denominator: MessageId, filingYear: number): string {
   if (result.kind === 'value') return formatPercent(result.value.toString());
-  return undefinedText(result.absence, denominator);
+  return absenceText(result.absence, { denominator, filingYear });
 }
 
 export function ApiFigures({ filing }: { readonly filing: SubjectFiling }) {
@@ -48,7 +48,7 @@ export function ApiFigures({ filing }: { readonly filing: SubjectFiling }) {
           <div key={figure.key} className="min-w-0 rounded-lg border border-divider p-4">
             <dt className="text-[13px] text-slate">{t(figure.label)}</dt>
             <dd className="figure m-0 mt-1 text-[22px] font-semibold break-words" data-testid={`figure-${figure.key}`}>
-              {shown(figures[figure.key], figure.denominator)}
+              {shown(figures[figure.key], figure.denominator, filing.filingYear)}
             </dd>
           </div>
         ))}

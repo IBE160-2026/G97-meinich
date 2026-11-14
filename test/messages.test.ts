@@ -71,3 +71,38 @@ describe('Story 2.1b copy', () => {
     );
   });
 });
+
+// Story 2.8: the copy approved at the checkpoint (Meinich, 2026-11-13), as
+// EXPERIENCE.md quotes it.
+describe('Story 2.8 copy', () => {
+  it.each([
+    ['peers.band.label', 'Størrelsesintervall'],
+    ['peers.band.range', 'Omsetning {fra}–{til} mill. kr'],
+    [
+      'peers.band.fixed',
+      'Bare størrelsesintervallet kan utvides. Kravene til sammenlignbart regnskap, selskapsform og bransje løsnes aldri.',
+    ],
+    [
+      'peers.allExcluded',
+      'Du har ekskludert alle sammenlignbare selskaper. Ta med et selskap igjen, eller tilbakestill til standard.',
+    ],
+    ['peers.tooSmall', 'Peer-gruppen har bare {n} sammenlignbare. Med under 10 viser vi ingen median eller kroner.'],
+    ['peers.tooSmallWiden', 'Utvid størrelsesintervallet'],
+    ['peers.widened.body', 'Utvidet størrelsesintervall ({b}). Dette er ikke standard peer-gruppe.'],
+    ['peers.widened.back', 'Tilbake til standard ({b})'],
+    ['peers.funnel.excluded', '{n} ekskludert av deg → {m} i analysen'],
+    ['peers.col.action', 'Handling'],
+    ['peers.action.excludeName', 'Ekskluder {navn}'],
+    ['peers.action.restoreName', 'Ta med igjen {navn}'],
+    ['peers.excluded', 'Ekskludert'],
+    ['peers.reset', 'Tilbakestill til standard'],
+    ['peers.announce.excluded', '{navn} er ekskludert. {m} sammenlignbare i analysen.'],
+    ['peers.announce.restored', '{navn} er tatt med igjen. {m} sammenlignbare i analysen.'],
+    ['peers.announce.band', 'Størrelsesintervall {b}. {n} sammenlignbare.'],
+    ['peers.announce.reset', 'Standard peer-gruppe er gjenopprettet. {n} sammenlignbare.'],
+    ['peers.pending', 'Oppdaterer …'],
+    ['peers.failed', 'Kunne ikke oppdatere analysen. Prøv igjen.'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

@@ -273,3 +273,42 @@ export function expectedRows(orgnr: string, band: SizeBand): PeerDisplayRow[] {
     orNull(newestFiling(orgnr).valuta),
   );
 }
+
+// Story 2.7: the labelled set's orgnrs (Story 5.1's draw). A test whose
+// subject or peers may be among them compares totals only and names no
+// company.
+export const labelled = new Set(
+  (
+    JSON.parse(readFileSync(path.join(root, 'analysis/labelled-set/document-run.json'), 'utf8')) as {
+      orgnr: string;
+    }[]
+  ).map((entry) => entry.orgnr),
+);
+
+let floor: string | null = null;
+/**
+ * Story 2.8: a covered AS outside the labelled set whose group at band 0
+ * has 11–30 peers, so a few exclusions take it to 10 and then below the
+ * floor: excluding all but the last 10 (in group order) leaves driftsmargin
+ * compared on 10, and excluding one more takes it below the floor on 9.
+ * Picked from the seed when first asked for, then kept. Its orgnr is never
+ * named in a test title, and its peers only by count.
+ */
+export function floorSubject(): string {
+  if (floor !== null) return floor;
+  for (const c of coveredAs) {
+    const orgnr = c.orgnr ?? '';
+    if (labelled.has(orgnr) || !isCalendar(c) || !/^\d+$/.test(revenueOf(c)) || revenueOf(c) === '0') continue;
+    if (orgnr === A.orgnr) continue;
+    const group = expectedGroup(orgnr, 0);
+    if (group.length < 11 || group.length > 30) continue;
+    const excluded = (n: number) => group.slice(0, n).map((peer) => peer.orgnr);
+    const atTen = expectedBenchmark(orgnr, 0, excluded(group.length - 10)).driftsmargin.comparison;
+    const atNine = expectedBenchmark(orgnr, 0, excluded(group.length - 9)).driftsmargin.comparison;
+    if (atTen.kind === 'compared' && atTen.count === 10 && atNine.kind === 'below_floor' && atNine.count === 9) {
+      floor = orgnr;
+      return orgnr;
+    }
+  }
+  throw new Error('no covered AS outside the labelled set with 11–30 peers at band 0 in the seed');
+}

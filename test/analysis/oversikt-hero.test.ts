@@ -13,7 +13,7 @@ import { Decimal } from '../../src/engine/decimal.ts';
 import type { EmptyReason } from '../../src/engine/peers.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
-import type { AnalysisState } from '../../src/url/analysis-state.ts';
+import { defaultState, type AnalysisState } from '../../src/url/analysis-state.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -211,7 +211,7 @@ describe('the hero without an amount', () => {
 describe('an empty group with a reason, as on the Peers tab', () => {
   const NO_COUNTS = { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
   const peersSentence = (emptyReason: EmptyReason) =>
-    text(renderToString(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025 })));
+    text(renderToString(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 })));
 
   it('a non-calendar year: the own value and the Peers tab’s sentence, not "(0 av 10)"', () => {
     const html = render(amountOf(CLIMAX, []), 'subject_non_calendar');

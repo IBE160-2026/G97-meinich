@@ -73,11 +73,49 @@ describe('shownGroup', () => {
   });
 
   // Story 2.7: the Peers tab shows the funnel's counts and tags its flagged peers.
-  it('passes the funnel’s counts and flagged orgnrs through, unchanged by ekskl', () => {
+  it('passes the funnel’s stage counts and flagged orgnrs through', () => {
     const flaggedCounts = { ...counts, stage5: { classification: 12, flagged: 1 } };
     const flagged = [pool[3]?.orgnr ?? ''];
     const shown = shownGroup({ ...funnel, counts: flaggedCounts, flagged }, [pool[0]?.orgnr ?? ''], filing('NOK'));
-    expect(shown.counts).toBe(flaggedCounts);
+    expect(shown.counts).toEqual(flaggedCounts);
     expect(shown.flagged).toBe(flagged);
+  });
+
+  // Story 2.8 (triage row 13 of Story 2.7): an excluded flagged peer is not
+  // in the analysis, so the funnel's flagged count leaves it out; the row
+  // keeps its tag, so `flagged` keeps it.
+  it('counts flagged among the peers in the analysis', () => {
+    const flaggedCounts = { ...counts, stage5: { classification: 12, flagged: 2 } };
+    const flagged = [pool[3]?.orgnr ?? '', pool[5]?.orgnr ?? ''];
+    const ekskl = [pool[3]?.orgnr ?? '', pool[4]?.orgnr ?? ''];
+    const shown = shownGroup({ ...funnel, counts: flaggedCounts, flagged }, ekskl, filing('NOK'));
+    expect(shown.counts.stage5).toEqual({ classification: 12, flagged: 1 });
+    expect(shown.counts.stage4).toEqual(flaggedCounts.stage4);
+    expect(shown.flagged).toEqual(flagged);
+    expect(shown.excludedInGroup).toEqual(ekskl);
+    expect(shown.analysisCount).toBe(10);
+  });
+
+  it('keeps every member of the group, excluded peers included, and leaves an ekskl peer stage 4 removed out of excludedInGroup', () => {
+    const removed = pool[11]?.orgnr ?? '';
+    const afterStage4 = { ...funnel, group: pool.filter((peer) => peer.orgnr !== removed) };
+    const ekskl = [pool[2]?.orgnr ?? '', removed].sort();
+    const shown = shownGroup(afterStage4, ekskl, filing('NOK'));
+    expect(shown.members.map((peer) => peer.orgnr)).toEqual(afterStage4.group.map((peer) => peer.orgnr));
+    expect(shown.excludedInGroup).toEqual([pool[2]?.orgnr]);
+    expect(shown.peers).toHaveLength(10);
+    expect(shown.analysisCount).toBe(10);
+  });
+
+  // Story 2.8 (FR-19): a figure crosses the 10-peer floor both ways.
+  it('crosses the 10-peer floor both ways', () => {
+    const ten = { ...funnel, group: pool.slice(0, 10) };
+    const before = shownGroup(ten, [], filing('NOK'));
+    expect(before.benchmark.driftsmargin.comparison).toMatchObject({ kind: 'compared', count: 10 });
+    const excluded = shownGroup(ten, [pool[0]?.orgnr ?? ''], filing('NOK'));
+    expect(excluded.benchmark.driftsmargin.comparison).toMatchObject({ kind: 'below_floor', count: 9 });
+    expect(excluded.benchmark.driftsmargin.gap.kind).not.toBe('amount');
+    const restored = shownGroup(ten, [], filing('NOK'));
+    expect(restored.benchmark).toEqual(before.benchmark);
   });
 });

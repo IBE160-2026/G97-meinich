@@ -15,6 +15,12 @@
 //
 // Nothing here writes: the reader connection is read-only, and no state
 // leaves the URL (no cookie, no browser storage).
+//
+// Story 2.8: a peer-group change (exclude, restore, a band step, reset) is a
+// soft navigation to a new URL, rendered here like any other request. The
+// page reports `serialize` of the state it parsed to the peer-change
+// provider in the layout (PeerChangeCommit), which builds the next change
+// on it, and its panel is marked busy while a change is in flight.
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -32,11 +38,13 @@ import {
 } from '@/analysis/view';
 import { peerRows } from '@/analysis/peer-rows';
 import { shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
+import { bandFactors, bandSteps } from '@/analysis/size-band';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { KeyFigureTable } from '@/components/analysis/key-figure-table';
 import { AnalysisLoading } from '@/components/analysis/analysis-loading';
 import { OversiktHero } from '@/components/analysis/oversikt-hero';
+import { PeerChangeAlert, PeerChangeCommit, PendingBody } from '@/components/analysis/peer-change';
 import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
@@ -48,7 +56,7 @@ import { t } from '@/messages';
 import { industryAtSentenceStart, industryInSentence, joinList } from '@/messages/industry';
 import { lookupCandidates, lookupSubject, type Candidate } from '@/server/analysis';
 import { coveredIndustries } from '@/server/search';
-import { parseSegments, type AnalysisState, type Band } from '@/url/analysis-state';
+import { DEFAULT_BAND, parseSegments, serialize, type AnalysisState, type Band } from '@/url/analysis-state';
 
 export type Segments = { readonly orgnr: string; readonly fane?: string };
 export type SearchParams = Readonly<Record<string, string | string[] | undefined>>;
@@ -149,14 +157,19 @@ function SearchAgain() {
 }
 
 /**
- * The Peers tab's rows (Story 2.7): built here, on the server, so only their
- * strings reach the page. A covered subject always has a filing; one
- * without would be a bug, so it throws rather than show no peers.
+ * The Peers tab's rows (Stories 2.7, 2.8): the whole group, excluded peers
+ * marked, built here, on the server, so only their strings and orgnrs reach
+ * the page; and the size-band steps around the subject's revenue. A covered
+ * subject always has a filing; one without would be a bug, so it throws
+ * rather than show no peers.
  */
-function peersShown(subject: Subject, group: ShownGroup) {
+function peersShown(subject: Subject, group: ShownGroup, state: AnalysisState) {
   const funnel = funnelSubject(subject);
   if (funnel === null) throw new TypeError('peersShown: a covered subject without a filing');
-  return peerRows(funnel, displayName(subject), group.peers, group.flagged, group.valuta);
+  return {
+    rows: peerRows(funnel, displayName(subject), group.members, group.flagged, group.valuta, state.ekskl),
+    steps: bandSteps(funnel.sumDriftsinntekter, group.valuta),
+  };
 }
 
 function Covered({
@@ -171,36 +184,50 @@ function Covered({
   readonly group: ShownGroup;
 }) {
   if (view.fane === null) return null;
+  const peers = view.fane === 'peers' ? peersShown(subject, group, state) : null;
   return (
     <>
+      <PeerChangeCommit
+        href={serialize(state)}
+        count={group.analysisCount}
+        bandLabel={bandFactors(state.band)}
+        renderId={crypto.randomUUID()}
+      />
       <TabLinks state={state} active={view.fane} />
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">
           {t(`tabs.${view.fane}`)}
         </h2>
-        {view.fane === 'oversikt' ? (
-          <OversiktHero
-            figure={group.benchmark.driftsmargin}
-            state={state}
-            emptyReason={group.emptyReason}
-            filingYear={group.filingYear}
-          />
-        ) : null}
-        {view.fane === 'peers' ? (
-          <PeerList
-            rows={peersShown(subject, group)}
-            counts={group.counts}
-            emptyReason={group.emptyReason}
-            filingYear={group.filingYear}
-          />
-        ) : null}
-        {view.fane === 'nokkeltall' ? (
-          <KeyFigureTable
-            benchmark={group.benchmark}
-            companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
-            smaaForetak={group.smaaForetak}
-          />
-        ) : null}
+        <PeerChangeAlert />
+        <PendingBody>
+          {view.fane === 'oversikt' ? (
+            <OversiktHero
+              figure={group.benchmark.driftsmargin}
+              state={state}
+              emptyReason={group.emptyReason}
+              filingYear={group.filingYear}
+            />
+          ) : null}
+          {peers !== null ? (
+            <PeerList
+              rows={peers.rows}
+              counts={group.counts}
+              emptyReason={group.emptyReason}
+              filingYear={group.filingYear}
+              state={state}
+              steps={peers.steps}
+              analysisCount={group.analysisCount}
+              excludedCount={group.excludedInGroup.length}
+            />
+          ) : null}
+          {view.fane === 'nokkeltall' ? (
+            <KeyFigureTable
+              benchmark={group.benchmark}
+              companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
+              smaaForetak={group.smaaForetak}
+            />
+          ) : null}
+        </PendingBody>
       </section>
     </>
   );
@@ -266,7 +293,11 @@ function AnalysisBody({
 
   return (
     <main id="innhold" className="flex-1">
-      <CompanyHeader subject={subject} peerCount={coveredGroup?.peers.length} />
+      <CompanyHeader
+        subject={subject}
+        peerCount={coveredGroup?.analysisCount}
+        widened={coveredGroup !== null && state.band !== DEFAULT_BAND}
+      />
       <SettingsNotice show={view.notice} />
       {coveredGroup !== null ? <Covered subject={subject} state={state} view={view} group={coveredGroup} /> : null}
       {view.state === 'uncovered' ? (

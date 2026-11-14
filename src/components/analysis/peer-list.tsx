@@ -17,16 +17,31 @@
 // "Vis alle {n}", which draws them in the client only when pressed.
 // A subject that cannot have peers shows its sentence and no funnel: the
 // zeros would only repeat it.
+//
+// Story 2.8 (FR-17, FR-18): the rows are the whole group; an excluded peer
+// keeps its row, in slate, struck through, tagged "Ekskludert", with "Ta med
+// igjen" in the action column. Above the funnel: the widened notice beyond
+// Standard, the too-small block under 10 peers in the analysis (or the
+// all-excluded sentence), then the size-band control and the sentence that
+// nothing else loosens. "Tilbakestill til standard" shows whenever the
+// group is not the standard one. Every change link's href is `serialize`
+// of the state the change asks for (src/analysis/peer-change.ts).
+import { isStandardGroup, nextState } from '@/analysis/peer-change';
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
+import { bandFactors, groupTooSmall, type BandStep } from '@/analysis/size-band';
 import type { EmptyReason, FunnelCounts } from '@/engine/peers';
 import { t } from '@/messages';
+import { DEFAULT_BAND, serialize, type AnalysisState } from '@/url/analysis-state';
 import { AiMark } from './ai-mark';
-import { Basis, CARD_LIST_CLASS, Flag, PeerCard, type PeerCardLabels } from './peer-card';
+import { PeerAction, PeerChangeLink } from './peer-action';
+import { Basis, CARD_LIST_CLASS, Flag, PeerCard, PeerName, type PeerCardLabels } from './peer-card';
 import { PeerFunnel } from './peer-funnel';
+import { PHONE_CARDS } from './phone-cards';
 import { ShowAllToggle } from './show-all-toggle';
+import { SizeBandControl } from './size-band';
+import { StateBlock } from './state-block';
 
-/** Cards shown on the phone before "Vis alle {n}" (Meinich, 2026-11-13). */
-export const PHONE_CARDS = 8;
+export { PHONE_CARDS };
 
 const HIDDEN_CARDS_ID = 'flere-sammenlignbare';
 
@@ -41,7 +56,8 @@ export function emptyText(emptyReason: EmptyReason, filingYear: number): string 
 }
 
 // The table's cells are styled from the table, not cell by cell, so a large
-// group's page stays small: columns 2 and 3 are figures, right-aligned.
+// group's page stays small: columns 2 and 3 are figures, right-aligned. An
+// excluded row is slate (`data-excluded`).
 const TABLE_CLASS =
   'w-full border-collapse text-left text-[13px] [&_th]:py-2 [&_th]:pr-4 [&_th]:font-semibold [&_td]:py-2 [&_td]:pr-4 ' +
   '[&_tbody_tr]:border-b [&_tbody_tr]:border-divider [&_tbody_tr]:align-top [&_td:first-child]:min-w-40 [&_td:first-child]:break-words ' +
@@ -50,6 +66,7 @@ const TABLE_CLASS =
 
 function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
   const ki = t('peers.ai');
+  const excludedTag = t('peers.excluded');
   return (
     <div
       role="region"
@@ -73,13 +90,18 @@ function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
             <th scope="col">
               <span className="sr-only">{t('peers.col.flag')}</span>
             </th>
+            <th scope="col">
+              <span className="sr-only">{t('peers.col.action')}</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
             // The position is the key: the list is static per render.
-            <tr key={index}>
-              <td>{row.navn}</td>
+            <tr key={index} data-excluded={row.excluded ? 'true' : undefined} className={row.excluded ? 'text-slate' : undefined}>
+              <td>
+                <PeerName row={row} excludedTag={excludedTag} />
+              </td>
               <td>{row.omsetning}</td>
               <td>{row.driftsmargin}</td>
               <td>{row.hvorforMed}</td>
@@ -87,6 +109,9 @@ function PeerTable({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
                 <Basis row={row} ki={ki} />
               </td>
               <td>{row.flagg === null ? null : <Flag text={row.flagg} ki={ki} />}</td>
+              <td>
+                <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -103,10 +128,11 @@ function cardLabels(): PeerCardLabels {
     reason: t('peers.col.reason'),
     basis: t('peers.col.basis'),
     ki: t('peers.ai'),
+    excluded: t('peers.excluded'),
   };
 }
 
-function PeerCards({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
+function PeerCards({ rows, band }: { readonly rows: readonly PeerDisplayRow[]; readonly band: AnalysisState['band'] }) {
   const labels = cardLabels();
   const rest = rows.slice(PHONE_CARDS);
   return (
@@ -119,6 +145,8 @@ function PeerCards({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
       {/* The rest reach the client as strings and are drawn only on "Vis alle". */}
       {rest.length > 0 ? (
         <ShowAllToggle
+          key={band}
+          band={band}
           listId={HIDDEN_CARDS_ID}
           label={t('peers.showAll', { n: String(rows.length) })}
           rows={rest}
@@ -134,34 +162,103 @@ function PeerCards({ rows }: { readonly rows: readonly PeerDisplayRow[] }) {
 }
 
 
+/** The State blocks above the size-band control: widened, then too small or all excluded. */
+function GroupBlocks({
+  state,
+  memberCount,
+  analysisCount,
+}: {
+  readonly state: AnalysisState;
+  readonly memberCount: number;
+  readonly analysisCount: number;
+}) {
+  const tooSmall = groupTooSmall(memberCount, analysisCount, state.band);
+  return (
+    <>
+      {state.band === DEFAULT_BAND ? null : (
+        <div className="mt-4" data-testid="widened-block">
+          <StateBlock>
+            <p className="m-0">{t('peers.widened.body', { b: bandFactors(state.band) })}</p>
+            <p className="m-0 mt-1">
+              <PeerChangeLink
+                href={serialize(nextState(state, { kind: 'band', band: DEFAULT_BAND }))}
+                change={{ kind: 'band', band: DEFAULT_BAND }}
+              >
+                {t('peers.widened.back', { b: bandFactors(DEFAULT_BAND) })}
+              </PeerChangeLink>
+            </p>
+          </StateBlock>
+        </div>
+      )}
+      {tooSmall === null ? null : (
+        <div className="mt-4" data-testid="too-small-block">
+          <StateBlock>
+            <p className="m-0">{tooSmall.text}</p>
+            {tooSmall.widen === null ? null : (
+              <p className="m-0 mt-1">
+                <PeerChangeLink
+                  href={serialize(nextState(state, { kind: 'band', band: tooSmall.widen }))}
+                  change={{ kind: 'band', band: tooSmall.widen }}
+                >
+                  {t('peers.tooSmallWiden')}
+                </PeerChangeLink>
+              </p>
+            )}
+          </StateBlock>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function PeerList({
   rows,
   counts,
   emptyReason,
   filingYear,
+  state,
+  steps,
+  analysisCount,
+  excludedCount,
 }: {
+  /** The whole group, excluded peers marked. */
   readonly rows: readonly PeerDisplayRow[];
   readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
   /** The subject's benchmark year, named when it has no revenue to compare. */
   readonly filingYear: number;
+  /** The parsed URL state: the band, the exclusions, and every change link's base. */
+  readonly state: AnalysisState;
+  /** The size-band control's steps (src/analysis/size-band.ts). */
+  readonly steps: readonly BandStep[];
+  /** The peers in the analysis: the group minus `ekskl`. */
+  readonly analysisCount: number;
+  /** Group peers in `ekskl`. */
+  readonly excludedCount: number;
 }) {
   return (
     <div className="mt-2">
       <p className="m-0 text-slate" data-testid="peer-count">
-        {rows.length === 1 ? t('peers.countOne') : t('peers.count', { n: String(rows.length) })}
+        {analysisCount === 1 ? t('peers.countOne') : t('peers.count', { n: String(analysisCount) })}
       </p>
       {emptyReason !== null ? (
         <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
       ) : (
         <>
-          <PeerFunnel counts={counts} />
-          {rows.length === 0 ? (
-            <p className="m-0 mt-4">{emptyText(emptyReason, filingYear)}</p>
-          ) : (
+          <GroupBlocks state={state} memberCount={rows.length} analysisCount={analysisCount} />
+          <SizeBandControl steps={steps} band={state.band} label={t('peers.band.label')} note={t('peers.band.fixed')} />
+          <PeerFunnel counts={counts} excluded={excludedCount} analysisCount={analysisCount} />
+          {isStandardGroup(state) ? null : (
+            <p className="m-0 mt-3">
+              <PeerChangeLink href={serialize(nextState(state, { kind: 'reset' }))} change={{ kind: 'reset' }}>
+                {t('peers.reset')}
+              </PeerChangeLink>
+            </p>
+          )}
+          {rows.length === 0 ? null : (
             <>
               <PeerTable rows={rows} />
-              <PeerCards rows={rows} />
+              <PeerCards rows={rows} band={state.band} />
             </>
           )}
         </>

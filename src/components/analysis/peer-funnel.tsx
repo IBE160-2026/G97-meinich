@@ -11,6 +11,10 @@
 // fraction is computed here. Bars are decorative (`aria-hidden`): the count
 // beside each is the value. Counts are identification, not benchmarked
 // figures, so they carry no median.
+//
+// Story 2.8: with exclusions, "{n} ekskludert av deg → {m} i analysen"
+// follows the stages; the flagged count (shownGroup) counts only the peers
+// in the analysis.
 import type { ReactNode } from 'react';
 import type { FunnelCounts } from '@/engine/peers';
 import { t, type MessageId } from '@/messages';
@@ -55,7 +59,17 @@ function Bar({ count, stage1 }: { readonly count: number; readonly stage1: numbe
 
 const HEADING_ID = 'trakt-tittel';
 
-export function PeerFunnel({ counts }: { readonly counts: FunnelCounts }) {
+export function PeerFunnel({
+  counts,
+  excluded = 0,
+  analysisCount = counts.stage5.classification,
+}: {
+  readonly counts: FunnelCounts;
+  /** Group peers the user has excluded. */
+  readonly excluded?: number;
+  /** The peers left in the analysis. */
+  readonly analysisCount?: number;
+}) {
   return (
     <div className="mt-4" data-testid="peer-funnel">
       <h3 id={HEADING_ID} className="m-0 mb-2 text-base font-semibold">
@@ -91,6 +105,11 @@ export function PeerFunnel({ counts }: { readonly counts: FunnelCounts }) {
           </li>
         ))}
       </ol>
+      {excluded > 0 ? (
+        <p className="figure m-0 mt-3 text-[13px] text-slate" data-testid="funnel-excluded">
+          {t('peers.funnel.excluded', { n: String(excluded), m: String(analysisCount) })}
+        </p>
+      ) : null}
       <p className="m-0 mt-3 text-[13px] text-slate" data-testid="funnel-flagged">
         <AiMark />
         {t('peers.funnel.flagged', { n: String(counts.stage5.flagged) })}

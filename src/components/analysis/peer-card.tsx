@@ -1,11 +1,14 @@
-// One phone card of the Peers tab (Story 2.7): name; revenue and
-// driftsmargin; reason; basis and flag. Shared by the server-rendered first
-// cards (peer-list.tsx) and the cards "Vis alle" renders in the client
-// (show-all-toggle.tsx), so both are the same markup. It takes every label
-// as a string and imports no engine or messages module, so the client
-// bundle carries neither. The list's classes style the cards from the
-// outside (CARD_LIST_CLASS), which keeps each card's markup short.
+// One phone card of the Peers tab (Stories 2.7, 2.8): name; revenue and
+// driftsmargin; reason; basis, flag and the exclude or restore action.
+// Shared by the server-rendered first cards (peer-list.tsx) and the cards
+// "Vis alle" renders in the client (show-all-toggle.tsx), so both are the
+// same markup. It takes every label as a string and imports no engine
+// module; the action (peer-action.tsx) reads its own labels. The list's
+// classes style the cards from the outside (CARD_LIST_CLASS), which keeps
+// each card's markup short. An excluded peer's card stays, in slate, its
+// name struck through and tagged "Ekskludert" (DESIGN.md "Peer list").
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
+import { PeerAction } from './peer-action';
 
 /** The labels a card shows, from t() on the server. */
 export type PeerCardLabels = {
@@ -15,6 +18,8 @@ export type PeerCardLabels = {
   readonly basis: string;
   /** "KI-generert", what screen readers hear for ✦. */
   readonly ki: string;
+  /** "Ekskludert", the excluded peer's tag. */
+  readonly excluded: string;
 };
 
 /** The glyph, U+2726, the same in every marker. */
@@ -48,6 +53,22 @@ export function Basis({ row, ki }: { readonly row: PeerDisplayRow; readonly ki: 
   );
 }
 
+/** The name, struck through and tagged "Ekskludert" when the peer is excluded. */
+export function PeerName({ row, excludedTag }: { readonly row: PeerDisplayRow; readonly excludedTag: string }) {
+  if (!row.excluded) return <>{row.navn}</>;
+  return (
+    <>
+      <span className="line-through">{row.navn}</span>{' '}
+      <span
+        className="inline-flex items-center rounded-sm border border-divider px-1.5 text-[11.5px] font-semibold whitespace-nowrap text-slate no-underline"
+        data-testid="peer-excluded"
+      >
+        {excludedTag}
+      </span>
+    </>
+  );
+}
+
 /** The flag as a slate tag; `ki` null when its cell has said "KI-generert" already. */
 export function Flag({ text, ki }: { readonly text: string; readonly ki: string | null }) {
   return (
@@ -72,8 +93,10 @@ export function PeerCard({
   readonly first: boolean;
 }) {
   return (
-    <li data-testid="peer-card">
-      <p tabIndex={first ? -1 : undefined}>{row.navn}</p>
+    <li data-testid="peer-card" data-excluded={row.excluded ? 'true' : undefined} className={row.excluded ? 'text-slate' : undefined}>
+      <p tabIndex={first ? -1 : undefined}>
+        <PeerName row={row} excludedTag={labels.excluded} />
+      </p>
       <dl>
         <dt>{labels.omsetning}</dt>
         <dd>{row.omsetning}</dd>
@@ -86,6 +109,7 @@ export function PeerCard({
         <dd>
           <Basis row={row} ki={labels.ki} />
           {row.flagg === null ? null : <Flag text={row.flagg} ki={row.grunnlagKi ? null : labels.ki} />}
+          <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} />
         </dd>
       </dl>
     </li>

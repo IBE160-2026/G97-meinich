@@ -61,7 +61,7 @@ describe('announcement', () => {
   it.each(cases)('%o: the singular for one, the plural for two', (change, one, two) => {
     expect(announcement(change, at(1))).toBe(one);
     expect(announcement(change, at(2))).toBe(two);
-    expect(one).toMatch(/\b1 sammenlignbar\b/);
+    expect(one).toContain('1 sammenlignbart');
     expect(two).toContain('2 sammenlignbare');
   });
 });

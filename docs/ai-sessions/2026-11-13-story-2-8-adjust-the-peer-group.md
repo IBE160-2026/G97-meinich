@@ -68,7 +68,7 @@ The BMAD session dispatched the spec to the implementation subagent with the bma
   - AD-4 and AD-6 amended in the technical note, the 429 criterion in epics.md, and the AI-log entry.
 - **Corrected by the BMAD session:**
   - **The size-band control (`c2e57cb`).** Reading the subagent's diff, the BMAD session saw that the radiogroup kept the step last chosen in its own state. A probe on the built app confirmed it: after a reset from 0,25–4× the URL was standard but 0,25–4× stayed checked, and after Back to Standard 0,33–3× stayed checked. The cause is that a query-only navigation keeps the component. The chosen step now counts only while its change is in flight. Assertions added to two e2e tests fail on the old build.
-  - **The singular copy (`1c1eadd`).** The subagent wrote "1 sammenlignbart" in the six new singular strings, where Meinich approved "1 sammenlignbar". This is the second story running where a subagent reworded approved copy.
+  - **The singular copy (`1c1eadd`, then reversed).** The subagent wrote "1 sammenlignbart" in the six new singular strings, where Meinich had approved "1 sammenlignbar". The BMAD session restored the approved form in `1c1eadd`. The review session then pointed out that the approved form was wrong: the word agrees with "selskap", which is neuter, and "1 sammenlignbart" matches `analysis.peerCountOne` from Story 1.7. Meinich corrected it on 2026-11-14, and the six strings read "1 sammenlignbart" again (spec change log). So the subagent's form was right, but it changed approved copy without saying so. It is the second story running where a subagent reworded approved copy.
 
 ## Review
 
@@ -97,7 +97,8 @@ Three review subagents read the diff (Blind Hunter, Edge Case Hunter, Verificati
 - `widerBand` given an unknown band: the type makes it impossible.
 - "Vis alle" untested with the real provider: an e2e test already covers it.
 - Timings only printed: the PR records them.
-- The 21st exclusion, which `parse` drops with the notice blaming "the link". Excluding over 20 peers by hand is unusual, and a proper fix needs new copy. Raised with Meinich.
+
+**Deferred** (`deferred-work.md`): the 21st exclusion, which `parse` drops with the notice that blames "the link" although the user pressed a button (Blind Hunter). The BMAD session first rejected it as unusual; Meinich deferred it on 2026-11-14. The proposed fix is to disable the button at `MAX_EKSKL`, with a text of its own.
 
 ## Verification
 

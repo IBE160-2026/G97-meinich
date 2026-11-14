@@ -205,3 +205,7 @@
   summary: The phone list's "Vis alle {n}" (`src/components/analysis/show-all-toggle.tsx`) keeps its open state across a client navigation that changes the group; Story 2.8's soft navigations on exclude, restore and band should reset it (a key from the group) or keep it open on purpose, with a test.
   evidence: Story 2.7 review, Edge Case Hunter (triage row 14). Band and `ekskl` change only by full URL edits until 2.8.
   resolved: Story 2.8 (#58). "Vis alle" stays open across exclude and restore and closes on a band change (`e2e/peer-adjust.spec.ts` "\"Vis alle\" at 375 px stays open across an exclusion and closes when the band changes").
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-8-adjust-the-peer-group.md`
+  summary: With 20 peers excluded (`MAX_EKSKL` in `src/url/analysis-state.ts`), "Ekskluder" still pushes a 21st exclusion; `parse` drops one with the notice "Noen innstillinger i lenken var ugyldige og er satt tilbake til standard.", which blames the link although the user pressed a button, and the announcement can name the peer that was dropped. Proposed: disable the button (`aria-disabled`, still focusable) once `ekskl` holds `MAX_EKSKL` peers, with a text of its own saying why, and a test.
+  evidence: Story 2.8 review, Blind Hunter (triage row 18). First rejected by the BMAD session as unusual; Meinich, 2026-11-14: deferred, not rejected. The new text needs Meinich's approval.

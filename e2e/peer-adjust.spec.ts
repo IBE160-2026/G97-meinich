@@ -428,9 +428,21 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       page.locator(`[data-peer-action]:visible[aria-label^="${nb['peers.action.exclude']} "]`);
     const capText = (page: Page) => page.getByTestId('exclusion-cap');
     const ekskOf = (page: Page) => new URL(page.url()).searchParams.get('ekskl')?.split(',') ?? [];
+    /**
+     * Every request a push or a page load would make from now on: an RSC
+     * fetch (the `rsc` header a soft navigation sends) or a navigation.
+     * A press that pushes nothing leaves it empty.
+     */
+    const pushes = (page: Page): string[] => {
+      const seen: string[] = [];
+      page.on('request', (request) => {
+        if (request.headers()['rsc'] === '1' || request.isNavigationRequest()) seen.push(request.url());
+      });
+      return seen;
+    };
 
     test('the seed gives demo A more than 20 peers', () => {
-      expect(group0.length).toBeGreaterThan(21);
+      expect(group0.length).toBeGreaterThan(20);
     });
 
     test('with 20 exclusions every "Ekskluder" is aria-disabled and described by the cap text; a press pushes nothing', async ({
@@ -454,11 +466,14 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       // Focusable, and Enter or a click pushes nothing.
       const before = await historyLength(page);
       const url = shown(page);
+      const requests = pushes(page);
       await target.focus();
       await expect(target).toBeFocused();
       await page.keyboard.press('Enter');
       await target.click({ force: true });
-      await page.waitForTimeout(1000);
+      // A push would start its RSC fetch at once; a short settle catches it.
+      await page.waitForTimeout(250);
+      expect(requests).toEqual([]);
       expect(shown(page)).toBe(url);
       expect(await historyLength(page)).toBe(before);
       await expect(notice(page)).toHaveText('');
@@ -499,6 +514,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
         },
       );
       const before = await historyLength(page);
+      const requests = pushes(page);
       await action(page, group0[19]?.orgnr ?? '').click();
       // The page still shows 19: this button is not yet aria-disabled.
       const late = action(page, group0[20]?.orgnr ?? '');
@@ -506,7 +522,9 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       await late.click();
       release();
       await expect.poll(() => shown(page)).toBe(capPath(20));
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(250);
+      // One push, the 20th: the second press made no request.
+      expect(requests.map((url) => new URL(url).searchParams.get('ekskl'))).toEqual([ekskl(20).join(',')]);
       expect(ekskOf(page)).not.toContain(group0[20]?.orgnr);
       expect(shown(page)).toBe(capPath(20));
       expect(await historyLength(page)).toBe(before + 1);

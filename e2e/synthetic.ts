@@ -1,9 +1,15 @@
-// The one synthetic company of the e2e suite (Story 2.9, decision 7): a 62.100
-// AS whose own 2025 document failed reconciliation, for the FR-71 state, which
-// no company in the committed seed is in on the demo pools. Its orgnr and
-// every figure are set here and only here.
+// The two synthetic companies of the e2e suite, each with its orgnr and every
+// figure set here and only here:
 //
-// It is the one e2e fixture that commits rows: the production server reads
+// - SYNTHETIC (Story 2.9, decision 7): a 62.100 AS whose own 2025 document
+//   failed reconciliation, for the FR-71 state, which no company in the
+//   committed seed is in on the demo pools;
+// - SYNTHETIC_USD (Story 2.10, decision 7 as amended): a 62.100 AS filing in
+//   USD, whose stage 1 finds the seed's small NOK companies and no company
+//   in USD, so its empty reason is `subject_currency`. It has no document
+//   and is not on the manifest's list.
+//
+// They are the e2e fixtures that commit rows: the production server reads
 // only committed data, so a rolled-back transaction would show it nothing.
 // It writes as the database owner (SUPABASE_DB_URL, read as the database
 // tests read it), refuses any host but localhost or 127.0.0.1, and removes
@@ -12,10 +18,13 @@
 // filing, key figures, document and column by ON DELETE CASCADE, and its
 // orgnr on the manifest's list of orgnrs with document figures.
 //
-// Its revenue, 2 500 000 kr, lies outside demo A's (26,2 mill. kr) and demo
-// B's (24,9 mill. kr) size bands at every step, the widest 0,25–4×, so it
-// enters neither demo pool while it exists; it has a pool of its own among
-// the seed's small 62.100 companies.
+// SYNTHETIC's revenue, 2 500 000 kr, and SYNTHETIC_USD's, 500 000, lie
+// outside demo A's (26,2 mill. kr) and demo B's (24,9 mill. kr) size bands
+// at every step, the widest 0,25–4×, so neither enters a demo pool while it
+// exists. SYNTHETIC has a pool of its own among the seed's small 62.100
+// companies; SYNTHETIC_USD's widest band, 125 000 – 2 000 000, holds seeded
+// NOK companies and none filing in USD (the seed's smallest USD filing in
+// 62.100 for 2025 is about 4,2 million).
 import postgres from 'postgres';
 import { supabaseDbUrl } from '../test/db/db-env.ts';
 
@@ -32,6 +41,21 @@ export const SYNTHETIC = {
   sumEgenkapitalOre: '40000000',
   sumGjeldOre: '80000000',
   sumOmloepsmidlerOre: '100000000',
+} as const;
+
+export const SYNTHETIC_USD = {
+  orgnr: '999999913',
+  navn: 'SYNTETISK USD-SELSKAP AS',
+  filingYear: 2025,
+  brregId: '999999913',
+  valuta: 'USD',
+  // Hundredths of the filing's currency, stored as øre are. Revenue 500 000, driftsresultat 25 000.
+  sumDriftsinntekterOre: '50000000',
+  driftsresultatOre: '2500000',
+  sumDriftskostnadOre: '47500000',
+  sumEiendelerOre: '30000000',
+  sumEgenkapitalOre: '10000000',
+  sumGjeldOre: '20000000',
 } as const;
 
 /** A full 40-hex commit for `reader_commit`; no reader read this row. */
@@ -79,15 +103,21 @@ async function list(tx: postgres.TransactionSql): Promise<void> {
   if (listed.count !== 1) throw new Error('no loaded dataset to list the synthetic company in; run `pnpm seed`');
 }
 
-async function remove(tx: postgres.TransactionSql): Promise<void> {
-  // Never delete a real company that happens to hold the orgnr: refuse,
-  // with nothing deleted.
-  const held = await tx<{ navn: string | null }[]>`select navn from register.company where orgnr = ${SYNTHETIC.orgnr}`;
+/**
+ * Deletes a synthetic company (its rows go by cascade). Never deletes a real
+ * company that happens to hold the orgnr: refuses, with nothing deleted.
+ */
+async function removeCompany(tx: postgres.TransactionSql, company: { readonly orgnr: string; readonly navn: string }): Promise<void> {
+  const held = await tx<{ navn: string | null }[]>`select navn from register.company where orgnr = ${company.orgnr}`;
   const holder = held[0];
-  if (holder !== undefined && holder.navn !== SYNTHETIC.navn) {
-    throw new Error(`orgnr ${SYNTHETIC.orgnr} is held by another company; the synthetic e2e company refuses to delete it`);
+  if (holder !== undefined && holder.navn !== company.navn) {
+    throw new Error(`orgnr ${company.orgnr} is held by another company; the synthetic e2e company refuses to delete it`);
   }
-  await tx`delete from register.company where orgnr = ${SYNTHETIC.orgnr}`;
+  await tx`delete from register.company where orgnr = ${company.orgnr}`;
+}
+
+async function remove(tx: postgres.TransactionSql): Promise<void> {
+  await removeCompany(tx, SYNTHETIC);
   await unlist(tx);
 }
 
@@ -154,6 +184,45 @@ export async function insertSynthetic(): Promise<void> {
                 'not_evaluable', 'not_evaluable', 'failed_reconciliation', 'not_evaluable', '{}', '{}', 'demo',
                 ${s.sumDriftsinntekterOre}, ${s.sumDriftskostnadOre}, '1')`;
       await list(tx);
+    });
+  } finally {
+    await sql.end();
+  }
+}
+
+/** Removes the USD synthetic company, if present. Safe to run any number of times. */
+export async function removeSyntheticUsd(): Promise<void> {
+  const sql = ownerSql();
+  try {
+    await sql.begin((tx) => removeCompany(tx, SYNTHETIC_USD));
+  } finally {
+    await sql.end();
+  }
+}
+
+/** Removes any leftover, then inserts the USD synthetic company with its 2025 filing and key figures. */
+export async function insertSyntheticUsd(): Promise<void> {
+  const s = SYNTHETIC_USD;
+  const sql = ownerSql();
+  try {
+    await sql.begin(async (tx) => {
+      await removeCompany(tx, s);
+      await tx`
+        insert into register.company (orgnr, navn, organisasjonsform, naeringskode1, naeringskode1_beskrivelse,
+                                      konkurs, under_avvikling, under_tvangsavvikling, read_at,
+                                      forretningsadresse_kommune)
+        values (${s.orgnr}, ${s.navn}, 'AS', '62.100', 'Dataprogrammeringstjenester',
+                false, false, false, now(), 'OSLO')`;
+      await tx`
+        insert into register.filing (orgnr, regnskapstype, periode_fra, periode_til, brreg_id, filing_year, valuta,
+                                     regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at)
+        values (${s.orgnr}, 'SELSKAP', '2025-01-01', '2025-12-31', ${s.brregId}, ${s.filingYear}, ${s.valuta},
+                'regnskapslovenAlminneligRegler', true, false, 'api_whole_units', 'not_extracted', now())`;
+      await tx`
+        insert into register.key_figures (brreg_id, sum_driftsinntekter_ore, driftsresultat_ore, sum_driftskostnad_ore,
+                                          sum_eiendeler_ore, sum_egenkapital_gjeld_ore, sum_egenkapital_ore, sum_gjeld_ore)
+        values (${s.brregId}, ${s.sumDriftsinntekterOre}, ${s.driftsresultatOre}, ${s.sumDriftskostnadOre},
+                ${s.sumEiendelerOre}, ${s.sumEiendelerOre}, ${s.sumEgenkapitalOre}, ${s.sumGjeldOre})`;
     });
   } finally {
     await sql.end();

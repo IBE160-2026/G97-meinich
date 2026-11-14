@@ -106,12 +106,52 @@ export type FunnelCounts = {
 };
 
 /**
- * Why the group is empty when the subject itself cannot have peers:
- * `subject_no_revenue` — its revenue is null, zero or negative (stage 1);
- * `subject_non_calendar` — its filing does not run 1 January – 31 December
- * (stage 2). Null otherwise, also when the group is empty for another reason.
+ * Why the group is empty, from the subject's own fields (Stories 1.7, 2.10;
+ * FR-7, FR-8). One reason at most, in this order:
+ *
+ *   `subject_no_revenue`          its stated revenue is zero or negative (stage 1)
+ *   `subject_revenue_not_stated`  its revenue is not stated (stage 1)
+ *   `subject_non_calendar`        its filing does not run 1 January –
+ *                                 31 December (stage 2)
+ *
+ * Those three mean the subject cannot have peers at any band. The other three
+ * are set only when stage 1 kept someone and stage 2 kept no one, from the
+ * subject's fields, in this order:
+ *
+ *   `subject_field_not_stated`    one of STATED_FIELDS is null on the subject
+ *                                 (the first, in that order, is the one named)
+ *   `subject_currency`            its `valuta` is not NOK, also one that is
+ *                                 not an ISO 4217 code
+ *   `subject_not_comparable`      any other empty stage 2, such as a stated
+ *                                 field no candidate shares
+ *
+ * Null otherwise: the group is not empty for the subject's own reason, or
+ * stage 1 kept no one (the size band found nobody).
  */
-export type EmptyReason = 'subject_no_revenue' | 'subject_non_calendar' | null;
+export type EmptyReason =
+  | 'subject_no_revenue'
+  | 'subject_revenue_not_stated'
+  | 'subject_non_calendar'
+  | 'subject_field_not_stated'
+  | 'subject_currency'
+  | 'subject_not_comparable'
+  | null;
+
+/** The stage-2 fields a subject may leave unstated, in the order `subject_field_not_stated` names them. */
+export const STATED_FIELDS = ['valuta', 'regnskapsregler', 'smaaForetak', 'avviklingsregnskap'] as const;
+export type StatedField = (typeof STATED_FIELDS)[number];
+
+/** The first of STATED_FIELDS that is null on `filing`, or null when every one is stated. */
+export function firstUnstatedField(filing: Pick<Comparability, StatedField>): StatedField | null {
+  return STATED_FIELDS.find((field) => filing[field] === null) ?? null;
+}
+
+/** Why stage 2 kept no one, from the subject's own fields: the last three reasons of EmptyReason, in order. */
+function stage2Reason(subject: Comparability): 'subject_field_not_stated' | 'subject_currency' | 'subject_not_comparable' {
+  if (firstUnstatedField(subject) !== null) return 'subject_field_not_stated';
+  if (subject.valuta !== 'NOK') return 'subject_currency';
+  return 'subject_not_comparable';
+}
 
 export type PeerGroup<C extends CandidateFiling> = {
   /** Stages 1–3 at the band, one filing per company, by revenue descending, then orgnr. */
@@ -322,8 +362,10 @@ export function assemblePeerGroup<C extends CandidateFiling>(
     .map((candidate) => candidate.orgnr);
 
   let emptyReason: EmptyReason = null;
-  if (!subjectHasRevenue) emptyReason = 'subject_no_revenue';
+  if (s === null) emptyReason = 'subject_revenue_not_stated';
+  else if (!subjectHasRevenue) emptyReason = 'subject_no_revenue';
   else if (!isCalendarYear(subject)) emptyReason = 'subject_non_calendar';
+  else if (stage1.length > 0 && stage2.length === 0) emptyReason = stage2Reason(subject);
 
   return {
     pool,

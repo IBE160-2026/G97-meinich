@@ -9,8 +9,10 @@ import { BUSINESS_TYPES, businessType, type BandRange, type Fingerprint } from '
 import {
   MATCH_BASES,
   SIZE_BANDS,
+  STATED_FIELDS,
   assemblePeerGroup,
   benchmarkFiling,
+  firstUnstatedField,
   isCalendarYear,
   isKnownCurrency,
   matchBasis,
@@ -120,7 +122,6 @@ describe('stage 1: the size band, both bounds included, exact to the øre', () =
     it.each([
       ['zero', 0n],
       ['negative', -100n],
-      ['null', null],
     ] as const)('a subject with %s revenue gets an empty group', (_label, revenue) => {
       const dormant = { ...subject, sumDriftsinntekter: revenue };
       const candidates = [
@@ -132,6 +133,16 @@ describe('stage 1: the size band, both bounds included, exact to the øre', () =
       expect(group.pool).toEqual([]);
       expect(group.counts).toEqual({ stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } });
       expect(group.emptyReason).toBe('subject_no_revenue');
+    });
+
+    // Story 2.10 (R2): no stated revenue is its own reason, never "no positive revenue".
+    it('a subject with no stated revenue gets an empty group with its own reason', () => {
+      const unstated = { ...subject, sumDriftsinntekter: null };
+      const candidates = [candidate('900000001', { sumDriftsinntekter: 0n }), candidate('900000002', { sumDriftsinntekter: null }), candidate('900000003')];
+      const group = assemblePeerGroup(unstated, candidates, band);
+      expect(group.pool).toEqual([]);
+      expect(group.counts).toEqual({ stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } });
+      expect(group.emptyReason).toBe('subject_revenue_not_stated');
     });
   });
 });
@@ -196,6 +207,77 @@ describe('stage 2: comparability, one field at a time', () => {
     expect(isCalendarYear({ periodeFra: '2024-01-01', periodeTil: '2025-12-31' })).toBe(false);
     expect(isCalendarYear({ periodeFra: '2025-01-02', periodeTil: '2025-12-31' })).toBe(false);
     expect(isCalendarYear({ periodeFra: '2025-01-01', periodeTil: '2025-12-30' })).toBe(false);
+  });
+});
+
+// Story 2.10 (R3; FR-8): an empty stage 2 caused by the subject's own fields
+// says why. Each reason is set only when stage 1 kept someone and stage 2
+// no one, from the subject's fields, in a fixed order.
+describe('stage 2 emptied by the subject: its reason', () => {
+  const full = [candidate('900000001'), candidate('900000002', { sumDriftsinntekter: S * 2n })];
+
+  it.each(STATED_FIELDS)('a subject with %s not stated: subject_field_not_stated, naming the field', (field) => {
+    const unstated = { ...subject, [field]: null };
+    const group = assemblePeerGroup(unstated, full, 0);
+    expect(group.counts.stage1).toBe(2);
+    expect(group.counts.stage2).toBe(0);
+    expect(group.emptyReason).toBe('subject_field_not_stated');
+    expect(firstUnstatedField(unstated)).toBe(field);
+  });
+
+  it('names the first unstated field in the order valuta, regnskapsregler, smaaForetak, avviklingsregnskap', () => {
+    expect(STATED_FIELDS).toEqual(['valuta', 'regnskapsregler', 'smaaForetak', 'avviklingsregnskap']);
+    expect(firstUnstatedField({ ...subject, avviklingsregnskap: null, smaaForetak: null })).toBe('smaaForetak');
+    expect(firstUnstatedField({ ...subject, avviklingsregnskap: null, regnskapsregler: null, valuta: null })).toBe('valuta');
+    expect(firstUnstatedField(subject)).toBeNull();
+  });
+
+  it.each([
+    ['USD, a known code no candidate shares', 'USD'],
+    ['EDT, not an ISO 4217 code', 'EDT'],
+  ] as const)('a subject in %s: subject_currency', (_label, valuta) => {
+    const group = assemblePeerGroup({ ...subject, valuta }, full, 0);
+    expect(group.counts.stage1).toBe(2);
+    expect(group.counts.stage2).toBe(0);
+    expect(group.emptyReason).toBe('subject_currency');
+  });
+
+  it('an unknown code is subject_currency even when a candidate files in the same code', () => {
+    const edt = { ...subject, valuta: 'EDT' };
+    expect(assemblePeerGroup(edt, [candidate('900000001', { valuta: 'EDT' })], 0).emptyReason).toBe('subject_currency');
+  });
+
+  it('a stated NOK subject that no candidate shares (IFRS, no IFRS candidate): subject_not_comparable', () => {
+    const ifrs = { ...subject, regnskapsregler: 'IFRS' };
+    const group = assemblePeerGroup(ifrs, full, 0);
+    expect(group.counts.stage1).toBe(2);
+    expect(group.counts.stage2).toBe(0);
+    expect(group.emptyReason).toBe('subject_not_comparable');
+  });
+
+  it('no stage-2 reason when stage 1 kept no one', () => {
+    expect(assemblePeerGroup({ ...subject, valuta: null }, [], 0).emptyReason).toBeNull();
+    expect(assemblePeerGroup({ ...subject, valuta: 'USD' }, [candidate('900000001', { sumDriftsinntekter: 1n })], 0).emptyReason).toBeNull();
+  });
+
+  it('no reason when stage 2 kept someone, even if a later stage empties the group', () => {
+    const group = assemblePeerGroup(subject, [candidate('900000001', { organisasjonsform: 'ASA' })], 0);
+    expect(group.counts.stage2).toBe(1);
+    expect(group.group).toEqual([]);
+    expect(group.emptyReason).toBeNull();
+  });
+
+  it('when several apply: no revenue or not stated, then non-calendar, then the stage-2 reasons in order', () => {
+    const nonCalendar = { periodeFra: '2024-07-01', periodeTil: '2025-06-30' };
+    const all = { ...subject, ...nonCalendar, valuta: null, regnskapsregler: 'IFRS' };
+    const reason = (overrides: Partial<SubjectFiling>) => assemblePeerGroup({ ...all, ...overrides }, full, 0).emptyReason;
+    expect(reason({ sumDriftsinntekter: 0n })).toBe('subject_no_revenue');
+    expect(reason({ sumDriftsinntekter: null })).toBe('subject_revenue_not_stated');
+    expect(reason({})).toBe('subject_non_calendar');
+    expect(reason({ periodeFra: '2025-01-01', periodeTil: '2025-12-31' })).toBe('subject_field_not_stated');
+    expect(reason({ periodeFra: '2025-01-01', periodeTil: '2025-12-31', valuta: 'USD', smaaForetak: null })).toBe('subject_field_not_stated');
+    expect(reason({ periodeFra: '2025-01-01', periodeTil: '2025-12-31', valuta: 'USD' })).toBe('subject_currency');
+    expect(reason({ periodeFra: '2025-01-01', periodeTil: '2025-12-31', valuta: 'NOK' })).toBe('subject_not_comparable');
   });
 });
 

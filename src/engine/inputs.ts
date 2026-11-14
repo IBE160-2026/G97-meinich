@@ -75,9 +75,17 @@ export type ApiKeyFiguresRow = Pick<KeyFiguresRow, ApiKeyFigureColumn>;
 
 /** Exactly the API_KEY_FIGURE_COLUMNS of `row`, so a wider row carries nothing further. */
 export function apiKeyFigures(row: ApiKeyFiguresRow): ApiKeyFiguresRow {
-  const picked: Partial<Record<ApiKeyFigureColumn, string | null>> = {};
-  for (const column of API_KEY_FIGURE_COLUMNS) picked[column] = row[column];
-  return picked as ApiKeyFiguresRow;
+  // An object literal typed as the row: a column missing here fails typecheck.
+  const picked: ApiKeyFiguresRow = {
+    sum_driftsinntekter_ore: row.sum_driftsinntekter_ore,
+    driftsresultat_ore: row.driftsresultat_ore,
+    sum_driftskostnad_ore: row.sum_driftskostnad_ore,
+    sum_eiendeler_ore: row.sum_eiendeler_ore,
+    sum_egenkapital_gjeld_ore: row.sum_egenkapital_gjeld_ore,
+    sum_egenkapital_ore: row.sum_egenkapital_ore,
+    sum_gjeld_ore: row.sum_gjeld_ore,
+  };
+  return picked;
 }
 
 /** The engine's API inputs from a key-figures row, by its column names. */

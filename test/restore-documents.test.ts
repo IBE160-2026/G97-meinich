@@ -16,6 +16,7 @@ import {
 
 const ROOT = path.resolve('/repo');
 const LOCAL_URL = 'postgresql://loader:secret@127.0.0.1:54322/postgres';
+const DERIVE_URL = 'postgresql://derive:secret@localhost:54322/postgres';
 const COUNTS: RestoreCounts = { documents: 2785, columns: 5556, fingerprints: 2537, classifications: 10371 };
 
 // An older dump's header: no parts of intangible assets, CRLF line ends.
@@ -32,6 +33,7 @@ type Fake = {
 
 function fake(options: {
   readonly url?: string | undefined;
+  readonly deriveUrl?: string | undefined;
   readonly files?: Readonly<Record<string, string>>;
   readonly restoreError?: unknown;
   readonly deriveExit?: number;
@@ -62,7 +64,11 @@ function fake(options: {
   };
   const deps: RestoreDeps = {
     root: ROOT,
-    setting: (name) => (name === 'LOADER_DATABASE_URL' ? ('url' in options ? options.url : LOCAL_URL) : undefined),
+    setting: (name) => {
+      if (name === 'LOADER_DATABASE_URL') return 'url' in options ? options.url : LOCAL_URL;
+      if (name === 'DERIVE_DATABASE_URL') return 'deriveUrl' in options ? options.deriveUrl : DERIVE_URL;
+      return undefined;
+    },
     exists: (file) => dirs.has(file) || file in files,
     readFile: (file) => {
       const text = files[file];
@@ -138,6 +144,14 @@ describe('restore, no dump', () => {
     expect(f.calls).toEqual([]);
   });
 
+  // Review pass 1, row 8: a fresh clone may have no .env at all.
+  it('the default directory missing exits 0 also without LOADER_DATABASE_URL or DERIVE_DATABASE_URL', async () => {
+    const f = fake({ files: {}, url: undefined, deriveUrl: undefined });
+    expect(await restoreDocuments([], f.deps)).toBe(0);
+    expect(f.err).toEqual([]);
+    expect(f.calls).toEqual([]);
+  });
+
   it('a named directory missing: exit 1, nothing restored, no derive', async () => {
     const f = fake({ files: {} });
     expect(await restoreDocuments(['.local/no-such-dump'], f.deps)).toBe(1);
@@ -164,16 +178,29 @@ describe('restore, remote host', () => {
     expect(f.calls).toEqual([]);
   });
 
+  // Review pass 1, row 7: the derive the restore runs writes through its own URL.
+  it.each([
+    'postgresql://derive:secret@db.example.com:5432/postgres',
+    'postgresql://derive:secret@localhost:5432/postgres?host=db.example.com',
+    undefined,
+  ])('refuses DERIVE_DATABASE_URL %s before restoring anything, exit 1', async (deriveUrl) => {
+    const f = fake({ deriveUrl });
+    expect(await restoreDocuments([], f.deps)).toBe(1);
+    expect(f.err.join(' ')).toContain('DERIVE_DATABASE_URL');
+    expect(f.calls).toEqual([]);
+  });
+
   it('refuses when LOADER_DATABASE_URL is not set', async () => {
     const f = fake({ url: undefined });
     expect(await restoreDocuments([], f.deps)).toBe(1);
     expect(f.calls).toEqual([]);
   });
 
-  // The CLI itself: a remote host is refused before any file is read, so
-  // this run reaches no database and no dump.
+  // The CLI itself: a remote host is refused before any file is read. The
+  // named directory does not exist, so even without the check this run
+  // would read no dump and reach no database.
   it('the CLI refuses a remote host and exits 1', () => {
-    const result = spawnSync(process.execPath, [path.resolve('scripts/restore-documents.ts')], {
+    const result = spawnSync(process.execPath, [path.resolve('scripts/restore-documents.ts'), '.local/no-such-dump-for-a-test'], {
       cwd: path.resolve('.'),
       encoding: 'utf8',
       env: { ...process.env, LOADER_DATABASE_URL: 'postgresql://loader:x@db.example.com:5432/postgres' },

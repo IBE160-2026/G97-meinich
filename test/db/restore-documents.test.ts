@@ -1,13 +1,15 @@
 // `pnpm restore:documents` against the database (Story 2.10): restoreInto,
 // the copy the CLI runs in one transaction as loader, here in a transaction
-// that is always rolled back, as the CLI's local `postgres` role. A dump
+// that is always rolled back, as `loader` through LOADER_DATABASE_URL, as
+// the CLI connects, so loader's grants, not the owner's, are what the copy
+// exercises (the owner may not `set role loader` on local Supabase). A dump
 // restores with each file's own header as the column list, and a second
 // restore of the same rows fails on their keys with 23505, which the CLI
 // turns into "run pnpm seed first" (test/restore-documents.test.ts).
 import postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
 import { type DumpTable, headerColumns, restoreInto } from '../../scripts/restore-documents.ts';
-import { supabaseDbUrl } from './db-env.ts';
+import { setting } from './db-env.ts';
 
 // Valid modulus 11, and not a seeded company.
 const ORGNR = '999999999';
@@ -26,7 +28,9 @@ const tables = (): DumpTable[] => [
   { table: 'document_column', columns: headerColumns('document_column.csv', Buffer.from(COLUMN_CSV)), bytes: Buffer.from(COLUMN_CSV) },
 ];
 
-const sql = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
+const loaderUrl = setting('LOADER_DATABASE_URL');
+if (loaderUrl === undefined) throw new Error('LOADER_DATABASE_URL is not set; run `pnpm db:roles`');
+const sql = postgres(loaderUrl, { max: 1, onnotice: () => {} });
 
 afterAll(async () => {
   await sql.end();
@@ -57,12 +61,12 @@ describe('restoreInto', () => {
     const rows = await rolledBack(async (tx) => {
       await prepare(tx);
       await restoreInto(tx, tables());
-      return tx<{ role: string; status: string; reader_commit: string }[]>`
-        select c.role, c.status, d.reader_commit
+      return tx<{ role: string; status: string; reader_commit: string; who: string }[]>`
+        select c.role, c.status, d.reader_commit, current_user::text as who
           from register.document_column c join register.document d using (orgnr, filing_year)
          where c.orgnr = ${ORGNR}`;
     });
-    expect(rows).toEqual([{ role: 'current', status: 'reconciled', reader_commit: 'a'.repeat(40) }]);
+    expect(rows).toEqual([{ role: 'current', status: 'reconciled', reader_commit: 'a'.repeat(40), who: 'loader' }]);
   });
 
   it('a second restore of the same rows fails on their keys with 23505', async () => {

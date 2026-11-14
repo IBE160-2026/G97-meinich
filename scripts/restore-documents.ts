@@ -6,11 +6,14 @@
 // `pnpm seed` truncates them, and this puts them back from the CSV dump the
 // README describes, `.local/document-run-2.5d/` unless a directory is named.
 //
-//   1. LOADER_DATABASE_URL must point at localhost or 127.0.0.1; any other
-//      host is refused before a connection is made.
-//   2. A missing default directory (a fresh clone has none) is said, nothing
-//      is restored, derive does not run, and the exit code is 0. A named
-//      directory that is missing, or a dump without both files, exits 1.
+//   1. A missing default directory (a fresh clone has none) is said first,
+//      whatever the environment: nothing is restored, derive does not run,
+//      and the exit code is 0.
+//   2. LOADER_DATABASE_URL, which the restore writes through, and
+//      DERIVE_DATABASE_URL, which the derive after it writes through, must
+//      both point at localhost or 127.0.0.1; any other host is refused
+//      before a file is read or a connection is made. A named directory
+//      that is missing, or a dump without both files, then exits 1.
 //   3. Each file is copied with the column names from its own first line, so
 //      a dump taken before a nullable column was added still restores. Both
 //      go in one transaction as `loader`, documents before their columns.
@@ -74,17 +77,20 @@ class Refusal extends Error {}
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 
-/** Refuses a connection string whose host is not the local database. */
-export function assertLocal(url: string): void {
+/** Refuses `name`'s connection string when it is unset or its host is not the local database. */
+export function assertLocal(name: string, url: string | undefined): asserts url is string {
+  if (url === undefined) throw new Refusal(`${name} is not set; run \`pnpm db:start\` and \`pnpm db:roles\``);
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    throw new Refusal('LOADER_DATABASE_URL is not a URL');
+    throw new Refusal(`${name} is not a URL`);
   }
   // postgres.js also reads a host from the query; one there is refused too.
   if (!LOCAL_HOSTS.has(parsed.hostname) || parsed.searchParams.has('host')) {
-    throw new Refusal(`restores only into a local database (localhost or 127.0.0.1), not ${parsed.hostname || 'an empty host'}`);
+    throw new Refusal(
+      `restores only into a local database (localhost or 127.0.0.1), not ${parsed.hostname || 'an empty host'} (${name})`,
+    );
   }
 }
 
@@ -115,17 +121,17 @@ export async function restoreDocuments(args: readonly string[], deps: RestoreDep
   const dir = path.resolve(deps.root, relative);
 
   try {
-    const url = deps.setting('LOADER_DATABASE_URL');
-    if (url === undefined) throw new Refusal('LOADER_DATABASE_URL is not set; run `pnpm db:start` and `pnpm db:roles`');
-    assertLocal(url);
-
-    if (!deps.exists(dir)) {
-      if (named === undefined) {
-        out(`restore: no dump at ${relative} (a fresh clone has none); nothing restored, derive not run.`);
-        return 0;
-      }
-      throw new Refusal(`no dump directory at ${relative}`);
+    if (named === undefined && !deps.exists(dir)) {
+      out(`restore: no dump at ${relative} (a fresh clone has none); nothing restored, derive not run.`);
+      return 0;
     }
+
+    const url = deps.setting('LOADER_DATABASE_URL');
+    assertLocal('LOADER_DATABASE_URL', url);
+    // pnpm derive TRUNCATEs register.fingerprint through its own URL.
+    assertLocal('DERIVE_DATABASE_URL', deps.setting('DERIVE_DATABASE_URL'));
+
+    if (!deps.exists(dir)) throw new Refusal(`no dump directory at ${relative}`);
     const tables: DumpTable[] = DUMP_TABLES.map((table) => {
       const file = path.join(dir, `${table}.csv`);
       if (!deps.exists(file)) throw new Refusal(`${relative} has no ${table}.csv`);

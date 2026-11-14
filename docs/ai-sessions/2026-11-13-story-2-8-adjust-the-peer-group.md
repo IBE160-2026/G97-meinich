@@ -3,7 +3,7 @@
 **Date:** 2026-11-13
 **Tool:** Claude Code (Opus 5.5): the BMAD session (`bmad-build`), an implementation subagent dispatched by it, and three review subagents
 **Story / issue:** #58, Story 2.8 (FR-17, FR-18, FR-19, FR-55, FR-56, NFR1, NFR2, NFR27)
-**Result:** commits `ebf0792` to `1c1eadd` on `story/2.8-adjust-peer-group`; PR not opened yet (no push before Meinich says so)
+**Result:** [PR #59](https://github.com/IBE160-2026/G97-meinich/pull/59), commits `ebf0792` to `9f68b6c` on `story/2.8-adjust-peer-group`
 
 ## Goal
 

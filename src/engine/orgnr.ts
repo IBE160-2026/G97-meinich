@@ -36,9 +36,14 @@ export function isValidOrgnr(digits: string): boolean {
   return check === Number(digits[8]);
 }
 
+/** `raw` with every whitespace character removed: FR-1's "spaces are ignored", for search and the URL alike. */
+export function compactOrgnr(raw: string): string {
+  return raw.replace(/\s/g, '');
+}
+
 /** Classifies what a user typed into the search field. */
 export function classifySearchInput(raw: string): SearchInput {
-  const compact = raw.replace(/\s/g, '');
+  const compact = compactOrgnr(raw);
   if (compact === '') return { kind: 'empty' };
   if (/^\d+$/.test(compact)) {
     if (compact.length !== 9) return { kind: 'length' };

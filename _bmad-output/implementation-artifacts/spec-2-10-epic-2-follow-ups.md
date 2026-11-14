@@ -2,7 +2,7 @@
 title: 'Story 2.10: Epic 2 follow-ups'
 type: 'feature'
 created: '2026-11-14'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_commit: 'b5e43dd0f2af6f7de3288ea6bba5a1bc418fb3e5'
 route: 'dispatch'
 review_loop_iteration: 0

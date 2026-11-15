@@ -22,6 +22,7 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 - **Formulas are exactly `docs/key-figures.md`.** That covers figures 1–14 and cash share. A formula changes in that document and in the code in the same commit. Each figure has a test against a hand-calculated value from real filed accounts. The reference cases include negative equity, zero revenue and a missing component. A non-calendar year is excluded by funnel stage 2, never adjusted.
 - **Identities hold exactly.** ROA = margin × (`sumDriftsinntekter`/`sumEiendeler`), and personnel share = cost per FTE ÷ revenue per FTE. Both are asserted with `Decimal` equality and no tolerance, on the reference cases and on generated øre inputs.
 - **Undefined is never zero.** A missing component is derived from stated totals, one level deep and in the engine only. It is checked before the denominator's sign. A derived denominator of 5 kr or less counts as not positive, and that applies to a derived document `sumDriftsinntekter` too.
+- **Empty document cost lines** are derived from the column's stated `sumDriftskostnad` (remainder = total − stated lines): within ±5 kr every empty line is 0; exactly one empty line with a remainder above +5 kr is that remainder; otherwise each empty line is undefined. Every derived line is marked derived, and a denominator with a derived part is a derived denominator. Balance lines, `salgsinntekt` and `driftsresultat` are never derived.
 - **The 10-peer floor applies per figure and per source.** Below it the subject's own value stays, the row reads "n av 10", and there is no comparison and no kroner.
 - **Every absence has exactly one reason**, from the closed set in Story 2.9. The basis order is decided in `document-inputs.ts`. R3 applies: a current `kundefordringer` or `bankinnskudd` above the API `sumOmloepsmidler` + max(5 kr, 0.001 %) is absent as `exceeds_api_subtotal`, so figures 9 and 11 are undefined for that company.
 - **Direction rules:**
@@ -29,13 +30,14 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - Total cost share (6) is a check row.
   - Cash share is a diagnostic. It is never ranked or sorted, and it is never eligible for Største styrke.
   - Figures 7 and 8 are absent in v1 because `aarsverk` is not read.
-  - Revenue growth (14) uses the prior-year column of the same document. It is undefined when that column did not reconcile.
+  - Revenue growth (14) uses the prior-year column of the same document. It is undefined (component missing) when that column is missing or did not reconcile, and undefined as a line not read safely when the prior column's `sum_driftsinntekter` fails the register check. A prior column with no register filing to check against (`not_evaluable`) is used, and that path is unguarded.
 - **Kroner, with target T = beste fjerdedel at every share s:**
   - Profit (1): (T−r)·`sumDriftsinntekter`·s. This amount is annual, and it is produced only when `valuta` is NOK.
   - Figure 9: (r−T)/365·`salgsinntekt`·s.
   - Figure 10: (T−r)/365·(`varekostnad`+`annenDriftskostnad`)·s.
   - Figure 11: ((`sumEiendeler`−`bankinnskudd`) − `sumDriftsinntekter`/T)·s.
-  - Figures 9–11 are one-off amounts ("engangsbeløp").
+  - Figures 9–11 are one-off amounts ("engangsbeløp"), computed at s = 1 in the engine from the subject's exact figure, and produced only when `valuta` is NOK (otherwise the reason `not_nok`, as for profit).
+  - Figure 11 has no amount when T is zero or negative (`target_not_positive`).
   - At or beyond T there is no amount, only a strength.
   - Cost shares (3–5) never yield kroner of their own.
 - **No double counting (FR-30), in two clusters:**
@@ -71,12 +73,12 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - A test checks that Node and a real browser give byte-identical output from the same wire values.
 - **Stored as filed (AD-15).** Only a reconciled column's figures reach the engine, via `documentFigures` → `guardCurrentAssets`. The status and absence reasons are as defined in Story 2.9.
 - **Data time (AD-18).** Every figure shows its filing year and its read date. Dates are formatted server-side in Europe/Oslo. The engine has no clock.
-- **3.1a's spec must decide** three open questions from the Epic 2 retro, each with a test:
-  - B1: does the fingerprint take a derived `sumDriftsinntekter`?
-  - B2: one source for the filing a document belongs to, so that R3 uses the same `sumOmloepsmidler` in `pnpm derive` and in the request. The spec reports how many columns differ today.
-  - B3: which reconciliation rule the fingerprint's balance bounds use.
+- **Settled in 3.1a (keep them):**
+  - The fingerprint reads only a stated `sumDriftsinntekter`, never a derived one.
+  - The filing a document belongs to has one source: `pnpm derive` and the request path join it through one shared fragment, so R3 uses the same `sumOmloepsmidler` in both.
+  - A fingerprint bound computed from an API subtotal takes the between-sources rule, max(5 kr, 0.001 %); bounds within one document keep 5 kr, which lives once in the engine.
+- **Provenance inputs exist.** Every figure result carries each formula input with its column and whether it was derived, so the drill-down can show derived numerators as well as derived denominators.
 - **Copy** lives in `src/messages/nb.json` under `fig.*` and Story 2.9's absence copy. No hard-coded strings.
-- **Deferred work:** provenance needs to know which numerators were derived. Today `FigureResult` records only `denominatorDerived`.
 
 ## UX & Interaction Patterns
 
@@ -112,8 +114,8 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 
 ## Cross-Story Dependencies
 
-- **Build order:** 3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Epic 3 starts after Epic 2 and Story 5.2. Story 5.4 (the demo seed) follows directly, and Epic 4's explanation row and its digest build on 3.1a's engine output.
-- **3.1a** supplies every figure and amount that 3.1b–3.7 render. **3.3** turns 3.1b's cost-share cells into links, and it holds the FR-30 tests that 3.5 inherits.
+- **Build order:** 3.1a (done) → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Epic 3 starts after Epic 2 and Story 5.2. Story 5.4 (the demo seed) follows directly, and Epic 4's explanation row and its digest build on 3.1a's engine output.
+- **3.1a** (done) supplies every figure and amount that 3.1b–3.7 render. **3.3** turns 3.1b's cost-share cells into links, and it holds the FR-30 tests that 3.5 inherits.
 - **3.4's cards and 3.5's note.** 3.4 leaves out "· Endre i Verdi". 3.5 adds that link to the table, the hero and the cards, makes `verdi` a real tab, and fixes the peer-change provider so it keeps `andel=median` (B6).
 - **3.6** depends on 3.5's share and on the URL hook. **3.7** adds the hero's "Hvordan er dette regnet?" link, which Story 1.9 left out.
 - **From Epic 2** this epic relies on:

@@ -114,3 +114,40 @@ for (const width of [1280, 375, 320]) {
     }
   });
 }
+
+// Story 3.1b (FR-71): every document row of the table reads that the filing
+// could not be read, in place of its value and comparison; 7 and 8 keep
+// their own reason, as on every basis.
+test('document rows say the filing could not be read', async ({ page }) => {
+  const DOCUMENT_ROWS = ['ebitda', 'vare', 'lonn', 'andre', 'total', 'kfd', 'lgd', 'oml', 'kontant', 'vekst'];
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${base}/nokkeltall`);
+    await expect(rendered(page)).toBeVisible();
+    const layout = width >= 768 ? 'desktop' : 'phone';
+    const table = page.locator(`table[data-layout="${layout}"]`);
+    for (const figure of DOCUMENT_ROWS) {
+      const own =
+        layout === 'desktop'
+          ? table.locator(`tr[data-figure="${figure}"] td[data-cell="own"]`)
+          : table.locator(`tr:has(button[aria-controls="kf-p-exp-${figure}"]) td[data-cell="own"]`);
+      await expect(own, `${width} ${figure}`).toHaveText(FAILED);
+      if (layout === 'desktop') {
+        await expect(table.locator(`tr[data-figure="${figure}"] td[data-cell="merged"]`), figure).not.toContainText(/\d/);
+      }
+    }
+    for (const figure of ['omsArsverk', 'lonnArsverk']) {
+      const own =
+        layout === 'desktop'
+          ? table.locator(`tr[data-figure="${figure}"] td[data-cell="own"]`)
+          : table.locator(`tr:has(button[aria-controls="kf-p-exp-${figure}"]) td[data-cell="own"]`);
+      await expect(own, `${width} ${figure}`).toContainText(nb['analysis.figures.notReadInV1']);
+    }
+    // The API rows keep their comparison.
+    if (layout === 'desktop') {
+      await expect(table.locator('tr[data-figure="driftsmargin"] td[data-cell="median"]')).toHaveText(/\d\s%$/);
+    }
+    // Not outside the demo data: no such State block.
+    await expect(page.getByText(nb['keyFigures.notInDataset.state'])).toHaveCount(0);
+  }
+});

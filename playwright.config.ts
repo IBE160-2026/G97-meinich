@@ -7,12 +7,13 @@ import { defineConfig, devices } from '@playwright/test';
 //   e2e/db-down.spec.ts: the front page and the analysis answer 500 with the
 //   lookup-error state, and the search endpoint 500 {}.
 //
-// e2e/failed-subject.spec.ts (Story 2.9) and e2e/synthetic-currency.spec.ts
-// (Story 2.10) each commit a synthetic company to the local database for
-// their own run and remove it after (e2e/synthetic.ts). They form a
-// project of their own that depends on the other two, so it runs last and
-// no other spec sees either company; the global setup removes one a crashed
-// run left behind before any project starts.
+// e2e/failed-subject.spec.ts (Story 2.9), e2e/synthetic-currency.spec.ts
+// (Story 2.10) and e2e/synthetic-documents.spec.ts (Story 3.1b) each commit
+// synthetic companies to the local database for their own run and remove
+// them after (e2e/synthetic.ts). They form a project of their own that
+// depends on the other two, so it runs last and no other spec sees them;
+// the global setup removes any a crashed run left behind before any project
+// starts.
 //
 // One worker, locally and on CI (Story 2.10): full runs with Playwright's
 // default worker count stopped on low memory in Stories 2.7 and 2.8 (each
@@ -37,7 +38,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: [/db-down\.spec\.ts/, /failed-subject\.spec\.ts/, /synthetic-currency\.spec\.ts/],
+      testIgnore: [/db-down\.spec\.ts/, /failed-subject\.spec\.ts/, /synthetic-currency\.spec\.ts/, /synthetic-documents\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
     },
     {
@@ -47,7 +48,7 @@ export default defineConfig({
     },
     {
       name: 'synthetic',
-      testMatch: /(failed-subject|synthetic-currency)\.spec\.ts/,
+      testMatch: /(failed-subject|synthetic-currency|synthetic-documents)\.spec\.ts/,
       dependencies: ['chromium', 'db-down'],
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${port}` },
     },

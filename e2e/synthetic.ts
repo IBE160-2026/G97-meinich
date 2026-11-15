@@ -1,4 +1,4 @@
-// The two synthetic companies of the e2e suite, each with its orgnr and every
+// The synthetic companies of the e2e suite, each with its orgnr and every
 // figure set here and only here:
 //
 // - SYNTHETIC (Story 2.9, decision 7): a 62.100 AS whose own 2025 document
@@ -7,7 +7,12 @@
 // - SYNTHETIC_USD (Story 2.10, decision 7 as amended): a 62.100 AS filing in
 //   USD, whose stage 1 finds the seed's small NOK companies and no company
 //   in USD, so its empty reason is `subject_currency`. It has no document
-//   and is not on the manifest's list.
+//   and is not on the manifest's list;
+// - SYNTHETIC_DOCUMENTS (Story 3.1b, decision 4): one subject and ten peers,
+//   each a 62.100 AS with a reconciled current and prior document column
+//   for 2025, all on the manifest's list while their spec runs, so every
+//   document row of the subject's key-figure table is compared, which no
+//   company in the committed seed is (Story 5.4 commits the demo pools).
 //
 // They are the e2e fixtures that commit rows: the production server reads
 // only committed data, so a rolled-back transaction would show it nothing.
@@ -25,7 +30,17 @@
 // companies; SYNTHETIC_USD's widest band, 125 000 – 2 000 000, holds seeded
 // NOK companies and none filing in USD (the seed's smallest USD filing in
 // 62.100 for 2025 is about 4,2 million).
+//
+// SYNTHETIC_DOCUMENTS' revenues, 1,1–2,0 milliards for the peers and 1,5 for
+// the subject, lie above demo A's and B's widest bands (at most 104,8 mill.
+// kr), so none enters a demo pool. The subject's widest band starts at
+// 375 mill. kr, above every other company on the manifest's list (the
+// largest has 269 mill. kr in 2025), so its document figures are compared
+// against exactly the ten synthetic peers; `insertSyntheticDocuments`
+// refuses to run otherwise. The seed's companies in its band have no
+// document figures, so they are left out of the document rows.
 import postgres from 'postgres';
+import { DOCUMENT_FIGURE_COLUMNS, type DocumentField } from '../src/engine/document-inputs.ts';
 import { supabaseDbUrl } from '../test/db/db-env.ts';
 
 export const SYNTHETIC = {
@@ -72,10 +87,10 @@ function ownerSql(): postgres.Sql {
 }
 
 /**
- * Takes the synthetic orgnr off the manifest's list of orgnrs with document
- * figures, if it is on it, keeping the others in their order.
+ * Takes the synthetic orgnrs off the manifest's list of orgnrs with document
+ * figures, those that are on it, keeping the others in their order.
  */
-async function unlist(tx: postgres.TransactionSql): Promise<void> {
+async function unlistAll(tx: postgres.TransactionSql, orgnrs: readonly string[]): Promise<void> {
   await tx`
     update register.dataset
        set manifest = jsonb_set(
@@ -84,14 +99,14 @@ async function unlist(tx: postgres.TransactionSql): Promise<void> {
              coalesce(
                (select jsonb_agg(l.o order by l.n)
                   from jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') with ordinality l (o, n)
-                 where l.o <> ${SYNTHETIC.orgnr}),
+                 where l.o <> all(${orgnrs as string[]}::text[])),
                '[]'::jsonb))
-     where manifest -> 'document_figure_orgnrs' @> to_jsonb(${SYNTHETIC.orgnr}::text)`;
+     where manifest -> 'document_figure_orgnrs' ?| ${orgnrs as string[]}::text[]`;
 }
 
-/** Puts the synthetic orgnr on the list, in byte order as the export writes it. */
-async function list(tx: postgres.TransactionSql): Promise<void> {
-  await unlist(tx);
+/** Puts the synthetic orgnrs on the list, in byte order as the export writes it. */
+async function listAll(tx: postgres.TransactionSql, orgnrs: readonly string[]): Promise<void> {
+  await unlistAll(tx, orgnrs);
   const listed = await tx`
     update register.dataset
        set manifest = jsonb_set(
@@ -99,9 +114,12 @@ async function list(tx: postgres.TransactionSql): Promise<void> {
              '{document_figure_orgnrs}',
              (select jsonb_agg(o order by o collate "C")
                 from (select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') o
-                      union all select ${SYNTHETIC.orgnr}::text) l))`;
-  if (listed.count !== 1) throw new Error('no loaded dataset to list the synthetic company in; run `pnpm seed`');
+                      union all select unnest(${orgnrs as string[]}::text[])) l))`;
+  if (listed.count !== 1) throw new Error('no loaded dataset to list the synthetic companies in; run `pnpm seed`');
 }
+
+const unlist = (tx: postgres.TransactionSql) => unlistAll(tx, [SYNTHETIC.orgnr]);
+const list = (tx: postgres.TransactionSql) => listAll(tx, [SYNTHETIC.orgnr]);
 
 /**
  * Deletes a synthetic company (its rows go by cascade). Never deletes a real
@@ -223,6 +241,243 @@ export async function insertSyntheticUsd(): Promise<void> {
                                           sum_eiendeler_ore, sum_egenkapital_gjeld_ore, sum_egenkapital_ore, sum_gjeld_ore)
         values (${s.brregId}, ${s.sumDriftsinntekterOre}, ${s.driftsresultatOre}, ${s.sumDriftskostnadOre},
                 ${s.sumEiendelerOre}, ${s.sumEiendelerOre}, ${s.sumEgenkapitalOre}, ${s.sumGjeldOre})`;
+    });
+  } finally {
+    await sql.end();
+  }
+}
+
+/** One synthetic company of SYNTHETIC_DOCUMENTS: its key figures and its 2025 document's two columns, in øre. */
+export type SyntheticDocumentCompany = {
+  readonly orgnr: string;
+  readonly navn: string;
+  readonly brregId: string;
+  readonly keyFigures: {
+    readonly sum_driftsinntekter_ore: string;
+    readonly driftsresultat_ore: string;
+    readonly sum_driftskostnad_ore: string;
+    readonly sum_eiendeler_ore: string;
+    readonly sum_egenkapital_gjeld_ore: string;
+    readonly sum_egenkapital_ore: string;
+    readonly sum_gjeld_ore: string;
+    readonly sum_omloepsmidler_ore: string;
+  };
+  /** The current column's lines; every other line is empty. */
+  readonly current: Readonly<Partial<Record<DocumentField, string>>>;
+  /** The prior column's lines (revenue growth reads its sum_driftsinntekter). */
+  readonly prior: Readonly<Partial<Record<DocumentField, string>>>;
+};
+
+/**
+ * The shape of one company, each line a share of revenue in thousandths, or
+ * days of a base: whole øre, so every row's figure can be redone by hand.
+ */
+function documentCompany(
+  orgnr: string,
+  navn: string,
+  revenueKr: bigint,
+  shape: {
+    readonly vare: bigint;
+    readonly lonn: bigint;
+    readonly annen: bigint;
+    readonly avskrivninger: bigint;
+    /** Receivable days on salgsinntekt (= revenue). */
+    readonly kfdDays: bigint;
+    /** Payable days on varekostnad + annenDriftskostnad. */
+    readonly lgdDays: bigint;
+    readonly bank: bigint;
+    readonly assets: bigint;
+    /** The prior year's revenue, in thousandths of this year's. */
+    readonly prior: bigint;
+  },
+): SyntheticDocumentCompany {
+  const revenue = revenueKr * 100n;
+  const share = (thousandths: bigint) => (revenue * thousandths) / 1000n;
+  const varekostnad = share(shape.vare);
+  const lonnskostnad = share(shape.lonn);
+  const annenDriftskostnad = share(shape.annen);
+  const avskrivninger = share(shape.avskrivninger);
+  const sumDriftskostnad = varekostnad + lonnskostnad + annenDriftskostnad + avskrivninger;
+  const driftsresultat = revenue - sumDriftskostnad;
+  const sumEiendeler = share(shape.assets);
+  const sumEgenkapital = (sumEiendeler * 40n) / 100n;
+  const lines = {
+    salgsinntekt: revenue,
+    sumDriftsinntekter: revenue,
+    varekostnad,
+    lonnskostnad,
+    avskrivninger,
+    nedskrivninger: 0n,
+    annenDriftskostnad,
+    sumDriftskostnad,
+    driftsresultat,
+    kundefordringer: (revenue * shape.kfdDays) / 365n,
+    bankinnskudd: share(shape.bank),
+    sumEiendeler,
+    sumEgenkapital,
+    leverandorgjeld: ((varekostnad + annenDriftskostnad) * shape.lgdDays) / 365n,
+    sumGjeld: sumEiendeler - sumEgenkapital,
+    sumEgenkapitalGjeld: sumEiendeler,
+  } satisfies Partial<Record<DocumentField, bigint>>;
+  const priorRevenue = (revenue * shape.prior) / 1000n;
+  return {
+    orgnr,
+    navn,
+    brregId: orgnr,
+    keyFigures: {
+      sum_driftsinntekter_ore: String(revenue),
+      driftsresultat_ore: String(driftsresultat),
+      sum_driftskostnad_ore: String(sumDriftskostnad),
+      sum_eiendeler_ore: String(sumEiendeler),
+      sum_egenkapital_gjeld_ore: String(sumEiendeler),
+      sum_egenkapital_ore: String(sumEgenkapital),
+      sum_gjeld_ore: String(sumEiendeler - sumEgenkapital),
+      sum_omloepsmidler_ore: String(share(400n)),
+    },
+    current: Object.fromEntries(Object.entries(lines).map(([field, ore]) => [field, String(ore)])),
+    prior: {
+      sumDriftsinntekter: String(priorRevenue),
+      sumDriftskostnad: String(priorRevenue - share(50n)),
+      driftsresultat: String(share(50n)),
+    },
+  };
+}
+
+// Valid orgnrs (modulus 11) in a range the register does not use for these names.
+const PEER_ORGNRS = ['999998011', '999998038', '999998046', '999998054', '999998062', '999998070', '999998089', '999998097', '999998100', '999998119'];
+
+/**
+ * SYNTHETIC_DOCUMENTS (Story 3.1b, decision 4). The subject is worse than
+ * beste fjerdedel on receivable days (9), payable days (10) and operating
+ * asset turnover (11), so each has a capital amount in kroner.
+ */
+export const SYNTHETIC_DOCUMENTS = {
+  filingYear: 2025,
+  subject: documentCompany('999998003', 'SYNTETISK DOKUMENTSELSKAP AS', 1_500_000_000n, {
+    vare: 70n,
+    lonn: 470n,
+    annen: 220n,
+    avskrivninger: 20n,
+    kfdDays: 75n,
+    lgdDays: 12n,
+    bank: 60n,
+    assets: 1200n,
+    prior: 950n,
+  }),
+  peers: PEER_ORGNRS.map((orgnr, index) => {
+    const i = BigInt(index + 1);
+    return documentCompany(orgnr, `SYNTETISK SAMMENLIGNBAR ${String(index + 1).padStart(2, '0')} AS`, 1_000_000_000n + 100_000_000n * i, {
+      vare: 50n + 5n * i,
+      lonn: 400n + 10n * i,
+      annen: 200n,
+      avskrivninger: 30n,
+      kfdDays: 20n + 5n * i,
+      lgdDays: 15n + 4n * i,
+      bank: 50n + 5n * i,
+      assets: 500n + 40n * i,
+      prior: 900n + 10n * i,
+    });
+  }),
+} as const;
+
+/** Every company of SYNTHETIC_DOCUMENTS, the subject first. */
+export const syntheticDocumentCompanies = (): readonly SyntheticDocumentCompany[] => [
+  SYNTHETIC_DOCUMENTS.subject,
+  ...SYNTHETIC_DOCUMENTS.peers,
+];
+
+const documentOrgnrs = () => syntheticDocumentCompanies().map((company) => company.orgnr);
+
+async function removeDocuments(tx: postgres.TransactionSql): Promise<void> {
+  for (const company of syntheticDocumentCompanies()) await removeCompany(tx, company);
+  await unlistAll(tx, documentOrgnrs());
+}
+
+/** Removes the SYNTHETIC_DOCUMENTS companies, if present. Safe to run any number of times. */
+export async function removeSyntheticDocuments(): Promise<void> {
+  const sql = ownerSql();
+  try {
+    await sql.begin(removeDocuments);
+  } finally {
+    await sql.end();
+  }
+}
+
+/** A column's figure columns and their values, for an insert. */
+function columnValues(lines: Readonly<Partial<Record<DocumentField, string>>>): { readonly names: string[]; readonly values: string[] } {
+  const fields = Object.keys(lines) as DocumentField[];
+  return {
+    names: fields.map((field) => DOCUMENT_FIGURE_COLUMNS[field]),
+    values: fields.map((field) => lines[field] ?? ''),
+  };
+}
+
+/**
+ * Removes any leftover, then inserts the subject and its ten peers, each with
+ * its 2025 filing, key figures and a reconciled 2025 document, and lists
+ * them all. Refuses, inserting nothing, when another listed company with a
+ * 2025 filing in 62.100 lies in the subject's widest band: its document
+ * figures would join the comparison.
+ */
+export async function insertSyntheticDocuments(): Promise<void> {
+  const sql = ownerSql();
+  const year = SYNTHETIC_DOCUMENTS.filingYear;
+  try {
+    await sql.begin(async (tx) => {
+      await removeDocuments(tx);
+      const revenue = BigInt(SYNTHETIC_DOCUMENTS.subject.keyFigures.sum_driftsinntekter_ore);
+      const [{ others = '0' } = {}] = await tx<{ others: string }[]>`
+        select count(*)::text as others
+          from register.dataset ds
+          cross join lateral jsonb_array_elements_text(ds.manifest -> 'document_figure_orgnrs') l (o)
+          join register.company c on c.orgnr = l.o and c.naeringskode1 = '62.100'
+          join register.filing f on f.orgnr = c.orgnr and f.filing_year = ${year}
+          join register.key_figures k on k.brreg_id = f.brreg_id
+         where k.sum_driftsinntekter_ore between ${String(revenue / 4n)} and ${String(revenue * 4n)}`;
+      if (others !== '0') {
+        throw new Error(`${others} listed companies lie in the synthetic subject's band; its document rows would not be the ten peers'`);
+      }
+      for (const company of syntheticDocumentCompanies()) {
+        const k = company.keyFigures;
+        await tx`
+          insert into register.company (orgnr, navn, organisasjonsform, naeringskode1, naeringskode1_beskrivelse,
+                                        konkurs, under_avvikling, under_tvangsavvikling, read_at,
+                                        forretningsadresse_kommune)
+          values (${company.orgnr}, ${company.navn}, 'AS', '62.100', 'Dataprogrammeringstjenester',
+                  false, false, false, now(), 'OSLO')`;
+        await tx`
+          insert into register.filing (orgnr, regnskapstype, periode_fra, periode_til, brreg_id, filing_year, valuta,
+                                       regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at)
+          values (${company.orgnr}, 'SELSKAP', '2025-01-01', '2025-12-31', ${company.brregId}, ${year}, 'NOK',
+                  'regnskapslovenAlminneligRegler', false, false, 'api_whole_units', 'reconciled', now())`;
+        await tx`
+          insert into register.key_figures (brreg_id, sum_driftsinntekter_ore, driftsresultat_ore, sum_driftskostnad_ore,
+                                            sum_eiendeler_ore, sum_egenkapital_gjeld_ore, sum_egenkapital_ore,
+                                            sum_gjeld_ore, sum_omloepsmidler_ore)
+          values (${company.brregId}, ${k.sum_driftsinntekter_ore}, ${k.driftsresultat_ore}, ${k.sum_driftskostnad_ore},
+                  ${k.sum_eiendeler_ore}, ${k.sum_egenkapital_gjeld_ore}, ${k.sum_egenkapital_ore}, ${k.sum_gjeld_ore},
+                  ${k.sum_omloepsmidler_ore})`;
+        await tx`
+          insert into register.document (orgnr, filing_year, brreg_id, layout, status, valuta, unit_text, read_at,
+                                         dataset, reader_commit)
+          values (${company.orgnr}, ${year}, ${company.brregId}, 'generated', 'reconciled', 'NOK', 'NOK', now(),
+                  'demo', ${READER_COMMIT})`;
+        for (const [role, lines] of [
+          ['current', company.current],
+          ['prior', company.prior],
+        ] as const) {
+          // c1 and c3 pass, nothing fails: the column is reconciled, as the status CHECK requires.
+          const { names, values } = columnValues(lines);
+          await tx.unsafe(
+            `insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, c5, status,
+                                                   api_check, api_fail_fields, digits_pass_fields, dataset, ${names.join(', ')})
+             values ($1, $2, $3, $4, 'pass', 'not_evaluable', 'pass', 'not_evaluable', 'not_evaluable', 'reconciled',
+                     'not_evaluable', '{}', '{}', 'demo', ${names.map((_, i) => `$${i + 5}`).join(', ')})`,
+            [company.orgnr, year, role, role === 'current' ? year : year - 1, ...values],
+          );
+        }
+      }
+      await listAll(tx, documentOrgnrs());
     });
   } finally {
     await sql.end();

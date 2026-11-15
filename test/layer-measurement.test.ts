@@ -3,6 +3,7 @@
 // analysis/labelled-set/ and no database is read here; `main` runs on a
 // temporary root with its database read replaced.
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -729,6 +730,7 @@ function syntheticRoot(): string {
 describe('main on synthetic files', () => {
   let root: string;
   let stderr: string[];
+  let stdout: string[];
   beforeEach(() => {
     root = syntheticRoot();
     stderr = [];
@@ -736,7 +738,11 @@ describe('main on synthetic files', () => {
       stderr.push(String(chunk));
       return true;
     });
-    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stdout = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      stdout.push(String(chunk));
+      return true;
+    });
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -771,6 +777,14 @@ describe('main on synthetic files', () => {
     expect(await main(root, deps(11))).toBe(0);
     const report = readFileSync(path.join(root, ...reportFile('62.100').split('/')), 'utf8');
     await expect(report).toMatchFileSnapshot('./fixtures/layer-measurement/synthetic-report.md');
+  });
+
+  // Triage 14: the checksum seed/coverage.json must carry, so a rerun cannot leave it stale unnoticed.
+  it('prints the new report\'s sha256', async () => {
+    expect(await main(root, deps(11))).toBe(0);
+    const bytes = readFileSync(path.join(root, ...reportFile('62.100').split('/')));
+    const sha = createHash('sha256').update(bytes).digest('hex');
+    expect(stdout.join('')).toContain(`analysis:layers: sha256 ${sha} analysis/output/layer-measurement-62100.md\n`);
   });
 
   it('refuses an industry seed/coverage.json does not declare', async () => {

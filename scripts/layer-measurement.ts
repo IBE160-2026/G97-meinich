@@ -40,6 +40,7 @@
 //
 // Run: node scripts/layer-measurement.ts   (from the repository root)
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -1123,6 +1124,8 @@ export async function main(root: string, deps: Dependencies = DEFAULT_DEPENDENCI
       `analysis:layers: wrote ${file} (${subjects.length} subjects, ${outcomes.length} pairs, ${outside} outside today's pool; ` +
         `fingerprints for ${data.fingerprinted} of ${data.companies} companies)\n`,
     );
+    // seed/coverage.json cites the report by this checksum; `pnpm seed` refuses a stale one.
+    process.stdout.write(`analysis:layers: sha256 ${createHash('sha256').update(report).digest('hex')} ${file}\n`);
     return 0;
   } catch (error) {
     process.stderr.write(`analysis:layers: ${(error as Error).message}\n`);

@@ -8,6 +8,7 @@ import nb from '../src/messages/nb.json' with { type: 'json' };
 import { formatMillions } from '../src/engine/format.ts';
 import type { PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { businessType } from '../src/engine/fingerprint.ts';
+import { matchBasis } from '../src/engine/peers.ts';
 import { PHONE_CARDS } from '../src/components/analysis/phone-cards.ts';
 import {
   A,
@@ -202,15 +203,23 @@ function seedSubject(
   };
 }
 
+/** The funnel as built, both signals on (Story 5.2): what v1 no longer runs. */
+const AS_BUILT = { textSignal: true, fingerprintSignal: true } as const;
+
 /**
- * A subject with a type of its own whose group mixes match bases. The v1
- * funnel reads no text signal (Story 5.2), so none of them may rest on a
- * classification.
+ * A subject with a type of its own whose group the funnel as built gives
+ * mixed match bases. The v1 funnel reads neither signal (Story 5.2), so
+ * every basis it shows is "Kun bransje og størrelse".
  */
 const mixedBasisSubject = seedSubject(
-  (orgnr) => classificationOf(orgnr) !== null,
-  (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2,
-  'with mixed match bases and a type of its own',
+  (orgnr) => {
+    if (classificationOf(orgnr) === null) return false;
+    const own = expectedSubject(orgnr);
+    const bases = expectedPeerGroup(orgnr, 0, AS_BUILT).group.map((peer) => matchBasis(own, peer, AS_BUILT));
+    return new Set(bases).size >= 2;
+  },
+  () => true,
+  'with mixed match bases as built and a type of its own',
 );
 
 /**
@@ -222,7 +231,7 @@ const flaggedSubject = seedSubject(
   (orgnr) => {
     const own = expectedSubject(orgnr);
     if (own.classification === null || own.fingerprint === null || businessType(own.fingerprint) === null) return false;
-    return expectedPeerGroup(orgnr, 0, { textSignal: true }).flagged.length > 0;
+    return expectedPeerGroup(orgnr, 0, AS_BUILT).flagged.length > 0;
   },
   () => true,
   'with a peer the funnel as built would flag',
@@ -299,7 +308,8 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       const flags = await shown.locator('td:nth-child(6)').allTextContents();
       expect(tally(bases)).toEqual(tally(rows.map(basisText)));
       expect(tally(flags)).toEqual(tally(rows.map(flagText)));
-      // v1 (Story 5.2): no basis rests on the description and no peer is flagged.
+      // v1 (Story 5.2): every basis is industry and size, and no peer is flagged.
+      expect(bases.filter((text) => text !== nb['peers.basis.industry_and_size_only'])).toEqual([]);
       expect(bases.filter((text) => text.startsWith(GLYPH))).toEqual([]);
       expect(flags.filter((text) => text !== '')).toEqual([]);
       if (flaggedAsBuilt) expect(rows.some((row) => row.flagg !== null)).toBe(false);

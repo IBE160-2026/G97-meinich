@@ -98,7 +98,7 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
     if (funnel === null) return null;
     let entry = groups.get(band);
     if (entry === undefined) {
-      // The v1 funnel: the text signal off (Story 5.2), so no peer is flagged.
+      // The v1 funnel: both signals off (Story 5.2), so the group is the pool and no peer is flagged.
       const group = assemblePeerGroup(funnel, candidates, band, V1_FUNNEL);
       entry = { group, orgnrs: new Set(group.pool.map((peer) => peer.orgnr)) };
       groups.set(band, entry);

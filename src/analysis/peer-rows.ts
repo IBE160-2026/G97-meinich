@@ -17,10 +17,10 @@
 //   grunnlagKi    whether the basis rests on a classification (✦)
 //   flagg         "Usikker klassifisering", or null
 //
-// The basis is the v1 funnel's (V1_FUNNEL): the text signal is off since
-// Story 5.2 found stage 5 not kept, so no basis rests on a classification,
-// and the funnel flags no one. grunnlagKi and flagg stay for the text
-// signal as built.
+// The basis is the v1 funnel's (V1_FUNNEL): both signals are off since
+// Story 5.2, so every basis is industry and size, none rests on a
+// classification, and the funnel flags no one. grunnlagKi and flagg stay
+// for the signals as built.
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';

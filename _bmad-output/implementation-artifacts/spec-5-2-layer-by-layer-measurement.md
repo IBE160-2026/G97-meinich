@@ -107,6 +107,20 @@ context:
 - Given the report, when CI runs `pnpm seed`, then the measured entry with its sha256 loads.
 - Given the PR, then it has "Planning documents:" and states what could go wrong.
 
+## Spec Change Log
+
+- 2026-11-15, Meinich, after the first real run (report version 1, `4f26803`):
+  - **The run.** Report version 1 showed the stage-5 precision difference as +3,0 pp. The exact value is 2,967 pp. Version 2 (`8a0e875`) shows the deciding differences to three decimals and as fractions; this is display, not a definition. It also adds the rules on the blind pairs alone and the verdicts with usikker as ja and as nei, which change nothing.
+  - **Stage 5 is not kept**, by the rule fixed before the run. The text signal is off in v1: `V1_TEXT_SIGNAL = false`, an engine option the measurement turns on so that it keeps measuring stage 5 as built.
+  - **The bands.** Both are recommended dropped, but widening either one leaves almost every type undetermined, so the test cannot tell a band from the fingerprint. Meinich followed the recommendation in the form that changes the group least: `V1_FINGERPRINT_SIGNAL = false`, with no migration, and `fingerprint.ts`, the bands, the stored fingerprints and derive unchanged. He decided from the rule and the blind pairs (L2 25,2 % against L1 25,1 % precision, −35,6 pp recall). v1's group is the stage 1–3 pool.
+  - **The Peers tab.** Meinich approved the copy:
+    - three funnel stages and `peers.funnel.notApplied`
+    - no «Grunnlag for treff» column, no «Merknad» column and no ✦ legend
+    - «Hvorfor med» shows the base sentence only
+  - **Upstream docs.** The FRs state how v1 works, without history (retro feedback 4.1), and the history goes in the PRD's `.memlog.md`. A new §11 question asks for stages 4 and 5 to be measured again in stage 2 with a second labeller. The brief is corrected in place, and the addendum gets a dated note.
+  - **Known-bad states avoided:** a +3,0 pp shown beside "not kept"; a fingerprint layer that selects without raising precision; Peers copy that describes a stage that does not run.
+  - **KEEP:** the frozen definitions; reports 1 and 2 as committed; the measurement turning both signals on.
+
 ## Verification
 
 **Commands:**

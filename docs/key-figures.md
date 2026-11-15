@@ -27,6 +27,14 @@ The calculation engine implements exactly these definitions. Change this documen
 
 The same derivation of `sumDriftsinntekter` applies to a document column's own lines (`documentRevenue` in `src/engine/document-inputs.ts`): a document `sumDriftsinntekter` that is empty is `driftsresultat` + `sumDriftskostnad` of the same column, and with either one empty too it is undefined, never 0. Step 1 stores the empty total as NULL.
 
+**Deriving an empty cost line (Story 3.1a, decision 1, Meinich 2026-11-15).** The five cost lines of one document column — `varekostnad`, `lonnskostnad`, `avskrivninger`, `nedskrivninger` and `annenDriftskostnad` — are derived from that column's stated `sumDriftskostnad` (`documentCostLines` in `src/engine/document-inputs.ts`). The remainder is `sumDriftskostnad` minus the stated lines:
+
+- a remainder within ±5 kr, both bounds included, is the register's rounding: every empty line is derived as 0, with one empty line or several, also when the remainder is positive;
+- exactly one line empty and a remainder above +5 kr: that line is derived as the remainder;
+- exactly one line empty and a remainder below −5 kr, or several lines empty and the remainder outside ±5 kr: each empty line is undefined (component missing), never 0.
+
+Every derived line is marked derived, and a denominator with a derived part is a derived denominator. The 5 kr is the within-document bound of `ingest/config.toml`. Lines with no total to derive them from — the balance lines and `salgsinntekt` — stay undefined when empty; so does `driftsresultat`, which a reconciled column always states (check c1). Measured on the 2 614 reconciled current columns of the local document run (2026-11-15): 1 962 get all five lines (41 with none empty, 959 with one and the remainder within ±5 kr, 37 with one and the remainder above 5 kr, 925 with several and the remainder within ±5 kr); 13 have one empty line and a remainder below −5 kr, and 639 have several empty and the remainder outside ±5 kr.
+
 A stated value is always used as it is, however small. **A derived denominator of 5 kr or less counts as not positive** (+5 kr itself included; any negative amount is not positive anyway), and the figure is undefined. The reason: the register prints whole kroner rounded from øre, so a derived figure inherits the rounding uncertainty of the totals it is computed from, and a derived amount within ±5 kr of zero cannot be told apart from zero. Example: JOAKIM BORDING AS (919728574), 2025, has no `sumDriftsinntekter`; it derives to −17 003 + 17 004 = 1 kr, and a margin over that 1 kr would be −1 700 300 %. The bound applies to derived figures only.
 
 **Arithmetic.** Amounts are integers in øre. Ratios are computed with a decimal library and rounded only for display — to the nearest value, ties away from zero — percentages to one decimal, days to whole days, kroner to whole kroner. **Exception: the percentile is shown in whole percent** ("bedre enn 61 %"), because with a peer group of around twenty a decimal is false precision; it is computed exactly and rounded only for display.
@@ -111,6 +119,8 @@ Cash share carries no number because it is a diagnostic rather than a benchmarke
 | 14 | Revenue growth | `sumDriftsinntekter / sumDriftsinntekter(prior year) − 1` | OCR | – | – |
 
 Revenue growth has no direction: fast growth often explains a weak margin, and the analysis shows the two side by side rather than ranking growth.
+
+**The prior year's revenue (Story 3.1a, decision 2).** Growth reads the prior-year column of the same document only when that column reconciled; a missing or failed one leaves growth undefined (component missing). A prior column's status ignores the key-figures API (its comparison is information only), so a reconciled prior column whose `api_check` fails on `sum_driftsinntekter` is not used either: growth is undefined, a line not read safely. A prior column with no API filing to check against (`api_check` `not_evaluable`) is used; that path is unguarded (technical note, AD-15).
 
 **A figure with no declared direction gets no favourable quartile and no percentile.** Both are defined in the favourable direction, so neither exists for total cost share (6), personnel cost per FTE (8), equity ratio (13), revenue growth (14) and cash share. For 8, 13 and 14 the direction is genuinely arguable. Total cost share is a check row showing that the three cost shares add up, and ranking it would rank the operating margin again, since it equals 1 minus the operating margin minus the share of depreciation and other items. These figures show the subject's value and the peer median and quartiles as a distribution, and are never ranked or converted to kroner.
 

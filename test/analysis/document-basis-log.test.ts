@@ -33,6 +33,7 @@ function row(overrides: Partial<DocumentBasisColumns>): DocumentBasisColumns {
     current_status: 'reconciled',
     has_prior: true,
     prior_status: 'reconciled',
+    prior_api_fail_fields: [],
     sum_omloepsmidler_ore: null,
     ...figures,
     ...overrides,

@@ -155,7 +155,7 @@ describe('benchmarkApiFigures: the driftsmargin gap in kroner', () => {
     const failed = documentBasis({
       inManifest: true,
       filingYear: 2025,
-      document: { status: 'failed_reconciliation', current: null, prior: null },
+      document: { status: 'failed_reconciliation', current: null, prior: null, priorApiFailFields: null },
       sumOmloepsmidler: null,
     });
     for (const figure of DOCUMENT_KEY_FIGURE_KEYS) {

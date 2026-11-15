@@ -2,8 +2,8 @@
 // (Story 2.9; FR-21, FR-23, FR-71; `docs/key-figures.md`). Pure: a company's
 // document basis (`documentBasis` in `document-inputs.ts`) and a figure in,
 // an absence with exactly one reason out, or null when the figure's inputs
-// are read and Story 3.1a may compute it from the formula. This module
-// computes no value and no kroner.
+// are read and `document-key-figures.ts` computes it from the formula. This
+// module computes no value and no kroner.
 //
 // The order of the rules:
 // 1. Key figures 7 and 8 (per årsverk) read `aarsverk` from the notes, which
@@ -16,9 +16,11 @@
 //    `sumDriftsinntekter` that is neither stated nor derivable from its parts
 //    is undefined, `component_missing`; revenue growth (14) also needs the
 //    prior column's revenue, and is `component_missing` when that column is
-//    absent or passes no value (its own reason would name the wrong year).
-//    Every other empty line, and the sign of a denominator, is Story 3.1a's
-//    to decide with the formula.
+//    absent or passes no value (its own reason would name the wrong year),
+//    and `line_not_read_safely` when that column is reconciled but disagrees
+//    with the key-figures API on `sum_driftsinntekter` (Story 3.1a,
+//    decision 2). Every other empty line, and the sign of a denominator, is
+//    decided with the formula (`document-key-figures.ts`, Story 3.1a).
 import {
   type DocumentBasis,
   type DocumentField,
@@ -96,13 +98,14 @@ export function documentFigureAbsence(basis: DocumentBasis, figure: DocumentKeyF
     case 'not_reconciled':
       return { reason: 'not_reconciled' };
     case 'read':
-      return readAbsence(basis.current, basis.prior, figure);
+      return readAbsence(basis.current, basis.prior, basis.priorRevenueFailsApi, figure);
   }
 }
 
 function readAbsence(
   current: DocumentFigures,
   prior: DocumentFigures | null,
+  priorRevenueFailsApi: boolean,
   figure: DocumentKeyFigure,
 ): FigureAbsence | null {
   const definition: (typeof DOCUMENT_KEY_FIGURES)[DocumentKeyFigure] = DOCUMENT_KEY_FIGURES[figure];
@@ -116,7 +119,12 @@ function readAbsence(
     // A missing, failed or unreconciled prior column, or one whose revenue
     // cannot be derived: the growth lacks a component. Its own reason would
     // be worded with the filing year, not the prior year it is about.
-    if (prior === null || revenueAbsence(prior) !== null) return COMPONENT_MISSING;
+    if (prior === null || prior.sumDriftsinntekter.kind === 'absent') return COMPONENT_MISSING;
+    // A reconciled prior column whose revenue the key-figures API of its own
+    // year disagrees with (Story 3.1a, decision 2): its status ignores the
+    // API, so the line is not read safely.
+    if (priorRevenueFailsApi) return LINE_NOT_READ_SAFELY;
+    if (revenueAbsence(prior) !== null) return COMPONENT_MISSING;
   }
   return null;
 }

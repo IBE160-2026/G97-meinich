@@ -243,6 +243,82 @@ export function documentRevenue(figures: DocumentFigures): DocumentAmount {
   return { kind: 'value', ore: result.ore + costs.ore, derived: true };
 }
 
+/**
+ * The within-document bound of `[reconciliation]` in ingest/config.toml,
+ * `within_document_bound_kr`, in øre: the register prints whole kroner
+ * rounded from øre, so a stated total can be a few kroner off its lines.
+ * test/engine/fingerprint-tolerance.test.ts fails if it differs from the
+ * config.
+ */
+export const WITHIN_DOCUMENT_BOUND_ORE = 500n;
+
+/** The five cost lines of a column, whose stated total is `sumDriftskostnad`. */
+export const COST_LINES = [
+  'varekostnad',
+  'lonnskostnad',
+  'avskrivninger',
+  'nedskrivninger',
+  'annenDriftskostnad',
+] as const satisfies readonly DocumentField[];
+
+export type CostLine = (typeof COST_LINES)[number];
+
+/**
+ * The five cost lines of one column, each stated or derived from the stated
+ * `sumDriftskostnad` (Story 3.1a, decision 1, Meinich 2026-11-15;
+ * `docs/key-figures.md`, "Deriving an empty cost line"). The remainder is
+ * `sumDriftskostnad` minus the stated lines:
+ *
+ * - within ±5 kr, both bounds included: the register's rounding; every empty
+ *   line is derived as 0, with one empty line or several, also when the
+ *   remainder is positive;
+ * - exactly one line empty and the remainder above +5 kr: that line is the
+ *   remainder;
+ * - exactly one line empty and the remainder below −5 kr, or several empty
+ *   and the remainder outside ±5 kr: each empty line is undefined
+ *   (`component_missing`), never 0.
+ *
+ * Every derived line is marked `derived`; a stated line is as filed. With
+ * `sumDriftskostnad` empty there is no total to derive from, and an empty
+ * line is undefined. A column that passes no value gives its reason for
+ * every line. One level only: a derived line never feeds another derivation.
+ */
+export function documentCostLines(figures: DocumentFigures): Readonly<Record<CostLine, DocumentAmount>> {
+  const out = {} as Record<CostLine, DocumentAmount>;
+  const empty: CostLine[] = [];
+  let stated = 0n;
+  for (const line of COST_LINES) {
+    const figure = figures[line];
+    if (figure.kind === 'absent') {
+      // R3 empties only kundefordringer and bankinnskudd, never a cost line;
+      // were it ever applied to one, the line would be missing, not 0.
+      out[line] = figure.absence.reason === 'exceeds_api_subtotal' ? COMPONENT_MISSING : { kind: 'absent', absence: figure.absence };
+      continue;
+    }
+    if (figure.ore === null) {
+      empty.push(line);
+      continue;
+    }
+    out[line] = { kind: 'value', ore: figure.ore, derived: false };
+    stated += figure.ore;
+  }
+  if (empty.length === 0) return out;
+  const total = figures.sumDriftskostnad;
+  const anyAbsent = COST_LINES.some((line) => figures[line].kind === 'absent');
+  if (total.kind !== 'value' || total.ore === null || anyAbsent) {
+    for (const line of empty) out[line] = COMPONENT_MISSING;
+    return out;
+  }
+  const remainder = total.ore - stated;
+  const rounding = remainder >= -WITHIN_DOCUMENT_BOUND_ORE && remainder <= WITHIN_DOCUMENT_BOUND_ORE;
+  for (const line of empty) {
+    if (rounding) out[line] = { kind: 'value', ore: 0n, derived: true };
+    else if (empty.length === 1 && remainder > WITHIN_DOCUMENT_BOUND_ORE) out[line] = { kind: 'value', ore: remainder, derived: true };
+    else out[line] = COMPONENT_MISSING;
+  }
+  return out;
+}
+
 /** One stored document of a company and filing year, as the analysis reads it. */
 export type StoredDocument = {
   /** `register.document.status`. */
@@ -251,6 +327,13 @@ export type StoredDocument = {
   readonly current: DocumentColumnRow | null;
   /** The document's `prior` column; null when it has none. */
   readonly prior: DocumentColumnRow | null;
+  /**
+   * The prior column's `api_fail_fields`: the figures on which it disagrees
+   * with the key-figures API filing of its own year (empty when it agrees or
+   * there is none to check against, `api_check` `not_evaluable`). Null when
+   * there is no prior column or it is not yet reconciled.
+   */
+  readonly priorApiFailFields: readonly string[] | null;
 };
 
 /** What `documentBasis` decides from. */
@@ -284,6 +367,13 @@ export type DocumentBasis =
       readonly current: DocumentFigures;
       /** The prior column's figures, or null when the document has none. */
       readonly prior: DocumentFigures | null;
+      /**
+       * The prior column disagrees with the key-figures API on
+       * `sum_driftsinntekter` (`api_fail_fields`). Its status ignores the
+       * API, so it can be reconciled and still wrong; revenue growth (14)
+       * does not use it (Story 3.1a, decision 2).
+       */
+      readonly priorRevenueFailsApi: boolean;
     };
 
 /**
@@ -330,6 +420,7 @@ export function documentBasis(input: DocumentBasisInput): DocumentBasis {
         filingYear,
         current: guardCurrentAssets(documentFigures(current), 'current', input.sumOmloepsmidler),
         prior: document.prior === null ? null : documentFigures(document.prior),
+        priorRevenueFailsApi: document.priorApiFailFields?.includes('sum_driftsinntekter') === true,
       };
   }
 }

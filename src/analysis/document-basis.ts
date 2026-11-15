@@ -35,6 +35,8 @@ export type DocumentBasisColumns = {
   readonly current_status: string | null;
   readonly has_prior: boolean;
   readonly prior_status: string | null;
+  /** The prior column's `api_fail_fields` (a text[]), null without a reconciled-or-failed prior column. */
+  readonly prior_api_fail_fields: readonly string[] | null;
   /** The key-figures filing's sum_omloepsmidler, for R3. */
   readonly sum_omloepsmidler_ore: string | null;
 } & { readonly [C in FigureColumn as `cur_${C}`]: string | null } & {
@@ -52,6 +54,7 @@ export const DOCUMENT_SELECT = [
   'cur.status as current_status',
   'pri.orgnr is not null as has_prior',
   'pri.status as prior_status',
+  'pri.api_fail_fields as prior_api_fail_fields',
   'k.sum_omloepsmidler_ore',
   ...FIGURE_COLUMNS.map((column) => `cur.${column} as cur_${column}`),
   ...FIGURE_COLUMNS.map((column) => `pri.${column} as pri_${column}`),
@@ -84,6 +87,7 @@ export function documentBasisOf(row: DocumentBasisColumns, filingYear: number): 
             status: row.document_status,
             current: row.has_current ? column(row, 'cur_', row.current_status) : null,
             prior: row.has_prior ? column(row, 'pri_', row.prior_status) : null,
+            priorApiFailFields: row.prior_api_fail_fields,
           },
     sumOmloepsmidler: parseOre(row.sum_omloepsmidler_ore),
   });

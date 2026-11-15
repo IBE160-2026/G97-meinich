@@ -2,7 +2,7 @@
 title: 'Story 3.1b: The full key-figure table'
 type: 'feature'
 created: '2026-11-15'
-status: 'in-review'
+status: 'done'
 baseline_commit: '952a4f6ba3f1a238c4d6e0d53229dc8b75765fb5'
 route: 'dispatch'
 review_loop_iteration: 0

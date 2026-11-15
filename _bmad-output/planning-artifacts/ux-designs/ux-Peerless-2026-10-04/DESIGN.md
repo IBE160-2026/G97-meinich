@@ -267,7 +267,7 @@ components:
     glyph: '✦'
     color: '{colors.slate}'
     size: 'at least the size of the label it precedes'
-  uncertain-flag:
+  uncertain-flag:              # not rendered in v1: no peer is flagged (Story 5.2)
     color: '{colors.slate}'
     typography: '{typography.tag}'
 ---
@@ -385,9 +385,9 @@ shadcn components used as-is: `Button`, `Input`, `Tabs`, `Collapsible`, `Popover
 - **Fold-out** — `Collapsible` under its row; header in `label-strong` with ▸/▾ caret (`aria-hidden`); body on `surface-foldout`, indented `{spacing.indent-group}`; full width on the phone.
 - **Margin waterfall** — desktop: six columns from "Peer-gruppen samlet" (`median` fill) through four steps to the company (`navy-700`); step bars `favourable` (petrol) where the step is favourable, `unfavourable` (amber) where it is unfavourable, the residual "Avskrivninger og øvrige poster" in `slate` whatever its sign (a remainder, not a cost category); each labelled with signed kroner above, name, ▲/▼ plus word, and "own mot samlet" shares below, with "Mot peer-gruppen samlet, ikke medianen" added where the row and the bar disagree; thin connectors in `connector`. Rounded data end (`{rounded.md}`), square start. Legend names all three bar kinds, the residual included. On the phone: one row per step, name and signed value on one line, subline, a 10px floating bar on a shared kroner scale. The reference tag "Mot peer-gruppen samlet: 0,5 %, ikke beste fjerdedel" leads, then the never-added sentence in body text; "Vis tallene" opens a table.
 - **Factor pair** — two bordered boxes side by side (stacked on the phone), each with factor name, "Fjordkode x · median y", its count, and its own distribution strip.
-- **Funnel** — five columns with stage name, count in `count` (tabular) and an 8px bar in `navy-700` proportional to stage 1; dividers between. On the phone a vertical list: name left, count right, bar beneath. A "✦ n med usikker klassifisering" line under it.
+- **Funnel** — in v1 three columns (Bransje og størrelse, Sammenlignbart regnskap, Segment) with stage name, count in `count` (tabular) and an 8px bar in `navy-700` proportional to stage 1; dividers between. On the phone a vertical list: name left, count right, bar beneath. Under it the note «Forretningsmodell og klassifisering ble målt mot et fasitsett og ga ikke klart bedre treff, så de brukes ikke til å velge sammenlignbare selskaper i denne versjonen.»; no flagged line (Story 5.2).
 - **Size-band control** — segmented control, three buttons "0,5–2× / Standard", "0,33–3× / Utvidet", "0,25–4× / Utvidet"; selected in `navy-700`. Full-width three-column grid on the phone.
-- **Peer list** — desktop table: Selskap · Omsetning · Driftsmargin · Hvorfor med · Grunnlag for treff · action link; caption carries "✦ KI-generert". ✦ placement per EXPERIENCE.md, AI marking. Excluded rows in `slate` text, name struck through, tag "Ekskludert". On the phone: one card per peer (name, revenue and driftsmargin; reason; basis + flag + action).
+- **Peer list** — desktop table: Selskap · Omsetning · Driftsmargin · Hvorfor med · action link; in v1 no "Grunnlag for treff" column, no flag column and no ✦ (Story 5.2; EXPERIENCE.md, AI marking), and the caption is screen-reader only. Excluded rows in `slate` text, name struck through, tag "Ekskludert". On the phone: one card per peer (name, revenue and driftsmargin; reason; action).
 - **Closable-share control** — segmented control 0 / 25 / 50 / 75 / 100 % plus "Til medianen for driftsmargin (n %)" in its ordered place; disabled step on `surface` in `disabled-text`. A median line under it with a 2×12px median tick and "Medianen gjelder driftsmargin."
 - **Amount card** — kicker, value in `amount`, slate per-line ("585 000 kr av 1 170 000 kr per år, ved 50 % av gapet" / "engangsbeløp, …"), its own median-tick line, a separation note where needed. Working capital lists its two parts as `table`-size lines, above the total when there is one.
 - **Multiple field** — 90px numeric input with label "EV/EBIT-multippel"; empty by default; error state as the search field's.
@@ -395,7 +395,7 @@ shadcn components used as-is: `Button`, `Input`, `Tabs`, `Collapsible`, `Popover
 - **State block** — `surface` box, 4px `navy-700` left accent, kicker plus one or two sentences, at most one link or action. Used for uncovered industry, not found, the widened notice, the outside-seed note, thin group, rate limit and errors. There is no separate banner component.
 - **Info button** — a 24px minimum `button` with a visible ⓘ in `link`, opening a shadcn `Popover` with the caveat's long text in `body`.
 - **Tag** — `{typography.tag}`, `input-border` outline; soft variant with `divider` outline and slate text.
-- **Uncertain flag** — "✦ Usikker klassifisering", `{typography.tag}`, `slate`.
+- **Uncertain flag** — "✦ Usikker klassifisering", `{typography.tag}`, `slate`. Not rendered in v1 (Story 5.2).
 - **AI marker (✦)** — the glyph ✦ in `slate`, at least the size of its label, before the label of AI-produced content; never on a number. Placement rule: EXPERIENCE.md, AI marking. If Inter lacks U+2726, an `aria-hidden` inline SVG.
 - **Tooltip** — `background`, 1px `divider`, shadow, `{rounded.md}`; value (13px/600, tabular), name, slate subline. On the phone it opens above the plot with a leader line so it never covers the company marker.
 - **Source line** — footer, `{typography.source}`, slate: "Data fra Brønnøysundregistrene, bearbeidet av Peerless · Kilder og lisens".

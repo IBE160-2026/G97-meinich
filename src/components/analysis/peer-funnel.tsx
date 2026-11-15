@@ -1,11 +1,17 @@
-// The funnel (Story 2.7; FR-15, FR-9, FR-14; DESIGN.md "Funnel"): the five
-// stages with the count each one leaves, shown whether or not the group
-// clears the 10-peer floor, under the heading "Slik ble peer-gruppen
-// valgt", which names the list. Segment names each criterion it applies
-// with its own count (in v1 legal form only) and says that v1 admits AS
-// only, in FR-9's words. Below it, the flagged count with ✦.
+// The funnel (Story 2.7; FR-15, FR-9; DESIGN.md "Funnel"): the stages with
+// the count each one leaves, shown whether or not the group clears the
+// 10-peer floor, under the heading "Slik ble peer-gruppen valgt", which
+// names the list. Segment names each criterion it applies with its own
+// count (in v1 legal form only) and says that v1 admits AS only, in FR-9's
+// words.
 //
-// Five columns from `md`, a vertical list below it (name left, count right,
+// The stages follow the funnel's options (default V1_FUNNEL): stage 4 is
+// shown only when the fingerprint signal is on, stage 5 only when the text
+// signal is, and the note `peers.funnel.notApplied` only when both are off.
+// In v1 both are off (Story 5.2, Meinich 2026-11-15): stages 1–3 and the
+// note. The flagged count stays in nb.json, unrendered.
+//
+// One column per stage from `md`, a vertical list below it (name left, count right,
 // bar beneath). Each bar is an 8px navy-700 bar proportional to stage 1,
 // its width `calc(100% * n / stage1)` from the integer counts, so no
 // fraction is computed here. Bars are decorative (`aria-hidden`): the count
@@ -13,12 +19,10 @@
 // figures, so they carry no median.
 //
 // Story 2.8: with exclusions, "{n} ekskludert av deg → {m} i analysen"
-// follows the stages; the flagged count (shownGroup) counts only the peers
-// in the analysis.
+// follows the stages.
 import type { ReactNode } from 'react';
-import type { FunnelCounts } from '@/engine/peers';
+import { V1_FUNNEL, type FunnelCounts, type FunnelOptions } from '@/engine/peers';
 import { t, type MessageId } from '@/messages';
-import { AiMark } from './ai-mark';
 
 type Stage = {
   readonly name: MessageId;
@@ -29,8 +33,8 @@ type Stage = {
   readonly note?: MessageId;
 };
 
-function stages(counts: FunnelCounts): readonly Stage[] {
-  return [
+function stages(counts: FunnelCounts, options: FunnelOptions): readonly Stage[] {
+  const shown: Stage[] = [
     { name: 'peers.funnel.stage1', count: counts.stage1 },
     { name: 'peers.funnel.stage2', count: counts.stage2 },
     {
@@ -39,10 +43,14 @@ function stages(counts: FunnelCounts): readonly Stage[] {
       criteria: [{ name: 'peers.funnel.segment.legalForm', count: counts.stage3.legalForm }],
       note: 'peers.funnel.segment.note',
     },
-    { name: 'peers.funnel.stage4', count: counts.stage4.businessModel },
-    { name: 'peers.funnel.stage5', count: counts.stage5.classification },
   ];
+  if (options.fingerprintSignal) shown.push({ name: 'peers.funnel.stage4', count: counts.stage4.businessModel });
+  if (options.textSignal) shown.push({ name: 'peers.funnel.stage5', count: counts.stage5.classification });
+  return shown;
 }
+
+/** The grid's columns from `md`, one per stage: whole class names, so Tailwind finds them. */
+const GRID_COLUMNS: Readonly<Record<number, string>> = { 3: 'md:grid-cols-3', 4: 'md:grid-cols-4', 5: 'md:grid-cols-5' };
 
 /** The bar's width: n of stage 1, in CSS, from integers. An empty stage 1 draws no bar. */
 export function barWidth(count: number, stage1: number): string {
@@ -63,20 +71,24 @@ export function PeerFunnel({
   counts,
   excluded = 0,
   analysisCount = counts.stage5.classification,
+  options = V1_FUNNEL,
 }: {
   readonly counts: FunnelCounts;
+  /** Which signals the funnel read: the stages shown follow them. */
+  readonly options?: FunnelOptions;
   /** Group peers the user has excluded. */
   readonly excluded?: number;
   /** The peers left in the analysis. */
   readonly analysisCount?: number;
 }) {
+  const shown = stages(counts, options);
   return (
     <div className="mt-4" data-testid="peer-funnel">
       <h3 id={HEADING_ID} className="m-0 mb-2 text-base font-semibold">
         {t('peers.funnel.heading')}
       </h3>
-      <ol aria-labelledby={HEADING_ID} className="m-0 list-none p-0 md:grid md:grid-cols-5">
-        {stages(counts).map((stage) => (
+      <ol aria-labelledby={HEADING_ID} className={`m-0 list-none p-0 md:grid ${GRID_COLUMNS[shown.length] ?? ''}`}>
+        {shown.map((stage) => (
           <li
             key={stage.name}
             className="border-b border-divider py-2.5 md:border-b-0 md:border-l md:px-3 md:py-0 md:first:border-l-0 md:first:pl-0"
@@ -105,15 +117,16 @@ export function PeerFunnel({
           </li>
         ))}
       </ol>
+      {options.fingerprintSignal || options.textSignal ? null : (
+        <p className="m-0 mt-3 text-[13px] text-slate" data-testid="funnel-not-applied">
+          {t('peers.funnel.notApplied')}
+        </p>
+      )}
       {excluded > 0 ? (
         <p className="figure m-0 mt-3 text-[13px] text-slate" data-testid="funnel-excluded">
           {t('peers.funnel.excluded', { n: String(excluded), m: String(analysisCount) })}
         </p>
       ) : null}
-      <p className="m-0 mt-3 text-[13px] text-slate" data-testid="funnel-flagged">
-        <AiMark />
-        {t('peers.funnel.flagged', { n: String(counts.stage5.flagged) })}
-      </p>
     </div>
   );
 }

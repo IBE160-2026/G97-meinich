@@ -50,7 +50,7 @@ import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
 import { formatOrgnr } from '@/engine/format';
-import { assemblePeerGroup, type PeerGroup } from '@/engine/peers';
+import { assemblePeerGroup, V1_FUNNEL, type PeerGroup } from '@/engine/peers';
 import { failureKind, log } from '@/logger';
 import { t } from '@/messages';
 import { industryAtSentenceStart, industryInSentence, joinList } from '@/messages/industry';
@@ -98,7 +98,8 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
     if (funnel === null) return null;
     let entry = groups.get(band);
     if (entry === undefined) {
-      const group = assemblePeerGroup(funnel, candidates, band);
+      // The v1 funnel: both signals off (Story 5.2), so the group is the pool and no peer is flagged.
+      const group = assemblePeerGroup(funnel, candidates, band, V1_FUNNEL);
       entry = { group, orgnrs: new Set(group.pool.map((peer) => peer.orgnr)) };
       groups.set(band, entry);
     }
@@ -167,7 +168,7 @@ function peersShown(subject: Subject, group: ShownGroup, state: AnalysisState) {
   const funnel = funnelSubject(subject);
   if (funnel === null) throw new TypeError('peersShown: a covered subject without a filing');
   return {
-    rows: peerRows(funnel, displayName(subject), group.members, group.flagged, group.valuta, state.ekskl),
+    rows: peerRows(funnel, displayName(subject), group.members, group.valuta, state.ekskl),
     steps: bandSteps(funnel.sumDriftsinntekter, group.valuta),
   };
 }

@@ -8,6 +8,7 @@ import nb from '../src/messages/nb.json' with { type: 'json' };
 import { formatMillions } from '../src/engine/format.ts';
 import type { PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { businessType } from '../src/engine/fingerprint.ts';
+import { matchBasis } from '../src/engine/peers.ts';
 import { PHONE_CARDS } from '../src/components/analysis/phone-cards.ts';
 import {
   A,
@@ -67,8 +68,6 @@ test.describe('the peer group (Story 1.7)', () => {
       nb['peers.col.omsetning'],
       nb['fig.driftsmargin'],
       nb['peers.col.reason'],
-      nb['peers.col.basis'],
-      nb['peers.col.flag'],
       nb['peers.col.action'],
     ]);
     const rows = peerTable(page).locator('tbody tr');
@@ -83,7 +82,7 @@ test.describe('the peer group (Story 1.7)', () => {
   test('the HTML and the RSC payload of Peers carry no orgnr outside the group, peer key-figure amount or server field', async ({ request }) => {
     await expectNoPeerFields(request, `/analyse/${A.orgnr}/peers`, {
       pool: expectedPool(A.orgnr ?? '', 0),
-      marker: nb['peers.funnel.stage5'],
+      marker: nb['peers.funnel.stage3'],
       // Story 2.8: every group member's orgnr, for its exclude action.
       inUrl: pool0.map((peer) => peer.orgnr),
     });
@@ -95,7 +94,7 @@ test.describe('the peer group (Story 1.7)', () => {
     const ekskl = group2.slice(0, 2).map((peer) => peer.orgnr).sort();
     await expectNoPeerFields(request, `/analyse/${A.orgnr}/peers?ekskl=${ekskl.join(',')}&band=2`, {
       pool: expectedPool(A.orgnr ?? '', 2),
-      marker: nb['peers.funnel.stage5'],
+      marker: nb['peers.funnel.stage3'],
       inUrl: group2.map((peer) => peer.orgnr),
     });
   });
@@ -202,56 +201,83 @@ function seedSubject(
   };
 }
 
-/** A subject whose group mixes match bases, at least one of them resting on a classification (✦): it needs a type of its own. */
+/** The funnel as built, both signals on (Story 5.2): what v1 no longer runs. */
+const AS_BUILT = { textSignal: true, fingerprintSignal: true } as const;
+
+/**
+ * A subject with a type of its own whose group the funnel as built gives
+ * mixed match bases. v1 (Story 5.2) shows no match basis at all.
+ */
 const mixedBasisSubject = seedSubject(
-  (orgnr) => classificationOf(orgnr) !== null,
-  (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2 && rows.some((row) => row.grunnlagKi),
-  'with mixed match bases and a ✦ basis',
+  (orgnr) => {
+    if (classificationOf(orgnr) === null) return false;
+    const own = expectedSubject(orgnr);
+    const bases = expectedPeerGroup(orgnr, 0, AS_BUILT).group.map((peer) => matchBasis(own, peer, AS_BUILT));
+    return new Set(bases).size >= 2;
+  },
+  () => true,
+  'with mixed match bases as built and a type of its own',
 );
 
-/** A subject whose group has a flagged peer: it needs both signals of its own, a typed fingerprint and a type. */
+/**
+ * A subject whose group the funnel as built would flag a peer in: it needs
+ * both signals of its own. v1 (Story 5.2) shows no flag.
+ */
 const flaggedSubject = seedSubject(
   (orgnr) => {
     const own = expectedSubject(orgnr);
-    return own.classification !== null && own.fingerprint !== null && businessType(own.fingerprint) !== null;
+    if (own.classification === null || own.fingerprint === null || businessType(own.fingerprint) === null) return false;
+    return expectedPeerGroup(orgnr, 0, AS_BUILT).flagged.length > 0;
   },
-  (rows) => rows.some((row) => row.flagg !== null),
-  'with a flagged peer',
+  () => true,
+  'with a peer the funnel as built would flag',
 );
 
-/** ✦ is hidden from screen readers wherever it is drawn: one read of every marker, not one wait per marker. */
-async function expectEveryMarkHidden(page: Page): Promise<void> {
-  const hidden = await page.getByTestId('ai-mark').evaluateAll((marks) => marks.map((mark) => mark.getAttribute('aria-hidden')));
-  expect(hidden.filter((value) => value !== 'true')).toEqual([]);
+/**
+ * A subject whose as-built group (both signals on) is strictly smaller than
+ * its pool, so a page that ran the funnel as built would list fewer peers
+ * (triage 17). Fails loudly when the seed has none.
+ */
+const narrowedAsBuiltSubject = seedSubject(
+  (orgnr) => expectedPeerGroup(orgnr, 0, AS_BUILT).group.length < expectedPool(orgnr, 0).length,
+  () => true,
+  'whose as-built group (AS_BUILT) is smaller than its pool',
+);
+
+/** What v1's Peers tab never shows (Story 5.2): the basis and flag columns and ✦. */
+async function expectNoModelMarks(page: Page): Promise<void> {
+  const main = page.locator('main');
+  await expect(main.getByTestId('ai-mark')).toHaveCount(0);
+  const body = (await main.textContent()) ?? '';
+  expect(body).not.toContain(GLYPH);
+  expect(body).not.toContain(nb['peers.col.basis']);
+  expect(body).not.toContain(nb['peers.col.flag']);
+  expect(body).not.toContain(nb['peers.flag']);
+  expect(body).not.toContain(nb['peers.ai']);
 }
 
 test.describe('the Peers tab shows why (Story 2.7)', () => {
-  const basisText = (row: PeerDisplayRow) => (row.grunnlagKi ? `${GLYPH}${nb['peers.ai']} ${row.grunnlag}` : row.grunnlag);
-  const flagText = (row: PeerDisplayRow) => (row.flagg === null ? '' : `${GLYPH}${nb['peers.ai']} ${row.flagg}`);
   const desktopRows = (page: Page) => page.getByRole('region', { name: nb['peers.regionLabel'] }).locator('tbody tr');
 
-  test('the funnel shows the five stages with the engine’s counts, the Segment criterion and the flagged count', async ({ page }) => {
+  test('the funnel shows stages 1–3 with the engine’s counts, the Segment criterion and the not-applied sentence', async ({ page }) => {
     const { counts } = expectedPeerGroup(A.orgnr ?? '', 0);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/peers`);
     const stages = page.getByTestId('funnel-stage');
-    await expect(stages).toHaveCount(5);
-    await expect(page.getByTestId('funnel-count')).toHaveText(
-      [counts.stage1, counts.stage2, counts.stage3.legalForm, counts.stage4.businessModel, counts.stage5.classification].map(String),
-    );
+    await expect(stages).toHaveCount(3);
+    await expect(page.getByTestId('funnel-count')).toHaveText([counts.stage1, counts.stage2, counts.stage3.legalForm].map(String));
     await expect(stages.nth(2)).toContainText(nb['peers.funnel.segment.legalForm']);
     await expect(page.getByTestId('funnel-criterion-count')).toHaveText(String(counts.stage3.legalForm));
-    await expect(page.getByTestId('funnel-flagged')).toHaveText(
-      `${GLYPH}${nb['peers.ai']} ${nb['peers.funnel.flagged'].replace('{n}', String(counts.stage5.flagged))}`,
-    );
-    // Five columns side by side at desktop width.
+    await expect(page.getByTestId('funnel-not-applied')).toHaveText(nb['peers.funnel.notApplied']);
+    await expect(page.getByTestId('funnel-flagged')).toHaveCount(0);
+    // Three columns side by side at desktop width.
     const tops = await stages.evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top)));
     expect(new Set(tops).size).toBe(1);
+    await expectNoModelMarks(page);
   });
 
-  // Demo A is not in the labelled set, and its group has no type on either
-  // signal for it: row by row, names and reasons may be compared.
-  test("demo A: each row's figures, reason, basis and flag match the engine on the seed", async ({ page }) => {
+  // Demo A is not in the labelled set: row by row, names and reasons may be compared.
+  test("demo A: each row's figures and reason match the engine on the seed", async ({ page }) => {
     const rows = expectedRows(A.orgnr ?? '', 0);
     expect(rows.length).toBeGreaterThan(0);
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -262,57 +288,48 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     await expect(shown.locator('td:nth-child(2)')).toHaveText(rows.map((row) => row.omsetning));
     await expect(shown.locator('td:nth-child(3)')).toHaveText(rows.map((row) => row.driftsmargin));
     await expect(shown.locator('td:nth-child(4)')).toHaveText(rows.map((row) => row.hvorforMed));
-    await expect(shown.getByTestId('peer-basis')).toHaveText(rows.map(basisText));
-    await expect(shown.locator('td:nth-child(6)')).toHaveText(rows.map(flagText));
-    await expectEveryMarkHidden(page);
+    await expect(shown.first().locator('td')).toHaveCount(5);
+    await expectNoModelMarks(page);
   });
 
   // These subjects' peers may be in the labelled set, so a failure must not
-  // print a basis or a flag next to a name: the tests compare totals per
-  // basis and per flag only, and the row count.
-  const tally = (texts: readonly string[]) => {
-    const counts: Record<string, number> = {};
-    for (const text of texts) counts[text] = (counts[text] ?? 0) + 1;
-    return counts;
-  };
-  for (const [label, subjectOf, needsFlag] of [
-    ['a mixed-basis subject from the seed', mixedBasisSubject, false],
-    ['a subject with a flagged peer from the seed', flaggedSubject, true],
+  // print a name: the tests compare the row count and what is absent.
+  for (const [label, subjectOf] of [
+    ['a mixed-basis subject from the seed', mixedBasisSubject],
+    ['a subject the funnel as built would flag a peer for', flaggedSubject],
+    ['a subject the funnel as built would narrow', narrowedAsBuiltSubject],
   ] as const) {
-    test(`${label}: the totals per basis and flag match the engine`, async ({ page }) => {
+    test(`${label}: v1 shows the whole pool, with no basis, flag or ✦`, async ({ page }) => {
       const orgnr = subjectOf();
       const rows = expectedRows(orgnr, 0);
+      expect(rows.length).toBe(expectedPool(orgnr, 0).length);
+      // The pool, not the as-built group, is what v1 lists.
+      expect(rows.map((row) => row.orgnr)).toEqual(expectedPool(orgnr, 0).map((peer) => peer.orgnr));
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(`/analyse/${orgnr}/peers`);
-      const shown = desktopRows(page);
-      await expect(shown).toHaveCount(rows.length);
-      const bases = await shown.getByTestId('peer-basis').allTextContents();
-      const flags = await shown.locator('td:nth-child(6)').allTextContents();
-      expect(tally(bases)).toEqual(tally(rows.map(basisText)));
-      expect(tally(flags)).toEqual(tally(rows.map(flagText)));
-      expect(bases.filter((text) => text.startsWith(GLYPH)).length).toBeGreaterThan(0);
-      if (needsFlag) expect(flags.filter((text) => text !== '').length).toBeGreaterThan(0);
-      await expectEveryMarkHidden(page);
+      await expect(desktopRows(page)).toHaveCount(rows.length);
+      await expectNoModelMarks(page);
     });
 
     test(`${label}: the HTML and the RSC payload carry no orgnr outside the group, peer key-figure amount or server field`, async ({ request }) => {
       const orgnr = subjectOf();
       await expectNoPeerFields(request, `/analyse/${orgnr}/peers`, {
         pool: expectedPool(orgnr, 0),
-        marker: nb['peers.funnel.stage5'],
-        // Story 2.8: the group's orgnrs, for the exclude actions; a pool peer stage 4 or 5 removed stays out.
+        marker: nb['peers.funnel.stage3'],
+        // Story 2.8: the group's orgnrs, for the exclude actions.
         inUrl: expectedGroup(orgnr, 0).map((peer) => peer.orgnr),
       });
     });
   }
 
-  test('the caption carries the key "✦ KI-generert", and the flag column has a screen-reader header', async ({ page }) => {
+  test('the table is named for screen readers and has no basis or flag column', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/peers`);
     const region = page.getByRole('region', { name: nb['peers.regionLabel'] });
-    await expect(region.locator('caption')).toBeVisible();
-    await expect(region.locator('caption')).toContainText(`${GLYPH}${nb['peers.ai']}`);
-    await expect(region.locator('thead th').nth(5)).toHaveText(nb['peers.col.flag']);
+    await expect(region.locator('caption')).toHaveText(nb['peers.regionLabel']);
+    await expect(region.locator('caption')).toHaveClass(/sr-only/);
+    await expect(region.locator('thead th')).toHaveCount(5);
+    await expectNoModelMarks(page);
   });
 
   for (const width of [375, 320]) {
@@ -330,7 +347,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
           return { top: box.top, width: box.width };
         }),
       );
-      expect(stages).toHaveLength(5);
+      expect(stages).toHaveLength(3);
       for (let i = 1; i < stages.length; i += 1) expect(stages[i]?.top ?? 0).toBeGreaterThan(stages[i - 1]?.top ?? 0);
       for (const stage of stages) expect(stage.width).toBeGreaterThan(width - 40);
       // Cards, not the table.
@@ -354,6 +371,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
             .filter((box) => box.width < 24 || box.height < 24).length,
       );
       expect(small).toBe(0);
+      await expectNoModelMarks(page);
       await noSidewaysScroll(page);
     });
   }

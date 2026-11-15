@@ -19,7 +19,7 @@ Routine work that went as expected is not logged.
 | auth | 34 |
 | money | 25 |
 | parsing | 19 |
-| llm-boundary | 7 |
+| llm-boundary | 8 |
 | scope | 18 |
 | docs | 22 |
 
@@ -902,3 +902,18 @@ Mutation check: hashing the raw bytes again fails 19 tests, among them the first
 - **(f) The phone-width cap check could not pass** (triage 24, the BMAD session in the full one-worker run). The implementation report blamed the restored dump; the cause was that the first 20 peers were excluded, so every drawn card held "Ta med igjen".
 - **(g) The button pushed at the cap** (triage 25, the BMAD session, checking the review session's PR text against the code). The checkpoint said a press does nothing at the cap and the provider refuses as well; only the provider refused. The button guard is `fe1065d`.
 **Outcome:** Commits `bd77ec3` to `ed602eb` and the docs commit `2fc0acb`; review fixes `4834886`, `f07c520`, `99545fd`, `23cc0b2`, `409dd63` and `fe1065d`, on `story/2.10-epic-2-follow-ups`.
+
+### 2026-11-15 — Story 5.2: the layer measurement, and stages 4 and 5 switched off in v1
+**Tags:** llm-boundary
+**Tool:** Claude Code (Opus 5.5): the BMAD session and an implementation subagent it dispatched; three review subagents
+**Asked:** Measure precision and recall per funnel layer against the labelled set (FR-3, FR-13, NFR23, NFR24, NFR32; issue #64), apply the stage-5 rule fixed beforehand in PRD §9, and record whether each band is kept.
+**Got:** `pnpm analysis:layers` (`scripts/layer-measurement.ts`, `scripts/layer-measurement-compute.ts`), the report `analysis/output/layer-measurement-62100.md`, `V1_TEXT_SIGNAL` and `V1_FINGERPRINT_SIGNAL` (both `false`) in `src/engine/peers.ts`, a Peers tab without match basis, flag or ✦, and `seed/coverage.json` marking 62.100 measured.
+**Problem:** What could go wrong, and what holds it:
+1. **A measurement that tunes itself.** The definitions were frozen in the spec, and the script and tests were committed, before the first run on the real labels. The report names the commit it ran at, and the script refuses to run with uncommitted changes under `scripts/`, `src/`, `analysis/labelled-set/` or `seed/coverage.json` (`test/layer-measurement.test.ts`, describe "gitCommit"). Reports 1–4 are all committed, and no value or verdict moved between them. The text-against-L1 comparison, which would have passed, is reported and not used, because it was not fixed beforehand (PRD §9).
+2. **A rule decided by rounding.** The stage-5 difference was 2,967 pp. Report 1 showed it as "+3,0 pp" beside "not kept". The comparison is exact in Decimal (`test/layer-measurement.test.ts` "stage-5 rule is inclusive at 3 pp"), and from report 2 on the deciding differences carry three decimals and fractions.
+3. **The labelled set leaking.** The output is totals only. The script refuses to write a report that holds a labelled orgnr (`test/layer-measurement.test.ts` "the report names no labelled company"), and no label row or per-orgnr signal was printed during the session.
+4. **A funnel switched off by halves.** Both signals are off by one constant each, read by the engine, the rows, the "Hvorfor med" text and the funnel component, and the measurement turns them on explicitly. Each guard has a test that fails when only that guard is removed (`test/engine/peers.test.ts` "v1: the group equals the pool", "v1: every match basis is industry_and_size_only"; `test/analysis/inclusion-reason.test.ts` "inclusionReason in v1"). The e2e "v1 shows the whole pool" runs on a subject whose as-built group is smaller than its pool.
+5. **The model's place.** The classifications stay stored but choose no peer, so in v1 the model's only job on the Peers tab is gone. The figure test boundary (FR-53) is untouched.
+**Caught by:** The review in the spec's triage log (19 findings: 16 patched, 1 rejected, 2 decided by Meinich). Blind Hunter found that switching stage 4 off removed the stage-5 rule's baseline: text against L1 would have passed. Meinich kept both off and had it reported (Spec Change Log). The BMAD session caught a "+3,0 pp" shown beside "not kept", and a pronoun for Meinich that the BMAD session's own instruction had put into the report. Verification Gap found that the dirty-tree guard, the database reads and the e2e "whole pool" check could pass with their guards removed. One AI error came from the review session's own recommendation, which Meinich adopted at the checkpoint: "without a band" as the band widened to low–high measured the whole fingerprint, not the band. The review session pointed this out after the run, and the BMAD session noted it when it presented the result; the report states that the band test cannot tell a band from the fingerprint (`test/layer-measurement.test.ts` "counts the pairs whose fingerprint signal is null without each band, and says what that means").
+**Outcome:** Commits `e6c0624` to `4397498` on `story/5.2-layer-measurement`.
+

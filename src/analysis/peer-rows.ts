@@ -13,15 +13,18 @@
 //   driftsmargin  the value the benchmark uses (computeApiKeyFigures), or
 //                 "Kan ikke beregnes: …" with its reason
 //   hvorforMed    the rules-written reason (inclusion-reason.ts)
-//   grunnlag      the match basis (src/engine/peers.ts matchBasis)
-//   grunnlagKi    whether the basis rests on a classification (✦)
-//   flagg         "Usikker klassifisering", or null
+//
+// No match basis ("Grunnlag for treff") and no flag ("Usikker
+// klassifisering"): the v1 funnel reads neither signal (V1_FUNNEL, Story
+// 5.2), so every basis would be industry and size and no peer is flagged;
+// the Peers tab shows neither column (Meinich, 2026-11-15). matchBasis
+// stays in the engine for a later stage.
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';
-import { matchBasis, type CandidateFiling, type MatchBasis, type FunnelSubject } from '../engine/peers.ts';
+import { V1_FUNNEL, type CandidateFiling, type FunnelOptions, type FunnelSubject } from '../engine/peers.ts';
 import { absenceText } from './figure-text.ts';
-import { t, type MessageId } from '../messages/index.ts';
+import { t } from '../messages/index.ts';
 import { inclusionReason } from './inclusion-reason.ts';
 import type { SubjectKeyFigures } from './view.ts';
 
@@ -40,19 +43,6 @@ export type PeerDisplayRow = {
   readonly omsetning: string;
   readonly driftsmargin: string;
   readonly hvorforMed: string;
-  readonly grunnlag: string;
-  /** The basis rests on the model's classification: shown with ✦ and "KI-generert". */
-  readonly grunnlagKi: boolean;
-  /** "Usikker klassifisering" for a flagged peer; null otherwise. */
-  readonly flagg: string | null;
-};
-
-/** Each basis's label, and whether it rests on a classification. Exhaustive by type. */
-export const BASIS_DISPLAY: Readonly<Record<MatchBasis, { readonly label: MessageId; readonly ki: boolean }>> = {
-  description_and_accounts: { label: 'peers.basis.description_and_accounts', ki: true },
-  accounts_only: { label: 'peers.basis.accounts_only', ki: false },
-  description_only: { label: 'peers.basis.description_only', ki: true },
-  industry_and_size_only: { label: 'peers.basis.industry_and_size_only', ki: false },
 };
 
 function revenueText(peer: PeerInput, valuta: string | null): string {
@@ -70,32 +60,28 @@ function marginText(peer: PeerInput, filingYear: number): string {
 
 /**
  * The rows for `peers`, in their order. `subject` is the funnel's subject
- * filing, `subjectName` its name as the page shows it, `flagged` the
- * funnel's flagged orgnrs, `valuta` the group's currency and `ekskl` the
- * URL's exclusions.
+ * filing, `subjectName` its name as the page shows it, `valuta` the group's
+ * currency and `ekskl` the URL's exclusions. "Hvorfor med" follows
+ * `options` (default V1_FUNNEL): it names fingerprint categories only when
+ * the fingerprint signal is on.
  */
 export function peerRows(
   subject: FunnelSubject,
   subjectName: string,
   peers: readonly PeerInput[],
-  flagged: readonly string[],
   valuta: string | null,
   ekskl: readonly string[] = [],
+  options: FunnelOptions = V1_FUNNEL,
 ): PeerDisplayRow[] {
-  const isFlagged = new Set(flagged);
   const isExcluded = new Set(ekskl);
   return peers.map((peer) => {
-    const basis = BASIS_DISPLAY[matchBasis(subject, peer)];
     return {
       orgnr: peer.orgnr,
       excluded: isExcluded.has(peer.orgnr),
       navn: peer.navn ?? formatOrgnr(peer.orgnr),
       omsetning: revenueText(peer, valuta),
       driftsmargin: marginText(peer, subject.filingYear),
-      hvorforMed: inclusionReason(subject, peer, subjectName),
-      grunnlag: t(basis.label),
-      grunnlagKi: basis.ki,
-      flagg: isFlagged.has(peer.orgnr) ? t('peers.flag') : null,
+      hvorforMed: inclusionReason(subject, peer, subjectName, options),
     };
   });
 }

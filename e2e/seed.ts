@@ -13,7 +13,7 @@ import { benchmarkApiFigures, type ApiBenchmark } from '../src/engine/benchmark.
 import { formatMillions, formatOrgnr, formatReadDate } from '../src/engine/format.ts';
 import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
-import { assemblePeerGroup, type CandidateFiling, type SizeBand, type FunnelSubject } from '../src/engine/peers.ts';
+import { assemblePeerGroup, V1_FUNNEL, type CandidateFiling, type FunnelOptions, type SizeBand, type FunnelSubject } from '../src/engine/peers.ts';
 import { peerRows, type PeerDisplayRow } from '../src/analysis/peer-rows.ts';
 import { parseCsv } from '../scripts/seed-format.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
@@ -158,7 +158,11 @@ export function expectedSubject(orgnr: string): FunnelSubject {
     ...comparability(filing),
   };
 }
-export function expectedPeerGroup(orgnr: string, band: SizeBand) {
+/**
+ * The funnel on the seed as the app runs it (V1_FUNNEL: text signal off, Story 5.2), or with
+ * `options` to see what the funnel as built would do.
+ */
+export function expectedPeerGroup(orgnr: string, band: SizeBand, options: FunnelOptions = V1_FUNNEL) {
   const own = company(orgnr);
   const filing = newestFiling(orgnr);
   const subject = expectedSubject(orgnr);
@@ -180,7 +184,7 @@ export function expectedPeerGroup(orgnr: string, band: SizeBand) {
         ...comparability(f),
       };
     });
-  return assemblePeerGroup(subject, candidates, band);
+  return assemblePeerGroup(subject, candidates, band, options);
 }
 /** The group after stages 4 and 5: what the Peers tab lists and every aggregate uses. */
 export const expectedGroup = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).group;
@@ -269,7 +273,6 @@ export function expectedRows(orgnr: string, band: SizeBand): PeerDisplayRow[] {
     expectedSubject(orgnr),
     own.navn === undefined || own.navn === '' ? formatOrgnr(orgnr) : own.navn,
     peers,
-    group.flagged,
     orNull(newestFiling(orgnr).valuta),
   );
 }

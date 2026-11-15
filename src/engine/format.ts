@@ -107,6 +107,16 @@ export function formatPercentagePoints(fraction: string): string {
   return `${render(decimal(fraction).mul(100), 1)}${NBSP}pp`;
 }
 
+/**
+ * A fraction difference → percentage points, three decimals, a "+" on a
+ * positive value: "+2,967 pp", "−0,061 pp". For a difference compared
+ * against a bound (Story 5.2's 3 pp rule), where one decimal would show
+ * 2,967 as 3,0.
+ */
+export function formatPercentagePointsFine(fraction: string): string {
+  return `${render(decimal(fraction).mul(100), 3, { plus: true })}${NBSP}pp`;
+}
+
 /** Days → whole days: "48 dager". */
 export function formatDays(days: string): string {
   return `${render(decimal(days), 0)}${NBSP}dager`;

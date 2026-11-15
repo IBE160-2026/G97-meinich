@@ -102,6 +102,7 @@
   "peers.funnel.segment.legalForm": "Selskapsform AS",
   "peers.funnel.segment.note": "Peerless sammenligner foreløpig bare aksjeselskaper.",
   "peers.funnel.flagged": "{n} med usikker klassifisering",
+  "peers.funnel.notApplied": "Forretningsmodell og klassifisering ble målt mot et fasitsett og ga ikke klart bedre treff, så de brukes ikke til å velge sammenlignbare selskaper i denne versjonen.",
   "peers.showAll": "Vis alle {n}",
   "peers.col.action": "Handling",
   "peers.action.exclude": "Ekskluder",

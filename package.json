@@ -34,6 +34,7 @@
     "derive": "node scripts/derive.ts",
     "classify": "node scripts/classify.ts",
     "analysis:spread": "node scripts/fingerprint-spread.ts",
+    "analysis:layers": "node scripts/layer-measurement.ts",
     "restore:documents": "node scripts/restore-documents.ts"
   },
   "dependencies": {

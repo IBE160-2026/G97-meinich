@@ -207,7 +207,7 @@ describe('stage 4 against stored fingerprints', () => {
       insert into register.fingerprint ${tx({ orgnr, filing_year: year, ...columns, input_digest: '0'.repeat(64), dataset: 'full' })}`;
   }
 
-  it('reads each candidate’s fingerprint for the benchmark year, removes another type from the group and keeps the pool', async () => {
+  it('reads each candidate’s fingerprint for the benchmark year; as built, stage 4 removes another type and keeps the pool; in v1 it removes no one', async () => {
     const { funnel, group } = await groupForDemoA(0);
     const [kept, removed] = group.pool;
     if (kept === undefined || removed === undefined || funnel.naeringskode1 === null) {
@@ -228,12 +228,16 @@ describe('stage 4 against stored fingerprints', () => {
         expect(byOrgnr.get(removed.orgnr)?.fingerprint?.costOfGoods).toEqual({ lo: 'high', hi: 'high' });
 
         const subject = { ...funnel, fingerprint: fingerprintFromColumns(CONSULTANCY) };
-        const after = assemblePeerGroup(subject, candidates, 0);
+        // Stage 4 as built (both signals on), as Story 5.2 measured it.
+        const after = assemblePeerGroup(subject, candidates, 0, { textSignal: true, fingerprintSignal: true });
         expect(after.pool.map((p) => p.orgnr)).toEqual(group.pool.map((p) => p.orgnr));
         expect(after.group.map((p) => p.orgnr)).toContain(kept.orgnr);
         expect(after.group.map((p) => p.orgnr)).not.toContain(removed.orgnr);
         expect(after.counts.stage4.businessModel).toBe(after.group.length);
         expect(after.counts.stage3.legalForm).toBe(after.pool.length);
+        // v1 (Story 5.2): the fingerprint signal is off, so the stored fingerprints remove no one.
+        const v1 = assemblePeerGroup(subject, candidates, 0);
+        expect(v1.group.map((p) => p.orgnr)).toEqual(v1.pool.map((p) => p.orgnr));
         throw new Rollback();
       }),
     ).rejects.toBeInstanceOf(Rollback);

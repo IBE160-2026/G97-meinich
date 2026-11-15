@@ -19,17 +19,12 @@ const row = (i: number): PeerDisplayRow => ({
   omsetning: '1,0 mill. kr',
   driftsmargin: '1,0 %',
   hvorforMed: 'Samme bransje',
-  grunnlag: 'Kun regnskap',
-  grunnlagKi: false,
-  flagg: null,
 });
 
 const labels = {
   omsetning: 'Omsetning',
   driftsmargin: 'Driftsmargin',
   reason: 'Hvorfor med',
-  basis: 'Grunnlag',
-  ki: 'KI-generert',
   excluded: 'Ekskludert',
 };
 

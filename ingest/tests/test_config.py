@@ -26,9 +26,9 @@ def test_base_url_from_environment() -> None:
 
 
 def test_committed_coverage() -> None:
-    assert json.loads((REPO_ROOT / "seed" / "coverage.json").read_text(encoding="utf-8")) == [
-        {"code": "62.100", "measured": False}
-    ]
+    # Story 5.2: 62.100 is measured; the loader checks the report and its checksum, step 1 reads the code only.
+    [entry] = json.loads((REPO_ROOT / "seed" / "coverage.json").read_text(encoding="utf-8"))
+    assert (entry["code"], entry["measured"], entry["report"]) == ("62.100", True, "analysis/output/layer-measurement-62100.md")
     assert config.load_coverage() == ["62.100"]
 
 

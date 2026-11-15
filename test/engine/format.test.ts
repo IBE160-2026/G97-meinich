@@ -13,6 +13,7 @@ import {
   formatOrgnr,
   formatPercent,
   formatPercentagePoints,
+  formatPercentagePointsFine,
   formatPercentNumber,
   formatReadDate,
   formatSignedKroner,
@@ -39,6 +40,9 @@ describe('formatter bytes', () => {
     ['formatPercent 0.021', formatPercent('0.021'), `2,1${NBSP}%`],
     ['formatWholePercent 61', formatWholePercent('61'), `61${NBSP}%`],
     ['formatPercentagePoints 0.07', formatPercentagePoints('0.07'), `7,0${NBSP}pp`],
+    ['formatPercentagePointsFine 0.029669', formatPercentagePointsFine('0.029669'), `+2,967${NBSP}pp`],
+    ['formatPercentagePointsFine -0.0006', formatPercentagePointsFine('-0.0006'), `${MINUS}0,060${NBSP}pp`],
+    ['formatPercentagePointsFine 0.03', formatPercentagePointsFine('0.03'), `+3,000${NBSP}pp`],
     ['formatDays 48', formatDays('48'), `48${NBSP}dager`],
     ['formatTurnover 2.85', formatTurnover('2.85'), '2,85'],
     ['formatMultiple 6.5', formatMultiple('6.5'), '6,5'],
@@ -90,6 +94,7 @@ describe('rounding, once, half away from zero', () => {
     expectBytes(formatSignedKroner('49'), `0${NBSP}kr`);
     expectBytes(formatSignedKroner('0'), `0${NBSP}kr`);
     expectBytes(formatPercentagePoints('-0.0004'), `0,0${NBSP}pp`);
+    expectBytes(formatPercentagePointsFine('-0.0000004'), `0,000${NBSP}pp`);
     expectBytes(formatMultiple('-0.04'), '0');
   });
 

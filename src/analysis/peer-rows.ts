@@ -22,7 +22,7 @@
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';
-import type { CandidateFiling, FunnelSubject } from '../engine/peers.ts';
+import { V1_FUNNEL, type CandidateFiling, type FunnelOptions, type FunnelSubject } from '../engine/peers.ts';
 import { absenceText } from './figure-text.ts';
 import { t } from '../messages/index.ts';
 import { inclusionReason } from './inclusion-reason.ts';
@@ -61,7 +61,9 @@ function marginText(peer: PeerInput, filingYear: number): string {
 /**
  * The rows for `peers`, in their order. `subject` is the funnel's subject
  * filing, `subjectName` its name as the page shows it, `valuta` the group's
- * currency and `ekskl` the URL's exclusions.
+ * currency and `ekskl` the URL's exclusions. "Hvorfor med" follows
+ * `options` (default V1_FUNNEL): it names fingerprint categories only when
+ * the fingerprint signal is on.
  */
 export function peerRows(
   subject: FunnelSubject,
@@ -69,6 +71,7 @@ export function peerRows(
   peers: readonly PeerInput[],
   valuta: string | null,
   ekskl: readonly string[] = [],
+  options: FunnelOptions = V1_FUNNEL,
 ): PeerDisplayRow[] {
   const isExcluded = new Set(ekskl);
   return peers.map((peer) => {
@@ -78,7 +81,7 @@ export function peerRows(
       navn: peer.navn ?? formatOrgnr(peer.orgnr),
       omsetning: revenueText(peer, valuta),
       driftsmargin: marginText(peer, subject.filingYear),
-      hvorforMed: inclusionReason(subject, peer, subjectName),
+      hvorforMed: inclusionReason(subject, peer, subjectName, options),
     };
   });
 }

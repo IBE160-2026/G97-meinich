@@ -105,6 +105,16 @@ describe('peerRows', () => {
   });
 
   // The v1 funnel flags no one (Story 5.2); the row still tags an orgnr it is given.
+  // Triage 9: "Hvorfor med" follows the options, so a stage with the
+  // fingerprint signal on names the shared categories again.
+  it('names fingerprint categories only when the fingerprint signal is on', () => {
+    const on = { textSignal: false, fingerprintSignal: true } as const;
+    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], 'NOK', [], on);
+    expect(row?.hvorforMed).toBe('Samme bransje, omsetning 1,5× ADMMIT AS, varekostnadsandel i samme bånd, uten varelager');
+    const [v1] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], 'NOK');
+    expect(v1?.hvorforMed).toBe('Samme bransje, omsetning 1,5× ADMMIT AS');
+  });
+
   // v1 (Story 5.2): no match basis and no flag reach the page.
   it('carries no match basis and no flag, whatever the signals', () => {
     const rows = peerRows(

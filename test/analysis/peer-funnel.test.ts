@@ -69,16 +69,46 @@ describe('PeerFunnel', () => {
     expect(text(html)).not.toContain(nb['peers.funnel.flagged'].replace('{n}', '2'));
     expect(html).not.toContain(GLYPH);
     expect(html).not.toContain(nb['peers.ai']);
-    // The keys stay for a later stage.
-    expect(nb['peers.funnel.stage4']).toBeTruthy();
-    expect(nb['peers.funnel.stage5']).toBeTruthy();
-    expect(nb['peers.funnel.flagged']).toBeTruthy();
   });
 
   it('is an ordered list named by its visible heading', () => {
     const html = render(seven);
     expect(html).toContain(`<h3 id="trakt-tittel" class="m-0 mb-2 text-base font-semibold">${nb['peers.funnel.heading']}</h3>`);
     expect(html).toMatch(/<ol aria-labelledby="trakt-tittel"/);
+  });
+
+  // Triage 9: the stages and the note follow the funnel's options, not a v1 literal.
+  describe('follows the signals the funnel read', () => {
+    const withOptions = (textSignal: boolean, fingerprintSignal: boolean) =>
+      renderToString(createElement(PeerFunnel, { counts: seven, options: { textSignal, fingerprintSignal } }));
+    const names = (html: string) =>
+      stagesOf(html).map((stage) => /<span class="text-\[13px\] text-slate">([^<]*)<\/span>/.exec(stage)?.[1]);
+    const base = [nb['peers.funnel.stage1'], nb['peers.funnel.stage2'], nb['peers.funnel.stage3']];
+
+    it('both off (v1): stages 1–3 and the note', () => {
+      const html = withOptions(false, false);
+      expect(names(html)).toEqual(base);
+      expect(html).toContain('data-testid="funnel-not-applied"');
+      expect(render(seven)).toBe(html);
+    });
+
+    it('both on: five stages in five columns, and no note', () => {
+      const html = withOptions(true, true);
+      expect(names(html)).toEqual([...base, nb['peers.funnel.stage4'], nb['peers.funnel.stage5']]);
+      expect(/data-testid="funnel-count">(\d+)</g.exec(stagesOf(html)[4] ?? '')?.[1]).toBe('7');
+      expect(html).toMatch(/md:grid md:grid-cols-5/);
+      expect(html).not.toContain('funnel-not-applied');
+    });
+
+    it('one on: its stage alone, four columns, and no note', () => {
+      const fingerprintOnly = withOptions(false, true);
+      expect(names(fingerprintOnly)).toEqual([...base, nb['peers.funnel.stage4']]);
+      expect(fingerprintOnly).toMatch(/md:grid md:grid-cols-4/);
+      expect(fingerprintOnly).not.toContain('funnel-not-applied');
+      const textOnly = withOptions(true, false);
+      expect(names(textOnly)).toEqual([...base, nb['peers.funnel.stage5']]);
+      expect(textOnly).not.toContain('funnel-not-applied');
+    });
   });
 
   it('draws no bar, and divides by nothing, when stage 1 is empty', () => {

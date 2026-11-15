@@ -143,6 +143,28 @@ Implemented by a subagent in commits `875b4cd`..`587fa86`. Interpretations it re
 
 ## Review Triage Log
 
+Review pass 1 (2026-11-15): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session.
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | VG | The request path's mapping of `prior_api_fail_fields` to `priorRevenueFailsApi` has no test. | medium | No `documentBasisOf` test sets a non-empty list or reads `priorRevenueFailsApi`, and the decision-2 tests bypass `documentBasisOf`. | patch |
+| 2 | BH | The capital kroner for 9 and 10 are computed from the rounded ratio r, not from the filed amounts. | low | `capitalGap` multiplies the 40-digit `comparison.subject`. K − T·S/365 and T·D/365 − L use the filed øre and are the same formula. | patch |
+| 3 | BH | The reference cases' "printed, not read" comments are never asserted. | medium | `checkDocument` compares only the inputs of defined figures, so a `MISSING` expectation can hold for another reason. | patch |
+| 4 | BH | `capitalGap` has no test for an undefined subject. | low | The `subject_absent` → `no_comparison` branch is covered only through the below-floor case. | patch |
+| 5 | ECH, BH | The comments on the nullability of `priorApiFailFields` / `prior_api_fail_fields` disagree. | low | `StoredDocument` says null when not reconciled, while the select returns the stored array for any status. | patch (comment) |
+| 6 | BH | `fingerprint.ts` keeps its own `COST_LINES`, which duplicates `document-inputs.ts`. | low | Same five names in two lists, which can drift. R2's own rule (empty `nedskrivninger` counts as 0) is intended (Story 2.5c) and stays. | patch (import) |
+| 7 | BH | Small issues: `ore()` is applied to days, `prng(3_1n)`, and `status ?? ''` in `reference-seed.ts`. | low | Each is a direct correction. The `''` default in a test oracle would hide a missing status. | patch |
+| 8 | ECH | Figure 11 with subject revenue ≤ 0 gives an amount at or above the whole operating capital base. | false | A subject with no positive revenue has no size band and no peers (`docs/key-figures.md`, stage 1), so the comparison is below the floor and `capitalGap` returns `no_comparison`. A reconciled current column agrees with the API revenue. | reject |
+| 9 | ECH, BH | `valuta` null is folded into `not_nok`. | false | Stage 2 requires a stated `valuta` on both sides (`STATED_FIELDS`, `src/engine/peers.ts:182`). A subject without one has no peers, so `capitalGap` returns before the currency check. | reject |
+| 10 | BH | Growth over an unchecked prior column (`not_evaluable`) carries no signal. | false | This is decision 2 (Meinich): the column is used, and the path is recorded as unguarded under AD-15 with its count, which the diff does. | reject |
+| 11 | BH | The derived document revenue path is unreachable, which undercuts B1. | low | True on reconciled data, but the epics AC requires the 5 kr rule on a derived document revenue. It stays as a defensive branch, tested. | reject |
+| 12 | BH | The R3 defensive branches turn `exceeds_api_subtotal` into `component_missing`. | false | `documentFigureAbsence` returns `line_not_read_safely` first for every figure whose lines include `kundefordringer` or `bankinnskudd`. R3 never touches a cost line, so neither branch is reached. | reject |
+| 13 | BH | `perAarsverk` is reached only by tests, and its tenths sit in `denominatorOre`. | low | `docs/key-figures.md` requires the formulas implemented and the identity asserted on test inputs. Renaming the field adds type surface for a path v1 never takes. | reject |
+| 14 | BH | `no_comparison` merges an undefined subject and below the floor. | false | The gap is read with its `comparison`, whose `kind` (`subject_absent`, `below_floor`) carries the distinction. | reject |
+| 15 | BH | The B2 database test compares the fragment with itself. | false | "is one fragment in both queries" asserts that both queries contain the fragment and that the select reads `dk.`, not `k.`. The request path builds `SUBJECT_SQL` and `CANDIDATES_SQL` from the same `DOCUMENT_SELECT` and `DOCUMENT_JOINS` (`src/server/analysis.ts:101,113,246,251`). | reject |
+| 16 | BH | The new engine API is not wired in, and no story is named for it. | false | Story 3.1b ("The full key-figure table", `epics.md`) renders them, as the spec's Intent states. | reject |
+| 17 | BH | The AI log's "Caught by" and "Outcome" are incomplete. | low | Updated by the BMAD session with this review and the commit range before the PR. | patch (docs) |
+
 ## Design Notes
 
 **Exact identities.** (d/r) × (r/a) evaluated in `Decimal` rounds twice, so it is not d/a. The engine computes each figure as a reduced `Fraction` and divides once, so the margin × turnover product reduces to the same fraction as ROA and gives an identical `Decimal`.

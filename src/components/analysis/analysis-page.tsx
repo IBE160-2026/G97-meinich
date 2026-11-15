@@ -168,7 +168,7 @@ function peersShown(subject: Subject, group: ShownGroup, state: AnalysisState) {
   const funnel = funnelSubject(subject);
   if (funnel === null) throw new TypeError('peersShown: a covered subject without a filing');
   return {
-    rows: peerRows(funnel, displayName(subject), group.members, group.flagged, group.valuta, state.ekskl),
+    rows: peerRows(funnel, displayName(subject), group.members, group.valuta, state.ekskl),
     steps: bandSteps(funnel.sumDriftsinntekter, group.valuta),
   };
 }

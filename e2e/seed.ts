@@ -273,7 +273,6 @@ export function expectedRows(orgnr: string, band: SizeBand): PeerDisplayRow[] {
     expectedSubject(orgnr),
     own.navn === undefined || own.navn === '' ? formatOrgnr(orgnr) : own.navn,
     peers,
-    group.flagged,
     orNull(newestFiling(orgnr).valuta),
   );
 }

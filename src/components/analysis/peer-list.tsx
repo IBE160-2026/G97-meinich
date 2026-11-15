@@ -1,14 +1,14 @@
 // The Peers tab (Stories 1.7, 2.7; FR-15, FR-16, UX-DR37, UX-DR68): the
 // count, the funnel, then one row per peer — Selskap · Omsetning ·
-// Driftsmargin · Hvorfor med · Grunnlag for treff · flag — by revenue
-// descending, then orgnr. A server component: it renders the display rows
-// of src/analysis/peer-rows.ts, so only the strings shown reach the page
+// Driftsmargin · Hvorfor med · action — by revenue descending, then orgnr.
+// A server component: it renders the display rows of
+// src/analysis/peer-rows.ts, so only the strings shown reach the page
 // (AD-4). Rows are never keyed by orgnr, because a React key travels in the
 // RSC payload, and no row carries one.
 //
-// ✦ (ai-mark.tsx) marks the two bases that rest on a classification and
-// the flag, never the reason or a number; screen readers hear "KI-generert"
-// once per cell. The caption carries the visible key.
+// v1 (Story 5.2, Meinich 2026-11-15): no "Grunnlag for treff" column, no
+// flag column and no ✦ "KI-generert" key. The funnel reads neither the
+// fingerprint nor the classification, so nothing here rests on a model.
 //
 // From `md` the list is a table in its own horizontal scroll region
 // (`.scroll-region` in globals.css), so it may be wider than the screen
@@ -38,9 +38,8 @@ import { bandFactors, groupTooSmall, widerBand, type BandStep } from '@/analysis
 import { isKnownCurrency, type EmptyReason, type FunnelCounts, type StatedField } from '@/engine/peers';
 import { t } from '@/messages';
 import { DEFAULT_BAND, serialize, type AnalysisState } from '@/url/analysis-state';
-import { AiMark } from './ai-mark';
 import { EXCLUSION_CAP_ID, PeerAction, PeerChangeLink } from './peer-action';
-import { Basis, CARD_LIST_CLASS, Flag, PeerCard, PeerName, type PeerCardLabels } from './peer-card';
+import { CARD_LIST_CLASS, PeerCard, PeerName, type PeerCardLabels } from './peer-card';
 import { PeerFunnel } from './peer-funnel';
 import { PHONE_CARDS } from './phone-cards';
 import { ShowAllToggle } from './show-all-toggle';
@@ -131,11 +130,10 @@ export function cannotHavePeers(reason: NonNullable<EmptyReason>): boolean {
 const TABLE_CLASS =
   'w-full border-collapse text-left text-[13px] [&_th]:py-2 [&_th]:pr-4 [&_th]:font-semibold [&_td]:py-2 [&_td]:pr-4 ' +
   '[&_tbody_tr]:border-b [&_tbody_tr]:border-divider [&_tbody_tr]:align-top [&_td:first-child]:min-w-40 [&_td:first-child]:break-words ' +
-  '[&_:is(td,th):is(:nth-child(2),:nth-child(3))]:text-right [&_:is(td,th):is(:nth-child(2),:nth-child(3),:nth-child(5))]:whitespace-nowrap ' +
+  '[&_:is(td,th):is(:nth-child(2),:nth-child(3))]:text-right [&_:is(td,th):is(:nth-child(2),:nth-child(3))]:whitespace-nowrap ' +
   '[&_td:is(:nth-child(2),:nth-child(3))]:figure [&_td:nth-child(4)]:min-w-56';
 
 function PeerTable({ rows, capReached }: { readonly rows: readonly PeerDisplayRow[]; readonly capReached: boolean }) {
-  const ki = t('peers.ai');
   const excludedTag = t('peers.excluded');
   return (
     <div
@@ -145,21 +143,13 @@ function PeerTable({ rows, capReached }: { readonly rows: readonly PeerDisplayRo
       className="scroll-region mt-4 hidden md:block"
     >
       <table className={TABLE_CLASS}>
-        <caption className="caption-bottom pt-2 text-left text-[12px] text-slate">
-          <span className="sr-only">{`${t('peers.regionLabel')}. `}</span>
-          <AiMark spoken={false} />
-          {ki}
-        </caption>
+        <caption className="sr-only">{t('peers.regionLabel')}</caption>
         <thead>
           <tr className="border-b border-divider text-slate">
             <th scope="col">{t('peers.col.selskap')}</th>
             <th scope="col">{t('peers.col.omsetning')}</th>
             <th scope="col">{t('fig.driftsmargin')}</th>
             <th scope="col">{t('peers.col.reason')}</th>
-            <th scope="col">{t('peers.col.basis')}</th>
-            <th scope="col">
-              <span className="sr-only">{t('peers.col.flag')}</span>
-            </th>
             <th scope="col">
               <span className="sr-only">{t('peers.col.action')}</span>
             </th>
@@ -175,10 +165,6 @@ function PeerTable({ rows, capReached }: { readonly rows: readonly PeerDisplayRo
               <td>{row.omsetning}</td>
               <td>{row.driftsmargin}</td>
               <td>{row.hvorforMed}</td>
-              <td>
-                <Basis row={row} ki={ki} />
-              </td>
-              <td>{row.flagg === null ? null : <Flag text={row.flagg} ki={ki} />}</td>
               <td>
                 <PeerAction orgnr={row.orgnr} navn={row.navn} excluded={row.excluded} capReached={capReached} />
               </td>
@@ -196,8 +182,6 @@ function cardLabels(): PeerCardLabels {
     omsetning: t('peers.col.omsetning'),
     driftsmargin: t('fig.driftsmargin'),
     reason: t('peers.col.reason'),
-    basis: t('peers.col.basis'),
-    ki: t('peers.ai'),
     excluded: t('peers.excluded'),
   };
 }
@@ -232,10 +216,6 @@ function PeerCards({
           capReached={capReached}
         />
       ) : null}
-      <p className="m-0 mt-2 text-[12px] text-slate">
-        <AiMark spoken={false} />
-        {labels.ki}
-      </p>
     </div>
   );
 }

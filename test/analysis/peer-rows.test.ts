@@ -2,10 +2,10 @@
 // the list shows, its orgnr for the exclude action and whether it is
 // excluded, and nothing else. Synthetic peers.
 import { describe, expect, it } from 'vitest';
-import { BASIS_DISPLAY, peerRows, type PeerInput } from '../../src/analysis/peer-rows.ts';
+import { peerRows, type PeerInput } from '../../src/analysis/peer-rows.ts';
 import type { SubjectKeyFigures } from '../../src/analysis/view.ts';
 import type { BandRange, Fingerprint } from '../../src/engine/fingerprint.ts';
-import { MATCH_BASES, type FunnelSubject } from '../../src/engine/peers.ts';
+import type { FunnelSubject } from '../../src/engine/peers.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 
 const NBSP = ' ';
@@ -70,9 +70,9 @@ function peer(orgnr: string, overrides: Partial<PeerInput> = {}): PeerInput {
 
 describe('peerRows', () => {
   it('a row has only the shown fields', () => {
-    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], [], 'NOK');
+    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], 'NOK');
     expect(Object.keys(row ?? {}).sort()).toEqual(
-      ['driftsmargin', 'excluded', 'flagg', 'grunnlag', 'grunnlagKi', 'hvorforMed', 'navn', 'omsetning', 'orgnr'].sort(),
+      ['driftsmargin', 'excluded', 'hvorforMed', 'navn', 'omsetning', 'orgnr'].sort(),
     );
     expect(row).toEqual({
       orgnr: '900000001',
@@ -82,10 +82,6 @@ describe('peerRows', () => {
       driftsmargin: `10,0${NBSP}%`,
       // v1 names no fingerprint category (Story 5.2).
       hvorforMed: 'Samme bransje, omsetning 1,5× ADMMIT AS',
-      // v1 reads neither signal (Story 5.2): the basis is industry and size.
-      grunnlag: nb['peers.basis.industry_and_size_only'],
-      grunnlagKi: false,
-      flagg: null,
     });
   });
 
@@ -94,7 +90,6 @@ describe('peerRows', () => {
       subject,
       'ADMMIT AS',
       [peer('900000001', { navn: 'NAVN AS' }), peer('900000002', { navn: 'ANNET AS', fingerprint: FORHANDLER })],
-      ['900000002'],
       'NOK',
     );
     expect(rows.map((row) => row.orgnr)).toEqual(['900000001', '900000002']);
@@ -105,57 +100,44 @@ describe('peerRows', () => {
   });
 
   it('names a peer with no name by its orgnr, grouped', () => {
-    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001', { navn: null })], [], 'NOK');
+    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001', { navn: null })], 'NOK');
     expect(row?.navn).toBe(`900${NBSP}000${NBSP}001`);
   });
 
   // The v1 funnel flags no one (Story 5.2); the row still tags an orgnr it is given.
-  it('tags a peer in the flagged list, and in v1 its basis is industry and size', () => {
+  // v1 (Story 5.2): no match basis and no flag reach the page.
+  it('carries no match basis and no flag, whatever the signals', () => {
     const rows = peerRows(
       subject,
       'ADMMIT AS',
-      [peer('900000001'), peer('900000002', { fingerprint: FORHANDLER })],
-      ['900000002'],
+      [peer('900000001'), peer('900000002', { fingerprint: FORHANDLER }), peer('900000003', { classification: null })],
       'NOK',
     );
-    expect(rows.map((row) => row.flagg)).toEqual([null, nb['peers.flag']]);
-    expect(rows[1]?.grunnlag).toBe(nb['peers.basis.industry_and_size_only']);
-  });
-
-  it('gives each basis its label; in v1 every one is industry and size, so no ✦', () => {
-    const cases = [
-      peer('900000001'),
-      peer('900000002', { classification: null }),
-      peer('900000003', { fingerprint: null }),
-      peer('900000004', { fingerprint: null, classification: null }),
-    ];
-    const rows = peerRows(subject, 'ADMMIT AS', cases, [], 'NOK');
-    expect(rows.map((row) => [row.grunnlag, row.grunnlagKi])).toEqual([
-      [nb['peers.basis.industry_and_size_only'], false],
-      [nb['peers.basis.industry_and_size_only'], false],
-      [nb['peers.basis.industry_and_size_only'], false],
-      [nb['peers.basis.industry_and_size_only'], false],
-    ]);
-    // The display map still marks the two description bases, for the text signal as built.
-    expect(Object.entries(BASIS_DISPLAY).filter(([, display]) => display.ki).map(([basis]) => basis).sort()).toEqual(
-      ['description_and_accounts', 'description_only'],
-    );
-    expect(Object.keys(BASIS_DISPLAY).sort()).toEqual([...MATCH_BASES].sort());
+    for (const row of rows) {
+      expect(Object.keys(row)).not.toContain('grunnlag');
+      expect(Object.keys(row)).not.toContain('grunnlagKi');
+      expect(Object.keys(row)).not.toContain('flagg');
+    }
+    const text = JSON.stringify(rows);
+    for (const id of ['peers.basis.description_and_accounts', 'peers.basis.accounts_only', 'peers.basis.description_only', 'peers.basis.industry_and_size_only', 'peers.flag'] as const) {
+      expect(text).not.toContain(nb[id]);
+    }
+    expect(text).not.toContain('✦');
   });
 
   it('shows "Kan ikke beregnes" with its reason for a driftsmargin the filing cannot give', () => {
-    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001', { keyFigures: figures('1500000000', null) })], [], 'NOK');
+    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001', { keyFigures: figures('1500000000', null) })], 'NOK');
     expect(row?.driftsmargin).toBe('Kan ikke beregnes: en regnskapslinje mangler');
   });
 
   it('reads "Ikke i kroner" for revenue outside NOK', () => {
-    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], [], 'USD');
+    const [row] = peerRows(subject, 'ADMMIT AS', [peer('900000001')], 'USD');
     expect(row?.omsetning).toBe(nb['peers.otherCurrency']);
   });
 
   // Story 2.8: an excluded peer keeps its row, marked.
   it('marks the peers in ekskl as excluded and keeps their rows', () => {
-    const rows = peerRows(subject, 'ADMMIT AS', [peer('900000001'), peer('900000002'), peer('900000003')], [], 'NOK', [
+    const rows = peerRows(subject, 'ADMMIT AS', [peer('900000001'), peer('900000002'), peer('900000003')], 'NOK', [
       '900000002',
       '900000009',
     ]);
@@ -167,7 +149,7 @@ describe('peerRows', () => {
   });
 
   it('keeps the peers’ order', () => {
-    const rows = peerRows(subject, 'ADMMIT AS', [peer('900000002'), peer('900000001')], [], 'NOK');
+    const rows = peerRows(subject, 'ADMMIT AS', [peer('900000002'), peer('900000001')], 'NOK');
     expect(rows.map((row) => row.navn)).toEqual(['PEER 900000002 AS', 'PEER 900000001 AS']);
   });
 });

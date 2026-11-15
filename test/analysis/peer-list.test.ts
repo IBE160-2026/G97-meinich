@@ -1,6 +1,6 @@
 // The Peers tab's list (Stories 1.7, 2.7, 2.8): the count, the funnel, the
-// table and the phone cards, ✦ on exactly the two classification bases and
-// the flag, the empty states, the scroll region, the orgnr only in the
+// table and the phone cards (in v1, Story 5.2, no match basis, no flag and
+// no ✦ key), the empty states, the scroll region, the orgnr only in the
 // exclude action, the excluded rows, the too-small, all-excluded and
 // widened blocks, the size-band control and reset.
 import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
@@ -26,20 +26,10 @@ const row = (overrides: Partial<PeerDisplayRow> = {}): PeerDisplayRow => ({
   omsetning: `23,5${NBSP}mill.${NBSP}kr`,
   driftsmargin: `4,2${NBSP}%`,
   hvorforMed: 'Samme bransje, omsetning 1,4× ADMMIT AS',
-  grunnlag: nb['peers.basis.accounts_only'],
-  grunnlagKi: false,
-  flagg: null,
   ...overrides,
 });
 
-// The four bases, the first flagged.
-const rows: PeerDisplayRow[] = [
-  row({ navn: 'A AS', grunnlag: nb['peers.basis.description_and_accounts'], grunnlagKi: true, flagg: nb['peers.flag'] }),
-  row({ navn: 'B AS', grunnlag: nb['peers.basis.description_and_accounts'], grunnlagKi: true }),
-  row({ navn: 'C AS', grunnlag: nb['peers.basis.accounts_only'] }),
-  row({ navn: 'D AS', grunnlag: nb['peers.basis.description_only'], grunnlagKi: true }),
-  row({ navn: 'E AS', grunnlag: nb['peers.basis.industry_and_size_only'] }),
-];
+const rows: PeerDisplayRow[] = ['A AS', 'B AS', 'C AS', 'D AS', 'E AS'].map((navn) => row({ navn }));
 
 const counts: FunnelCounts = {
   stage1: 20,
@@ -111,7 +101,7 @@ function findElement<P>(node: ReactNode, type: (props: P) => ReactNode): ReactEl
 }
 
 describe('PeerList', () => {
-  it('shows the count and one table row per peer with the six columns', () => {
+  it('shows the count and one table row per peer with the four columns and the action', () => {
     const html = render();
     expect(html).toContain('5 sammenlignbare selskaper');
     expect(text(table(html).match(/<thead>[\s\S]*<\/thead>/)?.[0] ?? '')).toBe(
@@ -120,64 +110,42 @@ describe('PeerList', () => {
         nb['peers.col.omsetning'],
         nb['fig.driftsmargin'],
         nb['peers.col.reason'],
-        nb['peers.col.basis'],
-        nb['peers.col.flag'],
         nb['peers.col.action'],
       ].join(''),
     );
     // The action column's header is for screen readers only.
     expect(table(html)).toContain(`<span class="sr-only">${nb['peers.col.action']}</span>`);
-    // The flag column's header is for screen readers only.
-    expect(table(html)).toContain(`<span class="sr-only">${nb['peers.col.flag']}</span>`);
     const first = cellsOf(bodyRows(html)[0] ?? '').map(text);
     expect(first).toEqual([
       'A AS',
       `23,5${NBSP}mill.${NBSP}kr`,
       `4,2${NBSP}%`,
       'Samme bransje, omsetning 1,4× ADMMIT AS',
-      `${GLYPH}${nb['peers.ai']} ${nb['peers.basis.description_and_accounts']}`,
-      `${GLYPH}${nb['peers.ai']} ${nb['peers.flag']}`,
       nb['peers.action.exclude'],
     ]);
     expect(bodyRows(html)).toHaveLength(5);
   });
 
-  it('✦ on exactly the two classification bases and the flag', () => {
+  // v1 (Story 5.2, Meinich 2026-11-15): no "Grunnlag for treff", no
+  // "Merknad" and no ✦ "KI-generert" key, in the table or the cards.
+  it('shows no match basis, no flag column and no ✦ anywhere in the table or the cards', () => {
     const html = render();
-    const [flagged, both, accounts, description, neither] = bodyRows(html).map(cellsOf);
-    const basis = (cells: string[] | undefined) => cells?.[4] ?? '';
-    const flag = (cells: string[] | undefined) => cells?.[5] ?? '';
-    // One glyph and one "KI-generert" per marked cell.
-    for (const cells of [flagged, both, description]) {
-      expect(glyphs(basis(cells))).toBe(1);
-      expect(spokenKi(basis(cells))).toBe(1);
+    for (const markup of [table(html), cards(html)]) {
+      expect(markup).not.toContain(nb['peers.col.basis']);
+      expect(markup).not.toContain(nb['peers.col.flag']);
+      expect(markup).not.toContain(nb['peers.ai']);
+      expect(markup).not.toContain(nb['peers.flag']);
+      expect(glyphs(markup)).toBe(0);
+      expect(spokenKi(markup)).toBe(0);
     }
-    expect(glyphs(flag(flagged))).toBe(1);
-    expect(spokenKi(flag(flagged))).toBe(1);
-    for (const cells of [accounts, neither]) {
-      expect(glyphs(basis(cells))).toBe(0);
-      expect(spokenKi(basis(cells))).toBe(0);
-    }
-    for (const cells of [both, accounts, description, neither]) expect(flag(cells)).toBe('');
-    // Never on the name, a number or the reason, and always hidden from screen readers.
-    for (const cells of [flagged, both, accounts, description, neither]) {
-      for (const index of [0, 1, 2, 3]) expect(glyphs(cells?.[index] ?? '')).toBe(0);
-    }
-    expect(html.match(new RegExp(`<span[^>]*>${GLYPH}</span>`, 'g'))?.every((span) => span.includes('aria-hidden="true"'))).toBe(true);
-
-    // Phone: basis and flag share a cell, so "KI-generert" is said once for both.
-    const phone = cards(html);
-    const shared = [...phone.matchAll(/<li data-testid="peer-card">([\s\S]*?)<\/li>/g)].map(
-      (m) => [...(m[1] ?? '').matchAll(/<dd>([\s\S]*?)<\/dd>/g)].at(-1)?.[1] ?? '',
-    );
-    expect(shared.map(glyphs)).toEqual([2, 1, 0, 1, 0]);
-    expect(shared.map(spokenKi)).toEqual([1, 1, 0, 1, 0]);
+    expect(glyphs(html)).toBe(0);
+    for (const cells of bodyRows(html).map(cellsOf)) expect(cells).toHaveLength(5);
   });
 
-  it('carries the visible key "✦ KI-generert" in the caption', () => {
-    const caption = /<caption[^>]*>([\s\S]*?)<\/caption>/.exec(render())?.[1] ?? '';
-    expect(text(caption)).toBe(`${nb['peers.regionLabel']}. ${GLYPH}${nb['peers.ai']}`);
-    expect(caption).not.toContain('class="sr-only">KI');
+  it('names the table for screen readers in its caption, with no visible key', () => {
+    const caption = /<caption([^>]*)>([\s\S]*?)<\/caption>/.exec(render());
+    expect(caption?.[1]).toBe(' class="sr-only"');
+    expect(text(caption?.[2] ?? '')).toBe(nb['peers.regionLabel']);
   });
 
   // AD-4 as amended on 2026-11-13: a group member's orgnr reaches the page,
@@ -216,8 +184,6 @@ describe('PeerList', () => {
       omsetning: nb['peers.col.omsetning'],
       driftsmargin: nb['fig.driftsmargin'],
       reason: nb['peers.col.reason'],
-      basis: nb['peers.col.basis'],
-      ki: nb['peers.ai'],
       excluded: nb['peers.excluded'],
     });
     expect(toggle?.props.band).toBe(0);
@@ -390,11 +356,11 @@ describe('PeerList', () => {
     const html = render({ rows: shown });
     const [kept, excluded] = bodyRows(html);
     expect(kept).toContain(`aria-label="${nb['peers.action.excludeName'].replace('{navn}', 'A AS')}"`);
-    expect(text(cellsOf(kept ?? '')[6] ?? '')).toBe(nb['peers.action.exclude']);
+    expect(text(cellsOf(kept ?? '')[4] ?? '')).toBe(nb['peers.action.exclude']);
     expect(text(cellsOf(excluded ?? '')[0] ?? '')).toBe(`B AS ${nb['peers.excluded']}`);
     expect(cellsOf(excluded ?? '')[0]).toContain('<span class="line-through">B AS</span>');
     expect(excluded).toContain(`aria-label="${nb['peers.action.restoreName'].replace('{navn}', 'B AS')}"`);
-    expect(text(cellsOf(excluded ?? '')[6] ?? '')).toBe(nb['peers.action.restore']);
+    expect(text(cellsOf(excluded ?? '')[4] ?? '')).toBe(nb['peers.action.restore']);
     expect(html).toMatch(/<tr data-excluded="true" class="text-slate">/);
     // The phone card too.
     expect(cards(html)).toMatch(/<li data-testid="peer-card" data-excluded="true" class="text-slate">/);

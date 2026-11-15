@@ -2,7 +2,7 @@
 title: 'Story 5.2: Layer-by-layer measurement'
 type: 'feature'
 created: '2026-11-15'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_commit: '3ce98d0861ac44dfd14c388ae73634b5bf5717d4'
 route: 'dispatch'
 review_loop_iteration: 0

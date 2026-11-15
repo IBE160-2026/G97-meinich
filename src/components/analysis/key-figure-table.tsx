@@ -166,7 +166,7 @@ function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
       label={<span className="font-semibold hyphens-auto">{row.label}</span>}
       cells={
         <>
-          <td className="figure py-2 pr-3 align-top break-words" data-cell="own" aria-describedby={describedBy(row)}>
+          <td className="figure py-2 pr-2 align-top break-words" data-cell="own" aria-describedby={describedBy(row)}>
             <Own row={row} popoverId={`kf-p-pop-${row.key}`} detail={false} />
           </td>
           <td className="figure py-2 align-top break-words" data-cell="gap">
@@ -303,10 +303,11 @@ export function KeyFigureTable({
         <caption className="sr-only">{t('keyFigures.caption')}</caption>
         <thead>
           <tr className="border-b border-divider text-[13px] text-slate">
-            <th scope="col" id="kf-p-col-figure" className="w-[40%] py-2 pr-3 text-left align-bottom font-semibold">
+            {/* The gap column is the widest, so a one-off amount of nine digits and "engangsbeløp" fit at 320 px. */}
+            <th scope="col" id="kf-p-col-figure" className="w-[34%] py-2 pr-3 text-left align-bottom font-semibold">
               {t('keyFigures.col.figure')}
             </th>
-            <th scope="col" id="kf-p-col-own" className="py-2 pr-3 text-left align-bottom font-semibold break-words">
+            <th scope="col" id="kf-p-col-own" className="w-[26%] py-2 pr-2 text-left align-bottom font-semibold break-words">
               {companyName}
             </th>
             <th scope="col" id="kf-p-col-gap" className="py-2 text-left align-bottom font-semibold">

@@ -34,7 +34,7 @@ import {
   widenBand,
 } from '../scripts/layer-measurement.ts';
 import { Decimal } from '../src/engine/decimal.ts';
-import type { BusinessType, Fingerprint } from '../src/engine/fingerprint.ts';
+import { businessType, BANDS, type BusinessType, type Fingerprint } from '../src/engine/fingerprint.ts';
 import { formatPercent } from '../src/engine/format.ts';
 import type { CandidateFiling, FunnelSubject } from '../src/engine/peers.ts';
 
@@ -153,7 +153,7 @@ function dataB(): SubjectData {
 /** Metrics with the given precision and recall (the counts do not enter the rule). */
 function m(precision: string, recall: string): Metrics {
   const zero = { ja: 0, nei: 0, usikker: 0 };
-  return { included: zero, all: zero, precision: new Decimal(precision), recall: new Decimal(recall) };
+  return { included: zero, all: zero, precision: new Decimal(precision), recall: new Decimal(recall), precisionFraction: null, recallFraction: null };
 }
 
 /** `n` pairs with one label, each included or not. */
@@ -352,6 +352,7 @@ it('band rule on L2 at 3 pp', () => {
           subject: A, candidate, informative: true, blind: false, inPool: true,
           l2: withBand, l3: true, group: true, flagged: false, fingerprintNull: null, textNull: null,
           l2Without: { costOfGoods: without, personnelCost: true },
+          l2WithoutNull: { costOfGoods: false, personnelCost: false },
         });
       }
     }
@@ -431,6 +432,128 @@ describe('the industry', () => {
     const other = { funnel: { ...funnelOf(B, KONSULENT, null), naeringskode1: '62.200' } };
     expect(() => commonIndustry([dataA(), other])).toThrow('do not share one primary industry');
     expect(reportFile('62.100')).toBe('analysis/output/layer-measurement-62100.md');
+  });
+});
+
+// ------------------------------------------------- the deciding display
+
+type Spec = { readonly n: number; readonly label: Label; readonly l2: boolean; readonly group: boolean; readonly l3?: boolean; readonly blind?: boolean };
+
+/** Synthetic outcomes of subject A from counts, and their labels. */
+function fromCounts(specs: readonly Spec[]): { outcomes: PairOutcome[]; labels: Map<string, Label> } {
+  const outcomes: PairOutcome[] = [];
+  const labels = new Map<string, Label>();
+  let n = 0;
+  for (const spec of specs) {
+    for (let i = 0; i < spec.n; i += 1) {
+      n += 1;
+      const candidate = String(700000000 + n);
+      labels.set(pairKey(A, candidate), spec.label);
+      outcomes.push({
+        subject: A, candidate, informative: true, blind: spec.blind ?? false, inPool: true,
+        l2: spec.l2, l3: spec.l3 ?? true, group: spec.group, flagged: false, fingerprintNull: null, textNull: null,
+        l2Without: { costOfGoods: true, personnelCost: true },
+        l2WithoutNull: { costOfGoods: true, personnelCost: false },
+      });
+    }
+  }
+  return { outcomes, labels };
+}
+
+// L2: 154 ja, 267 nei; group: 157 ja, 240 nei; 211 ja in all. Precision
+// +2,967 pp (157/397 − 154/421), recall +1,422 pp (157/211 − 154/211).
+const NEAR_BOUND: Spec[] = [
+  { n: 154, label: 'ja', l2: true, group: true, l3: true },
+  { n: 3, label: 'ja', l2: false, group: true, l3: false },
+  { n: 54, label: 'ja', l2: false, group: false, l3: false },
+  { n: 240, label: 'nei', l2: true, group: true, l3: false },
+  { n: 27, label: 'nei', l2: true, group: false, l3: false },
+];
+
+function reportOf(outcomes: readonly PairOutcome[], labels: ReadonlyMap<string, Label>): string {
+  return renderReport({
+    industry: '62.100', subjects: [SUBJECT_A], outcomes, measure: labels, roundOne: new Map(),
+    companies: 8, fingerprinted: 7, generated: '2026-11-15', commit: 'c'.repeat(40),
+  });
+}
+
+describe('the deciding differences', () => {
+  const { outcomes, labels } = fromCounts(NEAR_BOUND);
+  const report = reportOf(outcomes, labels);
+
+  it('shows each deciding difference to three decimals with the exact fractions behind both values', () => {
+    expect(report).toContain(`| Fingerprint alone (L2) | ${formatPercent(new Decimal(154).div(421).toString())} (154/421) | ${formatPercent(new Decimal(154).div(211).toString())} (154/211) |`);
+    expect(report).toContain('| Difference | +2,967 pp (157/397 − 154/421) | +1,422 pp (157/211 − 154/211) |');
+    expect(report).toContain('A difference of +2,967 pp shows as +3,0 pp at one decimal; the rule compares the exact value.');
+    expect(report).toContain('**Verdict: stage 5 is not kept.**');
+  });
+
+  it('shows the band differences the same way, with − without', () => {
+    // Without the cost-of-goods band every pair is in L2: 211 ja, 267 nei.
+    expect(report).toContain('| L2 without the band | ');
+    expect(report).toMatch(/\| Difference \(with − without\) \| [+−]\d+,\d{3}\u00a0pp \(154\/421 − 211\/478\) \| −27,014\u00a0pp \(154\/211 − 211\/211\) \|/);
+  });
+
+  it('keeps the layer tables at one decimal', () => {
+    expect(report).toContain(`| L2 fingerprint alone | 421 | 154 | 267 | 0 | ${formatPercent(new Decimal(154).div(421).toString())} | ${formatPercent(new Decimal(154).div(211).toString())} |`);
+  });
+
+  it('states that L3 had the highest precision only when it had', () => {
+    expect(report).toContain('L3, the classification alone, has the highest precision of the layers');
+    const lower = fromCounts(NEAR_BOUND.map((spec) => ({ ...spec, l3: spec.label === 'nei' || spec.l3 === true })));
+    expect(reportOf(lower.outcomes, lower.labels)).not.toContain('has the highest precision');
+  });
+});
+
+describe('the rules on the blind pairs alone', () => {
+  it('applies stage 5 and both band rules to the blind pairs only, deciding nothing', () => {
+    const { outcomes, labels } = fromCounts([
+      ...NEAR_BOUND,
+      { n: 20, label: 'nei', l2: true, group: false },
+      { n: 10, label: 'ja', l2: true, group: true, blind: true },
+      { n: 10, label: 'nei', l2: true, group: true, blind: true },
+    ]);
+    const report = reportOf(outcomes, labels);
+    expect(report).toContain('## The rules on the blind pairs alone (informational)');
+    expect(report).toContain('The 20 blind pairs');
+    expect(report).toContain('| Difference | 0,000 pp (10/20 − 10/20) | 0,000 pp (10/10 − 10/10) |');
+    expect(report).toContain('Stage-5 rule on these pairs: stage 5 is not kept.');
+    expect(report).toContain('**Verdict: stage 5 is kept.**');
+    expect(report.match(/Band rule on these pairs: /g)).toHaveLength(2);
+  });
+});
+
+describe('the verdicts with usikker counted', () => {
+  it('gives each verdict with usikker as ja and as nei, and whether it changes', () => {
+    const { outcomes, labels } = fromCounts([...NEAR_BOUND, { n: 30, label: 'usikker', l2: false, group: true }]);
+    const report = reportOf(outcomes, labels);
+    expect(stageFive(outcomes, labels, 'ja').verdict.kind).toBe('kept');
+    expect(stageFive(outcomes, labels, 'nei').verdict.kind).toBe('not_kept');
+    expect(report).toContain('| Stage 5 | stage 5 is not kept | stage 5 is kept (changes) | stage 5 is not kept (same) |');
+    expect(report).toContain('| Cost of goods share band | dropped | dropped (same) | dropped (same) |');
+  });
+});
+
+describe('without the band', () => {
+  it('leaves every type undetermined when cost of goods is widened', () => {
+    for (const costOfGoods of BANDS) {
+      for (const capitalisedIntangibles of [true, false, null]) {
+        const fingerprint: Fingerprint = { ...KONSULENT, costOfGoods: { lo: costOfGoods, hi: costOfGoods }, capitalisedIntangibles };
+        expect(businessType(widenBand(fingerprint, 'costOfGoods'))).toBeNull();
+      }
+    }
+  });
+
+  it('counts the pairs whose fingerprint signal is null without each band, and says what that means', () => {
+    const outcomes = measureSubject(SUBJECT_A, dataA(funnelOf(A, PRODUKT, 'konsulent')));
+    const inPool = outcomes.filter((o) => o.inPool);
+    expect(inPool.map((o) => o.l2WithoutNull.costOfGoods)).toEqual([true, true, true, true, true, true]);
+    // Personnel widened: produkt stays produkt; konsulent and no fingerprint are null.
+    expect(inPool.map((o) => o.l2WithoutNull.personnelCost)).toEqual([true, false, true, false, true, true]);
+    const report = reportOf(outcomes, labelsA);
+    expect(report).toContain('In practice "without the band" here became "without the fingerprint".');
+    expect(report).toContain('Without the band the fingerprint signal is null for 6 of 6 pairs in the pool, against 1 with it.');
+    expect(report).toContain('Without the band the fingerprint signal is null for 4 of 6 pairs in the pool, against 1 with it.');
   });
 });
 

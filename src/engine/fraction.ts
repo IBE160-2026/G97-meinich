@@ -3,7 +3,7 @@
 // at the end (`toDecimal`). That is what makes the decompositions in
 // `docs/key-figures.md` hold exactly: (d/r) × (r/a) evaluated in Decimal
 // rounds twice and is not d/a, but as fractions the product reduces to d/a,
-// and dividing once gives the same Decimal as return on assets itself.
+// and dividing once gives return on assets' own Decimal.
 //
 // A Fraction is always reduced, with a positive denominator; zero is 0/1.
 // Nothing here rounds.

@@ -8,7 +8,16 @@
 // translation among the three: totalkapitalrentabilitet has none, and
 // egenkapitalandel has no direction, so no beste fjerdedel to close towards.
 import { Decimal } from './decimal.ts';
-import { API_FIGURE_DIRECTIONS, computeApiKeyFigures, resolveApiInputs } from './key-figures.ts';
+import { DOCUMENT_KEY_FIGURE_KEYS, type DocumentKeyFigure } from './document-absence.ts';
+import type { DocumentBasis } from './document-inputs.ts';
+import {
+  DAYS_PER_YEAR,
+  DOCUMENT_FIGURE_DIRECTIONS,
+  DOCUMENT_FIGURE_RANKABLE,
+  type DocumentExactFigure,
+  documentKeyFigureFractions,
+} from './document-key-figures.ts';
+import { API_FIGURE_DIRECTIONS, computeApiKeyFigures, resolveApiInputs, toFigureResult } from './key-figures.ts';
 import { compareFigure } from './statistics.ts';
 import type { ApiInputs, ApiKeyFigures, Comparison, Direction } from './types.ts';
 
@@ -90,6 +99,135 @@ export function benchmarkApiFigures(
       gap: { kind: 'none' },
     },
   };
+}
+
+/** The document figures with a capital translation (`docs/key-figures.md`, "From gap to kroner"). */
+export type CapitalFigure = 'kfd' | 'lgd' | 'oml';
+
+/** Why a document figure has no kroner amount. */
+export type NoKronerReason =
+  // The figure has no kroner translation: 2–8, 14 and kontantandel.
+  | 'no_translation'
+  // No comparison: the subject's value is undefined or below the floor.
+  | 'no_comparison'
+  // Operating asset turnover (11) with beste fjerdedel at or below 0:
+  // sumDriftsinntekter / T is not a capital base.
+  | 'target_not_positive';
+
+/**
+ * A document figure's gap in kroner at full convergence to beste fjerdedel
+ * (Story 3.1a; FR-24, FR-29):
+ * - `amount`: the capital released, the exact non-integer øre, rounded once
+ *   at display. `oneOff`: a one-time amount (engangsbeløp), not per year,
+ *   never added to the profit uplift;
+ * - `strength`: the subject at or beyond beste fjerdedel, no amount;
+ * - `not_nok`: there would be an amount, but the subject's filing is not in
+ *   NOK (decision 6, as for profit);
+ * - `none`: no amount, with the reason.
+ */
+export type CapitalGap =
+  | { readonly kind: 'amount'; readonly ore: Decimal; readonly oneOff: true }
+  | { readonly kind: 'strength' }
+  | { readonly kind: 'not_nok' }
+  | { readonly kind: 'none'; readonly reason: NoKronerReason };
+
+const NO_COMPARISON: CapitalGap = { kind: 'none', reason: 'no_comparison' };
+
+function dec(amount: bigint): Decimal {
+  return new Decimal(amount.toString());
+}
+
+/**
+ * The capital gap of 9, 10 or 11 for a comparison, at s = 1. `exact` is the
+ * subject's figure, whose two amounts the formulas read:
+ * - 9 receivable days: (r − T) / 365 × `salgsinntekt`;
+ * - 10 payable days: (T − r) / 365 × (`varekostnad` + `annenDriftskostnad`);
+ * - 11 operating asset turnover: (`sumEiendeler` − `bankinnskudd`) −
+ *   `sumDriftsinntekter` / T.
+ * Each is evaluated from the filed amounts, not from the rounded ratio r:
+ * since r = `kundefordringer` × 365 / `salgsinntekt`, 9 is `kundefordringer`
+ * − T × `salgsinntekt` / 365, and 10 is T × (`varekostnad` +
+ * `annenDriftskostnad`) / 365 − `leverandorgjeld`, exactly the same amounts.
+ * Worse than T is above it for 9 and below it for 10 and 11. `valuta` is the
+ * subject's filing's.
+ */
+export function capitalGap(
+  figure: CapitalFigure,
+  comparison: Comparison,
+  exact: DocumentExactFigure,
+  valuta: string | null,
+): CapitalGap {
+  if (comparison.kind !== 'compared' || comparison.best === null || exact.kind !== 'value') return NO_COMPARISON;
+  const r = comparison.subject;
+  const target = comparison.best.quartile;
+  const lowerIsBetter = DOCUMENT_FIGURE_DIRECTIONS[figure] === 'lower_is_better';
+  if (lowerIsBetter ? r.lte(target) : r.gte(target)) return { kind: 'strength' };
+  if (figure === 'oml' && target.lte(0)) return { kind: 'none', reason: 'target_not_positive' };
+  if (valuta !== 'NOK') return { kind: 'not_nok' };
+  const days = dec(DAYS_PER_YEAR);
+  const numerator = dec(exact.numeratorOre);
+  const denominator = dec(exact.denominatorOre);
+  switch (figure) {
+    case 'kfd':
+      // kundefordringer − T × salgsinntekt / 365
+      return { kind: 'amount', ore: numerator.minus(target.mul(denominator).div(days)), oneOff: true };
+    case 'lgd':
+      // T × (varekostnad + annenDriftskostnad) / 365 − leverandorgjeld
+      return { kind: 'amount', ore: target.mul(denominator).div(days).minus(numerator), oneOff: true };
+    case 'oml':
+      // (sumEiendeler − bankinnskudd) − sumDriftsinntekter / T
+      return { kind: 'amount', ore: denominator.minus(numerator.div(target)), oneOff: true };
+  }
+}
+
+const CAPITAL_FIGURES: ReadonlySet<DocumentKeyFigure> = new Set<CapitalFigure>(['kfd', 'lgd', 'oml']);
+
+function isCapitalFigure(figure: DocumentKeyFigure): figure is CapitalFigure {
+  return CAPITAL_FIGURES.has(figure);
+}
+
+export type DocumentFigureBenchmark = {
+  readonly direction: Direction;
+  /** Whether a Plassering may rank or sort it, or name it Største styrke (`DOCUMENT_FIGURE_RANKABLE`). */
+  readonly rankable: boolean;
+  readonly comparison: Comparison;
+  readonly gap: CapitalGap;
+};
+
+export type DocumentBenchmark = Readonly<Record<DocumentKeyFigure, DocumentFigureBenchmark>>;
+
+/**
+ * The subject's twelve document figures against `peers`, the shown group,
+ * each from its document basis. Each figure is gated by the 10-peer floor on
+ * its own, counting only peers with a value from the same source
+ * (`compareFigure`); only 9, 10 and 11 carry kroner. `valuta` is the
+ * subject's filing's currency.
+ */
+export function benchmarkDocumentFigures(
+  subject: DocumentBasis,
+  peers: readonly DocumentBasis[],
+  valuta: string | null,
+): DocumentBenchmark {
+  const own = documentKeyFigureFractions(subject);
+  const others = peers.map(documentKeyFigureFractions);
+  const out = {} as Record<DocumentKeyFigure, DocumentFigureBenchmark>;
+  for (const figure of DOCUMENT_KEY_FIGURE_KEYS) {
+    const direction = DOCUMENT_FIGURE_DIRECTIONS[figure];
+    const comparison = compareFigure(
+      toFigureResult(own[figure], 'document'),
+      others.map((figures) => toFigureResult(figures[figure], 'document')),
+      direction,
+    );
+    out[figure] = {
+      direction,
+      rankable: DOCUMENT_FIGURE_RANKABLE[figure],
+      comparison,
+      gap: isCapitalFigure(figure)
+        ? capitalGap(figure, comparison, own[figure], valuta)
+        : { kind: 'none', reason: 'no_translation' },
+    };
+  }
+  return out;
 }
 
 /** Which side of a reference value the subject's own value lies on, compared exactly. */

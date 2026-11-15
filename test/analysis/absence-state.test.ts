@@ -126,7 +126,7 @@ describe('documentSubline', () => {
   it('has no subline outside the demo data or for a document that was read', () => {
     expect(subline({ kind: 'not_in_dataset' })).toBeNull();
     expect(
-      documentSubline({ kind: 'read', filingYear: 2025, current: {} as never, prior: null }),
+      documentSubline({ kind: 'read', filingYear: 2025, current: {} as never, prior: null, priorRevenueFailsApi: false }),
     ).toBeNull();
   });
 });

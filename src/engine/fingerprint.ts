@@ -37,7 +37,17 @@
 // its lines) and counts as 0; below −5 kr there is no fingerprint (Spec
 // Change Log, Meinich 2026-11-01). The 5 kr is within_document_bound_kr in
 // ingest/config.toml; test/engine/fingerprint-tolerance.test.ts fails if
-// ROUNDING_TOLERANCE_ORE differs from it.
+// ROUNDING_TOLERANCE_ORE differs from it. A bound computed from an API
+// subtotal (sum_anleggsmidler, sum_omloepsmidler) compares a document line
+// with an API figure, so it takes the between-sources rule instead, max(5 kr,
+// 0.001 % of the subtotal), as step 1 and R3 do (Story 3.1a, B3, Meinich
+// 2026-11-15). The cost-line remainder and the sum_eiendeler fallback stay
+// within one document and keep 5 kr.
+//
+// Revenue is the column's stated sum_driftsinntekter only (Story 3.1a, B1):
+// a reconciled column always states it, because check c1 needs it, so the
+// derivation the key figures allow (`documentRevenue`) is never needed here,
+// and a column without it has no fingerprint (`no_revenue`).
 //
 // Two rules on stored figures (Story 2.5c; Meinich 2026-11-06), with no
 // re-read and no change to D1:
@@ -60,7 +70,14 @@
 // rule over every value a category can still take and gives a type only
 // when all of them agree.
 import { Decimal } from './decimal.ts';
-import type { DocumentField, DocumentFigures } from './document-inputs.ts';
+import {
+  BETWEEN_SOURCES_FLOOR_ORE,
+  BETWEEN_SOURCES_TOLERANCE,
+  COST_LINES,
+  type DocumentField,
+  type DocumentFigures,
+  WITHIN_DOCUMENT_BOUND_ORE,
+} from './document-inputs.ts';
 import { parseOre } from './inputs.ts';
 
 /** The business types, shared by stage 4 and Story 2.6's classification. */
@@ -174,7 +191,6 @@ export type FingerprintResult =
 /** A closed interval of øre; `hi` null is unbounded above. */
 type Interval = { readonly lo: bigint; readonly hi: bigint | null };
 
-const COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'nedskrivninger', 'annenDriftskostnad'] as const;
 /** The cost lines R2 needs read; nedskrivninger may be empty, counted as 0. */
 export const MAIN_COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annenDriftskostnad'] as const;
 const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer', 'kundefordringer', 'bankinnskudd'] as const;
@@ -184,12 +200,26 @@ const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer
  * ingest/config.toml, the same bound step 1 reconciles with. A remainder in
  * [−this, 0) counts as 0.
  */
-export const ROUNDING_TOLERANCE_ORE = 500n;
+export const ROUNDING_TOLERANCE_ORE = WITHIN_DOCUMENT_BOUND_ORE;
 
 /** A remainder within the rounding counts as 0; one below it is 'negative'; null (unbounded) stays null. */
 function settled(rest: bigint | null): bigint | null | 'negative' {
   if (rest === null || rest >= 0n) return rest;
   return rest >= -ROUNDING_TOLERANCE_ORE ? 0n : 'negative';
+}
+
+/**
+ * A remainder of an API subtotal less document lines (B3): a shortfall
+ * within the between-sources rule, max(5 kr, 0.001 % of the subtotal), counts
+ * as 0; a larger one is 'negative'. Exact.
+ */
+function settledAgainstApi(rest: bigint, subtotal: bigint): bigint | 'negative' {
+  if (rest >= 0n) return rest;
+  const shortfall = -rest;
+  if (shortfall <= BETWEEN_SOURCES_FLOOR_ORE) return 0n;
+  const magnitude = subtotal < 0n ? -subtotal : subtotal;
+  const within = new Decimal(shortfall.toString()).lte(BETWEEN_SOURCES_TOLERANCE.mul(new Decimal(magnitude.toString())));
+  return within ? 0n : 'negative';
 }
 
 /** `total` minus every read amount; null (unbounded) when `total` is empty. */
@@ -284,12 +314,19 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
       values.sumEiendeler,
       ASSET_LINES.map((line) => values[line]),
     );
-  const fixedBound = (other: bigint | null): bigint | null =>
-    subtotals.sumAnleggsmidler !== null ? remainder(subtotals.sumAnleggsmidler, [other]) : allAssets();
+  // An API subtotal less the lines read takes the between-sources rule (B3);
+  // the column's own sum_eiendeler less its lines keeps 5 kr.
+  const apiBound = (subtotal: bigint, read: readonly (bigint | null)[]): bigint | 'negative' =>
+    settledAgainstApi(
+      read.reduce<bigint>((rest, amount) => (amount === null ? rest : rest - amount), subtotal),
+      subtotal,
+    );
+  const fixedBound = (other: bigint | null): bigint | null | 'negative' =>
+    subtotals.sumAnleggsmidler !== null ? apiBound(subtotals.sumAnleggsmidler, [other]) : settled(allAssets());
   let negativeBound = false;
-  const bounded = (value: bigint | null, bound: () => bigint | null): Interval => {
+  const bounded = (value: bigint | null, bound: () => bigint | null | 'negative'): Interval => {
     if (value !== null) return interval(value, null);
-    const upper = settled(bound());
+    const upper = bound();
     if (upper === 'negative') {
       negativeBound = true;
       return interval(null, 0n);
@@ -300,8 +337,8 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
   const fixed = bounded(values.sumVarigeDriftsmidler, () => fixedBound(values.sumImmaterielleEiendeler));
   const varer = bounded(values.varer, () =>
     subtotals.sumOmloepsmidler !== null
-      ? remainder(subtotals.sumOmloepsmidler, [values.kundefordringer, values.bankinnskudd])
-      : allAssets(),
+      ? apiBound(subtotals.sumOmloepsmidler, [values.kundefordringer, values.bankinnskudd])
+      : settled(allAssets()),
   );
   if (negativeBound) {
     return { kind: 'skip', reason: 'negative_balance_remainder' };

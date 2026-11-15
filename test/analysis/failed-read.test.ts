@@ -63,6 +63,7 @@ const NO_FINGERPRINT = {
   current_status: null,
   has_prior: false,
   prior_status: null,
+  prior_api_fail_fields: null,
   sum_omloepsmidler_ore: null,
   classification: null,
   cost_of_goods_lo: null,

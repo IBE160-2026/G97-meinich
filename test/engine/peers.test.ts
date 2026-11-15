@@ -205,6 +205,52 @@ describe('stage 2: comparability, one field at a time', () => {
     expect(group.emptyReason).toBe('subject_non_calendar');
   });
 
+  // Story 3.1a: the reference case 992036079 NTT DATA BUSINESS SOLUTIONS AS,
+  // filing year 2023 (seed/demo/filing.csv, brreg_id 4555511: 2022-04-01 –
+  // 2023-03-31, NOK, regnskapslovenAlminneligRegler, small, SELSKAP;
+  // sumDriftsinntekter 229 922 956 kr from seed/demo/key_figures.csv). A
+  // non-calendar year is excluded, never adjusted: as a candidate it is in
+  // no distribution, and as a subject it gets no peers.
+  it('a non-calendar reference case is excluded at stage 2', () => {
+    const ntt = {
+      orgnr: '992036079',
+      naeringskode1: '62.100',
+      filingYear: 2023,
+      sumDriftsinntekter: 22_992_295_600n,
+      regnskapstype: 'SELSKAP',
+      periodeFra: '2022-04-01',
+      periodeTil: '2023-03-31',
+      valuta: 'NOK',
+      regnskapsregler: 'regnskapslovenAlminneligRegler',
+      smaaForetak: true,
+      avviklingsregnskap: false,
+      fingerprint: null,
+      classification: null,
+    } as const;
+    const calendar2023 = { filingYear: 2023, periodeFra: '2023-01-01', periodeTil: '2023-12-31' } as const;
+    const calendarSubject: FunnelSubject = { ...subject, ...calendar2023, sumDriftsinntekter: 20_000_000_000n };
+    const asCandidate = assemblePeerGroup(
+      calendarSubject,
+      [
+        candidate('992036079', { ...ntt, organisasjonsform: 'AS' }),
+        candidate('900000002', { ...calendar2023, sumDriftsinntekter: 20_000_000_000n }),
+      ],
+      0,
+    );
+    expect(asCandidate.counts.stage1).toBe(2);
+    expect(asCandidate.counts.stage2).toBe(1);
+    expect(asCandidate.group.map((peer) => peer.orgnr)).toEqual(['900000002']);
+    expect(asCandidate.pool.map((peer) => peer.orgnr)).toEqual(['900000002']);
+
+    const asSubject = assemblePeerGroup(
+      ntt,
+      [candidate('900000003', { ...calendar2023, sumDriftsinntekter: 22_992_295_600n })],
+      0,
+    );
+    expect(asSubject.group).toEqual([]);
+    expect(asSubject.emptyReason).toBe('subject_non_calendar');
+  });
+
   it('reads a calendar year from the dates alone', () => {
     expect(isCalendarYear({ periodeFra: '2025-01-01', periodeTil: '2025-12-31' })).toBe(true);
     expect(isCalendarYear({ periodeFra: '2024-01-01', periodeTil: '2025-12-31' })).toBe(false);

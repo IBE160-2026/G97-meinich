@@ -33,6 +33,7 @@ function row(overrides: Partial<DocumentBasisColumns>): DocumentBasisColumns {
     current_status: 'reconciled',
     has_prior: true,
     prior_status: 'reconciled',
+    prior_api_fail_fields: [],
     sum_omloepsmidler_ore: null,
     ...figures,
     ...overrides,
@@ -131,6 +132,20 @@ describe('documentBasisOf', () => {
     expect(basis.current.sumDriftsinntekter).toEqual({ kind: 'value', ore: 1_000_000_000n });
     expect(basis.prior?.sumDriftsinntekter).toEqual({ kind: 'value', ore: 900_000_000n });
     expect(documentBasisOf(row({ has_prior: false }), 2025)).toMatchObject({ kind: 'read', prior: null });
+  });
+
+  // Story 3.1a, decision 2: a prior column the register disagrees with on revenue.
+  it('maps the prior column’s api_fail_fields to priorRevenueFailsApi', () => {
+    expect(documentBasisOf(row({ prior_api_fail_fields: ['sum_driftsinntekter'] }), 2025)).toMatchObject({
+      kind: 'read',
+      priorRevenueFailsApi: true,
+    });
+    for (const fields of [['sum_eiendeler'], [], null]) {
+      expect(documentBasisOf(row({ prior_api_fail_fields: fields }), 2025), JSON.stringify(fields)).toMatchObject({
+        kind: 'read',
+        priorRevenueFailsApi: false,
+      });
+    }
   });
 
   it('applies R3 with the filing’s sum_omloepsmidler', () => {

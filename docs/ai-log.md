@@ -17,7 +17,7 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 34 |
-| money | 25 |
+| money | 26 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
@@ -917,3 +917,32 @@ Mutation check: hashing the raw bytes again fails 19 tests, among them the first
 **Caught by:** The review in the spec's triage log (19 findings: 16 patched, 1 rejected, 2 decided by Meinich). Blind Hunter found that switching stage 4 off removed the stage-5 rule's baseline: text against L1 would have passed. Meinich kept both off and had it reported (Spec Change Log). The BMAD session caught a "+3,0 pp" shown beside "not kept", and a pronoun for Meinich that the BMAD session's own instruction had put into the report. Verification Gap found that the dirty-tree guard, the database reads and the e2e "whole pool" check could pass with their guards removed. One AI error came from the review session's own recommendation, which Meinich adopted at the checkpoint: "without a band" as the band widened to low–high measured the whole fingerprint, not the band. The review session pointed this out after the run, and the BMAD session noted it when it presented the result; the report states that the band test cannot tell a band from the fingerprint (`test/layer-measurement.test.ts` "counts the pairs whose fingerprint signal is null without each band, and says what that means").
 **Outcome:** Commits `e6c0624` to `4397498` on `story/5.2-layer-measurement`.
 
+### 2026-11-15 — Story 3.1a: every key figure computed, and the capital kroner of 9, 10 and 11
+**Tags:** money
+**Tool:** Claude Code (Opus 5.5): an implementation subagent dispatched by the BMAD session
+**Asked:** Compute the twelve document key figures (2–11, 14, kontantandel) with directions, comparison and kroner at full convergence, pin them with hand-calculated reference cases from the OCR reference set, assert the two decompositions exactly, and carry out decisions 1, 2 and 6 and B1–B3 (FR-21, FR-23, FR-24, FR-29, NFR28/SM-6; issue #66).
+**Got:** `src/engine/fraction.ts`, `src/engine/document-key-figures.ts`, `documentCostLines` in `document-inputs.ts`, `capitalGap` and `benchmarkDocumentFigures` in `benchmark.ts`, `FigureResult.inputs`, `DOCUMENT_FILING_JOIN`, and B3 in the fingerprint.
+**Problem:** What could go wrong, and what holds it (before review; each test below fails with its guard removed, which the implementation run checked by mutation):
+1. **A missing cost line read as 0.** Decision 1 derives an empty cost line as 0 only when the stated lines are within ±5 kr of sum kostnader, as the remainder only when exactly one line is empty and the remainder is above +5 kr, and otherwise leaves each empty line undefined (`test/engine/document-key-figures.test.ts` "a remainder within ±5 kr derives every empty line as 0", "one empty cost line above 5 kr is the remainder", "one empty cost line below −5 kr is undefined", "several empty cost lines outside ±5 kr are undefined"). A balance line, `salgsinntekt` or `driftsresultat` left empty is never 0 ("an empty line is never 0"). What can still go wrong: a misread stated line makes the remainder, and so the derived line, wrong by the same amount; no check catches a read line of the right width (technical note, AD-15, "Still unguarded").
+2. **A derived denominator near zero.** A denominator with any derived part counts as not positive at 5 kr or less, the document revenue included ("a derived document revenue of 5 kr or less is not positive"; "marks a payable-days denominator with a derived line as derived, and 5 kr or less of it as not positive").
+3. **Kroner in the wrong currency, or added to profit.** `capitalGap` returns `not_nok` outside NOK (decision 6; `test/engine/document-benchmark.test.ts` "capital kroner outside NOK: not_nok"), a strength at or beyond T ("at or beyond beste fjerdedel: strength"), no amount for a turnover target of 0 or less ("turnover target not positive: no amount") and none below the floor ("below the floor: no comparison, no kroner"). Every amount is marked `oneOff: true`; nothing in the engine adds it to the profit uplift (the FR-30 sums are Story 3.3's and 3.5's). The amounts are the exact non-integer øre, rounded only at display.
+4. **A growth over a wrong prior year.** A reconciled prior column whose `api_check` fails on `sum_driftsinntekter` is not used (decision 2; "growth over a prior column the register disagrees with is not read safely"). A prior column with no API filing to check against is used: 1 017 of 2 430 such columns in the local run, recorded as unguarded in the technical note.
+5. **An identity that holds only approximately.** Each figure is a reduced bigint fraction divided once; `test/engine/identities.test.ts` asserts fraction equality and `Decimal.eq` with no tolerance on every reference case and 5 000 seeded vectors each. Removing the reduction in `fraction()` fails it. The API figures' Decimal values are unchanged by the switch (the Story 1.4 reference cases pass as before).
+6. **R3 read from two filings.** `pnpm derive` and the request path now join the same filing through one fragment (B2); before, the request path read the benchmark filing's subtotal. 0 of 2 778 current columns differ today, so a value comparison alone could not fail; `test/db/document-filing.test.ts` fails on a request path that reads `k` because the select names an alias the shared joins do not define.
+7. **A reference value taken from the engine.** Each expected value is the printed figures as a fraction written in the test, and each figure the engine reads as stated is asserted equal to Meinich's transcription of the page (`test/engine/reference-cases.test.ts`). Lines printed but not read (NULL in the seed) leave their figures undefined, which the cases show: the reference set exercises the missing-component path more than the derived one.
+**Caught by:**
+- **Before review.** The implementation run removed each guard in the spec's I/O matrix and saw its test fail. Two guards are held twice, and their tests fail only when both are removed:
+  - a non-calendar candidate fails stage 2 on the period equality as well as on `isCalendarYear`;
+  - a failed prior column is caught both before and after the API check.
+- **Matrix audit (BMAD session).** The frozen R3 row wrongly said that a `kundefordringer` above its subtotal makes figure 11 undefined. Figure 11 reads `bankinnskudd`, not `kundefordringer`, so the code was right and the row was corrected (Meinich, spec change log).
+- **Review pass 1** (Blind Hunter, Edge Case Hunter, Verification Gap) found seven defects, fixed in `dbc5140`:
+  - The request path's mapping of the prior column's `api_fail_fields` to `priorRevenueFailsApi` was untested (`test/analysis/document-basis-log.test.ts` "maps the prior column’s api_fail_fields to priorRevenueFailsApi").
+  - The capital kroner of 9 and 10 multiplied the 40-digit rounded ratio. They are now computed from the filed øre (`test/engine/document-benchmark.test.ts` "receivable / payable / turnover capital at full convergence").
+  - The reference cases' "printed, not read" claims were not asserted (`test/engine/reference-cases.test.ts` "{orgnr} {year}: the lines printed but not read").
+  - `capitalGap` had no test for an undefined own figure ("an undefined own figure: no comparison, no kroner").
+  - Small issues: inconsistent comments on when the prior column's `api_fail_fields` is null, a duplicated `COST_LINES`, and a silent `''` status default in the test oracle.
+  - Ten findings were rejected with their refutation. Two examples:
+    - A figure-11 amount over a subject without positive revenue cannot be reached, because such a subject has no peers.
+    - A null `valuta` cannot be reached either, because stage 2 requires a stated one.
+  - The triage is in the spec's Review Triage Log.
+**Outcome:** Commits `875b4cd` to `587fa86` (the engine, the tests, B1–B3, and the docs commit `ad7ef4e`), then the review fixes in `dbc5140`, on `story/3.1a-engine-key-figures`.

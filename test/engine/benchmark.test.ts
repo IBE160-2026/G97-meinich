@@ -155,7 +155,7 @@ describe('benchmarkApiFigures: the driftsmargin gap in kroner', () => {
     const failed = documentBasis({
       inManifest: true,
       filingYear: 2025,
-      document: { status: 'failed_reconciliation', current: null, prior: null },
+      document: { status: 'failed_reconciliation', current: null, prior: null, priorApiFailFields: null },
       sumOmloepsmidler: null,
     });
     for (const figure of DOCUMENT_KEY_FIGURE_KEYS) {
@@ -177,6 +177,7 @@ describe('driftsmarginGap', () => {
       value: new Decimal('0.1'),
       source: 'api',
       denominatorDerived: false,
+      inputs: [],
     }));
     const c = compareFigure(values[0] as FigureResult, values, 'none');
     expect(driftsmarginGap(c, 100n, 'NOK')).toEqual({ kind: 'none' });
@@ -185,7 +186,7 @@ describe('driftsmarginGap', () => {
 
 /** A compared figure over the given peer values, the subject `own`. */
 function comparisonOf(own: string, values: readonly string[], direction: 'higher_is_better' | 'lower_is_better' | 'none') {
-  const fig = (v: string): FigureResult => ({ kind: 'value', value: new Decimal(v), source: 'api', denominatorDerived: false });
+  const fig = (v: string): FigureResult => ({ kind: 'value', value: new Decimal(v), source: 'api', denominatorDerived: false, inputs: [] });
   return compared(compareFigure(fig(own), values.map(fig), direction));
 }
 

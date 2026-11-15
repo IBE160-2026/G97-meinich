@@ -2,8 +2,8 @@
 // Inputs are øre as filed; a missing input is derived one level from stated
 // values only, and an underivable or non-positive input makes the figure
 // undefined with a named cause, never zero.
-import { Decimal } from './decimal.ts';
-import type { ApiInputs, ApiKeyFigures, Direction, FigureResult } from './types.ts';
+import { type Fraction, fraction, toDecimal } from './fraction.ts';
+import type { ApiInputs, ApiKeyFigures, Direction, FigureInput, FigureResult, Source } from './types.ts';
 
 /**
  * A derived amount within ±5 kr (500 øre) of zero cannot be told apart from
@@ -58,22 +58,74 @@ export function resolveApiInputs(inputs: ApiInputs): {
   };
 }
 
+/** An API input by name, for a figure's `inputs`. */
+type Named = { readonly field: FigureInput['field']; readonly input: Input };
+
+/**
+ * A figure as an exact fraction, with what it was computed from, or the
+ * reason it is undefined. `computeApiKeyFigures` divides it once; the
+ * decompositions multiply these fractions (`docs/key-figures.md`,
+ * "Decompositions").
+ */
+export type ExactFigure =
+  | {
+      readonly kind: 'value';
+      readonly fraction: Fraction;
+      readonly denominatorDerived: boolean;
+      readonly inputs: readonly FigureInput[];
+    }
+  | Extract<FigureResult, { readonly kind: 'absent' }>;
+
 /** numerator / denominator, with a missing component checked before the denominator's sign. */
-function ratio(numerator: Input, denominator: Input): FigureResult {
-  if (numerator === null || denominator === null) {
+function ratio(numerator: Named, denominator: Named): ExactFigure {
+  if (numerator.input === null || denominator.input === null) {
     return { kind: 'absent', absence: { reason: 'undefined', cause: 'component_missing' } };
   }
-  const notPositive = denominator.derived
-    ? denominator.ore <= DERIVED_ZERO_BOUND_ORE
-    : denominator.ore <= 0n;
+  const notPositive = denominator.input.derived
+    ? denominator.input.ore <= DERIVED_ZERO_BOUND_ORE
+    : denominator.input.ore <= 0n;
   if (notPositive) {
     return { kind: 'absent', absence: { reason: 'undefined', cause: 'denominator_not_positive' } };
   }
   return {
     kind: 'value',
-    value: new Decimal(numerator.ore).div(new Decimal(denominator.ore)),
-    source: 'api',
-    denominatorDerived: denominator.derived,
+    fraction: fraction(numerator.input.ore, denominator.input.ore),
+    denominatorDerived: denominator.input.derived,
+    inputs: [
+      { field: numerator.field, column: 'api', derived: numerator.input.derived },
+      { field: denominator.field, column: 'api', derived: denominator.input.derived },
+    ],
+  };
+}
+
+/** An exact figure as the engine returns it: one division, from `source`. */
+export function toFigureResult(exact: ExactFigure, source: Source): FigureResult {
+  if (exact.kind === 'absent') return exact;
+  return {
+    kind: 'value',
+    value: toDecimal(exact.fraction),
+    source,
+    denominatorDerived: exact.denominatorDerived,
+    inputs: exact.inputs,
+  };
+}
+
+/**
+ * The three API figures and total asset turnover (`sumDriftsinntekter /
+ * sumEiendeler`, the decomposition's second factor: not a numbered key
+ * figure, no direction, no kroner) as exact fractions.
+ */
+export function apiKeyFigureFractions(inputs: ApiInputs): Readonly<Record<keyof ApiKeyFigures | 'totalAssetTurnover', ExactFigure>> {
+  const r = resolveApiInputs(inputs);
+  const driftsresultat: Named = { field: 'driftsresultat', input: r.driftsresultat };
+  const sumDriftsinntekter: Named = { field: 'sumDriftsinntekter', input: r.sumDriftsinntekter };
+  const sumEiendeler: Named = { field: 'sumEiendeler', input: r.sumEiendeler };
+  const sumEgenkapital: Named = { field: 'sumEgenkapital', input: r.sumEgenkapital };
+  return {
+    driftsmargin: ratio(driftsresultat, sumDriftsinntekter),
+    totalkapitalrentabilitet: ratio(driftsresultat, sumEiendeler),
+    egenkapitalandel: ratio(sumEgenkapital, sumEiendeler),
+    totalAssetTurnover: ratio(sumDriftsinntekter, sumEiendeler),
   };
 }
 
@@ -81,13 +133,13 @@ function ratio(numerator: Input, denominator: Input): FigureResult {
  * Driftsmargin = driftsresultat / sumDriftsinntekter, totalkapitalrentabilitet
  * = driftsresultat / sumEiendeler, egenkapitalandel = sumEgenkapital /
  * sumEiendeler, each a fraction with source `api`, a Decimal to 40 significant
- * digits, rounded only at display.
+ * digits from one division of the exact fraction, rounded only at display.
  */
 export function computeApiKeyFigures(inputs: ApiInputs): ApiKeyFigures {
-  const r = resolveApiInputs(inputs);
+  const exact = apiKeyFigureFractions(inputs);
   return {
-    driftsmargin: ratio(r.driftsresultat, r.sumDriftsinntekter),
-    totalkapitalrentabilitet: ratio(r.driftsresultat, r.sumEiendeler),
-    egenkapitalandel: ratio(r.sumEgenkapital, r.sumEiendeler),
+    driftsmargin: toFigureResult(exact.driftsmargin, 'api'),
+    totalkapitalrentabilitet: toFigureResult(exact.totalkapitalrentabilitet, 'api'),
+    egenkapitalandel: toFigureResult(exact.egenkapitalandel, 'api'),
   };
 }

@@ -277,7 +277,7 @@ describe('the distribution strip', () => {
   });
 
   it('mirrors a lower-is-better fixture: better to the right, with "Bedre →"', () => {
-    const fig = (v: string): FigureResult => ({ kind: 'value', value: new Decimal(v), source: 'api', denominatorDerived: false });
+    const fig = (v: string): FigureResult => ({ kind: 'value', value: new Decimal(v), source: 'api', denominatorDerived: false, inputs: [] });
     const values = Array.from({ length: 10 }, (_, i) => fig(new Decimal(i + 1).div(100).toString()));
     const lowest = compareFigure(fig('0.001'), values, 'lower_is_better') as Extract<Comparison, { kind: 'compared' }>;
     const marks = stripMarks(lowest, 'lower_is_better');

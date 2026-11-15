@@ -108,6 +108,27 @@ describe('derivation of a missing input, one level, from stated values', () => {
     expect(value(f.egenkapitalandel)).toBe('0.4');
   });
 
+  // Story 3.1a (FR-64): every input carries whether it was derived, the
+  // numerator too, not only the denominator.
+  it('marks a derived numerator as derived, and each stated input as stated', () => {
+    const equity = computeApiKeyFigures({ ...NORMAL, sumEgenkapital: null }).egenkapitalandel;
+    expect(equity).toMatchObject({
+      kind: 'value',
+      denominatorDerived: false,
+      inputs: [
+        { field: 'sumEgenkapital', column: 'api', derived: true },
+        { field: 'sumEiendeler', column: 'api', derived: false },
+      ],
+    });
+    const margin = computeApiKeyFigures({ ...NORMAL, driftsresultat: null }).driftsmargin;
+    expect(margin).toMatchObject({
+      inputs: [
+        { field: 'driftsresultat', column: 'api', derived: true },
+        { field: 'sumDriftsinntekter', column: 'api', derived: false },
+      ],
+    });
+  });
+
   it('never feeds a derived value into another derivation', () => {
     // driftsresultat and sumDriftsinntekter both missing: neither can be
     // derived from the other.

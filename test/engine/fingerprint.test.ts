@@ -343,19 +343,36 @@ describe('an empty balance line is bounded by its API subtotal (D2)', () => {
     ).toBeNull();
   });
 
-  it('a balance remainder of exactly −5 kr counts as 0, and −5.01 kr gives no fingerprint', () => {
-    // sum_omloepsmidler − kundefordringer 15 % − bank 20 % = −5 kr: no stock.
-    expect(fingerprint({ varer: null }, { sumOmloepsmidler: pct(35) - 500n }).inventory).toBe(false);
-    expect(fp({ varer: null }, { sumOmloepsmidler: pct(35) - 501n })).toEqual({
+  it('a balance remainder of an API subtotal within max(5 kr, 0.001 %) counts as 0, and beyond it gives no fingerprint', () => {
+    // sum_omloepsmidler about 3 500 000 kr − kundefordringer 15 % − bank 20 %: 0.001 % of the
+    // subtotal is about 3 500 øre (3 499.965 for 349 996 501 øre), so −3 499 øre is within and −3 501 øre beyond (B3).
+    expect(fingerprint({ varer: null }, { sumOmloepsmidler: pct(35) - 3_499n }).inventory).toBe(false);
+    expect(fp({ varer: null }, { sumOmloepsmidler: pct(35) - 3_501n })).toEqual({
       kind: 'skip',
       reason: 'negative_balance_remainder',
     });
-    // The same for the fixed-asset bound: sum_anleggsmidler − fixed assets 2 %.
+    // The fixed-asset bound: sum_anleggsmidler 200 000 kr − fixed assets 2 %; 0.001 % is 2 kr, so the 5 kr floor holds.
     expect(fingerprint({ sumImmaterielleEiendeler: null }, { sumAnleggsmidler: pct(2) - 500n }).capitalisedIntangibles).toBe(false);
     expect(fp({ sumImmaterielleEiendeler: null }, { sumAnleggsmidler: pct(2) - 501n })).toEqual({
       kind: 'skip',
       reason: 'negative_balance_remainder',
     });
+  });
+
+  // Story 3.1a, B3 (Meinich 2026-11-15): a remainder bounded by an API
+  // subtotal compares document lines with an API figure, so it takes the
+  // between-sources rule; a remainder within the document keeps 5 kr.
+  it('an API-bound remainder takes the between-sources rule; a within-document one takes 5 kr', () => {
+    // sum_omloepsmidler 3 500 000 kr > 501 000 kr: 0.001 % of it is 35 kr, above the 5 kr floor.
+    const apiBound = fp({ varer: null }, { sumOmloepsmidler: pct(35) - 501n });
+    expect(apiBound.kind).toBe('fingerprint');
+    // The same −5.01 kr from the column's own sum_eiendeler (no API subtotal): 5 kr, so no fingerprint.
+    // sum_eiendeler less kundefordringer 15 %, bank 20 %, fixed assets 2 % (intangibles and varer empty).
+    expect(fp({ varer: null, sumEiendeler: pct(37) - 501n }, { sumOmloepsmidler: null })).toEqual({
+      kind: 'skip',
+      reason: 'negative_balance_remainder',
+    });
+    expect(fp({ varer: null, sumEiendeler: pct(37) - 500n }, { sumOmloepsmidler: null }).kind).toBe('fingerprint');
   });
 
   it('a negative balance remainder gives no fingerprint', () => {
@@ -389,6 +406,17 @@ describe('no fingerprint', () => {
     ['negative', -1n],
   ] as const)('unreconciled or no revenue: no fingerprint (revenue %s)', (_label, revenue) => {
     expect(fp({ sumDriftsinntekter: revenue })).toEqual({ kind: 'skip', reason: 'no_revenue' });
+  });
+
+  // Story 3.1a, B1 (Meinich 2026-11-15): the fingerprint keeps the stated
+  // revenue. The key figures may derive an empty sumDriftsinntekter from
+  // driftsresultat + sumDriftskostnad; the fingerprint never does, even when
+  // the parts would give a positive revenue. A reconciled column always
+  // states it (check c1), so this never drops a fingerprint today
+  // (test/fingerprint-seed.test.ts).
+  it('a reconciled column with no stated revenue has no fingerprint', () => {
+    // pct(10) + pct(90) = R would be derivable.
+    expect(fp({ sumDriftsinntekter: null })).toEqual({ kind: 'skip', reason: 'no_revenue' });
   });
 });
 

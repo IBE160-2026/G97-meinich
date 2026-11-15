@@ -3316,6 +3316,83 @@ Precision and recall for each layer, on 900 labelled pairs, with the blind pairs
 
 The review session checked that the report holds no nine-digit number, the checksum in `seed/coverage.json`, the exact stage-5 comparison, that only the measurement turns the signals on, the brief and the FRs, question 26, the restored row counts and the PR text's credits. CI was green on `f1d7cff`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 11:25 UTC on 2026-11-15 as `77b4f12`.
 
+## Story 3.1a: the engine computes every key figure (#66, PR #67)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-15 14:05**: the prompt that opened Story 3.1a.
+```
+Fra meg:
+/bmad-build Story 3.1a: The engine computes every key figure (epics.md, Story 3.1a). Lag branchen story/3.1a-engine-key-figures fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.1a eller Epic 3, også den om at provenance trenger utledede tellere (FR-64). For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor.
+(b) Nøkkeltallene: for hvert av 1–14 og kontantandel formelen fra docs/key-figures.md, kilden (API eller dokument), retningen og kronebeløpet, og hva som finnes i motoren i dag og hva som er nytt.
+(c) Utledning: hvilke dokumentkomponenter som kan utledes fra oppgitte summer (bare i src/engine), at en utledet dokumentomsetning på 5 kr eller mindre ikke regnes som positiv, og at ingenting settes til 0. Si også hvilke stier inn i motoren som ikke er voktet (AD-15), særlig fjorårskolonnen for omsetningsveksten.
+(d) Referansetilfellene: hvilke selskaper og år, med kilden. De skal være demoselskaper eller fra OCR-referansesettet, stå på allow-listen og ikke være i fasitsettet. Si hvordan hver forventet verdi regnes ut uten motoren (tallene slik de står i regnskapet, regnet med brøker, med side), og hvilke tilfeller som dekker negativ egenkapital, null omsetning, en manglende komponent og avvikende regnskapsår.
+(e) Kroner for 9, 10 og 11: formlene, eksakte desimaler, avrunding bare i formatteren, markert som engangsbeløp, og styrke uten beløp ved eller over beste fjerdedel.
+(f) Gulvet: under 10 peers med tall fra samme kilde gir fraværet under gulvet med antallet, og ingen sammenligning eller kroner.
+(g) B1–B3: ditt forslag for hver, med antall kolonner der de to kildene for sumOmloepsmidler gir forskjellig svar i dag (bare totaler). Si hva B1 gjør med digestene for fingeravtrykkene, derive og seeden, og at fingeravtrykket ikke velger i v1 (Story 5.2).
+(h) Identitetene: hvordan genererte øre-inndata lages, og at likheten er eksakt med Decimal og uten toleranse.
+Ny tekst forventes ikke, siden 3.1b viser tallene. Hvis det kommer tekst, vis den til meg først.
+
+Regler: ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet. Tall fra dokumentene kommer bare fra selskaper på allow-listen. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. En formel endres i docs/key-figures.md og i koden i samme commit. Penger er aldri flyttall. PR-en sier hva som kan gå galt med formlene for dokumenttallene og kronebeløpene, med begrunnelse i ai-log, og lister håndutregningen bak hver forventet verdi. Små commits. Etter siste seed-lasting kjører du pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten før første push, og e2e med én worker. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #66, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(h), the reference companies, and six questions: empty cost lines, growth's prior column, B1, B2, B3 and kroner outside NOK.
+
+**14:28**: the answers to the six questions.
+```
+Fra meg:
+1. B, med én endring: når nøyaktig én kostnadslinje er tom, utledes den som sumDriftskostnad minus de andre linjene, også når restbeløpet er større enn 5 kr. Det er en ekte utledning fra den oppgitte summen (AGENTS.md: «Derive missing components … do not default to zero»). Når to eller flere er tomme, settes hver til 0 bare hvis restbeløpet er innenfor 5 kr, som i R2. Ellers er de udefinert. En negativ utledet linje gir udefinert. Alt merkes derived. Vis meg antallet kolonner som får alle fem linjene med denne regelen.
+2. B: vekst er line_not_read_safely når API-sjekken til fjorårskolonnen feiler på omsetningen. De kolonnene som ikke kan sjekkes, står som uvoktet i AD-15.
+3. A. 4. A. 5. A.
+6. Ingen kronebeløp utenfor NOK, med en egen grunn som motoren returnerer. Skriv det i docs/key-figures.md i samme commit som koden.
+Spec-en holdes samlet. Skriv svarene inn i den frosne delen og vis meg den før koden endres.
+```
+*Changed:* the decisions written into the frozen spec; the BMAD session counted 1 815 columns with every cost line under the rule as given and asked whether a remainder within −5 kr should give 0.
+
+**14:36**: the rounding band both ways.
+```
+Fra meg:
+B, med én presisering. Et restbeløp innenfor ±5 kr er avrunding og gir 0, også når det er positivt, både med én og med flere tomme linjer. Når én linje er tom og restbeløpet er over 5 kr, utledes linjen som restbeløpet. Under −5 kr er linjen udefinert, og når flere linjer er tomme og restbeløpet er utenfor ±5 kr, er de udefinert. Alt merkes derived. Bekreft at 1 962 kolonner får alle fem linjene. Frys vedtaket, godkjenn spec-en og fortsett med implementeringen. Ingen push.
+```
+*Changed:* decision 1 frozen with 1 962 columns (`f5125af`); the engine with exact fractions and every input named (`875b4cd`), the document figures, capital kroner and benchmark (`02cfc13`, `652c9ef`), the reference cases and identity tests (`55dc495`, `1179453`, `0bd257b`), B1–B3 (`fb0e111`, `2083aad`) and the docs upstream (`ad7ef4e`, `8db1eef`); the BMAD session stopped on a matrix row that named the wrong figure for R3.
+
+**15:21**: the R3 row corrected.
+```
+Fra meg:
+Ja, rett raden til «kundefordringer → 9; bankinnskudd → 11 og kontantandel; 10 definert», med en oppføring i Spec Change Log, med dato og at jeg bestemte det. Koden følger docs/key-figures.md (9 leser kundefordringer, 11 og kontantandelen leser bankinnskudd), og raden var feil. La historikken stå. Gå videre til kodegjennomgangen. Ingen push.
+```
+*Changed:* the row corrected in the spec change log (`54e3f14`), the review triage and fixes (`87545d6`, `dbc5140`), the session file and AI log (`e03aedd`).
+
+**16:09**: the review session's part named, then push.
+```
+Fra meg:
+Før push: session-fila og PR-teksten skal si hva review-sesjonen gjorde (AGENTS.md). Den skrev promptene jeg limte inn og anbefalte svarene. I vedtak 1 rettet den forslaget ditt om å sette tomme linjer til 0: én tom linje utledes som restbeløpet, fordi AGENTS.md sier «derive … do not default to zero», og avrundingsbåndet på ±5 kr gjelder begge veier, også positivt. Den anbefalte vedtak 2–6, og kravet om at referanseselskapene skal stå på allow-listen og være utenfor fasitsettet. Før PR-en regnet den alle de forventede verdiene for de ti dokumenttilfellene på nytt fra transkripsjonene med brøker, uten motoren: 99 av 100 stemmer, og den ene forskjellen er villet (fjorårskolonnen for 936252710 i 2024 feilet avstemmingen). Skriv for hver avgjørelse at jeg tok den etter anbefaling fra review-sesjonen. Commit, push branchen og åpne PR-en mot main med Closes #66. Si fra når CI er grønn.
+```
+*Changed:* the session file and PR text credit the review session (`f7b5387`); the branch pushed and PR #67 opened.
+
+### Prompts to the review session
+
+- `klar for åpningsprompt` (11-15): the review session read Story 3.1a, the deferred entries and the reference tests, and drafted the 14:05 prompt: expected values computed without the engine, reference companies allow-listed and outside the labelled set, and the unguarded prior-column path named.
+- `takk - hvor mange linjer kode har vi pt?` (11-15): the review session counted the tracked lines: about 26 400 of production code and 28 100 of tests.
+- The BMAD session's checkpoint (11-15): the review session checked the six reference companies against the allow-list and the labelled set and split the empty cost lines by how many were empty. It found that setting an empty line to 0 when one line was empty defaulted to zero instead of deriving the remainder (AGENTS.md), and recommended the remainder for decision 1 and the BMAD session's options for 2–6. It drafted the 14:28 prompt.
+- The BMAD session's question on negative remainders (11-15): the review session recommended one rounding band of ±5 kr for both signs, and checked that the counts sum to 1 962. It drafted the 14:36 prompt.
+- The BMAD session's R3 row (11-15): the review session confirmed against `docs/key-figures.md` that figure 9 reads `kundefordringer` and figures 11 and kontantandel read `bankinnskudd`, and drafted the 15:21 prompt.
+- The BMAD session's final report (11-15): the review session recomputed every expected value of the ten document cases from the human's transcriptions with fractions, without the engine (99 of 100 matched; the one difference is the failed prior column, by design), found that neither the session file nor the PR draft named the review session, and drafted the 16:09 prompt.
+- `er ci grønn` and `post review` (11-15): the review session checked CI and posted the review, moving one comment that named a line outside the diff.
+- `merget` (11-15): the review session moved the main folder to `main` and did the housekeeping.
+
+### Result
+
+The engine computes key figures 1–14 and kontantandel as exact fractions, with every input named and whether it was derived. An empty cost line is derived from sum kostnader: within ±5 kr it is 0, one line above 5 kr is the remainder, anything else is undefined. Growth is not read from a prior column the register disagrees with, the capital kroner for 9–11 have no amount outside NOK, both identities hold exactly, and R3 and derive read the document's filing through one fragment.
+
+### Checks before merging
+
+The review session recomputed the ten document cases' expected values independently (99 of 100; the one difference intended), and checked the companies, `documentCostLines`, the prior-column guard, `not_nok`, B2, the restored row counts and the PR text's credits. CI was green on `28b5df1`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 16:23 UTC on 2026-11-15 as `e447810`.
+
 ---
 
 ## Going forward

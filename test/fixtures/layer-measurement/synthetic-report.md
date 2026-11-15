@@ -164,7 +164,7 @@ The type rule reads the personnel-cost band only to tell `konsulent` (personnel 
 
 ### The decision
 
-Meinich (2026-11-15) followed the band rule's recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; `src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. He decided it from the rule and the blind pairs (66,7 % against 40,0 % precision, 0,0 pp recall, cost-of-goods band with against without), and because the band test cannot tell one band from the fingerprint. v1's group is therefore the stage 1–3 pool.
+Meinich (2026-11-15) followed the band rule's recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; `src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. Meinich decided it from the rule and the blind pairs (66,7 % against 40,0 % precision, 0,0 pp recall, cost-of-goods band with against without), and because the band test cannot tell one band from the fingerprint. v1's group is therefore the stage 1–3 pool.
 
 ## The rules on the blind pairs alone (informational)
 

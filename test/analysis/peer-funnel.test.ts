@@ -1,6 +1,7 @@
-// The funnel (Story 2.7; FR-15, FR-9, FR-14): five stages with their
-// counts, the Segment criterion with its own count, the flagged count with
-// ✦, and bars proportional to stage 1, whatever the group's size.
+// The funnel (Story 2.7; FR-15, FR-9): in v1 (Story 5.2) stages 1–3 with
+// their counts, the Segment criterion with its own count, bars proportional
+// to stage 1 whatever the group's size, and the sentence that stages 4 and
+// 5 are not applied. No stage 4 or 5, no flagged count, no ✦.
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -24,18 +25,13 @@ const render = (counts: FunnelCounts) => renderToString(createElement(PeerFunnel
 const stagesOf = (html: string) => [...html.matchAll(/<li[^>]*data-testid="funnel-stage"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1] ?? '');
 
 describe('PeerFunnel', () => {
-  it('shows all five stages and the flagged count with a group of 7', () => {
+  it('shows stages 1–3 in a three-column grid from md, with a group of 7', () => {
     const html = render(seven);
     const stages = stagesOf(html);
-    expect(stages).toHaveLength(5);
-    const names = [
-      nb['peers.funnel.stage1'],
-      nb['peers.funnel.stage2'],
-      nb['peers.funnel.stage3'],
-      nb['peers.funnel.stage4'],
-      nb['peers.funnel.stage5'],
-    ];
-    const counts = ['40', '31', '27', '9', '7'];
+    expect(stages).toHaveLength(3);
+    expect(html).toMatch(/<ol aria-labelledby="trakt-tittel" class="[^"]*md:grid md:grid-cols-3/);
+    const names = [nb['peers.funnel.stage1'], nb['peers.funnel.stage2'], nb['peers.funnel.stage3']];
+    const counts = ['40', '31', '27'];
     stages.forEach((stage, i) => {
       expect(text(stage)).toContain(names[i]);
       expect(/data-testid="funnel-count">(\d+)</.exec(stage)?.[1]).toBe(counts[i]);
@@ -49,14 +45,34 @@ describe('PeerFunnel', () => {
     // FR-9's words: v1 admits AS only.
     expect(text(stages[2] ?? '')).toContain(nb['peers.funnel.segment.note']);
     expect(nb['peers.funnel.segment.note']).toBe('Peerless sammenligner foreløpig bare aksjeselskaper.');
-    // The flagged count with ✦, said once as "KI-generert".
-    const flagged = /data-testid="funnel-flagged">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? '';
-    expect(text(flagged)).toBe(`${GLYPH}${nb['peers.ai']} ${nb['peers.funnel.flagged'].replace('{n}', '2')}`);
-    expect(flagged).toContain(`<span aria-hidden="true" class="mr-1 text-slate" data-testid="ai-mark">${GLYPH}</span>`);
   });
 
-  it('puts ✦ on no stage name and no count', () => {
-    for (const stage of stagesOf(render(seven))) expect(stage).not.toContain(GLYPH);
+  it('says under the stages that business model and classification are not applied, verbatim', () => {
+    expect(nb['peers.funnel.notApplied']).toBe(
+      'Forretningsmodell og klassifisering ble målt mot et fasitsett og ga ikke klart bedre treff, så de brukes ikke til å velge sammenlignbare selskaper i denne versjonen.',
+    );
+    const html = render(seven);
+    const note = /data-testid="funnel-not-applied">([\s\S]*?)<\/p>/.exec(html)?.[1] ?? '';
+    expect(text(note)).toBe(nb['peers.funnel.notApplied']);
+    expect(html.indexOf('data-testid="funnel-not-applied"')).toBeGreaterThan(html.lastIndexOf('data-testid="funnel-stage"'));
+  });
+
+  it('shows no stage 4 or 5, no flagged count and no ✦', () => {
+    const html = render(seven);
+    // No stage is named after stages 4 or 5 (the note names them in a sentence).
+    const names = stagesOf(html).map((stage) => /<span class="text-\[13px\] text-slate">([^<]*)<\/span>/.exec(stage)?.[1]);
+    expect(names).toEqual([nb['peers.funnel.stage1'], nb['peers.funnel.stage2'], nb['peers.funnel.stage3']]);
+    const outsideNote = html.replace(/<p[^>]*data-testid="funnel-not-applied"[\s\S]*?<\/p>/, '');
+    expect(text(outsideNote)).not.toContain(nb['peers.funnel.stage4']);
+    expect(text(outsideNote)).not.toContain(nb['peers.funnel.stage5']);
+    expect(html).not.toContain('funnel-flagged');
+    expect(text(html)).not.toContain(nb['peers.funnel.flagged'].replace('{n}', '2'));
+    expect(html).not.toContain(GLYPH);
+    expect(html).not.toContain(nb['peers.ai']);
+    // The keys stay for a later stage.
+    expect(nb['peers.funnel.stage4']).toBeTruthy();
+    expect(nb['peers.funnel.stage5']).toBeTruthy();
+    expect(nb['peers.funnel.flagged']).toBeTruthy();
   });
 
   it('is an ordered list named by its visible heading', () => {
@@ -69,6 +85,6 @@ describe('PeerFunnel', () => {
     expect(barWidth(0, 0)).toBe('0%');
     expect(barWidth(7, 40)).toBe('calc(100% * 7 / 40)');
     const empty = render({ stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } });
-    expect(empty.match(/style="width:0%"/g)).toHaveLength(5);
+    expect(empty.match(/style="width:0%"/g)).toHaveLength(3);
   });
 });

@@ -1,11 +1,18 @@
-// The funnel (Story 2.7; FR-15, FR-9, FR-14; DESIGN.md "Funnel"): the five
-// stages with the count each one leaves, shown whether or not the group
-// clears the 10-peer floor, under the heading "Slik ble peer-gruppen
-// valgt", which names the list. Segment names each criterion it applies
-// with its own count (in v1 legal form only) and says that v1 admits AS
-// only, in FR-9's words. Below it, the flagged count with ✦.
+// The funnel (Story 2.7; FR-15, FR-9; DESIGN.md "Funnel"): the stages with
+// the count each one leaves, shown whether or not the group clears the
+// 10-peer floor, under the heading "Slik ble peer-gruppen valgt", which
+// names the list. Segment names each criterion it applies with its own
+// count (in v1 legal form only) and says that v1 admits AS only, in FR-9's
+// words.
 //
-// Five columns from `md`, a vertical list below it (name left, count right,
+// v1 shows stages 1–3 only (Story 5.2, Meinich 2026-11-15): the business
+// model (stage 4) and the classification (stage 5) were measured against
+// the labelled set and are switched off (V1_FUNNEL), so the group is the
+// stage 1–3 pool. A note under the stages says so
+// (`peers.funnel.notApplied`). The stage 4 and 5 keys and the flagged count
+// stay in nb.json, unrendered, for a later stage.
+//
+// Three columns from `md`, a vertical list below it (name left, count right,
 // bar beneath). Each bar is an 8px navy-700 bar proportional to stage 1,
 // its width `calc(100% * n / stage1)` from the integer counts, so no
 // fraction is computed here. Bars are decorative (`aria-hidden`): the count
@@ -13,12 +20,10 @@
 // figures, so they carry no median.
 //
 // Story 2.8: with exclusions, "{n} ekskludert av deg → {m} i analysen"
-// follows the stages; the flagged count (shownGroup) counts only the peers
-// in the analysis.
+// follows the stages.
 import type { ReactNode } from 'react';
 import type { FunnelCounts } from '@/engine/peers';
 import { t, type MessageId } from '@/messages';
-import { AiMark } from './ai-mark';
 
 type Stage = {
   readonly name: MessageId;
@@ -39,8 +44,6 @@ function stages(counts: FunnelCounts): readonly Stage[] {
       criteria: [{ name: 'peers.funnel.segment.legalForm', count: counts.stage3.legalForm }],
       note: 'peers.funnel.segment.note',
     },
-    { name: 'peers.funnel.stage4', count: counts.stage4.businessModel },
-    { name: 'peers.funnel.stage5', count: counts.stage5.classification },
   ];
 }
 
@@ -75,7 +78,7 @@ export function PeerFunnel({
       <h3 id={HEADING_ID} className="m-0 mb-2 text-base font-semibold">
         {t('peers.funnel.heading')}
       </h3>
-      <ol aria-labelledby={HEADING_ID} className="m-0 list-none p-0 md:grid md:grid-cols-5">
+      <ol aria-labelledby={HEADING_ID} className="m-0 list-none p-0 md:grid md:grid-cols-3">
         {stages(counts).map((stage) => (
           <li
             key={stage.name}
@@ -105,15 +108,14 @@ export function PeerFunnel({
           </li>
         ))}
       </ol>
+      <p className="m-0 mt-3 text-[13px] text-slate" data-testid="funnel-not-applied">
+        {t('peers.funnel.notApplied')}
+      </p>
       {excluded > 0 ? (
         <p className="figure m-0 mt-3 text-[13px] text-slate" data-testid="funnel-excluded">
           {t('peers.funnel.excluded', { n: String(excluded), m: String(analysisCount) })}
         </p>
       ) : null}
-      <p className="m-0 mt-3 text-[13px] text-slate" data-testid="funnel-flagged">
-        <AiMark />
-        {t('peers.funnel.flagged', { n: String(counts.stage5.flagged) })}
-      </p>
     </div>
   );
 }

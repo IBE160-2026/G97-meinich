@@ -43,7 +43,7 @@ Use TypeScript strictly. Types are how we keep financial data from drifting; do 
 
 **Rules before model.** If something can be solved deterministically, solve it deterministically and give the model only what is left over. Both layers are measured separately; that measurement is the project's main result.
 
-**Never select peers on a measure that is benchmarked.** Peer matching may use what kind of business a company is — cost composition, inventory, capitalised intangibles, asset intensity — never how well it performs. Selecting on margin or return makes every gap in that measure close to zero. Any measure used in selection enters only in coarse bands — today cost of goods share and personnel cost share — and is benchmarked within its band.
+**Never select peers on a measure that is benchmarked.** Peer matching may use what kind of business a company is — cost composition, inventory, capitalised intangibles, asset intensity — never how well it performs. Selecting on margin or return makes every gap in that measure close to zero. Any measure used in selection enters only in coarse bands — cost of goods share and personnel cost share when stage 4 is on; in v1 it is off (Story 5.2), so none enters — and is benchmarked within its band.
 
 **Peerless runs without our keys.** A fresh clone must run from the README on a local database with seed data — no API key, paid account, email or hosted service. Anything that calls a model or the register at runtime needs a test mode backed by stored output.
 

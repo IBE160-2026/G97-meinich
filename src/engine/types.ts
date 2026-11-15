@@ -3,6 +3,7 @@
 // never zero in place of a missing value (`docs/key-figures.md`, "Undefined
 // is not zero").
 import type { Decimal } from './decimal.ts';
+import type { DocumentField } from './document-inputs.ts';
 
 /**
  * The four register inputs to the API key figures and the three totals they
@@ -69,14 +70,33 @@ export type Absence =
 /** A single company's figure cannot be below the floor; that is a comparison's absence. */
 export type FigureAbsence = Exclude<Absence, { readonly reason: 'below_floor' }>;
 
+/**
+ * One input of a computed figure (Story 3.1a, FR-64): the register field it
+ * is, the column it was read from — the key-figures API filing, or the
+ * document's current or prior-year column — and whether it was derived from
+ * stated values rather than stated itself. `aarsverk` is read from the notes,
+ * which v1 does not read (key figures 7 and 8).
+ */
+export type FigureInput = {
+  readonly field: keyof ApiInputs | DocumentField | 'aarsverk';
+  readonly column: 'api' | 'current' | 'prior';
+  readonly derived: boolean;
+};
+
 export type FigureResult =
   | {
       readonly kind: 'value';
-      /** The ratio as a fraction (0.021 is 2.1 %): a Decimal to 40 significant digits, rounded only at display. */
+      /**
+       * The formula's result: a share as a fraction (0.021 is 2.1 %), days
+       * for 9 and 10, a multiple for 11. A Decimal to 40 significant digits
+       * from one division of an exact fraction, rounded only at display.
+       */
       readonly value: Decimal;
       readonly source: Source;
       /** True when the denominator was derived from a stated total, not stated itself. */
       readonly denominatorDerived: boolean;
+      /** Every input of the formula, in the order the formula reads them, each marked stated or derived. */
+      readonly inputs: readonly FigureInput[];
     }
   | { readonly kind: 'absent'; readonly absence: FigureAbsence };
 

@@ -258,12 +258,12 @@ describe('a failed peer', () => {
   const asResult = (basis: DocumentBasis, figure: DocumentKeyFigure, i: number): FigureResult => {
     const absence = documentFigureAbsence(basis, figure);
     return absence === null
-      ? { kind: 'value', value: new Decimal(i).div(100), source: 'document', denominatorDerived: false }
+      ? { kind: 'value', value: new Decimal(i).div(100), source: 'document', denominatorDerived: false, inputs: [] }
       : { kind: 'absent', absence };
   };
 
   it('a failed peer is left out of document figures only', () => {
-    const subject: FigureResult = { kind: 'value', value: new Decimal('0.05'), source: 'document', denominatorDerived: false };
+    const subject: FigureResult = { kind: 'value', value: new Decimal('0.05'), source: 'document', denominatorDerived: false, inputs: [] };
     for (const figure of TEN) {
       const comparison = compareFigure(
         subject,

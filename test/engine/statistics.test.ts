@@ -7,7 +7,7 @@ import { type Comparison, type FigureResult, MIN_PEERS, type Source } from '../.
 const d = (values: readonly string[]): Decimal[] => values.map((v) => new Decimal(v));
 
 function figure(v: string, source: Source = 'api'): FigureResult {
-  return { kind: 'value', value: new Decimal(v), source, denominatorDerived: false };
+  return { kind: 'value', value: new Decimal(v), source, denominatorDerived: false, inputs: [] };
 }
 
 const undefinedFigure: FigureResult = {

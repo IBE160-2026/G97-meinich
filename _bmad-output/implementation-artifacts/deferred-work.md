@@ -23,6 +23,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-engine-format.md`
   summary: The provenance drill-down (FR-64, Epic 3) needs to know which inputs were derived; `FigureResult` records only `denominatorDerived`, not a derived numerator (`driftsresultat`, `sumEgenkapital`).
   evidence: Story 1.4 review. JOAKIM BORDING AS 2025's equity ratio uses a derived `sumEgenkapital` and cannot be told apart from a stated one.
+  closed: Story 3.1a. `FigureResult` carries `inputs`, every input of the formula with its column and `derived` (`src/engine/types.ts`, `FigureInput`); `test/engine/key-figures.test.ts` "marks a derived numerator as derived, and each stated input as stated".
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
   summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.

@@ -80,7 +80,8 @@ describe('peerRows', () => {
       navn: 'PEER 900000001 AS',
       omsetning: `15,0${NBSP}mill.${NBSP}kr`,
       driftsmargin: `10,0${NBSP}%`,
-      hvorforMed: 'Samme bransje, omsetning 1,5× ADMMIT AS, varekostnadsandel i samme bånd, uten varelager',
+      // v1 names no fingerprint category (Story 5.2).
+      hvorforMed: 'Samme bransje, omsetning 1,5× ADMMIT AS',
       // v1 reads neither signal (Story 5.2): the basis is industry and size.
       grunnlag: nb['peers.basis.industry_and_size_only'],
       grunnlagKi: false,

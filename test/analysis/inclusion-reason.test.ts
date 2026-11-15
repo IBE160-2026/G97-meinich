@@ -28,6 +28,20 @@ const profile = (overrides: Partial<ProfileFields> = {}): ProfileFields => ({
   ...overrides,
 });
 
+// The fingerprint signal on, as built: the categories are named. The v1
+// funnel reads no fingerprint signal (Story 5.2), and names none.
+const SIGNAL_ON = { fingerprintSignal: true } as const;
+
+describe('inclusionReason in v1', () => {
+  it('v1: only the base sentence, no fingerprint category, even when categories are shared', () => {
+    const both = profile({ fingerprint: KONSULENT });
+    expect(inclusionReason(both, both, 'A AS')).toBe('Samme bransje, omsetning 1× A AS');
+    expect(inclusionReason(both, profile({ fingerprint: KONSULENT, sumDriftsinntekter: 2n * S }), 'ADMMIT AS')).toBe(
+      'Samme bransje, omsetning 2× ADMMIT AS',
+    );
+  });
+});
+
 describe('inclusionReason', () => {
   it('names the industry, the revenue ratio and the subject', () => {
     expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 2n * S }), 'ADMMIT AS')).toBe(
@@ -36,15 +50,15 @@ describe('inclusionReason', () => {
   });
 
   it('computes the ratio peer / subject exactly, shown with up to one decimal', () => {
-    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 1_400_000_000n }), 'A AS')).toBe(
+    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 1_400_000_000n }), 'A AS', SIGNAL_ON)).toBe(
       'Samme bransje, omsetning 1,4× A AS',
     );
     // 0.55 rounds half away from zero to 0,6.
-    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 550_000_000n }), 'A AS')).toBe(
+    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 550_000_000n }), 'A AS', SIGNAL_ON)).toBe(
       'Samme bransje, omsetning 0,6× A AS',
     );
     // An odd subject revenue: 2/3 = 0,666… → 0,7, never a float.
-    expect(inclusionReason(profile({ sumDriftsinntekter: 3n }), profile({ sumDriftsinntekter: 2n }), 'A AS')).toBe(
+    expect(inclusionReason(profile({ sumDriftsinntekter: 3n }), profile({ sumDriftsinntekter: 2n }), 'A AS', SIGNAL_ON)).toBe(
       'Samme bransje, omsetning 0,7× A AS',
     );
   });
@@ -52,12 +66,12 @@ describe('inclusionReason', () => {
   it('names shared fingerprint categories in order, at most two', () => {
     const both = profile({ fingerprint: KONSULENT });
     // Five known and equal: cost of goods and inventory come first.
-    expect(inclusionReason(both, both, 'A AS')).toBe(
+    expect(inclusionReason(both, both, 'A AS', SIGNAL_ON)).toBe(
       'Samme bransje, omsetning 1× A AS, varekostnadsandel i samme bånd, uten varelager',
     );
     // Cost of goods unknown on one side: inventory, then intangibles.
     const range = profile({ fingerprint: { ...KONSULENT, costOfGoods: { lo: 'low', hi: 'mid' } } });
-    expect(inclusionReason(both, range, 'A AS')).toBe(
+    expect(inclusionReason(both, range, 'A AS', SIGNAL_ON)).toBe(
       `Samme bransje, omsetning 1× A AS, uten varelager, immaterielle eiendeler under 5${NBSP}% av omsetningen`,
     );
     // Only the later three left: intangibles (held), personnel cost.
@@ -67,6 +81,7 @@ describe('inclusionReason', () => {
         profile({ fingerprint: { ...held, costOfGoods: known('mid') } }),
         profile({ fingerprint: held }),
         'A AS',
+        SIGNAL_ON,
       ),
     ).toBe(
       `Samme bransje, omsetning 1× A AS, balanseførte immaterielle eiendeler minst 5${NBSP}% av omsetningen, lønnskostnadsandel i samme bånd`,
@@ -75,13 +90,13 @@ describe('inclusionReason', () => {
     const subject = profile({
       fingerprint: { ...KONSULENT, costOfGoods: known('mid'), inventory: true, capitalisedIntangibles: true, personnelCost: known('low') },
     });
-    expect(inclusionReason(subject, both, 'A AS')).toBe('Samme bransje, omsetning 1× A AS, kapitalbinding i samme bånd');
+    expect(inclusionReason(subject, both, 'A AS', SIGNAL_ON)).toBe('Samme bransje, omsetning 1× A AS, kapitalbinding i samme bånd');
   });
 
   it('names no category when one side has no fingerprint, or nothing is shared', () => {
     const both = profile({ fingerprint: KONSULENT });
-    expect(inclusionReason(both, profile(), 'A AS')).toBe('Samme bransje, omsetning 1× A AS');
-    expect(inclusionReason(profile(), both, 'A AS')).toBe('Samme bransje, omsetning 1× A AS');
+    expect(inclusionReason(both, profile(), 'A AS', SIGNAL_ON)).toBe('Samme bransje, omsetning 1× A AS');
+    expect(inclusionReason(profile(), both, 'A AS', SIGNAL_ON)).toBe('Samme bransje, omsetning 1× A AS');
     const other: Fingerprint = {
       costOfGoods: known('high'),
       personnelCost: known('low'),
@@ -89,7 +104,7 @@ describe('inclusionReason', () => {
       inventory: true,
       capitalisedIntangibles: true,
     };
-    expect(inclusionReason(both, profile({ fingerprint: other }), 'A AS')).toBe('Samme bransje, omsetning 1× A AS');
+    expect(inclusionReason(both, profile({ fingerprint: other }), 'A AS', SIGNAL_ON)).toBe('Samme bransje, omsetning 1× A AS');
   });
 
   it('same inputs give the same text, whatever the classification', () => {
@@ -116,9 +131,9 @@ describe('inclusionReason', () => {
         const classifiedSubject: FunnelSubject = { ...base, classification };
         const classifiedPeer: FunnelSubject = { ...peer, classification };
         return [
-          inclusionReason(classifiedSubject, peer, 'A AS'),
-          inclusionReason(base, classifiedPeer, 'A AS'),
-          inclusionReason(base, peer, 'A AS'),
+          inclusionReason(classifiedSubject, peer, 'A AS', SIGNAL_ON),
+          inclusionReason(base, classifiedPeer, 'A AS', SIGNAL_ON),
+          inclusionReason(base, peer, 'A AS', SIGNAL_ON),
         ];
       }),
     );
@@ -136,13 +151,13 @@ describe('inclusionReason', () => {
 
   it('carries no ✦', () => {
     const both = profile({ fingerprint: KONSULENT });
-    expect(inclusionReason(both, both, 'A AS')).not.toContain('✦');
+    expect(inclusionReason(both, both, 'A AS', SIGNAL_ON)).not.toContain('✦');
   });
 
   it('refuses a pair stage 1 would never admit', () => {
-    expect(() => inclusionReason(profile(), profile({ naeringskode1: '62.200' }), 'A AS')).toThrow(TypeError);
-    expect(() => inclusionReason(profile({ naeringskode1: null }), profile({ naeringskode1: null }), 'A AS')).toThrow(TypeError);
-    expect(() => inclusionReason(profile(), profile({ sumDriftsinntekter: null }), 'A AS')).toThrow(TypeError);
-    expect(() => inclusionReason(profile({ sumDriftsinntekter: 0n }), profile(), 'A AS')).toThrow(TypeError);
+    expect(() => inclusionReason(profile(), profile({ naeringskode1: '62.200' }), 'A AS', SIGNAL_ON)).toThrow(TypeError);
+    expect(() => inclusionReason(profile({ naeringskode1: null }), profile({ naeringskode1: null }), 'A AS', SIGNAL_ON)).toThrow(TypeError);
+    expect(() => inclusionReason(profile(), profile({ sumDriftsinntekter: null }), 'A AS', SIGNAL_ON)).toThrow(TypeError);
+    expect(() => inclusionReason(profile({ sumDriftsinntekter: 0n }), profile(), 'A AS', SIGNAL_ON)).toThrow(TypeError);
   });
 });

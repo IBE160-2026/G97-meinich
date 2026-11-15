@@ -12,10 +12,16 @@
 // Decimal shown with formatMultiple; {andel} is INTANGIBLES_SHARE as a
 // whole percent. Bands are named only as "i samme bånd": no share, and no
 // band, reaches the page as a value.
+//
+// The categories are named only when the funnel reads the fingerprint
+// signal. In v1 it does not (V1_FUNNEL, Story 5.2): the fingerprint selects
+// no one, so naming its categories would read as a reason it is not, and
+// the text is the base sentence alone. The trait code stays for a later
+// stage that turns the signal back on.
 import { Decimal } from '../engine/decimal.ts';
 import { INTANGIBLES_SHARE, type BandRange, type Fingerprint } from '../engine/fingerprint.ts';
 import { formatMultiple, formatWholePercent } from '../engine/format.ts';
-import type { FunnelSubject } from '../engine/peers.ts';
+import { V1_FUNNEL, type FunnelOptions, type FunnelSubject } from '../engine/peers.ts';
 import { t, type MessageId } from '../messages/index.ts';
 
 /** The profile fields the reason reads: no model field. */
@@ -55,7 +61,12 @@ function sharedTraits(subject: Fingerprint, peer: Fingerprint): string[] {
  * when the two are not in one industry or either lacks positive revenue:
  * funnel stage 1 admits no such peer, so it would be a bug, never a row.
  */
-export function inclusionReason(subject: ProfileFields, peer: ProfileFields, subjectName: string): string {
+export function inclusionReason(
+  subject: ProfileFields,
+  peer: ProfileFields,
+  subjectName: string,
+  options: Pick<FunnelOptions, 'fingerprintSignal'> = V1_FUNNEL,
+): string {
   if (subject.naeringskode1 === null || subject.naeringskode1 !== peer.naeringskode1) {
     throw new TypeError('inclusionReason: the peer is not in the subject’s industry');
   }
@@ -66,7 +77,7 @@ export function inclusionReason(subject: ProfileFields, peer: ProfileFields, sub
   }
   const forhold = new Decimal(p.toString()).div(new Decimal(s.toString()));
   const parts = [t('peers.reason.base', { forhold: formatMultiple(forhold.toString()), selskap: subjectName })];
-  if (subject.fingerprint !== null && peer.fingerprint !== null) {
+  if (options.fingerprintSignal && subject.fingerprint !== null && peer.fingerprint !== null) {
     parts.push(...sharedTraits(subject.fingerprint, peer.fingerprint));
   }
   return parts.join(', ');

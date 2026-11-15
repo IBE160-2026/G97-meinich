@@ -7,7 +7,7 @@
 - Spec: `f5125af`.
 - Engine and tests: `875b4cd` to `587fa86`.
 - Review fixes: `dbc5140`.
-- The PR is not opened yet (no push before Meinich says so).
+- PR: [#67](https://github.com/IBE160-2026/G97-meinich/pull/67).
 
 ## Goal
 

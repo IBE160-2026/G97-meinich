@@ -126,7 +126,7 @@ docker run --rm --mount "type=bind,src=$PWD/ingest/tests/fixtures/documents,dst=
 
 ### Batch step 2: fingerprints
 
-Step 2 derives what the funnel's stage 4 compares: the business-model fingerprint of every filed document's current column (Story 2.5). It runs as the `derive` role (`DERIVE_DATABASE_URL`, written by `pnpm db:roles`), reads only the stored figures, and needs no key, no network and no Docker beyond the local database.
+Step 2 derives what the funnel's stage 4 would compare: the business-model fingerprint of every filed document's current column (Story 2.5). In v1 stage 4 is switched off: measured against the labelled set, the fingerprint did not pick clearly better peers than industry and size (Story 5.2, `analysis/output/layer-measurement-62100.md`), so the fingerprints are derived and stored but select nothing, and the peer group is funnel stages 1–3. It runs as the `derive` role (`DERIVE_DATABASE_URL`, written by `pnpm db:roles`), reads only the stored figures, and needs no key, no network and no Docker beyond the local database.
 
 ```sh
 pnpm derive            # rebuilds register.fingerprint from the reconciled document columns, as derive
@@ -183,7 +183,7 @@ pnpm restore:documents  # the current dump, then pnpm derive: fingerprints of ev
 pnpm analysis:spread    # the within-band spread over them
 ```
 
-**Classification (Story 2.6).** The app reads stored classifications and needs no key. Only someone refreshing them runs step 2's `pnpm classify`, which calls the model through the Batch API:
+**Classification (Story 2.6).** The classifications are stored, and in v1 they select no peer: stage 5 did not meet the measurement's decision rule (Story 5.2). The app needs no key. Only someone refreshing them runs step 2's `pnpm classify`, which calls the model through the Batch API:
 
 ```sh
 pnpm classify --plan --sample 300             # what it would send and cost: no key, nothing written

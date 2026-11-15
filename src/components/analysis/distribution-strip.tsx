@@ -12,18 +12,10 @@
 // about the figures. Colours are the theme's tokens, never a hex value.
 import { t } from '@/messages';
 
-/** Mark positions as a share of the strip's width from the left, 0–1. Geometry, not figures. */
-export type StripMarks = {
-  readonly own: { readonly at: number; readonly clipped: boolean };
-  readonly median: number;
-  /** The midtre halvdel's ends, left and right as drawn. */
-  readonly bandFrom: number;
-  readonly bandTo: number;
-  /** Null for a figure with no direction. */
-  readonly best: number | null;
-  /** Lower is better: drawn mirrored and labelled "Bedre →". */
-  readonly mirrored: boolean;
-};
+import type { StripMarks } from '@/analysis/key-figure-rows';
+
+// The marks' shape is the key-figure view's (src/analysis/key-figure-rows.ts).
+export type { StripMarks };
 
 const WIDTH = 160;
 const HEIGHT = 30;

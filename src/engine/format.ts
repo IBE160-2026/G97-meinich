@@ -122,6 +122,11 @@ export function formatDays(days: string): string {
   return `${render(decimal(days), 0)}${NBSP}dager`;
 }
 
+/** Days → whole days, no unit: "48", "−3" (a range's bounds, whose unit is written once: "18–49 dager"). */
+export function formatDaysNumber(days: string): string {
+  return render(decimal(days), 0);
+}
+
 /** A turnover ratio → two decimals: "2,85". */
 export function formatTurnover(value: string): string {
   return render(decimal(value), 2);

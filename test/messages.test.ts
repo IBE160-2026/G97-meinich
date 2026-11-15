@@ -139,10 +139,10 @@ describe('Story 2.9 copy', () => {
 describe('Story 3.1b copy', () => {
   it.each([
     ['keyFigures.caption', 'Nøkkeltall mot sammenlignbare selskaper'],
-    ['keyFigures.middleHalfDays', 'midtre halvdel {lo}–{hi} dager'],
-    ['keyFigures.middleHalfDaysNegative', 'midtre halvdel {lo} til {hi} dager'],
-    ['keyFigures.middleHalfDaysLabelled', 'Midtre halvdel: {lo}–{hi} dager'],
-    ['keyFigures.middleHalfDaysLabelledNegative', 'Midtre halvdel: {lo} til {hi} dager'],
+    ['keyFigures.middleHalfDays', 'midtre halvdel {lo}–{hi}\u00a0dager'],
+    ['keyFigures.middleHalfDaysNegative', 'midtre halvdel {lo} til {hi}\u00a0dager'],
+    ['keyFigures.middleHalfDaysLabelled', 'Midtre halvdel: {lo}–{hi}\u00a0dager'],
+    ['keyFigures.middleHalfDaysLabelledNegative', 'Midtre halvdel: {lo} til {hi}\u00a0dager'],
     ['keyFigures.middleHalfTurnover', 'midtre halvdel {lo}–{hi}'],
     ['keyFigures.middleHalfTurnoverNegative', 'midtre halvdel {lo} til {hi}'],
     ['keyFigures.middleHalfTurnoverLabelled', 'Midtre halvdel: {lo}–{hi}'],

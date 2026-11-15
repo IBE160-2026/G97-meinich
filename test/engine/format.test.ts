@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatBandFactor,
   formatDays,
+  formatDaysNumber,
   formatKommune,
   formatKroner,
   formatKronerExact,
@@ -102,6 +103,10 @@ describe('rounding, once, half away from zero', () => {
     expectBytes(formatWholePercent('60.869565217391304347826086956521739130'), `61${NBSP}%`);
     expectBytes(formatWholePercent('60.5'), `61${NBSP}%`);
     expectBytes(formatDays('47.5'), `48${NBSP}dager`);
+    // Story 3.1b: a range's bounds, the unit written once.
+    expectBytes(formatDaysNumber('47.5'), '48');
+    expectBytes(formatDaysNumber('-2.5'), `${MINUS}3`);
+    expectBytes(formatDaysNumber('1234.4'), `1${NBSP}234`);
     expectBytes(formatTurnover('2.845'), '2,85');
     expectBytes(formatTurnover('3'), '3,00');
     expectBytes(formatMultiple('6'), '6');

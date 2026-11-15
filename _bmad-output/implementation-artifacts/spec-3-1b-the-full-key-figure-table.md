@@ -134,6 +134,15 @@ context:
 
 ## Implementation Notes
 
+- **The view.** `src/analysis/key-figure-rows.ts` holds the row order, the groups (`KEY_FIGURE_GROUPS`), each figure's unit, role and denominator words (`KEY_FIGURE_ROWS`), and `keyFigureTableView`. The table only renders it. `DIRECTION_WORDS` and `StripMarks` moved there; `api-figures.tsx` and `distribution-strip.tsx` re-export them.
+- **7 and 8.** `AbsenceContext.denominator` is `MessageId | null`. It is null for 7 and 8, and a not-positive cause with null throws. The engine makes both `not_read_in_v1` on every basis, so outside the demo data and for a failed filing they read "Ikke lest i denne versjonen", not the basis's words.
+- **Cost-share group.** All four rows of the group are indented, 6 included.
+- **Non-small notice.** It now also counts document rows below the floor, not only the API rows. It has its own `data-testid="non-small-notice"`, so it can be told apart from the outside-the-demo-data State block.
+- **Days copy.** The days midtre halvdel messages have U+00A0 before "dager", as `formatDays` and the percent ranges do. The spec's markdown shows a plain space; the words are unchanged. `formatDaysNumber` writes the bounds.
+- **Phone columns.** At 320 px a nine-digit capital amount overflowed the gap column, and "engangsbeløp" broke across lines. The columns are now 34 % / 26 % / 40 %, with 8 px right padding on the own cell. Labels hyphenate more at 320 px, and "Ikke i demodataene" breaks inside the word in the 26 % column.
+- **Popover.** The text opens in the flow of its cell, not floating, so the table's scroll container cannot clip it. The rule is the pure `nextOpen`: there is no DOM test environment and no new dependency. `test/analysis/info-popover.test.ts` covers the rule and the markup, and `e2e/key-figures.spec.ts` "outside the demo data: document rows withheld" drives click, Enter, Space, Esc, hover and an outside click.
+- **Fixture.** The revenues are 1,1–2,0 milliard kr: below the subject's widest band there is no gap free of listed reference companies, and above it lie demo A's and B's bands. The insert refuses when a listed company lies in the subject's widest band.
+
 ## Spec Change Log
 
 ## Review Triage Log

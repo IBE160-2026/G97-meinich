@@ -2,7 +2,8 @@
 title: 'Story 3.1b: The full key-figure table'
 type: 'feature'
 created: '2026-11-15'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_commit: '952a4f6ba3f1a238c4d6e0d53229dc8b75765fb5'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -138,6 +139,12 @@ context:
 ## Review Triage Log
 
 ## Verification
+
+**How to work:**
+- Commit in small logical steps as you go, each one type-checking on its own (AGENTS.md, Git workflow): rows view and its tests, server wiring, copy, table and popover, the fixture and e2e, docs. No push.
+- For each matrix row, the report shows the guard you removed and the failing test's output, then restores the guard.
+- After the last `pnpm seed`, run `pnpm restore:documents` and report its four counts.
+- Run the full suite before you finish, with e2e at `workers: 1`.
 
 **Commands:**
 - `pnpm lint && pnpm typecheck && pnpm test` -- green.

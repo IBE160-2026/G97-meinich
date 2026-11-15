@@ -149,3 +149,7 @@ The report was regenerated four times on the restored dump; no table value or ve
 - Report: `analysis/output/layer-measurement-62100.md` (version 4, `4397498`)
 - AI log: "2026-11-15 — Story 5.2: the layer measurement, and stages 4 and 5 switched off in v1"
 - Planning documents updated: the PRD (with a `.memlog.md` change line), the technical note, `epics.md`, the brief and its addendum, EXPERIENCE, DESIGN, README, AGENTS.md, `docs/key-figures.md`, `deferred-work.md`
+
+## Merge
+
+CI was green on `f1d7cff` (run 43707846102, 10 min 12 s). Before merging, the review session checked that the report holds no nine-digit number and so no orgnr of the labelled set, that the checksum in `seed/coverage.json` matches the report, that the stage-5 verdict is the comparison fixed before the run and computed with fractions, that both signals are off in `V1_FUNNEL` and only the measurement turns them on, that the brief was edited where it was wrong rather than given a note, that the FRs describe v1 with the history in `.memlog.md`, the restored row counts (2 785, 5 556, 2 537, 10 371), and the PR text's credits, the band test's definition among them. At Meinich's request (`post review`), the review session posted the GitHub review with five line comments and nothing to fix ([review 5910427469](https://github.com/IBE160-2026/G97-meinich/pull/65#pullrequestreview-5910427469)). The PR was merged at 11:25 UTC on 2026-11-15 as `77b4f12`, closing issue #64.

@@ -14,7 +14,7 @@
 //   - the server's field names for what it reads per peer: amounts,
 //     fingerprint categories, the classification, the municipality, the
 //     match basis ids. The display rows' own keys (`hvorforMed`,
-//     `grunnlagKi`) are not among them: "Vis alle" receives those rows as
+//     `driftsmargin`) are not among them: "Vis alle" receives those rows as
 //     strings, so they are in the RSC payload by design.
 //
 // `marker` is a string the tab always renders, so an empty or failed page

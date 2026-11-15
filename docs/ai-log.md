@@ -16,8 +16,8 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 34 |
-| money | 26 |
+| auth | 35 |
+| money | 27 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
@@ -946,3 +946,17 @@ Mutation check: hashing the raw bytes again fails 19 tests, among them the first
     - A null `valuta` cannot be reached either, because stage 2 requires a stated one.
   - The triage is in the spec's Review Triage Log.
 **Outcome:** Commits `875b4cd` to `587fa86` (the engine, the tests, B1–B3, and the docs commit `ad7ef4e`), then the review fixes in `dbc5140`, on `story/3.1a-engine-key-figures`.
+
+### 2026-11-15 — Story 3.1b: the full key-figure table, its payload and its kroner cells
+**Tags:** money, auth
+**Tool:** Claude Code (Opus 5.5): an implementation subagent dispatched by the BMAD session
+**Asked:** Render every key figure of `docs/key-figures.md` in the Nøkkeltall og gap table from the engine's comparisons and gaps (Story 3.1a), with the cost-share row group, the check row, capital kroner, every absence's words, the outside-the-demo-data state and its info popover, and a third committing e2e fixture (FR-23, FR-24, FR-27, FR-29, FR-55, FR-56, FR-71; issue #68).
+**Got:** `benchmarkDocumentFigures` in `shownGroup`; `src/analysis/key-figure-rows.ts`, a pure view of strings and strip geometry; the table rendering it; `src/components/analysis/info-popover.tsx`; `formatDaysNumber`; `SYNTHETIC_DOCUMENTS` in `e2e/synthetic.ts` with `e2e/synthetic-documents.spec.ts`; `expectNoDocumentFields` and a document-field scan in `e2e/payload.ts`.
+**Problem:** What could go wrong, and what holds it (before review; each test below failed with its guard removed in the implementation run):
+1. **Document figures reaching the browser (AD-4).** The table is a server component, but anything it hands a `'use client'` module is serialised into the page. The rows are built once, in `keyFigureTableView`, and hold only strings, booleans and strip positions (`test/analysis/key-figure-rows.test.ts` "row view holds only strings and strip marks", which fails when a row carries the subject's `Decimal`). The rendered page and its RSC payload are scanned for every document line in øre of the subject and its ten peers, the document field names and the `cur_`/`pri_` columns (`e2e/synthetic-documents.spec.ts` "no document øre reaches the page", which fails when the page renders the subject's document basis); the field scan runs on every analysis tab through `expectNoPeerFields`. Single-word field names (`varekostnad`) also occur in approved copy, so they are matched only as object keys: a leak under another shape would pass.
+2. **A capital amount rounded twice, or read as per year.** Each amount is the engine's exact øre, rounded once by `formatKronerExact` (`capitalAmountText`), and carries "engangsbeløp", never "per år" (`test/analysis/key-figure-table.test.ts` "capital kroner: one rounding, engangsbeløp": 1 000 050 øre shows 10 001 kr, where rounding the days first would give 10 500 kr). A strength, a filing not in NOK and a turnover target of 0 or less have their own words and no amount ("at or beyond beste fjerdedel: strength, no amount", "capital kroner absent with its reason"). A compared capital or profit figure with no gap from the engine throws instead of showing an empty cell. Nothing in the table sums an amount; the FR-30 totals are Stories 3.3 and 3.5.
+3. **Kroner on a row that has none.** Cost shares read "Se forklaring av marginen" ("cost shares sit in their own row group and point to the margin explanation"), EBITDA-margin and totalkapitalrentabilitet "Ingen kronebeløp" ("no kroner translation: Ingen kronebeløp"), and the check row and the rows with no direction a dash with sr-only words ("total cost share is a check row", "no-direction rows: median and midtre halvdel only", "kontantandel is a diagnostic row"). The kroner cell takes its kind from the figure (`benchmarkOf`), not from the engine's gap alone.
+4. **A comparison without enough peers, or with the wrong ones.** Below the floor the comparison cells merge into "For få sammenlignbare (n av 10)" with the counts kept ("below the floor: no comparison, counts kept"; `e2e/synthetic-documents.spec.ts` "excluding one peer puts the document rows below the floor", which fails when the document benchmark ignores `ekskl`). A year's figures come from that year's own document, never a later document's prior column (`test/db/analysis.test.ts` "a prior column never stands in for its year", which fails on a join that falls back to the next year's prior column).
+5. **A fixture that leaks into other specs or the real data.** The eleven synthetic companies are written only to a local database, removed before, after and in the global setup, never delete a company of the same orgnr under another name, lie outside demo A's and B's bands, and refuse to insert when another listed company lies in the subject's widest band.
+**Caught by:** The implementation run removed each guard of the spec's I/O matrix and saw its named test fail. One test did not hold its guard as first written: kontantandel's check for kroner text matched "kr" only before a word boundary, which "Ingen kronebeløp" does not have; it now asserts the cell (`75f92b6`). A screenshot at 320 px showed a nine-digit capital amount running past the phone table and "engangsbeløp" broken; the phone columns were widened (`4cb75e3`) and `e2e/synthetic-documents.spec.ts` "at 320 px: every row on the phone, the capital amounts fit, no sideways scroll" checks it.
+**Outcome:** Commits `233aac3` to `75f92b6` on `story/3.1b-full-key-figure-table`.

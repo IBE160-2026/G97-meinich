@@ -2,6 +2,7 @@
 // labels and synthetic funnel inputs. No stored company, no label file of
 // analysis/labelled-set/ and no database is read here; `main` runs on a
 // temporary root with its database read replaced.
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -18,6 +19,8 @@ import {
   assertNoLabelledOrgnr,
   bandDecision,
   bandRule,
+  CLEAN_PATHS,
+  gitCommit,
   commonIndustry,
   documentCause,
   layerMetrics,
@@ -672,5 +675,41 @@ describe('main on synthetic files', () => {
     expect(stderr.join('')).toContain('none of the 12 labelled companies has a fingerprint: the document dump is not restored');
     expect(stderr.join('')).toContain('pnpm restore:documents');
     expect(existsSync(path.join(root, ...reportFile('62.100').split('/')))).toBe(false);
+  });
+});
+
+// The report names the commit that wrote it (triage 12): a run with
+// uncommitted changes in the code, the labels or the coverage refuses.
+describe('gitCommit', () => {
+  let repo: string;
+  const git = (...args: string[]) =>
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'core.autocrlf=false', ...args], { cwd: repo, encoding: 'utf8' });
+  beforeEach(() => {
+    repo = mkdtempSync(path.join(tmpdir(), 'layer-git-'));
+    git('init', '-q');
+    mkdirSync(path.join(repo, 'scripts'));
+    mkdirSync(path.join(repo, 'seed'));
+    writeFileSync(path.join(repo, 'scripts', 'a.ts'), 'a');
+    writeFileSync(path.join(repo, 'seed', 'coverage.json'), '[]');
+    writeFileSync(path.join(repo, 'other.md'), 'x');
+    git('add', '.');
+    git('commit', '-q', '-m', 'one');
+  });
+  afterEach(() => rmSync(repo, { recursive: true, force: true }));
+
+  it('names HEAD when the checked paths are clean, whatever else changed', () => {
+    writeFileSync(path.join(repo, 'other.md'), 'changed');
+    expect(gitCommit(repo)).toBe(git('rev-parse', 'HEAD').trim());
+    expect(CLEAN_PATHS).toContain('seed/coverage.json');
+  });
+
+  it.each([
+    ['a changed script', 'scripts/a.ts'],
+    ['a changed coverage file', 'seed/coverage.json'],
+    ['an untracked file under src', 'src/new.ts'],
+  ])('refuses %s', (_label, file) => {
+    mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+    writeFileSync(path.join(repo, file), 'changed');
+    expect(() => gitCommit(repo)).toThrow('have uncommitted changes; commit them first');
   });
 });

@@ -60,8 +60,8 @@ export const LABELS_ROUND1_FILE = `${LABELLED_DIR}/labels.csv`;
 export const REVENUE_MODEL_FILE = `${LABELLED_DIR}/labels-revenue-model.csv`;
 const SCRIPT = 'scripts/layer-measurement.ts';
 const COMMAND = 'pnpm analysis:layers';
-/** The paths whose uncommitted changes refuse a run: the code and the labels. */
-const CLEAN_PATHS = ['scripts', 'src', LABELLED_DIR];
+/** The paths whose uncommitted changes refuse a run: the code, the labels and the coverage it is checked against. */
+export const CLEAN_PATHS = ['scripts', 'src', LABELLED_DIR, COVERAGE_FILE];
 const ORGNR = /^[0-9]{9}$/;
 
 // ---------------------------------------------------------------- labels
@@ -932,7 +932,8 @@ async function loadFromDatabase(root: string, subjects: readonly LabelledSubject
   }
 }
 
-function gitCommit(root: string): string {
+/** HEAD's commit; refuses when CLEAN_PATHS hold uncommitted or untracked changes. */
+export function gitCommit(root: string): string {
   const dirty = execFileSync('git', ['status', '--porcelain', '--', ...CLEAN_PATHS], { cwd: root, encoding: 'utf8' });
   if (dirty.trim() !== '') {
     throw new Error(`${CLEAN_PATHS.join(', ')} have uncommitted changes; commit them first, so the report names the code that wrote it`);

@@ -49,6 +49,7 @@
   resolved: Story 2.10 (`story/2.10-epic-2-follow-ups`). R2: `subject_revenue_not_stated` and "… oppgir ikke omsetningen." (`test/engine/peers.test.ts` "a subject with no stated revenue gets an empty group with its own reason", `test/analysis/oversikt-hero.test.ts` "no stated revenue: …", `e2e/peers.spec.ts` "null revenue: …"). R3: `subject_field_not_stated`, `subject_currency` and `subject_not_comparable`, set only when stage 1 kept someone and stage 2 no one (`test/engine/peers.test.ts` "stage 2 emptied by the subject: its reason", `test/analysis/peer-list.test.ts` "stage 2 emptied by the subject: the sentence with the funnel").
 
 - source_spec: `_bmad-output/implementation-artifacts/epic-1-retro-2026-10-16.md`
+  owner: Story 3.7 (moved by the Story 3.1b spec, decision 6, Meinich 2026-11-15; Story 3.7 is the provenance drill-down, which shows the filing each figure comes from).
   summary: The benchmark-filing order (benchmark year, the subject's `regnskapstype` first, then latest `periode_til`, `periode_fra` and register id) is written three times: the subject SQL, the engine's `benchmarkFiling`, and the e2e oracle. Choose the subject's filing in the engine too, before Epic 2 adds the document figures as a second figure source.
   evidence: Epic 1 retro, finding D2 (`src/server/analysis.ts`, `SUBJECT_SQL`; `src/engine/peers.ts`, `benchmarkFiling`; `e2e/analysis.spec.ts`, the seed oracle). Deferred by Meinich, 2026-10-16.
 
@@ -92,6 +93,7 @@
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-reconciliation.md`
   owner: Story 2.9
+  closed: Story 3.1b (decision 6). The request path joins the benchmark year's own document and its current column only (`DOCUMENT_JOINS` in `src/analysis/document-basis.ts`); a year with no document of its own is `document_missing`, never read from the next year's prior column (`test/db/analysis.test.ts` "a prior column never stands in for its year"). The prior column is read only for revenue growth (14), as the same document's comparative.
   summary: When 2.9 reads document figures, it must pick that year's own current column, and use a prior column only when the year has no document of its own (e.g. 2020 from the 2021 filing). A reconciled prior column whose `api_check` is `fail` is a restated comparative, and it must never stand in for that year's own document (Meinich, 2026-10-21). `documentFigures` takes no role, so this rule lives in the selection 2.9 writes. It needs a test there.
   evidence: Story 2.2 review, finding 13 (blind B6). `src/engine/document-inputs.ts` `DocumentColumnRow` has no `role` or `api_check`. 173 of 5 447 prior-column figures deviate from the register, e.g. 924830972 is +56 007 in sum eiendeler and sum gjeld.
 
@@ -106,6 +108,7 @@
   evidence: Story 2.3 review, finding V3. No test or CI step runs `consistency.py` or `parseConsistency` other than the snapshot of the committed report; the script needs Docker and the network.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-3-ocr-accuracy-sm2.md`
+  owner: Story 3.7 (moved by the Story 3.1b spec, decision 6, Meinich 2026-11-15; Story 3.7's data-quality line is where a figure's verification is shown).
   summary: Lines that no within-document check and no API figure covers (bankinnskudd, kundefordringer, salgsinntekt, leverandørgjeld and the other component lines) can be misread and still reach the engine in a reconciled column; decide a guard (e.g. sub-total checks, deferred from 2.1a) or show such figures as unverified before the engine uses them.
   evidence: Story 2.3 review, finding B9. `docs/data-sources-brreg.md` (SM-2 section) names the risk; the SM-2 sample found none after the transcription corrections, which bounds nothing tightly in 20 filings.
 

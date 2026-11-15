@@ -67,6 +67,7 @@ The register serves the full accounts only as page images, so every figure beyon
 - **Favourable quartile** — the upper quartile where higher is better, the lower where lower is better.
 - **The key figures**, their formulas, sources and translation to kroner are defined in `docs/key-figures.md`.
 - **Peer matching** is a five-stage funnel — four stages of rules, including the business-model fingerprint, and one of AI classification. Detail in the technical note.
+  - *Note, 2026-11-15 (Story 5.2, Meinich):* measured against the labelled set, neither the fingerprint (stage 4) nor AI classification (stage 5) gave clearly better peers than industry and size, so both are computed and stored but choose no peer in v1, and no peer is flagged or given a match basis that rests on them. Where this addendum says AI or the fingerprint selects peers, read it as what was built and measured, not what v1 does; AI's job of classifying is kept, stored only, so stage 2 can measure again. Results in the PRD, §10.
 - **Whether a gap has persisted** is decided by the engine from the figures, not by AI.
 
 ## Out of scope — the reasons

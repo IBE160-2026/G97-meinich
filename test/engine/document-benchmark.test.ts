@@ -121,6 +121,13 @@ describe('capital kroner, 9, 10 and 11', () => {
     expect(b.oml.gap).toEqual({ kind: 'none', reason: 'target_not_positive' });
   });
 
+  it('an undefined own figure: no comparison, no kroner', () => {
+    // No kundefordringer: receivable days are undefined for the subject.
+    const b = benchmarkDocumentFigures(company(50n, 5n, { kundefordringer: null }), PEERS, 'NOK');
+    expect(b.kfd.comparison).toMatchObject({ kind: 'subject_absent', absence: { reason: 'undefined', cause: 'component_missing' } });
+    expect(b.kfd.gap).toEqual({ kind: 'none', reason: 'no_comparison' });
+  });
+
   it('below the floor: no comparison, no kroner', () => {
     const b = benchmarkDocumentFigures(company(50n, 5n), PEERS.slice(0, 9), 'NOK');
     for (const key of ['kfd', 'lgd', 'oml'] as const) {

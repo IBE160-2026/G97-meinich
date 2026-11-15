@@ -328,10 +328,12 @@ export type StoredDocument = {
   /** The document's `prior` column; null when it has none. */
   readonly prior: DocumentColumnRow | null;
   /**
-   * The prior column's `api_fail_fields`: the figures on which it disagrees
-   * with the key-figures API filing of its own year (empty when it agrees or
-   * there is none to check against, `api_check` `not_evaluable`). Null when
-   * there is no prior column or it is not yet reconciled.
+   * The prior column's stored `api_fail_fields`, whatever its status: the
+   * figures on which it disagrees with the key-figures API filing of its own
+   * year. An empty list means no figure failed or none could be checked
+   * (`api_check` `not_evaluable`). Null when there is no prior column, and
+   * NULL in the database when the column's status is NULL (not yet
+   * reconciled).
    */
   readonly priorApiFailFields: readonly string[] | null;
 };

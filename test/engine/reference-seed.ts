@@ -94,6 +94,8 @@ export function seedDocumentBasis(orgnr: string, filingYear: number): DocumentBa
   const of = (role: string) => columns.find((r) => r.orgnr === orgnr && r.filing_year === String(filingYear) && r.role === role);
   const current = of('current');
   const prior = of('prior');
+  const status = orNull(document.status);
+  if (status === null) throw new Error(`document ${orgnr} ${filingYear} has no status`);
   const brregId = orNull(document.brreg_id);
   const subtotal =
     brregId === null ? null : orNull(one(data().keyFigures.filter((r) => r.brreg_id === brregId), `key_figures ${brregId}`).sum_omloepsmidler_ore);
@@ -101,7 +103,7 @@ export function seedDocumentBasis(orgnr: string, filingYear: number): DocumentBa
     inManifest: true,
     filingYear,
     document: {
-      status: document.status ?? '',
+      status,
       current: current === undefined ? null : columnRow(current),
       prior: prior === undefined ? null : columnRow(prior),
       priorApiFailFields: prior === undefined ? null : textArray(prior.api_fail_fields),

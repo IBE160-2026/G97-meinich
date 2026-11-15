@@ -73,6 +73,7 @@ import { Decimal } from './decimal.ts';
 import {
   BETWEEN_SOURCES_FLOOR_ORE,
   BETWEEN_SOURCES_TOLERANCE,
+  COST_LINES,
   type DocumentField,
   type DocumentFigures,
   WITHIN_DOCUMENT_BOUND_ORE,
@@ -190,7 +191,6 @@ export type FingerprintResult =
 /** A closed interval of øre; `hi` null is unbounded above. */
 type Interval = { readonly lo: bigint; readonly hi: bigint | null };
 
-const COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'nedskrivninger', 'annenDriftskostnad'] as const;
 /** The cost lines R2 needs read; nedskrivninger may be empty, counted as 0. */
 export const MAIN_COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annenDriftskostnad'] as const;
 const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer', 'kundefordringer', 'bankinnskudd'] as const;

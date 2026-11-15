@@ -134,6 +134,20 @@ describe('documentBasisOf', () => {
     expect(documentBasisOf(row({ has_prior: false }), 2025)).toMatchObject({ kind: 'read', prior: null });
   });
 
+  // Story 3.1a, decision 2: a prior column the register disagrees with on revenue.
+  it('maps the prior column’s api_fail_fields to priorRevenueFailsApi', () => {
+    expect(documentBasisOf(row({ prior_api_fail_fields: ['sum_driftsinntekter'] }), 2025)).toMatchObject({
+      kind: 'read',
+      priorRevenueFailsApi: true,
+    });
+    for (const fields of [['sum_eiendeler'], [], null]) {
+      expect(documentBasisOf(row({ prior_api_fail_fields: fields }), 2025), JSON.stringify(fields)).toMatchObject({
+        kind: 'read',
+        priorRevenueFailsApi: false,
+      });
+    }
+  });
+
   it('applies R3 with the filing’s sum_omloepsmidler', () => {
     const basis = documentBasisOf(row({ cur_kundefordringer_ore: '100000000', sum_omloepsmidler_ore: '50000000' }), 2025);
     if (basis.kind !== 'read') throw new Error(`expected read, got ${basis.kind}`);

@@ -21,6 +21,7 @@ import { Decimal } from '../../src/engine/decimal.ts';
 import { formatPercent } from '../../src/engine/format.ts';
 import { apiInputsFromRow, type KeyFiguresRow } from '../../src/engine/inputs.ts';
 import { DOCUMENT_KEY_FIGURE_KEYS, type DocumentKeyFigure } from '../../src/engine/document-absence.ts';
+import type { DocumentField } from '../../src/engine/document-inputs.ts';
 import { computeDocumentKeyFigures } from '../../src/engine/document-key-figures.ts';
 import { computeApiKeyFigures } from '../../src/engine/key-figures.ts';
 import type { ApiKeyFigures, FigureAbsence, FigureResult, UndefinedCause } from '../../src/engine/types.ts';
@@ -275,9 +276,17 @@ type DocCase = {
   readonly name: string;
   readonly filingYear: number;
   readonly expected: Readonly<Record<DocumentKeyFigure, DocExpected>>;
+  /**
+   * Every line printed on the page but not read: NULL in the seed, non-empty
+   * in the transcription (asserted), so an undefined figure that names one
+   * is undefined for that reason.
+   */
+  readonly notRead: readonly NotRead[];
   /** The API figures of the document's own filing (register.document.brreg_id), where the case is about them. */
   readonly api?: Readonly<Partial<Record<keyof ApiKeyFigures, DocExpected>>>;
 };
+
+type NotRead = readonly ['current' | 'prior', DocumentField];
 
 const LABELS: Readonly<Record<DocumentKeyFigure | keyof ApiKeyFigures, string>> = {
   ebitda: 'EBITDA margin',
@@ -313,6 +322,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '911561972',
     name: 'DASSAULT SYSTEMES NORWAY AS',
     filingYear: 2024,
+    notRead: [],
     expected: {
       ebitda: f(2_462_935n + 1_390_183n + 0n, 76_212_664n),
       vare: f(0n, 76_212_664n),
@@ -338,6 +348,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '915338534',
     name: 'HALLO VERDEN AS',
     filingYear: 2023,
+    notRead: [['current', 'salgsinntekt'], ['current', 'lonnskostnad'], ['current', 'sumImmaterielleEiendeler'], ['current', 'varer'], ['prior', 'aarsresultat'], ['prior', 'sumImmaterielleEiendeler'], ['prior', 'varer']],
     expected: {
       ebitda: MISSING,
       vare: f(36_584n, 12_808_765n),
@@ -361,6 +372,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '915648479',
     name: 'WELD IT AS',
     filingYear: 2021,
+    notRead: [['current', 'aarsresultat'], ['prior', 'bankinnskudd']],
     expected: {
       ebitda: f(1_926_418n + 200_052n + 0n, 6_876_625n),
       vare: f(1_203_977n, 6_876_625n),
@@ -385,6 +397,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '917397198',
     name: 'KULT BYRÅ AS',
     filingYear: 2021,
+    notRead: [['current', 'salgsinntekt']],
     expected: {
       ebitda: f(807_435n + 0n + 0n, 6_411_146n),
       vare: f(150_373n, 6_411_146n),
@@ -409,6 +422,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '917526729',
     name: 'TABELLAE AS',
     filingYear: 2025,
+    notRead: [['current', 'salgsinntekt'], ['current', 'kundefordringer'], ['prior', 'salgsinntekt'], ['prior', 'kundefordringer']],
     expected: {
       ebitda: f(3_217_040n + 0n + 0n, 11_245_099n),
       vare: f(3_453_196n, 11_245_099n),
@@ -433,6 +447,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '918618716',
     name: 'EPSIRO AS',
     filingYear: 2025,
+    notRead: [['current', 'salgsinntekt']],
     expected: {
       ebitda: f(236_562n + 64_200n + 0n, 1_735_423n),
       vare: f(67_562n, 1_735_423n),
@@ -459,6 +474,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '927533235',
     name: 'MEDICUE AS',
     filingYear: 2023,
+    notRead: [['current', 'lonnskostnad']],
     expected: {
       ebitda: MISSING,
       vare: f(9_102n, 382_451n),
@@ -489,6 +505,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '936252710',
     name: 'LINK NORDIC AS',
     filingYear: 2024,
+    notRead: [['current', 'lonnskostnad'], ['current', 'annenDriftskostnad'], ['current', 'aarsresultat'], ['current', 'sumImmaterielleEiendeler'], ['prior', 'lonnskostnad'], ['prior', 'sumImmaterielleEiendeler']],
     expected: {
       ebitda: MISSING,
       vare: f(36_700_241n, 55_782_498n),
@@ -516,6 +533,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '989081799',
     name: 'CONTACT HOLDING AS',
     filingYear: 2025,
+    notRead: [['current', 'sumImmaterielleEiendeler'], ['current', 'sumVarigeDriftsmidler'], ['current', 'bankinnskudd'], ['prior', 'sumImmaterielleEiendeler'], ['prior', 'sumVarigeDriftsmidler']],
     expected: {
       ebitda: NOT_POSITIVE,
       vare: NOT_POSITIVE,
@@ -545,6 +563,7 @@ const DOC_CASES: readonly DocCase[] = [
     orgnr: '992036079',
     name: 'NTT DATA BUSINESS SOLUTIONS AS',
     filingYear: 2023,
+    notRead: [],
     expected: {
       ebitda: f(27_990_089n + 373_073n + 0n, 229_922_956n),
       vare: f(85_742_422n, 229_922_956n),
@@ -568,6 +587,24 @@ const DOC_CASES: readonly DocCase[] = [
       orgnr,
       name: orgnr === '885583822' ? 'VISIONTECH AS' : 'SOURCEMAGNET AS',
       filingYear: 2022,
+      notRead:
+        orgnr === '885583822'
+          ? ([
+              ['current', 'salgsinntekt'],
+              ['current', 'sumDriftskostnad'],
+              ['prior', 'varekostnad'],
+              ['prior', 'driftsresultat'],
+              ['prior', 'ordinaertResultatFoerSkattekostnad'],
+              ['prior', 'leverandorgjeld'],
+            ] as const)
+          : ([
+              ['prior', 'ordinaertResultatFoerSkattekostnad'],
+              ['prior', 'aarsresultat'],
+              ['prior', 'sumEiendeler'],
+              ['prior', 'sumEgenkapital'],
+              ['prior', 'sumGjeld'],
+              ['prior', 'sumEgenkapitalGjeld'],
+            ] as const),
       expected: {
         ebitda: FAILED,
         vare: FAILED,
@@ -616,6 +653,12 @@ describe('reference cases for the document key figures', () => {
         checkDocument(c.orgnr, c.filingYear, figures[figure], c.expected[figure]);
       });
     }
+    it(`${c.orgnr} ${c.filingYear}: the lines printed but not read`, () => {
+      for (const [column, field] of c.notRead) {
+        expect(seedFigure(c.orgnr, c.filingYear, column, field), `${column} ${field} in the seed`).toBeNull();
+        expect(transcribed(c.orgnr, c.filingYear, column, field), `${column} ${field} on the page`).not.toBeNull();
+      }
+    });
     const api = c.api;
     if (api === undefined) continue;
     const brregId = seedDocumentBrregId(c.orgnr, c.filingYear);

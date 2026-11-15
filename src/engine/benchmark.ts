@@ -133,7 +133,7 @@ export type CapitalGap =
 
 const NO_COMPARISON: CapitalGap = { kind: 'none', reason: 'no_comparison' };
 
-function ore(amount: bigint): Decimal {
+function dec(amount: bigint): Decimal {
   return new Decimal(amount.toString());
 }
 
@@ -144,6 +144,10 @@ function ore(amount: bigint): Decimal {
  * - 10 payable days: (T − r) / 365 × (`varekostnad` + `annenDriftskostnad`);
  * - 11 operating asset turnover: (`sumEiendeler` − `bankinnskudd`) −
  *   `sumDriftsinntekter` / T.
+ * Each is evaluated from the filed amounts, not from the rounded ratio r:
+ * since r = `kundefordringer` × 365 / `salgsinntekt`, 9 is `kundefordringer`
+ * − T × `salgsinntekt` / 365, and 10 is T × (`varekostnad` +
+ * `annenDriftskostnad`) / 365 − `leverandorgjeld`, exactly the same amounts.
  * Worse than T is above it for 9 and below it for 10 and 11. `valuta` is the
  * subject's filing's.
  */
@@ -160,14 +164,19 @@ export function capitalGap(
   if (lowerIsBetter ? r.lte(target) : r.gte(target)) return { kind: 'strength' };
   if (figure === 'oml' && target.lte(0)) return { kind: 'none', reason: 'target_not_positive' };
   if (valuta !== 'NOK') return { kind: 'not_nok' };
-  const days = ore(DAYS_PER_YEAR);
+  const days = dec(DAYS_PER_YEAR);
+  const numerator = dec(exact.numeratorOre);
+  const denominator = dec(exact.denominatorOre);
   switch (figure) {
     case 'kfd':
-      return { kind: 'amount', ore: r.minus(target).mul(ore(exact.denominatorOre)).div(days), oneOff: true };
+      // kundefordringer − T × salgsinntekt / 365
+      return { kind: 'amount', ore: numerator.minus(target.mul(denominator).div(days)), oneOff: true };
     case 'lgd':
-      return { kind: 'amount', ore: target.minus(r).mul(ore(exact.denominatorOre)).div(days), oneOff: true };
+      // T × (varekostnad + annenDriftskostnad) / 365 − leverandorgjeld
+      return { kind: 'amount', ore: target.mul(denominator).div(days).minus(numerator), oneOff: true };
     case 'oml':
-      return { kind: 'amount', ore: ore(exact.denominatorOre).minus(ore(exact.numeratorOre).div(target)), oneOff: true };
+      // (sumEiendeler − bankinnskudd) − sumDriftsinntekter / T
+      return { kind: 'amount', ore: denominator.minus(numerator.div(target)), oneOff: true };
   }
 }
 

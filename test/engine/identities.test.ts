@@ -171,7 +171,7 @@ describe('personnel share = per-FTE ratio', () => {
   });
 
   it('holds exactly on 5 000 generated øre vectors', () => {
-    const next = prng(3_1n);
+    const next = prng(31n);
     let checked = 0;
     for (let i = 0; i < 5_000; i += 1) {
       const basis = documentBasis({

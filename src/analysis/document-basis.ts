@@ -36,7 +36,12 @@ export type DocumentBasisColumns = {
   readonly current_status: string | null;
   readonly has_prior: boolean;
   readonly prior_status: string | null;
-  /** The prior column's `api_fail_fields` (a text[]), null without a reconciled-or-failed prior column. */
+  /**
+   * The prior column's stored `api_fail_fields` (a text[]), whatever its
+   * status: NULL when the column's status is NULL, null when there is no
+   * prior column; an empty list means no figure failed or none could be
+   * checked.
+   */
   readonly prior_api_fail_fields: readonly string[] | null;
   /** sum_omloepsmidler of the key-figures filing the document belongs to (`DOCUMENT_FILING_JOIN`), for R3. */
   readonly sum_omloepsmidler_ore: string | null;

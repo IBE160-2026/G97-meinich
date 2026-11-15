@@ -87,6 +87,16 @@ Totals only, from `analysis/output/layer-measurement-62100.md`: 900 pairs, 211 j
 
 The Peers tab shows three funnel stages and `peers.funnel.notApplied`, with no basis column, no flag column and no ✦ legend. «Hvorfor med» is the base sentence only.
 
+### Contributions from the review session
+
+Each item below is Meinich's decision, made on the review session's recommendation.
+
+- **At the checkpoint: "without a band" as the band widened to low–high, an AI error that was corrected.** The review session recommended this definition, and Meinich adopted it. In the run it measured the whole fingerprint, not the band: the type rule reads the cost-of-goods band first, so widening it leaves almost every type undetermined, and the fingerprint gives no signal for 900 of 900 pairs. The review session pointed this out itself after the run, and the BMAD session noted it when it presented the result. The correction is in the report: the band test is stated not to tell a band from the fingerprint, and Meinich's decision was made on that basis, so no band was dropped on this test.
+- **At the checkpoint: the three additions.** A labelled candidate outside today's pool is counted, never dropped silently. A layer without ja or nei has precision "ikke definert", never 0. The 3 pp comparisons are made with fractions or `src/engine/decimal.ts`, never with floats.
+- **After the run: the blind-pair figures before the band decision.** It asked for L1, L2, L3 and `group` on the 180 blind pairs, the band test on them, and the verdicts with usikker as ja and as nei, before Meinich decided on the bands.
+- **After the run: the fingerprint signal off instead of a migration.** It recommended switching the fingerprint signal off like the text signal, keeping `fingerprint.ts`, the bands, the stored fingerprints and derive, rather than dropping the bands with a migration.
+- **On the upstream proposals: two corrections.** The FRs say how v1 works and get no history added, with history in `.memlog.md` (the retro's feedback 4.1). The brief is corrected where it is wrong, not given a note at the top (AGENTS.md: "edit it. Do not append a correction elsewhere").
+
 ### Found by the BMAD session
 
 - **Report 1 displayed "+3,0 pp" beside "not kept".** From version 2, the deciding differences carry three decimals and fractions.

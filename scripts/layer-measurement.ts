@@ -31,7 +31,9 @@
 //
 // Reads the loaded database as `reader` (READER_DATABASE_URL, from the
 // environment, then .env), read-only, through Vite's module runner (as
-// scripts/document-set.ts). Writes analysis/output/layer-measurement-62100.md.
+// scripts/document-set.ts). Writes analysis/output/layer-measurement-<code
+// without the dot>.md for the labelled subjects' industry, which must be
+// declared in seed/coverage.json; no industry is named in code (AD-16).
 //
 // Run: node scripts/layer-measurement.ts   (from the repository root)
 import { execFileSync } from 'node:child_process';
@@ -44,10 +46,10 @@ import { formatPercent, formatPercentagePoints } from '../src/engine/format.ts';
 import { assemblePeerGroup, type CandidateFiling, type FunnelSubject } from '../src/engine/peers.ts';
 import { parseSemicolonCsv } from './ocr-sm2-compare.ts';
 import { setting } from './run-ingest.ts';
-import { REPORT_DIR } from './seed-format.ts';
+import { COVERAGE_FILE, REPORT_DIR, readCoverage } from './seed-format.ts';
 
-export const INDUSTRY = '62.100';
-export const REPORT_FILE = `${REPORT_DIR}/layer-measurement-62100.md`;
+/** The report of one industry: its code without the dot. */
+export const reportFile = (code: string): string => `${REPORT_DIR}/layer-measurement-${code.replace('.', '')}.md`;
 const LABELLED_DIR = 'analysis/labelled-set';
 export const DRAWN_FILE = `${LABELLED_DIR}/drawn.json`;
 export const LABELS_BLIND_FILE = `${LABELLED_DIR}/labels-blind.csv`;
@@ -318,8 +320,8 @@ const typeOf = (fingerprint: Fingerprint | null) => (fingerprint === null ? null
 export function measureSubject(subject: LabelledSubject, data: SubjectData): PairOutcome[] {
   const { funnel, candidates } = data;
   if (funnel.orgnr !== subject.orgnr) throw new Error('subject data out of drawn.json order');
-  if (funnel.filingYear !== subject.filingYear || funnel.naeringskode1 !== INDUSTRY) {
-    throw new Error(`a labelled subject's benchmark filing is no longer ${INDUSTRY} ${subject.filingYear}`);
+  if (funnel.filingYear !== subject.filingYear) {
+    throw new Error(`a labelled subject's benchmark filing is no longer of ${subject.filingYear}`);
   }
   const ids = (list: readonly { readonly orgnr: string }[]) => new Set(list.map((c) => c.orgnr));
   const full = assemblePeerGroup(funnel, candidates, 0);
@@ -555,6 +557,8 @@ function verdictText(verdict: Verdict, kept: string, notKept: string): string {
 }
 
 export interface ReportInputs {
+  /** The labelled subjects' industry, NN.NNN. */
+  readonly industry: string;
   readonly subjects: readonly LabelledSubject[];
   readonly outcomes: readonly PairOutcome[];
   readonly measure: ReadonlyMap<string, Label>;
@@ -600,7 +604,7 @@ export function renderReport(inputs: ReportInputs): string {
   const push = (...more: string[]) => lines.push(...more);
 
   push(
-    `# Layer-by-layer measurement, ${INDUSTRY} (SM-1)`,
+    `# Layer-by-layer measurement, ${inputs.industry} (SM-1)`,
     '',
     `Generated ${inputs.generated} by \`${SCRIPT}\` (\`${COMMAND}\`) at commit \`${inputs.commit}\`, with the reads in \`scripts/layer-measurement-compute.ts\`. ` +
       `Inputs: \`${DRAWN_FILE}\`, \`${LABELS_BLIND_FILE}\`, \`${REVENUE_MODEL_FILE}\` and \`${LABELS_ROUND1_FILE}\` (Story 5.1), and the local database read as \`reader\`. ` +
@@ -708,6 +712,16 @@ export function assertNoLabelledOrgnr(text: string, subjects: readonly LabelledS
 
 // ------------------------------------------------------------------ main
 
+/** The one primary industry every labelled subject's benchmark filing has; refuses a mix or none. */
+export function commonIndustry(subjects: readonly Pick<SubjectData, 'funnel'>[]): string {
+  const codes = new Set(subjects.map((subject) => subject.funnel.naeringskode1));
+  const [only, ...others] = codes;
+  if (only === undefined || only === null || others.length > 0) {
+    throw new Error('the labelled subjects do not share one primary industry');
+  }
+  return only;
+}
+
 export interface Dependencies {
   /** Reads the database for the labelled subjects. */
   readonly load: (root: string, subjects: readonly LabelledSubject[]) => Promise<MeasurementData>;
@@ -772,8 +786,13 @@ export async function main(root: string, deps: Dependencies = DEFAULT_DEPENDENCI
       );
     }
     if (data.subjects.length !== subjects.length) throw new Error('the database read did not return every labelled subject');
+    const industry = commonIndustry(data.subjects);
+    if (!readCoverage(path.join(root, ...COVERAGE_FILE.split('/'))).some((entry) => entry.code === industry)) {
+      throw new Error(`the labelled subjects' industry ${industry} is not declared in ${COVERAGE_FILE}`);
+    }
     const outcomes = subjects.flatMap((subject, index) => measureSubject(subject, data.subjects[index] as SubjectData));
     const report = renderReport({
+      industry,
       subjects,
       outcomes,
       measure,
@@ -784,10 +803,11 @@ export async function main(root: string, deps: Dependencies = DEFAULT_DEPENDENCI
       commit,
     });
     assertNoLabelledOrgnr(report, subjects);
-    writeFileSync(path.join(root, ...REPORT_FILE.split('/')), report);
+    const file = reportFile(industry);
+    writeFileSync(path.join(root, ...file.split('/')), report);
     const outside = outcomes.filter((o) => !o.inPool).length;
     process.stdout.write(
-      `analysis:layers: wrote ${REPORT_FILE} (${subjects.length} subjects, ${outcomes.length} pairs, ${outside} outside today's pool; ` +
+      `analysis:layers: wrote ${file} (${subjects.length} subjects, ${outcomes.length} pairs, ${outside} outside today's pool; ` +
         `fingerprints for ${data.fingerprinted} of ${data.companies} companies)\n`,
     );
     return 0;

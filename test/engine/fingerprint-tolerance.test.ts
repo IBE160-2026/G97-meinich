@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, it } from 'vitest';
+import { WITHIN_DOCUMENT_BOUND_ORE } from '../../src/engine/document-inputs.ts';
 import { ROUNDING_TOLERANCE_ORE } from '../../src/engine/fingerprint.ts';
 
 const root = path.resolve(import.meta.dirname, '../..');
@@ -21,4 +22,6 @@ function withinDocumentBoundKr(): bigint {
 
 it('equals within_document_bound_kr in ingest/config.toml, in øre', () => {
   expect(ROUNDING_TOLERANCE_ORE).toBe(withinDocumentBoundKr() * 100n);
+  // Story 3.1a: the cost-line derivation (documentCostLines) uses the same bound.
+  expect(WITHIN_DOCUMENT_BOUND_ORE).toBe(withinDocumentBoundKr() * 100n);
 });

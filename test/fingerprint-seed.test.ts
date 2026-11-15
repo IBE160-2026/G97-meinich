@@ -128,6 +128,16 @@ describe('the committed seed’s fingerprints', () => {
     expect(mismatches).toEqual([]);
   });
 
+  // Story 3.1a, B1: the fingerprint reads only a stated revenue. Check c1
+  // (sum_driftsinntekter − sum_driftskostnad = driftsresultat) needs it, so
+  // a reconciled column always states it; were one ever to lack it, the
+  // fingerprint would drop that column rather than derive its revenue.
+  it('every committed reconciled column states its revenue', () => {
+    const reconciled = csv('document_column.csv').filter((c) => c.status === 'reconciled');
+    expect(reconciled.length).toBeGreaterThan(0);
+    expect(reconciled.filter((c) => (c.sum_driftsinntekter_ore ?? '') === '').length).toBe(0);
+  });
+
   it('has a row for every current column the engine fingerprints', () => {
     const stored = new Set(fingerprints.map(key));
     const missing = [...columns.values()]

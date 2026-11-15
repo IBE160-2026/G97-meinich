@@ -45,10 +45,6 @@ export function divide(a: Fraction, b: Fraction): Fraction {
   return fraction(a.numerator * b.denominator, a.denominator * b.numerator);
 }
 
-export function subtract(a: Fraction, b: Fraction): Fraction {
-  return fraction(a.numerator * b.denominator - b.numerator * a.denominator, a.denominator * b.denominator);
-}
-
 /** Whether two fractions are the same number: both are reduced, so their parts are equal. */
 export function equals(a: Fraction, b: Fraction): boolean {
   return a.numerator === b.numerator && a.denominator === b.denominator;

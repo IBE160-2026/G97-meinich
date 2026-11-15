@@ -120,7 +120,7 @@ for (const width of [1280, 375, 320]) {
 // their own reason, as on every basis.
 test('document rows say the filing could not be read', async ({ page }) => {
   const DOCUMENT_ROWS = ['ebitda', 'vare', 'lonn', 'andre', 'total', 'kfd', 'lgd', 'oml', 'kontant', 'vekst'];
-  for (const width of [1280, 375]) {
+  for (const width of [1280, 375, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${base}/nokkeltall`);
     await expect(rendered(page)).toBeVisible();

@@ -5,8 +5,8 @@
 // two places cannot word the same benchmark differently: the exact øre are
 // rounded once, here, through formatKronerExact (AD-8), never rounded first
 // and formatted again.
-import type { CapitalGap, KronerGap } from '@/engine/benchmark';
-import { formatKronerExact } from '@/engine/format';
+import type { CapitalGap, KronerGap } from '../engine/benchmark.ts';
+import { formatKronerExact } from '../engine/format.ts';
 
 export function kronerAmountText(gap: Extract<KronerGap, { readonly kind: 'amount' }>): string {
   return formatKronerExact(gap.ore.toString());

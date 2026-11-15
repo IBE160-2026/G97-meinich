@@ -146,6 +146,8 @@ test('excluding one peer puts the document rows below the floor', async ({ page 
     await expect(desktopRow(page, key).locator('th'), key).toContainText('9 sammenlignbare brukt');
   }
   await expect(region(page).locator('tr[data-figure="kfd"]')).not.toContainText(/\d\skr/);
+  // The subject is not a small enterprise (smaa_foretak false), so a document row below the floor shows the notice.
+  await expect(page.getByTestId('non-small-notice')).toHaveText(nb['keyFigures.nonSmall']);
 });
 
 test('no document øre reaches the page', async ({ request }) => {

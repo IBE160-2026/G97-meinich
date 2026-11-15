@@ -21,8 +21,9 @@ import { MIN_PEERS } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 import { serialize, type AnalysisState } from '@/url/analysis-state';
 import { absenceText } from '@/analysis/figure-text';
-import { DIRECTION_WORDS, FIGURES } from './api-figures';
-import { kronerAmountText } from './kroner-amount';
+import { DIRECTION_WORDS } from '@/analysis/key-figure-rows';
+import { FIGURES } from './api-figures';
+import { kronerAmountText } from '@/analysis/kroner-amount';
 import { emptyText, type EmptyContext } from './peer-list';
 
 const KICKER_ID = 'hero-kicker';

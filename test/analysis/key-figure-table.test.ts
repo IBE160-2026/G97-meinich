@@ -247,6 +247,18 @@ describe('the midtre halvdel text', () => {
     expect(middleHalfText('0.184', '0.49', true)).toBe(`Midtre halvdel: 18,4–49,0${NBSP}%`);
     expect(middleHalfText('-0.063', '0.091', true)).toBe(`Midtre halvdel: ${MINUS}6,3 til 9,1${NBSP}%`);
   });
+
+  // Story 3.1b: days and turnover have their own words, plain and labelled, with and without a negative bound.
+  it('has its own words for days and turnover, and "til" when a bound is negative', () => {
+    expect(middleHalfText('32.5', '77.5', false, 'days')).toBe(`midtre halvdel 33–78${NBSP}dager`);
+    expect(middleHalfText('-2.5', '7', false, 'days')).toBe(`midtre halvdel ${MINUS}3 til 7${NBSP}dager`);
+    expect(middleHalfText('32.5', '77.5', true, 'days')).toBe(`Midtre halvdel: 33–78${NBSP}dager`);
+    expect(middleHalfText('-2.5', '7', true, 'days')).toBe(`Midtre halvdel: ${MINUS}3 til 7${NBSP}dager`);
+    expect(middleHalfText('0.5', '2.5', false, 'turnover')).toBe('midtre halvdel 0,50–2,50');
+    expect(middleHalfText('-0.5', '2.5', false, 'turnover')).toBe(`midtre halvdel ${MINUS}0,50 til 2,50`);
+    expect(middleHalfText('0.5', '2.5', true, 'turnover')).toBe('Midtre halvdel: 0,50–2,50');
+    expect(middleHalfText('-0.5', '2.5', true, 'turnover')).toBe(`Midtre halvdel: ${MINUS}0,50 til 2,50`);
+  });
 });
 
 describe('the non-small notice', () => {
@@ -266,6 +278,17 @@ describe('the non-small notice', () => {
 
   it('is not shown for a non-small subject whose comparisons all clear the floor', () => {
     expect(count(render(standard(), false))).toBe(0);
+  });
+
+  // Story 3.1b: a document row below the floor shows it too, with every API row compared.
+  it('is shown once for a non-small subject whose document rows are below the floor', () => {
+    const documents = benchmarkDocumentFigures(daysBasis(50n, 5n), TEN_PEERS.slice(0, 9), 'NOK');
+    const html = render(standard(), false, documents);
+    expect(cellText(row(html, 'driftsmargin'), 'median')).toBe(`5,5${NBSP}%`);
+    expect(cellText(row(html, 'kfd'), 'merged')).toBe('For få sammenlignbare (9 av 10)');
+    expect(count(html)).toBe(1);
+    expect(html).toContain('data-testid="non-small-notice"');
+    expect(count(render(standard(), true, documents))).toBe(0);
   });
 });
 
@@ -486,6 +509,22 @@ describe('the full key-figure table (Story 3.1b)', () => {
       expect(rawCell(r, 'gap')).not.toMatch(/<a /);
       expect(text(r)).not.toMatch(/\d kr/);
     }
+    // A merged cell in the group names the group's heading among its headers too.
+    const below = full(SUBJECT_DOC, TEN_PEERS.slice(0, 9));
+    const headersOf = (key: string) => /<td[^>]*headers="([^"]*)"[^>]*data-cell="merged"/.exec(row(below, key))?.[1]?.split(' ') ?? [];
+    for (const key of ['vare', 'lonn', 'andre', 'total']) {
+      expect(headersOf(key), key).toEqual([
+        'kf-d-col-median',
+        'kf-d-col-best',
+        'kf-d-col-placement',
+        'kf-d-col-distribution',
+        'kf-d-col-gap',
+        `kf-d-row-${key}`,
+        'kf-d-group-cost',
+      ]);
+    }
+    expect(below).toContain('id="kf-d-group-cost"');
+    expect(headersOf('ebitda')).not.toContain('kf-d-group-cost');
     // The rows outside the group are not indented.
     expect(row(html, 'driftsmargin')).not.toContain('pl-[30px]');
     expect(phoneRows(html, 'ebitda').row).not.toMatch(/<th scope="row" class="[^"]*pl-4/);

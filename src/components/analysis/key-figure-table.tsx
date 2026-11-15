@@ -95,7 +95,7 @@ const headCell = 'py-2 pr-4 text-left align-bottom font-semibold';
 // The rule between two groups (decision 1).
 const groupRule = 'border-t-2 border-divider';
 
-function DesktopRow({ row }: { readonly row: KeyFigureRow }) {
+function DesktopRow({ row, groupHeadingId }: { readonly row: KeyFigureRow; readonly groupHeadingId: string | null }) {
   const rowId = `kf-d-row-${row.key}`;
   const c = row.comparison;
   return (
@@ -133,7 +133,7 @@ function DesktopRow({ row }: { readonly row: KeyFigureRow }) {
       ) : (
         <td
           colSpan={SPANNED.length}
-          headers={`${SPANNED.join(' ')} ${rowId}`}
+          headers={[...SPANNED, rowId, ...(groupHeadingId === null ? [] : [groupHeadingId])].join(' ')}
           className={`${cell} text-slate italic`}
           data-cell="merged"
         >
@@ -166,7 +166,7 @@ function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
       label={<span className="font-semibold hyphens-auto">{row.label}</span>}
       cells={
         <>
-          <td className="figure py-2 pr-2 align-top break-words" data-cell="own" aria-describedby={describedBy(row)}>
+          <td className="figure py-2 pr-2 align-top break-words hyphens-auto" data-cell="own" aria-describedby={describedBy(row)}>
             <Own row={row} popoverId={`kf-p-pop-${row.key}`} detail={false} />
           </td>
           <td className="figure py-2 align-top break-words" data-cell="gap">
@@ -292,7 +292,11 @@ export function KeyFigureTable({
                 <GroupHeading id={`kf-d-group-${group.id}`} heading={group.heading} columns={DESKTOP_COLUMNS} />
               ) : null}
               {group.rows.map((row) => (
-                <DesktopRow key={row.key} row={row} />
+                <DesktopRow
+                  key={row.key}
+                  row={row}
+                  groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null}
+                />
               ))}
             </tbody>
           ))}

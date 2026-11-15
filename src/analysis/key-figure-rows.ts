@@ -30,7 +30,7 @@ import {
 } from '../engine/format.ts';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison, type Direction } from '../engine/types.ts';
 import { t, type MessageId } from '../messages/index.ts';
-import { capitalAmountText, kronerAmountText } from '../components/analysis/kroner-amount.ts';
+import { capitalAmountText, kronerAmountText } from './kroner-amount.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
 
 /** A row's key: the API figure's (`ApiKeyFigures`) or the document figure's (`DOCUMENT_KEY_FIGURES`). */

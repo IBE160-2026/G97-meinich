@@ -21,9 +21,6 @@ export const FIGURES: readonly {
   { key: 'egenkapitalandel', label: 'fig.ek', denominator: 'analysis.figures.reason.assetsNotPositive' },
 ];
 
-// A figure's direction in words, as the key-figure table words it.
-export { DIRECTION_WORDS } from '@/analysis/key-figure-rows';
-
 function shown(result: FigureResult, denominator: MessageId, filingYear: number): string {
   if (result.kind === 'value') return formatPercent(result.value.toString());
   return absenceText(result.absence, { denominator, filingYear });

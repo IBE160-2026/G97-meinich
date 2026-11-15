@@ -256,6 +256,9 @@ test.describe('the key-figure table (Story 1.8)', () => {
     // It stays open while hovered, and when the pointer moves over the text.
     await text.hover();
     await expect(text).toBeVisible();
+    // Moving the pointer away does not close it either.
+    await page.mouse.move(5, 5);
+    await expect(text).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(text).toBeHidden();
     await expect(button).toBeFocused();

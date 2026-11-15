@@ -33,14 +33,17 @@
 //
 // SYNTHETIC_DOCUMENTS' revenues, 1,1–2,0 milliards for the peers and 1,5 for
 // the subject, lie above demo A's and B's widest bands (at most 104,8 mill.
-// kr), so none enters a demo pool. The subject's widest band starts at
-// 375 mill. kr, above every other company on the manifest's list (the
-// largest has 269 mill. kr in 2025), so its document figures are compared
+// kr), so none enters a demo pool. The subject's widest band (the widest
+// step of SIZE_BANDS, 0,25–4× today: from 375 mill. kr) lies above every
+// other company on the manifest's list (the largest has 269 mill. kr in
+// 2025), so its document figures are compared
 // against exactly the ten synthetic peers; `insertSyntheticDocuments`
 // refuses to run otherwise. The seed's companies in its band have no
 // document figures, so they are left out of the document rows.
 import postgres from 'postgres';
+import { Decimal } from '../src/engine/decimal.ts';
 import { DOCUMENT_FIGURE_COLUMNS, type DocumentField } from '../src/engine/document-inputs.ts';
+import { SIZE_BANDS } from '../src/engine/peers.ts';
 import { supabaseDbUrl } from '../test/db/db-env.ts';
 
 export const SYNTHETIC = {
@@ -425,7 +428,11 @@ export async function insertSyntheticDocuments(): Promise<void> {
   try {
     await sql.begin(async (tx) => {
       await removeDocuments(tx);
-      const revenue = BigInt(SYNTHETIC_DOCUMENTS.subject.keyFigures.sum_driftsinntekter_ore);
+      // The widest band of SIZE_BANDS around the subject's revenue, both bounds included, as the funnel applies it.
+      const revenue = new Decimal(SYNTHETIC_DOCUMENTS.subject.keyFigures.sum_driftsinntekter_ore);
+      const widest = Object.values(SIZE_BANDS).reduce((wide, band) => (band.hi.div(band.lo).gt(wide.hi.div(wide.lo)) ? band : wide));
+      const from = widest.lo.mul(revenue).ceil().toString();
+      const to = widest.hi.mul(revenue).floor().toString();
       const [{ others = '0' } = {}] = await tx<{ others: string }[]>`
         select count(*)::text as others
           from register.dataset ds
@@ -433,7 +440,7 @@ export async function insertSyntheticDocuments(): Promise<void> {
           join register.company c on c.orgnr = l.o and c.naeringskode1 = '62.100'
           join register.filing f on f.orgnr = c.orgnr and f.filing_year = ${year}
           join register.key_figures k on k.brreg_id = f.brreg_id
-         where k.sum_driftsinntekter_ore between ${String(revenue / 4n)} and ${String(revenue * 4n)}`;
+         where k.sum_driftsinntekter_ore between ${from} and ${to}`;
       if (others !== '0') {
         throw new Error(`${others} listed companies lie in the synthetic subject's band; its document rows would not be the ten peers'`);
       }

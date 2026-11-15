@@ -12,10 +12,8 @@
 // about the figures. Colours are the theme's tokens, never a hex value.
 import { t } from '@/messages';
 
-import type { StripMarks } from '@/analysis/key-figure-rows';
-
 // The marks' shape is the key-figure view's (src/analysis/key-figure-rows.ts).
-export type { StripMarks };
+import type { StripMarks } from '@/analysis/key-figure-rows';
 
 const WIDTH = 160;
 const HEIGHT = 30;

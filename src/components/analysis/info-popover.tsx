@@ -3,7 +3,7 @@
 // real `button` named "Mer om dette" with a visible ⓘ, `aria-expanded` and
 // `aria-controls`, that opens the long text of a caveat whose key text is
 // already in the cell. Native button activation gives tap, click, Enter and
-// Space; Esc closes it (focus back on the button), and so does a tap or
+// Space; Esc closes it (focus back on the button when it was inside), and so does a tap or
 // click anywhere outside it. Moving the pointer away never closes it, so it
 // stays open while hovered. Written by hand: no new dependency.
 //
@@ -48,7 +48,8 @@ export function InfoPopover({
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       setOpen((value) => nextOpen(value, 'escape'));
-      button.current?.focus();
+      // Focus goes back to the button only from inside this popover; focus elsewhere stays where it is.
+      if (root.current?.contains(document.activeElement) === true) button.current?.focus();
     };
     const onPointer = (event: PointerEvent) => {
       if (event.target instanceof Node && root.current?.contains(event.target) === true) return;

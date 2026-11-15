@@ -3322,7 +3322,7 @@ Every `Fra meg:` prompt below was drafted by the review session and pasted by th
 
 ### Prompts to the BMAD session
 
-**2026-11-15 14:05**: the prompt that opened Story 3.1a.
+**2026-11-15 14:05**: the prompt that opened Story 3.1a. The same text was pasted a minute earlier, at 14:04, into the previous BMAD session, which did not act on it; the human then opened a fresh session and pasted it there.
 ```
 Fra meg:
 /bmad-build Story 3.1a: The engine computes every key figure (epics.md, Story 3.1a). Lag branchen story/3.1a-engine-key-figures fra origin/main, og opprett issuet.

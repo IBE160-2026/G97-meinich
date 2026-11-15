@@ -638,8 +638,9 @@ describe('subject-level signal coverage', () => {
       dataB(),
       { funnel: funnelOf('920000000', UNDETERMINED, null) },
       { funnel: funnelOf('930000000', null, 'produkt') },
+      { funnel: funnelOf('940000000', KONSULENT, null) },
     ]);
-    expect(coverage).toEqual({ subjects: 4, fingerprintType: 2, textType: 3, both: 2 });
+    expect(coverage).toEqual({ subjects: 5, fingerprintType: 3, textType: 3, both: 2 });
   });
 
   it('states the coverage and what it means for the verdicts', () => {
@@ -652,16 +653,22 @@ describe('subject-level signal coverage', () => {
 describe('round 1: the rules as information', () => {
   it('gives the stage-5, band and text-against-L1 verdicts and the two base rates', () => {
     const { outcomes, labels } = fromCounts(NEAR_BOUND);
+    // The stricter reading: the 54 ja outside L3 read as nei (the same pairs, keyed alike).
+    const roundOne = fromCounts(NEAR_BOUND.map((spec) => (spec.n === 54 ? { ...spec, label: 'nei' as const } : spec))).labels;
     const report = renderReport({
-      industry: '62.100', subjects: [SUBJECT_A], outcomes, measure: labels, roundOne: labels,
+      industry: '62.100', subjects: [SUBJECT_A], outcomes, measure: labels, roundOne,
       companies: 8, fingerprinted: 7, ...DB_STATE, generated: '2026-11-15', commit: 'c'.repeat(40),
     });
     const round1 = report.slice(report.indexOf('## Round 1: den strengere lesningen'));
     expect(round1).toContain('### The rules on this reading (informational)');
     expect(round1).toContain('| Stage 5 (L2 against `group`) | stage 5 is not kept | ');
-    expect(round1).toContain('| Cost of goods share band | dropped | ');
-    expect(round1).toContain(`| Text against L1 | would not pass | ${ppFine(new Decimal(1).minus(new Decimal(211).div(478)))} (154/154 − 211/478) |`);
-    expect(round1).toContain(`The base rate (L1 precision) is ${pct(211, 478)} in the measure and ${pct(211, 478)} in this reading.`);
+    // With the band 154/421 against 157/478 without it: kept on this reading.
+    expect(round1).toContain('| Cost of goods share band | kept | ');
+    // L3 154/154 against L1 157/478; recall 154/157: within the bounds on this reading.
+    expect(round1).toContain(
+      `| Text against L1 | would pass | ${ppFine(new Decimal(1).minus(new Decimal(157).div(478)))} (154/154 − 157/478) | ${ppFine(new Decimal(154).div(157).minus(1))} (154/157 − 157/157) |`,
+    );
+    expect(round1).toContain(`The base rate (L1 precision) is ${pct(211, 478)} in the measure and ${pct(157, 478)} in this reading.`);
     expect(round1).toContain('differ in how strictly "same main revenue model" was read');
   });
 });

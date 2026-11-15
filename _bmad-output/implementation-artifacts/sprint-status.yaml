@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 11-15-2026 12:09
+last_updated: 11-15-2026 15:37
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -70,8 +70,8 @@ development_status:
   2-10-epic-2-follow-ups: done  # added by the Epic 2 retrospective (Meinich, 2026-11-14): W1, W2, actions 5 and 9
   epic-2-retrospective: done
 
-  epic-3: backlog
-  3-1a-the-engine-computes-every-key-figure: ready-for-dev
+  epic-3: in-progress
+  3-1a-the-engine-computes-every-key-figure: in-progress
   3-1b-the-full-key-figure-table: backlog
   3-2-the-two-decompositions: backlog
   3-3-the-margin-waterfall: backlog

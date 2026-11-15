@@ -133,3 +133,48 @@ describe('Story 2.9 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.1b: the copy approved in the spec (Meinich, 2026-11-15, decision 5),
+// verbatim, and the strings it takes from EXPERIENCE.md.
+describe('Story 3.1b copy', () => {
+  it.each([
+    ['keyFigures.caption', 'Nøkkeltall mot sammenlignbare selskaper'],
+    ['keyFigures.middleHalfDays', 'midtre halvdel {lo}–{hi} dager'],
+    ['keyFigures.middleHalfDaysNegative', 'midtre halvdel {lo} til {hi} dager'],
+    ['keyFigures.middleHalfDaysLabelled', 'Midtre halvdel: {lo}–{hi} dager'],
+    ['keyFigures.middleHalfDaysLabelledNegative', 'Midtre halvdel: {lo} til {hi} dager'],
+    ['keyFigures.middleHalfTurnover', 'midtre halvdel {lo}–{hi}'],
+    ['keyFigures.middleHalfTurnoverNegative', 'midtre halvdel {lo} til {hi}'],
+    ['keyFigures.middleHalfTurnoverLabelled', 'Midtre halvdel: {lo}–{hi}'],
+    ['keyFigures.middleHalfTurnoverLabelledNegative', 'Midtre halvdel: {lo} til {hi}'],
+    ['analysis.figures.reason.salesNotPositive', 'salgsinntekten er null eller negativ'],
+    ['analysis.figures.reason.costsNotPositive', 'varekostnad og andre driftskostnader er til sammen null eller negative'],
+    ['analysis.figures.reason.operatingAssetsNotPositive', 'eiendelene utenom bankinnskudd er null eller negative'],
+    ['analysis.figures.reason.priorRevenueNotPositive', 'fjorårets omsetning er null eller negativ'],
+    ['keyFigures.targetNotPositive', 'Ingen kronebeløp: beste fjerdedel er ikke over null'],
+    ['keyFigures.checkRow', 'Kontroll av de tre andelene'],
+    ['fig.ebitda', 'EBITDA-margin'],
+    ['fig.vare', 'Varekostnadsandel'],
+    ['fig.lonn', 'Lønnskostnadsandel'],
+    ['fig.andre', 'Andel andre driftskostnader'],
+    ['fig.total', 'Total kostnadsandel'],
+    ['fig.omsArsverk', 'Omsetning per årsverk'],
+    ['fig.lonnArsverk', 'Lønnskostnad per årsverk'],
+    ['fig.kfd', 'Kundefordringsdager'],
+    ['fig.lgd', 'Leverandørgjeldsdager'],
+    ['fig.oml', 'Omløpshastighet driftseiendeler'],
+    ['fig.kontant', 'Kontantandel'],
+    ['fig.vekst', 'Omsetningsvekst'],
+    ['keyFigures.moreAbout', 'Mer om dette'],
+    [
+      'keyFigures.notInDataset.popover',
+      'Tallene fra årsregnskapsdokumentene er i denne versjonen bare lest inn for demoselskapene og sammenligningsgruppene deres. For dette selskapet sammenlignes bare nøkkeltallene fra Regnskapsregisterets API.',
+    ],
+    ['keyFigures.notInDataset.state', 'Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen.'],
+    ['keyFigures.costShare.kroner', 'Se forklaring av marginen'],
+    ['keyFigures.oneOff', 'engangsbeløp'],
+    ['keyFigures.costShare.group', 'Forklarer marginavviket – summeres ikke'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

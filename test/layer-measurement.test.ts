@@ -550,10 +550,18 @@ describe('without the band', () => {
     expect(inPool.map((o) => o.l2WithoutNull.costOfGoods)).toEqual([true, true, true, true, true, true]);
     // Personnel widened: produkt stays produkt; konsulent and no fingerprint are null.
     expect(inPool.map((o) => o.l2WithoutNull.personnelCost)).toEqual([true, false, true, false, true, true]);
+    // A konsulent subject is itself undetermined with personnel widened, so every pair is null.
+    const konsulentSubject = measureSubject(SUBJECT_A, dataA()).filter((o) => o.inPool);
+    expect(konsulentSubject.every((o) => o.l2WithoutNull.personnelCost)).toBe(true);
+
     const report = reportOf(outcomes, labelsA);
-    expect(report).toContain('In practice "without the band" here became "without the fingerprint".');
-    expect(report).toContain('Without the band the fingerprint signal is null for 6 of 6 pairs in the pool, against 1 with it.');
-    expect(report).toContain('Without the band the fingerprint signal is null for 4 of 6 pairs in the pool, against 1 with it.');
+    const bands = report.slice(report.indexOf('## The bands (FR-13)'), report.indexOf('## The rules on the blind pairs alone'));
+    const costOfGoods = bands.slice(bands.indexOf('### Cost of goods share band'), bands.indexOf('### Personnel cost share band'));
+    const personnel = bands.slice(bands.indexOf('### Personnel cost share band'));
+    expect(costOfGoods).toContain('In practice "without the band" here became "without the fingerprint".');
+    expect(costOfGoods).toContain('Without the band the fingerprint signal is null for 6 of 6 pairs in the pool, against 1 with it.');
+    expect(personnel).not.toContain('here became');
+    expect(personnel).toContain('Without the band the fingerprint signal is null for 4 of 6 pairs in the pool, against 1 with it.');
   });
 });
 

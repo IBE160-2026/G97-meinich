@@ -16,6 +16,7 @@ import {
   type PairOutcome,
   type SubjectData,
   assertNoLabelledOrgnr,
+  bandDecision,
   bandRule,
   commonIndustry,
   documentCause,
@@ -35,7 +36,7 @@ import {
 } from '../scripts/layer-measurement.ts';
 import { Decimal } from '../src/engine/decimal.ts';
 import { businessType, BANDS, type BusinessType, type Fingerprint } from '../src/engine/fingerprint.ts';
-import { formatPercent } from '../src/engine/format.ts';
+import { formatPercent, formatPercentagePoints } from '../src/engine/format.ts';
 import type { CandidateFiling, FunnelSubject } from '../src/engine/peers.ts';
 
 // ------------------------------------------------------- synthetic world
@@ -520,6 +521,31 @@ describe('the rules on the blind pairs alone', () => {
     expect(report).toContain('Stage-5 rule on these pairs: stage 5 is not kept.');
     expect(report).toContain('**Verdict: stage 5 is kept.**');
     expect(report.match(/Band rule on these pairs: /g)).toHaveLength(2);
+  });
+});
+
+describe("Meinich's band decision", () => {
+  it("takes the blind pairs' cost-of-goods figures from the computation, and says v1's group is the pool", () => {
+    // Blind: with the band 10 ja + 30 nei of 15 ja (25,0 %, recall 10/15);
+    // without it every pair (15 ja + 30 nei: 33,3 %, recall 15/15).
+    const { outcomes, labels } = fromCounts([
+      ...NEAR_BOUND,
+      { n: 10, label: 'ja', l2: true, group: true, blind: true },
+      { n: 30, label: 'nei', l2: true, group: true, blind: true },
+      { n: 5, label: 'ja', l2: false, group: false, blind: true },
+    ]);
+    const lines = bandDecision(outcomes.filter((o) => o.blind), labels);
+    const expected =
+      `(${formatPercent('0.25')} against ${formatPercent(new Decimal(15).div(45).toString())} precision, ` +
+      `${formatPercentagePoints(new Decimal(10).div(15).minus(1).toString())} recall`;
+    expect(lines.join(" ")).toContain(expected);
+    const report = reportOf(outcomes, labels);
+    expect(report).toContain('### The decision');
+    expect(report).toContain(expected);
+    expect(report).toContain('the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration');
+    expect(report).toContain("v1's group is therefore the stage 1–3 pool.");
+    expect(report).toContain('with both signals on: stage 4 and stage 5 as built, which is what is measured.');
+    expect(report).toContain("so v1's group is the stage 1–3 pool (L1).");
   });
 });
 

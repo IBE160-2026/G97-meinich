@@ -698,6 +698,22 @@ function stageFiveNote(outcomes: readonly PairOutcome[], measure: ReadonlyMap<st
   ];
 }
 
+/**
+ * Meinich's band decision (2026-11-15), with the blind pairs' cost-of-goods
+ * band figures read from the computation, never written as literals.
+ */
+export function bandDecision(blind: readonly PairOutcome[], measure: ReadonlyMap<string, Label>): string[] {
+  const band = bandRule(blind, measure, 'costOfGoods');
+  return [
+    '### The decision',
+    '',
+    'Meinich (2026-11-15) followed the band rule\'s recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; ' +
+      '`src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. ' +
+      `He decided it from the rule and the blind pairs (${share(band.withBand.precision)} against ${share(band.withoutBand.precision)} precision, ${signedPp(band.verdict.recallDelta)} recall, cost-of-goods band with against without), ` +
+      'and because the band test cannot tell one band from the fingerprint. v1\'s group is therefore the stage 1–3 pool.',
+  ];
+}
+
 const sameOrChanged = (decided: Verdict, other: Verdict) => (decided.kind === other.kind ? 'same' : 'changes');
 
 export function renderReport(inputs: ReportInputs): string {
@@ -729,7 +745,8 @@ export function renderReport(inputs: ReportInputs): string {
     '',
     '## How the layers are read',
     '',
-    'Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`) at the Standard size band, with the text signal on: stage 5 as built, which is what is measured.',
+    'Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`) at the Standard size band, with both signals on: stage 4 and stage 5 as built, which is what is measured. ' +
+      'In v1 both signals are switched off after this measurement (`V1_FUNNEL`), so v1\'s group is the stage 1–3 pool (L1).',
     '',
     '- **L1** includes a pair when the candidate is in today\'s stage 1–3 pool. Every labelled candidate was drawn from that pool.',
     '- **L2** includes it when the fingerprint signal is not `false`: the funnel with the subject\'s classification switched off. A missing fingerprint, an undetermined type or a subject with no type is a null signal, and the pair is kept.',
@@ -790,7 +807,7 @@ export function renderReport(inputs: ReportInputs): string {
     '',
     'Each band is left out by widening it to low–high in memory, in the subject\'s fingerprint and every candidate\'s, before the funnel runs; the rule is unchanged, so a type that depended on the band becomes undetermined and the pair is kept. ' +
       'The rule is applied to L2 only, never to `group`, so the text cannot hide what the band does: a band is recommended kept if L2 with it has at least 3,0 pp higher precision and at most 3,0 pp lower recall than L2 without it, and dropped otherwise. ' +
-      'The rule gives a recommendation; Meinich decides (FR-13). The app, the stored fingerprints and `src/engine/fingerprint.ts` are unchanged.',
+      'The rule gives a recommendation; Meinich decides (FR-13). The stored fingerprints and `src/engine/fingerprint.ts` are unchanged.',
   );
   for (const category of WIDENED_CATEGORIES) {
     const band = bandRule(outcomes, measure, category);
@@ -805,6 +822,7 @@ export function renderReport(inputs: ReportInputs): string {
       `**Recommendation: ${bandVerdict(band.verdict)}.**`,
     );
   }
+  push('', ...bandDecision(outcomes.filter((o) => o.blind), measure));
 
   const blind = outcomes.filter((o) => o.blind);
   const blindFive = stageFive(blind, measure);

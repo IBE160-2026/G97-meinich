@@ -14,7 +14,7 @@ This measures the funnel as it is and states no numeric target (NFR32).
 
 ## How the layers are read
 
-Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`) at the Standard size band, with the text signal on: stage 5 as built, which is what is measured.
+Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`) at the Standard size band, with both signals on: stage 4 and stage 5 as built, which is what is measured. In v1 both signals are switched off after this measurement (`V1_FUNNEL`), so v1's group is the stage 1–3 pool (L1).
 
 - **L1** includes a pair when the candidate is in today's stage 1–3 pool. Every labelled candidate was drawn from that pool.
 - **L2** includes it when the fingerprint signal is not `false`: the funnel with the subject's classification switched off. A missing fingerprint, an undetermined type or a subject with no type is a null signal, and the pair is kept.
@@ -136,7 +136,7 @@ A difference of 0,000 pp shows as 0,0 pp at one decimal; the rule compares the
 
 ## The bands (FR-13)
 
-Each band is left out by widening it to low–high in memory, in the subject's fingerprint and every candidate's, before the funnel runs; the rule is unchanged, so a type that depended on the band becomes undetermined and the pair is kept. The rule is applied to L2 only, never to `group`, so the text cannot hide what the band does: a band is recommended kept if L2 with it has at least 3,0 pp higher precision and at most 3,0 pp lower recall than L2 without it, and dropped otherwise. The rule gives a recommendation; Meinich decides (FR-13). The app, the stored fingerprints and `src/engine/fingerprint.ts` are unchanged.
+Each band is left out by widening it to low–high in memory, in the subject's fingerprint and every candidate's, before the funnel runs; the rule is unchanged, so a type that depended on the band becomes undetermined and the pair is kept. The rule is applied to L2 only, never to `group`, so the text cannot hide what the band does: a band is recommended kept if L2 with it has at least 3,0 pp higher precision and at most 3,0 pp lower recall than L2 without it, and dropped otherwise. The rule gives a recommendation; Meinich decides (FR-13). The stored fingerprints and `src/engine/fingerprint.ts` are unchanged.
 
 ### Cost of goods share band
 
@@ -161,6 +161,10 @@ In practice "without the band" here became "without the fingerprint". The type r
 The type rule reads the personnel-cost band only to tell `konsulent` (personnel cost mid or high, cost of goods low) from `annet`, so widening it leaves those types undetermined and keeps `forhandler` and `produkt`. Without the band the fingerprint signal is null for 9 of 9 pairs in the pool, against 1 with it. The closer the first count is to all pairs, the more "without the band" is again "without the fingerprint", and the less this test can tell the band apart from the fingerprint. No definition is changed.
 
 **Recommendation: kept.**
+
+### The decision
+
+Meinich (2026-11-15) followed the band rule's recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; `src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. He decided it from the rule and the blind pairs (66,7 % against 40,0 % precision, 0,0 pp recall, cost-of-goods band with against without), and because the band test cannot tell one band from the fingerprint. v1's group is therefore the stage 1–3 pool.
 
 ## The rules on the blind pairs alone (informational)
 

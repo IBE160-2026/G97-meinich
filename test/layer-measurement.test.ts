@@ -264,6 +264,12 @@ describe('a null signal is kept and counted', () => {
     expect(documentCause(base)).toBe('reconciled_not_derived');
   });
 
+  it('refuses a document or column status outside the known set', () => {
+    const base = facts({ fingerprint: null, classification: null });
+    expect(() => documentCause({ ...base, documentStatus: 'scanned' })).toThrow('unknown document status "scanned"');
+    expect(() => documentCause({ ...base, currentStatus: 'extracted' })).toThrow('unknown document column status "extracted"');
+  });
+
   it('prints the cause counts in the report', () => {
     const report = renderReport({
       industry: '62.100',

@@ -243,7 +243,18 @@ export const DOCUMENT_CAUSES = [
 ] as const;
 export type DocumentCause = (typeof DOCUMENT_CAUSES)[number];
 
+/** The statuses the schema allows (register.document, register.document_column). */
+const DOCUMENT_STATUSES: readonly string[] = ['extracted', 'reconciled', 'failed_reconciliation', 'not_extracted', 'paper'];
+const COLUMN_STATUSES: readonly string[] = ['reconciled', 'failed_reconciliation'];
+
+/** Throws on a status outside the known set, so a new one is never counted silently. */
 export function documentCause(facts: CompanyFacts): DocumentCause {
+  if (facts.documentStatus !== null && !DOCUMENT_STATUSES.includes(facts.documentStatus)) {
+    throw new Error(`unknown document status ${JSON.stringify(facts.documentStatus)}`);
+  }
+  if (facts.currentStatus !== null && !COLUMN_STATUSES.includes(facts.currentStatus)) {
+    throw new Error(`unknown document column status ${JSON.stringify(facts.currentStatus)}`);
+  }
   if (!facts.companyExists || facts.documentStatus === null) return 'document_absent';
   if (facts.documentStatus === 'not_extracted') return 'document_refused';
   if (facts.documentStatus === 'paper') return 'document_paper';

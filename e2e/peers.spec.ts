@@ -202,21 +202,30 @@ function seedSubject(
   };
 }
 
-/** A subject whose group mixes match bases, at least one of them resting on a classification (✦): it needs a type of its own. */
+/**
+ * A subject with a type of its own whose group mixes match bases. The v1
+ * funnel reads no text signal (Story 5.2), so none of them may rest on a
+ * classification.
+ */
 const mixedBasisSubject = seedSubject(
   (orgnr) => classificationOf(orgnr) !== null,
-  (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2 && rows.some((row) => row.grunnlagKi),
-  'with mixed match bases and a ✦ basis',
+  (rows) => new Set(rows.map((row) => row.grunnlag)).size >= 2,
+  'with mixed match bases and a type of its own',
 );
 
-/** A subject whose group has a flagged peer: it needs both signals of its own, a typed fingerprint and a type. */
+/**
+ * A subject whose group the funnel as built would flag a peer in (text
+ * signal on): it needs both signals of its own. The v1 funnel shows no flag
+ * for it (Story 5.2).
+ */
 const flaggedSubject = seedSubject(
   (orgnr) => {
     const own = expectedSubject(orgnr);
-    return own.classification !== null && own.fingerprint !== null && businessType(own.fingerprint) !== null;
+    if (own.classification === null || own.fingerprint === null || businessType(own.fingerprint) === null) return false;
+    return expectedPeerGroup(orgnr, 0, { textSignal: true }).flagged.length > 0;
   },
-  (rows) => rows.some((row) => row.flagg !== null),
-  'with a flagged peer',
+  () => true,
+  'with a peer the funnel as built would flag',
 );
 
 /** ✦ is hidden from screen readers wherever it is drawn: one read of every marker, not one wait per marker. */
@@ -275,9 +284,9 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     for (const text of texts) counts[text] = (counts[text] ?? 0) + 1;
     return counts;
   };
-  for (const [label, subjectOf, needsFlag] of [
+  for (const [label, subjectOf, flaggedAsBuilt] of [
     ['a mixed-basis subject from the seed', mixedBasisSubject, false],
-    ['a subject with a flagged peer from the seed', flaggedSubject, true],
+    ['a subject the funnel as built would flag a peer for', flaggedSubject, true],
   ] as const) {
     test(`${label}: the totals per basis and flag match the engine`, async ({ page }) => {
       const orgnr = subjectOf();
@@ -290,8 +299,10 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       const flags = await shown.locator('td:nth-child(6)').allTextContents();
       expect(tally(bases)).toEqual(tally(rows.map(basisText)));
       expect(tally(flags)).toEqual(tally(rows.map(flagText)));
-      expect(bases.filter((text) => text.startsWith(GLYPH)).length).toBeGreaterThan(0);
-      if (needsFlag) expect(flags.filter((text) => text !== '').length).toBeGreaterThan(0);
+      // v1 (Story 5.2): no basis rests on the description and no peer is flagged.
+      expect(bases.filter((text) => text.startsWith(GLYPH))).toEqual([]);
+      expect(flags.filter((text) => text !== '')).toEqual([]);
+      if (flaggedAsBuilt) expect(rows.some((row) => row.flagg !== null)).toBe(false);
       await expectEveryMarkHidden(page);
     });
 

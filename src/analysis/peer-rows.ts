@@ -16,10 +16,15 @@
 //   grunnlag      the match basis (src/engine/peers.ts matchBasis)
 //   grunnlagKi    whether the basis rests on a classification (✦)
 //   flagg         "Usikker klassifisering", or null
+//
+// The basis is the v1 funnel's (V1_FUNNEL): the text signal is off since
+// Story 5.2 found stage 5 not kept, so no basis rests on a classification,
+// and the funnel flags no one. grunnlagKi and flagg stay for the text
+// signal as built.
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { computeApiKeyFigures } from '../engine/key-figures.ts';
 import { formatMillions, formatOrgnr, formatPercent } from '../engine/format.ts';
-import { matchBasis, type CandidateFiling, type MatchBasis, type FunnelSubject } from '../engine/peers.ts';
+import { matchBasis, V1_FUNNEL, type CandidateFiling, type MatchBasis, type FunnelSubject } from '../engine/peers.ts';
 import { absenceText } from './figure-text.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { inclusionReason } from './inclusion-reason.ts';
@@ -85,7 +90,7 @@ export function peerRows(
   const isFlagged = new Set(flagged);
   const isExcluded = new Set(ekskl);
   return peers.map((peer) => {
-    const basis = BASIS_DISPLAY[matchBasis(subject, peer)];
+    const basis = BASIS_DISPLAY[matchBasis(subject, peer, V1_FUNNEL)];
     return {
       orgnr: peer.orgnr,
       excluded: isExcluded.has(peer.orgnr),

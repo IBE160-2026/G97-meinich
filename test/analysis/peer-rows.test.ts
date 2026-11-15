@@ -104,7 +104,6 @@ describe('peerRows', () => {
     expect(row?.navn).toBe(`900${NBSP}000${NBSP}001`);
   });
 
-  // The v1 funnel flags no one (Story 5.2); the row still tags an orgnr it is given.
   // Triage 9: "Hvorfor med" follows the options, so a stage with the
   // fingerprint signal on names the shared categories again.
   it('names fingerprint categories only when the fingerprint signal is on', () => {

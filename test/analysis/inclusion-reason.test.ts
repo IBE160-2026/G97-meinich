@@ -32,6 +32,13 @@ const profile = (overrides: Partial<ProfileFields> = {}): ProfileFields => ({
 // funnel reads no fingerprint signal (Story 5.2), and names none.
 const SIGNAL_ON = { fingerprintSignal: true } as const;
 
+// The tests that do not depend on the signal run on the v1 default
+// (undefined) and with the signal on (triage 11).
+const BOTH = [
+  ['the v1 default', undefined],
+  ['the signal on', SIGNAL_ON],
+] as const;
+
 describe('inclusionReason in v1', () => {
   it('v1: only the base sentence, no fingerprint category, even when categories are shared', () => {
     const both = profile({ fingerprint: KONSULENT });
@@ -43,22 +50,22 @@ describe('inclusionReason in v1', () => {
 });
 
 describe('inclusionReason', () => {
-  it('names the industry, the revenue ratio and the subject', () => {
-    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 2n * S }), 'ADMMIT AS')).toBe(
+  it.each(BOTH)('names the industry, the revenue ratio and the subject (%s)', (_label, options) => {
+    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 2n * S }), 'ADMMIT AS', options)).toBe(
       'Samme bransje, omsetning 2× ADMMIT AS',
     );
   });
 
-  it('computes the ratio peer / subject exactly, shown with up to one decimal', () => {
-    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 1_400_000_000n }), 'A AS', SIGNAL_ON)).toBe(
+  it.each(BOTH)('computes the ratio peer / subject exactly, shown with up to one decimal (%s)', (_label, options) => {
+    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 1_400_000_000n }), 'A AS', options)).toBe(
       'Samme bransje, omsetning 1,4× A AS',
     );
     // 0.55 rounds half away from zero to 0,6.
-    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 550_000_000n }), 'A AS', SIGNAL_ON)).toBe(
+    expect(inclusionReason(profile(), profile({ sumDriftsinntekter: 550_000_000n }), 'A AS', options)).toBe(
       'Samme bransje, omsetning 0,6× A AS',
     );
     // An odd subject revenue: 2/3 = 0,666… → 0,7, never a float.
-    expect(inclusionReason(profile({ sumDriftsinntekter: 3n }), profile({ sumDriftsinntekter: 2n }), 'A AS', SIGNAL_ON)).toBe(
+    expect(inclusionReason(profile({ sumDriftsinntekter: 3n }), profile({ sumDriftsinntekter: 2n }), 'A AS', options)).toBe(
       'Samme bransje, omsetning 0,7× A AS',
     );
   });
@@ -154,10 +161,10 @@ describe('inclusionReason', () => {
     expect(inclusionReason(both, both, 'A AS', SIGNAL_ON)).not.toContain('✦');
   });
 
-  it('refuses a pair stage 1 would never admit', () => {
-    expect(() => inclusionReason(profile(), profile({ naeringskode1: '62.200' }), 'A AS', SIGNAL_ON)).toThrow(TypeError);
-    expect(() => inclusionReason(profile({ naeringskode1: null }), profile({ naeringskode1: null }), 'A AS', SIGNAL_ON)).toThrow(TypeError);
-    expect(() => inclusionReason(profile(), profile({ sumDriftsinntekter: null }), 'A AS', SIGNAL_ON)).toThrow(TypeError);
-    expect(() => inclusionReason(profile({ sumDriftsinntekter: 0n }), profile(), 'A AS', SIGNAL_ON)).toThrow(TypeError);
+  it.each(BOTH)('refuses a pair stage 1 would never admit (%s)', (_label, options) => {
+    expect(() => inclusionReason(profile(), profile({ naeringskode1: '62.200' }), 'A AS', options)).toThrow(TypeError);
+    expect(() => inclusionReason(profile({ naeringskode1: null }), profile({ naeringskode1: null }), 'A AS', options)).toThrow(TypeError);
+    expect(() => inclusionReason(profile(), profile({ sumDriftsinntekter: null }), 'A AS', options)).toThrow(TypeError);
+    expect(() => inclusionReason(profile({ sumDriftsinntekter: 0n }), profile(), 'A AS', options)).toThrow(TypeError);
   });
 });

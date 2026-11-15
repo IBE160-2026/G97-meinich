@@ -2,7 +2,7 @@
 title: 'Story 3.1a: The engine computes every key figure'
 type: 'feature'
 created: '2026-11-15'
-status: 'in-review'
+status: 'done'
 baseline_commit: '365d51b00223905e6ec4cd4969889746755434b6'
 route: 'dispatch'
 review_loop_iteration: 0

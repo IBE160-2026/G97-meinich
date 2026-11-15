@@ -538,10 +538,14 @@ describe('the full key-figure table (Story 3.1b)', () => {
     // Bank 1 000 000 kr of 3 000 000 kr in assets.
     expect(cellText(r, 'own')).toBe(`33,3${NBSP}%`);
     expect(r).not.toMatch(/bedre enn|aria-sort|<button/);
-    expect(text(r)).not.toMatch(/kr\b/);
+    // No kroner text of any kind: its kroner cell is the no-direction dash.
+    expect(rawCell(r, 'gap')).toBe(NO_DIRECTION);
+    expect(text(r)).not.toMatch(/kr/);
     const phone = phoneRows(html, 'kontant');
-    expect(text(phone.row)).not.toMatch(/kr\b/);
-    expect(text(phone.expansion)).not.toMatch(/bedre enn|kr\b/);
+    expect(text(phone.row)).not.toMatch(/kr/);
+    // The expansion names its "Gap i kroner" item, which holds the same dash.
+    expect(text(phone.expansion)).toContain(`${nb['keyFigures.col.gap']} – ${nb['keyFigures.notApplicableNoDirection']}`);
+    expect(text(phone.expansion)).not.toMatch(/bedre enn|kronebeløp|\skr(?!\p{L})/u);
   });
 
   it('capital kroner: one rounding, engangsbeløp', () => {

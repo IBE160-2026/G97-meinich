@@ -78,7 +78,7 @@ Rows are listed by test file and test name; "Fails if deleted" names the guard t
 | B3 | API-bound remainder −5.01 kr on a subtotal > 501 000 kr | fingerprint; the same from `sumEiendeler` → `negative_balance_remainder` | `fingerprint.test.ts` "an API-bound remainder takes the between-sources rule; a within-document one takes 5 kr" |
 | Derived doc revenue ≤ 5 kr | NULL revenue, parts give +5 kr | `undefined`/`denominator_not_positive` | `test/engine/document-key-figures.test.ts` "a derived document revenue of 5 kr or less is not positive" |
 | Not 0 | a needed line NULL and underivable | `undefined`/`component_missing` | "an empty line is never 0" |
-| R3 | `kundefordringer` > subtotal + max(5 kr, 0.001 %) | 9 and 11 `line_not_read_safely`; 10 defined | "a line above its API subtotal leaves 9 and 11 undefined" |
+| R3 | `kundefordringer` or `bankinnskudd` > subtotal + max(5 kr, 0.001 %) | `kundefordringer` → 9 `line_not_read_safely`; `bankinnskudd` → 11 and kontantandel `line_not_read_safely`; 10 defined | "a line above its API subtotal leaves 9 and 11 undefined" |
 | Growth, prior failed | prior `failed_reconciliation` | 14 `component_missing` | `reference-cases.test.ts` "936252710 2024: revenue growth" |
 | Negative equity | 927533235 2023 | 13 negative, defined | "927533235 2023: …" |
 | Zero revenue | 989081799 2025 | revenue figures `denominator_not_positive` | "989081799 2025: …" |
@@ -111,18 +111,37 @@ Rows are listed by test file and test name; "Fails if deleted" names the guard t
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/engine/fraction.ts` -- an exact bigint fraction (reduce, mul, `toDecimal` with one division) -- the identities hold exactly only in rationals.
-- [ ] `src/engine/document-key-figures.ts` + `test/engine/document-key-figures.test.ts` -- figures 2–11, 14 and kontantandel from a basis, with directions, `rankable`, and decisions 1, 2 and 6 -- the core.
-- [ ] `src/engine/benchmark.ts` -- `capitalGap` for 9, 10, 11 (`oneOff: true`, `strength`, `none` with reason), plus `benchmarkDocumentFigures` over `compareFigure` -- FR-24, FR-29.
-- [ ] `test/engine/identities.test.ts` -- every reference case, plus 5 000 seeded-PRNG øre vectors (1 øre to 10¹⁸, both signs, 500/501 øre, 2⁵³ ± 1).
-- [ ] `test/engine/reference-cases.test.ts` -- the document cases. The test asserts that each seed figure used equals the transcription. The page is recorded in a comment.
-- [ ] `test/engine/peers.test.ts` -- the non-calendar case.
-- [ ] B1, B2 and B3, as decided, with their tests.
-- [ ] `docs/key-figures.md`, `docs/ai-log.md`, `AGENTS.md` (if it names something changed), and `deferred-work.md` -- in the same commits as their code.
+- [x] `src/engine/fraction.ts` -- an exact bigint fraction (reduce, mul, `toDecimal` with one division) -- the identities hold exactly only in rationals.
+- [x] `src/engine/document-key-figures.ts` + `test/engine/document-key-figures.test.ts` -- figures 2–11, 14 and kontantandel from a basis, with directions, `rankable`, and decisions 1, 2 and 6 -- the core.
+- [x] `src/engine/benchmark.ts` -- `capitalGap` for 9, 10, 11 (`oneOff: true`, `strength`, `none` with reason), plus `benchmarkDocumentFigures` over `compareFigure` -- FR-24, FR-29.
+- [x] `test/engine/identities.test.ts` -- every reference case, plus 5 000 seeded-PRNG øre vectors (1 øre to 10¹⁸, both signs, 500/501 øre, 2⁵³ ± 1).
+- [x] `test/engine/reference-cases.test.ts` -- the document cases. The test asserts that each seed figure used equals the transcription. The page is recorded in a comment.
+- [x] `test/engine/peers.test.ts` -- the non-calendar case.
+- [x] B1, B2 and B3, as decided, with their tests.
+- [x] `docs/key-figures.md`, `docs/ai-log.md`, `AGENTS.md` (if it names something changed), and `deferred-work.md` -- in the same commits as their code.
 
 **Acceptance Criteria:**
 - Given the deferred FR-64 entry (derived numerators), when 3.1a lands, then `FigureResult` carries `derived` for every input of a figure, not only the denominator, so the entry closes here.
 - Given a full `pnpm seed` → `pnpm restore:documents`, then the four counts are reported, and `pnpm test`, `pnpm test:db`, `pnpm test:ingest`, lint, typecheck and e2e (one worker) all pass.
+
+## Implementation Notes
+
+Implemented by a subagent in commits `875b4cd`..`587fa86`. Interpretations it recorded:
+- A denominator counts as derived when any part of it is derived.
+- A difference of stated lines (`sumEiendeler − bankinnskudd`) counts as stated.
+- An empty `driftsresultat` is `component_missing`.
+- R3 applies per line: `kundefordringer` affects 9; `bankinnskudd` affects 11 and kontantandel.
+
+## Spec Change Log
+
+- **2026-11-15, Meinich: R3 row of the I/O matrix corrected.**
+  - The row read "`kundefordringer` > subtotal → 9 and 11 `line_not_read_safely`".
+  - That was wrong: figure 11 is `sumDriftsinntekter / (sumEiendeler − bankinnskudd)` and does not read `kundefordringer`.
+  - It now reads "`kundefordringer` → 9; `bankinnskudd` → 11 and kontantandel; 10 defined", as in `docs/key-figures.md` (9 reads `kundefordringer`; 11 and kontantandel read `bankinnskudd`).
+  - The code and its test ("a line above its API subtotal leaves 9 and 11 undefined", `test/engine/document-key-figures.test.ts`) already followed the formula and are unchanged.
+  - Found by the BMAD session's matrix audit; decided by Meinich.
+
+## Review Triage Log
 
 ## Design Notes
 

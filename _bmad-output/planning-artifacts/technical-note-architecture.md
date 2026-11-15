@@ -231,12 +231,14 @@ flowchart LR
   - **Paths into the engine, guarded and not (FR-58).** No OCR digit is repaired, and only a reconciled column's figures reach the engine. Guarded:
     - R1, at reading: a figure token narrower than 0.6 × its digits (plus one for a leading minus) × the page's pitch is refused, in both passes (Story 2.5c).
     - The sum gates: a cost line or a part of intangible assets refused by the plain pass enters from the digits-only pass only when the lines sum to their plain-pass total within the within-document bound (Story 2.5b).
-    - R3, in the engine: a current-year `kundefordringer` or `bankinnskudd` above the key-figures API's `sumOmloepsmidler` of the same filing by more than the between-sources rule is absent (`exceeds_api_subtotal`; a key figure reading it is undefined, `line_not_read_safely`). The line or the subtotal is wrong, so a correct line can be dropped (Story 2.5c).
+    - R3, in the engine: a current-year `kundefordringer` or `bankinnskudd` above the key-figures API's `sumOmloepsmidler` of the same filing by more than the between-sources rule is absent (`exceeds_api_subtotal`; a key figure reading it is undefined, `line_not_read_safely`). The line or the subtotal is wrong, so a correct line can be dropped (Story 2.5c). The filing is the one in `register.document.brreg_id`, joined by `pnpm derive` and by the request path through one fragment, `DOCUMENT_FILING_JOIN` in `src/analysis/document-filing.ts` (Story 3.1a, B2; `test/db/document-filing.test.ts`).
+    - Growth's prior column, in the engine: revenue growth (14) does not use a reconciled prior-year column whose `api_check` fails on `sum_driftsinntekter`; the growth is undefined, `line_not_read_safely` (Story 3.1a, decision 2).
     - R2, in the fingerprint: a column whose four main cost lines are read and fall short of sum kostnader by more than 5 kr gives no fingerprint (Story 2.5c).
 
     Still unguarded:
     - a misread of the same width (8 read as 3) in `salgsinntekt`, `leverandorgjeld`, or a cost line of a column where not every main line is read;
     - a prior-year `kundefordringer` or `bankinnskudd` (the API holds no subtotal for the prior year);
+    - a prior-year `sum_driftsinntekter` with no API filing of its own year to check against (`api_check` `not_evaluable`), which revenue growth (14) uses: 1 017 of the 2 430 reconciled current columns with a reconciled prior column in the local document run (2026-11-15; 20 more fail the API on it and are not used) (Story 3.1a, decision 2);
     - `kundefordringer` and `bankinnskudd` together above the subtotal while each is within it.
 
 ### AD-16 — One seed path, with a manifest `[ADOPTED]`

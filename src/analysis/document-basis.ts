@@ -20,6 +20,7 @@ import {
 } from '../engine/document-inputs.ts';
 import { parseOre } from '../engine/inputs.ts';
 import { log } from '../logger.ts';
+import { DOCUMENT_FILING_JOIN } from './document-filing.ts';
 
 type FigureColumn = (typeof DOCUMENT_FIGURE_COLUMNS)[DocumentField];
 
@@ -37,15 +38,15 @@ export type DocumentBasisColumns = {
   readonly prior_status: string | null;
   /** The prior column's `api_fail_fields` (a text[]), null without a reconciled-or-failed prior column. */
   readonly prior_api_fail_fields: readonly string[] | null;
-  /** The key-figures filing's sum_omloepsmidler, for R3. */
+  /** sum_omloepsmidler of the key-figures filing the document belongs to (`DOCUMENT_FILING_JOIN`), for R3. */
   readonly sum_omloepsmidler_ore: string | null;
 } & { readonly [C in FigureColumn as `cur_${C}`]: string | null } & {
   readonly [C in FigureColumn as `pri_${C}`]: string | null;
 };
 
 /**
- * The select list for `DocumentBasisColumns`. Needs `c` (register.company),
- * `k` (register.key_figures) and the joins in `DOCUMENT_JOINS`.
+ * The select list for `DocumentBasisColumns`. Needs `c` (register.company)
+ * and the joins in `DOCUMENT_JOINS`.
  */
 export const DOCUMENT_SELECT = [
   `coalesce((select ds.manifest -> 'document_figure_orgnrs' @> to_jsonb(c.orgnr::text) from register.dataset ds), false) as in_manifest`,
@@ -55,18 +56,22 @@ export const DOCUMENT_SELECT = [
   'pri.orgnr is not null as has_prior',
   'pri.status as prior_status',
   'pri.api_fail_fields as prior_api_fail_fields',
-  'k.sum_omloepsmidler_ore',
+  'dk.sum_omloepsmidler_ore',
   ...FIGURE_COLUMNS.map((column) => `cur.${column} as cur_${column}`),
   ...FIGURE_COLUMNS.map((column) => `pri.${column} as pri_${column}`),
 ].join(',\n       ');
 
-/** The document of the filing year `f.filing_year` and its two columns. Needs `c` and `f`. */
+/**
+ * The document of the filing year `f.filing_year`, its two columns, and the
+ * key-figures filing it belongs to (`dk`, B2). Needs `c` and `f`.
+ */
 export const DOCUMENT_JOINS = `
   left join register.document d on d.orgnr = c.orgnr and d.filing_year = f.filing_year
   left join register.document_column cur
          on cur.orgnr = d.orgnr and cur.filing_year = d.filing_year and cur.role = 'current'
   left join register.document_column pri
-         on pri.orgnr = d.orgnr and pri.filing_year = d.filing_year and pri.role = 'prior'`;
+         on pri.orgnr = d.orgnr and pri.filing_year = d.filing_year and pri.role = 'prior'
+  ${DOCUMENT_FILING_JOIN}`;
 
 function column(row: DocumentBasisColumns, prefix: 'cur_' | 'pri_', status: string | null): DocumentColumnRow {
   const figures = Object.fromEntries(

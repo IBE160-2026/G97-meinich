@@ -29,6 +29,7 @@
 // Run: node scripts/derive.ts   (from the repository root)
 import { pathToFileURL } from 'node:url';
 import postgres from 'postgres';
+import { DOCUMENT_FILING_JOIN } from '../src/analysis/document-filing.ts';
 import { digest } from '../src/engine/digest.ts';
 import {
   DOCUMENT_FIGURE_COLUMNS,
@@ -103,18 +104,19 @@ const FIGURE_SELECT = Object.values(DOCUMENT_FIGURE_COLUMNS)
 
 // Every current column, with the subtotals of the key-figures filing its
 // document belongs to (NULL when the document has none: the API holds only
-// the latest years). Ordered so the rows are inserted in key order.
+// the latest years), joined through the fragment the request path uses too
+// (B2). Ordered so the rows are inserted in key order.
 export const DERIVE_SQL = `
 select dc.orgnr,
        dc.filing_year,
        dc.status,
        dc.dataset,
        ${FIGURE_SELECT},
-       k.sum_anleggsmidler_ore,
-       k.sum_omloepsmidler_ore
+       dk.sum_anleggsmidler_ore,
+       dk.sum_omloepsmidler_ore
   from register.document_column dc
   join register.document d on d.orgnr = dc.orgnr and d.filing_year = dc.filing_year
-  left join register.key_figures k on k.brreg_id = d.brreg_id
+  ${DOCUMENT_FILING_JOIN}
  where dc.role = 'current'
  order by dc.orgnr collate "C", dc.filing_year`;
 

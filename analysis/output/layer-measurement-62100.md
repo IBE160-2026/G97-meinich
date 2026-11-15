@@ -1,6 +1,6 @@
 # Layer-by-layer measurement, 62.100 (SM-1)
 
-Generated 2026-11-15 by `scripts/layer-measurement.ts` (`pnpm analysis:layers`) at commit `c8c753a74da5425aa6ad9392ace4546c30f0018e`, with the reads in `scripts/layer-measurement-compute.ts`. Inputs: `analysis/labelled-set/drawn.json`, `analysis/labelled-set/labels-blind.csv`, `analysis/labelled-set/labels-revenue-model.csv` and `analysis/labelled-set/labels.csv` (Story 5.1), and the local database read as `reader`. The definitions were fixed in the Story 5.2 spec before the first run on the real labels. Totals only: no company, label, classification or fingerprint is given per orgnr.
+Generated 2026-11-15 by `scripts/layer-measurement.ts` (`pnpm analysis:layers`) at commit `e88a6ef4331094195b8a49a1713d8237595f2aef`, with the reads in `scripts/layer-measurement-compute.ts`. Inputs: `analysis/labelled-set/drawn.json`, `analysis/labelled-set/labels-blind.csv`, `analysis/labelled-set/labels-revenue-model.csv` and `analysis/labelled-set/labels.csv` (Story 5.1), and the local database read as `reader`. The definitions were fixed in the Story 5.2 spec before the first run on the real labels. Totals only: no company, label, classification or fingerprint is given per orgnr.
 
 This measures the funnel as it is and states no numeric target (NFR32).
 
@@ -8,7 +8,7 @@ This measures the funnel as it is and states no numeric target (NFR32).
 
 - 30 subjects and 900 labelled pairs from `analysis/labelled-set/drawn.json`.
 - The measure is 900 pairs: the blind pairs, labelled by Meinich from description and website only, and the other pairs, whose label is computed from `analysis/labelled-set/labels-revenue-model.csv` by the README rule. A ChatGPT model (OpenAI, version not recorded) filled in those revenue models, and Meinich went through and accepted them; nobody else labelled. For those pairs, the text layer (stage 5, a Claude model) is therefore one AI measured against another; the fingerprint and the industry code are not AI.
-- There is no second labeller and no Cohen's κ in v1 (stage 2), so nothing here checks one labeller against another.
+- There is no second labeller and no Cohen's κ in v1 (project stage 2), so nothing here checks one labeller against another.
 - Round 1 (`analysis/labelled-set/labels.csv`, 720 pairs) is shown below as "den strengere lesningen" and decides nothing.
 - `usikker` is left out of precision and recall and counted; a sensitivity table counts it as `ja` and as `nei`.
 
@@ -19,13 +19,15 @@ Each subject is read as the analysis page reads it and assembled by `assemblePee
 - **L1** includes a pair when the candidate is in today's stage 1–3 pool. Every labelled candidate was drawn from that pool.
 - **L2** includes it when the fingerprint signal is not `false`: the funnel with the subject's classification switched off. A missing fingerprint, an undetermined type or a subject with no type is a null signal, and the pair is kept.
 - **L3** includes it when the text signal is not `false`: the funnel with the subject's fingerprint switched off. `uklart`, a missing row and a subject with no type are null, and the pair is kept.
-- **L2+L3** is `group`, the funnel as the app runs it; flagged pairs are shown apart from the rest of `group`.
+- **L2+L3** is `group`, the funnel as built (both signals on): `assemblePeerGroup` is called with the measured options (`MEASURED`). Flagged pairs are shown apart from the rest of `group`.
 - Precision is `ja` / (`ja` + `nei`) among the included pairs; recall is the included `ja` / all `ja`, so recall counts within the stage 1–3 pool. "ikke definert" means there is no pair to divide by, never 0.
 
 Labelled companies with a fingerprint for the labelled year: 776 of 845.
+Database state read: 776 fingerprints; classifications by model `claude-haiku-5-5` with prompt hash `2810d26aa8dc66140b8b41fb4508cffe80de00a5e55761d39d67da195ffefee8`.
+Subjects with a type of their own: 19 of 30 on the fingerprint, 10 on the text, 7 on both. A subject without a type keeps every candidate in that layer, so L2 and the band rules move only on the pairs of the 19 subjects with a fingerprint type, and L3 and the stage-5 rule only on those of the 10 with a text type: the verdicts rest on few subjects.
 Labelled candidates not in today's pool: 0 of 900. They are in no layer, so a `ja` among them counts against every layer's recall.
 
-**SM-1b.** An industry-code-only baseline also includes every labelled pair, so on these pairs it equals L1, the base rate. The size band and stage 2 cannot be judged with this draw. SM-1b is the funnel against that base rate: a check, not a claim.
+**SM-1b.** An industry-code-only baseline also includes every labelled pair, so on these pairs it equals L1, the base rate. The size band and funnel stage 2 cannot be judged with this draw. SM-1b is the funnel against that base rate: a check, not a claim.
 
 ## The layers (the measure)
 
@@ -136,6 +138,8 @@ L3, the classification alone, has the highest precision of the layers (40,6 %).
 
 **Verdict: stage 5 is not kept.**
 
+The verdict sits within the noise (432 decided pairs in L2 or `group`, from 29 clustered subjects), and the rule decides it by construction.
+
 ## The bands (FR-13)
 
 Each band is left out by widening it to low–high in memory, in the subject's fingerprint and every candidate's, before the funnel runs; the rule is unchanged, so a type that depended on the band becomes undetermined and the pair is kept. The rule is applied to L2 only, never to `group`, so the text cannot hide what the band does: a band is recommended kept if L2 with it has at least 3,0 pp higher precision and at most 3,0 pp lower recall than L2 without it, and dropped otherwise. The rule gives a recommendation; Meinich decides (FR-13). The stored fingerprints and `src/engine/fingerprint.ts` are unchanged.
@@ -164,9 +168,27 @@ The type rule reads the personnel-cost band only to tell `konsulent` (personnel 
 
 **Recommendation: dropped.**
 
+## The text against L1 (informational)
+
+With stage 4 off, v1's group is L1, so this compares the text (L3) with L1 by the same bounds. This comparison was not fixed before the run, so it decides nothing, and its differences lie within the noise (576 decided pairs in the pool, from 29 clustered subjects).
+
+| | Precision | Recall |
+|---|---:|---:|
+| L1 industry code and size | 36,6 % (211/576) | 100,0 % (211/211) |
+| L3 classification alone | 40,6 % (206/508) | 97,6 % (206/211) |
+| Difference | +3,919 pp (206/508 − 211/576) | −2,370 pp (206/211 − 211/211) |
+
+By the same bounds, the text against L1 would pass.
+
 ### The decision
 
-Meinich (2026-11-15) followed the band rule's recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; `src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. Meinich decided it from the rule and the blind pairs (25,2 % against 25,1 % precision, −35,6 pp recall, cost-of-goods band with against without), and because the band test cannot tell one band from the fingerprint. v1's group is therefore the stage 1–3 pool.
+The order of the decisions (Meinich, 2026-11-15):
+
+1. **Stage 5 off, by the rule** fixed before the run (L2 against `group`: +2,967 pp precision, +1,422 pp recall).
+2. **Stage 4 off, by Meinich's decision.** Meinich followed the band rule's recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; `src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. Meinich decided it from the rule on all pairs (cost-of-goods band, with against without: 36,6 % against 36,6 % precision, −27,0 pp recall) and the blind pairs (25,2 % against 25,1 % precision, −35,6 pp recall), and because the band test cannot tell one band from the fingerprint.
+3. **Text against L1 reported, not used.** It would pass the same bounds (+3,919 pp precision, −2,370 pp recall). The comparison was not fixed before the run, and the gain lies within the noise (576 decided pairs in the pool, from 29 clustered subjects). The decision follows the fixed rule, and question 26 fixes text against L1 before the next measurement.
+
+v1's group is therefore the stage 1–3 pool.
 
 ## The rules on the blind pairs alone (informational)
 
@@ -256,3 +278,14 @@ The first round of the non-blind pairs, labelled by a person more specifically t
 | L2+L3 the funnel (`group`) | 272 | 15 | 236 | 21 | 6,0 % | 71,4 % |
 | `group`, not flagged | 269 | 15 | 233 | 21 | 6,0 % | 71,4 % |
 | flagged ("Usikker klassifisering") | 3 | 0 | 3 | 0 | 0,0 % | 0,0 % |
+
+### The rules on this reading (informational)
+
+| Rule | Verdict | Precision difference | Recall difference |
+|---|---|---:|---:|
+| Stage 5 (L2 against `group`) | stage 5 is not kept | −0,198 pp (23/503 − 25/524) | −6,452 pp (23/31 − 25/31) |
+| Cost of goods share band | dropped | +0,212 pp (25/524 − 31/680) | −19,355 pp (25/31 − 31/31) |
+| Personnel cost share band | dropped | +0,098 pp (25/524 − 30/642) | −16,129 pp (25/31 − 30/31) |
+| Text against L1 | would not pass | +0,030 pp (29/632 − 31/680) | −6,452 pp (29/31 − 31/31) |
+
+The base rate (L1 precision) is 36,6 % in the measure and 4,6 % in this reading. The two readings differ in how strictly "same main revenue model" was read, so the same layer looks different against them, and these verdicts decide nothing.

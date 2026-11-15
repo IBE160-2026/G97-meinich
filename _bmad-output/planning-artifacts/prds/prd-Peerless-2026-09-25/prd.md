@@ -499,6 +499,7 @@ A key figure that cannot be computed for a company is undefined for that company
 **Consequences (testable):**
 - A zero or negative denominator, or a component that is missing and cannot be derived from a stated total, makes the figure undefined. A **derived** denominator of 5 kr or less counts as not positive, because it is within the register's rounding of zero (Story 1.4, human decision 2026-10-12; `docs/key-figures.md`).
 - A missing component is first derived from its stated total — an empty document `sumDriftsinntekter` is recovered as `driftsresultat` + `sumDriftskostnad` — and with a part also empty the figure is undefined, never zero.
+- An empty document cost line is derived from the column's stated `sumDriftskostnad` (Story 3.1a, decision 1, Meinich 2026-11-15): when the stated lines are within ±5 kr of it, every empty line is 0; when exactly one line is empty and the remainder is above +5 kr, that line is the remainder; otherwise each empty line is undefined. Every derived line is marked derived (`docs/key-figures.md`).
 - A document line the engine does not use because it exceeds its API subtotal (R3, Story 2.5c) makes a figure that reads it undefined with its own reason, "en regnskapslinje kunne ikke leses sikkert", not "en regnskapslinje mangler" (Story 2.9).
 - An undefined figure excludes that company from that figure's distribution only, not from the peer group.
 - The number of companies left out of each figure's distribution is shown to the user.
@@ -872,7 +873,7 @@ Each filing carries a data quality flag derived from the reconciliation rules (F
 **Consequences (testable):**
 - The flag is derived from arithmetic checks only, never from recognition confidence. Confidence is not a signal: a generic engine reported mean confidence 0.974 while misreading several figures.
 - **Status is set per column, and the filing's flag is its current-year column's** (Story 2.2, Meinich 2026-10-21). A column is `reconciled` when c1 (income statement) passes, c3 or c5 (balance) passes, no check among c1–c5 fails, and — for the current-year column — the comparison with the register does not fail. Otherwise it is `failed_reconciliation`.
-- A failed prior-year column does not fail the filing. The prior column is checked within the document only; its difference from the register is stored as information.
+- A failed prior-year column does not fail the filing. The prior column is checked within the document only; its difference from the register is stored as information. Revenue growth uses the prior column only when it reconciled, and not when its `sum_driftsinntekter` differs from the register; the growth is then undefined, "en regnskapslinje kunne ikke leses sikkert" (Story 3.1a, decision 2).
 - **2021 and 2022 have no register check.** The key-figures API holds filings from 2023 on, so for those years the comparison is `not_evaluable` and the flag rests on the within-document checks alone.
 - A document that cannot be read at all is `not_extracted`, with its refusal reason (FR-60).
 

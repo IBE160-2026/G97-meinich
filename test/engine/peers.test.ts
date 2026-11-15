@@ -8,6 +8,8 @@ import type { Decimal } from '../../src/engine/decimal.ts';
 import { BUSINESS_TYPES, businessType, type BandRange, type Fingerprint } from '../../src/engine/fingerprint.ts';
 import {
   MATCH_BASES,
+  V1_FUNNEL,
+  V1_TEXT_SIGNAL,
   SIZE_BANDS,
   STATED_FIELDS,
   assemblePeerGroup,
@@ -512,6 +514,11 @@ describe('stage 4: business model', () => {
   });
 });
 
+// The combination as built, text signal on. The v1 funnel's default is off
+// (V1_TEXT_SIGNAL, Story 5.2); these tests keep the measured behaviour
+// tested, and the measurement (scripts/layer-measurement.ts) runs it.
+const TEXT_ON = { textSignal: true } as const;
+
 // Technical note, "Combining the fingerprint and the text". K and F name the
 // types: the subject is K wherever a signal is present for it.
 describe('stages 4 and 5: the combination rule', () => {
@@ -520,7 +527,7 @@ describe('stages 4 and 5: the combination rule', () => {
   const P = 'produkt' as const;
   const bothSignals = { ...subject, fingerprint: KONSULENT, classification: K };
   const run = (subjectFiling: FunnelSubject, overrides: Partial<CandidateFiling>) =>
-    assemblePeerGroup(subjectFiling, [candidate('900000001', overrides)], 0);
+    assemblePeerGroup(subjectFiling, [candidate('900000001', overrides)], 0, TEXT_ON);
 
   it('both give the subject type: kept, not flagged', () => {
     const group = run(bothSignals, { fingerprint: KONSULENT, classification: K });
@@ -590,7 +597,7 @@ describe('stages 4 and 5: the combination rule', () => {
       candidate('900000002', { fingerprint: KONSULENT, classification: F }),
       candidate('900000003', { fingerprint: null, classification: F }),
     ];
-    const group = assemblePeerGroup(noText, candidates, 0);
+    const group = assemblePeerGroup(noText, candidates, 0, TEXT_ON);
     expect(group.group.map((peer) => peer.orgnr).sort()).toEqual(['900000002', '900000003']);
     expect(group.counts.stage5.classification).toBe(group.counts.stage4.businessModel);
     expect(group.flagged).toEqual([]);
@@ -602,7 +609,7 @@ describe('stages 4 and 5: the combination rule', () => {
       candidate('900000001', { fingerprint: FORHANDLER, classification: K }),
       candidate('900000002', { fingerprint: KONSULENT, classification: F }),
     ];
-    const group = assemblePeerGroup(noFingerprint, candidates, 0);
+    const group = assemblePeerGroup(noFingerprint, candidates, 0, TEXT_ON);
     expect(group.group.map((peer) => peer.orgnr)).toEqual(['900000001']);
     expect(group.counts.stage4.businessModel).toBe(2);
     expect(group.flagged).toEqual([]);
@@ -663,58 +670,58 @@ describe('the match basis (Story 2.7)', () => {
   const both = { fingerprint: KONSULENT, classification: K };
 
   it('match basis: both signals', () => {
-    expect(matchBasis(both, { fingerprint: KONSULENT, classification: K })).toBe('description_and_accounts');
+    expect(matchBasis(both, { fingerprint: KONSULENT, classification: K }, TEXT_ON)).toBe('description_and_accounts');
   });
 
   it('match basis: fingerprint only', () => {
-    expect(matchBasis(both, { fingerprint: KONSULENT, classification: null })).toBe('accounts_only');
+    expect(matchBasis(both, { fingerprint: KONSULENT, classification: null }, TEXT_ON)).toBe('accounts_only');
   });
 
   it('match basis: text only', () => {
-    expect(matchBasis(both, { fingerprint: null, classification: K })).toBe('description_only');
+    expect(matchBasis(both, { fingerprint: null, classification: K }, TEXT_ON)).toBe('description_only');
   });
 
   it('match basis: neither', () => {
-    expect(matchBasis(both, { fingerprint: null, classification: null })).toBe('industry_and_size_only');
-    expect(matchBasis({ fingerprint: null, classification: null }, both)).toBe('industry_and_size_only');
+    expect(matchBasis(both, { fingerprint: null, classification: null }, TEXT_ON)).toBe('industry_and_size_only');
+    expect(matchBasis({ fingerprint: null, classification: null }, both, TEXT_ON)).toBe('industry_and_size_only');
   });
 
   it('match basis: an undetermined fingerprint for the peer', () => {
-    expect(matchBasis(both, { fingerprint: UNDETERMINED, classification: K })).toBe('description_only');
-    expect(matchBasis(both, { fingerprint: UNDETERMINED, classification: null })).toBe('industry_and_size_only');
+    expect(matchBasis(both, { fingerprint: UNDETERMINED, classification: K }, TEXT_ON)).toBe('description_only');
+    expect(matchBasis(both, { fingerprint: UNDETERMINED, classification: null }, TEXT_ON)).toBe('industry_and_size_only');
   });
 
   it('match basis: an undetermined fingerprint for the subject', () => {
     const subjectUndetermined = { fingerprint: UNDETERMINED, classification: K };
-    expect(matchBasis(subjectUndetermined, both)).toBe('description_only');
-    expect(matchBasis({ ...subjectUndetermined, classification: null }, both)).toBe('industry_and_size_only');
+    expect(matchBasis(subjectUndetermined, both, TEXT_ON)).toBe('description_only');
+    expect(matchBasis({ ...subjectUndetermined, classification: null }, both, TEXT_ON)).toBe('industry_and_size_only');
   });
 
   // `uklart` is stored as classified with no type: the funnel reads null.
   it('match basis: uklart for the peer', () => {
-    expect(matchBasis(both, { fingerprint: KONSULENT, classification: null })).toBe('accounts_only');
-    expect(matchBasis(both, { fingerprint: UNDETERMINED, classification: null })).toBe('industry_and_size_only');
+    expect(matchBasis(both, { fingerprint: KONSULENT, classification: null }, TEXT_ON)).toBe('accounts_only');
+    expect(matchBasis(both, { fingerprint: UNDETERMINED, classification: null }, TEXT_ON)).toBe('industry_and_size_only');
   });
 
   it('match basis: uklart for the subject', () => {
     const uklart = { fingerprint: KONSULENT, classification: null };
-    expect(matchBasis(uklart, both)).toBe('accounts_only');
-    expect(matchBasis(uklart, { fingerprint: FORHANDLER, classification: K })).toBe('accounts_only');
-    expect(matchBasis(uklart, { fingerprint: null, classification: K })).toBe('industry_and_size_only');
+    expect(matchBasis(uklart, both, TEXT_ON)).toBe('accounts_only');
+    expect(matchBasis(uklart, { fingerprint: FORHANDLER, classification: K }, TEXT_ON)).toBe('accounts_only');
+    expect(matchBasis(uklart, { fingerprint: null, classification: K }, TEXT_ON)).toBe('industry_and_size_only');
   });
 
   // No classification row: the left join gives null, as for uklart and no_text.
   it('match basis: an unclassified peer', () => {
-    expect(matchBasis(both, { fingerprint: null, classification: null })).toBe('industry_and_size_only');
-    expect(matchBasis(both, { fingerprint: KONSULENT, classification: null })).toBe('accounts_only');
+    expect(matchBasis(both, { fingerprint: null, classification: null }, TEXT_ON)).toBe('industry_and_size_only');
+    expect(matchBasis(both, { fingerprint: KONSULENT, classification: null }, TEXT_ON)).toBe('accounts_only');
   });
 
   it('match basis: a flagged peer is description and accounts', () => {
     const flaggedPeer = candidate('900000001', { fingerprint: FORHANDLER, classification: K });
-    const group = assemblePeerGroup({ ...subject, ...both }, [flaggedPeer], 0);
+    const group = assemblePeerGroup({ ...subject, ...both }, [flaggedPeer], 0, TEXT_ON);
     expect(group.flagged).toEqual(['900000001']);
-    expect(matchBasis({ ...subject, ...both }, flaggedPeer)).toBe('description_and_accounts');
-    expect(matchBasis(both, { fingerprint: KONSULENT, classification: F })).toBe('description_and_accounts');
+    expect(matchBasis({ ...subject, ...both }, flaggedPeer, TEXT_ON)).toBe('description_and_accounts');
+    expect(matchBasis(both, { fingerprint: KONSULENT, classification: F }, TEXT_ON)).toBe('description_and_accounts');
   });
 
   // Every type × null combination for subject and peer: each peer in the
@@ -734,11 +741,11 @@ describe('the match basis (Story 2.7)', () => {
     for (const side of sides) {
       const subjectFiling = { ...subject, ...side };
       const candidates = sides.map((peer, i) => candidate(`9${String(i).padStart(8, '0')}`, peer));
-      const group = assemblePeerGroup(subjectFiling, candidates, 0);
+      const group = assemblePeerGroup(subjectFiling, candidates, 0, TEXT_ON);
       const flagged = new Set(group.flagged);
       for (const peer of group.group) {
         peers += 1;
-        const basis = matchBasis(subjectFiling, peer);
+        const basis = matchBasis(subjectFiling, peer, TEXT_ON);
         expect(MATCH_BASES).toContain(basis);
         reached.add(basis);
         const accounts = typed(side.fingerprint) && typed(peer.fingerprint);
@@ -764,11 +771,62 @@ describe('the match basis (Story 2.7)', () => {
     for (const side of noText) {
       const subjectFiling = { ...subject, ...side };
       const candidates = noText.map((peer, i) => candidate(`9${String(i).padStart(8, '0')}`, peer));
-      const group = assemblePeerGroup(subjectFiling, candidates, 0);
+      const group = assemblePeerGroup(subjectFiling, candidates, 0, TEXT_ON);
       expect(group.flagged).toEqual([]);
       expect(group.counts.stage5.flagged).toBe(0);
       for (const peer of group.group) {
-        expect(['accounts_only', 'industry_and_size_only']).toContain(matchBasis(subjectFiling, peer));
+        expect(['accounts_only', 'industry_and_size_only']).toContain(matchBasis(subjectFiling, peer, TEXT_ON));
+      }
+    }
+  });
+});
+
+// Story 5.2 (FR-11): the stage-5 rule found stage 5 not kept, so the v1
+// funnel reads no text signal. Every call below uses the default.
+describe('the v1 funnel: the text signal is off', () => {
+  const K = 'konsulent' as const;
+  const F = 'forhandler' as const;
+  const ANNET: Fingerprint = { ...KONSULENT, assetIntensity: known('high') };
+  const fingerprints = [KONSULENT, FORHANDLER, PRODUKT, ANNET, UNDETERMINED, null] as const;
+  const classifications = [...BUSINESS_TYPES, null] as const;
+  const sides = fingerprints.flatMap((fingerprint) => classifications.map((classification) => ({ fingerprint, classification })));
+  const all = sides.map((side, i) => candidate(`9${String(i).padStart(8, '0')}`, side));
+
+  it('is off by default', () => {
+    expect(V1_TEXT_SIGNAL).toBe(false);
+    expect(V1_FUNNEL).toEqual({ textSignal: false });
+  });
+
+  it('v1: the fingerprint alone decides the group', () => {
+    const both = { ...subject, fingerprint: KONSULENT, classification: K };
+    const group = assemblePeerGroup(both, [
+      candidate('900000001', { fingerprint: FORHANDLER, classification: K }),
+      candidate('900000002', { fingerprint: null, classification: F }),
+      candidate('900000003', { fingerprint: KONSULENT, classification: F }),
+    ], 0);
+    expect(group.group.map((peer) => peer.orgnr).sort()).toEqual(['900000002', '900000003']);
+    for (const side of sides) {
+      const withText = assemblePeerGroup({ ...subject, ...side }, all, 0);
+      const withoutText = assemblePeerGroup({ ...subject, ...side, classification: null }, all, 0, TEXT_ON);
+      expect(withText.group.map((peer) => peer.orgnr), JSON.stringify(side)).toEqual(withoutText.group.map((peer) => peer.orgnr));
+      expect(withText.counts.stage5.classification).toBe(withText.counts.stage4.businessModel);
+    }
+  });
+
+  it('v1: no peer is flagged', () => {
+    for (const side of sides) {
+      const group = assemblePeerGroup({ ...subject, ...side }, all, 0);
+      expect(group.flagged).toEqual([]);
+      expect(group.counts.stage5.flagged).toBe(0);
+    }
+  });
+
+  it('v1: no match basis rests on the description', () => {
+    expect(matchBasis({ fingerprint: KONSULENT, classification: K }, { fingerprint: KONSULENT, classification: K })).toBe('accounts_only');
+    expect(matchBasis({ fingerprint: KONSULENT, classification: K }, { fingerprint: null, classification: K })).toBe('industry_and_size_only');
+    for (const side of sides) {
+      for (const peer of sides) {
+        expect(['accounts_only', 'industry_and_size_only']).toContain(matchBasis(side, peer));
       }
     }
   });

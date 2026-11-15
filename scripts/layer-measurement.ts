@@ -12,7 +12,9 @@
 //   as "den strengere lesningen" and decides nothing.
 // - The groups: each subject is read as the analysis page reads it
 //   (scripts/layer-measurement-compute.ts) and assembled by
-//   `assemblePeerGroup(…, 0)` from src/engine/peers.ts, unchanged. L2 (the
+//   `assemblePeerGroup(…, 0, MEASURED)` from src/engine/peers.ts: the text
+//   signal on, stage 5 as built, although the v1 funnel switches it off
+//   (V1_TEXT_SIGNAL, after this measurement). L2 (the
 //   fingerprint alone) is that funnel with the subject's classification
 //   switched off, L3 (the text alone) with its fingerprint switched off; a
 //   missing subject signal is missing for every candidate (peers.ts), so
@@ -43,7 +45,7 @@ import { pathToFileURL } from 'node:url';
 import { Decimal } from '../src/engine/decimal.ts';
 import { BANDS, type BandedCategory, businessType, type Fingerprint } from '../src/engine/fingerprint.ts';
 import { formatPercent, formatPercentagePoints, formatPercentagePointsFine } from '../src/engine/format.ts';
-import { assemblePeerGroup, type CandidateFiling, type FunnelSubject } from '../src/engine/peers.ts';
+import { assemblePeerGroup, type CandidateFiling, type FunnelOptions, type FunnelSubject } from '../src/engine/peers.ts';
 import { parseSemicolonCsv } from './ocr-sm2-compare.ts';
 import { setting } from './run-ingest.ts';
 import { COVERAGE_FILE, REPORT_DIR, readCoverage } from './seed-format.ts';
@@ -316,6 +318,13 @@ export interface PairOutcome {
   readonly l2WithoutNull: Readonly<Record<WidenedCategory, boolean>>;
 }
 
+/**
+ * The funnel as built, text signal on: what the measurement measures. The
+ * v1 funnel's default (V1_TEXT_SIGNAL) is off since this measurement found
+ * stage 5 not kept, so it is passed explicitly here.
+ */
+export const MEASURED: FunnelOptions = { textSignal: true };
+
 const typeOf = (fingerprint: Fingerprint | null) => (fingerprint === null ? null : businessType(fingerprint));
 
 /** Every labelled pair of one subject, through the funnel as the app runs it and its four variants. */
@@ -326,12 +335,12 @@ export function measureSubject(subject: LabelledSubject, data: SubjectData): Pai
     throw new Error(`a labelled subject's benchmark filing is no longer of ${subject.filingYear}`);
   }
   const ids = (list: readonly { readonly orgnr: string }[]) => new Set(list.map((c) => c.orgnr));
-  const full = assemblePeerGroup(funnel, candidates, 0);
+  const full = assemblePeerGroup(funnel, candidates, 0, MEASURED);
   const pool = new Map(full.pool.map((c) => [c.orgnr, c]));
   const group = ids(full.group);
   const flagged = new Set(full.flagged);
-  const l2 = ids(assemblePeerGroup({ ...funnel, classification: null }, candidates, 0).group);
-  const l3 = ids(assemblePeerGroup({ ...funnel, fingerprint: null }, candidates, 0).group);
+  const l2 = ids(assemblePeerGroup({ ...funnel, classification: null }, candidates, 0, MEASURED).group);
+  const l3 = ids(assemblePeerGroup({ ...funnel, fingerprint: null }, candidates, 0, MEASURED).group);
   const without = Object.fromEntries(
     WIDENED_CATEGORIES.map((category) => [
       category,
@@ -340,6 +349,7 @@ export function measureSubject(subject: LabelledSubject, data: SubjectData): Pai
           { ...widened(funnel, category), classification: null },
           candidates.map((c) => widened(c, category)),
           0,
+          MEASURED,
         ).group,
       ),
     ]),

@@ -146,7 +146,10 @@ describe('the committed seed', () => {
       expect([...coverage]).toEqual(
         declared.map((e) => ({ code: e.code, measured: e.measured, report: e.report ?? null, sha256: e.sha256 ?? null })),
       );
-      expect([...coverage]).toEqual([{ code: '62.100', measured: false, report: null, sha256: null }]);
+      // Story 5.2: 62.100 is measured, its report referenced by path and checksum (AD-16).
+      expect([...coverage]).toEqual([
+        { code: '62.100', measured: true, report: 'analysis/output/layer-measurement-62100.md', sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      ]);
 
       const dataset = await tx<{ id: number; dataset: string; format_version: number; migration_id: string; manifest: unknown }[]>`
         select id, dataset, format_version, migration_id, manifest from register.dataset

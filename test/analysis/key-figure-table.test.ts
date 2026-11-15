@@ -1,24 +1,32 @@
-// The Nøkkeltall og gap table (Story 1.8), rendered on the server: every row
-// of the spec's I/O matrix, the merged cell's `headers`, the decorative
-// strip, egenkapitalandel's sr-only cells, the non-small notice, the phone
-// table's expansion buttons, the scroll region and its edge fade.
+// The Nøkkeltall og gap table (Stories 1.8, 3.1b), rendered on the server:
+// every row of the specs' I/O matrices, the merged cell's `headers`, the
+// decorative strip, the sr-only cells of rows with no direction, the
+// non-small notice, the phone table's expansion buttons, the scroll region
+// and its edge fade; and, since Story 3.1b, every key figure's row in
+// `docs/key-figures.md` order, the cost-share row group, the check row, the
+// capital kroner, each absence's words and the outside-the-demo-data state.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DistributionStrip } from '../../src/components/analysis/distribution-strip.tsx';
+import { keyFigureTableView, middleHalfText, stripMarks } from '../../src/analysis/key-figure-rows.ts';
+import { KeyFigureTable } from '../../src/components/analysis/key-figure-table.tsx';
 import {
-  KeyFigureTable,
-  middleHalfText,
-  showNonSmallNotice,
-  stripMarks,
-} from '../../src/components/analysis/key-figure-table.tsx';
-import { benchmarkApiFigures, type ApiBenchmark } from '../../src/engine/benchmark.ts';
+  benchmarkApiFigures,
+  benchmarkDocumentFigures,
+  type ApiBenchmark,
+  type DocumentBenchmark,
+} from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
+import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
+import { formatKronerExact } from '../../src/engine/format.ts';
+import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
+import { daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -57,9 +65,17 @@ const MARGINS = ['0.01', '0.02', '0.03', '0.04', '0.05', '0.06', '0.091', '0.091
 const EK = ['0.1', '0.2', '0.3', '0.35', '0.4', '0.45', '0.5', '0.55', '0.6', '0.7'];
 const TEN = MARGINS.map((m, i) => peer(m, EK[i] ?? '0.4'));
 
-function render(benchmark: ApiBenchmark, smaaForetak: boolean | null = true): string {
-  return renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'FJORDKODE AS', smaaForetak, filingYear: 2025 }));
+/** The document figures of a subject outside the demo data: every document row is absent. */
+const OUTSIDE: DocumentBenchmark = benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK');
+
+function render(benchmark: ApiBenchmark, smaaForetak: boolean | null = true, documentBenchmark: DocumentBenchmark = OUTSIDE): string {
+  return renderToString(
+    createElement(KeyFigureTable, { benchmark, documentBenchmark, companyName: 'FJORDKODE AS', smaaForetak, filingYear: 2025 }),
+  );
 }
+
+const showNonSmallNotice = (benchmark: ApiBenchmark, smaaForetak: boolean | null) =>
+  keyFigureTableView({ api: benchmark, document: OUTSIDE, filingYear: 2025, smaaForetak }).nonSmall;
 
 const standard = () => benchmarkApiFigures(SUBJECT, TEN, 'NOK');
 
@@ -241,7 +257,7 @@ describe('the non-small notice', () => {
     expect(showNonSmallNotice(belowFloor(), false)).toBe(true);
     const html = render(belowFloor(), false);
     expect(count(html)).toBe(1);
-    expect(html).toMatch(/data-testid="state-block"[^>]*>[\s\S]*Peerless sammenligner foreløpig bare små foretak/);
+    expect(html).toMatch(/data-testid="non-small-notice"[^>]*><div data-testid="state-block"[^>]*><p[^>]*>Peerless sammenligner foreløpig bare små foretak/);
   });
 
   it('is not shown for a small subject below the floor', () => {
@@ -373,5 +389,321 @@ describe('the scroll region and the phone table', () => {
   it('writes every id once', () => {
     const ids = [...render(standard()).matchAll(/ id="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+// Story 3.1b: every key figure, its row group and each state of a document row.
+describe('the full key-figure table (Story 3.1b)', () => {
+  // Receivable and payable days 50 and turnover 5 against the fixture's ten
+  // peers: worse than beste fjerdedel on 9 (T 32,5), 10 (T 77,5) and 11 (T 19).
+  const SUBJECT_DOC = daysBasis(50n, 5n);
+  const documents = (subject: DocumentBasis = SUBJECT_DOC, peers: readonly DocumentBasis[] = TEN_PEERS, valuta = 'NOK') =>
+    benchmarkDocumentFigures(subject, peers, valuta);
+  const full = (subject: DocumentBasis = SUBJECT_DOC, peers: readonly DocumentBasis[] = TEN_PEERS, valuta = 'NOK') =>
+    render(benchmarkApiFigures(SUBJECT, TEN, valuta), true, documents(subject, peers, valuta));
+  const ORDER = [
+    'driftsmargin',
+    'ebitda',
+    'vare',
+    'lonn',
+    'andre',
+    'total',
+    'omsArsverk',
+    'lonnArsverk',
+    'kfd',
+    'lgd',
+    'oml',
+    'totalkapitalrentabilitet',
+    'egenkapitalandel',
+    'kontant',
+    'vekst',
+  ];
+  const LABELS = [
+    'fig.driftsmargin',
+    'fig.ebitda',
+    'fig.vare',
+    'fig.lonn',
+    'fig.andre',
+    'fig.total',
+    'fig.omsArsverk',
+    'fig.lonnArsverk',
+    'fig.kfd',
+    'fig.lgd',
+    'fig.oml',
+    'fig.tkr',
+    'fig.ek',
+    'fig.kontant',
+    'fig.vekst',
+  ] as const;
+  const API_ROWS = ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel'];
+  // The document rows that take the basis's reason: 7 and 8 are not read in v1 on every basis.
+  const BASIS_ROWS = ORDER.filter((key) => !API_ROWS.includes(key) && key !== 'omsArsverk' && key !== 'lonnArsverk');
+  const rawCell = (rowHtml: string, name: string) =>
+    new RegExp(`<td[^>]*data-cell="${name}"[^>]*>([\\s\\S]*?)</td>`).exec(rowHtml)?.[1] ?? '';
+  const NOT_APPLICABLE = `<span aria-hidden="true">–</span><span class="sr-only">${nb['keyFigures.notApplicable']}</span>`;
+  const NO_DIRECTION = `<span aria-hidden="true">–</span><span class="sr-only">${nb['keyFigures.notApplicableNoDirection']}</span>`;
+
+  it('every key figure has a row, in key-figures order', () => {
+    const html = full();
+    const desktop = [...table(html, 'desktop').matchAll(/<tr[^>]*data-figure="([^"]+)"/g)].map((m) => m[1]);
+    expect(desktop).toEqual(ORDER);
+    const phone = [...table(html, 'phone').matchAll(/aria-controls="kf-p-exp-([^"]+)"/g)].map((m) => m[1]);
+    expect(phone).toEqual(ORDER);
+    const labels = [...table(html, 'desktop').matchAll(/<th scope="row"[^>]*><span class="block font-semibold">([^<]*)</g)].map(
+      (m) => m[1],
+    );
+    expect(labels).toEqual(LABELS.map((id) => nb[id]));
+    // One tbody per group of docs/key-figures.md, separated by a rule.
+    for (const layout of ['desktop', 'phone'] as const) {
+      const groups = [...table(html, layout).matchAll(/<tbody data-group="([^"]+)"( class="[^"]*")?/g)];
+      expect(groups.map((m) => m[1])).toEqual(['margin', 'cost', 'productivity', 'workingCapital', 'capital', 'context']);
+      expect(groups.slice(1).every((m) => (m[2] ?? '').includes('border-t-2'))).toBe(true);
+    }
+    // Decision 8: no sort control and no aria-sort.
+    expect(html).not.toContain('aria-sort');
+    expect(/<thead>[\s\S]*?<\/thead>/.exec(table(html, 'desktop'))?.[0]).not.toContain('<button');
+  });
+
+  it('cost shares sit in their own row group and point to the margin explanation', () => {
+    const html = full();
+    for (const layout of ['desktop', 'phone'] as const) {
+      const group = /<tbody data-group="cost"[^>]*>([\s\S]*?)<\/tbody>/.exec(table(html, layout))?.[1] ?? '';
+      // The group's first row is its rowgroup heading, the only one in the table.
+      expect(group).toMatch(new RegExp(`^<tr[^>]*><th scope="rowgroup"[^>]*>${nb['keyFigures.costShare.group']}</th></tr>`));
+      expect(table(html, layout).match(/scope="rowgroup"/g)).toHaveLength(1);
+      for (const key of ['vare', 'lonn', 'andre', 'total']) {
+        expect(group, `${layout} ${key}`).toMatch(new RegExp(`(data-figure="${key}"|aria-controls="kf-p-exp-${key}")`));
+      }
+    }
+    for (const key of ['vare', 'lonn', 'andre']) {
+      const r = row(html, key);
+      // Indented: 30 px on the desktop, 16 px (pl-4) on the phone (decision 7).
+      expect(r).toMatch(/<th scope="row"[^>]*class="[^"]*pl-\[30px\]/);
+      expect(phoneRows(html, key).row).toMatch(/<th scope="row" class="[^"]*pl-4/);
+      expect(cellText(r, 'gap')).toBe(nb['keyFigures.costShare.kroner']);
+      expect(text(phoneRows(html, key).row)).toContain(nb['keyFigures.costShare.kroner']);
+      // Not a link until Story 3.3.
+      expect(rawCell(r, 'gap')).not.toMatch(/<a /);
+      expect(text(r)).not.toMatch(/\d kr/);
+    }
+    // The rows outside the group are not indented.
+    expect(row(html, 'driftsmargin')).not.toContain('pl-[30px]');
+    expect(phoneRows(html, 'ebitda').row).not.toMatch(/<th scope="row" class="[^"]*pl-4/);
+  });
+
+  it('total cost share is a check row', () => {
+    const html = full();
+    const r = row(html, 'total');
+    // (16 500 000 + 600 000 000 + 20 000 000) / 1 000 000 000 = 63,65 %, for every company.
+    expect(cellText(r, 'own')).toBe(`63,7${NBSP}%`);
+    expect(cellText(r, 'median')).toBe(`63,7${NBSP}%`);
+    expect(cellText(r, 'distribution')).toBe(`Midtre halvdel: 63,7–63,7${NBSP}%`);
+    // Its subline names the check, not a direction.
+    expect(text(r)).toContain(`${nb['keyFigures.checkRow']} · 10 sammenlignbare brukt · 0 utelatt`);
+    expect(text(r)).not.toContain(nb['keyFigures.dir.none']);
+    for (const name of ['best', 'placement', 'gap']) expect(rawCell(r, name), name).toBe(NOT_APPLICABLE);
+    // Unmirrored, no beste fjerdedel triangle, no "Bedre".
+    expect(r).toContain('data-mark="own"');
+    expect(r).not.toContain('data-mark="best"');
+    expect(r).not.toContain(nb['keyFigures.betterRight']);
+    expect(text(phoneRows(html, 'total').expansion)).toContain(nb['keyFigures.checkRow']);
+  });
+
+  it('no-direction rows: median and midtre halvdel only', () => {
+    const html = full();
+    for (const key of ['egenkapitalandel', 'kontant']) {
+      const r = row(html, key);
+      expect(cellText(r, 'median'), key).toMatch(new RegExp(`${NBSP}%$`));
+      expect(cellText(r, 'distribution'), key).toMatch(/^Midtre halvdel: /);
+      expect(text(r), key).toContain(`${nb['keyFigures.dir.none']} · `);
+      for (const name of ['best', 'placement', 'gap']) expect(rawCell(r, name), `${key} ${name}`).toBe(NO_DIRECTION);
+      expect(r, key).not.toMatch(/bedre enn|\d kr/);
+      expect(r, key).not.toContain('data-mark="best"');
+    }
+    // Growth (14) from a reconciled prior column: 1 000 000 000 / 800 000 000 − 1 = 25,0 %.
+    const growth = readBasis({}, { sumDriftsinntekter: '800000000' });
+    const peers = TEN_PEERS.map((_, i) => readBasis({}, { sumDriftsinntekter: String(800_000_000 + i * 10_000_000) }));
+    const g = row(full(growth, peers), 'vekst');
+    expect(cellText(g, 'own')).toBe(`25,0${NBSP}%`);
+    expect(cellText(g, 'distribution')).toMatch(/^Midtre halvdel: /);
+    expect(text(g)).toContain(`${nb['keyFigures.dir.none']} · 10 sammenlignbare brukt`);
+    for (const name of ['best', 'placement', 'gap']) expect(rawCell(g, name), name).toBe(NO_DIRECTION);
+    // Personnel cost per årsverk (8) has no direction either; it is not read in v1.
+    expect(cellText(row(html, 'lonnArsverk'), 'own')).toContain(nb['analysis.figures.notReadInV1']);
+  });
+
+  it('kontantandel is a diagnostic row', () => {
+    const html = full();
+    const r = row(html, 'kontant');
+    // Bank 1 000 000 kr of 3 000 000 kr in assets.
+    expect(cellText(r, 'own')).toBe(`33,3${NBSP}%`);
+    expect(r).not.toMatch(/bedre enn|aria-sort|<button/);
+    expect(text(r)).not.toMatch(/kr\b/);
+    const phone = phoneRows(html, 'kontant');
+    expect(text(phone.row)).not.toMatch(/kr\b/);
+    expect(text(phone.expansion)).not.toMatch(/bedre enn|kr\b/);
+  });
+
+  it('capital kroner: one rounding, engangsbeløp', () => {
+    // 9: kundefordringer 4 250 050 øre against T × salgsinntekt / 365 =
+    // 3 250 000 øre: 1 000 050 øre = 10 000,50 kr, rounded once to 10 001 kr.
+    // Rounding the days first (42,5005 → 43) would give 10 500 kr.
+    const subject = daysBasis(50n, 5n, { kundefordringer: '4250050' });
+    const b = documents(subject);
+    const html = full(subject);
+    const amount = (key: 'kfd' | 'lgd' | 'oml') => {
+      const gap = b[key].gap;
+      if (gap.kind !== 'amount') throw new Error(`${key} has no amount`);
+      return formatKronerExact(gap.ore.toString());
+    };
+    expect(amount('kfd')).toBe(`10${NBSP}001${NBSP}kr`);
+    // 10: T × 365 000 kr / 365 − leverandorgjeld = 77 500 − 50 000 kr.
+    expect(amount('lgd')).toBe(`27${NBSP}500${NBSP}kr`);
+    // 11: 2 000 000 kr − 10 000 000 kr / 19 = 1 473 684,21… kr.
+    expect(amount('oml')).toBe(`1${NBSP}473${NBSP}684${NBSP}kr`);
+    for (const key of ['kfd', 'lgd', 'oml'] as const) {
+      expect(cellText(row(html, key), 'gap'), key).toBe(`${amount(key)} ${nb['keyFigures.oneOff']}`);
+      expect(text(phoneRows(html, key).row), key).toContain(amount(key));
+      expect(text(phoneRows(html, key).expansion), key).toContain(`${amount(key)} ${nb['keyFigures.oneOff']}`);
+      expect(cellText(row(html, key), 'gap'), key).not.toContain(nb['keyFigures.perYear']);
+    }
+    // Days whole, turnover two decimals, each rounded once.
+    expect(cellText(row(html, 'kfd'), 'own')).toBe(`43${NBSP}dager`);
+    expect(cellText(row(html, 'kfd'), 'best')).toBe(`33${NBSP}dager`);
+    expect(cellText(row(html, 'kfd'), 'distribution')).toBe(`${nb['keyFigures.betterRight']} midtre halvdel 33–78${NBSP}dager`);
+    expect(cellText(row(html, 'oml'), 'own')).toBe('5,00');
+    expect(cellText(row(html, 'oml'), 'distribution')).toBe('midtre halvdel 4,25–19,00');
+  });
+
+  it('at or beyond beste fjerdedel: strength, no amount', () => {
+    // 100 days and turnover 40: 9 is worse, 10 and 11 at or beyond T.
+    const html = full(daysBasis(100n, 40n));
+    expect(cellText(row(html, 'lgd'), 'gap')).toBe(nb['keyFigures.strength']);
+    expect(cellText(row(html, 'oml'), 'gap')).toBe(nb['keyFigures.strength']);
+    expect(cellText(row(html, 'kfd'), 'gap')).toMatch(new RegExp(`\\d${NBSP}kr ${nb['keyFigures.oneOff']}$`));
+    // Exactly at T: receivable days 32,5.
+    const at = full(daysBasis(50n, 5n, { kundefordringer: '3250000' }));
+    expect(cellText(row(at, 'kfd'), 'gap')).toBe(nb['keyFigures.strength']);
+    expect(rawCell(row(at, 'kfd'), 'gap')).not.toMatch(/\dkr/);
+  });
+
+  it('capital kroner absent with its reason', () => {
+    const usd = full(SUBJECT_DOC, TEN_PEERS, 'USD');
+    for (const key of ['kfd', 'lgd', 'oml']) expect(cellText(row(usd, key), 'gap'), key).toBe(nb['keyFigures.notInKroner']);
+    expect(table(usd, 'desktop')).not.toMatch(new RegExp(`\\d${NBSP}kr`));
+    // T = 0 on 11: ten peers with no revenue (turnover 0), and a subject whose negative revenue is worse.
+    const zero = TEN_PEERS.map(() => readBasis({ sumDriftsinntekter: '0', driftsresultat: '-656500000' }));
+    const subject = readBasis({ sumDriftsinntekter: '-100000000', driftsresultat: '-756500000' });
+    expect(documents(subject, zero).oml.gap).toEqual({ kind: 'none', reason: 'target_not_positive' });
+    expect(cellText(row(full(subject, zero), 'oml'), 'gap')).toBe(nb['keyFigures.targetNotPositive']);
+  });
+
+  it('no kroner translation: Ingen kronebeløp', () => {
+    const html = full();
+    for (const key of ['ebitda', 'totalkapitalrentabilitet']) {
+      expect(cellText(row(html, key), 'gap'), key).toBe(nb['keyFigures.noKroner']);
+      expect(text(phoneRows(html, key).row), key).toContain(nb['keyFigures.noKroner']);
+    }
+  });
+
+  it('below the floor: no comparison, counts kept', () => {
+    const html = full(SUBJECT_DOC, TEN_PEERS.slice(0, 9));
+    for (const key of ['ebitda', 'vare', 'total', 'kfd', 'lgd', 'oml', 'kontant']) {
+      const r = row(html, key);
+      expect(cellText(r, 'merged'), key).toBe('For få sammenlignbare (9 av 10)');
+      expect(text(r), key).toContain('9 sammenlignbare brukt · 0 utelatt');
+      expect(r, key).not.toMatch(new RegExp(`\\d${NBSP}kr`));
+      expect(text(phoneRows(html, key).row), key).toContain('For få (9 av 10)');
+    }
+    // The own value stays.
+    expect(cellText(row(html, 'kfd'), 'own')).toBe(`50${NBSP}dager`);
+  });
+
+  it('each undefined reason has its words', () => {
+    const because = (id: Parameters<typeof t>[0]) => t('analysis.figures.undefined', { grunn: t(id) });
+    const own = (subject: DocumentBasis, key: string) => cellText(row(full(subject), key), 'own');
+    // A zero or negative denominator, in each figure's own words.
+    expect(own(readBasis({ salgsinntekt: '0' }), 'kfd')).toBe(because('analysis.figures.reason.salesNotPositive'));
+    expect(
+      own(readBasis({ varekostnad: '0', annenDriftskostnad: '0', sumDriftskostnad: '620000000', driftsresultat: '380000000' }), 'lgd'),
+    ).toBe(because('analysis.figures.reason.costsNotPositive'));
+    expect(own(readBasis({ sumEiendeler: '100000000' }), 'oml')).toBe(because('analysis.figures.reason.operatingAssetsNotPositive'));
+    expect(own(readBasis({}, { sumDriftsinntekter: '0' }), 'vekst')).toBe(because('analysis.figures.reason.priorRevenueNotPositive'));
+    expect(own(readBasis({ sumDriftsinntekter: '0', driftsresultat: '-656500000' }), 'ebitda')).toBe(
+      because('analysis.figures.reason.revenueNotPositive'),
+    );
+    expect(own(readBasis({ sumEiendeler: '0', bankinnskudd: '0' }), 'kontant')).toBe(because('analysis.figures.reason.assetsNotPositive'));
+    // A missing component, and a line not read safely (above the API subtotal, R3).
+    expect(own(readBasis({ kundefordringer: null }), 'kfd')).toBe(because('analysis.figures.reason.componentMissing'));
+    expect(own(readBasis({ kundefordringer: '900000000' }), 'kfd')).toBe(because('analysis.figures.reason.lineNotReadSafely'));
+    // Every other document reason, from the subject's basis, on every row that takes it.
+    const failed = t('analysis.documentFailed', { aar: '2025' });
+    const bases: [DocumentBasis, string][] = [
+      [{ kind: 'failed_reconciliation', filingYear: 2025 }, failed],
+      [{ kind: 'not_reconciled', filingYear: 2025 }, failed],
+      [{ kind: 'refused', filingYear: 2025 }, failed],
+      [{ kind: 'document_missing', filingYear: 2025 }, t('analysis.figures.documentMissing', { aar: '2025' })],
+      [
+        { kind: 'not_read_in_v1', scope: 'paper', filingYear: 2025 },
+        `${nb['analysis.figures.notReadInV1']} ${t('analysis.figures.notReadInV1.paper', { aar: '2025' })}`,
+      ],
+      [
+        { kind: 'not_read_in_v1', scope: 'filing_year', filingYear: 2019 },
+        `${nb['analysis.figures.notReadInV1']} ${t('analysis.figures.notReadInV1.filingYear', { fra: '2021', til: '2025', aar: '2025' })}`,
+      ],
+      [{ kind: 'not_in_dataset' }, `${nb['analysis.figures.notInDataset']} ⓘ ${nb['keyFigures.moreAbout']} ${nb['keyFigures.notInDataset.popover']}`],
+    ];
+    for (const [basis, words] of bases) {
+      const html = full(basis);
+      for (const key of BASIS_ROWS) {
+        const r = row(html, key);
+        expect(cellText(r, 'own'), `${basis.kind} ${key}`).toBe(words);
+        expect(rawCell(r, 'merged'), `${basis.kind} ${key}`).toBe(NOT_APPLICABLE);
+      }
+      // The API rows keep their comparison (FR-71).
+      expect(cellText(row(html, 'driftsmargin'), 'median'), basis.kind).toBe(`5,5${NBSP}%`);
+    }
+  });
+
+  it('figures 7 and 8 are not read in v1', () => {
+    for (const basis of [SUBJECT_DOC, NOT_IN_DATASET, FAILED]) {
+      const html = full(basis);
+      for (const key of ['omsArsverk', 'lonnArsverk']) {
+        const r = row(html, key);
+        expect(cellText(r, 'own'), key).toBe(`${nb['analysis.figures.notReadInV1']} ${nb['analysis.figures.notReadInV1.notes']}`);
+        expect(rawCell(r, 'merged'), key).toBe(NOT_APPLICABLE);
+        expect(r, key).not.toContain('aria-describedby');
+        const phone = phoneRows(html, key);
+        expect(text(phone.row), key).toContain(nb['analysis.figures.notReadInV1']);
+        expect(text(phone.expansion), key).toContain(nb['analysis.figures.notReadInV1.notes']);
+      }
+    }
+  });
+
+  it('outside the demo data: one State block, cells point to it', () => {
+    const html = full(NOT_IN_DATASET);
+    // One State block, with the approved sentence, whose paragraph every such cell names.
+    expect(html.split(nb['keyFigures.notInDataset.state']).length - 1).toBe(1);
+    const id = /<p class="m-0" id="([^"]+)">Regnskapstallene for dette selskapet/.exec(html)?.[1];
+    expect(id).toBe('kf-not-in-dataset');
+    for (const key of BASIS_ROWS) {
+      const own = /<td([^>]*)data-cell="own"([^>]*)>([\s\S]*?)<\/td>/.exec(row(html, key));
+      expect(`${own?.[1]}${own?.[2]}`, key).toContain(`aria-describedby="${id}"`);
+      const content = own?.[3] ?? '';
+      // A real button with a visible ⓘ, closed, controlling the popover text.
+      expect(content, key).toMatch(
+        new RegExp(
+          `<button type="button" aria-expanded="false" aria-controls="kf-d-pop-${key}"[^>]*><span aria-hidden="true">ⓘ</span><span class="sr-only">${nb['keyFigures.moreAbout']}</span></button>`,
+        ),
+      );
+      expect(content, key).toMatch(new RegExp(`<span id="kf-d-pop-${key}" hidden=""[^>]*>${nb['keyFigures.notInDataset.popover']}</span>`));
+      const phoneOwn = /<td[^>]*data-cell="own"[^>]*>[\s\S]*?<\/td>/.exec(phoneRows(html, key).row)?.[0] ?? '';
+      expect(phoneOwn, key).toContain(`aria-describedby="${id}"`);
+      expect(phoneOwn, key).toContain(`aria-controls="kf-p-pop-${key}"`);
+    }
+    // The API rows are compared and point nowhere.
+    for (const key of API_ROWS) expect(row(html, key), key).not.toContain('aria-describedby');
+    // A subject in the demo data has no such block.
+    expect(full()).not.toContain(nb['keyFigures.notInDataset.state']);
   });
 });

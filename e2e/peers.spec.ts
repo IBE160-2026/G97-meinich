@@ -233,6 +233,17 @@ const flaggedSubject = seedSubject(
   'with a peer the funnel as built would flag',
 );
 
+/**
+ * A subject whose as-built group (both signals on) is strictly smaller than
+ * its pool, so a page that ran the funnel as built would list fewer peers
+ * (triage 17). Fails loudly when the seed has none.
+ */
+const narrowedAsBuiltSubject = seedSubject(
+  (orgnr) => expectedPeerGroup(orgnr, 0, AS_BUILT).group.length < expectedPool(orgnr, 0).length,
+  () => true,
+  'whose as-built group (AS_BUILT) is smaller than its pool',
+);
+
 /** What v1's Peers tab never shows (Story 5.2): the basis and flag columns and ✦. */
 async function expectNoModelMarks(page: Page): Promise<void> {
   const main = page.locator('main');
@@ -286,11 +297,14 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
   for (const [label, subjectOf] of [
     ['a mixed-basis subject from the seed', mixedBasisSubject],
     ['a subject the funnel as built would flag a peer for', flaggedSubject],
+    ['a subject the funnel as built would narrow', narrowedAsBuiltSubject],
   ] as const) {
     test(`${label}: v1 shows the whole pool, with no basis, flag or ✦`, async ({ page }) => {
       const orgnr = subjectOf();
       const rows = expectedRows(orgnr, 0);
       expect(rows.length).toBe(expectedPool(orgnr, 0).length);
+      // The pool, not the as-built group, is what v1 lists.
+      expect(rows.map((row) => row.orgnr)).toEqual(expectedPool(orgnr, 0).map((peer) => peer.orgnr));
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(`/analyse/${orgnr}/peers`);
       await expect(desktopRows(page)).toHaveCount(rows.length);

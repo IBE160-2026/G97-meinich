@@ -42,7 +42,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Decimal } from '../src/engine/decimal.ts';
 import { BANDS, type BandedCategory, businessType, type Fingerprint } from '../src/engine/fingerprint.ts';
-import { formatPercent, formatPercentagePoints } from '../src/engine/format.ts';
+import { formatPercent, formatPercentagePoints, formatPercentagePointsFine } from '../src/engine/format.ts';
 import { assemblePeerGroup, type CandidateFiling, type FunnelSubject } from '../src/engine/peers.ts';
 import { parseSemicolonCsv } from './ocr-sm2-compare.ts';
 import { setting } from './run-ingest.ts';
@@ -312,6 +312,8 @@ export interface PairOutcome {
   readonly textNull: TextNullCause | null;
   /** L2 with the category's band widened to low–high. */
   readonly l2Without: Readonly<Record<WidenedCategory, boolean>>;
+  /** With the category's band widened, the fingerprint signal is null (the subject's or the candidate's type undetermined, or no fingerprint). */
+  readonly l2WithoutNull: Readonly<Record<WidenedCategory, boolean>>;
 }
 
 const typeOf = (fingerprint: Fingerprint | null) => (fingerprint === null ? null : businessType(fingerprint));
@@ -344,6 +346,8 @@ export function measureSubject(subject: LabelledSubject, data: SubjectData): Pai
   ) as Record<WidenedCategory, Set<string>>;
 
   const subjectType = typeOf(funnel.fingerprint);
+  const nullWithout = (category: WidenedCategory, peer: CandidateFiling): boolean =>
+    typeOf(widened(funnel, category).fingerprint) === null || typeOf(widened(peer, category).fingerprint) === null;
   return subject.candidates.map((orgnr) => {
     const peer = pool.get(orgnr);
     const base = { subject: subject.orgnr, candidate: orgnr, informative: subject.informative, blind: subject.blind };
@@ -358,6 +362,7 @@ export function measureSubject(subject: LabelledSubject, data: SubjectData): Pai
         fingerprintNull: null,
         textNull: null,
         l2Without: { costOfGoods: false, personnelCost: false },
+        l2WithoutNull: { costOfGoods: false, personnelCost: false },
       };
     }
     const facts = data.facts.get(orgnr);
@@ -380,6 +385,7 @@ export function measureSubject(subject: LabelledSubject, data: SubjectData): Pai
       fingerprintNull,
       textNull,
       l2Without: { costOfGoods: without.costOfGoods.has(orgnr), personnelCost: without.personnelCost.has(orgnr) },
+      l2WithoutNull: { costOfGoods: nullWithout('costOfGoods', peer), personnelCost: nullWithout('personnelCost', peer) },
     };
   });
 }
@@ -393,6 +399,15 @@ export interface Metrics {
   readonly precision: Decimal | null;
   /** Included ja / all ja; null ("ikke definert") without a ja. */
   readonly recall: Decimal | null;
+  /** The counts behind `precision` and `recall`, after `usikkerAs`; null when they are. */
+  readonly precisionFraction: Fraction | null;
+  readonly recallFraction: Fraction | null;
+}
+
+/** A count over a count, as the report writes it: "157/397". */
+export interface Fraction {
+  readonly num: number;
+  readonly den: number;
 }
 
 /** How `usikker` counts: left out (the measure), or as `ja` or `nei` (the sensitivity). */
@@ -422,6 +437,8 @@ export function layerMetrics(
     all,
     precision: inc.ja + inc.nei === 0 ? null : new Decimal(inc.ja).div(inc.ja + inc.nei),
     recall: tot.ja === 0 ? null : new Decimal(inc.ja).div(tot.ja),
+    precisionFraction: inc.ja + inc.nei === 0 ? null : { num: inc.ja, den: inc.ja + inc.nei },
+    recallFraction: tot.ja === 0 ? null : { num: inc.ja, den: tot.ja },
   };
 }
 
@@ -576,17 +593,30 @@ export interface StageFiveResult {
   readonly verdict: Verdict;
 }
 
-/** The stage-5 decision on all measure pairs, `usikker` left out: L2 against `group`. */
-export function stageFive(outcomes: readonly PairOutcome[], measure: ReadonlyMap<string, Label>): StageFiveResult {
-  const fingerprintAlone = metricsOf(outcomes, measure, (o) => o.l2);
-  const fingerprintAndText = metricsOf(outcomes, measure, (o) => o.group);
+/**
+ * The stage-5 decision on all measure pairs, `usikker` left out: L2 against
+ * `group`. `usikkerAs` other than `excluded` is the sensitivity, which
+ * decides nothing.
+ */
+export function stageFive(
+  outcomes: readonly PairOutcome[],
+  measure: ReadonlyMap<string, Label>,
+  usikkerAs: UsikkerAs = 'excluded',
+): StageFiveResult {
+  const fingerprintAlone = metricsOf(outcomes, measure, (o) => o.l2, usikkerAs);
+  const fingerprintAndText = metricsOf(outcomes, measure, (o) => o.group, usikkerAs);
   return { fingerprintAlone, fingerprintAndText, verdict: ruleVerdict(fingerprintAlone, fingerprintAndText) };
 }
 
 /** The band rule on L2 only: L2 without the band against L2 with it. */
-export function bandRule(outcomes: readonly PairOutcome[], measure: ReadonlyMap<string, Label>, category: WidenedCategory) {
-  const withBand = metricsOf(outcomes, measure, (o) => o.l2);
-  const withoutBand = metricsOf(outcomes, measure, (o) => o.l2Without[category]);
+export function bandRule(
+  outcomes: readonly PairOutcome[],
+  measure: ReadonlyMap<string, Label>,
+  category: WidenedCategory,
+  usikkerAs: UsikkerAs = 'excluded',
+) {
+  const withBand = metricsOf(outcomes, measure, (o) => o.l2, usikkerAs);
+  const withoutBand = metricsOf(outcomes, measure, (o) => o.l2Without[category], usikkerAs);
   return { withBand, withoutBand, verdict: ruleVerdict(withoutBand, withBand) };
 }
 
@@ -594,6 +624,70 @@ const BAND_NAME: Readonly<Record<WidenedCategory, string>> = {
   costOfGoods: 'Cost of goods share band',
   personnelCost: 'Personnel cost share band',
 };
+
+const fraction = (f: Fraction | null): string => (f === null ? 'ikke definert' : `${f.num}/${f.den}`);
+/** A deciding value: one decimal, and the exact fraction behind it. */
+const exactShare = (value: Decimal | null, f: Fraction | null): string => (value === null ? 'ikke definert' : `${share(value)} (${fraction(f)})`);
+/** A deciding difference: three decimals in pp, and the two fractions it is computed from. */
+const exactDelta = (value: Decimal | null, minuend: Fraction | null, subtrahend: Fraction | null): string =>
+  value === null ? 'ikke definert' : `${formatPercentagePointsFine(value.toString())} (${fraction(minuend)} − ${fraction(subtrahend)})`;
+
+/** The two rows of a rule and their difference, `second` − `first`. */
+function decidingTable(first: readonly [string, Metrics], second: readonly [string, Metrics], difference: string, verdict: Verdict): string[] {
+  const row = ([name, m]: readonly [string, Metrics]) =>
+    `| ${name} | ${exactShare(m.precision, m.precisionFraction)} | ${exactShare(m.recall, m.recallFraction)} |`;
+  return [
+    '| | Precision | Recall |',
+    '|---|---:|---:|',
+    row(first),
+    row(second),
+    `| ${difference} | ${exactDelta(verdict.precisionDelta, second[1].precisionFraction, first[1].precisionFraction)} | ${exactDelta(verdict.recallDelta, second[1].recallFraction, first[1].recallFraction)} |`,
+  ];
+}
+
+function stageFiveTable(five: StageFiveResult): string[] {
+  return decidingTable(['Fingerprint alone (L2)', five.fingerprintAlone], ['Fingerprint and text (`group`)', five.fingerprintAndText], 'Difference', five.verdict);
+}
+
+function bandTable(band: ReturnType<typeof bandRule>): string[] {
+  return decidingTable(['L2 without the band', band.withoutBand], ['L2 with the band', band.withBand], 'Difference (with − without)', band.verdict);
+}
+
+const stageFiveVerdict = (verdict: Verdict) => verdictText(verdict, 'stage 5 is kept', 'stage 5 is not kept');
+const bandVerdict = (verdict: Verdict) => verdictText(verdict, 'kept', 'dropped');
+
+/** Why "without the band" is close to "without the fingerprint", from the type rule and the counts. */
+function bandCaveat(category: WidenedCategory, inPool: readonly PairOutcome[]): string {
+  const without = inPool.filter((o) => o.l2WithoutNull[category]).length;
+  const withIt = inPool.filter((o) => o.fingerprintNull !== null).length;
+  const counts = `Without the band the fingerprint signal is null for ${without} of ${inPool.length} pairs in the pool, against ${withIt} with it.`;
+  if (category === 'costOfGoods') {
+    return (
+      'In practice "without the band" here became "without the fingerprint". The type rule reads the cost-of-goods band first (high is `forhandler`, low never is), ' +
+      `so a fingerprint with this band widened to low–high can always give \`forhandler\` and another type, and its type is undetermined. ${counts} ` +
+      'This test therefore cannot tell the band apart from the fingerprint. No definition is changed.'
+    );
+  }
+  return (
+    'The type rule reads the personnel-cost band only to tell `konsulent` (personnel cost mid or high, cost of goods low) from `annet`, so widening it leaves those types undetermined and keeps `forhandler` and `produkt`. ' +
+    `${counts} The closer the first count is to all pairs, the more "without the band" is again "without the fingerprint", and the less this test can tell the band apart from the fingerprint. No definition is changed.`
+  );
+}
+
+/** The stage-5 note on L3: stated only when L3 alone has the highest precision of the four layers. */
+function stageFiveNote(outcomes: readonly PairOutcome[], measure: ReadonlyMap<string, Label>): string[] {
+  const precision = (layer: Layer) => metricsOf(outcomes, measure, (o) => included(o, layer)).precision;
+  const l3 = precision('l3');
+  if (l3 === null) return [];
+  const others = (['l1', 'l2', 'group'] as const).map(precision);
+  if (!others.every((p) => p === null || l3.gt(p))) return [];
+  return [
+    '',
+    `L3, the classification alone, has the highest precision of the layers (${share(l3)}). The rule does not compare L3: it compares the funnel with and without the text over the fingerprint (L2 against \`group\`), and that is not changed now.`,
+  ];
+}
+
+const sameOrChanged = (decided: Verdict, other: Verdict) => (decided.kind === other.kind ? 'same' : 'changes');
 
 export function renderReport(inputs: ReportInputs): string {
   const { subjects, outcomes, measure, roundOne } = inputs;
@@ -624,7 +718,7 @@ export function renderReport(inputs: ReportInputs): string {
     '',
     '## How the layers are read',
     '',
-    'Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`, unchanged) at the Standard size band.',
+    'Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`) at the Standard size band, with the text signal on: stage 5 as built, which is what is measured.',
     '',
     '- **L1** includes a pair when the candidate is in today\'s stage 1–3 pool. Every labelled candidate was drawn from that pool.',
     '- **L2** includes it when the fingerprint signal is not `false`: the funnel with the subject\'s classification switched off. A missing fingerprint, an undetermined type or a subject with no type is a null signal, and the pair is kept.',
@@ -668,13 +762,18 @@ export function renderReport(inputs: ReportInputs): string {
     'Fixed in the PRD (§9) before any result: on all measure pairs, `usikker` left out, *fingerprint alone* (L2) against *fingerprint and text* (`group`). ' +
       'Stage 5 is kept if and only if precision rises by at least 3,0 pp and recall falls by at most 3,0 pp, both bounds inclusive, compared exactly. The rule is never re-tuned.',
     '',
-    '| | Precision | Recall |',
-    '|---|---:|---:|',
-    `| Fingerprint alone (L2) | ${share(five.fingerprintAlone.precision)} | ${share(five.fingerprintAlone.recall)} |`,
-    `| Fingerprint and text (\`group\`) | ${share(five.fingerprintAndText.precision)} | ${share(five.fingerprintAndText.recall)} |`,
-    `| Difference | ${signedPp(five.verdict.precisionDelta)} | ${signedPp(five.verdict.recallDelta)} |`,
+    ...stageFiveTable(five),
+  );
+  if (five.verdict.precisionDelta !== null) {
+    push(
+      '',
+      `A difference of ${formatPercentagePointsFine(five.verdict.precisionDelta.toString())} shows as ${signedPp(five.verdict.precisionDelta)} at one decimal; the rule compares the exact value.`,
+    );
+  }
+  push(
+    ...stageFiveNote(outcomes, measure),
     '',
-    `**Verdict: ${verdictText(five.verdict, 'stage 5 is kept', 'stage 5 is not kept')}.**`,
+    `**Verdict: ${stageFiveVerdict(five.verdict)}.**`,
     '',
     '## The bands (FR-13)',
     '',
@@ -688,13 +787,54 @@ export function renderReport(inputs: ReportInputs): string {
       '',
       `### ${BAND_NAME[category]}`,
       '',
-      '| | Precision | Recall |',
-      '|---|---:|---:|',
-      `| L2 with the band | ${share(band.withBand.precision)} | ${share(band.withBand.recall)} |`,
-      `| L2 without the band | ${share(band.withoutBand.precision)} | ${share(band.withoutBand.recall)} |`,
-      `| Difference (with − without) | ${signedPp(band.verdict.precisionDelta)} | ${signedPp(band.verdict.recallDelta)} |`,
+      ...bandTable(band),
       '',
-      `**Recommendation: ${verdictText(band.verdict, 'kept', 'dropped')}.**`,
+      bandCaveat(category, inPool),
+      '',
+      `**Recommendation: ${bandVerdict(band.verdict)}.**`,
+    );
+  }
+
+  const blind = outcomes.filter((o) => o.blind);
+  const blindFive = stageFive(blind, measure);
+  push(
+    '',
+    '## The rules on the blind pairs alone (informational)',
+    '',
+    `The ${blind.length} blind pairs, labelled by a person from description and website only. The rules are decided on all pairs; this decides nothing.`,
+    '',
+    '### Stage 5',
+    '',
+    ...stageFiveTable(blindFive),
+    '',
+    `Stage-5 rule on these pairs: ${stageFiveVerdict(blindFive.verdict)}.`,
+  );
+  for (const category of WIDENED_CATEGORIES) {
+    const band = bandRule(blind, measure, category);
+    push('', `### ${BAND_NAME[category]}`, '', ...bandTable(band), '', `Band rule on these pairs: ${bandVerdict(band.verdict)}.`);
+  }
+
+  push(
+    '',
+    '## The verdicts with usikker counted (informational)',
+    '',
+    'The same rules on all measure pairs with `usikker` counted as `ja` and as `nei`. The verdicts above leave `usikker` out and decide; these decide nothing.',
+    '',
+    '| Rule | usikker left out (decides) | usikker as ja | usikker as nei |',
+    '|---|---|---|---|',
+  );
+  const sensitivity = (name: string, decided: Verdict, asJa: Verdict, asNei: Verdict, text: (v: Verdict) => string) =>
+    `| ${name} | ${text(decided)} | ${text(asJa)} (${sameOrChanged(decided, asJa)}) | ${text(asNei)} (${sameOrChanged(decided, asNei)}) |`;
+  push(sensitivity('Stage 5', five.verdict, stageFive(outcomes, measure, 'ja').verdict, stageFive(outcomes, measure, 'nei').verdict, stageFiveVerdict));
+  for (const category of WIDENED_CATEGORIES) {
+    push(
+      sensitivity(
+        BAND_NAME[category],
+        bandRule(outcomes, measure, category).verdict,
+        bandRule(outcomes, measure, category, 'ja').verdict,
+        bandRule(outcomes, measure, category, 'nei').verdict,
+        bandVerdict,
+      ),
     );
   }
 

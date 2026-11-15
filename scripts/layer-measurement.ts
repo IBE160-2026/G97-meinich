@@ -230,6 +230,10 @@ export interface MeasurementData {
   readonly fingerprinted: number;
   /** In drawn.json order. */
   readonly subjects: readonly SubjectData[];
+  /** The distinct classification model ids among the labelled companies' rows, sorted; never per orgnr. */
+  readonly classificationModels: readonly string[];
+  /** The distinct classification prompt hashes among them, sorted. */
+  readonly promptHashes: readonly string[];
 }
 
 /** Why a company has no fingerprint, from its stored document. */
@@ -604,6 +608,8 @@ export interface ReportInputs {
   readonly roundOne: ReadonlyMap<string, Label>;
   readonly companies: number;
   readonly fingerprinted: number;
+  readonly classificationModels: readonly string[];
+  readonly promptHashes: readonly string[];
   /** YYYY-MM-DD. */
   readonly generated: string;
   readonly commit: string;
@@ -725,6 +731,9 @@ export function bandDecision(blind: readonly PairOutcome[], measure: ReadonlyMap
   ];
 }
 
+/** Values as inline code, joined; "none" when there are none. */
+const codeList = (values: readonly string[]): string => (values.length === 0 ? 'none' : values.map((v) => `\`${v}\``).join(', '));
+
 const sameOrChanged = (decided: Verdict, other: Verdict) => (decided.kind === other.kind ? 'same' : 'changes');
 
 export function renderReport(inputs: ReportInputs): string {
@@ -766,6 +775,7 @@ export function renderReport(inputs: ReportInputs): string {
     '- Precision is `ja` / (`ja` + `nei`) among the included pairs; recall is the included `ja` / all `ja`, so recall counts within the stage 1–3 pool. "ikke definert" means there is no pair to divide by, never 0.',
     '',
     `Labelled companies with a fingerprint for the labelled year: ${inputs.fingerprinted} of ${inputs.companies}.`,
+    `Database state read: ${inputs.fingerprinted} fingerprints; classifications by model ${codeList(inputs.classificationModels)} with prompt hash ${codeList(inputs.promptHashes)}.`,
     `Labelled candidates not in today's pool: ${outside} of ${outcomes.length}. They are in no layer, so a \`ja\` among them counts against every layer's recall.`,
     '',
     '**SM-1b.** An industry-code-only baseline also includes every labelled pair, so on these pairs it equals L1, the base rate. ' +
@@ -980,6 +990,8 @@ export async function main(root: string, deps: Dependencies = DEFAULT_DEPENDENCI
       roundOne,
       companies: data.companies,
       fingerprinted: data.fingerprinted,
+      classificationModels: data.classificationModels,
+      promptHashes: data.promptHashes,
       generated: deps.today(),
       commit,
     });

@@ -23,6 +23,7 @@ Each subject is read as the analysis page reads it and assembled by `assemblePee
 - Precision is `ja` / (`ja` + `nei`) among the included pairs; recall is the included `ja` / all `ja`, so recall counts within the stage 1–3 pool. "ikke definert" means there is no pair to divide by, never 0.
 
 Labelled companies with a fingerprint for the labelled year: 11 of 12.
+Database state read: 11 fingerprints; classifications by model `claude-haiku-5-5` with prompt hash `abababababababababababababababababababababababababababababababab`.
 Labelled candidates not in today's pool: 1 of 10. They are in no layer, so a `ja` among them counts against every layer's recall.
 
 **SM-1b.** An industry-code-only baseline also includes every labelled pair, so on these pairs it equals L1, the base rate. The size band and stage 2 cannot be judged with this draw. SM-1b is the funnel against that base rate: a check, not a claim.

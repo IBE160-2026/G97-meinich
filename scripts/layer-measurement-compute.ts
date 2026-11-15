@@ -17,9 +17,9 @@ import type { CompanyFacts, MeasurementData, SubjectData } from './layer-measure
 
 // For each orgnr asked ($1) and the labelled filing year ($2): whether the
 // company is stored, its document's status and its current column's, whether
-// it has a fingerprint for that year, and its classification's status and
-// type. Read as `reader`, which holds SELECT on each table.
-const FACTS_SQL = `
+// it has a fingerprint for that year, and its classification's status, type,
+// model and prompt hash. Read as `reader`, which holds SELECT on each table.
+export const FACTS_SQL = `
 select o.orgnr,
        c.orgnr is not null as company_exists,
        d.status as document_status,
@@ -27,7 +27,9 @@ select o.orgnr,
        exists (select 1 from register.fingerprint fp
                 where fp.orgnr = o.orgnr and fp.filing_year = $2::smallint) as has_fingerprint,
        cl.status as classification_status,
-       cl.business_type as classification_type
+       cl.business_type as classification_type,
+       cl.model_id as classification_model,
+       cl.prompt_hash as classification_prompt_hash
   from unnest($1::text[]) as o(orgnr)
   left join register.company c on c.orgnr = o.orgnr
   left join register.document d on d.orgnr = o.orgnr and d.filing_year = $2::smallint
@@ -43,6 +45,8 @@ type FactsRow = {
   has_fingerprint: boolean;
   classification_status: string | null;
   classification_type: string | null;
+  classification_model: string | null;
+  classification_prompt_hash: string | null;
 };
 
 /** The labelled subjects in the order asked, each with its candidate filings and the facts of every company in its pairs. */
@@ -52,9 +56,13 @@ export async function loadMeasurementData(
   const years = new Set(subjects.map((subject) => subject.filingYear));
   const orgnrs = [...new Set(subjects.flatMap((subject) => [subject.orgnr, ...subject.candidates]))];
   const facts = new Map<string, CompanyFacts>();
+  const models = new Set<string>();
+  const prompts = new Set<string>();
   for (const year of years) {
     const rows = await readerSql().unsafe<FactsRow[]>(FACTS_SQL, [orgnrs, year]);
     for (const row of rows) {
+      if (row.classification_model !== null) models.add(row.classification_model);
+      if (row.classification_prompt_hash !== null) prompts.add(row.classification_prompt_hash);
       facts.set(`${row.orgnr}/${year}`, {
         companyExists: row.company_exists,
         documentStatus: row.document_status,
@@ -91,7 +99,13 @@ export async function loadMeasurementData(
     }
     out.push({ orgnr: drawn.orgnr, funnel, candidates, facts: own });
   }
-  return { companies: counted.size, fingerprinted, subjects: out };
+  return {
+    companies: counted.size,
+    fingerprinted,
+    subjects: out,
+    classificationModels: [...models].sort(),
+    promptHashes: [...prompts].sort(),
+  };
 }
 
 export async function closeReader(): Promise<void> {

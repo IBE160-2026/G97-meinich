@@ -154,6 +154,9 @@ function dataB(): SubjectData {
   return { orgnr: B, funnel, candidates: B_CANDIDATES, facts: own };
 }
 
+/** The database state a report records: synthetic values only. */
+const DB_STATE = { classificationModels: ['claude-haiku-5-5'], promptHashes: ['ab'.repeat(32)] } as const;
+
 /** Metrics with the given precision and recall (the counts do not enter the rule). */
 function m(precision: string, recall: string): Metrics {
   const zero = { ja: 0, nei: 0, usikker: 0 };
@@ -221,6 +224,7 @@ describe('layer metrics on synthetic labels', () => {
       roundOne: new Map(),
       companies: 8,
       fingerprinted: 7,
+      ...DB_STATE,
       generated: '2026-11-15',
       commit: 'c'.repeat(40),
     });
@@ -282,6 +286,7 @@ describe('a null signal is kept and counted', () => {
       roundOne: new Map(),
       companies: 8,
       fingerprinted: 7,
+      ...DB_STATE,
       generated: '2026-11-15',
       commit: 'c'.repeat(40),
     });
@@ -396,7 +401,7 @@ describe('precision is undefined without ja or nei', () => {
     const report = renderReport({
       industry: '62.100',
       subjects: [SUBJECT_A], outcomes, measure: allUsikker, roundOne: new Map(),
-      companies: 8, fingerprinted: 7, generated: '2026-11-15', commit: 'c'.repeat(40),
+      companies: 8, fingerprinted: 7, ...DB_STATE, generated: '2026-11-15', commit: 'c'.repeat(40),
     });
     expect(report).toContain('| L2 fingerprint alone | 4 | 0 | 0 | 4 | ikke definert | ikke definert |');
     expect(stageFive(outcomes, allUsikker).verdict.kind).toBe('undecidable');
@@ -413,7 +418,7 @@ it('a labelled candidate outside the pool is counted', () => {
   const report = renderReport({
     industry: '62.100',
     subjects: [SUBJECT_A], outcomes, measure: labelsA, roundOne: new Map(),
-    companies: 8, fingerprinted: 7, generated: '2026-11-15', commit: 'c'.repeat(40),
+    companies: 8, fingerprinted: 7, ...DB_STATE, generated: '2026-11-15', commit: 'c'.repeat(40),
   });
   expect(report).toContain("Labelled candidates not in today's pool: 1 of 7.");
 });
@@ -483,7 +488,7 @@ const NEAR_BOUND: Spec[] = [
 function reportOf(outcomes: readonly PairOutcome[], labels: ReadonlyMap<string, Label>): string {
   return renderReport({
     industry: '62.100', subjects: [SUBJECT_A], outcomes, measure: labels, roundOne: new Map(),
-    companies: 8, fingerprinted: 7, generated: '2026-11-15', commit: 'c'.repeat(40),
+    companies: 8, fingerprinted: 7, ...DB_STATE, generated: '2026-11-15', commit: 'c'.repeat(40),
   });
 }
 
@@ -637,7 +642,7 @@ describe('main on synthetic files', () => {
   });
 
   const deps = (fingerprinted: number): Dependencies => ({
-    load: async () => ({ companies: 12, fingerprinted, subjects: [dataA(), dataB()] }),
+    load: async () => ({ companies: 12, fingerprinted, subjects: [dataA(), dataB()], ...DB_STATE }),
     commit: () => 'c'.repeat(40),
     today: () => '2026-11-15',
   });
@@ -647,6 +652,8 @@ describe('main on synthetic files', () => {
     const report = readFileSync(path.join(root, ...reportFile('62.100').split('/')), 'utf8');
     expect(report).toContain('Generated 2026-11-15 by `scripts/layer-measurement.ts` (`pnpm analysis:layers`) at commit `cccc');
     expect(report).toContain('## Round 1: den strengere lesningen');
+    // Triage 12: the database state the report rests on, as values only.
+    expect(report).toContain(`Database state read: 11 fingerprints; classifications by model \`claude-haiku-5-5\` with prompt hash \`${'ab'.repeat(32)}\`.`);
     for (const orgnr of [SUBJECT_A, SUBJECT_B].flatMap((s) => [s.orgnr, ...s.candidates])) {
       expect(report.includes(orgnr), orgnr).toBe(false);
     }

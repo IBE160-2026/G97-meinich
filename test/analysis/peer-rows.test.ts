@@ -81,8 +81,8 @@ describe('peerRows', () => {
       omsetning: `15,0${NBSP}mill.${NBSP}kr`,
       driftsmargin: `10,0${NBSP}%`,
       hvorforMed: 'Samme bransje, omsetning 1,5× ADMMIT AS, varekostnadsandel i samme bånd, uten varelager',
-      // v1 reads no text signal (Story 5.2): the basis rests on the accounts.
-      grunnlag: nb['peers.basis.accounts_only'],
+      // v1 reads neither signal (Story 5.2): the basis is industry and size.
+      grunnlag: nb['peers.basis.industry_and_size_only'],
       grunnlagKi: false,
       flagg: null,
     });
@@ -109,7 +109,7 @@ describe('peerRows', () => {
   });
 
   // The v1 funnel flags no one (Story 5.2); the row still tags an orgnr it is given.
-  it('tags a peer in the flagged list, and in v1 its basis rests on the accounts', () => {
+  it('tags a peer in the flagged list, and in v1 its basis is industry and size', () => {
     const rows = peerRows(
       subject,
       'ADMMIT AS',
@@ -118,10 +118,10 @@ describe('peerRows', () => {
       'NOK',
     );
     expect(rows.map((row) => row.flagg)).toEqual([null, nb['peers.flag']]);
-    expect(rows[1]?.grunnlag).toBe(nb['peers.basis.accounts_only']);
+    expect(rows[1]?.grunnlag).toBe(nb['peers.basis.industry_and_size_only']);
   });
 
-  it('gives each basis its label; in v1 none rests on a classification, so no ✦', () => {
+  it('gives each basis its label; in v1 every one is industry and size, so no ✦', () => {
     const cases = [
       peer('900000001'),
       peer('900000002', { classification: null }),
@@ -130,8 +130,8 @@ describe('peerRows', () => {
     ];
     const rows = peerRows(subject, 'ADMMIT AS', cases, [], 'NOK');
     expect(rows.map((row) => [row.grunnlag, row.grunnlagKi])).toEqual([
-      [nb['peers.basis.accounts_only'], false],
-      [nb['peers.basis.accounts_only'], false],
+      [nb['peers.basis.industry_and_size_only'], false],
+      [nb['peers.basis.industry_and_size_only'], false],
       [nb['peers.basis.industry_and_size_only'], false],
       [nb['peers.basis.industry_and_size_only'], false],
     ]);

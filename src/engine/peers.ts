@@ -34,6 +34,14 @@
 // combination stays built and tested with `{ textSignal: true }`, which the
 // measurement (scripts/layer-measurement.ts) passes to measure it as built.
 //
+// The fingerprint signal is off in v1 too (`V1_FINGERPRINT_SIGNAL`, Story
+// 5.2, Meinich 2026-11-15): the band test cannot tell a band from the
+// fingerprint, and the fingerprint does not raise precision. With both off,
+// stage 4 removes no one, `group` equals `pool`, no peer is flagged and
+// every match basis is `industry_and_size_only`. fingerprint.ts, the bands,
+// the stored fingerprints and `pnpm derive` are unchanged, so a later stage
+// can measure again with `{ textSignal: true, fingerprintSignal: true }`.
+//
 // The candidate pool (`pool`) is stages 1–3: `ekskl` is checked against it,
 // and so are the document run's set and the 5.1 frame. `group` is the pool
 // after stages 4 and 5, which every aggregate uses.
@@ -62,13 +70,22 @@ export const SIZE_BANDS: Readonly<Record<SizeBand, { readonly lo: Decimal; reado
  */
 export const V1_TEXT_SIGNAL = false;
 
+/**
+ * Whether the funnel reads the fingerprint signal (stage 4). False in v1:
+ * the band test does not tell a band from the fingerprint, and the
+ * fingerprint does not raise precision (Story 5.2; Meinich, 2026-11-15).
+ */
+export const V1_FINGERPRINT_SIGNAL = false;
+
 /** How the funnel runs; the request path uses the default, `V1_FUNNEL`. */
 export type FunnelOptions = {
   /** Read the stored classification at stage 5 (and in the flag and the match basis). */
   readonly textSignal: boolean;
+  /** Read the stored fingerprint at stage 4 (and in the flag and the match basis). */
+  readonly fingerprintSignal: boolean;
 };
 
-export const V1_FUNNEL: FunnelOptions = { textSignal: V1_TEXT_SIGNAL };
+export const V1_FUNNEL: FunnelOptions = { textSignal: V1_TEXT_SIGNAL, fingerprintSignal: V1_FINGERPRINT_SIGNAL };
 
 /** The one legal form stage 3 keeps. `ASA` is a different form. */
 export const PEER_LEGAL_FORM = 'AS';
@@ -288,8 +305,8 @@ export function isComparable(subject: Comparability, candidate: Comparability): 
 /**
  * Whether each signal says the candidate is the subject's type; null when
  * the signal is missing for either, because a signal missing for the subject
- * counts as missing for every candidate. The text is null for every pair
- * when `options.textSignal` is off.
+ * counts as missing for every candidate. Each signal is null for every pair
+ * when its option is off.
  */
 function signals(
   subject: Pick<FunnelSubject, 'fingerprint' | 'classification'>,
@@ -299,7 +316,7 @@ function signals(
   const agree = (a: BusinessType | null, b: BusinessType | null) => (a === null || b === null ? null : a === b);
   const typeOf = (fingerprint: Fingerprint | null) => (fingerprint === null ? null : businessType(fingerprint));
   return {
-    fingerprint: agree(typeOf(subject.fingerprint), typeOf(candidate.fingerprint)),
+    fingerprint: options.fingerprintSignal ? agree(typeOf(subject.fingerprint), typeOf(candidate.fingerprint)) : null,
     text: options.textSignal ? agree(subject.classification, candidate.classification) : null,
   };
 }

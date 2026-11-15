@@ -12,9 +12,10 @@
 //   as "den strengere lesningen" and decides nothing.
 // - The groups: each subject is read as the analysis page reads it
 //   (scripts/layer-measurement-compute.ts) and assembled by
-//   `assemblePeerGroup(…, 0, MEASURED)` from src/engine/peers.ts: the text
-//   signal on, stage 5 as built, although the v1 funnel switches it off
-//   (V1_TEXT_SIGNAL, after this measurement). L2 (the
+//   `assemblePeerGroup(…, 0, MEASURED)` from src/engine/peers.ts: both
+//   signals on, stages 4 and 5 as built, although the v1 funnel switches
+//   both off (V1_TEXT_SIGNAL, V1_FINGERPRINT_SIGNAL, after this
+//   measurement). L2 (the
 //   fingerprint alone) is that funnel with the subject's classification
 //   switched off, L3 (the text alone) with its fingerprint switched off; a
 //   missing subject signal is missing for every candidate (peers.ts), so
@@ -319,11 +320,11 @@ export interface PairOutcome {
 }
 
 /**
- * The funnel as built, text signal on: what the measurement measures. The
- * v1 funnel's default (V1_TEXT_SIGNAL) is off since this measurement found
- * stage 5 not kept, so it is passed explicitly here.
+ * The funnel as built, both signals on: what the measurement measures. The
+ * v1 funnel reads neither (V1_TEXT_SIGNAL, V1_FINGERPRINT_SIGNAL) since this
+ * measurement, so both are passed explicitly here.
  */
-export const MEASURED: FunnelOptions = { textSignal: true };
+export const MEASURED: FunnelOptions = { textSignal: true, fingerprintSignal: true };
 
 const typeOf = (fingerprint: Fingerprint | null) => (fingerprint === null ? null : businessType(fingerprint));
 

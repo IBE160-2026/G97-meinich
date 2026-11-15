@@ -216,3 +216,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-10-epic-2-follow-ups.md`
   summary: Owned by Story 5.7 (Runs from a fresh clone): no test runs `pnpm restore:documents`'s real path. That path is the `loader` transaction in `loaderDb`, the spawned `pnpm derive` in `runDerive`, and the four-count query. A wrong derive exit mapping, a wrong script path or a count read from the wrong table would pass every test.
   evidence: Story 2.10 review, Verification Gap (triage row 14). `test/restore-documents.test.ts` drives `restoreDocuments` with fakes. `test/db/restore-documents.test.ts` calls `restoreInto` inside a rolled-back transaction. The real path ran once by hand, in Story 2.10's final restore. Story 5.7 is the fresh-clone run, where the README's seed-and-restore sequence is exercised end to end.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-2-layer-by-layer-measurement.md`
+  summary: Owned by Story 4.4 (the explanation card). `AiMark` (`src/components/analysis/ai-mark.tsx`), `Mark` in `peer-card.tsx` and `peers.ai` in `src/messages/nb.json` are unused in v1: since Story 5.2 the Peers tab draws no ✦, no match basis, no flag and no legend. The explanation card, which carries ✦ (EXPERIENCE "AI marking", UX-DR14), either renders them or removes them.
+  evidence: Story 5.2 review (triage row 10, Blind Hunter and Edge Case Hunter). Meinich kept them for Epic 3's explanation when approving the Peers copy (2026-11-15).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-2-layer-by-layer-measurement.md`
+  summary: Owned by PRD question 26 (measure stages 4 and 5 again, project stage 2). With both signals off (`V1_FUNNEL`), the funnel never renders `peers.funnel.stage4`, `peers.funnel.stage5` or `peers.funnel.flagged`, and no page renders `peers.basis.*`, `peers.flag`, `peers.col.basis` or `peers.col.flag`. `matchBasis` and the funnel's `flagged` output are called only by tests, the measurement and e2e. Turning a signal back on renders them again, because the funnel already follows the options. If question 26 closes without that, remove them.
+  evidence: Story 5.2 review (triage row 10). Kept so a later stage can measure again without rebuilding (Spec Change Log, 2026-11-15).

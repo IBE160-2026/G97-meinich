@@ -2,7 +2,7 @@
 title: 'Story 5.2: Layer-by-layer measurement'
 type: 'feature'
 created: '2026-11-15'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '3ce98d0861ac44dfd14c388ae73634b5bf5717d4'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -121,9 +121,42 @@ context:
   - **Known-bad states avoided:** a +3,0 pp shown beside "not kept"; a fingerprint layer that selects without raising precision; Peers copy that describes a stage that does not run.
   - **KEEP:** the frozen definitions; reports 1 and 2 as committed; the measurement turning both signals on.
 
+- 2026-11-15, Meinich, review pass 1 (triage rows 1–2). The order of the decisions:
+  1. **Stage 5 off, by the rule** fixed before the run (L2 against `group`: +2,967 pp precision, +1,422 pp recall).
+  2. **Stage 4 off, by Meinich's decision** from the band rule and the blind pairs (L2 25,2 % against L1 25,1 % precision, −35,6 pp recall).
+  3. **Text against L1 reported, not used.** It would have passed the same bounds (+3,919 pp precision, −2,370 pp recall). The comparison was not fixed before the run, and the gain lies within the noise. The decision follows the fixed rule, and question 26 fixes text against L1 before the next measurement.
+  
+  The `peers.funnel.notApplied` copy stays as approved. "Ikke klart bedre" holds against L1 too, and the nuance belongs in the report and on «Slik fungerer Peerless». The workflow's default for an intent gap is to revert the code; that was not done, because the code already matches the decision. Known-bad state avoided: switching the text back on by a comparison chosen after the result. KEEP: both signals off; the copy as approved.
+
 ## Verification
 
 **Commands:**
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm test:db` -- green.
 - `pnpm build && pnpm test:e2e` (one worker) -- green.
 - After the last `pnpm seed`: `pnpm restore:documents` -- 2 785 / 5 556 / 2 537 / 10 371.
+
+## Review Triage Log
+
+Review pass 1 (2026-11-15), on the diff from the baseline to `82a1696`. Layers: Blind Hunter (BH), Edge Case Hunter (ECH), Verification Gap (VG).
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | BH: once stage 4 is off, the stage-5 rule's baseline (L2) no longer is v1's. Text over L1 would pass the same bounds | high | L3 against L1: +3,919 pp precision (206/508 − 211/576), −2,370 pp recall. The fixed rule compared L2 with `group`, and a comparison against L1 was not fixed before the run | intent_gap → Meinich (a): decision kept, reported (change log) |
+| 2 | BH: `peers.funnel.notApplied` says neither layer gave "klart bedre treff" | medium | True by the fixed rule, contestable for the classification against L1 (row 1) | intent_gap → Meinich: copy kept as approved; nuance in the report |
+| 3 | BH: the band decision cites the blind figures, while the rules are decided on all pairs | low | Meinich's stated basis was the rule (all pairs) and the blind pairs; the text names only the blind figures | patch (name both) |
+| 4 | BH: `bandDecision` prints Meinich's decision whatever the computed verdicts | medium | A rerun with other verdicts would still state the decision | patch (print it only when the verdicts are the ones it was made on; otherwise say the decision is pending) |
+| 5 | BH: report says "L2+L3 is `group`, the funnel as the app runs it" | low | The app now runs `V1_FUNNEL`, whose group is L1 | patch |
+| 6 | BH: the report does not give subject-level signal coverage | medium | 20 of 30 subjects have no text type and about 11 no fingerprint type; the verdicts rest on few subjects | patch |
+| 7 | BH: no statement that the stage-5 verdict sits within noise | medium | +2,967 against 3,000 pp, about 400 pairs in 30 clustered subjects | patch (a sentence, no numeric target) |
+| 8 | BH: round 1 has no verdicts, and the gap in base rate between the readings is not discussed | low | Base rate 4,6 % against 36,6 % | patch (informational verdicts and one sentence) |
+| 9 | BH, ECH: the funnel, `peerRows` and `inclusionReason` hard-code v1 apart from `V1_FUNNEL` | medium | Turning a signal on would leave the funnel note and the reasons wrong | patch (derive them from `V1_FUNNEL`, with a test that the note shows only when both are off) |
+| 10 | BH, ECH: `AiMark`, `Mark` and the unrendered nb.json keys are dead code in v1 | medium | Meinich approved keeping `AiMark`/`peers.ai` for Epic 3; the stage-4/5, basis and flag keys have no owner | patch (deferred-work entries with owners; `peer-funnel.test.ts`'s `toBeTruthy` on unused keys removed) |
+| 11 | BH: the signal-independent `inclusionReason` tests run only with the signal on | low | The refusals and rounding never run on the v1 default | patch |
+| 12 | BH, ECH, VG: the dirty-tree refusal is untested; `CLEAN_PATHS` omits `seed/coverage.json`; the database state is not recorded | medium | Every test injects `commit`; deleting the check fails nothing | patch (test it; add the path; record the classification model, prompt hashes and fingerprint count read) |
+| 13 | BH: "stage 2" is used in two senses | low | Funnel stage 2 against project stage 2 | patch |
+| 14 | ECH: a rerun changes the bytes, and `coverage.json`'s sha256 goes stale | low | `pnpm seed` refuses loudly on a mismatch (AD-16) | patch (the script prints the new sha256) |
+| 15 | ECH: an unknown document status is counted as not reconciled | medium | Silent fallback (AGENTS.md) | patch (throw) |
+| 16 | VG: `FACTS_SQL` and `loadMeasurementData` run in no test | medium | Mocked in every test | patch (`test/db/` with synthetic rows in a rolled-back transaction) |
+| 17 | VG: the e2e "v1 shows the whole pool" may not notice the as-built funnel | medium | Its subjects may lose no candidate as built | patch (a subject whose as-built group is smaller than its pool, or say none exists) |
+| 18 | VG: a stale comment in `test/analysis/peer-rows.test.ts` | low | Refers to a `flagged` argument that no longer exists | patch |
+| 19 | ECH: the ai-log entry is missing | false | Planned after the review (Tasks, item 4) | reject |

@@ -2,7 +2,7 @@
 title: 'Story 3.1b: The full key-figure table'
 type: 'feature'
 created: '2026-11-15'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '952a4f6ba3f1a238c4d6e0d53229dc8b75765fb5'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -118,15 +118,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/analysis/shown-group.ts` + its test -- add the document benchmark beside the API one.
-- [ ] `src/analysis/key-figure-rows.ts` + `test/analysis/key-figure-rows.test.ts` -- a pure view builder giving one row per figure (label key, state, formatted cells, strip marks), strings only -- one place for each state and the payload boundary.
-- [ ] `src/analysis/absence-state.ts` -- per-figure denominator words.
-- [ ] `src/messages/nb.json` + `test/messages.test.ts` -- the approved copy, verbatim.
-- [ ] `src/components/analysis/key-figure-table.tsx`, `info-popover.tsx` -- every row, the row group, the State block and the popover (decision 3).
-- [ ] `e2e/synthetic.ts`, `e2e/synthetic-documents.spec.ts`, `e2e/global-setup.ts`, `playwright.config.ts` -- the third fixture (decision 4), its full rows, below floor and payload scan.
-- [ ] `e2e/payload.ts`, `e2e/key-figures.spec.ts`, `e2e/failed-subject.spec.ts` -- document field names and øre scan, phone, failed, outside the demo data.
-- [ ] `test/db/analysis.test.ts` -- the year's own column (deferred entry, Story 2.9).
-- [ ] `docs/ai-log.md`, `deferred-work.md` (decision 6), `AGENTS.md` (three committing tests), `EXPERIENCE.md` (decision 5) -- in the same commits as their code.
+- [x] `src/analysis/shown-group.ts` + its test -- add the document benchmark beside the API one.
+- [x] `src/analysis/key-figure-rows.ts` + `test/analysis/key-figure-rows.test.ts` -- a pure view builder giving one row per figure (label key, state, formatted cells, strip marks), strings only -- one place for each state and the payload boundary.
+- [x] `src/analysis/absence-state.ts` -- per-figure denominator words.
+- [x] `src/messages/nb.json` + `test/messages.test.ts` -- the approved copy, verbatim.
+- [x] `src/components/analysis/key-figure-table.tsx`, `info-popover.tsx` -- every row, the row group, the State block and the popover (decision 3).
+- [x] `e2e/synthetic.ts`, `e2e/synthetic-documents.spec.ts`, `e2e/global-setup.ts`, `playwright.config.ts` -- the third fixture (decision 4), its full rows, below floor and payload scan.
+- [x] `e2e/payload.ts`, `e2e/key-figures.spec.ts`, `e2e/failed-subject.spec.ts` -- document field names and øre scan, phone, failed, outside the demo data.
+- [x] `test/db/analysis.test.ts` -- the year's own column (deferred entry, Story 2.9).
+- [x] `docs/ai-log.md`, `deferred-work.md` (decision 6), `AGENTS.md` (three committing tests), `EXPERIENCE.md` (decision 5) -- in the same commits as their code.
 
 **Acceptance Criteria:**
 - Given the PR, then it states what could go wrong with the payload and the kroner cells, with the reasoning in `docs/ai-log.md`, and has a "Planning documents:" line.
@@ -146,6 +146,35 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Review pass 1 (2026-11-15): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session; two findings (S) from the BMAD session's own diff check.
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | VG, BH | The non-small notice now counts document rows below the floor, and no test pins it. | medium | Every notice test renders the document benchmark as `OUTSIDE` (all `subject_absent`). The synthetic below-floor e2e has `smaa_foretak` false but asserts nothing about the notice. | patch |
+| 2 | VG | No test picks the negative midtre halvdel wording for days or turnover. | low | `middleHalfText` is tested with `percent` only. The 3.1b tests assert the positive forms. | patch |
+| 3 | BH | `src/analysis/key-figure-rows.ts` imports from `src/components/analysis/kroner-amount.ts`, so the view depends on the UI folder. | low | This is the only import from `src/components` in `src/analysis`. The two identical function bodies are intended, one per kind. | patch (move the module to `src/analysis`) |
+| 4 | BH | Two re-export shims are dead or nearly so. | low | Nothing imports `StripMarks` from `distribution-strip.tsx`. `DIRECTION_WORDS` is re-exported from `api-figures.tsx` only for `oversikt-hero.tsx`. | patch |
+| 5 | BH | Deviations from the frozen spec sit in Implementation Notes, not in the Spec Change Log. | low | Indenting row 6 and the phone column widths do not contradict the frozen block (decision 2 puts 6 in the group). The U+00A0 before "dager" deviates from decision 5's verbatim copy. Fixing this means editing this spec, so it goes to Meinich at the checkpoint. | reject (human) |
+| 6 | BH | New throw guards (`causeMessage` null, `middleHalfText` kroner, `profitCell`/`capitalCell` none) can 500 the page. | false | No state reaches them. A compared figure always has a gap (`driftsmarginGap` returns none only when not compared or `best` is null, `src/engine/benchmark.ts:47`; capital none is `no_comparison`, `target_not_positive` or `no_translation`, :134, :165, :227). 7 and 8 are `not_read_in_v1` first, so they are never compared or not-positive. | reject |
+| 7 | ECH | `middleHalfText` throws for a compared figure 7. | false | As 6: 7 and 8 are absent on every basis in v1 (`document-absence.ts`). | reject |
+| 8 | ECH | `profitCell`/`capitalCell` throw when the engine returns none for a compared figure. | false | As 6. | reject |
+| 9 | BH | The fixture's band guard hard-codes 1/4–4× instead of reading `SIZE_BANDS`. | low | If the widest band changes, the guard checks the wrong range and a listed company can join the comparison. | patch |
+| 10 | BH | In the AI log, item 5 names no test, and item 1's single-word-key limit has no follow-up. | low | AGENTS.md: every claim names its test. Item 5's guards are code only. | patch (docs) |
+| 11 | BH | The closure of Story 2.9's deferred entry reverses its rule (a prior column as fallback) and names no decision. | medium | The entry allowed a prior column when the year has no document. The closure says never. The rule actually in force is AD-15 "Basis, in order" (Story 2.9: no document row → document missing), which the closure does not cite. | patch (docs) |
+| 12 | BH | Story 3.7 in `epics.md` does not name the two deferred items moved to it. | low | AGENTS.md: a decision travels upstream in the PR that makes it. | patch (docs) |
+| 13 | BH | EXPERIENCE still says the cost-share cell jumps to the waterfall. | low | The code shows plain text until Story 3.3, and the epics AC says so. EXPERIENCE does not. | patch (docs) |
+| 14 | BH, ECH | The popover's Esc handler on `document` moves focus to the button from anywhere, and every open popover reacts. Hover-away is not tested. | low | `onKey` focuses the button whatever holds focus. With two popovers open, the last listener wins. The e2e test hovers only the text. | patch |
+| 15 | ECH | A tab-away does not close the popover. | false | EXPERIENCE "Info button" names Esc and tapping elsewhere as the closers, and says it stays open while hovered. Tab-away is not one of them. | reject |
+| 16 | BH | The failed-filing document-row e2e test skips 320 px. | low | The file's other tests loop over 1280, 375 and 320, and 320 is where the columns changed. | patch |
+| 17 | BH | `box.height < 30` in the phone check is tied to the font size. | low | The check passes and catches the overflow it was written for. A computed line-height adds complexity for no shown harm. | reject |
+| 18 | ECH | A capital gap under 0.5 kr shows "0 kr engangsbeløp". | low | Needs a subject within a fraction of a krone of T, which is rare. A fix needs new copy and a branch. | reject |
+| 19 | ECH | A merged cell's explicit `headers` omits the row-group heading in the cost-share group. | low | `headers` overrides scope association, so screen readers do not announce the group for merged cost-share cells. | patch |
+| 20 | ECH | The fixture's `brregId = orgnr` can clash with a seeded filing and give a raw unique violation. | low | No 9999980xx brreg id exists. A clash would fail loudly. | reject |
+| 21 | ECH | The øre scan skips document amounts under 6 digits. | low | This is the same threshold as the API scan, documented in `e2e/payload.ts`: short digit runs occur in ordinary page text. | reject |
+| 22 | ECH | Quartiles rounding to the same day show "33–33 dager". | low | The text is accurate and cosmetic. | reject |
+| 23 | S | `test/analysis/info-popover.test.ts` tests `nextOpen` only, so removing the component's listeners would not fail it. | low | `e2e/key-figures.spec.ts` "outside the demo data: document rows withheld" drives Esc, an outside click and focus return, and fails on that removal. | reject |
+| 24 | S | At 320 px "Ikke i demodataene" breaks inside the word in the own column. | low | `break-words` splits mid-word. Norwegian hyphenation (`hyphens-auto` under `lang="nb"`) breaks at a syllable instead. | patch |
 
 ## Verification
 

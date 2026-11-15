@@ -930,5 +930,19 @@ Mutation check: hashing the raw bytes again fails 19 tests, among them the first
 5. **An identity that holds only approximately.** Each figure is a reduced bigint fraction divided once; `test/engine/identities.test.ts` asserts fraction equality and `Decimal.eq` with no tolerance on every reference case and 5 000 seeded vectors each. Removing the reduction in `fraction()` fails it. The API figures' Decimal values are unchanged by the switch (the Story 1.4 reference cases pass as before).
 6. **R3 read from two filings.** `pnpm derive` and the request path now join the same filing through one fragment (B2); before, the request path read the benchmark filing's subtotal. 0 of 2 778 current columns differ today, so a value comparison alone could not fail; `test/db/document-filing.test.ts` fails on a request path that reads `k` because the select names an alias the shared joins do not define.
 7. **A reference value taken from the engine.** Each expected value is the printed figures as a fraction written in the test, and each figure the engine reads as stated is asserted equal to Meinich's transcription of the page (`test/engine/reference-cases.test.ts`). Lines printed but not read (NULL in the seed) leave their figures undefined, which the cases show: the reference set exercises the missing-component path more than the derived one.
-**Caught by:** Not yet reviewed. The implementation run removed each guard in the spec's I/O matrix and saw its test fail; two guards are held twice (a non-calendar candidate fails stage 2 on the period equality as well as on `isCalendarYear`; a failed prior column is caught both before and after the API check), and their tests fail only when both are removed.
-**Outcome:** Commits `875b4cd` to `2083aad` and the docs commit, on `story/3.1a-engine-key-figures`.
+**Caught by:**
+- **Before review.** The implementation run removed each guard in the spec's I/O matrix and saw its test fail. Two guards are held twice, and their tests fail only when both are removed:
+  - a non-calendar candidate fails stage 2 on the period equality as well as on `isCalendarYear`;
+  - a failed prior column is caught both before and after the API check.
+- **Matrix audit (BMAD session).** The frozen R3 row wrongly said that a `kundefordringer` above its subtotal makes figure 11 undefined. Figure 11 reads `bankinnskudd`, not `kundefordringer`, so the code was right and the row was corrected (Meinich, spec change log).
+- **Review pass 1** (Blind Hunter, Edge Case Hunter, Verification Gap) found seven defects, fixed in `dbc5140`:
+  - The request path's mapping of the prior column's `api_fail_fields` to `priorRevenueFailsApi` was untested (`test/analysis/document-basis-log.test.ts` "maps the prior column’s api_fail_fields to priorRevenueFailsApi").
+  - The capital kroner of 9 and 10 multiplied the 40-digit rounded ratio. They are now computed from the filed øre (`test/engine/document-benchmark.test.ts` "receivable / payable / turnover capital at full convergence").
+  - The reference cases' "printed, not read" claims were not asserted (`test/engine/reference-cases.test.ts` "{orgnr} {year}: the lines printed but not read").
+  - `capitalGap` had no test for an undefined own figure ("an undefined own figure: no comparison, no kroner").
+  - Small issues: inconsistent comments on when the prior column's `api_fail_fields` is null, a duplicated `COST_LINES`, and a silent `''` status default in the test oracle.
+  - Ten findings were rejected with their refutation. Two examples:
+    - A figure-11 amount over a subject without positive revenue cannot be reached, because such a subject has no peers.
+    - A null `valuta` cannot be reached either, because stage 2 requires a stated one.
+  - The triage is in the spec's Review Triage Log.
+**Outcome:** Commits `875b4cd` to `587fa86` (the engine, the tests, B1–B3, and the docs commit `ad7ef4e`), then the review fixes in `dbc5140`, on `story/3.1a-engine-key-figures`.

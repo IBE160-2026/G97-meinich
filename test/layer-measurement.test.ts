@@ -619,6 +619,16 @@ describe('main on synthetic files', () => {
     expect(() => assertNoLabelledOrgnr('totals only', [SUBJECT_A])).not.toThrow();
   });
 
+  // The v1 funnel switches the text signal off (Story 5.2, stage 5 not
+  // kept); the measurement keeps stage 5 as built. Its report on these
+  // synthetic files is held byte for byte, so a change of the funnel's
+  // default cannot move it.
+  it('writes the same report whatever the v1 funnel switches off', async () => {
+    expect(await main(root, deps(11))).toBe(0);
+    const report = readFileSync(path.join(root, ...reportFile('62.100').split('/')), 'utf8');
+    await expect(report).toMatchFileSnapshot('./fixtures/layer-measurement/synthetic-report.md');
+  });
+
   it('refuses an industry seed/coverage.json does not declare', async () => {
     writeFileSync(path.join(root, 'seed', 'coverage.json'), '[{"code": "62.200", "measured": false}]');
     expect(await main(root, deps(11))).toBe(1);

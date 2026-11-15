@@ -4,6 +4,8 @@
 seed/** -text
 analysis/output/** -text
 test/fixtures/seed/** -text
+# The measurement's synthetic report, compared byte for byte (Story 5.2).
+test/fixtures/layer-measurement/** -text
 # The OCR reference run's orgnr list is compared byte for byte with what
 # `pnpm ingest:document-set --reference` writes (Story 2.3).
 analysis/ocr-reference/document-run.json -text

@@ -610,6 +610,8 @@ export interface ReportInputs {
   readonly fingerprinted: number;
   readonly classificationModels: readonly string[];
   readonly promptHashes: readonly string[];
+  /** How many subjects have a type of their own on each signal (`subjectSignalCoverage`). */
+  readonly subjectSignals: SubjectSignals;
   /** YYYY-MM-DD. */
   readonly generated: string;
   readonly commit: string;
@@ -715,19 +717,96 @@ function stageFiveNote(outcomes: readonly PairOutcome[], measure: ReadonlyMap<st
   ];
 }
 
+/** Subjects with a type of their own on each signal: a subject without one keeps every candidate in that layer. */
+export interface SubjectSignals {
+  readonly subjects: number;
+  readonly fingerprintType: number;
+  readonly textType: number;
+  readonly both: number;
+}
+
+export function subjectSignalCoverage(subjects: readonly Pick<SubjectData, 'funnel'>[]): SubjectSignals {
+  const fingerprint = (s: Pick<SubjectData, 'funnel'>) => typeOf(s.funnel.fingerprint) !== null;
+  const text = (s: Pick<SubjectData, 'funnel'>) => s.funnel.classification !== null;
+  return {
+    subjects: subjects.length,
+    fingerprintType: subjects.filter(fingerprint).length,
+    textType: subjects.filter(text).length,
+    both: subjects.filter((s) => fingerprint(s) && text(s)).length,
+  };
+}
+
+/** The pairs labelled ja or nei that `include` takes, and the subjects they come from: what a difference rests on. */
+function decidedBasis(
+  outcomes: readonly PairOutcome[],
+  measure: ReadonlyMap<string, Label>,
+  include: (o: PairOutcome) => boolean,
+): { readonly pairs: number; readonly subjects: number } {
+  const decided = outcomes.filter((o) => {
+    const label = measure.get(pairKey(o.subject, o.candidate));
+    return (label === 'ja' || label === 'nei') && include(o);
+  });
+  return { pairs: decided.length, subjects: new Set(decided.map((o) => o.subject)).size };
+}
+
+const subjectsWord = (n: number) => `${n} clustered subject${n === 1 ? '' : 's'}`;
+
+/** The text (L3) against L1: informational, not fixed before the run, never deciding. */
+export function textAgainstL1(outcomes: readonly PairOutcome[], measure: ReadonlyMap<string, Label>) {
+  const l1 = metricsOf(outcomes, measure, (o) => o.inPool);
+  const l3 = metricsOf(outcomes, measure, (o) => o.l3);
+  return { l1, l3, verdict: ruleVerdict(l1, l3) };
+}
+
+const boundsText = (verdict: Verdict) =>
+  verdictText(verdict, 'would pass', 'would not pass');
+
+const fine = (value: Decimal | null) => (value === null ? 'ikke definert' : formatPercentagePointsFine(value.toString()));
+const deltas = (verdict: Verdict) => `${fine(verdict.precisionDelta)} precision, ${fine(verdict.recallDelta)} recall`;
+
+/** Whether the computed verdicts are the ones the 2026-11-15 decisions were made on: stage 5 not kept, both bands dropped. */
+export function decisionApplies(outcomes: readonly PairOutcome[], measure: ReadonlyMap<string, Label>): boolean {
+  return (
+    stageFive(outcomes, measure).verdict.kind === 'not_kept' &&
+    WIDENED_CATEGORIES.every((category) => bandRule(outcomes, measure, category).verdict.kind === 'not_kept')
+  );
+}
+
 /**
- * Meinich's band decision (2026-11-15), with the blind pairs' cost-of-goods
- * band figures read from the computation, never written as literals.
+ * The decisions (Meinich, 2026-11-15) in their order, with every figure read
+ * from the computation, never written as literals. Printed only when the
+ * computed verdicts are the ones they were made on; otherwise the decision
+ * is pending.
  */
-export function bandDecision(blind: readonly PairOutcome[], measure: ReadonlyMap<string, Label>): string[] {
-  const band = bandRule(blind, measure, 'costOfGoods');
+export function bandDecision(outcomes: readonly PairOutcome[], measure: ReadonlyMap<string, Label>): string[] {
+  if (!decisionApplies(outcomes, measure)) {
+    return [
+      '### The decision',
+      '',
+      'A decision on these verdicts is pending. The decisions recorded on 2026-11-15 were made on stage 5 not kept and both bands dropped, and the verdicts above differ.',
+    ];
+  }
+  const five = stageFive(outcomes, measure);
+  const all = bandRule(outcomes, measure, 'costOfGoods');
+  const blind = bandRule(outcomes.filter((o) => o.blind), measure, 'costOfGoods');
+  const text = textAgainstL1(outcomes, measure);
+  const noise = decidedBasis(outcomes, measure, (o) => o.inPool);
   return [
     '### The decision',
     '',
-    'Meinich (2026-11-15) followed the band rule\'s recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; ' +
+    'The order of the decisions (Meinich, 2026-11-15):',
+    '',
+    `1. **Stage 5 off, by the rule** fixed before the run (L2 against \`group\`: ${deltas(five.verdict)}).`,
+    '2. **Stage 4 off, by Meinich\'s decision.** Meinich followed the band rule\'s recommendation in the form that changes the group least: the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration; ' +
       '`src/engine/fingerprint.ts`, the bands, the stored fingerprints and `pnpm derive` are unchanged, so a later stage can measure again. ' +
-      `Meinich decided it from the rule and the blind pairs (${share(band.withBand.precision)} against ${share(band.withoutBand.precision)} precision, ${signedPp(band.verdict.recallDelta)} recall, cost-of-goods band with against without), ` +
-      'and because the band test cannot tell one band from the fingerprint. v1\'s group is therefore the stage 1–3 pool.',
+      `Meinich decided it from the rule on all pairs (cost-of-goods band, with against without: ${share(all.withBand.precision)} against ${share(all.withoutBand.precision)} precision, ${signedPp(all.verdict.recallDelta)} recall) ` +
+      `and the blind pairs (${share(blind.withBand.precision)} against ${share(blind.withoutBand.precision)} precision, ${signedPp(blind.verdict.recallDelta)} recall), ` +
+      'and because the band test cannot tell one band from the fingerprint.',
+    `3. **Text against L1 reported, not used.** It ${boundsText(text.verdict)} the same bounds (${deltas(text.verdict)}). ` +
+      `The comparison was not fixed before the run, and the gain lies within the noise (${noise.pairs} decided pairs in the pool, from ${subjectsWord(noise.subjects)}). ` +
+      'The decision follows the fixed rule, and question 26 fixes text against L1 before the next measurement.',
+    '',
+    'v1\'s group is therefore the stage 1–3 pool.',
   ];
 }
 
@@ -741,6 +820,7 @@ export function renderReport(inputs: ReportInputs): string {
   const inPool = outcomes.filter((o) => o.inPool);
   const outside = outcomes.length - inPool.length;
   const five = stageFive(outcomes, measure);
+  const fiveNoise = decidedBasis(outcomes, measure, (o) => o.l2 || o.group);
   const lines: string[] = [];
   const push = (...more: string[]) => lines.push(...more);
 
@@ -759,7 +839,7 @@ export function renderReport(inputs: ReportInputs): string {
     `- The measure is ${measure.size} pairs: the blind pairs, labelled by Meinich from description and website only, and the other pairs, whose label is computed from \`${REVENUE_MODEL_FILE}\` by the README rule. ` +
       'A ChatGPT model (OpenAI, version not recorded) filled in those revenue models, and Meinich went through and accepted them; nobody else labelled. ' +
       'For those pairs, the text layer (stage 5, a Claude model) is therefore one AI measured against another; the fingerprint and the industry code are not AI.',
-    '- There is no second labeller and no Cohen\'s κ in v1 (stage 2), so nothing here checks one labeller against another.',
+    '- There is no second labeller and no Cohen\'s κ in v1 (project stage 2), so nothing here checks one labeller against another.',
     `- Round 1 (\`${LABELS_ROUND1_FILE}\`, ${roundOne.size} pairs) is shown below as "den strengere lesningen" and decides nothing.`,
     '- `usikker` is left out of precision and recall and counted; a sensitivity table counts it as `ja` and as `nei`.',
     '',
@@ -771,15 +851,17 @@ export function renderReport(inputs: ReportInputs): string {
     '- **L1** includes a pair when the candidate is in today\'s stage 1–3 pool. Every labelled candidate was drawn from that pool.',
     '- **L2** includes it when the fingerprint signal is not `false`: the funnel with the subject\'s classification switched off. A missing fingerprint, an undetermined type or a subject with no type is a null signal, and the pair is kept.',
     '- **L3** includes it when the text signal is not `false`: the funnel with the subject\'s fingerprint switched off. `uklart`, a missing row and a subject with no type are null, and the pair is kept.',
-    '- **L2+L3** is `group`, the funnel as the app runs it; flagged pairs are shown apart from the rest of `group`.',
+    '- **L2+L3** is `group`, the funnel as built (both signals on): `assemblePeerGroup` is called with the measured options (`MEASURED`). Flagged pairs are shown apart from the rest of `group`.',
     '- Precision is `ja` / (`ja` + `nei`) among the included pairs; recall is the included `ja` / all `ja`, so recall counts within the stage 1–3 pool. "ikke definert" means there is no pair to divide by, never 0.',
     '',
     `Labelled companies with a fingerprint for the labelled year: ${inputs.fingerprinted} of ${inputs.companies}.`,
     `Database state read: ${inputs.fingerprinted} fingerprints; classifications by model ${codeList(inputs.classificationModels)} with prompt hash ${codeList(inputs.promptHashes)}.`,
+    `Subjects with a type of their own: ${inputs.subjectSignals.fingerprintType} of ${inputs.subjectSignals.subjects} on the fingerprint, ${inputs.subjectSignals.textType} on the text, ${inputs.subjectSignals.both} on both. ` +
+      `A subject without a type keeps every candidate in that layer, so L2 and the band rules move only on the pairs of the ${inputs.subjectSignals.fingerprintType} subjects with a fingerprint type, and L3 and the stage-5 rule only on those of the ${inputs.subjectSignals.textType} with a text type: the verdicts rest on few subjects.`,
     `Labelled candidates not in today's pool: ${outside} of ${outcomes.length}. They are in no layer, so a \`ja\` among them counts against every layer's recall.`,
     '',
     '**SM-1b.** An industry-code-only baseline also includes every labelled pair, so on these pairs it equals L1, the base rate. ' +
-      'The size band and stage 2 cannot be judged with this draw. SM-1b is the funnel against that base rate: a check, not a claim.',
+      'The size band and funnel stage 2 cannot be judged with this draw. SM-1b is the funnel against that base rate: a check, not a claim.',
     '',
     '## The layers (the measure)',
     '',
@@ -824,6 +906,8 @@ export function renderReport(inputs: ReportInputs): string {
     '',
     `**Verdict: ${stageFiveVerdict(five.verdict)}.**`,
     '',
+    `The verdict sits within the noise (${fiveNoise.pairs} decided pairs in L2 or \`group\`, from ${subjectsWord(fiveNoise.subjects)}), and the rule decides it by construction.`,
+    '',
     '## The bands (FR-13)',
     '',
     'Each band is left out by widening it to low–high in memory, in the subject\'s fingerprint and every candidate\'s, before the funnel runs; the rule is unchanged, so a type that depended on the band becomes undetermined and the pair is kept. ' +
@@ -843,7 +927,20 @@ export function renderReport(inputs: ReportInputs): string {
       `**Recommendation: ${bandVerdict(band.verdict)}.**`,
     );
   }
-  push('', ...bandDecision(outcomes.filter((o) => o.blind), measure));
+  const text = textAgainstL1(outcomes, measure);
+  const textNoise = decidedBasis(outcomes, measure, (o) => o.inPool);
+  push(
+    '',
+    '## The text against L1 (informational)',
+    '',
+    'With stage 4 off, v1\'s group is L1, so this compares the text (L3) with L1 by the same bounds. ' +
+      `This comparison was not fixed before the run, so it decides nothing, and its differences lie within the noise (${textNoise.pairs} decided pairs in the pool, from ${subjectsWord(textNoise.subjects)}).`,
+    '',
+    ...decidingTable(['L1 industry code and size', text.l1], ['L3 classification alone', text.l3], 'Difference', text.verdict),
+    '',
+    `By the same bounds, the text against L1 ${boundsText(text.verdict)}.`,
+  );
+  push('', ...bandDecision(outcomes, measure));
 
   const blind = outcomes.filter((o) => o.blind);
   const blindFive = stageFive(blind, measure);
@@ -890,6 +987,28 @@ export function renderReport(inputs: ReportInputs): string {
 
   push('', '## Round 1: den strengere lesningen', '', 'The first round of the non-blind pairs, labelled by a person more specifically than the rubric (README, "Labelling record"). Shown for comparison; it decides nothing.', '');
   push(...layerSection(outcomes, roundOne, false));
+  const roundOneText = textAgainstL1(outcomes, roundOne);
+  const roundOneFive = stageFive(outcomes, roundOne);
+  push(
+    '',
+    '### The rules on this reading (informational)',
+    '',
+    '| Rule | Verdict | Precision difference | Recall difference |',
+    '|---|---|---:|---:|',
+    `| Stage 5 (L2 against \`group\`) | ${stageFiveVerdict(roundOneFive.verdict)} | ${exactDelta(roundOneFive.verdict.precisionDelta, roundOneFive.fingerprintAndText.precisionFraction, roundOneFive.fingerprintAlone.precisionFraction)} | ${exactDelta(roundOneFive.verdict.recallDelta, roundOneFive.fingerprintAndText.recallFraction, roundOneFive.fingerprintAlone.recallFraction)} |`,
+  );
+  for (const category of WIDENED_CATEGORIES) {
+    const band = bandRule(outcomes, roundOne, category);
+    push(
+      `| ${BAND_NAME[category]} | ${bandVerdict(band.verdict)} | ${exactDelta(band.verdict.precisionDelta, band.withBand.precisionFraction, band.withoutBand.precisionFraction)} | ${exactDelta(band.verdict.recallDelta, band.withBand.recallFraction, band.withoutBand.recallFraction)} |`,
+    );
+  }
+  push(
+    `| Text against L1 | ${boundsText(roundOneText.verdict)} | ${exactDelta(roundOneText.verdict.precisionDelta, roundOneText.l3.precisionFraction, roundOneText.l1.precisionFraction)} | ${exactDelta(roundOneText.verdict.recallDelta, roundOneText.l3.recallFraction, roundOneText.l1.recallFraction)} |`,
+    '',
+    `The base rate (L1 precision) is ${share(textAgainstL1(outcomes, measure).l1.precision)} in the measure and ${share(roundOneText.l1.precision)} in this reading. ` +
+      'The two readings differ in how strictly "same main revenue model" was read, so the same layer looks different against them, and these verdicts decide nothing.',
+  );
   return `${lines.join('\n')}\n`;
 }
 
@@ -992,6 +1111,7 @@ export async function main(root: string, deps: Dependencies = DEFAULT_DEPENDENCI
       fingerprinted: data.fingerprinted,
       classificationModels: data.classificationModels,
       promptHashes: data.promptHashes,
+      subjectSignals: subjectSignalCoverage(data.subjects),
       generated: deps.today(),
       commit,
     });

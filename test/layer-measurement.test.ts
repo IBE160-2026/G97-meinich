@@ -18,6 +18,8 @@ import {
   type SubjectData,
   assertNoLabelledOrgnr,
   bandDecision,
+  decisionApplies,
+  subjectSignalCoverage,
   bandRule,
   CLEAN_PATHS,
   gitCommit,
@@ -39,7 +41,7 @@ import {
 } from '../scripts/layer-measurement.ts';
 import { Decimal } from '../src/engine/decimal.ts';
 import { businessType, BANDS, type BusinessType, type Fingerprint } from '../src/engine/fingerprint.ts';
-import { formatPercent, formatPercentagePoints } from '../src/engine/format.ts';
+import { formatPercent, formatPercentagePoints, formatPercentagePointsFine } from '../src/engine/format.ts';
 import type { CandidateFiling, FunnelSubject } from '../src/engine/peers.ts';
 
 // ------------------------------------------------------- synthetic world
@@ -155,7 +157,11 @@ function dataB(): SubjectData {
 }
 
 /** The database state a report records: synthetic values only. */
-const DB_STATE = { classificationModels: ['claude-haiku-5-5'], promptHashes: ['ab'.repeat(32)] } as const;
+const DB_STATE = {
+  classificationModels: ['claude-haiku-5-5'],
+  promptHashes: ['ab'.repeat(32)],
+  subjectSignals: { subjects: 1, fingerprintType: 1, textType: 1, both: 1 },
+} as const;
 
 /** Metrics with the given precision and recall (the counts do not enter the rule). */
 function m(precision: string, recall: string): Metrics {
@@ -538,28 +544,124 @@ describe('the rules on the blind pairs alone', () => {
   });
 });
 
+const pct = (n: number, d: number) => formatPercent(new Decimal(n).div(d).toString());
+const pp = (value: Decimal) => formatPercentagePoints(value.toString());
+const ppFine = (value: Decimal) => formatPercentagePointsFine(value.toString());
+
 describe("Meinich's band decision", () => {
-  it("takes the blind pairs' cost-of-goods figures from the computation, and says v1's group is the pool", () => {
-    // Blind: with the band 10 ja + 30 nei of 15 ja (25,0 %, recall 10/15);
-    // without it every pair (15 ja + 30 nei: 33,3 %, recall 15/15).
-    const { outcomes, labels } = fromCounts([
-      ...NEAR_BOUND,
-      { n: 10, label: 'ja', l2: true, group: true, blind: true },
-      { n: 30, label: 'nei', l2: true, group: true, blind: true },
-      { n: 5, label: 'ja', l2: false, group: false, blind: true },
-    ]);
-    const lines = bandDecision(outcomes.filter((o) => o.blind), labels);
-    const expected =
-      `(${formatPercent('0.25')} against ${formatPercent(new Decimal(15).div(45).toString())} precision, ` +
-      `${formatPercentagePoints(new Decimal(10).div(15).minus(1).toString())} recall`;
-    expect(lines.join(" ")).toContain(expected);
+  // NEAR_BOUND plus blind pairs: stage 5 not kept, both bands dropped, the
+  // verdicts the decisions were made on.
+  const decided = fromCounts([
+    ...NEAR_BOUND,
+    { n: 10, label: 'ja', l2: true, group: true, blind: true },
+    { n: 30, label: 'nei', l2: true, group: true, blind: true },
+    { n: 5, label: 'ja', l2: false, group: false, blind: true },
+  ]);
+
+  it('gives the order of the decisions with the all-pairs and blind figures from the computation', () => {
+    const { outcomes, labels } = decided;
+    expect(decisionApplies(outcomes, labels)).toBe(true);
+    const text = bandDecision(outcomes, labels).join(' ');
+    // 1: L2 164/461 against group 167/437; recall 164/226 against 167/226.
+    const fivePrecision = new Decimal(167).div(437).minus(new Decimal(164).div(461));
+    const fiveRecall = new Decimal(167).div(226).minus(new Decimal(164).div(226));
+    expect(text).toContain(`1. **Stage 5 off, by the rule** fixed before the run (L2 against \`group\`: ${ppFine(fivePrecision)} precision, ${ppFine(fiveRecall)} recall).`);
+    // 2: all pairs, cost-of-goods band with (L2, 164/461) against without (every pair, 226/523).
+    expect(text).toContain(`from the rule on all pairs (cost-of-goods band, with against without: ${pct(164, 461)} against ${pct(226, 523)} precision, ${pp(new Decimal(164).div(226).minus(1))} recall)`);
+    // and the blind pairs: with 10/40, without 15/45; recall 10/15 against 1.
+    expect(text).toContain(`and the blind pairs (${pct(10, 40)} against ${pct(15, 45)} precision, ${pp(new Decimal(10).div(15).minus(1))} recall)`);
+    // 3: text against L1: L3 (169 ja, 30 nei) against L1 (226 ja, 297 nei).
+    expect(text).toContain('3. **Text against L1 reported, not used.** It would not pass the same bounds');
+    expect(text).toContain('question 26 fixes text against L1 before the next measurement.');
+    expect(text).toContain("v1's group is therefore the stage 1–3 pool.");
     const report = reportOf(outcomes, labels);
     expect(report).toContain('### The decision');
-    expect(report).toContain(expected);
     expect(report).toContain('the fingerprint signal is switched off in v1, like the text signal, instead of dropping the bands with a migration');
-    expect(report).toContain("v1's group is therefore the stage 1–3 pool.");
+  });
+
+  it('says the decision is pending when the verdicts are not the ones it was made on', () => {
+    // Stage 5 kept on these pairs (see "the rules on the blind pairs alone").
+    const { outcomes, labels } = fromCounts([
+      ...NEAR_BOUND,
+      { n: 20, label: 'nei', l2: true, group: false },
+      { n: 10, label: 'ja', l2: true, group: true, blind: true },
+      { n: 10, label: 'nei', l2: true, group: true, blind: true },
+    ]);
+    expect(stageFive(outcomes, labels).verdict.kind).toBe('kept');
+    expect(decisionApplies(outcomes, labels)).toBe(false);
+    expect(bandDecision(outcomes, labels)).toEqual([
+      '### The decision',
+      '',
+      'A decision on these verdicts is pending. The decisions recorded on 2026-11-15 were made on stage 5 not kept and both bands dropped, and the verdicts above differ.',
+    ]);
+    const report = reportOf(outcomes, labels);
+    expect(report).toContain('A decision on these verdicts is pending.');
+    expect(report).not.toContain('Stage 5 off, by the rule');
+    expect(report).not.toContain('instead of dropping the bands with a migration');
+  });
+
+  it('says how the layers are read: both signals as built, v1 the pool, the two stages named apart', () => {
+    const report = reportOf(decided.outcomes, decided.labels);
     expect(report).toContain('with both signals on: stage 4 and stage 5 as built, which is what is measured.');
     expect(report).toContain("so v1's group is the stage 1–3 pool (L1).");
+    expect(report).toContain('- **L2+L3** is `group`, the funnel as built (both signals on): `assemblePeerGroup` is called with the measured options (`MEASURED`).');
+    expect(report).not.toContain('the funnel as the app runs it');
+    expect(report).toContain("no Cohen's κ in v1 (project stage 2)");
+    expect(report).toContain('The size band and funnel stage 2 cannot be judged');
+    expect(report.match(/(?<!funnel|project) stage 2/g)).toBeNull();
+  });
+});
+
+describe('the noise and the text against L1', () => {
+  const { outcomes, labels } = fromCounts(NEAR_BOUND);
+  const report = reportOf(outcomes, labels);
+
+  it('says after the stage-5 verdict that it sits within the noise, with the pairs and subjects it rests on', () => {
+    // L2 or group, ja or nei: 157 ja and 267 nei, all from subject A.
+    expect(report).toContain('The verdict sits within the noise (424 decided pairs in L2 or `group`, from 1 clustered subject), and the rule decides it by construction.');
+    expect(report.indexOf('The verdict sits within the noise')).toBeGreaterThan(report.indexOf('**Verdict: stage 5 is not kept.**'));
+  });
+
+  it('compares L3 with L1 by the same bounds, with fractions, and decides nothing', () => {
+    expect(report).toContain('## The text against L1 (informational)');
+    expect(report).toContain('This comparison was not fixed before the run, so it decides nothing, and its differences lie within the noise (478 decided pairs in the pool, from 1 clustered subject).');
+    expect(report).toContain(`| Difference | ${ppFine(new Decimal(1).minus(new Decimal(211).div(478)))} (154/154 − 211/478) | ${ppFine(new Decimal(154).div(211).minus(1))} (154/211 − 211/211) |`);
+    expect(report).toContain('By the same bounds, the text against L1 would not pass.');
+  });
+});
+
+describe('subject-level signal coverage', () => {
+  it('counts the subjects with a fingerprint type, a text type and both', () => {
+    const coverage = subjectSignalCoverage([
+      dataA(),
+      dataB(),
+      { funnel: funnelOf('920000000', UNDETERMINED, null) },
+      { funnel: funnelOf('930000000', null, 'produkt') },
+    ]);
+    expect(coverage).toEqual({ subjects: 4, fingerprintType: 2, textType: 3, both: 2 });
+  });
+
+  it('states the coverage and what it means for the verdicts', () => {
+    const report = reportOf(fromCounts(NEAR_BOUND).outcomes, fromCounts(NEAR_BOUND).labels);
+    expect(report).toContain('Subjects with a type of their own: 1 of 1 on the fingerprint, 1 on the text, 1 on both.');
+    expect(report).toContain('the verdicts rest on few subjects.');
+  });
+});
+
+describe('round 1: the rules as information', () => {
+  it('gives the stage-5, band and text-against-L1 verdicts and the two base rates', () => {
+    const { outcomes, labels } = fromCounts(NEAR_BOUND);
+    const report = renderReport({
+      industry: '62.100', subjects: [SUBJECT_A], outcomes, measure: labels, roundOne: labels,
+      companies: 8, fingerprinted: 7, ...DB_STATE, generated: '2026-11-15', commit: 'c'.repeat(40),
+    });
+    const round1 = report.slice(report.indexOf('## Round 1: den strengere lesningen'));
+    expect(round1).toContain('### The rules on this reading (informational)');
+    expect(round1).toContain('| Stage 5 (L2 against `group`) | stage 5 is not kept | ');
+    expect(round1).toContain('| Cost of goods share band | dropped | ');
+    expect(round1).toContain(`| Text against L1 | would not pass | ${ppFine(new Decimal(1).minus(new Decimal(211).div(478)))} (154/154 − 211/478) |`);
+    expect(round1).toContain(`The base rate (L1 precision) is ${pct(211, 478)} in the measure and ${pct(211, 478)} in this reading.`);
+    expect(round1).toContain('differ in how strictly "same main revenue model" was read');
   });
 });
 

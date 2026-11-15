@@ -1,7 +1,7 @@
 # Story 3.1a: the engine computes every key figure
 
 **Date:** 2026-11-15
-**Tool:** Claude Code (Opus 5.5), running `bmad-build`. The BMAD session dispatched an implementation subagent and three review subagents.
+**Tool:** Claude Code (Opus 5.5), running `bmad-build`. The BMAD session dispatched an implementation subagent and three review subagents; a separate review session wrote Meinich's prompts, recommended the decisions and checked the expected values.
 **Story / issue:** #66, Story 3.1a
 **Result:**
 - Spec: `f5125af`.
@@ -15,13 +15,27 @@ Compute every key figure in `docs/key-figures.md` in the engine, and pin each on
 
 ## Prompts that mattered
 
-- **Meinich's opening prompt** asked for a checkpoint before any code change, covering (a) to (h): deferred work, the key figures, derivation, reference cases, kroner, the floor, B1–B3 and the identities. Its rules: totals only for the labelled set, document figures only from allow-listed companies, and no push.
-- **Meinich's answers at the checkpoint (2026-11-15)**, recorded as decisions 1–6 in the spec:
-  - **Empty cost lines.** A remainder within ±5 kr is rounding and gives 0. With one empty line, a remainder above 5 kr is the line. Below −5 kr, or with several lines empty and the remainder outside ±5 kr, the lines are undefined. Meinich amended the BMAD session's proposal twice: first to derive one empty line from the remainder, then to treat ±5 kr as rounding in both cases.
-  - **Growth.** It is not read safely when the prior column's API check fails on revenue.
-  - **B1–B3.** All three as recommended.
-  - **Kroner outside NOK.** No amount, with its own reason.
-- **Meinich on the R3 matrix row:** "Koden følger docs/key-figures.md … og raden var feil."
+- **The prompts were written by the review session.** Meinich pasted in the review session's prompts, which also recommended the answers.
+- **The opening prompt** asked for a checkpoint before any code change, covering (a) to (h): deferred work, the key figures, derivation, reference cases, kroner, the floor, B1–B3 and the identities. Its rules came from the review session:
+  - totals only for the labelled set;
+  - document figures only from allow-listed companies;
+  - reference companies on the allow-list and outside the labelled set;
+  - no push.
+- **Decisions at the checkpoint (2026-11-15).** Each was taken by Meinich on the review session's recommendation and is recorded as decisions 1–6 in the spec:
+  1. **Empty cost lines.**
+     - The BMAD session proposed deriving empty lines as 0 when the stated lines sum to the total within 5 kr, leaving one empty line with a larger remainder undefined.
+     - The review session corrected this: one empty line is derived as the remainder, because AGENTS.md says "derive … do not default to zero".
+     - The ±5 kr band is rounding in both directions, also when the remainder is positive.
+     - Meinich took decision 1 in that form, on the review session's recommendation.
+  2. **Growth's prior column.** Growth is not read safely when the prior column's API check fails on revenue. Meinich decided this on the review session's recommendation.
+  3. **B1.** The fingerprint keeps the stated revenue (Meinich, on the review session's recommendation).
+  4. **B2.** One shared fragment, `register.document.brreg_id` (Meinich, on the review session's recommendation).
+  5. **B3.** The between-sources rule applies to API-bound remainders (Meinich, on the review session's recommendation).
+  6. **Kroner outside NOK.** No amount, with its own reason `not_nok` (Meinich, on the review session's recommendation).
+- **The R3 matrix row.** Meinich corrected the row: "Koden følger docs/key-figures.md … og raden var feil."
+- **The review session's independent check.** Before the PR, the review session recalculated every expected value of the ten document reference cases from Meinich's transcriptions, as fractions and without the engine.
+  - 99 of 100 agree.
+  - The one difference is intended: the prior column of 936252710 2024 failed reconciliation, so growth is undefined.
 
 ## What came back, and what was done with it
 

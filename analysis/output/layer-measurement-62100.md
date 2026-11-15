@@ -1,6 +1,6 @@
 # Layer-by-layer measurement, 62.100 (SM-1)
 
-Generated 2026-11-15 by `scripts/layer-measurement.ts` (`pnpm analysis:layers`) at commit `f54067b7ec91c153fd23bb0d198b100c5f41b92e`, with the reads in `scripts/layer-measurement-compute.ts`. Inputs: `analysis/labelled-set/drawn.json`, `analysis/labelled-set/labels-blind.csv`, `analysis/labelled-set/labels-revenue-model.csv` and `analysis/labelled-set/labels.csv` (Story 5.1), and the local database read as `reader`. The definitions were fixed in the Story 5.2 spec before the first run on the real labels. Totals only: no company, label, classification or fingerprint is given per orgnr.
+Generated 2026-11-15 by `scripts/layer-measurement.ts` (`pnpm analysis:layers`) at commit `cc0e9e455156fac73abe47e4e85ce922466f4cc6`, with the reads in `scripts/layer-measurement-compute.ts`. Inputs: `analysis/labelled-set/drawn.json`, `analysis/labelled-set/labels-blind.csv`, `analysis/labelled-set/labels-revenue-model.csv` and `analysis/labelled-set/labels.csv` (Story 5.1), and the local database read as `reader`. The definitions were fixed in the Story 5.2 spec before the first run on the real labels. Totals only: no company, label, classification or fingerprint is given per orgnr.
 
 This measures the funnel as it is and states no numeric target (NFR32).
 
@@ -14,7 +14,7 @@ This measures the funnel as it is and states no numeric target (NFR32).
 
 ## How the layers are read
 
-Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`, unchanged) at the Standard size band.
+Each subject is read as the analysis page reads it and assembled by `assemblePeerGroup(…, 0)` (`src/engine/peers.ts`) at the Standard size band, with the text signal on: stage 5 as built, which is what is measured.
 
 - **L1** includes a pair when the candidate is in today's stage 1–3 pool. Every labelled candidate was drawn from that pool.
 - **L2** includes it when the fingerprint signal is not `false`: the funnel with the subject's classification switched off. A missing fingerprint, an undetermined type or a subject with no type is a null signal, and the pair is kept.
@@ -126,9 +126,13 @@ Fixed in the PRD (§9) before any result: on all measure pairs, `usikker` left o
 
 | | Precision | Recall |
 |---|---:|---:|
-| Fingerprint alone (L2) | 36,6 % | 73,0 % |
-| Fingerprint and text (`group`) | 39,5 % | 74,4 % |
-| Difference | +3,0 pp | +1,4 pp |
+| Fingerprint alone (L2) | 36,6 % (154/421) | 73,0 % (154/211) |
+| Fingerprint and text (`group`) | 39,5 % (157/397) | 74,4 % (157/211) |
+| Difference | +2,967 pp (157/397 − 154/421) | +1,422 pp (157/211 − 154/211) |
+
+A difference of +2,967 pp shows as +3,0 pp at one decimal; the rule compares the exact value.
+
+L3, the classification alone, has the highest precision of the layers (40,6 %). The rule does not compare L3: it compares the funnel with and without the text over the fingerprint (L2 against `group`), and that is not changed now.
 
 **Verdict: stage 5 is not kept.**
 
@@ -140,9 +144,11 @@ Each band is left out by widening it to low–high in memory, in the subject's f
 
 | | Precision | Recall |
 |---|---:|---:|
-| L2 with the band | 36,6 % | 73,0 % |
-| L2 without the band | 36,6 % | 100,0 % |
-| Difference (with − without) | −0,1 pp | −27,0 pp |
+| L2 without the band | 36,6 % (211/576) | 100,0 % (211/211) |
+| L2 with the band | 36,6 % (154/421) | 73,0 % (154/211) |
+| Difference (with − without) | −0,052 pp (154/421 − 211/576) | −27,014 pp (154/211 − 211/211) |
+
+In practice "without the band" here became "without the fingerprint". The type rule reads the cost-of-goods band first (high is `forhandler`, low never is), so a fingerprint with this band widened to low–high can always give `forhandler` and another type, and its type is undetermined. Without the band the fingerprint signal is null for 900 of 900 pairs in the pool, against 557 with it. This test therefore cannot tell the band apart from the fingerprint. No definition is changed.
 
 **Recommendation: dropped.**
 
@@ -150,11 +156,57 @@ Each band is left out by widening it to low–high in memory, in the subject's f
 
 | | Precision | Recall |
 |---|---:|---:|
-| L2 with the band | 36,6 % | 73,0 % |
-| L2 without the band | 36,7 % | 93,8 % |
-| Difference (with − without) | −0,2 pp | −20,9 pp |
+| L2 without the band | 36,7 % (198/539) | 93,8 % (198/211) |
+| L2 with the band | 36,6 % (154/421) | 73,0 % (154/211) |
+| Difference (with − without) | −0,155 pp (154/421 − 198/539) | −20,853 pp (154/211 − 198/211) |
+
+The type rule reads the personnel-cost band only to tell `konsulent` (personnel cost mid or high, cost of goods low) from `annet`, so widening it leaves those types undetermined and keeps `forhandler` and `produkt`. Without the band the fingerprint signal is null for 805 of 900 pairs in the pool, against 557 with it. The closer the first count is to all pairs, the more "without the band" is again "without the fingerprint", and the less this test can tell the band apart from the fingerprint. No definition is changed.
 
 **Recommendation: dropped.**
+
+## The rules on the blind pairs alone (informational)
+
+The 180 blind pairs, labelled by a person from description and website only. The rules are decided on all pairs; this decides nothing.
+
+### Stage 5
+
+| | Precision | Recall |
+|---|---:|---:|
+| Fingerprint alone (L2) | 25,2 % (29/115) | 64,4 % (29/45) |
+| Fingerprint and text (`group`) | 26,4 % (29/110) | 64,4 % (29/45) |
+| Difference | +1,146 pp (29/110 − 29/115) | 0,000 pp (29/45 − 29/45) |
+
+Stage-5 rule on these pairs: stage 5 is not kept.
+
+### Cost of goods share band
+
+| | Precision | Recall |
+|---|---:|---:|
+| L2 without the band | 25,1 % (45/179) | 100,0 % (45/45) |
+| L2 with the band | 25,2 % (29/115) | 64,4 % (29/45) |
+| Difference (with − without) | +0,078 pp (29/115 − 45/179) | −35,556 pp (29/45 − 45/45) |
+
+Band rule on these pairs: dropped.
+
+### Personnel cost share band
+
+| | Precision | Recall |
+|---|---:|---:|
+| L2 without the band | 26,1 % (43/165) | 95,6 % (43/45) |
+| L2 with the band | 25,2 % (29/115) | 64,4 % (29/45) |
+| Difference (with − without) | −0,843 pp (29/115 − 43/165) | −31,111 pp (29/45 − 43/45) |
+
+Band rule on these pairs: dropped.
+
+## The verdicts with usikker counted (informational)
+
+The same rules on all measure pairs with `usikker` counted as `ja` and as `nei`. The verdicts above leave `usikker` out and decide; these decide nothing.
+
+| Rule | usikker left out (decides) | usikker as ja | usikker as nei |
+|---|---|---|---|
+| Stage 5 | stage 5 is not kept | stage 5 is not kept (same) | stage 5 is not kept (same) |
+| Cost of goods share band | dropped | dropped (same) | dropped (same) |
+| Personnel cost share band | dropped | dropped (same) | dropped (same) |
 
 ## Round 1: den strengere lesningen
 

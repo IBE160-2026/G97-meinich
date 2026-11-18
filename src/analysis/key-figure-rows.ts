@@ -17,7 +17,6 @@ import type {
   FigureBenchmark,
   KronerGap,
 } from '../engine/benchmark.ts';
-import { stripPosition } from '../engine/benchmark.ts';
 import type { DocumentKeyFigure } from '../engine/document-absence.ts';
 import {
   formatDays,
@@ -32,6 +31,9 @@ import { MIN_PEERS, type ApiKeyFigures, type Comparison, type Direction } from '
 import { t, type MessageId } from '../messages/index.ts';
 import { capitalAmountText, kronerAmountText } from './kroner-amount.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
+import { DIRECTION_WORDS, stripMarks, type StripMarks } from './strip-marks.ts';
+
+export { DIRECTION_WORDS, stripMarks, type StripMarks };
 
 /** A row's key: the API figure's (`ApiKeyFigures`) or the document figure's (`DOCUMENT_KEY_FIGURES`). */
 export type FigureKey = keyof ApiKeyFigures | DocumentKeyFigure;
@@ -116,26 +118,6 @@ export const KEY_FIGURE_GROUPS: readonly {
   { id: 'capital', heading: null, rows: ['oml', 'totalkapitalrentabilitet', 'egenkapitalandel', 'kontant'] },
   { id: 'context', heading: null, rows: ['vekst'] },
 ];
-
-/** A figure's direction in words: "↑ Høyere er bedre", "↓ Lavere er bedre", "Ingen retning". */
-export const DIRECTION_WORDS: Readonly<Record<Direction, MessageId>> = {
-  higher_is_better: 'keyFigures.dir.higher',
-  lower_is_better: 'keyFigures.dir.lower',
-  none: 'keyFigures.dir.none',
-};
-
-/** Mark positions as a share of the strip's width from the left, 0–1. Geometry, not figures. */
-export type StripMarks = {
-  readonly own: { readonly at: number; readonly clipped: boolean };
-  readonly median: number;
-  /** The midtre halvdel's ends, left and right as drawn. */
-  readonly bandFrom: number;
-  readonly bandTo: number;
-  /** Null for a figure with no direction. */
-  readonly best: number | null;
-  /** Lower is better: drawn mirrored and labelled "Bedre →". */
-  readonly mirrored: boolean;
-};
 
 /** A cell's visible text and, where it shows only a dash, what a screen reader hears instead. */
 export type CellText = { readonly text: string; readonly srOnly?: string };
@@ -250,20 +232,6 @@ export function middleHalfText(lower: string, upper: string, labelled: boolean, 
   const ids = MIDDLE_HALF[unit];
   const id = labelled ? (negative ? ids.labelledNegative : ids.labelled) : negative ? ids.negative : ids.plain;
   return t(id, { lo, hi });
-}
-
-/** The strip's marks from the engine's positions; `toNumber` only for geometry. */
-export function stripMarks(comparison: Compared, direction: Direction): StripMarks {
-  const at = (mark: Compared['median']) => stripPosition(mark, comparison, direction).at.toNumber();
-  const own = stripPosition(comparison.subject, comparison, direction);
-  return {
-    own: { at: own.at.toNumber(), clipped: own.clipped !== null },
-    median: at(comparison.median),
-    bandFrom: at(comparison.lowerQuartile),
-    bandTo: at(comparison.upperQuartile),
-    best: comparison.best === null ? null : at(comparison.best.quartile),
-    mirrored: direction === 'lower_is_better',
-  };
 }
 
 /**

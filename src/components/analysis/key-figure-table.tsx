@@ -1,164 +1,41 @@
-// The Nøkkeltall og gap tab's table (Story 1.8; FR-22, FR-24, FR-27, FR-29;
-// EXPERIENCE.md "Benchmark row", "Benchmark table semantics",
-// "Distribution strip", "Scroll container", "Responsive"): the three API
-// figures against the shown group, each with own value, median, beste
-// fjerdedel, Plassering, a distribution strip with the midtre halvdel as
-// text, and the gap in kroner at full convergence.
+// The Nøkkeltall og gap tab's table (Stories 1.8, 3.1b; FR-21–FR-24, FR-27,
+// FR-29, FR-55, FR-56, FR-71; EXPERIENCE.md "Benchmark row", "Benchmark
+// table semantics", "Distribution strip", "Scroll container", "Responsive",
+// "State Patterns"): every key figure of `docs/key-figures.md` against the
+// shown group, in its order, one `<tbody>` per group. Each row has own
+// value, median, beste fjerdedel, Plassering, a distribution strip with the
+// midtre halvdel as text, and the gap in kroner at full convergence; the
+// cost shares sit in their own row group under a `th scope="rowgroup"`
+// heading. No sort control and no `aria-sort` (decision 8).
 //
-// A server component. The engine's benchmark comes in; only formatted
-// strings and the strip's mark positions go out (AD-4): no peer value, orgnr
-// or filing id reaches the page. Every number goes through format.ts and
-// every word through t().
+// A server component. The rows come from `keyFigureTableView`
+// (src/analysis/key-figure-rows.ts) as strings and strip geometry only
+// (AD-4): no peer value, orgnr, document line or filing id reaches the page.
+// The two client modules it renders, the phone row toggle and the info
+// popover, receive only those strings.
 //
 // Two tables, one shown at a time (display: none hides the other from
 // assistive technology too): seven columns in a horizontal scroll region
 // from `md` up, and below it a three-column table (Nøkkeltall · own · Gap i
 // kroner) whose row names open a full-width expansion row.
 import type { ReactNode } from 'react';
-import { stripPosition, type ApiBenchmark, type FigureBenchmark } from '@/engine/benchmark';
-import { formatPercent, formatPercentNumber, formatWholePercent } from '@/engine/format';
-import { MIN_PEERS, type ApiKeyFigures, type Comparison } from '@/engine/types';
-import { t, type MessageId } from '@/messages';
-import { absenceText } from '@/analysis/figure-text';
-import { DIRECTION_WORDS, FIGURES } from './api-figures';
-import { DistributionStrip, type StripMarks } from './distribution-strip';
-import { kronerAmountText } from './kroner-amount';
+import type { ApiBenchmark, DocumentBenchmark } from '@/engine/benchmark';
+import { t } from '@/messages';
+import {
+  keyFigureTableView,
+  type CellText,
+  type GapCell,
+  type KeyFigureRow,
+} from '@/analysis/key-figure-rows';
+import { DistributionStrip } from './distribution-strip';
+import { InfoPopover } from './info-popover';
 import { PhoneRowToggle } from './phone-row-toggle';
 import { StateBlock } from './state-block';
 
-type FigureKey = keyof ApiKeyFigures;
-type Compared = Extract<Comparison, { readonly kind: 'compared' }>;
-
-/** A cell's visible text and, where it shows only a dash, what a screen reader hears instead. */
-type CellText = { readonly text: string; readonly srOnly?: string };
-
-/** The kroner cell: the main text (an amount is 600), an optional slate subline. */
-type GapCell = { readonly text: string; readonly sub?: string; readonly srOnly?: string; readonly amount: boolean };
-
-type RowModel = {
-  readonly key: FigureKey;
-  readonly label: string;
-  readonly subline: string;
-  readonly direction: string;
-  readonly counts: string;
-  /** The own value, or "Kan ikke beregnes: …". */
-  readonly own: string;
-  readonly ownDefined: boolean;
-  readonly comparison:
-    | {
-        readonly kind: 'compared';
-        readonly median: string;
-        readonly best: CellText;
-        readonly placement: CellText;
-        readonly middleHalf: string;
-        readonly strip: StripMarks;
-      }
-    | { readonly kind: 'below_floor'; readonly text: string; readonly short: string }
-    | { readonly kind: 'subject_absent' };
-  readonly gap: GapCell | null;
-};
-
 const DASH = '–';
 
-/** "midtre halvdel 18,4–49,0 %", or "… −6,3 til 9,1 %" when a bound is negative; "Midtre halvdel: …" with no direction. */
-export function middleHalfText(lower: string, upper: string, labelled: boolean): string {
-  const lo = formatPercentNumber(lower);
-  const hi = formatPercentNumber(upper);
-  const negative = lo.startsWith('−') || hi.startsWith('−');
-  const id: MessageId = labelled
-    ? negative
-      ? 'keyFigures.middleHalfLabelledNegative'
-      : 'keyFigures.middleHalfLabelled'
-    : negative
-      ? 'keyFigures.middleHalfNegative'
-      : 'keyFigures.middleHalf';
-  return t(id, { lo, hi });
-}
-
-/** The strip's marks from the engine's positions; `toNumber` only for geometry. */
-export function stripMarks(comparison: Compared, direction: FigureBenchmark['direction']): StripMarks {
-  const at = (value: Compared['median']) => stripPosition(value, comparison, direction).at.toNumber();
-  const own = stripPosition(comparison.subject, comparison, direction);
-  return {
-    own: { at: own.at.toNumber(), clipped: own.clipped !== null },
-    median: at(comparison.median),
-    bandFrom: at(comparison.lowerQuartile),
-    bandTo: at(comparison.upperQuartile),
-    best: comparison.best === null ? null : at(comparison.best.quartile),
-    mirrored: direction === 'lower_is_better',
-  };
-}
-
-function gapCell(key: FigureKey, figure: FigureBenchmark): GapCell | null {
-  if (figure.comparison.kind !== 'compared') return null;
-  if (figure.direction === 'none') {
-    return { text: DASH, srOnly: t('keyFigures.notApplicableNoDirection'), amount: false };
-  }
-  if (key !== 'driftsmargin') return { text: t('keyFigures.noKroner'), amount: false };
-  const gap = figure.gap;
-  if (gap.kind === 'amount') {
-    return { text: kronerAmountText(gap), sub: t('keyFigures.perYear'), amount: true };
-  }
-  if (gap.kind === 'strength') return { text: t('keyFigures.strength'), amount: false };
-  if (gap.kind === 'not_nok') return { text: t('keyFigures.notInKroner'), amount: false };
-  return null;
-}
-
-function rowModel(
-  key: FigureKey,
-  label: MessageId,
-  denominator: MessageId,
-  figure: FigureBenchmark,
-  filingYear: number,
-): RowModel {
-  const c = figure.comparison;
-  const direction = t(DIRECTION_WORDS[figure.direction]);
-  const counts = t('keyFigures.counts', { n: String(c.count), k: String(c.leftOut) });
-  const own =
-    c.kind === 'subject_absent'
-      ? absenceText(c.absence, { denominator, filingYear })
-      : formatPercent(c.subject.toString());
-  const noDirection: CellText = { text: DASH, srOnly: t('keyFigures.notApplicableNoDirection') };
-  let comparison: RowModel['comparison'];
-  if (c.kind === 'compared') {
-    comparison = {
-      kind: 'compared',
-      median: formatPercent(c.median.toString()),
-      best: c.best === null ? noDirection : { text: formatPercent(c.best.quartile.toString()) },
-      placement:
-        c.best === null
-          ? noDirection
-          : { text: t('keyFigures.placement', { v: formatWholePercent(c.best.percentile.toString()) }) },
-      middleHalf: middleHalfText(c.lowerQuartile.toString(), c.upperQuartile.toString(), figure.direction === 'none'),
-      strip: stripMarks(c, figure.direction),
-    };
-  } else if (c.kind === 'below_floor') {
-    const vars = { n: String(c.count), min: String(MIN_PEERS) };
-    comparison = {
-      kind: 'below_floor',
-      text: t('keyFigures.belowFloor', vars),
-      short: t('keyFigures.belowFloorShort', vars),
-    };
-  } else {
-    comparison = { kind: 'subject_absent' };
-  }
-  return {
-    key,
-    label: t(label),
-    subline: `${direction} · ${counts}`,
-    direction,
-    counts,
-    own,
-    ownDefined: c.kind !== 'subject_absent',
-    comparison,
-    gap: gapCell(key, figure),
-  };
-}
-
-/** Whether the non-small notice is shown: a subject that is not a small enterprise, with any figure below the floor. */
-export function showNonSmallNotice(benchmark: ApiBenchmark, smaaForetak: boolean | null): boolean {
-  return smaaForetak === false && FIGURES.some((figure) => benchmark[figure.key].comparison.kind === 'below_floor');
-}
+/** The State block every "Ikke i demodataene" cell points to with aria-describedby. */
+export const NOT_IN_DATASET_ID = 'kf-not-in-dataset';
 
 function Text({ cell, className }: { readonly cell: CellText; readonly className?: string }) {
   if (cell.srOnly === undefined) return <span className={className}>{cell.text}</span>;
@@ -181,6 +58,23 @@ function Gap({ gap }: { readonly gap: GapCell }) {
   );
 }
 
+/** The own cell's content: the value or the absence's words, and the info button outside the demo data. */
+function Own({ row, popoverId, detail }: { readonly row: KeyFigureRow; readonly popoverId: string; readonly detail: boolean }) {
+  return (
+    <>
+      {row.own.text}
+      {row.own.notInDataset ? (
+        <InfoPopover id={popoverId} label={t('keyFigures.moreAbout')} text={t('keyFigures.notInDataset.popover')} />
+      ) : null}
+      {detail && row.own.detail !== null ? (
+        <span className="mt-1 block text-[13px] text-slate">{row.own.detail}</span>
+      ) : null}
+    </>
+  );
+}
+
+const describedBy = (row: KeyFigureRow): string | undefined => (row.own.notInDataset ? NOT_IN_DATASET_ID : undefined);
+
 // Column ids, unique on the page: desktop `kf-d-…`, phone `kf-p-…`.
 const COL = {
   figure: 'kf-d-col-figure',
@@ -193,21 +87,29 @@ const COL = {
 } as const;
 /** The five columns a merged comparison cell spans. */
 const SPANNED = [COL.median, COL.best, COL.placement, COL.distribution, COL.gap] as const;
+const DESKTOP_COLUMNS = 7;
+const PHONE_COLUMNS = 3;
 
 const cell = 'py-3 pr-4 align-top';
 const headCell = 'py-2 pr-4 text-left align-bottom font-semibold';
+// The rule between two groups (decision 1).
+const groupRule = 'border-t-2 border-divider';
 
-function DesktopRow({ row }: { readonly row: RowModel }) {
+function DesktopRow({ row, groupHeadingId }: { readonly row: KeyFigureRow; readonly groupHeadingId: string | null }) {
   const rowId = `kf-d-row-${row.key}`;
   const c = row.comparison;
   return (
     <tr className="border-b border-divider" data-figure={row.key}>
-      <th scope="row" id={rowId} className={`${cell} text-left font-normal`}>
+      <th scope="row" id={rowId} className={`${cell} text-left font-normal ${row.indent ? 'pl-[30px]' : ''}`}>
         <span className="block font-semibold">{row.label}</span>
         <span className="block text-[13px] text-slate">{row.subline}</span>
       </th>
-      <td className={`figure ${cell} ${row.ownDefined ? 'whitespace-nowrap' : 'min-w-40'}`} data-cell="own">
-        {row.own}
+      <td
+        className={`figure ${cell} ${row.own.defined ? 'whitespace-nowrap' : 'min-w-40'}`}
+        data-cell="own"
+        aria-describedby={describedBy(row)}
+      >
+        <Own row={row} popoverId={`kf-d-pop-${row.key}`} detail />
       </td>
       {c.kind === 'compared' ? (
         <>
@@ -231,7 +133,7 @@ function DesktopRow({ row }: { readonly row: RowModel }) {
       ) : (
         <td
           colSpan={SPANNED.length}
-          headers={`${SPANNED.join(' ')} ${rowId}`}
+          headers={[...SPANNED, rowId, ...(groupHeadingId === null ? [] : [groupHeadingId])].join(' ')}
           className={`${cell} text-slate italic`}
           data-cell="merged"
         >
@@ -251,7 +153,7 @@ function ExpansionItem({ label, children }: { readonly label: string; readonly c
   );
 }
 
-function PhoneRow({ row }: { readonly row: RowModel }) {
+function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
   const c = row.comparison;
   let gap: ReactNode;
   if (c.kind === 'below_floor') gap = <span className="text-slate italic">{c.short}</span>;
@@ -260,11 +162,12 @@ function PhoneRow({ row }: { readonly row: RowModel }) {
   return (
     <PhoneRowToggle
       expansionId={`kf-p-exp-${row.key}`}
+      indent={row.indent}
       label={<span className="font-semibold hyphens-auto">{row.label}</span>}
       cells={
         <>
-          <td className="figure py-2 pr-3 align-top break-words" data-cell="own">
-            {row.own}
+          <td className="figure py-2 pr-2 align-top break-words hyphens-auto" data-cell="own" aria-describedby={describedBy(row)}>
+            <Own row={row} popoverId={`kf-p-pop-${row.key}`} detail={false} />
           </td>
           <td className="figure py-2 align-top break-words" data-cell="gap">
             {gap}
@@ -272,8 +175,9 @@ function PhoneRow({ row }: { readonly row: RowModel }) {
         </>
       }
       expansion={
-        <td colSpan={3} className="px-2 py-2">
+        <td colSpan={PHONE_COLUMNS} className="px-2 py-2">
           {c.kind === 'below_floor' ? <p className="m-0 py-1 text-[13px] text-slate italic">{c.text}</p> : null}
+          {row.own.detail !== null ? <p className="m-0 py-1 text-[13px] text-slate">{row.own.detail}</p> : null}
           <dl className="m-0 text-[13px]">
             {c.kind === 'compared' ? (
               <>
@@ -301,13 +205,26 @@ function PhoneRow({ row }: { readonly row: RowModel }) {
   );
 }
 
+/** A row group's heading row: `th scope="rowgroup"` across the table. */
+function GroupHeading({ id, heading, columns }: { readonly id: string; readonly heading: string; readonly columns: number }) {
+  return (
+    <tr className="border-b border-divider">
+      <th scope="rowgroup" id={id} colSpan={columns} className="py-2 pr-4 text-left text-[13px] font-semibold text-slate">
+        {heading}
+      </th>
+    </tr>
+  );
+}
+
 export function KeyFigureTable({
   benchmark,
+  documentBenchmark,
   companyName,
   smaaForetak,
   filingYear,
 }: {
   readonly benchmark: ApiBenchmark;
+  readonly documentBenchmark: DocumentBenchmark;
   /** The own column's head: the company's name. */
   readonly companyName: string;
   /** The subject's filing's smaaForetak: false shows the notice when any figure is below the floor. */
@@ -315,16 +232,23 @@ export function KeyFigureTable({
   /** The benchmark filing's year, for an absence's words. */
   readonly filingYear: number;
 }) {
-  const rows = FIGURES.map((figure) =>
-    rowModel(figure.key, figure.label, figure.denominator, benchmark[figure.key], filingYear),
-  );
+  const view = keyFigureTableView({ api: benchmark, document: documentBenchmark, filingYear, smaaForetak });
   return (
     <div className="mt-2" data-testid="key-figure-table">
       <p className="m-0 text-[13px] text-slate">{t('keyFigures.topNote')}</p>
-      {showNonSmallNotice(benchmark, smaaForetak) ? (
-        <div className="mt-4">
+      {view.nonSmall ? (
+        <div className="mt-4" data-testid="non-small-notice">
           <StateBlock>
             <p className="m-0">{t('keyFigures.nonSmall')}</p>
+          </StateBlock>
+        </div>
+      ) : null}
+      {view.notInDataset ? (
+        <div className="mt-4" data-testid="not-in-dataset-notice">
+          <StateBlock>
+            <p className="m-0" id={NOT_IN_DATASET_ID}>
+              {t('keyFigures.notInDataset.state')}
+            </p>
           </StateBlock>
         </div>
       ) : null}
@@ -362,11 +286,20 @@ export function KeyFigureTable({
               </th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map((row) => (
-              <DesktopRow key={row.key} row={row} />
-            ))}
-          </tbody>
+          {view.groups.map((group, i) => (
+            <tbody key={group.id} data-group={group.id} className={i > 0 ? groupRule : undefined}>
+              {group.heading !== null ? (
+                <GroupHeading id={`kf-d-group-${group.id}`} heading={group.heading} columns={DESKTOP_COLUMNS} />
+              ) : null}
+              {group.rows.map((row) => (
+                <DesktopRow
+                  key={row.key}
+                  row={row}
+                  groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null}
+                />
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
 
@@ -374,10 +307,11 @@ export function KeyFigureTable({
         <caption className="sr-only">{t('keyFigures.caption')}</caption>
         <thead>
           <tr className="border-b border-divider text-[13px] text-slate">
-            <th scope="col" id="kf-p-col-figure" className="w-[40%] py-2 pr-3 text-left align-bottom font-semibold">
+            {/* The gap column is the widest, so a one-off amount of nine digits and "engangsbeløp" fit at 320 px. */}
+            <th scope="col" id="kf-p-col-figure" className="w-[34%] py-2 pr-3 text-left align-bottom font-semibold">
               {t('keyFigures.col.figure')}
             </th>
-            <th scope="col" id="kf-p-col-own" className="py-2 pr-3 text-left align-bottom font-semibold break-words">
+            <th scope="col" id="kf-p-col-own" className="w-[26%] py-2 pr-2 text-left align-bottom font-semibold break-words">
               {companyName}
             </th>
             <th scope="col" id="kf-p-col-gap" className="py-2 text-left align-bottom font-semibold">
@@ -385,11 +319,16 @@ export function KeyFigureTable({
             </th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row) => (
-            <PhoneRow key={row.key} row={row} />
-          ))}
-        </tbody>
+        {view.groups.map((group, i) => (
+          <tbody key={group.id} data-group={group.id} className={i > 0 ? groupRule : undefined}>
+            {group.heading !== null ? (
+              <GroupHeading id={`kf-p-group-${group.id}`} heading={group.heading} columns={PHONE_COLUMNS} />
+            ) : null}
+            {group.rows.map((row) => (
+              <PhoneRow key={row.key} row={row} />
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   );

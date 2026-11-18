@@ -2,18 +2,26 @@
 // through the app's own reader client: a covered company (demo A), demo
 // company C (uncovered), a covered company with no filing, and an absent
 // orgnr. The reader connection is read-only. Read-only itself.
+import postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
 import { DEMO_COMPANIES } from '../../src/demo-companies.ts';
-import { setting } from './db-env.ts';
+import type { CandidateRow, SubjectRow } from '../../src/server/analysis.ts';
+import { setting, supabaseDbUrl } from './db-env.ts';
 
 const url = setting('READER_DATABASE_URL');
 if (url === undefined) throw new Error('READER_DATABASE_URL is not set; run `pnpm db:roles`');
 process.env.READER_DATABASE_URL = url;
 
 const { readerSql } = await import('../../src/server/db.ts');
-const { SUBJECT_SQL, loadSubject, lookupSubject } = await import('../../src/server/analysis.ts');
+const { CANDIDATES_SQL, SUBJECT_SQL, loadSubject, lookupSubject, toCandidate, toSubject } = await import(
+  '../../src/server/analysis.ts'
+);
+
+// The owner, for the one test that writes, in a transaction it always rolls back.
+const owner = postgres(supabaseDbUrl(), { max: 1, onnotice: () => {} });
 
 afterAll(async () => {
+  await owner.end();
   await readerSql().end();
   delete (globalThis as { peerlessReaderSql?: unknown }).peerlessReaderSql;
 });
@@ -114,5 +122,88 @@ describe('the reader connection', () => {
 
   it('refuses a write even where reader would have a grant', async () => {
     await expect(readerSql()`create temporary table peerless_write_probe (x int)`).rejects.toThrow(/read-only/);
+  });
+});
+
+// Story 2.9's deferred entry, taken in by Story 3.1b (decision 6): a year's
+// document figures come from that year's own document, its current column,
+// and a later document's prior column never stands in for it. A synthetic
+// company in a transaction that is always rolled back, as the database
+// owner: its newest filing is 2024, and the 2025 document holds a
+// reconciled prior column for 2024. Read through the request path's own
+// queries and row mappers.
+describe('the document basis of a year', () => {
+  class Rollback extends Error {}
+  const ORGNR = '999998143';
+  const BRREG_ID = '9999981430';
+  const COMMIT = 'b'.repeat(40);
+
+  async function documentFor(tx: postgres.TransactionSql, year: number, columns: readonly ('current' | 'prior')[], revenue: string) {
+    await tx`
+      insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+      values (${ORGNR}, ${year}, 'generated', 'reconciled', 'NOK', 'NOK', now(), 'demo', ${COMMIT})`;
+    for (const role of columns) {
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, c5, status, api_check,
+                                              api_fail_fields, digits_pass_fields, dataset, sum_driftsinntekter_ore,
+                                              sum_driftskostnad_ore, driftsresultat_ore)
+        values (${ORGNR}, ${year}, ${role}, ${role === 'current' ? year : year - 1}, 'pass', 'not_evaluable', 'pass',
+                'not_evaluable', 'not_evaluable', 'reconciled', 'not_evaluable', '{}', '{}', 'demo', ${revenue}, '0', ${revenue})`;
+    }
+  }
+
+  async function bases(withOwnDocument: boolean) {
+    let read: { subject: unknown; candidate: unknown } = { subject: null, candidate: null };
+    try {
+      await owner.begin(async (tx) => {
+        await tx`
+          insert into register.company (orgnr, navn, organisasjonsform, naeringskode1, read_at)
+          values (${ORGNR}, 'SYNTETISK ÅRSTEST AS', 'AS', '62.100', now())`;
+        await tx`
+          insert into register.filing (orgnr, regnskapstype, periode_fra, periode_til, brreg_id, filing_year, valuta,
+                                       regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at)
+          values (${ORGNR}, 'SELSKAP', '2024-01-01', '2024-12-31', ${BRREG_ID}, 2024, 'NOK',
+                  'regnskapslovenAlminneligRegler', true, false, 'api_whole_units', 'not_extracted', now())`;
+        await tx`insert into register.key_figures (brreg_id, sum_driftsinntekter_ore) values (${BRREG_ID}, '200000000')`;
+        // The 2025 document, whose prior column states 2024 (revenue 1 111 111 kr).
+        await documentFor(tx, 2025, ['current', 'prior'], '111111100');
+        // The year's own document (revenue 2 000 000 kr), when there is one.
+        if (withOwnDocument) await documentFor(tx, 2024, ['current'], '200000000');
+        const listed = await tx`
+          update register.dataset
+             set manifest = jsonb_set(manifest, '{document_figure_orgnrs}',
+                                      (manifest -> 'document_figure_orgnrs') || to_jsonb(${ORGNR}::text))`;
+        expect(listed.count).toBe(1);
+        const [subjectRow] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [ORGNR]);
+        const candidateRows = await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, ['000000000', '62.100', 2024]);
+        const candidateRow = candidateRows.find((row) => row.orgnr === ORGNR);
+        if (subjectRow === undefined || candidateRow === undefined) throw new Error('the synthetic company was not read');
+        read = { subject: toSubject(subjectRow).filing?.documentBasis, candidate: toCandidate(candidateRow).documentBasis };
+        throw new Rollback();
+      });
+    } catch (error) {
+      if (!(error instanceof Rollback)) throw error;
+    }
+    return read;
+  }
+
+  const revenueOf = (basis: unknown): string | null => {
+    const read = basis as { kind: string; current?: { sumDriftsinntekter: { kind: string; ore?: bigint } } };
+    if (read.kind !== 'read') return null;
+    const figure = read.current?.sumDriftsinntekter;
+    return figure?.kind === 'value' ? String(figure.ore) : null;
+  };
+
+  it('a prior column never stands in for its year', async () => {
+    // No 2024 document: the 2025 document's prior column is not used.
+    const without = await bases(false);
+    expect(without.subject).toEqual({ kind: 'document_missing', filingYear: 2024 });
+    expect(without.candidate).toEqual({ kind: 'document_missing', filingYear: 2024 });
+    // With its own document, the year reads that document's current column.
+    const own = await bases(true);
+    expect(revenueOf(own.subject)).toBe('200000000');
+    expect(revenueOf(own.candidate)).toBe('200000000');
+    // Rolled back: nothing of it is left.
+    expect(await owner`select 1 from register.company where orgnr = ${ORGNR}`).toHaveLength(0);
   });
 });

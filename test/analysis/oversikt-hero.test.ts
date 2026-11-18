@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { KeyFigureTable } from '../../src/components/analysis/key-figure-table.tsx';
 import { OversiktHero } from '../../src/components/analysis/oversikt-hero.tsx';
 import { PeerList } from '../../src/components/analysis/peer-list.tsx';
-import { benchmarkApiFigures, type ApiBenchmark } from '../../src/engine/benchmark.ts';
+import { benchmarkApiFigures, benchmarkDocumentFigures, type ApiBenchmark } from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import type { EmptyReason } from '../../src/engine/peers.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
@@ -150,7 +150,13 @@ describe('the hero amount and the table', () => {
     ],
   ])('are the same string for %s', (_label, inputs, expected) => {
     const benchmark = amountOf(inputs);
-    const table = renderToString(createElement(KeyFigureTable, { benchmark, companyName: 'X AS', smaaForetak: true, filingYear: 2025 }));
+    const table = renderToString(createElement(KeyFigureTable, {
+      benchmark,
+      documentBenchmark: benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK'),
+      companyName: 'X AS',
+      smaaForetak: true,
+      filingYear: 2025,
+    }));
     const hero = byTestId(render(benchmark), 'hero-amount');
     expect(hero).toBe(expected);
     expect(hero).toBe(cell(table));

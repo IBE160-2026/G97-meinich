@@ -1,7 +1,8 @@
-// The key-figure table (Story 1.8) against the production build and the
-// loaded demo seed: every cell against the engine run on the seed, the
+// The key-figure table (Stories 1.8, 3.1b) against the production build and
+// the loaded demo seed: every cell against the engine run on the seed, the
 // scroll region, below the floor, `ekskl`, another currency, the phone
-// table and the payload.
+// table and the payload; since Story 3.1b, the document rows of a subject
+// outside the demo data, the info popover, and every row on the phone.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
@@ -111,7 +112,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
     const merged = cell(page, 'driftsmargin', 'merged');
     await expect(merged).toHaveText(`For få sammenlignbare (${narrow.count} av 10)`);
     await expect(merged).toHaveAttribute('colspan', '5');
-    await expect(page.getByTestId('state-block')).toHaveText(nb['keyFigures.nonSmall']);
+    await expect(page.getByTestId('non-small-notice')).toHaveText(nb['keyFigures.nonSmall']);
     await expect(region(page)).not.toContainText(/\d kr/);
 
     await page.goto(`/analyse/${belowFloor.orgnr}/nokkeltall?band=2`);
@@ -193,4 +194,116 @@ test.describe('the key-figure table (Story 1.8)', () => {
       marker: nb['keyFigures.regionLabel'],
     });
   });
+
+  // Story 3.1b: every document row, in key-figures order, and how they read
+  // for a subject outside the demo data (demo A is not on the manifest's list).
+  const ORDER = [
+    'driftsmargin',
+    'ebitda',
+    'vare',
+    'lonn',
+    'andre',
+    'total',
+    'omsArsverk',
+    'lonnArsverk',
+    'kfd',
+    'lgd',
+    'oml',
+    'totalkapitalrentabilitet',
+    'egenkapitalandel',
+    'kontant',
+    'vekst',
+  ];
+  // The document rows that take the subject's basis: 7 and 8 are not read in v1 on any basis.
+  const OUTSIDE_ROWS = ['ebitda', 'vare', 'lonn', 'andre', 'total', 'kfd', 'lgd', 'oml', 'kontant', 'vekst'];
+
+  test('outside the demo data: document rows withheld', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
+    await expect(region(page).locator('tr[data-figure]')).toHaveCount(ORDER.length);
+    expect(await region(page).locator('tr[data-figure]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-figure')))).toEqual(
+      ORDER,
+    );
+    // One State block, and every withheld cell points to it.
+    const state = page.getByText(nb['keyFigures.notInDataset.state']);
+    await expect(state).toHaveCount(1);
+    await expect(state).toBeVisible();
+    const stateId = await state.getAttribute('id');
+    expect(stateId).not.toBeNull();
+    for (const figure of OUTSIDE_ROWS) {
+      const own = cell(page, figure, 'own');
+      await expect(own, figure).toContainText(nb['analysis.figures.notInDataset']);
+      await expect(own, figure).toHaveAttribute('aria-describedby', stateId ?? '');
+      await expect(cell(page, figure, 'merged'), figure).not.toContainText(/\d/);
+    }
+    // The API rows are compared as for every company.
+    for (const figure of ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel']) {
+      await expect(cell(page, figure, 'median'), figure).toBeVisible();
+      await expect(cell(page, figure, 'own'), figure).not.toHaveAttribute('aria-describedby', /./);
+    }
+
+    // The info button: a real button named "Mer om dette", toggled by click, Enter and Space,
+    // closed by Esc (focus back on the button) and by a click outside.
+    const button = cell(page, 'kfd', 'own').getByRole('button', { name: nb['keyFigures.moreAbout'] });
+    await expect(button).toHaveText(/ⓘ/);
+    const text = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await expect(text).toBeHidden();
+    await button.click();
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await expect(text).toHaveText(nb['keyFigures.notInDataset.popover']);
+    await expect(text).toBeVisible();
+    // It stays open while hovered, and when the pointer moves over the text.
+    await text.hover();
+    await expect(text).toBeVisible();
+    // Moving the pointer away does not close it either.
+    await page.mouse.move(5, 5);
+    await expect(text).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(text).toBeHidden();
+    await expect(button).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(text).toBeVisible();
+    await page.keyboard.press('Space');
+    await expect(text).toBeHidden();
+    await button.click();
+    await expect(text).toBeVisible();
+    await page.getByRole('heading', { level: 2 }).click();
+    await expect(text).toBeHidden();
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  for (const width of [375, 320]) {
+    test(`phone: every row expands, no sideways scroll (${width} px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
+      const phone = page.locator('table[data-layout="phone"]');
+      await expect(phone).toBeVisible();
+      // The cost-share row group's heading spans the three columns.
+      await expect(phone.locator('th[scope="rowgroup"]')).toHaveText(nb['keyFigures.costShare.group']);
+      await noSidewaysScroll(page);
+      const buttons = phone.locator('button[aria-controls^="kf-p-exp-"]');
+      expect(await buttons.evaluateAll((all) => all.map((b) => b.getAttribute('aria-controls')))).toEqual(
+        ORDER.map((figure) => `kf-p-exp-${figure}`),
+      );
+      for (const figure of ORDER) {
+        const button = phone.locator(`button[aria-controls="kf-p-exp-${figure}"]`);
+        const expansion = page.locator(`[id="kf-p-exp-${figure}"]`);
+        await expect(expansion, figure).toBeHidden();
+        await button.click();
+        await expect(button, figure).toHaveAttribute('aria-expanded', 'true');
+        await expect(expansion, figure).toBeVisible();
+        await expect(expansion, figure).toContainText(nb['keyFigures.col.count']);
+        await noSidewaysScroll(page);
+      }
+      // An open info popover on the phone still fits the screen.
+      const info = phone.locator('tr:has(button[aria-controls="kf-p-exp-kfd"])').getByRole('button', { name: nb['keyFigures.moreAbout'] });
+      await info.click();
+      await expect(page.locator('[id="kf-p-pop-kfd"]')).toBeVisible();
+      await noSidewaysScroll(page);
+      const box = await phone.boundingBox();
+      if (box === null) throw new Error('phone table not rendered');
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    });
+  }
 });

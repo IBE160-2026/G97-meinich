@@ -7,7 +7,7 @@ import type { SubjectFiling } from '@/analysis/view';
 import { formatPercent, formatReadDate } from '@/engine/format';
 import { apiInputsFromRow } from '@/engine/inputs';
 import { computeApiKeyFigures } from '@/engine/key-figures';
-import type { ApiKeyFigures, Direction, FigureResult } from '@/engine/types';
+import type { ApiKeyFigures, FigureResult } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
 
 export const FIGURES: readonly {
@@ -20,13 +20,6 @@ export const FIGURES: readonly {
   { key: 'totalkapitalrentabilitet', label: 'fig.tkr', denominator: 'analysis.figures.reason.assetsNotPositive' },
   { key: 'egenkapitalandel', label: 'fig.ek', denominator: 'analysis.figures.reason.assetsNotPositive' },
 ];
-
-/** A figure's direction in words: "↑ Høyere er bedre", "↓ Lavere er bedre", "Ingen retning". */
-export const DIRECTION_WORDS: Readonly<Record<Direction, MessageId>> = {
-  higher_is_better: 'keyFigures.dir.higher',
-  lower_is_better: 'keyFigures.dir.lower',
-  none: 'keyFigures.dir.none',
-};
 
 function shown(result: FigureResult, denominator: MessageId, filingYear: number): string {
   if (result.kind === 'value') return formatPercent(result.value.toString());

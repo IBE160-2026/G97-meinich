@@ -61,8 +61,15 @@ export type Message = { readonly id: MessageId; readonly vars: MessageVars };
 
 /** What an absence's words need besides the absence. */
 export type AbsenceContext = {
-  /** The reason a zero or negative denominator is given for this figure ("omsetningen er null eller negativ"). */
-  readonly denominator: MessageId;
+  /**
+   * The reason a zero or negative denominator is given for this figure
+   * ("omsetningen er null eller negativ"; Story 3.1b names one per document
+   * figure, `KEY_FIGURE_ROWS` in key-figure-rows.ts). Null for key figures 7
+   * and 8, whose denominator `aarsverk` v1 never reads: they are always
+   * `not_read_in_v1`, and a not-positive denominator for them throws rather
+   * than borrow another figure's words.
+   */
+  readonly denominator: MessageId | null;
   /** The benchmark filing's year, for "Regnskapet for {aar} …". */
   readonly filingYear: number;
 };
@@ -70,9 +77,10 @@ export type AbsenceContext = {
 /** The words for an absence: the cell text, and for "not read in v1" its explanation. */
 export type AbsenceWords = { readonly text: Message; readonly detail: Message | null };
 
-function causeMessage(cause: UndefinedCause, denominator: MessageId): MessageId {
+function causeMessage(cause: UndefinedCause, denominator: MessageId | null): MessageId {
   switch (cause) {
     case 'denominator_not_positive':
+      if (denominator === null) throw new TypeError('this figure has no words for a denominator that is not positive');
       return denominator;
     case 'component_missing':
       return 'analysis.figures.reason.componentMissing';

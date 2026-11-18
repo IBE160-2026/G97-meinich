@@ -19,7 +19,13 @@
 //
 // `marker` is a string the tab always renders, so an empty or failed page
 // cannot pass the scan.
+//
+// Story 3.1b: both scans also look for the server's document fields (the
+// document lines' names as the engine and the read call them, the
+// `cur_`/`pri_` columns, the document basis), and `expectNoDocumentFields`
+// scans a page for every document line in øre of its subject and its peers.
 import type { APIRequestContext } from '@playwright/test';
+import { DOCUMENT_FIGURE_COLUMNS, type DocumentField } from '../src/engine/document-inputs.ts';
 import { expect } from './fixtures.ts';
 import { keyFigureRow, type SeedCandidate } from './seed.ts';
 
@@ -48,6 +54,48 @@ export const SERVER_FIELDS = [
   'description_only',
   'industry_and_size_only',
 ] as const;
+
+const DOCUMENT_FIELDS = Object.keys(DOCUMENT_FIGURE_COLUMNS) as DocumentField[];
+
+/**
+ * The document fields of the server's reads that must never reach the
+ * browser, as names that cannot be ordinary page text: the columns
+ * (`kundefordringer_ore`), the engine's names made of more than one word
+ * (`annenDriftskostnad`), and the document basis and its parts.
+ */
+export const DOCUMENT_SERVER_FIELDS: readonly string[] = [
+  ...Object.values(DOCUMENT_FIGURE_COLUMNS),
+  ...DOCUMENT_FIELDS.filter((field) => /[A-Z]/.test(field)),
+  'documentBasis',
+  'documentBenchmark',
+  'document_status',
+  'current_status',
+  'prior_status',
+  'prior_api_fail_fields',
+  'in_manifest',
+  'priorRevenueFailsApi',
+  'numeratorOre',
+  'denominatorOre',
+];
+
+/**
+ * The single-word engine names (`kundefordringer`, `varekostnad`), which
+ * Norwegian copy may contain ("varekostnad og andre driftskostnader …"):
+ * found only as an object key, `"kundefordringer":` in the RSC payload and
+ * `\"kundefordringer\":` inside the HTML's inline payload.
+ */
+const DOCUMENT_KEYS = DOCUMENT_FIELDS.filter((field) => !/[A-Z]/.test(field)).map(
+  (field) => new RegExp(`"${field}\\\\?"\\s*:`),
+);
+
+/** The document fields found in `body`: names, keys and the `cur_`/`pri_` columns. */
+function documentFieldsIn(body: string): string[] {
+  return [
+    ...DOCUMENT_SERVER_FIELDS.filter((field) => body.includes(field)),
+    ...DOCUMENT_KEYS.filter((key) => key.test(body)).map(String),
+    ...(/\b(cur|pri)_[a-z]/.test(body) ? ['cur_/pri_'] : []),
+  ];
+}
 
 export async function expectNoPeerFields(
   request: APIRequestContext,
@@ -82,5 +130,33 @@ export async function expectNoPeerFields(
     expect(scanned.filter((peer) => body.includes(peer.orgnr)).map((peer) => peer.orgnr), label).toEqual([]);
     expect(amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body)), label).toEqual([]);
     expect(SERVER_FIELDS.filter((field) => body.includes(field)), label).toEqual([]);
+    expect(documentFieldsIn(body), label).toEqual([]);
+  }
+}
+
+/**
+ * The page at `url` and its RSC payload carry no document field and none of
+ * `ore`, the document lines in øre of its subject and its peers, as digits
+ * without the sign; amounts under 6 digits are skipped, as above.
+ */
+export async function expectNoDocumentFields(
+  request: APIRequestContext,
+  url: string,
+  { ore, marker }: { readonly ore: readonly string[]; readonly marker: string },
+): Promise<void> {
+  const html = await (await request.get(url)).text();
+  const rsc = await request.get(url, { headers: { RSC: '1' } });
+  expect(rsc.headers()['content-type']).toContain('text/x-component');
+  const payload = await rsc.text();
+  const amounts = [...new Set(ore.map((amount) => amount.replace(/^-/, '')).filter((digits) => digits.length >= 6))];
+  expect(amounts.length).toBeGreaterThan(10);
+  for (const [label, body] of [
+    ['html', html],
+    ['rsc', payload],
+  ] as const) {
+    expect(body, label).toContain(marker);
+    expect(amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body)), label).toEqual([]);
+    expect(SERVER_FIELDS.filter((field) => body.includes(field)), label).toEqual([]);
+    expect(documentFieldsIn(body), label).toEqual([]);
   }
 }

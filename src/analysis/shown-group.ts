@@ -11,7 +11,19 @@
 // leave them out. The subject's
 // own `valuta` goes to the engine, which gives no kroner amount for a filing
 // not in NOK.
-import { benchmarkApiFigures, type ApiBenchmark } from '../engine/benchmark.ts';
+//
+// Story 3.1b: the twelve document figures are benchmarked here too, from
+// the subject's and each peer's document basis, against the same peers (the
+// group minus `ekskl`): the engine's `benchmarkDocumentFigures`, as Story
+// 3.1a left it. The bases stay on the server; only the key-figure table's
+// strings reach the page (src/analysis/key-figure-rows.ts).
+import {
+  benchmarkApiFigures,
+  benchmarkDocumentFigures,
+  type ApiBenchmark,
+  type DocumentBenchmark,
+} from '../engine/benchmark.ts';
+import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { firstUnstatedField, withoutExcluded, type EmptyReason, type FunnelCounts, type StatedField } from '../engine/peers.ts';
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
@@ -35,6 +47,8 @@ export type ShownGroup<P> = {
   readonly flagged: readonly string[];
   /** The subject's three API figures against `peers` (Story 1.8). */
   readonly benchmark: ApiBenchmark;
+  /** The subject's twelve document figures against `peers`, each from its document basis (Story 3.1b). */
+  readonly documentBenchmark: DocumentBenchmark;
   /** The subject's filing's smaaForetak, for the non-small notice. */
   readonly smaaForetak: boolean | null;
   /** The group's currency, the subject's: stage 2 makes every peer's equal. */
@@ -57,10 +71,15 @@ export type FunnelResult<P> = {
   readonly emptyReason: EmptyReason;
 };
 
-export function shownGroup<P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures }>(
+export function shownGroup<
+  P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures; readonly documentBasis: DocumentBasis },
+>(
   funnel: FunnelResult<P>,
   ekskl: readonly string[],
-  filing: Pick<SubjectFiling, 'keyFigures' | 'valuta' | 'regnskapsregler' | 'smaaForetak' | 'avviklingsregnskap' | 'filingYear'>,
+  filing: Pick<
+    SubjectFiling,
+    'keyFigures' | 'valuta' | 'regnskapsregler' | 'smaaForetak' | 'avviklingsregnskap' | 'filingYear' | 'documentBasis'
+  >,
 ): ShownGroup<P> {
   const emptyReason = funnel.emptyReason;
   const peers = withoutExcluded(funnel.group, ekskl);
@@ -77,6 +96,11 @@ export function shownGroup<P extends { readonly orgnr: string; readonly keyFigur
     benchmark: benchmarkApiFigures(
       apiInputsFromRow(filing.keyFigures),
       peers.map((peer) => apiInputsFromRow(peer.keyFigures)),
+      filing.valuta,
+    ),
+    documentBenchmark: benchmarkDocumentFigures(
+      filing.documentBasis,
+      peers.map((peer) => peer.documentBasis),
       filing.valuta,
     ),
     smaaForetak: filing.smaaForetak,

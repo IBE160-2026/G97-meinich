@@ -12,6 +12,7 @@ export function PhoneRowToggle({
   label,
   cells,
   expansion,
+  indent = false,
 }: {
   /** The expansion row's id, unique on the page. */
   readonly expansionId: string;
@@ -20,12 +21,14 @@ export function PhoneRowToggle({
   readonly cells: ReactNode;
   /** The expansion row's content: one cell spanning the table. */
   readonly expansion: ReactNode;
+  /** A cost-share row, indented 16 px under its group's heading (Story 3.1b, decision 7). */
+  readonly indent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <tr className={open ? '' : 'border-b border-divider'}>
-        <th scope="row" className="py-2 pr-3 text-left align-top font-normal">
+        <th scope="row" className={`py-2 pr-3 text-left align-top font-normal ${indent ? 'pl-4' : ''}`}>
           <button
             type="button"
             aria-expanded={open}

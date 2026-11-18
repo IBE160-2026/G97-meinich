@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { shownGroup } from '../../src/analysis/shown-group.ts';
 import type { SubjectKeyFigures } from '../../src/analysis/view.ts';
+import { daysBasis, NOT_IN_DATASET, TEN_PEERS } from './document-fixture.ts';
 
 const row = (revenue: string, result: string): SubjectKeyFigures => ({
   sum_driftsinntekter_ore: revenue,
@@ -20,6 +21,8 @@ const row = (revenue: string, result: string): SubjectKeyFigures => ({
 const pool = Array.from({ length: 12 }, (_, i) => ({
   orgnr: `9000000${String(i).padStart(2, '0')}`,
   keyFigures: row('100000000', String((i + 1) * 1_000_000)),
+  // The first ten have a read document; the last two are outside the dataset.
+  documentBasis: TEN_PEERS[i] ?? NOT_IN_DATASET,
 }));
 
 // No stage 4 removal: group equals pool.
@@ -34,6 +37,8 @@ const filing = (valuta: string) => ({
   smaaForetak: true,
   avviklingsregnskap: false,
   filingYear: 2025,
+  // Receivable days 50, turnover 5: worse than beste fjerdedel on 9 and 11.
+  documentBasis: daysBasis(50n, 5n),
 });
 
 describe('shownGroup', () => {
@@ -125,5 +130,21 @@ describe('shownGroup', () => {
     expect(excluded.benchmark.driftsmargin.gap.kind).not.toBe('amount');
     const restored = shownGroup(ten, [], filing('NOK'));
     expect(restored.benchmark).toEqual(before.benchmark);
+  });
+
+  // Story 3.1b: the document figures from each company's document basis,
+  // against the same peers as the API figures.
+  it('benchmarks the document figures against the group minus ekskl, from each document basis', () => {
+    const shown = shownGroup(funnel, [], filing('NOK'));
+    // Ten peers with a read document, two outside the dataset: left out.
+    expect(shown.documentBenchmark.kfd.comparison).toMatchObject({ kind: 'compared', count: 10, leftOut: 2 });
+    expect(shown.documentBenchmark.kfd.gap.kind).toBe('amount');
+    const excluded = shownGroup(funnel, [pool[0]?.orgnr ?? ''], filing('NOK'));
+    expect(excluded.documentBenchmark.kfd.comparison).toMatchObject({ kind: 'below_floor', count: 9, leftOut: 2 });
+    // The subject's own valuta: no capital amount outside NOK.
+    expect(shownGroup(funnel, [], filing('USD')).documentBenchmark.kfd.gap.kind).toBe('not_nok');
+    // The subject's own basis: outside the dataset, every document figure is absent.
+    const outside = shownGroup(funnel, [], { ...filing('NOK'), documentBasis: NOT_IN_DATASET });
+    expect(outside.documentBenchmark.kfd.comparison).toMatchObject({ kind: 'subject_absent', absence: { reason: 'not_in_dataset' } });
   });
 });

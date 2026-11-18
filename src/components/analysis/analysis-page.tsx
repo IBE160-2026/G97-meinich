@@ -228,6 +228,7 @@ function Covered({
           {view.fane === 'nokkeltall' ? (
             <KeyFigureTable
               benchmark={group.benchmark}
+              documentBenchmark={group.documentBenchmark}
               companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
               smaaForetak={group.smaaForetak}
               filingYear={group.filingYear}

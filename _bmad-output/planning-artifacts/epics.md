@@ -2287,6 +2287,8 @@ So that I can verify any number on screen by hand.
 
 **Implements:** FR-60, FR-64 · **Invariants:** AD-15, AD-18 · **UX:** UX-DR12 (the hero's link), UX-DR29, UX-DR40, UX-DR62, UX-DR66, UX-DR67 · **Issue / branch / PR:** one issue, branch `story/3.7-provenance`, one PR (AGENTS.md Git workflow)
 
+**Deferred work it owns** (moved by Story 3.1b, decision 6): Epic 1 retro D2, the benchmark-filing order written in three places, and Story 2.3 B9, the document lines no check covers. Both are entries in `_bmad-output/implementation-artifacts/deferred-work.md`.
+
 **Acceptance Criteria:**
 
 **Given** any kroner amount — table cells, the hero, Oversikt cards, Verdi cards and EV

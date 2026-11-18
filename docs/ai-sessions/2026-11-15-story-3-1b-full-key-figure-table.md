@@ -9,7 +9,7 @@
 - Review fixes: `4720b82` (code and tests) and `f0368d6` (docs).
 - Triage log: `9bf7a32`.
 - Spec back to `in-review` with the Spec Change Log entry: the commit after `ee53628`.
-- PR: see below.
+- PR: [#69](https://github.com/IBE160-2026/G97-meinich/pull/69).
 
 ## Goal
 

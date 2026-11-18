@@ -110,3 +110,7 @@ All of these ran after the review fixes:
   - `epics.md` (one line under Story 3.7) and the PRD's `.memlog.md` (a `(change)` line for it);
   - `deferred-work.md`;
   - `AGENTS.md` (three tests commit rows).
+
+## Merge
+
+CI was green on `48ced59` (run 44371368053, 14 min 7 s). Before merging, the review session checked that the payload scan (`expectNoDocumentFields`) fails on the subject's and the peers' document lines in øre in both the HTML and the RSC payload and refuses to pass with fewer than eleven amounts, that the eleven synthetic companies' revenues lie above demo A's and B's widest bands and the insert refuses when another listed company lies in the subject's band, the three capital amounts in the one-rounding test by hand (10 001, 27 500 and 1 473 684 kr), that no synthetic company was left and the manifest held 20 orgnrs, the restored row counts (2 785, 5 556, 2 537, 10 371), the statuses and the PR text's credits. It noted, as an observation and not a requirement, that the scan looks for raw lines in øre only, not converted to kroner. At Meinich's request (`post review`), the review session posted the GitHub review with three line comments and nothing to fix ([review 5963098231](https://github.com/IBE160-2026/G97-meinich/pull/69#pullrequestreview-5963098231)). The PR was merged at 18:58 UTC on 2026-11-18 as `3177ac7`, closing issue #68. The BMAD session's session-log update (`47a7352`), committed after the push, was not in the PR; the review session put it on `main`.

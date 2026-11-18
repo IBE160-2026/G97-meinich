@@ -529,7 +529,7 @@ The product separates margin from capital efficiency, and pay level from product
 **Consequences (testable):**
 - The pay-level-versus-productivity view distinguishes paying more per person from producing less per person, using the identity in FR-21.
 - **Stage split:** both views are open in v1; from stage 2 they sit behind the account wall (FR-42).
-- **In v1 the pay-level-versus-productivity view is absent**, with the same reason as key figures 7 and 8: both its factors divide by `aarsverk`, which v1 does not read (FR-21). It arrives with them in stage 2. The margin-versus-capital view is unaffected.
+- **In v1 the pay-level-versus-productivity view shows both factors absent**, with no median, with the same reason as key figures 7 and 8 ("Ikke lest i denne versjonen", for every company): both its factors divide by `aarsverk`, which v1 does not read (FR-21). It arrives with them in stage 2. The margin-versus-capital view is unaffected.
 
 #### FR-27: Distribution display · v1
 

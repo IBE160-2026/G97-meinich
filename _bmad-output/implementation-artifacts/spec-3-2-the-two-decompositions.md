@@ -96,13 +96,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/engine/benchmark.ts` + `test/engine/benchmark.test.ts` -- turnover benchmark, its own gate.
-- [ ] `src/analysis/decomposition-view.ts` + DV, `test/analysis/never-multiplied.test.ts` -- factor views, payload boundary, label and absent-field tests.
-- [ ] `src/analysis/shown-group.ts`, `key-figure-rows.ts` -- wire the views into the table view.
-- [ ] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE.md -- approved keys verbatim, in one commit.
-- [ ] `src/components/analysis/fold-out.tsx`, `factor-pair.tsx`, `key-figure-table.tsx` + `test/analysis/fold-out.test.ts`, KT -- the component, placement and the factor pair.
-- [ ] `e2e/key-figures.spec.ts`, `e2e/peer-adjust.spec.ts` -- compared, keyboard, phone, below the floor.
-- [ ] `docs/ai-log.md` (what can go wrong with factors side by side), `deferred-work.md` (decision 5), epics.md / DESIGN.md / EXPERIENCE.md / technical note / `architecture/technology.md` (decisions 1, 2: every current-state shadcn mention, EXPERIENCE :220 and :320; dated reviews and memlogs are records and stay), PRD if FR-26 or a shadcn mention is affected.
+- [x] `src/engine/benchmark.ts` + `test/engine/benchmark.test.ts` -- turnover benchmark, its own gate.
+- [x] `src/analysis/decomposition-view.ts` + DV, `test/analysis/never-multiplied.test.ts` -- factor views, payload boundary, label and absent-field tests.
+- [x] `src/analysis/shown-group.ts`, `key-figure-rows.ts` -- wire the views into the table view.
+- [x] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE.md -- approved keys verbatim, in one commit.
+- [x] `src/components/analysis/fold-out.tsx`, `factor-pair.tsx`, `key-figure-table.tsx` + `test/analysis/fold-out.test.ts`, KT -- the component, placement and the factor pair.
+- [x] `e2e/key-figures.spec.ts`, `e2e/peer-adjust.spec.ts` -- compared, keyboard, phone, below the floor.
+- [x] `docs/ai-log.md` (what can go wrong with factors side by side), `deferred-work.md` (decision 5), epics.md / DESIGN.md / EXPERIENCE.md / technical note / `architecture/technology.md` (decisions 1, 2: every current-state shadcn mention, EXPERIENCE :220 and :320; dated reviews and memlogs are records and stay), PRD if FR-26 or a shadcn mention is affected.
 
 **Acceptance Criteria:**
 - Given the PR, then it states what could go wrong with factors of money figures shown side by side, and with multiplying them, with the reasoning in `docs/ai-log.md`. It credits the review session's contributions and has a "Planning documents:" line.

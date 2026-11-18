@@ -17,11 +17,16 @@
 // group minus `ekskl`): the engine's `benchmarkDocumentFigures`, as Story
 // 3.1a left it. The bases stay on the server; only the key-figure table's
 // strings reach the page (src/analysis/key-figure-rows.ts).
+//
+// Story 3.2: total asset turnover, the return-on-assets decomposition's
+// second factor, is benchmarked beside them, over the same peers.
 import {
   benchmarkApiFigures,
   benchmarkDocumentFigures,
+  benchmarkTotalAssetTurnover,
   type ApiBenchmark,
   type DocumentBenchmark,
+  type TurnoverBenchmark,
 } from '../engine/benchmark.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
@@ -47,6 +52,8 @@ export type ShownGroup<P> = {
   readonly flagged: readonly string[];
   /** The subject's three API figures against `peers` (Story 1.8). */
   readonly benchmark: ApiBenchmark;
+  /** Total asset turnover against `peers`: the decomposition's second factor, with its own gate (Story 3.2). */
+  readonly turnoverBenchmark: TurnoverBenchmark;
   /** The subject's twelve document figures against `peers`, each from its document basis (Story 3.1b). */
   readonly documentBenchmark: DocumentBenchmark;
   /** The subject's filing's smaaForetak, for the non-small notice. */
@@ -97,6 +104,10 @@ export function shownGroup<
       apiInputsFromRow(filing.keyFigures),
       peers.map((peer) => apiInputsFromRow(peer.keyFigures)),
       filing.valuta,
+    ),
+    turnoverBenchmark: benchmarkTotalAssetTurnover(
+      apiInputsFromRow(filing.keyFigures),
+      peers.map((peer) => apiInputsFromRow(peer.keyFigures)),
     ),
     documentBenchmark: benchmarkDocumentFigures(
       filing.documentBasis,

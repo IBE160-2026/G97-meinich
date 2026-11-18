@@ -16,6 +16,7 @@ import type {
   DocumentBenchmark,
   FigureBenchmark,
   KronerGap,
+  TurnoverBenchmark,
 } from '../engine/benchmark.ts';
 import type { DocumentKeyFigure } from '../engine/document-absence.ts';
 import {
@@ -29,6 +30,7 @@ import {
 } from '../engine/format.ts';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison, type Direction } from '../engine/types.ts';
 import { t, type MessageId } from '../messages/index.ts';
+import { decompositionView, type DecompositionView } from './decomposition-view.ts';
 import { capitalAmountText, kronerAmountText } from './kroner-amount.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
 import { DIRECTION_WORDS, stripMarks, type StripMarks } from './strip-marks.ts';
@@ -161,13 +163,13 @@ export type KeyFigureGroup = { readonly id: string; readonly heading: string | n
 
 export type KeyFigureTableView = {
   readonly groups: readonly KeyFigureGroup[];
+  /** The two decomposition fold-outs' factor pairs (Story 3.2). */
+  readonly decompositions: DecompositionView;
   /** Some row's own value is "Ikke i demodataene": the State block above the table is shown. */
   readonly notInDataset: boolean;
   /** A subject that is not a small enterprise, with any figure below the floor. */
   readonly nonSmall: boolean;
 };
-
-type Compared = Extract<Comparison, { readonly kind: 'compared' }>;
 
 const DASH = '–';
 
@@ -377,17 +379,30 @@ function benchmarkOf(key: FigureKey, api: ApiBenchmark, document: DocumentBenchm
 }
 
 /**
- * The whole table: every key figure's row, in its group. `filingYear` is the
- * benchmark filing's, for an absence's words; `smaaForetak` the subject's
- * filing's, for the non-small notice.
+ * Which decomposition fold-out opens under which row (Story 3.2; EXPERIENCE.md
+ * "Fold-out"): on the desktop right after the row, on the phone after the
+ * row's group. "Hva forklarer marginavviket?" under Driftsmargin is Story 3.3's.
+ */
+export const DECOMPOSITION_UNDER: Readonly<Partial<Record<FigureKey, keyof DecompositionView>>> = {
+  totalkapitalrentabilitet: 'margin',
+  lonn: 'pay',
+};
+
+/**
+ * The whole table: every key figure's row, in its group, and the two
+ * decompositions. `filingYear` is the benchmark filing's, for an absence's
+ * words; `smaaForetak` the subject's filing's, for the non-small notice;
+ * `turnover` total asset turnover against the same peers.
  */
 export function keyFigureTableView({
   api,
+  turnover,
   document,
   filingYear,
   smaaForetak,
 }: {
   readonly api: ApiBenchmark;
+  readonly turnover: TurnoverBenchmark;
   readonly document: DocumentBenchmark;
   readonly filingYear: number;
   readonly smaaForetak: boolean | null;
@@ -402,6 +417,7 @@ export function keyFigureTableView({
   const rows = groups.flatMap((group) => group.rows);
   return {
     groups,
+    decompositions: decompositionView({ api, turnover, document, filingYear }),
     notInDataset: rows.some((r) => r.own.notInDataset),
     nonSmall: smaaForetak === false && rows.some((r) => r.comparison.kind === 'below_floor'),
   };

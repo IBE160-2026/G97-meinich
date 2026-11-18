@@ -16,14 +16,16 @@ import { KeyFigureTable } from '../../src/components/analysis/key-figure-table.t
 import {
   benchmarkApiFigures,
   benchmarkDocumentFigures,
+  benchmarkTotalAssetTurnover,
   type ApiBenchmark,
   type DocumentBenchmark,
+  type TurnoverBenchmark,
 } from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
-import { formatKronerExact } from '../../src/engine/format.ts';
+import { formatKronerExact, formatPercent, formatTurnover } from '../../src/engine/format.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
@@ -68,14 +70,29 @@ const TEN = MARGINS.map((m, i) => peer(m, EK[i] ?? '0.4'));
 /** The document figures of a subject outside the demo data: every document row is absent. */
 const OUTSIDE: DocumentBenchmark = benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK');
 
-function render(benchmark: ApiBenchmark, smaaForetak: boolean | null = true, documentBenchmark: DocumentBenchmark = OUTSIDE): string {
+/** Total asset turnover of SUBJECT against TEN: compared, the margin fold-out's second factor (Story 3.2). */
+const TURNOVER: TurnoverBenchmark = benchmarkTotalAssetTurnover(SUBJECT, TEN);
+
+function render(
+  benchmark: ApiBenchmark,
+  smaaForetak: boolean | null = true,
+  documentBenchmark: DocumentBenchmark = OUTSIDE,
+  turnoverBenchmark: TurnoverBenchmark = TURNOVER,
+): string {
   return renderToString(
-    createElement(KeyFigureTable, { benchmark, documentBenchmark, companyName: 'FJORDKODE AS', smaaForetak, filingYear: 2025 }),
+    createElement(KeyFigureTable, {
+      benchmark,
+      turnoverBenchmark,
+      documentBenchmark,
+      companyName: 'FJORDKODE AS',
+      smaaForetak,
+      filingYear: 2025,
+    }),
   );
 }
 
 const showNonSmallNotice = (benchmark: ApiBenchmark, smaaForetak: boolean | null) =>
-  keyFigureTableView({ api: benchmark, document: OUTSIDE, filingYear: 2025, smaaForetak }).nonSmall;
+  keyFigureTableView({ api: benchmark, turnover: TURNOVER, document: OUTSIDE, filingYear: 2025, smaaForetak }).nonSmall;
 
 const standard = () => benchmarkApiFigures(SUBJECT, TEN, 'NOK');
 
@@ -296,8 +313,12 @@ describe('the distribution strip', () => {
   const strips = (html: string) => [...html.matchAll(/<div aria-hidden="true"[^>]*data-testid="distribution-strip"[^>]*>[\s\S]*?<\/svg>/g)].map((m) => m[0]);
 
   it('is aria-hidden, holds nothing focusable and no hex colour (no red, no green)', () => {
-    const found = strips(render(standard()));
-    expect(found).toHaveLength(3);
+    const html = render(standard());
+    // One per API row; since Story 3.2 the fold-outs' factors draw their own too, checked the same way.
+    const rows = ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel'].map((key) => row(html, key)).join('');
+    expect(strips(rows)).toHaveLength(3);
+    const found = strips(html);
+    expect(found.length).toBeGreaterThan(3);
     for (const strip of found) {
       expect(strip).toContain('focusable="false"');
       expect(strip).not.toMatch(/tabindex|<a |<button|role=/i);
@@ -748,5 +769,99 @@ describe('the full key-figure table (Story 3.1b)', () => {
     for (const key of API_ROWS) expect(row(html, key), key).not.toContain('aria-describedby');
     // A subject in the demo data has no such block.
     expect(full()).not.toContain(nb['keyFigures.notInDataset.state']);
+  });
+});
+
+// Story 3.2: the two decomposition fold-outs.
+describe('the decomposition fold-outs (Story 3.2)', () => {
+  /** The desktop fold-out row, or the phone fold-out tbody. */
+  const desktopFold = (html: string, which: string) =>
+    new RegExp(`<tr[^>]*data-foldout="${which}"[^>]*>[\\s\\S]*?</td></tr>`).exec(table(html, 'desktop'))?.[0] ?? '';
+  const phoneFold = (html: string, which: string) =>
+    new RegExp(`<tbody[^>]*data-foldout="${which}"[^>]*>[\\s\\S]*?</tbody>`).exec(table(html, 'phone'))?.[0] ?? '';
+
+  it('fold-outs sit under their row, and on phone below their group', () => {
+    const html = render(standard(), true, benchmarkDocumentFigures(daysBasis(50n, 5n), TEN_PEERS, 'NOK'));
+    const desktop = table(html, 'desktop');
+    // Desktop: each its own row, right after the figure it explains, spanning the table.
+    const sequence = [...desktop.matchAll(/<tr[^>]*data-(figure|foldout)="([^"]+)"/g)].map((m) => `${m[1]}:${m[2]}`);
+    expect(sequence.indexOf('foldout:margin')).toBe(sequence.indexOf('figure:totalkapitalrentabilitet') + 1);
+    expect(sequence.indexOf('foldout:pay')).toBe(sequence.indexOf('figure:lonn') + 1);
+    expect(sequence.filter((s) => s.startsWith('foldout:'))).toEqual(['foldout:pay', 'foldout:margin']);
+    expect(desktopFold(html, 'margin')).toMatch(/^<tr[^>]*><td colSpan="7"/);
+    // Phone: each its own tbody, right after its row group, full width.
+    const phone = table(html, 'phone');
+    const bodies = [...phone.matchAll(/<tbody data-(group|foldout)="([^"]+)"/g)].map((m) => `${m[1]}:${m[2]}`);
+    expect(bodies).toEqual([
+      'group:margin',
+      'group:cost',
+      'foldout:pay',
+      'group:productivity',
+      'group:workingCapital',
+      'group:capital',
+      'foldout:margin',
+      'group:context',
+    ]);
+    expect(phoneFold(html, 'margin')).toMatch(/^<tbody[^>]*><tr><td colSpan="3"/);
+    // Never inside a figure row: no figure row holds a fold-out heading, on either layout.
+    for (const key of ['totalkapitalrentabilitet', 'lonn']) {
+      expect(row(html, key)).not.toContain('<h3');
+      const phoneRow = phoneRows(html, key);
+      expect(phoneRow.row + phoneRow.expansion).not.toContain('<h3');
+    }
+    // Each is an h3 > button controlling its own body; ids are not kf-p-exp-.
+    for (const [which, heading] of [
+      ['margin', nb['keyFigures.foldout.margin']],
+      ['pay', nb['keyFigures.foldout.pay']],
+    ] as const) {
+      expect(desktopFold(html, which)).toContain(`aria-controls="kf-d-fold-${which}"`);
+      expect(phoneFold(html, which)).toContain(`aria-controls="kf-p-fold-${which}"`);
+      expect(text(desktopFold(html, which))).toContain(heading);
+      expect(text(phoneFold(html, which))).toContain(heading);
+    }
+  });
+
+  it('shows the factors with the company name, their medians and counts, and the pay factors not read in v1', () => {
+    const html = render(standard());
+    for (const fold of [desktopFold(html, 'margin'), phoneFold(html, 'margin')]) {
+      const words = text(fold);
+      expect(words).toContain(`${nb['fig.driftsmargin']} FJORDKODE AS 2,1${NBSP}% ${nb['keyFigures.col.median']} 5,5${NBSP}%`);
+      expect(words).toContain(`${nb['fig.tkOml']} FJORDKODE AS 1,67 ${nb['keyFigures.col.median']} 0,50`);
+      expect(words).toContain(`${nb['keyFigures.dir.none']} · 10 sammenlignbare brukt · 0 utelatt`);
+      // No beste fjerdedel, Plassering or kroner in a factor.
+      expect(words).not.toMatch(/bedre enn|kronebeløp|\d kr/);
+      expect(fold).not.toContain('data-mark="best"');
+    }
+    for (const fold of [desktopFold(html, 'pay'), phoneFold(html, 'pay')]) {
+      const words = text(fold);
+      expect(words).toContain(`${nb['fig.lonnArsverk']} FJORDKODE AS ${nb['analysis.figures.notReadInV1']}`);
+      expect(words).toContain(`${nb['fig.omsArsverk']} FJORDKODE AS ${nb['analysis.figures.notReadInV1']}`);
+      expect(words).toContain(nb['analysis.figures.notReadInV1.notes']);
+      expect(words).not.toContain(nb['keyFigures.col.median']);
+      expect(fold).not.toContain('distribution-strip');
+    }
+  });
+
+  it('the fold-out shows no product of factors', () => {
+    const html = render(standard());
+    const api = standard();
+    const margin = api.driftsmargin.comparison;
+    const turnover = TURNOVER.comparison;
+    if (margin.kind !== 'compared' || turnover.kind !== 'compared') throw new Error('both factors are compared');
+    // The subject's product is its totalkapitalrentabilitet; the medians' product is no figure at all.
+    const products = [margin.subject.mul(turnover.subject), margin.median.mul(turnover.median)];
+    for (const fold of [desktopFold(html, 'margin'), phoneFold(html, 'margin')]) {
+      const words = text(fold);
+      // The factors themselves are there …
+      expect(words).toContain(`2,1${NBSP}%`);
+      expect(words).toContain('1,67');
+      // … but neither product, written as a percent or as a ratio.
+      for (const product of products) {
+        expect(words).not.toContain(formatPercent(product.toString()));
+        expect(words).not.toContain(formatTurnover(product.toString()));
+      }
+    }
+    // The subject's product is the totalkapitalrentabilitet row's own value, outside the fold-out.
+    expect(cellText(row(html, 'totalkapitalrentabilitet'), 'own')).toBe(formatPercent(products[0]!.toString()));
   });
 });

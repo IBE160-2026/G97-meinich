@@ -68,6 +68,7 @@ export const DOCUMENT_SERVER_FIELDS: readonly string[] = [
   ...DOCUMENT_FIELDS.filter((field) => /[A-Z]/.test(field)),
   'documentBasis',
   'documentBenchmark',
+  'turnoverBenchmark',
   'document_status',
   'current_status',
   'prior_status',

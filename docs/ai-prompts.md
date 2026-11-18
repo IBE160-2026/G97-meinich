@@ -3393,6 +3393,76 @@ The engine computes key figures 1–14 and kontantandel as exact fractions, with
 
 The review session recomputed the ten document cases' expected values independently (99 of 100; the one difference intended), and checked the companies, `documentCostLines`, the prior-column guard, `not_nok`, B2, the restored row counts and the PR text's credits. CI was green on `28b5df1`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 16:23 UTC on 2026-11-15 as `e447810`.
 
+## Story 3.1b: the full key-figure table (#68, PR #69)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-15 16:28**: the prompt that opened Story 3.1b.
+```
+Fra meg:
+/bmad-build Story 3.1b: The full key-figure table (epics.md, Story 3.1b). Lag branchen story/3.1b-full-key-figure-table fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.1b eller tabellen for nøkkeltall og gap. For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor.
+(b) Hvem som kan vise hva: i den committede seeden og lokalt med dumpen, hvor mange subjekter som har minst 10 peers med dokumenttall fra samme kilde (bare totaler). Hvilket subjekt bruker e2e-testen for en full dokumentsammenligning, under gulvet, et subjekt med feilet regnskap (det syntetiske fra 2.9) og «Ikke i demodataene»? Hvis ingen seedet subjekt kan vise en full dokumentrad på CI, foreslå hvordan det testes, og si hva som må vente til Story 5.4.
+(c) Radene: gruppene og rekkefølgen mot docs/key-figures.md og EXPERIENCE, og for hver rad hver tilstand den kan ha: verdi, under gulvet, udefinert med årsak, ikke lest i v1 (7 og 8), not_nok, target_not_positive (11), styrke og ingen kronebeløp. Si hvilken tekst hver tilstand bruker, og om tabellen kan sorteres (kontantandel skal ikke kunne det).
+(d) Payloaden (AD-4): nøyaktig hva som sendes til siden for hvert tall. Det gjelder subjektets verdi, peerverdiene bak og kronebeløpet. Vis at rå øre-linjer fra dokumentene ikke sendes, og hvilken test som feiler hvis de blir sendt.
+(e) Kronecellene: at beløpet fra 3.1a avrundes én gang i formatteren, med «engangsbeløp», og at «Se forklaring av marginen» ikke er en lenke før Story 3.3.
+(f) Telefon: mønsteret fra Story 1.8 på 375 og 320 px for alle radene, også gruppen med kostnadsandeler.
+(g) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.1b eller EXPERIENCE. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler: ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra. Tall fra dokumentene kommer bare fra selskaper på allow-listen. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. Underagenten skal ikke skrive om godkjent tekst, og en test sjekker den ordrett. PR-en sier hva som kan gå galt med payloaden og visningen av kronecellene, med begrunnelse i ai-log. Små commits. Sjekk 375 og 320 px underveis. Etter siste seed-lasting kjører du pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten før første push, og e2e med én worker. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #68, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(g): no subject, in the seed or locally, has 10 peers with document figures, because the manifest lists only the 20 allow-listed orgnrs; and five questions: group headings, the place of the EBITDA margin, the popover, a third committing e2e fixture, and the new copy.
+
+**16:55**: the answers at the checkpoint.
+```
+Fra meg:
+1. A. 2. A. 3. A: egen komponent, ingen ny avhengighet.
+4. B: et tredje e2e-oppsett i prosjektet synthetic, med ett syntetisk subjekt og 10 syntetiske peers med avstemte dokumentkolonner på manifestet, under de samme vernene som de to andre (bare lokal vert, navnesjekk før sletting, ryddet før og etter og i global-setup). Omsetningen skal ligge utenfor båndene til demo A og B på alle steg. Skannet av payloaden skal sjekke at ingen dokumentøre fra subjektet eller peerne kommer til siden. Ekskluder én peer for å vise under gulvet (9 av 10). Oppdater AGENTS.md: tre tester lagrer rader.
+5. Teksten i (g) er godkjent.
+Utsatt arbeid: greit slik du foreslår. Oppføringene som flyttes, skal nevne Story 3.7 som eier i deferred-work.md.
+Spec-en holdes samlet. Skriv svarene inn i den frosne delen, sett spec og story til ready-for-dev og fortsett. Ingen push.
+```
+*Changed:* the spec approved (`952a4f6`); the document benchmark, copy, rows, table and the prior-column test (`233aac3`…`5783e5a`), the phone fix and e2e with the third committing fixture (`4cb75e3`, `43bce8a`, `75f92b6`), the docs (`5ec0b00`), the review fixes and triage (`4720b82`, `f0368d6`, `9bf7a32`); the full verification stopped during `pnpm build` for lack of memory.
+
+**18:31**: one step at a time.
+```
+Fra meg:
+Jeg har lukket det jeg kan. Kjør i denne rekkefølgen, én ting om gangen: pnpm build, så pnpm test:e2e med én worker, så pnpm test:db på nytt så antallet vises. Kjør til slutt pnpm restore:documents og bekreft de fire tallene. Stopper noe på grunn av minne igjen, si fra i stedet for å starte på nytt. Skriv så session-fila, sesjonsloggen og PR-teksten. Ingen push før jeg sier fra.
+```
+*Changed:* the build, e2e (168 of 168) and `pnpm test:db` (200) passed, the restore printed the four counts; the session file (`ee53628`) set the spec to done while the story stayed at review.
+
+**2026-11-18 18:33**: the days space, the status, the review session's part, then push.
+```
+Fra meg:
+1. Hardt mellomrom foran «dager» er godkjent, slik som de andre enhetene. Før det i Spec Change Log med dato og at jeg bestemte det.
+2. Spec-en står på done, men storyen står på review. Sett spec-en til in-review. Den settes til done etter merge, slik som i de andre storyene.
+3. Session-fila og PR-teksten skal si hva review-sesjonen gjorde (AGENTS.md). Den skrev promptene jeg limte inn og anbefalte 1A, 2A, 3A og 4B. 4B anbefalte den fordi skannet av payloaden ellers ikke ville fange noe før 5.4. Den la til kravet om at de syntetiske selskapene skal ha omsetning utenfor båndene til A og B, og at AGENTS.md skal si tre tester. Den krevde at oppføringene som ble flyttet, skulle få Story 3.7 som eier. Da bygget stoppet, fant den hvilke prosesser som brukte minnet, og ba om én ting om gangen og tallet for test:db. Skriv for hver avgjørelse at jeg tok den etter anbefaling fra review-sesjonen.
+Commit, push branchen og åpne PR-en mot main med Closes #68. Si fra når CI er grønn.
+```
+*Changed:* the hard space recorded in the spec change log, the spec back to in-review and the review session credited (`85a2376`); the branch pushed and PR #69 opened (`48ced59`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.1b` (11-15): the review session read Story 3.1b and drafted the 16:28 prompt, asking which subjects can show a full document comparison on CI, what the payload carries, and every state per row.
+- The BMAD session's checkpoint (11-15): the review session recommended 1A, 2A and 3A, and 4B because the payload scan would otherwise catch nothing before Story 5.4; it added that the synthetic companies' revenues lie outside demo A's and B's bands and that AGENTS.md says three tests commit rows, and that the moved deferred entries name Story 3.7. It drafted the 16:55 prompt.
+- The BMAD session's report that the build stopped (11-15): the review session measured 2.5 GB free of 15.7, named the processes using it, and drafted the 18:31 prompt with one step at a time and the `test:db` count.
+- The BMAD session's final report (11-18): the review session found the spec at done while the story was at review, and no credit for the review session, recommended the hard space, and drafted the 18:33 prompt.
+- The BMAD session's report that PR #69 was open (11-18): the review session checked the payload scan, the band guard, the capital amounts by hand and the counts, and drafted the review.
+- `ci er grønn post review` (11-18): the review session posted the review.
+- `merget - fikser du treet og resten` (11-18): the review session moved the main folder to `main`, put the BMAD session's session-log update, committed after the push, on `main`, and did the housekeeping.
+
+### Result
+
+The Nøkkeltall og gap tab shows every key figure, grouped as in `docs/key-figures.md`: the cost shares under the margin, the check row, the no-direction rows, the capital kroner for 9–11 rounded once with "engangsbeløp", below the floor, a failed subject and "Ikke i demodataene" with its popover and State block, and the phone pattern at 375 and 320 px. Only strings and strip marks reach the client. A third committing e2e fixture, eleven synthetic companies with document figures, gives the payload scan document øre to catch before Story 5.4.
+
+### Checks before merging
+
+The review session checked the payload scan, the synthetic companies' bands and guard, the three capital amounts by hand, the cleanup after e2e, the restored row counts, the statuses and the PR text's credits. CI was green on `48ced59`. At the human's request (`post review`), the review session posted the GitHub review with three line comments. The PR was merged at 18:58 UTC on 2026-11-18 as `3177ac7`.
+
 ---
 
 ## Going forward

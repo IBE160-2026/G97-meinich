@@ -2,7 +2,7 @@
 title: 'Story 3.1b: The full key-figure table'
 type: 'feature'
 created: '2026-11-15'
-status: 'done'
+status: 'in-review'
 baseline_commit: '952a4f6ba3f1a238c4d6e0d53229dc8b75765fb5'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -145,6 +145,12 @@ context:
 
 ## Spec Change Log
 
+- **2026-11-18, Meinich: the space before "dager" in decision 5 is a no-break space (U+00A0).**
+  - Decision 5 approved the days copy "Midtre halvdel: {lo}–{hi} dager" and its variants verbatim, written with a plain space.
+  - The code writes U+00A0 before "dager", as `formatDays` and the percent ranges already do before their units.
+  - This was found by the BMAD session's review triage (row 5) and decided by Meinich, who approved the no-break space as for the other units.
+  - The words are unchanged. `nb.json`, EXPERIENCE.md and the verbatim test in `test/messages.test.ts` already hold U+00A0, so no code changes.
+
 ## Review Triage Log
 
 Review pass 1 (2026-11-15): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session; two findings (S) from the BMAD session's own diff check.
@@ -155,7 +161,7 @@ Review pass 1 (2026-11-15): Blind Hunter (BH), Edge Case Hunter (ECH) and Verifi
 | 2 | VG | No test picks the negative midtre halvdel wording for days or turnover. | low | `middleHalfText` is tested with `percent` only. The 3.1b tests assert the positive forms. | patch |
 | 3 | BH | `src/analysis/key-figure-rows.ts` imports from `src/components/analysis/kroner-amount.ts`, so the view depends on the UI folder. | low | This is the only import from `src/components` in `src/analysis`. The two identical function bodies are intended, one per kind. | patch (move the module to `src/analysis`) |
 | 4 | BH | Two re-export shims are dead or nearly so. | low | Nothing imports `StripMarks` from `distribution-strip.tsx`. `DIRECTION_WORDS` is re-exported from `api-figures.tsx` only for `oversikt-hero.tsx`. | patch |
-| 5 | BH | Deviations from the frozen spec sit in Implementation Notes, not in the Spec Change Log. | low | Indenting row 6 and the phone column widths do not contradict the frozen block (decision 2 puts 6 in the group). The U+00A0 before "dager" deviates from decision 5's verbatim copy. Fixing this means editing this spec, so it goes to Meinich at the checkpoint. | reject (human) |
+| 5 | BH | Deviations from the frozen spec sit in Implementation Notes, not in the Spec Change Log. | low | Indenting row 6 and the phone column widths do not contradict the frozen block (decision 2 puts 6 in the group). The U+00A0 before "dager" deviates from decision 5's verbatim copy. Fixing this means editing this spec, so it went to Meinich, who approved U+00A0 on 2026-11-18 (Spec Change Log). | reject (human) |
 | 6 | BH | New throw guards (`causeMessage` null, `middleHalfText` kroner, `profitCell`/`capitalCell` none) can 500 the page. | false | No state reaches them. A compared figure always has a gap (`driftsmarginGap` returns none only when not compared or `best` is null, `src/engine/benchmark.ts:47`; capital none is `no_comparison`, `target_not_positive` or `no_translation`, :134, :165, :227). 7 and 8 are `not_read_in_v1` first, so they are never compared or not-positive. | reject |
 | 7 | ECH | `middleHalfText` throws for a compared figure 7. | false | As 6: 7 and 8 are absent on every basis in v1 (`document-absence.ts`). | reject |
 | 8 | ECH | `profitCell`/`capitalCell` throw when the engine returns none for a compared figure. | false | As 6. | reject |

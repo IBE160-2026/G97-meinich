@@ -1,14 +1,15 @@
 # Story 3.1b: the full key-figure table
 
 **Date:** 2026-11-15
-**Tool:** Claude Code (Opus 5.5), running `bmad-build`. The BMAD session dispatched subagents for three tasks: one compiled the epic context, three investigated, and one implemented the story. It ran the three review layers as subagents too.
+**Tool:** Claude Code (Opus 5.5), running `bmad-build`. The BMAD session dispatched subagents for three tasks: one compiled the epic context, three investigated, and one implemented the story. It ran the three review layers as subagents too. A separate review session wrote the prompts Meinich pasted in, and recommended the decisions.
 **Story / issue:** #68, Story 3.1b
 **Result:**
 - Spec: `952a4f6`.
 - Implementation: `233aac3` to `9972a9a`.
 - Review fixes: `4720b82` (code and tests) and `f0368d6` (docs).
 - Triage log: `9bf7a32`.
-- PR: not opened yet. There is no push before Meinich says so.
+- Spec back to `in-review` with the Spec Change Log entry: the commit after `ee53628`.
+- PR: see below.
 
 ## Goal
 
@@ -16,7 +17,8 @@ Render what Story 3.1a computes. Every key figure goes in the Nøkkeltall og gap
 
 ## Prompts that mattered
 
-- **The opening prompt** (pasted by Meinich, headed "Fra meg") asked for a checkpoint before any code change. It covered seven points:
+- **The prompts were written by the review session.** Meinich pasted them in, headed "Fra meg".
+- **The opening prompt** asked for a checkpoint before any code change. It covered seven points:
   - (a) deferred work;
   - (b) who can show what in the seed and locally, totals only;
   - (c) the rows and every state with its text, and whether the table sorts;
@@ -32,16 +34,23 @@ Render what Story 3.1a computes. Every key figure goes in the Nøkkeltall og gap
   - The approved copy kept verbatim and checked by a test.
   - `pnpm restore:documents` after the last seed load, with its four counts.
   - The full suite with e2e on one worker, and no push.
-- **Meinich's decisions at the checkpoint** (recorded as decisions 1–8 in the spec):
-  1. **Groups.** One `<tbody>` per group, and only the cost-share group has a heading.
-  2. **Order.** `docs/key-figures.md`'s order, with EBITDA-margin before the cost-share group.
-  3. **Popover.** A hand-written popover, with no new dependency.
-  4. **Fixture.** A third committing e2e fixture: one synthetic subject and ten synthetic peers with reconciled document columns. It runs under the guards of the other two, with revenues outside demo A's and B's bands. Its payload scan covers the subject's and every peer's document øre. "Ekskluder" on one peer gives below the floor, and AGENTS.md is updated.
-  5. **Copy.** The new copy in (g) is approved as written.
-  6. **Deferred work.** Story 2.9's "year's own column" entry is taken in. D2 and B9 are moved, with Story 3.7 named as owner.
+- **Meinich's decisions at the checkpoint** (recorded as decisions 1–8 in the spec). Meinich took each one on the review session's recommendation:
+  1. **Groups.** One `<tbody>` per group, and only the cost-share group has a heading (option 1A).
+  2. **Order.** `docs/key-figures.md`'s order, with EBITDA-margin before the cost-share group (2A).
+  3. **Popover.** A hand-written popover, with no new dependency (3A).
+  4. **Fixture.** A third committing e2e fixture: one synthetic subject and ten synthetic peers with reconciled document columns, under the guards of the other two (4B). The review session recommended 4B because without it the payload scan could catch no document øre before Story 5.4. It also added two requirements:
+     - the synthetic companies' revenues lie outside demo A's and B's bands at every step;
+     - AGENTS.md is updated to say three tests commit rows.
 
-  The BMAD session recommended options 1A, 2A, 3A and 4B, and Meinich chose them.
-- **The verification re-run.** The first full run was stopped during `pnpm build` because the machine was low on memory. Meinich closed other programs and asked for one step at a time: build, e2e, `test:db` again so its count shows, then `restore:documents`.
+     The payload scan covers the subject's and every peer's document øre, and "Ekskluder" on one peer gives below the floor.
+  5. **Copy.** The new copy in (g) is approved as written.
+  6. **Deferred work.** Story 2.9's "year's own column" entry is taken in. D2 and B9 are moved. The review session required that the moved entries name Story 3.7 as their owner in `deferred-work.md`.
+
+  The BMAD session had also proposed 1A, 2A, 3A and 4B in its checkpoint message.
+- **The verification re-run.** The first full run was stopped during `pnpm build` because the machine was low on memory. The review session found which processes were using the memory. It then asked for one step at a time (build, e2e, `test:db` again so its count shows, then `restore:documents`), and Meinich pasted that prompt in.
+- **After the checkpoint, on the review session's recommendation:**
+  - Meinich approved the no-break space before "dager", as for the other units. It is recorded in the Spec Change Log, dated 2026-11-18.
+  - The spec went back to `in-review` until the merge, as in the other stories.
 
 ## Measurements (totals only)
 
@@ -80,7 +89,7 @@ Render what Story 3.1a computes. Every key figure goes in the Nøkkeltall og gap
     - Story 3.7 in `epics.md` did not name the items moved to it (BH).
     - EXPERIENCE said the cost-share cell links before Story 3.3 (BH).
 - **Rejected, with evidence in the spec's Review Triage Log:** 13 findings, 5 of them false. One example is the claim that the new `throw`s can 500 the page. The engine never gives a compared figure the gap states that would reach them (`src/engine/benchmark.ts:47`, `:134`, `:165`, `:227`).
-- **Open for Meinich:** the approved days copy has a plain space before "dager". The code uses U+00A0, as `formatDays` and the percent ranges already do. This is not yet recorded in the Spec Change Log.
+- **Decided after review:** the approved days copy had a plain space before "dager", and the code uses U+00A0, as `formatDays` and the percent ranges do. Meinich approved U+00A0 on the review session's recommendation (Spec Change Log, 2026-11-18).
 
 ## Verification
 

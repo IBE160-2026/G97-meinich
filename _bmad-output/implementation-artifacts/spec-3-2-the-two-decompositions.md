@@ -2,7 +2,7 @@
 title: 'Story 3.2: The two decompositions'
 type: 'feature'
 created: '2026-11-18'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'e7c04853820aa7d257d80d3d76e65baedd62b1f6'
 route: 'dispatch'
 review_loop_iteration: 0

@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   benchmarkApiFigures,
+  benchmarkTotalAssetTurnover,
   driftsmarginGap,
   heroContext,
   stripPosition,
@@ -167,6 +168,54 @@ describe('benchmarkApiFigures: the driftsmargin gap in kroner', () => {
     expect(amount(result.driftsmargin.gap)).toBe(`1${NBSP}170${NBSP}000${NBSP}kr`);
     expect(result.totalkapitalrentabilitet.comparison.kind).toBe('compared');
     expect(result.egenkapitalandel.comparison.kind).toBe('compared');
+  });
+});
+
+// Story 3.2: total asset turnover, the return-on-assets decomposition's
+// second factor (docs/key-figures.md, "Decompositions"): its own median and
+// quartiles, no beste fjerdedel, no Plassering, no kroner, its own gate.
+describe('benchmarkTotalAssetTurnover', () => {
+  // Revenue 1 000 000 kr on assets of 1 000 000 … 10 000 000 kr: turnover 1, 1/2, …, 1/10.
+  const ASSETS = Array.from({ length: 10 }, (_, i) => BigInt(100_000_000 * (i + 1)));
+  const turnoverPeers = ASSETS.map((assets) => ({ ...peer('0.05'), sumEiendeler: assets }));
+
+  it('total asset turnover: own median, no favourable quartile', () => {
+    const result = benchmarkTotalAssetTurnover(SUBJECT, turnoverPeers);
+    const c = compared(result.comparison);
+    // 16 714 286 kr / 10 000 000 kr.
+    expect(c.subject.toString()).toBe('1.6714286');
+    // PERCENTILE.INC at 0,5 between 1/6 and 1/5: (1/6 + 1/5) / 2 = 11/60.
+    expect(c.median.toString()).toBe(new Decimal(1).div(6).plus(new Decimal(1).div(5)).div(2).toString());
+    expect(c.count).toBe(10);
+    expect(c.leftOut).toBe(0);
+    expect(c.lowerQuartile.lt(c.median)).toBe(true);
+    expect(c.upperQuartile.gt(c.median)).toBe(true);
+    // No direction: no beste fjerdedel, no Plassering, and no gap field at all.
+    expect(c.best).toBeNull();
+    expect(Object.keys(result)).toEqual(['comparison']);
+  });
+
+  it('each factor has its own gate', () => {
+    // Ten peers, one with no positive assets: driftsmargin is compared on ten,
+    // turnover falls below the floor on nine.
+    const zeroAssets = { ...peer('0.05'), sumEiendeler: 0n };
+    const peers = [...turnoverPeers.slice(0, 9), zeroAssets];
+    const margin = benchmarkApiFigures(SUBJECT, peers, 'NOK').driftsmargin.comparison;
+    expect(margin).toMatchObject({ kind: 'compared', count: 10, leftOut: 0 });
+    const turnover = benchmarkTotalAssetTurnover(SUBJECT, peers).comparison;
+    expect(turnover).toMatchObject({ kind: 'below_floor', count: 9, leftOut: 1 });
+    if (turnover.kind !== 'below_floor') throw new Error('expected below the floor');
+    // The subject's own value stays.
+    expect(turnover.subject.toString()).toBe('1.6714286');
+  });
+
+  it('is absent when the subject has no positive assets, and keeps the peer count', () => {
+    const result = benchmarkTotalAssetTurnover({ ...SUBJECT, sumEiendeler: 0n }, turnoverPeers);
+    expect(result.comparison).toMatchObject({
+      kind: 'subject_absent',
+      absence: { reason: 'undefined', cause: 'denominator_not_positive' },
+      count: 10,
+    });
   });
 });
 

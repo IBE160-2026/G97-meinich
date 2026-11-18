@@ -17,7 +17,13 @@ import {
   type DocumentExactFigure,
   documentKeyFigureFractions,
 } from './document-key-figures.ts';
-import { API_FIGURE_DIRECTIONS, computeApiKeyFigures, resolveApiInputs, toFigureResult } from './key-figures.ts';
+import {
+  API_FIGURE_DIRECTIONS,
+  apiKeyFigureFractions,
+  computeApiKeyFigures,
+  resolveApiInputs,
+  toFigureResult,
+} from './key-figures.ts';
 import { compareFigure } from './statistics.ts';
 import type { ApiInputs, ApiKeyFigures, Comparison, Direction } from './types.ts';
 
@@ -99,6 +105,29 @@ export function benchmarkApiFigures(
       gap: { kind: 'none' },
     },
   };
+}
+
+/**
+ * Total asset turnover (`sumDriftsinntekter / sumEiendeler`) against the
+ * shown group (Story 3.2; FR-26; `docs/key-figures.md`, "Decompositions"):
+ * the second factor of the return-on-assets decomposition. A derived factor,
+ * not a numbered key figure: it has no direction, so no beste fjerdedel and
+ * no Plassering (`compareFigure` with 'none' gives `best: null`), and no
+ * kroner, so there is no `gap` field at all. It is compared with its own
+ * median, gated by the 10-peer floor on its own and counts its own peers:
+ * a peer whose `sumEiendeler` is not positive drops out of this factor only.
+ * It is never multiplied by the driftsmargin factor.
+ */
+export type TurnoverBenchmark = {
+  readonly comparison: Comparison;
+};
+
+/** The factor's direction: none, so it is never ranked. */
+export const TOTAL_ASSET_TURNOVER_DIRECTION: Direction = 'none';
+
+export function benchmarkTotalAssetTurnover(subject: ApiInputs, peers: readonly ApiInputs[]): TurnoverBenchmark {
+  const turnover = (inputs: ApiInputs) => toFigureResult(apiKeyFigureFractions(inputs).totalAssetTurnover, 'api');
+  return { comparison: compareFigure(turnover(subject), peers.map(turnover), TOTAL_ASSET_TURNOVER_DIRECTION) };
 }
 
 /** The document figures with a capital translation (`docs/key-figures.md`, "From gap to kroner"). */

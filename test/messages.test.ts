@@ -178,3 +178,14 @@ describe('Story 3.1b copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.2: the copy approved in the spec (Meinich, 2026-11-18, decision 6), verbatim.
+describe('Story 3.2 copy', () => {
+  it.each([
+    ['fig.tkOml', 'Totalkapitalens omløpshastighet'],
+    ['keyFigures.foldout.margin', 'Margin eller kapitalbruk?'],
+    ['keyFigures.foldout.pay', 'Lønnsnivå eller produktivitet?'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

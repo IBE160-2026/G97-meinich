@@ -119,7 +119,7 @@ Decided once; used verbatim everywhere. This table is the source the message fil
 | Capital never summed | Ikke per år, og legges ikke til resultatet. | Mandatory under every capital amount on Oversikt |
 | Cost-share group row | Forklarer marginavviket – summeres ikke | |
 | Table top note | Viser gap ved full tilnærming · Endre i Verdi | On the key-figure table, the Oversikt hero and the small cards |
-| Decompositions | Hva forklarer marginavviket? · Margin eller kapitalbruk? · Lønnsnivå eller produktivitet? | |
+| Decompositions | Hva forklarer marginavviket? · Margin eller kapitalbruk? · Lønnsnivå eller produktivitet? | `keyFigures.foldout.margin` "Margin eller kapitalbruk?" and `keyFigures.foldout.pay` "Lønnsnivå eller produktivitet?" (Story 3.2). Each factor's own value is labelled with the company name, as in the table head; its other words reuse the table's keys |
 | Waterfall never added | Dette forklarer avviket. Det er ikke et gap som skal lukkes, og det legges aldri til økt driftsresultat. | Mandatory, directly above the waterfall at both widths |
 | Waterfall reference differs from median | Mot peer-gruppen samlet, ikke medianen | Bar subline when the share's row and its bar point opposite ways |
 | Revenue / total assets | totalkapitalens omløpshastighet | Never confused with key figure 11, "omløpshastighet driftseiendeler" |

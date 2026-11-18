@@ -40,3 +40,23 @@ Bygge Story 3.1b med `bmad-build`. Fanen Nøkkeltall og gap skal vise hvert nøk
 ### Åpne punkter
 - Meinich må avgjøre om dagteksten skal ha hardt mellomrom (U+00A0) eller vanlig mellomrom foran «dager». Spørsmålet er stilt i økten og står i sesjonsfila. Svaret føres i spec-ens Spec Change Log.
 - Utsatt arbeid står i `deferred-work.md`: Epic 1-retro D2 og 2.3 B9 er flyttet til Story 3.7. Fulle rader for demo A og B fra en fersk klone venter på Story 5.4.
+
+## 2026-11-18 kl. 19:49 — Christian Meinich
+
+### Oppgave
+Meinich ga tre beskjeder. Mellomrommet foran «dager» føres i Spec Change Log, spec-en settes tilbake til in-review, og review-sesjonens rolle krediteres i sesjonsfila og PR-teksten. Deretter commit, push og PR mot main med Closes #68.
+
+### Plan
+- Spec Change Log-oppføring datert 2026-11-18. Rad 5 i triagen viser til den.
+- Sesjonsfila og PR-teksten: hver beslutning tatt av Meinich etter anbefaling fra review-sesjonen.
+- Push, PR og vente på CI.
+
+### Resultat
+- **Commits:**
+  - `85a2376`: Spec Change Log, spec satt til in-review, review-sesjonen kreditert. Kopien og den ordrette testen hadde allerede U+00A0, så ingen kode måtte endres.
+  - `48ced59`: PR-lenken i sesjonsfila.
+- **PR:** [#69](https://github.com/IBE160-2026/G97-meinich/pull/69).
+- **CI:** grønn på `48ced59` (kjøring 44371368053, 13 min 55 s). En kjøring før den ble kansellert av GitHub fordi neste push kom rett etter.
+
+### Åpne punkter
+- Ingen nye. Mellomrommet foran «dager» er avgjort. Story 3.7 og Story 5.4 eier det utsatte arbeidet, som står i `deferred-work.md`.

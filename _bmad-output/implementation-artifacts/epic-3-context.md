@@ -11,7 +11,7 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 - Story 3.1a: The engine computes every key figure (done)
 - Story 3.1b: The full key-figure table (done)
 - Story 3.2: The two decompositions (done, PR #72)
-- Story 3.3: The margin waterfall
+- Story 3.3: The margin waterfall (done, PR #74)
 - Story 3.4: The rest of Oversikt
 - Story 3.5: Verdi — how much is closable
 - Story 3.6: EV/EBIT — what the uplift is worth
@@ -31,7 +31,9 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - Peer-gruppen samlet is revenue-weighted (Σnum/Σrevenue), never a mean of ratios. Bar = (Aₓ − cₓ) × subject revenue; the exact bars sum to (margin − M) × revenue (`Decimal` equality).
   - Display: the total `driftsresultat` − M × revenue is rounded once (half away from zero); start = `driftsresultat` − displayed total; bars by signed largest remainder (floor, then the leftover kroner to the largest fractions). Tests cover negative bars, ties and a residual of either sign.
   - Never scaled by the share (test over every `andel`), never added to any total.
-- **No double counting (FR-30), owned by 3.3, inherited by 3.5.** Cluster 1: no cost share yields kroner, and no total (profit uplift, EV, any card) includes a waterfall bar. Cluster 2: working capital released is (9)+(10) only, totalled only when both clear the floor; (11) is never summed with either. Both run against the engine's amount functions.
+- **When there is no waterfall** the fold-out says why: too few in *P*; "regnskapstallene til de sammenlignbare er ikke i demodataene" when *P* plus the group's peers outside the demo data reach 10; the subject's Varekostnadsandel absence words when its components are missing; its own R2 sentence when its cost lines fall short of sum driftskostnader; "Beløpet er ikke i kroner" when not NOK.
+- **No double counting (FR-30), owned by 3.3, inherited by 3.4 and 3.5.** Cluster 1: no cost share yields kroner, and no total (profit uplift, EV, any card) includes a waterfall bar. Cluster 2: working capital released is (9)+(10) only, totalled only when both clear the floor; (11) is never summed with either. Both run against the engine's amount functions. Every new amount function in 3.4 and 3.5 is classified in `src/engine/amounts.ts`; the registry test finds unclassified ones itself via the TypeScript compiler.
+- **Working-capital total with a strength:** today `workingCapitalReleased` gives no total unless both (9) and (10) are amounts, so a part that is a strength blocks the total. Story 3.5 decides whether a strength counts as 0 and changes the function, its test and `docs/key-figures.md` together.
 - **EV** = exact annual profit uplift × a user-entered multiple. No default, placeholder, suggestion or code path that produces a multiple.
 - **Provenance tells the truth.** The data-quality line comes from the stored per-filing status and the manifest, never inferred. A degraded filing is unavailable, never estimated.
 - **Phone width:** 375 px and 320 px, no horizontal body scroll; tables and charts in their own scroll containers.
@@ -51,11 +53,12 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - `src/components/analysis/fold-out.tsx` is the one hand-written fold-out (no shadcn anywhere): `h3 > button`, `aria-expanded`/`aria-controls`, `aria-hidden` caret, body `hidden` on `surface-foldout`, indented 30 px desktop / 16 px phone. On desktop it is its own row right after its figure; on phone its own row group after that figure's group.
   - `src/components/analysis/factor-pair.tsx` shows each factor with own, median, strip, "Midtre halvdel" text, direction words and counts, never beste fjerdedel, Plassering or kroner.
   - A source scan forbids any multiplication of decomposition factors in `src/`, with an allow-list that starts empty.
+- **Settled in 3.3:** `src/engine/waterfall.ts` builds *P*, *M*, *Aₓ*, the bars and their display rounding; `src/analysis/waterfall-view.ts` turns them into strings and bar geometry. All five waterfall figures (subject and peers) come from the one reconciled current column of the benchmark year's document, derived lines and revenue included; R2 shares one predicate with the fingerprint. The end bar and tag show the document's margin, which can read 0,1 pp from the API-based Driftsmargin row on a rounding boundary. Charts are hand-written SVG; no chart library (Recharts is out).
 - **Copy** lives in `src/messages/nb.json`. Approved copy goes in verbatim, is asserted in `test/messages.test.ts`, and is never reworded by a subagent; EXPERIENCE gets new keys in the same commit.
 
 ## UX & Interaction Patterns
 
-- **Key-figure table.** Grouped as in `docs/key-figures.md`. Cost shares sit indented under Driftsmargin in their own `<tbody>` headed `th scope="rowgroup"` "Forklarer marginavviket – summeres ikke". Their kroner cell reads "Se forklaring av marginen", plain text until 3.3 makes it a link that opens the waterfall fold-out and moves focus to its heading. Phone: Story 1.8's three-column row with an expansion row.
+- **Key-figure table.** Grouped as in `docs/key-figures.md`. Cost shares sit indented under Driftsmargin in their own `<tbody>` headed `th scope="rowgroup"` "Forklarer marginavviket – summeres ikke". Their kroner cell "Se forklaring av marginen" is a link that opens the waterfall fold-out and moves focus to its heading. Phone: Story 1.8's three-column row with an expansion row.
 - **Outside the demo seed.** Document rows read "Ikke i demodataene" with a "Mer om dette" popover, explained once by a State block above the table. "Margin eller kapitalbruk?" still shows (API factors); the waterfall fold-out reads "Ikke i demodataene"; the pay-level fold-out shows the not-read-in-v1 state.
 - **Waterfall ("Hva forklarer marginavviket?" under Driftsmargin).**
   - Desktop: six columns from "Peer-gruppen samlet" (`median` fill) through Varekostnad, Lønn, Andre driftskostnader, Avskrivninger og øvrige poster to the company (`navy-700`). Favourable bars petrol, unfavourable amber, the residual slate whatever its sign. Each bar has signed kroner, ▲/▼ plus a word and "own mot samlet" shares; "Mot peer-gruppen samlet, ikke medianen" is added where the row and the bar disagree. Thin `connector` lines; rounded data end. The legend names all three bar kinds, the residual included.
@@ -69,8 +72,8 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 
 ## Cross-Story Dependencies
 
-- **Build order:** 3.1a → 3.1b → 3.2 (all done) → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Story 5.4 (demo seed) follows; Epic 4's explanation row builds on 3.1a's output.
-- **3.2 → 3.3:** the waterfall reuses 3.2's fold-out component and its row placement, and turns 3.1b's cost-share cells into links. 3.3's FR-30 tests are inherited by 3.5.
-- **3.4 / 3.5:** 3.4 leaves out "· Endre i Verdi"; 3.5 adds it to the table, hero and cards, makes `verdi` a real tab, and makes the peer-change provider keep `andel=median`.
+- **Build order:** 3.1a → 3.1b → 3.2 → 3.3 (all done) → 3.4 → 3.5 → 3.6 → 3.7. Story 5.4 (demo seed) follows; Epic 4's explanation row builds on 3.1a's output.
+- **3.3 → 3.4 / 3.5:** 3.4's "Største kapitalgap" and 3.5's cards build on 3.3's amount registry and `workingCapitalReleased`; both inherit the FR-30 tests. Hand-written SVG and the "Vis tallene" pattern from 3.3 carry over to the beeswarm.
+- **3.4 / 3.5:** 3.4 leaves out "· Endre i Verdi"; 3.5 adds it to the table, hero and cards, makes `verdi` a real tab, and makes the peer-change provider keep `andel=median`. 3.5 also gives `medianStepExists` its real implementation (until then callers pass a predicate returning false).
 - **3.6** depends on 3.5's share and URL hook. **3.7** adds the hero's "Hvordan er dette regnet?" link and owns two deferred entries (benchmark-filing order in three places; document lines no check covers).
-- **From Epic 2:** Story 2.9's absence model, 2.1b's prior-year columns, 2.5c's R3 guard, the v1 funnel (`group` = `pool`), and the document dump restored after `pnpm seed`; without it document rows show "Ikke i demodataene" until Story 5.4.
+- **From Epic 2:** Story 2.9's absence model, 2.1b's prior-year columns, 2.5c's R3 guard, the v1 funnel (`group` = `pool`), and the document dump restored after `pnpm seed`; without it document rows show "Ikke i demodataene" until Story 5.4. Story 5.4 also owns the waterfall's too-few wording for n = 0 and n = 1.

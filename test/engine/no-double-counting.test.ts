@@ -263,6 +263,50 @@ function sumsInChoices(prog: ts.Program, registry: Readonly<Record<string, Amoun
   return [...new Set(found)];
 }
 
+/**
+ * Every `.plus` or `.add` a scale makes, directly or through any engine
+ * function it calls, exported or module-private (Story 3.5): a scale gives
+ * one amount at a share and sums nothing, not even through a total.
+ */
+function sumsInScales(prog: ts.Program, registry: Readonly<Record<string, AmountEntry>>): string[] {
+  const checker = prog.getTypeChecker();
+  const functions = new Map(exportedFunctions(prog).map((fn) => [fn.name, fn]));
+  const found: string[] = [];
+  for (const [name, entry] of Object.entries(registry)) {
+    if (entry.role !== 'scale') continue;
+    const scale = functions.get(name);
+    if (scale === undefined) {
+      found.push(`${name}: registered as a scale but not exported from src/engine`);
+      continue;
+    }
+    const visited = new Set<ts.Node>();
+    const walk = (node: ts.Node, via: string): void => {
+      if (visited.has(node)) return;
+      visited.add(node);
+      const visit = (child: ts.Node): void => {
+        if (ts.isPropertyAccessExpression(child) && (child.name.text === 'plus' || child.name.text === 'add')) {
+          found.push(`${name}${via}: .${child.name.text}`);
+        }
+        if (ts.isIdentifier(child)) {
+          let symbol = checker.getSymbolAtLocation(child);
+          if (symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+          for (const declaration of symbol?.declarations ?? []) {
+            const file = path.normalize(declaration.getSourceFile().fileName);
+            const callee = functionBody(declaration);
+            if (callee !== undefined && callee !== node && path.dirname(file) === path.normalize(ENGINE)) {
+              walk(callee, `${via} → ${symbol?.name}`);
+            }
+          }
+        }
+        ts.forEachChild(child, visit);
+      };
+      ts.forEachChild(node, visit);
+    };
+    walk(scale.node, '');
+  }
+  return [...new Set(found)];
+}
+
 const ENGINE_PROGRAM = program();
 
 // A probe module: an amount function nobody registered, and a total that adds a waterfall bar.
@@ -379,6 +423,50 @@ describe('a choice', () => {
     } as const;
     expect(sumsInChoices(probe, registry)).toEqual(
       expect.arrayContaining(['largestWithSum: .add', 'largestThroughHelper → both: .plus']),
+    );
+  });
+});
+
+describe('a scale', () => {
+  it('a scale sums nothing', () => {
+    // Fixture: the engine as built; the three closable-share functions are registered as scales.
+    for (const name of ['profitAtMedian', 'scaleAmount', 'profitAtShare'] as const) {
+      expect(AMOUNT_FUNCTIONS[name].role, name).toBe('scale');
+    }
+    expect(sumsInScales(ENGINE_PROGRAM, AMOUNT_FUNCTIONS)).toEqual([]);
+    // The check sees a sum: a probe scale adding the profit to a capital amount, directly,
+    // through a private helper, and through the working-capital total, is caught.
+    const probe = program({
+      'probe-scale.ts': [
+        "import { workingCapitalReleased, type CapitalGap } from './benchmark.ts';",
+        "import { Decimal } from './decimal.ts';",
+        'function both(a: Decimal, b: Decimal): Decimal {',
+        '  return a.plus(b);',
+        '}',
+        'export function scaledWithSum(profit: Decimal, capital: Decimal, s: Decimal): { readonly ore: Decimal } {',
+        '  return { ore: profit.mul(s).add(capital.mul(s)) };',
+        '}',
+        'export function scaledThroughHelper(profit: Decimal, capital: Decimal, s: Decimal): { readonly ore: Decimal } {',
+        '  return { ore: both(profit, capital).mul(s) };',
+        '}',
+        'export function scaledThroughTotal(kfd: CapitalGap, lgd: CapitalGap, s: Decimal): { readonly ore: Decimal | null } {',
+        '  const wc = workingCapitalReleased(kfd, lgd);',
+        "  return { ore: wc.kind === 'amount' ? wc.ore.mul(s) : null };",
+        '}',
+      ].join('\n'),
+    });
+    const registry = {
+      ...AMOUNT_FUNCTIONS,
+      scaledWithSum: { module: 'probe-scale.ts', role: 'scale' },
+      scaledThroughHelper: { module: 'probe-scale.ts', role: 'scale' },
+      scaledThroughTotal: { module: 'probe-scale.ts', role: 'scale' },
+    } as const;
+    expect(sumsInScales(probe, registry)).toEqual(
+      expect.arrayContaining([
+        'scaledWithSum: .add',
+        'scaledThroughHelper → both: .plus',
+        'scaledThroughTotal → workingCapitalReleased: .plus',
+      ]),
     );
   });
 });

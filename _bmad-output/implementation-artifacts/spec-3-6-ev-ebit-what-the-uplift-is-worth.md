@@ -2,7 +2,7 @@
 title: 'Story 3.6: EV/EBIT — what the uplift is worth'
 type: 'feature'
 created: '2026-11-19'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_commit: '17d06194aa16a58b9b31cdf476d15437532111fe'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -198,6 +198,14 @@ context:
 - for every matrix row, the guard removed and the failing output;
 - "6 996 kr" for `valueAtShare` rebuilt as full × s_med × m;
 - the ≈ test failing with the rule reversed;
-- the NDC probes failing;
-- the multiple-source scan failing on a probe `as Multiple` and on `parseMultippel('6')`;
-- the payload scan unchanged.
+- `wholeKroner`'s test failing when its rounding differs from `formatKronerExact` at half a krone;
+- each of the three `'value'` NDC probes failing, one by one;
+- `test/one-replace-state.test.ts` failing with a second `replaceState` call added in `src/`;
+- the multiple-source scan failing on both probes: an `as Multiple` and `parseMultippel('6')`;
+- the Playwright identity test failing when the multiple's formatting changes on one side only;
+- every e2e read after a `replaceSettings` change waiting for the change to render first, with the list of such reads the search found (PR #78);
+- the payload scan unchanged;
+- the four counts after `pnpm restore:documents` (after the last seed), and zero synthetic companies and manifest entries;
+- the field, its error and the card at 375 and 320 px.
+
+**Commits** (Meinich): small, one logical step each, each type-checking, made as the work proceeds in the order of the Tasks: engine and tests; the brand and URL module; the view; copy; the URL hook, field and panel; e2e; planning documents. Never push. Run `pnpm test` before the first commit that touches `src/`.

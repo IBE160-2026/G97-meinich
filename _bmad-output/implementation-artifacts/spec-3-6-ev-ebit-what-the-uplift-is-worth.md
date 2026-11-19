@@ -179,6 +179,34 @@ context:
 
 ## Review Triage Log
 
+Review 2026-11-19, three layers on the diff since `17d06194`: Blind Hunter (B), Edge Case Hunter (E), Verification Gap (VG); plus one note from the BMAD session's own reading of the diff (S). One row per finding; findings with one root cause share a route.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| VG1 | Entering or clearing a multiple is never tested from a URL that holds other settings | medium | Every field test starts with no `andel`, `band` or `ekskl`; a `replaceSettings` that reset them on a multiple write passes every test | patch P1 |
+| VG2 | The field's recovery from an error is never run (invalid → valid, invalid → cleared, invalid with no URL multiple) | medium | "EV: invalid input" reloads before each case; dropping `!invalid` from the clear guard or `setInvalid(false)` fails no test | patch P1 |
+| B4 | Same as VG2 | medium | Same | patch P1 |
+| B3 | The accepted-forms loop never reads the announcements, so "an unchanged value announces nothing" is untested for " 6.5 " and "6.50" | medium | `announced(page)` is read only before the loop | patch P1 |
+| B5 | The matrix's "Peer change" row names a test 3.6 code cannot break | medium | `peer-change-href.test.ts:41` passed before this story; nothing shows an exclude with `?multippel=6.5` keeps the field and value | patch P1 (with P2) |
+| B9 | The "=" product line (E1) never renders in a real browser | low | Both e2e cases assert `approximate === true`; m = 1 always gives "=", so the fix is one more form in an existing loop | patch P1 |
+| B1 | The field's text and error never resync with the URL's multiple | medium | `useState(ev.field)` only on mount; back to a pushed entry with another multiple, or a peer change that keeps the panel mounted, leaves the field showing a different multiple from the card | patch P2 |
+| E4 | Same as B1 | medium | Same | patch P2 |
+| B2 | Enter then an immediate blur can write and announce twice | low | `commit` compares with the `current` prop, which updates only after Next.js re-renders from `useSearchParams`; the same root as B1 (the field's committed value lives only in a prop) | patch P2 |
+| E3 | A second, different invalid entry announces nothing | medium | `if (invalid) return;` before any announcement; decision 6 says each commit announces once, invalid included | patch P3 |
+| E7, E8, B6, S1 | `test/no-multiple-source.test.ts` claims more than it checks: an aliased import, a literal through a `const`, `parse` on a literal URL, any helper in the field file, and `{ …, multippel: new Decimal(6) } as AnalysisState` all pass | medium | The scan is syntactic: it matches the identifier text and only `as Multiple` by name | patch P4 |
+| E9, B7 | `test/one-replace-state.test.ts` misses a destructured `replaceState` and `router.replace` on a router not named `router` | medium | The scan matches property names and the receiver's text | patch P5 |
+| E10 | The value check flags only `.plus`/`.add`; `Decimal.sum` passes | low | Adding `sum` is a direct one-word correction | patch P6 |
+| B11 | The disabled field does not use DESIGN's disabled tokens, and DESIGN.md does not describe the EV section | low | DESIGN: `disabled-text` "disabled controls only"; the disabled median step is on `surface` in `disabled-text`; the field uses `border-divider text-slate` | patch P7 |
+| E1, E11 | An invalid `multippel` loaded from the URL stays in the address bar when the field is cleared | low | Real, but the server already dropped it with the notice, the page shows no value, and any later share or multiple write writes the canonical URL; the fix compares against `window.location`, a second source | reject |
+| E2 | Same as E1 | low | Same | reject |
+| E12 | Same as E3 (a claim against decision 6) | medium | Same | patch P3 |
+| E5 | The field's status region keeps its last sentence after a share change | low | It is not re-announced (a live region announces on change); only a user browsing the sr-only region meets it; the fix adds an effect | reject |
+| E6, E13 | Decimal precision 40 rounds uplift × m before the display rounding | low | A tie flip needs a 40-digit product exactly at a half krone after truncation; the same holds for 3.5's `scaleAmount`; precision 40 is the project's documented setting | reject |
+| B8 | `productIsApproximate` takes two amounts the caller must keep consistent | low | One caller, which passes `profitAtShare` and `valueAtShare` of the same inputs; the fix is a signature change | reject |
+| B10 | No session file, empty triage log, ai-log "Review pending" | false | Not a defect of the diff: the triage is this table, and the session file, the ai-log update and the session log come in the present step, before the PR | reject |
+| B12 | The error's "for eksempel 6 eller 6,5" reads as a suggested multiple, against FR-32 | low | The text is Story 3.6's acceptance criterion and EXPERIENCE's, verbatim, approved; changing it is Meinich's call, not a patch | reject (raised with Meinich at the checkpoint) |
+| S2 | "No displayed total adds two cards" had to move from m = 6,5 to 6,7 | false | The check compares displayed numbers by design (Story 3.5); a chance equality at 6,5 is that design working, not a sum in the code | reject |
+
 ## Design Notes
 
 **Copy from the story and EXPERIENCE, verbatim:**

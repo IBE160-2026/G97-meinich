@@ -17,6 +17,7 @@
 - **Review fixes:** `7575bb7` and `df3c9df` (the fifteen patch findings), and `a231239` (the compact list's scroll region, found by the BMAD session's e2e run).
 - **Planning:** the epic context `55be9e8`, the UX memlog `af50f93`.
 - **PR:** [#76](https://github.com/IBE160-2026/G97-meinich/pull/76), opened when Meinich said so.
+- **CI fix:** `860b874` (an e2e race, found by the review session; see below).
 
 ## Goal
 
@@ -128,6 +129,31 @@ Finish Oversikt as DESIGN's 12-column card grid:
     | Demo B | r 3,5, swarm 218 units | r 2, swarm 168 units |
 
   - Payload: about +245 KB HTML and +135 KB RSC on demo A's Oversikt.
+
+## CI on PR #76
+
+CI failed in `e2e/analysis-states.spec.ts` "a route change to another company focuses its h1", also on retry.
+
+**The review session found the cause** by reading the trace from the CI artefact:
+- After the navigation, `main h1` existed twice. The old one (ADMMIT AS) sat in `<div hidden id="S:0">`, the React streaming Suspense segment of demo A's Oversikt, which was never put in place.
+- React 19.3 batches the reveal of finished boundaries. The test searched from the header before demo A's page was shown, and the client navigation left the segment detached.
+- Story 3.4 made demo A's Oversikt about 245 KB heavier, so the window is longer on CI.
+- Users see nothing, because the segment is hidden. The fault is in the test.
+
+**The fix** (`860b874`, Meinich's instruction):
+- `companyShown` in `e2e/seed.ts` waits for the company's h1, visible, with its name, before a test acts on the page. The main h1 and focus checks stay as they were.
+- The BMAD session searched every analysis `goto` in `e2e/` and applied the same wait in four more places:
+  - the client navigation to a 404, which asserts one h1;
+  - the header search used twice;
+  - the header search used on the same company;
+  - the tabs' width measured with `evaluate`, and the header texts read with `allTextContents` in `e2e/peers.spec.ts`. Neither of those reads waits for visible content.
+- The others need no change: their assertions retry, their clicks wait for a visible element, or they read the banner, which is outside the segment.
+
+**Run locally after the fix,** one worker:
+- `e2e/analysis-states.spec.ts`: 35 passed;
+- `e2e/peers.spec.ts`: 24 passed.
+
+Spec, Review Triage Log, row 25.
 
 ## Links
 

@@ -11,7 +11,7 @@
 - **Implementation:** `6b9b8e8` to `8a48c8a`, with the implementation run's own review fix `19940fd`.
 - **Review triage:** `595fa76`. Change log and deferred entry: `3783c4c`.
 - **Review fixes:** `8e9e4bb` (the nine patch findings) and `4eb68d1` (the exclusion e2e test).
-- **PR:** not opened yet; no push until Meinich says so.
+- **PR:** [#74](https://github.com/IBE160-2026/G97-meinich/pull/74), opened when Meinich said so.
 
 ## Goal
 

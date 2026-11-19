@@ -167,6 +167,8 @@ Implementation run, 2026-11-19 (subagent). Where the code differs from the Code 
 
 ## Spec Change Log
 
+- **2026-11-19, Meinich, on the review session's recommendation: the matrix row "Full waterfall e2e" is corrected.** It said that with one synthetic peer excluded (*P* = 9) the fold-out shows the too-few words. The fixture's size band also holds seed companies outside the demo data, so *P* + `not_in_dataset` ≥ 10 there and decision 3 gives N1 ("Ingen forklaring av marginen: regnskapstallene til de sammenlignbare er ikke i demodataene."). The row now reads: at 9 (one excluded) N1; with the band's seed companies outside the demo data excluded too, the too-few words with n = 9. `e2e/synthetic-documents.spec.ts` "excluding one peer leaves no waterfall" asserts that the band holds such companies (`outside.length > 0`) and that they and the one peer fit under `MAX_EKSKL` (`outside.length + 1 ≤ 20`), then expects N1 with no condition. Found by the implementation run (Implementation Notes); the BMAD session flagged it after review.
+
 ## Review Triage Log
 
 Review pass 1 (2026-11-19): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session on the diff since `c315dd5` (spec and sprint status excluded; the spec went to ECH alone as the claims file).

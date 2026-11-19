@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 10-10-2026 21:44
-last_updated: 11-19-2026 17:45
+last_updated: 11-19-2026 18:00
 project: Peerless
 project_key: NOKEY
 tracking_system: file-system
@@ -76,7 +76,7 @@ development_status:
   3-2-the-two-decompositions: done  # issue #70
   3-3-the-margin-waterfall: done  # issue #73
   3-4-the-rest-of-oversikt: done  # issue #75
-  3-5-verdi-how-much-is-closable: ready-for-dev  # issue #77
+  3-5-verdi-how-much-is-closable: in-progress  # issue #77
   3-6-ev-ebit-what-the-uplift-is-worth: backlog
   3-7-hvordan-er-dette-regnet: backlog
   epic-3-retrospective: optional

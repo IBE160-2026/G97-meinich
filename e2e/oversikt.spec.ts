@@ -360,12 +360,13 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
       locator.evaluateAll((trs) =>
         trs.map((tr) => ({
           name: tr.querySelector('th')?.textContent ?? '',
-          margin: tr.querySelector('[data-cell="margin"]')?.textContent ?? '',
+          // The margin is each table's first data cell.
+          margin: tr.querySelector('td')?.textContent ?? '',
         })),
       );
     const nearest = await rows(beeswarm(page).locator('[data-testid="beeswarm-nearest"] tbody tr[data-selected="false"]'));
     await beeswarm(page).getByRole('button', { name: nb['chart.showNumbers'] }).click();
-    const numbers = await rows(beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr[data-selected="false"]'));
+    const numbers = await rows(beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr:not([data-selected])'));
     expect(nearest).toHaveLength(5);
     // "Se alle {n}" goes to Peers, keeping the settings.
     await beeswarm(page).getByTestId('beeswarm-see-all').click();
@@ -389,7 +390,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
       const svg = phone.getByRole('img');
       await expect(svg).toBeVisible();
       await svg.scrollIntoViewIfNeeded();
-      const dots = await phone.locator('circle[data-mark="peer"]').evaluateAll((circles) =>
+      const dots = await phone.locator('g[data-mark="peer"] circle').evaluateAll((circles) =>
         circles.map((circle) => {
           const box = circle.getBoundingClientRect();
           return { x: box.x + box.width / 2, y: box.y + box.height / 2 };

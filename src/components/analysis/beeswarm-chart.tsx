@@ -128,20 +128,13 @@ function Plot({
             stroke="var(--color-median)"
             strokeWidth={2}
           />
-          {layout.dots.map((d, index) => (
-            <circle
+          {/* The peers: one group carries the look, so each of hundreds of dots is only its centre. */}
+          <g className="bs-mark" data-mark="peer" fill="var(--color-peer-dot)" stroke="var(--color-background)" strokeWidth={0.75}>
+            {layout.dots.map((d, index) => (
               // The dots' order is the server's packing order, fixed for a page.
-              key={index}
-              className="bs-mark"
-              data-mark="peer"
-              cx={d.x}
-              cy={d.y}
-              r={r}
-              fill="var(--color-peer-dot)"
-              stroke="var(--color-background)"
-              strokeWidth={0.75}
-            />
-          ))}
+              <circle key={index} cx={d.x} cy={d.y} r={r} />
+            ))}
+          </g>
           {/* The company: a line up through the swarm, its name above, the marker on the axis. */}
           <line x1={layout.company.x} x2={layout.company.x} y1={layout.swarmTop - 6} y2={axisY} stroke="var(--color-navy-900)" strokeWidth={1.5} />
           <text

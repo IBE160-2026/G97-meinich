@@ -106,43 +106,52 @@ function Nearest({ view, peersHref }: { readonly view: Extract<BeeswarmView, { r
   );
 }
 
+/**
+ * The "Vis tallene" table's look, set once on the table: it can hold
+ * hundreds of rows, and every row's markup reaches the page twice (HTML and
+ * RSC payload), so a row carries its text and nothing else. The margin is
+ * the second column, the revenue the third.
+ */
+const NUMBERS_TABLE =
+  'min-w-full border-collapse text-left text-[13px] [&_:is(th,td)]:py-1.5 [&_:is(th,td)]:pr-3 [&_:is(th,td)]:align-top ' +
+  '[&_thead_th]:font-semibold [&_tr]:border-b [&_tr]:border-divider [&_tbody_tr:not([data-selected])_th]:font-normal ' +
+  '[&_td]:figure [&_td]:whitespace-nowrap';
+
 /** "Vis tallene": every peer in the analysis, by driftsmargin, the company marked; in its own scroll region. */
 function NumbersTable({ view }: { readonly view: Extract<BeeswarmView, { readonly kind: 'shown' }> }) {
-  const cell = 'py-1.5 pr-3 align-top';
   const captionId = `${NUMBERS_ID}-caption`;
   return (
     <div role="region" tabIndex={0} aria-labelledby={captionId} className="scroll-region">
-      <table className="min-w-full border-collapse text-left text-[13px]" data-testid="beeswarm-table">
+      <table className={NUMBERS_TABLE} data-testid="beeswarm-table">
         <caption id={captionId} className="pb-1 text-left text-slate">
           {view.table.caption}
         </caption>
         <thead>
-          <tr className="border-b border-divider text-slate">
-            <th scope="col" className={`${cell} font-semibold`}>
-              {view.table.heads.name}
-            </th>
-            <th scope="col" className={`${cell} font-semibold`}>
-              {view.table.heads.margin}
-            </th>
-            <th scope="col" className={`${cell} font-semibold`}>
-              {view.table.heads.revenue}
-            </th>
+          <tr className="text-slate">
+            <th scope="col">{view.table.heads.name}</th>
+            <th scope="col">{view.table.heads.margin}</th>
+            <th scope="col">{view.table.heads.revenue}</th>
           </tr>
         </thead>
         <tbody>
-          {view.table.rows.map((row, i) => (
-            <tr key={`${i}-${row.name}`} className={`border-b border-divider${row.selected ? ' font-semibold' : ''}`} data-selected={row.selected}>
-              <th scope="row" className={`${cell} font-[inherit]`}>
-                <Name row={row} selected={view.selected} />
-              </th>
-              <td className={`figure ${cell} whitespace-nowrap`} data-cell="margin">
-                {row.margin}
-              </td>
-              <td className={`figure ${cell} whitespace-nowrap`} data-cell="revenue">
-                {row.revenue}
-              </td>
-            </tr>
-          ))}
+          {view.table.rows.map((row, i) =>
+            row.selected ? (
+              <tr key={i} data-selected="true" className="font-semibold">
+                <th scope="row">
+                  <Name row={row} selected={view.selected} />
+                </th>
+                <td>{row.margin}</td>
+                <td>{row.revenue}</td>
+              </tr>
+            ) : (
+              // The position is the key: the table is static per render.
+              <tr key={i}>
+                <th scope="row">{row.name}</th>
+                <td>{row.margin}</td>
+                <td>{row.revenue}</td>
+              </tr>
+            ),
+          )}
         </tbody>
       </table>
     </div>

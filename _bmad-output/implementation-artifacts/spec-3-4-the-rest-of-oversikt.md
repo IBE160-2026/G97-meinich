@@ -180,7 +180,7 @@ Abbreviations:
 
 Choices the spec left open, made in the implementation run (2026-11-19):
 
-- **Top note.** "Viser gap ved full tilnærming" stays in the hero card (`keyFigures.topNote`, at the top of the card when driftsmargin is compared) and is the capital card's first slate line when it shows an amount (`oversikt.topNote`). The grid itself has none; the strength and missing-basis cards have no amount to qualify.
+- **Top note.** "Viser gap ved full tilnærming" stays in the hero card (`keyFigures.topNote`, at the top of the card when driftsmargin is compared) and is the capital card's first slate line when it shows an amount (the same key; review fix: a second key with the same text was removed). The grid itself has none; the strength and missing-basis cards have no amount to qualify.
 - **No comparison.** When the group is empty for the subject's own reason, or driftsmargin is below the floor or undefined, the beeswarm card shows one slate sentence (the hero's empty-group sentence, "For få sammenlignbare (n av 10)" or the absence's words) and no plot, list or table: P5–P95 and the nearest five need a comparison.
 - **Geometry not in the Design Notes.** The swarm area is at least 48 units tall (`MIN_SWARM`), so a small spread-out group has room for the median tick and the company's line; the SVG's height is 28 + that + 24. Axis gridlines and labels sit at round values inside P5–P95 (at most 5 on the desktop, 3 on the phone), none within 28 units of an axis end, where the edge counts are. "Bedre →" sits at the right of the HTML legend row, not in the SVG, so it never meets the company's name. The name is anchored start, middle or end by where the marker lies. Coordinates reach the page rounded to 0.01 units; the packing and its tests use the exact offsets.
 - **Strength.** The five figures that never qualify are an explicit set (`NEVER_STRENGTH`), although each also has no direction in the engine, so the rule holds if a direction is added; the card's value is the Plassering and its line "{own} mot {best} i beste fjerdedel" (`hero.vs`).
@@ -191,6 +191,34 @@ Choices the spec left open, made in the implementation run (2026-11-19):
 ## Spec Change Log
 
 ## Review Triage Log
+
+Review pass 1 (2026-11-19): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), each run by the BMAD session on the diff since `bb3f932`, with the spec, sprint status and epic context left out. ECH alone got the spec as its claims file.
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | VG, BH | The beeswarm's absent states have no test: an empty group's sentence, below the floor, and the subject's margin absent. | medium | Every `groupBeeswarm`/`beeswarmView` call in the tests passes `empty: null` and a compared comparison, and no e2e test reads `beeswarm-absent`. | patch (tests) |
+| 2 | VG, BH | `capitalCard`'s not-read branch is tested only for `not_in_dataset`. | medium | "capital card states, in order" uses `not_in_dataset` and `read` only. With the gate narrowed, a failed subject would read K2. | patch (tests) |
+| 3 | VG | The desktop hover tooltip is never exercised. | low | "tooltip on touch" taps the phone layout only. | patch (one e2e test) |
+| 4 | VG, BH, ECH | Oversikt renders nothing, with no error, when a covered subject has no filing. | low | `analysis-page.tsx:204` guards on `subject.filing !== null`, while `peersShown` (:169) throws on the same state as a bug. | patch |
+| 5 | VG, BH | `oversikt.topNote` duplicates `keyFigures.topNote`, and the e2e `getByText(nb['keyFigures.topNote'])` checks also match the capital card. | low | Same string under two keys. The checks at `e2e/oversikt.spec.ts` :93 and :179 hold only because demo A has no capital amount. | patch |
+| 6 | BH | The demo A strength assertion takes its expected value from `oversiktCards` and branches on it. | medium | Lines 227–245 accept either `shown` or `empty`. That breaks the story rule that no test picks its expected value from the data. | patch (test) |
+| 7 | BH | The Oversikt øre scan adds only the chosen amount, floored. | medium | "no document øre reaches Oversikt" leaves out (9), (10), (11), the working-capital total and the unfloored value. | patch (test) |
+| 8 | ECH, BH | `groupBeeswarm` passes `absent: ''` for any other comparison kind, which shows a blank sentence. | low | Unreachable today (a compared driftsmargin has a beste fjerdedel), but it is a silent fallback (AGENTS.md). | patch (throw) |
+| 9 | ECH | `ticks()` can return no tick when the first step that fits has every tick inside `TICK_CLEARANCE`. | low | The loop returns `out` even when it is empty, so a narrow [P5, P95] would get an axis with no labels. | patch (`continue`) |
+| 10 | ECH | The compact list's React key `${name}-${selected}` repeats when two peers share a name. | low | `oversikt.tsx:86`. Names are not unique in the register. | patch (index key) |
+| 11 | BH | Every mouse move sets a new state object, re-rendering about 400 dots twice and re-adding listeners. | low | `onPointerMove` calls `setOpen(pick(event))` with a fresh object each time. | patch |
+| 12 | BH | Each peer's exact margin is computed twice in `beeswarmView`. | low | `withMargin` and `without` both call `exactMargin`. | patch |
+| 13 | BH | 768–1023 px (12 columns, the phone plot, cards about 230 px wide) is untested. | low | The grid test covers 1280, 375 and 320 only. | patch (800 px) |
+| 14 | BH | EXPERIENCE's Small card row keeps the old capital example and "each with the top note", contradicting the approved copy. | low | The row was appended to, not edited (AGENTS.md: edit the original). | patch (docs) |
+| 15 | BH | AGENTS.md's description of the registry does not mention the `choice` role or "a choice sums nothing". | low | AGENTS.md: "This file must match the code". The project rule overrides the workflow's defer route for agent-context files. | patch (docs) |
+| 16 | ECH | With P5 = P95, outliers and the company are drawn at the centre, with no edge column or chevron. | low | Real in `stripPosition` :323, but it needs at least 90 % of a group of 10 or more on one exact margin, and the fix needs a new clipping branch. | reject |
+| 17 | ECH | A subject whose stated revenue is null reads "Ikke i kroner" in its own row. | false | Stage 1 needs a stated revenue, so such a subject has an empty group and the card shows its sentence, never the table. | reject |
+| 18 | ECH | A long company name is cut off at the SVG edges. | low | Needs a name over about 45 characters on the phone layout. The fix (measuring or truncating) adds complexity, and the legend and table carry the name. | reject |
+| 19 | ECH | `strengthCard` throws "a strength is compared" for omsArsverk. | false | `row()` (`key-figure-rows.ts:275`) maps a compared benchmark to a compared row in every case. omsArsverk is always absent in v1. | reject |
+| 20 | BH | Plot coordinates at 0.01 units imply a peer's margin finer than 0.1 pp. | low | Public register data that the page already shows to 0.1 pp. No øre and no figure beyond this analysis's. | reject |
+| 21 | BH | The strength tie rule depends on the key order of `KEY_FIGURE_ROWS`. | low | That order is figure order for every figure that can qualify (commented). Ties between 2 and 11 and between 9 and 2 are tested. | reject |
+| 22 | BH | `data-selected` is written differently in the compact list and the table. | low | Cosmetic. The e2e selectors are written for each. | reject |
+| 23 | BH | Counts are written with `String(n)`, not through `format.ts`. | false | The existing convention for counts (`peer-list.tsx:213, 315`). The format rule covers figures and amounts. | reject |
 
 ## Design Notes
 

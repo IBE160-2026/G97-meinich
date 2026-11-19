@@ -178,6 +178,16 @@ Abbreviations:
 
 ## Implementation Notes
 
+Choices the spec left open, made in the implementation run (2026-11-19):
+
+- **Top note.** "Viser gap ved full tilnærming" stays in the hero card (`keyFigures.topNote`, at the top of the card when driftsmargin is compared) and is the capital card's first slate line when it shows an amount (`oversikt.topNote`). The grid itself has none; the strength and missing-basis cards have no amount to qualify.
+- **No comparison.** When the group is empty for the subject's own reason, or driftsmargin is below the floor or undefined, the beeswarm card shows one slate sentence (the hero's empty-group sentence, "For få sammenlignbare (n av 10)" or the absence's words) and no plot, list or table: P5–P95 and the nearest five need a comparison.
+- **Geometry not in the Design Notes.** The swarm area is at least 48 units tall (`MIN_SWARM`), so a small spread-out group has room for the median tick and the company's line; the SVG's height is 28 + that + 24. Axis gridlines and labels sit at round values inside P5–P95 (at most 5 on the desktop, 3 on the phone), none within 28 units of an axis end, where the edge counts are. "Bedre →" sits at the right of the HTML legend row, not in the SVG, so it never meets the company's name. The name is anchored start, middle or end by where the marker lies. Coordinates reach the page rounded to 0.01 units; the packing and its tests use the exact offsets.
+- **Strength.** The five figures that never qualify are an explicit set (`NEVER_STRENGTH`), although each also has no direction in the engine, so the rule holds if a direction is added; the card's value is the Plassering and its line "{own} mot {best} i beste fjerdedel" (`hero.vs`).
+- **Mangler grunnlag.** The value is the row's own cell (its value, or its absence's words); the line is "For få sammenlignbare (n av 10)" for a figure below the floor, or the absence's explanation where it has one (7 and 8: the notes).
+- **Payload.** Demo A's Oversikt (396 peers) went from 22,6 KB HTML / 12,4 KB RSC before the story to 585,6 KB / 266,3 KB with the first version of the beeswarm; one `<g>` carrying the dots' look and the table's styles set once on the table brought it to 267,6 KB / 147,9 KB (demo B: 22,7 / 12,5 KB → 269,2 / 148,8 KB), the same order as the Peers tab (491 KB / 260 KB).
+- **Demo A and B (totals only).** Desktop: radius 3.5 units (stepped down once from 4), swarm 230.5 (A) and 218.0 (B) units, SVG 282.5 and 270. Phone: radius 2 (the minimum), swarm 168.5 and 168.0 units, SVG 220.5 and 220.
+
 ## Spec Change Log
 
 ## Review Triage Log

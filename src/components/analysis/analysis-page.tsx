@@ -25,7 +25,9 @@
 // Story 3.5: the covered page holds the URL hook's provider
 // (AnalysisUrlProvider) around the tabs and the panel, with the URL it
 // parsed and whether the median step exists for it, so every link keeps the
-// share the browser writes with `history.replaceState`.
+// share the browser writes with `history.replaceState`. Verdi receives only
+// its wire (src/analysis/verdi-view.ts): the exact amounts and s_med as
+// WireDecimals, everything else as strings.
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -42,6 +44,7 @@ import {
   type Subject,
 } from '@/analysis/view';
 import { peerRows } from '@/analysis/peer-rows';
+import { verdiWire } from '@/analysis/verdi-view';
 import { driftsmarginComparison, shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { bandFactors, bandSteps } from '@/analysis/size-band';
 import { AnalysisUrlProvider } from '@/components/analysis/analysis-url';
@@ -55,6 +58,7 @@ import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
+import { VerdiPanel } from '@/components/analysis/verdi-panel';
 import { medianStep } from '@/engine/closable';
 import { formatOrgnr } from '@/engine/format';
 import { assemblePeerGroup, V1_FUNNEL, type PeerGroup } from '@/engine/peers';
@@ -203,6 +207,20 @@ function oversiktSubject(subject: Subject) {
   return { name: displayName(subject), keyFigures: filing.keyFigures, documentBasis: filing.documentBasis };
 }
 
+/** What Verdi reads of the subject: its filing (a covered subject always has one, as for oversiktSubject). */
+function verdiShown(subject: Subject, group: ShownGroup) {
+  const filing = subject.filing;
+  if (filing === null) throw new TypeError('verdiShown: a covered subject without a filing');
+  return verdiWire({
+    api: group.benchmark,
+    document: group.documentBenchmark,
+    basis: filing.documentBasis.kind,
+    filingYear: group.filingYear,
+    keyFigures: filing.keyFigures,
+    selskap: displayName(subject),
+  });
+}
+
 function Covered({
   subject,
   state,
@@ -260,6 +278,7 @@ function Covered({
               filingYear={group.filingYear}
             />
           ) : null}
+          {view.fane === 'verdi' ? <VerdiPanel wire={verdiShown(subject, group)} /> : null}
         </PendingBody>
       </section>
     </AnalysisUrlProvider>

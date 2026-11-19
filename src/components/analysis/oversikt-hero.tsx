@@ -10,9 +10,10 @@
 // come from the engine's heroContext. Only formatted strings reach the page
 // (AD-4), every number through format.ts, every word through t().
 //
-// A 12-column grid from `md` with the hero spanning 5 (the rest of the grid
-// arrives in Epic 3), one column below it. The amount scales with the card
-// (`.hero-amount` in globals.css), so it never wraps or overflows.
+// The 5-column card of Oversikt's 12-column grid (Story 3.4 moved the grid
+// to oversikt.tsx); one column below `md`. The top note sits at the top of
+// the card when there is an amount to qualify. The amount scales with the
+// card (`.hero-amount` in globals.css), so it never wraps or overflows.
 import Link from 'next/link';
 import { heroContext, type FigureBenchmark } from '@/engine/benchmark';
 import { formatPercent, formatPercentagePoints, formatWholePercent } from '@/engine/format';
@@ -155,34 +156,27 @@ export function OversiktHero({
 }) {
   const model = heroModel(figure, emptyReason, { filingYear, valuta, unstatedField });
   return (
-    <div className="mt-2" data-testid="oversikt">
-      {model.kind === 'compared' ? <p className="m-0 text-[13px] text-slate">{t('keyFigures.topNote')}</p> : null}
-      <div className="mt-4 grid grid-cols-1 gap-grid-gap-phone md:grid-cols-12 md:gap-grid-gap">
-        <section
-          aria-labelledby={KICKER_ID}
-          data-testid="hero"
-          className="@container min-w-0 rounded-lg border border-divider p-card-padding-phone md:col-span-5 md:p-card-padding"
-        >
-          <h3
-            id={KICKER_ID}
-            className="m-0 font-sans text-[11px] font-semibold tracking-[0.06em] text-slate uppercase"
-          >
-            {t('hero.kicker')}
-          </h3>
-          <p className="m-0 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold">
-            <span>{t('fig.driftsmargin')}</span>
-            <span className="rounded-sm border border-divider px-1.5 py-px text-[11.5px] font-normal whitespace-nowrap text-slate">
-              {t(DIRECTION_WORDS[figure.direction])}
-            </span>
-          </p>
-          <Body model={model} />
-          <p className="m-0 mt-4 text-[13px]">
-            <Link href={serialize({ ...state, fane: 'nokkeltall' })} className="inline-flex min-h-6 items-center">
-              {t('hero.link')}
-            </Link>
-          </p>
-        </section>
-      </div>
-    </div>
+    <section
+      aria-labelledby={KICKER_ID}
+      data-testid="hero"
+      className="@container min-w-0 rounded-lg border border-divider p-card-padding-phone md:col-span-5 md:p-card-padding"
+    >
+      {model.kind === 'compared' ? <p className="m-0 mb-2 text-[13px] text-slate">{t('keyFigures.topNote')}</p> : null}
+      <h3 id={KICKER_ID} className="m-0 font-sans text-[11px] font-semibold tracking-[0.06em] text-slate uppercase">
+        {t('hero.kicker')}
+      </h3>
+      <p className="m-0 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold">
+        <span>{t('fig.driftsmargin')}</span>
+        <span className="rounded-sm border border-divider px-1.5 py-px text-[11.5px] font-normal whitespace-nowrap text-slate">
+          {t(DIRECTION_WORDS[figure.direction])}
+        </span>
+      </p>
+      <Body model={model} />
+      <p className="m-0 mt-4 text-[13px]">
+        <Link href={serialize({ ...state, fane: 'nokkeltall' })} className="inline-flex min-h-6 items-center">
+          {t('hero.link')}
+        </Link>
+      </p>
+    </section>
   );
 }

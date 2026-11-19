@@ -19,6 +19,7 @@ import {
   NON_AS,
   NON_AS_NO_FILING,
   NO_FILING,
+  companyShown,
   coverageSentence,
   dataDate,
   h1,
@@ -84,6 +85,8 @@ test.describe('covered company', () => {
 
   test('a route change to another company focuses its h1', async ({ page }) => {
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    // Demo A's page is shown before the search navigates away from it.
+    await companyShown(page, A.navn ?? '');
     await headerSearch(page).fill(C.orgnr ?? '');
     await headerSearch(page).press('Enter');
     await expect(page).toHaveURL(new RegExp(`/analyse/${C.orgnr}$`));
@@ -223,6 +226,7 @@ test.describe('a client navigation to a 404 state focuses its h1', () => {
   for (const [target, heading] of [[`/analyse/${ABSENT}`, nb['notFound.noDataTitle']]] as const) {
     test(`${target} → "${heading}"`, async ({ page }) => {
       await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      await companyShown(page, A.navn ?? '');
       await page.waitForFunction(() => (window as { next?: { router?: unknown } }).next?.router !== undefined);
       await page.evaluate((url) => {
         (window as unknown as { next: { router: { push: (href: string) => void } } }).next.router.push(url);
@@ -301,6 +305,7 @@ test.describe('the header search', () => {
     await headerSearch(page).fill('admmit');
     await page.getByRole('banner').getByRole('option', { name: /ADMMIT AS/ }).click();
     await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/oversikt$`));
+    await companyShown(page, A.navn ?? '');
     await expect(headerSearch(page)).not.toHaveAttribute('readonly', /.*/);
     await expect(page.getByRole('banner').locator('[role="status"]')).toHaveText('');
 
@@ -313,6 +318,7 @@ test.describe('the header search', () => {
 
   test('opening the company already shown does not leave it loading', async ({ page }) => {
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await companyShown(page, A.navn ?? '');
     await headerSearch(page).fill(A.orgnr ?? '');
     await headerSearch(page).press('Enter');
     await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/oversikt$`));
@@ -428,6 +434,8 @@ for (const width of [375, 320]) {
 
     test('the tabs wrap rather than scroll', async ({ page }) => {
       await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      // Measure the tabs once shown, not in the hidden streamed segment.
+      await companyShown(page, A.navn ?? '');
       const nav = tabs(page);
       const sizes = await nav.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
       expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);

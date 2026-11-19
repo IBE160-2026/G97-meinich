@@ -97,9 +97,19 @@ export function formatPercentNumber(fraction: string): string {
   return render(decimal(fraction).mul(100), 1);
 }
 
+/**
+ * Percent (0–100, e.g. Plassering 61.36…) → the whole percent the page
+ * shows, as a value: 61. Rounded here, ties away from zero, so a choice
+ * made on the shown Plassering (Story 3.4: "Største styrke" ranks on it)
+ * and the text the page writes are one rounding, never two.
+ */
+export function wholePercent(percent: string): Decimal {
+  return roundHalfAwayFromZero(decimal(percent), 0);
+}
+
 /** Percent (0–100, e.g. Plassering 61.36…) → whole percent: "61 %". */
 export function formatWholePercent(percent: string): string {
-  return `${render(decimal(percent), 0)}${NBSP}%`;
+  return `${render(wholePercent(percent), 0)}${NBSP}%`;
 }
 
 /** A fraction difference (0.07) → percentage points, one decimal: "7,0 pp". */

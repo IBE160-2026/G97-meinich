@@ -227,3 +227,42 @@ describe('Story 3.3 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.4, decision 8: the approved copy, verbatim; C1–C11 and K2, K7 are the spec's names.
+describe('Story 3.4 copy', () => {
+  it.each([
+    ['oversikt.capital.kicker', 'Største kapitalgap'],
+    ['oversikt.strength.kicker', 'Største styrke'],
+    ['oversikt.missing.kicker', 'Mangler grunnlag'],
+    ['oversikt.capital.notPerYear', 'Ikke per år, og legges ikke til resultatet.'],
+    ['oversikt.capital.none', 'Ingen kapitalgap: ingen av kapitalnøkkeltallene ligger under beste fjerdedel.'],
+    ['oversikt.strength.none', 'Ingen nøkkeltall ligger på eller over beste fjerdedel.'],
+    ['oversikt.missing.none', 'Alle nøkkeltall har grunnlag for sammenligning.'],
+    ['oversikt.missing.more', 'og {n} til'],
+    ['oversikt.beeswarm.seeAll', 'Se alle {n}'],
+    ['oversikt.beeswarm.selected', '(valgt selskap)'],
+    // C1, C2, K2
+    ['oversikt.capital.amount', 'Frigjort kapital: {belop} (engangsbeløp)'],
+    ['oversikt.capital.workingCapital', 'Arbeidskapital (kundefordringsdager og leverandørgjeldsdager)'],
+    ['oversikt.capital.noGap', 'Ingen kapitalgap blant kapitalnøkkeltallene som har grunnlag for sammenligning.'],
+    // C4, C5, C6
+    ['oversikt.beeswarm.heading', 'Driftsmargin blant sammenlignbare'],
+    [
+      'oversikt.beeswarm.summary',
+      'Driftsmargin for {n} sammenlignbare. {selskap} {own}, median {median}, beste fjerdedel {best}, bedre enn {plassering}.',
+    ],
+    ['oversikt.beeswarm.legend.company', '{selskap} {v}'],
+    ['oversikt.beeswarm.legend.median', 'Median {v}'],
+    ['oversikt.beeswarm.legend.best', 'Beste fjerdedel {v}'],
+    // K7, C8, C9, C10, C11
+    ['oversikt.beeswarm.noMargin', '{k} uten driftsmargin er ikke med i plottet.'],
+    ['oversikt.beeswarm.nearest', 'Nærmeste i driftsmargin'],
+    ['oversikt.beeswarm.caption', 'Driftsmargin for sammenlignbare selskaper'],
+    ['oversikt.beeswarm.revenue', 'Omsetning {v}'],
+    ['oversikt.beeswarm.edgeLow', '‹ {k}'],
+    ['oversikt.beeswarm.edgeHigh', '{k} ›'],
+    ['oversikt.beeswarm.edgeLegend', 'Prikkene ved kantene ligger utenfor skalaen.'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

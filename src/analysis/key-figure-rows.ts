@@ -196,7 +196,7 @@ function value(unit: Unit, figure: string): string {
  * capital figure's (`CapitalGap`, 9–11), or none of its own (every other
  * figure, whose engine gap is `none`).
  */
-type RowBenchmark = {
+export type RowBenchmark = {
   readonly direction: Direction;
   readonly comparison: Comparison;
   readonly kroner:
@@ -311,7 +311,8 @@ function apiRow(figure: FigureBenchmark, profit: boolean): RowBenchmark {
   };
 }
 
-function benchmarkOf(key: FigureKey, api: ApiBenchmark, document: DocumentBenchmark): RowBenchmark {
+/** One row's benchmark from the engine's two (Story 3.4: Oversikt's small cards read the same). */
+export function rowBenchmark(key: FigureKey, api: ApiBenchmark, document: DocumentBenchmark): RowBenchmark {
   switch (key) {
     case 'driftsmargin':
       return apiRow(api.driftsmargin, true);
@@ -346,6 +347,25 @@ export const DECOMPOSITION_UNDER: Readonly<Partial<Record<FigureKey, FoldOutKind
   lonn: 'pay',
 };
 
+function keyFigureGroups(api: ApiBenchmark, document: DocumentBenchmark, filingYear: number): KeyFigureGroup[] {
+  return KEY_FIGURE_GROUPS.map((group) => ({
+    id: group.id,
+    heading: group.heading === null ? null : t(group.heading),
+    rows: group.rows.map((key) =>
+      row(KEY_FIGURE_ROWS[key], rowBenchmark(key, api, document), filingYear, group.heading !== null),
+    ),
+  }));
+}
+
+/**
+ * Every key figure's row, in the table's order (`KEY_FIGURE_ROWS`), as the
+ * table shows it: Oversikt's "Mangler grunnlag" and "Største styrke" (Story
+ * 3.4) read these rows, so a card and the table word a figure the same way.
+ */
+export function keyFigureRows(api: ApiBenchmark, document: DocumentBenchmark, filingYear: number): KeyFigureRow[] {
+  return keyFigureGroups(api, document, filingYear).flatMap((group) => group.rows);
+}
+
 /**
  * The whole table: every key figure's row, in its group, and the two
  * decompositions. `filingYear` is the benchmark filing's, for an absence's
@@ -368,13 +388,7 @@ export function keyFigureTableView({
   readonly filingYear: number;
   readonly smaaForetak: boolean | null;
 }): KeyFigureTableView {
-  const groups = KEY_FIGURE_GROUPS.map((group) => ({
-    id: group.id,
-    heading: group.heading === null ? null : t(group.heading),
-    rows: group.rows.map((key) =>
-      row(KEY_FIGURE_ROWS[key], benchmarkOf(key, api, document), filingYear, group.heading !== null),
-    ),
-  }));
+  const groups = keyFigureGroups(api, document, filingYear);
   const rows = groups.flatMap((group) => group.rows);
   return {
     groups,

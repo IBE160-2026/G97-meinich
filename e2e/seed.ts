@@ -205,6 +205,17 @@ export const revenue = (orgnr: string) =>
   `Omsetning ${formatMillions(keyFigures.get(newestFiling(orgnr).brreg_id ?? '')?.sum_driftsinntekter_ore ?? '')}`;
 
 export const h1 = (page: Page) => page.locator('main h1');
+/**
+ * Waits until a company's analysis page is shown: its h1, visible, with its
+ * name. The analysis page streams in through a Suspense boundary and is put
+ * in place after the load event; a client navigation started before that
+ * leaves the old page's segment hidden in the document (`<div hidden
+ * id="S:0">`), so `main h1` matches twice (PR #76, CI). Act on an analysis
+ * page only after this.
+ */
+export async function companyShown(page: Page, navn: string): Promise<void> {
+  await expect(page.getByRole('heading', { level: 1, name: navn, exact: true })).toBeVisible();
+}
 // The rendered page, not the Suspense fallback: while the stream swaps one
 // for the other, both <main> elements can be in the document.
 export const rendered = (page: Page) => page.locator('main:not([aria-busy="true"])');

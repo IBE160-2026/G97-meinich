@@ -43,7 +43,7 @@ import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { KeyFigureTable } from '@/components/analysis/key-figure-table';
 import { AnalysisLoading } from '@/components/analysis/analysis-loading';
-import { OversiktHero } from '@/components/analysis/oversikt-hero';
+import { Oversikt } from '@/components/analysis/oversikt';
 import { PeerChangeAlert, PeerChangeCommit, PendingBody } from '@/components/analysis/peer-change';
 import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
@@ -173,6 +173,17 @@ function peersShown(subject: Subject, group: ShownGroup, state: AnalysisState) {
   };
 }
 
+/**
+ * What Oversikt reads of the subject. A covered subject always has a
+ * filing; one without would be a bug, so it throws rather than render an
+ * empty tab (as peersShown does).
+ */
+function oversiktSubject(subject: Subject) {
+  const filing = subject.filing;
+  if (filing === null) throw new TypeError('oversiktSubject: a covered subject without a filing');
+  return { name: displayName(subject), keyFigures: filing.keyFigures, documentBasis: filing.documentBasis };
+}
+
 function Covered({
   subject,
   state,
@@ -201,16 +212,7 @@ function Covered({
         </h2>
         <PeerChangeAlert />
         <PendingBody>
-          {view.fane === 'oversikt' ? (
-            <OversiktHero
-              figure={group.benchmark.driftsmargin}
-              state={state}
-              emptyReason={group.emptyReason}
-              filingYear={group.filingYear}
-              valuta={group.valuta}
-              unstatedField={group.unstatedField}
-            />
-          ) : null}
+          {view.fane === 'oversikt' ? <Oversikt group={group} subject={oversiktSubject(subject)} state={state} /> : null}
           {peers !== null ? (
             <PeerList
               rows={peers.rows}

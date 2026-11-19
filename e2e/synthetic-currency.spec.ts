@@ -38,6 +38,10 @@ for (const width of [1280, 375, 320]) {
 
     await page.goto(`${base}/oversikt`);
     await expect(page.getByTestId('hero')).toContainText(SENTENCE);
+    // Story 3.4: the beeswarm card says the same, never "(0 av 10)", and draws no plot.
+    await expect(page.getByTestId('beeswarm-absent')).toHaveText(SENTENCE);
+    await expect(page.getByTestId('beeswarm')).not.toContainText('0 av 10');
+    await expect(page.getByTestId('beeswarm').getByRole('img')).toHaveCount(0);
     await noSidewaysScroll(page);
   });
 }

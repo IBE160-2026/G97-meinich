@@ -45,15 +45,26 @@ export type PeerDisplayRow = {
   readonly hvorforMed: string;
 };
 
-function revenueText(peer: PeerInput, valuta: string | null): string {
-  // The formatter writes "kr" whatever the currency: another valuta shows
-  // the words, never a wrong unit.
-  if (valuta !== 'NOK' || peer.sumDriftsinntekter === null) return t('peers.otherCurrency');
-  return formatMillions(peer.sumDriftsinntekter.toString());
+/**
+ * A company's Omsetning as every peer list writes it (Story 3.4: the Peers
+ * list, Oversikt's compact list, its "Vis tallene" table and the beeswarm's
+ * tooltip all call this one function): revenue in millions, or "Ikke i
+ * kroner" outside NOK. The formatter writes "kr" whatever the currency:
+ * another valuta shows the words, never a wrong unit.
+ */
+export function peerRevenueText(sumDriftsinntekter: bigint | null, valuta: string | null): string {
+  if (valuta !== 'NOK' || sumDriftsinntekter === null) return t('peers.otherCurrency');
+  return formatMillions(sumDriftsinntekter.toString());
 }
 
-function marginText(peer: PeerInput, filingYear: number): string {
-  const result = computeApiKeyFigures(apiInputsFromRow(peer.keyFigures)).driftsmargin;
+/**
+ * A company's Driftsmargin as every peer list writes it (Story 3.4: one
+ * string per peer, byte-identical in the Peers list, the compact list and
+ * "Vis tallene"): the value the benchmark uses (computeApiKeyFigures), or
+ * "Kan ikke beregnes: …" with its reason.
+ */
+export function peerMarginText(keyFigures: SubjectKeyFigures, filingYear: number): string {
+  const result = computeApiKeyFigures(apiInputsFromRow(keyFigures)).driftsmargin;
   if (result.kind === 'value') return formatPercent(result.value.toString());
   return absenceText(result.absence, { denominator: 'analysis.figures.reason.revenueNotPositive', filingYear });
 }
@@ -79,8 +90,8 @@ export function peerRows(
       orgnr: peer.orgnr,
       excluded: isExcluded.has(peer.orgnr),
       navn: peer.navn ?? formatOrgnr(peer.orgnr),
-      omsetning: revenueText(peer, valuta),
-      driftsmargin: marginText(peer, subject.filingYear),
+      omsetning: peerRevenueText(peer.sumDriftsinntekter, valuta),
+      driftsmargin: peerMarginText(peer.keyFigures, subject.filingYear),
       hvorforMed: inclusionReason(subject, peer, subjectName, options),
     };
   });

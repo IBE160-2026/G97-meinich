@@ -4,7 +4,7 @@
 // a bigint, an amount in øre or a document basis (AD-4).
 import { describe, expect, it } from 'vitest';
 import { keyFigureTableView } from '../../src/analysis/key-figure-rows.ts';
-import { benchmarkApiFigures, benchmarkDocumentFigures } from '../../src/engine/benchmark.ts';
+import { benchmarkApiFigures, benchmarkDocumentFigures, benchmarkTotalAssetTurnover } from '../../src/engine/benchmark.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import { daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
 
@@ -53,6 +53,7 @@ describe('the key-figure view', () => {
     for (const [subject, peers] of cases) {
       const view = keyFigureTableView({
         api: benchmarkApiFigures(API, API_PEERS, 'NOK'),
+        turnover: benchmarkTotalAssetTurnover(API, API_PEERS),
         document: benchmarkDocumentFigures(subject, peers, 'NOK'),
         filingYear: 2025,
         smaaForetak: false,

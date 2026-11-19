@@ -8,7 +8,12 @@ import { describe, expect, it } from 'vitest';
 import { KeyFigureTable } from '../../src/components/analysis/key-figure-table.tsx';
 import { OversiktHero } from '../../src/components/analysis/oversikt-hero.tsx';
 import { PeerList } from '../../src/components/analysis/peer-list.tsx';
-import { benchmarkApiFigures, benchmarkDocumentFigures, type ApiBenchmark } from '../../src/engine/benchmark.ts';
+import {
+  benchmarkApiFigures,
+  benchmarkDocumentFigures,
+  benchmarkTotalAssetTurnover,
+  type ApiBenchmark,
+} from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import type { EmptyReason } from '../../src/engine/peers.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
@@ -152,6 +157,7 @@ describe('the hero amount and the table', () => {
     const benchmark = amountOf(inputs);
     const table = renderToString(createElement(KeyFigureTable, {
       benchmark,
+      turnoverBenchmark: benchmarkTotalAssetTurnover(inputs, PEERS),
       documentBenchmark: benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK'),
       companyName: 'X AS',
       smaaForetak: true,

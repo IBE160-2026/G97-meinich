@@ -3,7 +3,7 @@
 // band, reset, the history, the band change that drops exclusions, the
 // floor crossed both ways, "Vis alle" across changes, the pending and failed
 // states, the rate limit mid-series, one request per change, the exclusion
-// cap (Story 2.10), and phone widths. Every expected count is the engine's on the seed (e2e/seed.ts).
+// cap (Story 2.10), phone widths, and the decomposition factors below the floor (Story 3.2). Every expected count is the engine's on the seed (e2e/seed.ts).
 // The floor subject is picked from the seed outside the labelled set and
 // named by no title; its peers are compared by count only.
 import type { Page, Route } from '@playwright/test';
@@ -13,7 +13,8 @@ import { PHONE_CARDS } from '../src/components/analysis/phone-cards.ts';
 import { PANEL_HEADING_ID } from '../src/analysis/view.ts';
 import { BUDGETS } from '../src/rate-limit/budgets.ts';
 import { expect, test } from './fixtures.ts';
-import { A, expectedGroup, floorSubject, noSidewaysScroll, notice } from './seed.ts';
+import { formatPercent, formatTurnover } from '../src/engine/format.ts';
+import { A, expectedBenchmark, expectedGroup, expectedTurnover, floorSubject, noSidewaysScroll, notice } from './seed.ts';
 
 const DB_DOWN_PORT = '3101'; // playwright.config.ts: the server whose database is unreachable
 
@@ -202,6 +203,39 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await page.getByRole('link', { name: nb['tabs.nokkeltall'] }).click();
     await expect(page.getByRole('heading', { level: 2 })).toHaveText(nb['tabs.nokkeltall']);
     await expect(page.getByText(belowFloor)).toHaveCount(0);
+  });
+
+  // Story 3.2: each decomposition factor is gated on its own. The floor
+  // subject excluded down to nine peers: each factor keeps the subject's
+  // value with "For få sammenlignbare (n av 10)", n the engine's for that factor.
+  test('factors below the floor', async ({ page }) => {
+    const subject = floorSubject();
+    const group = expectedGroup(subject, 0);
+    const excluded = group.slice(0, group.length - 9).map((peer) => peer.orgnr);
+    const margin = expectedBenchmark(subject, 0, excluded).driftsmargin.comparison;
+    const turnover = expectedTurnover(subject, 0, excluded).comparison;
+    if (margin.kind !== 'below_floor' || margin.count !== 9) throw new Error('the floor subject is below the floor on nine');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${subject}/nokkeltall?ekskl=${[...excluded].sort().join(',')}`);
+    const fold = page.getByRole('region', { name: nb['keyFigures.regionLabel'] }).locator('tr[data-foldout="margin"]');
+    await fold.getByRole('button', { name: nb['keyFigures.foldout.margin'] }).click();
+    const factors = fold.locator('[data-factor]');
+    await expect(factors).toHaveCount(2);
+    const expected = [
+      [margin, formatPercent],
+      [turnover, formatTurnover],
+    ] as const;
+    for (const [i, [c, format]] of expected.entries()) {
+      const factor = factors.nth(i);
+      // Nine peers or fewer: no factor can be compared.
+      expect(c.kind, `factor ${i}`).not.toBe('compared');
+      if (c.kind === 'below_floor') {
+        await expect(factor).toContainText(format(c.subject.toString()));
+        await expect(factor).toContainText(fill('keyFigures.belowFloor', { n: String(c.count), min: '10' }));
+      }
+      await expect(factor).not.toContainText(nb['keyFigures.col.median']);
+      await expect(factor.getByTestId('distribution-strip')).toHaveCount(0);
+    }
   });
 
   test('"Vis alle" at 375 px stays open across an exclusion and closes when the band changes', async ({ page }) => {

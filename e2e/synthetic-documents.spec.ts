@@ -128,6 +128,22 @@ test('every document row is compared against the engine', async ({ page }) => {
   for (const key of ['omsArsverk', 'lonnArsverk']) {
     await expect(cell(page, key, 'own'), key).toContainText(nb['analysis.figures.notReadInV1']);
   }
+  // Story 3.2: a subject in the demo data. The pay fold-out is not read in v1
+  // either, with no median; the margin fold-out compares both factors.
+  const pay = region(page).locator('tr[data-foldout="pay"]');
+  await pay.getByRole('button', { name: nb['keyFigures.foldout.pay'] }).click();
+  const payFactors = pay.locator('[data-factor]');
+  await expect(payFactors).toHaveCount(2);
+  for (const i of [0, 1]) await expect(payFactors.nth(i)).toContainText(nb['analysis.figures.notReadInV1']);
+  await expect(pay).not.toContainText(nb['keyFigures.col.median']);
+  const margin = region(page).locator('tr[data-foldout="margin"]');
+  await margin.getByRole('button', { name: nb['keyFigures.foldout.margin'] }).click();
+  const marginFactors = margin.locator('[data-factor]');
+  await expect(marginFactors).toHaveCount(2);
+  for (const i of [0, 1]) {
+    await expect(marginFactors.nth(i)).toContainText(nb['keyFigures.col.median']);
+    await expect(marginFactors.nth(i).getByTestId('distribution-strip')).toHaveCount(1);
+  }
 });
 
 test('excluding one peer puts the document rows below the floor', async ({ page }) => {

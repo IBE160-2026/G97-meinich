@@ -18,16 +18,27 @@
 // assistive technology too): seven columns in a horizontal scroll region
 // from `md` up, and below it a three-column table (Nøkkeltall · own · Gap i
 // kroner) whose row names open a full-width expansion row.
-import type { ReactNode } from 'react';
-import type { ApiBenchmark, DocumentBenchmark } from '@/engine/benchmark';
+//
+// Story 3.2: the two decomposition fold-outs, closed by default. On the
+// desktop each is its own row right after the figure it explains
+// ("Margin eller kapitalbruk?" after Totalkapitalrentabilitet, "Lønnsnivå
+// eller produktivitet?" after Lønnskostnadsandel); on the phone each is its
+// own `<tbody>` right after that figure's row group, full width, never inside
+// a figure row.
+import { Fragment, type ReactNode } from 'react';
+import type { ApiBenchmark, DocumentBenchmark, TurnoverBenchmark } from '@/engine/benchmark';
 import { t } from '@/messages';
+import type { DecompositionView, FactorPairView } from '@/analysis/decomposition-view';
 import {
+  DECOMPOSITION_UNDER,
   keyFigureTableView,
   type CellText,
   type GapCell,
   type KeyFigureRow,
 } from '@/analysis/key-figure-rows';
 import { DistributionStrip } from './distribution-strip';
+import { FactorPair } from './factor-pair';
+import { FoldOut } from './fold-out';
 import { InfoPopover } from './info-popover';
 import { PhoneRowToggle } from './phone-row-toggle';
 import { StateBlock } from './state-block';
@@ -216,14 +227,80 @@ function GroupHeading({ id, heading, columns }: { readonly id: string; readonly 
   );
 }
 
+/** A decomposition's fold-out: its heading and its factor pair. Ids `kf-d-fold-…` and `kf-p-fold-…`. */
+function Decomposition({
+  pair,
+  bodyId,
+  companyName,
+}: {
+  readonly pair: FactorPairView;
+  readonly bodyId: string;
+  readonly companyName: string;
+}) {
+  return (
+    <FoldOut bodyId={bodyId} heading={pair.heading}>
+      <FactorPair factors={pair.factors} companyName={companyName} />
+    </FoldOut>
+  );
+}
+
+/** The desktop fold-out under a figure row, if one opens there: its own row, spanning the table. */
+function DesktopFoldOut({
+  figure,
+  decompositions,
+  companyName,
+}: {
+  readonly figure: KeyFigureRow['key'];
+  readonly decompositions: DecompositionView;
+  readonly companyName: string;
+}) {
+  const which = DECOMPOSITION_UNDER[figure];
+  if (which === undefined) return null;
+  return (
+    <tr className="border-b border-divider" data-foldout={which}>
+      <td colSpan={DESKTOP_COLUMNS} className="py-2 pr-4">
+        <Decomposition pair={decompositions[which]} bodyId={`kf-d-fold-${which}`} companyName={companyName} />
+      </td>
+    </tr>
+  );
+}
+
+/** The phone fold-outs after a row group: each its own `<tbody>`, full width. */
+function PhoneFoldOuts({
+  figures,
+  decompositions,
+  companyName,
+}: {
+  readonly figures: readonly KeyFigureRow['key'][];
+  readonly decompositions: DecompositionView;
+  readonly companyName: string;
+}) {
+  return figures.map((figure) => {
+    const which = DECOMPOSITION_UNDER[figure];
+    if (which === undefined) return null;
+    return (
+      <tbody key={`fold-${which}`} data-foldout={which} className={groupRule}>
+        <tr>
+          <td colSpan={PHONE_COLUMNS} className="py-2">
+            <Decomposition pair={decompositions[which]} bodyId={`kf-p-fold-${which}`} companyName={companyName} />
+          </td>
+        </tr>
+      </tbody>
+    );
+  });
+}
+
 export function KeyFigureTable({
   benchmark,
+  turnoverBenchmark,
   documentBenchmark,
   companyName,
   smaaForetak,
   filingYear,
 }: {
   readonly benchmark: ApiBenchmark;
+  /** Total asset turnover against the same peers: the margin decomposition's second factor (Story 3.2). */
+  readonly turnoverBenchmark: TurnoverBenchmark;
   readonly documentBenchmark: DocumentBenchmark;
   /** The own column's head: the company's name. */
   readonly companyName: string;
@@ -232,7 +309,13 @@ export function KeyFigureTable({
   /** The benchmark filing's year, for an absence's words. */
   readonly filingYear: number;
 }) {
-  const view = keyFigureTableView({ api: benchmark, document: documentBenchmark, filingYear, smaaForetak });
+  const view = keyFigureTableView({
+    api: benchmark,
+    turnover: turnoverBenchmark,
+    document: documentBenchmark,
+    filingYear,
+    smaaForetak,
+  });
   return (
     <div className="mt-2" data-testid="key-figure-table">
       <p className="m-0 text-[13px] text-slate">{t('keyFigures.topNote')}</p>
@@ -292,11 +375,10 @@ export function KeyFigureTable({
                 <GroupHeading id={`kf-d-group-${group.id}`} heading={group.heading} columns={DESKTOP_COLUMNS} />
               ) : null}
               {group.rows.map((row) => (
-                <DesktopRow
-                  key={row.key}
-                  row={row}
-                  groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null}
-                />
+                <Fragment key={row.key}>
+                  <DesktopRow row={row} groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null} />
+                  <DesktopFoldOut figure={row.key} decompositions={view.decompositions} companyName={companyName} />
+                </Fragment>
               ))}
             </tbody>
           ))}
@@ -320,14 +402,21 @@ export function KeyFigureTable({
           </tr>
         </thead>
         {view.groups.map((group, i) => (
-          <tbody key={group.id} data-group={group.id} className={i > 0 ? groupRule : undefined}>
-            {group.heading !== null ? (
-              <GroupHeading id={`kf-p-group-${group.id}`} heading={group.heading} columns={PHONE_COLUMNS} />
-            ) : null}
-            {group.rows.map((row) => (
-              <PhoneRow key={row.key} row={row} />
-            ))}
-          </tbody>
+          <Fragment key={group.id}>
+            <tbody data-group={group.id} className={i > 0 ? groupRule : undefined}>
+              {group.heading !== null ? (
+                <GroupHeading id={`kf-p-group-${group.id}`} heading={group.heading} columns={PHONE_COLUMNS} />
+              ) : null}
+              {group.rows.map((row) => (
+                <PhoneRow key={row.key} row={row} />
+              ))}
+            </tbody>
+            <PhoneFoldOuts
+              figures={group.rows.map((row) => row.key)}
+              decompositions={view.decompositions}
+              companyName={companyName}
+            />
+          </Fragment>
         ))}
       </table>
     </div>

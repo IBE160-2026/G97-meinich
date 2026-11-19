@@ -28,7 +28,14 @@ function x(at: number): number {
   return Math.round((PAD + at * (WIDTH - 2 * PAD)) * 10) / 10;
 }
 
-export function DistributionStrip({ marks }: { readonly marks: StripMarks }) {
+export function DistributionStrip({
+  marks,
+  fluid = false,
+}: {
+  readonly marks: StripMarks;
+  /** Scale with its container, up to its native 160 px, instead of a fixed 160 px (a decomposition's factor, Story 3.2). */
+  readonly fluid?: boolean;
+}) {
   const own = x(marks.own.at);
   const median = x(marks.median);
   const from = x(Math.min(marks.bandFrom, marks.bandTo));
@@ -36,13 +43,13 @@ export function DistributionStrip({ marks }: { readonly marks: StripMarks }) {
   // An own value outside [P5, P95] is drawn at the edge with a chevron pointing outwards.
   const outwards = marks.own.at <= 0.5 ? -1 : 1;
   return (
-    <div aria-hidden="true" className="flex items-center gap-2" data-testid="distribution-strip">
+    <div aria-hidden="true" className={`flex items-center gap-2${fluid ? ' w-full' : ''}`} data-testid="distribution-strip">
       <svg
-        width={WIDTH}
-        height={HEIGHT}
+        width={fluid ? undefined : WIDTH}
+        height={fluid ? undefined : HEIGHT}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         focusable="false"
-        className="block shrink-0"
+        className={fluid ? 'block h-auto w-full max-w-40 min-w-0' : 'block shrink-0'}
       >
         <rect x={PAD} y={TRACK_Y} width={WIDTH - 2 * PAD} height={TRACK_H} rx={2} fill="var(--color-divider)" />
         <rect x={from} y={TRACK_Y} width={Math.max(to - from, 1)} height={TRACK_H} rx={2} fill="var(--color-band)" />

@@ -9,7 +9,12 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect } from './fixtures.ts';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
-import { benchmarkApiFigures, type ApiBenchmark } from '../src/engine/benchmark.ts';
+import {
+  benchmarkApiFigures,
+  benchmarkTotalAssetTurnover,
+  type ApiBenchmark,
+  type TurnoverBenchmark,
+} from '../src/engine/benchmark.ts';
 import { formatMillions, formatOrgnr, formatReadDate } from '../src/engine/format.ts';
 import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
@@ -242,6 +247,17 @@ export function expectedBenchmark(orgnr: string, band: SizeBand, ekskl: readonly
     apiInputsFromRow(keyFigureRow(filing.brreg_id ?? '')),
     peers.map((peer) => apiInputsFromRow(keyFigureRow(String(peer.brregId)))),
     orNull(filing.valuta),
+  );
+}
+
+// Story 3.2: total asset turnover, the margin decomposition's second factor,
+// as the server benchmarks it: against the same peers as expectedBenchmark.
+export function expectedTurnover(orgnr: string, band: SizeBand, ekskl: readonly string[] = []): TurnoverBenchmark {
+  const filing = newestFiling(orgnr);
+  const peers = expectedGroup(orgnr, band).filter((peer) => !ekskl.includes(peer.orgnr));
+  return benchmarkTotalAssetTurnover(
+    apiInputsFromRow(keyFigureRow(filing.brreg_id ?? '')),
+    peers.map((peer) => apiInputsFromRow(keyFigureRow(String(peer.brregId)))),
   );
 }
 

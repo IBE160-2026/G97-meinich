@@ -130,6 +130,9 @@ describe('shownGroup', () => {
     expect(excluded.benchmark.driftsmargin.gap.kind).not.toBe('amount');
     const restored = shownGroup(ten, [], filing('NOK'));
     expect(restored.benchmark).toEqual(before.benchmark);
+    // Story 3.2: total asset turnover is benchmarked over the same peers, the group minus ekskl.
+    expect(before.turnoverBenchmark.comparison).toMatchObject({ kind: 'compared', count: 10 });
+    expect(excluded.turnoverBenchmark.comparison).toMatchObject({ kind: 'below_floor', count: 9 });
   });
 
   // Story 3.1b: the document figures from each company's document basis,

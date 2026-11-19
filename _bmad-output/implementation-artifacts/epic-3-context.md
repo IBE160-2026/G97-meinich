@@ -63,7 +63,7 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - Exact bars sum to (margin − M)·revenue. The total is rounded once. The start is `driftsresultat` − the displayed total.
   - Bars are rounded by signed largest remainder: floor each bar, then hand out the remaining kroner by largest fraction.
   - The waterfall is never scaled by the share.
-- **Decompositions.** The factors are compared each against its own median and never multiplied. Total asset turnover is a derived factor with no beste fjerdedel, no Plassering and no kroner, and it is never labelled as figure 11.
+- **Decompositions.** Each factor is compared against its own median, each with its own 10-peer gate, and the factors are never multiplied (the median margin × the median turnover is not the median ROA). No single peer is named as the benchmark. Total asset turnover (`sumDriftsinntekter`/`sumEiendeler`, total assets, not figure 11's operating assets) is a derived factor under the same-basis rule: it shows a median and its peer count, with no beste fjerdedel, no Plassering and no kroner, and it is never labelled as figure 11 or driftsmidlenes omløpshastighet. In v1 no `aarsverk` is read, so the pay-level decomposition shows Story 2.9's not-read-in-v1 state for both factors and computes no median.
 - **Read path (AD-4).** Server-rendered pages embed only this analysis's figures, including every peer value behind each shown figure.
 - **URL state (AD-5).** `src/url/analysis-state.ts` is the only reader and writer of `andel` (0, 25, 50, 75, 100 or `median`) and `multippel` ((0, 50], step 0.1). The server resolves `median` to the exact s_med = (M−r)/(T−r), which exists only where r < M < T. The amounts use the exact s_med, never the rounded label. The `medianStepExists` placeholder (always false today) gets its real implementation in 3.5.
 - **Recalculation (AD-6).**
@@ -77,6 +77,13 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - The fingerprint reads only a stated `sumDriftsinntekter`, never a derived one.
   - The filing a document belongs to has one source: `pnpm derive` and the request path join it through one shared fragment, so R3 uses the same `sumOmloepsmidler` in both.
   - A fingerprint bound computed from an API subtotal takes the between-sources rule, max(5 kr, 0.001 %); bounds within one document keep 5 kr, which lives once in the engine.
+- **Settled in 3.1b (keep them):**
+  - `src/analysis/key-figure-rows.ts` is the one pure view builder for the table (order, groups, units, denominator words, absence states). Client components receive only formatted strings and `StripMarks`; øre, `Decimal`, `bigint` and document bases stay on the server.
+  - `shownGroup` runs the document benchmark beside the API one, over the group less `ekskl`.
+  - The table has no sorting and no `aria-sort`. The cost-share group (6 included) is indented 30 px on desktop and 16 px on phone.
+  - The "Mer om dette" popover is a hand-written client component that opens in the cell's flow, with no new dependency.
+  - Three e2e specs commit synthetic companies (project `synthetic`). The third, a subject with 10 peers that all have reconciled document columns, is the fixture for full document rows and the øre payload scan.
+  - Approved copy goes into `nb.json` verbatim and is asserted in `test/messages.test.ts`. A subagent never rewords it, and EXPERIENCE gets new strings in the same commit.
 - **Provenance inputs exist.** Every figure result carries each formula input with its column and whether it was derived, so the drill-down can show derived numerators as well as derived denominators.
 - **Copy** lives in `src/messages/nb.json` under `fig.*` and Story 2.9's absence copy. No hard-coded strings.
 
@@ -90,7 +97,8 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   - On phone the table follows Story 1.8's pattern: three columns and a row button that opens an expansion row.
 - **Outside the demo seed.** Document rows read "Ikke i demodataene" with a "Mer om dette" Popover button. One State block above the table explains it, and every such cell points to it with `aria-describedby`.
 - **Subject whose own filing failed (FR-71).** Document rows read "Regnskapet for {år} kunne ikke leses sikkert". The API rows keep their full comparison.
-- **Fold-outs.** A shadcn `Collapsible`, closed by default, with a `button` trigger, `aria-expanded`/`aria-controls` and an `aria-hidden` caret. The body sits on `surface-foldout`, indented 30 px. On phone it opens full width below its row group.
+- **Fold-outs.** Inline, never dialogs. A hand-written fold-out (no shadcn), closed by default, an `h3` with a `button` trigger, `aria-expanded`/`aria-controls`, an `aria-hidden` ▸/▾ caret, and Enter/Space to toggle. The header is in `label-strong` and the heading level is `h3`. The body sits on `surface-foldout`, indented 30 px. On phone it opens full width below its row group, never nested inside the row. "Hva forklarer marginavviket?" goes under Driftsmargin, "Margin eller kapitalbruk?" under Totalkapitalrentabilitet, and "Lønnsnivå eller produktivitet?" under Lønnskostnadsandel. All are open to every visitor in v1 (the account wall is stage 2).
+- **Factor pair.** The two factors sit side by side on desktop and stack on phone. Below the floor a factor shows the subject's value with "For få sammenlignbare (n av 10)". Outside the demo seed, "Margin eller kapitalbruk?" is shown (both factors are API), while the waterfall reads "Ikke i demodataene" and the pay-level fold-out the not-read-in-v1 state, as everywhere in v1.
 - **Waterfall.**
   - Colours: the start bar uses the median fill, the end bar navy-700, favourable bars petrol, unfavourable bars amber, and the residual slate. Each bar has a sign, ▲/▼ and a word.
   - It carries a reference tag and the sentence that the bars explain the gap and are never added to profit.
@@ -114,10 +122,11 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 
 ## Cross-Story Dependencies
 
-- **Build order:** 3.1a (done) → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Epic 3 starts after Epic 2 and Story 5.2. Story 5.4 (the demo seed) follows directly, and Epic 4's explanation row and its digest build on 3.1a's engine output.
-- **3.1a** (done) supplies every figure and amount that 3.1b–3.7 render. **3.3** turns 3.1b's cost-share cells into links, and it holds the FR-30 tests that 3.5 inherits.
+- **Build order:** 3.1a (done) → 3.1b (done) → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Epic 3 starts after Epic 2 and Story 5.2. Story 5.4 (the demo seed) follows directly, and Epic 4's explanation row and its digest build on 3.1a's engine output.
+- **3.1a** (done) supplies every figure and amount that 3.1b–3.7 render. **3.1b** (done) supplies the table, its view builder and the phone pattern into which 3.2's and 3.3's fold-outs open.
+- **3.2 → 3.3:** the fold-out component that 3.2 builds is reused by the waterfall. **3.3** turns 3.1b's cost-share cells into links, and it holds the FR-30 tests that 3.5 inherits.
 - **3.4's cards and 3.5's note.** 3.4 leaves out "· Endre i Verdi". 3.5 adds that link to the table, the hero and the cards, makes `verdi` a real tab, and fixes the peer-change provider so it keeps `andel=median` (B6).
-- **3.6** depends on 3.5's share and on the URL hook. **3.7** adds the hero's "Hvordan er dette regnet?" link, which Story 1.9 left out.
+- **3.6** depends on 3.5's share and on the URL hook. **3.7** adds the hero's "Hvordan er dette regnet?" link, which Story 1.9 left out. It also owns two deferred entries that 3.1b moved to it: the benchmark-filing order written in three places (Epic 1 retro D2), and the document lines that no check covers (Story 2.3 B9).
 - **From Epic 2** this epic relies on:
   - Story 2.9's absence model.
   - Story 2.1b's prior-year columns.

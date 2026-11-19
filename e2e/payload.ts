@@ -53,6 +53,8 @@ export const SERVER_FIELDS = [
   'accounts_only',
   'description_only',
   'industry_and_size_only',
+  // Story 3.2: the turnover benchmark stays on the server; the page gets the factor view's strings.
+  'turnoverBenchmark',
 ] as const;
 
 const DOCUMENT_FIELDS = Object.keys(DOCUMENT_FIGURE_COLUMNS) as DocumentField[];

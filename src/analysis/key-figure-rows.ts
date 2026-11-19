@@ -16,36 +16,29 @@ import type {
   DocumentBenchmark,
   FigureBenchmark,
   KronerGap,
+  TurnoverBenchmark,
 } from '../engine/benchmark.ts';
-import { stripPosition } from '../engine/benchmark.ts';
 import type { DocumentKeyFigure } from '../engine/document-absence.ts';
 import {
   formatDays,
-  formatDaysNumber,
   formatKronerExact,
   formatPercent,
-  formatPercentNumber,
   formatTurnover,
   formatWholePercent,
 } from '../engine/format.ts';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison, type Direction } from '../engine/types.ts';
 import { t, type MessageId } from '../messages/index.ts';
+import { decompositionView, type DecompositionView } from './decomposition-view.ts';
 import { capitalAmountText, kronerAmountText } from './kroner-amount.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
+import { DIRECTION_WORDS, stripMarks, type StripMarks } from './strip-marks.ts';
+import { middleHalfText, type Unit } from './middle-half.ts';
+
+export { DIRECTION_WORDS, middleHalfText, stripMarks, type StripMarks };
 
 /** A row's key: the API figure's (`ApiKeyFigures`) or the document figure's (`DOCUMENT_KEY_FIGURES`). */
 export type FigureKey = keyof ApiKeyFigures | DocumentKeyFigure;
 
-/** How a figure's value is written. */
-type Unit =
-  /** A fraction as percent, one decimal: "2,1 %". */
-  | 'percent'
-  /** Whole days: "48 dager". */
-  | 'days'
-  /** A turnover ratio, two decimals: "2,85". */
-  | 'turnover'
-  /** Øre per årsverk as whole kroner (7 and 8; never a value in v1, which does not read `aarsverk`). */
-  | 'kroner';
 
 /**
  * A figure's place in the table: a benchmarked figure, a cost share (3–5:
@@ -117,26 +110,6 @@ export const KEY_FIGURE_GROUPS: readonly {
   { id: 'context', heading: null, rows: ['vekst'] },
 ];
 
-/** A figure's direction in words: "↑ Høyere er bedre", "↓ Lavere er bedre", "Ingen retning". */
-export const DIRECTION_WORDS: Readonly<Record<Direction, MessageId>> = {
-  higher_is_better: 'keyFigures.dir.higher',
-  lower_is_better: 'keyFigures.dir.lower',
-  none: 'keyFigures.dir.none',
-};
-
-/** Mark positions as a share of the strip's width from the left, 0–1. Geometry, not figures. */
-export type StripMarks = {
-  readonly own: { readonly at: number; readonly clipped: boolean };
-  readonly median: number;
-  /** The midtre halvdel's ends, left and right as drawn. */
-  readonly bandFrom: number;
-  readonly bandTo: number;
-  /** Null for a figure with no direction. */
-  readonly best: number | null;
-  /** Lower is better: drawn mirrored and labelled "Bedre →". */
-  readonly mirrored: boolean;
-};
-
 /** A cell's visible text and, where it shows only a dash, what a screen reader hears instead. */
 export type CellText = { readonly text: string; readonly srOnly?: string };
 
@@ -179,13 +152,13 @@ export type KeyFigureGroup = { readonly id: string; readonly heading: string | n
 
 export type KeyFigureTableView = {
   readonly groups: readonly KeyFigureGroup[];
+  /** The two decomposition fold-outs' factor pairs (Story 3.2). */
+  readonly decompositions: DecompositionView;
   /** Some row's own value is "Ikke i demodataene": the State block above the table is shown. */
   readonly notInDataset: boolean;
   /** A subject that is not a small enterprise, with any figure below the floor. */
   readonly nonSmall: boolean;
 };
-
-type Compared = Extract<Comparison, { readonly kind: 'compared' }>;
 
 const DASH = '–';
 
@@ -202,69 +175,6 @@ function value(unit: Unit, figure: string): string {
   }
 }
 
-const MIDDLE_HALF: Readonly<
-  Record<Exclude<Unit, 'kroner'>, Readonly<Record<'plain' | 'negative' | 'labelled' | 'labelledNegative', MessageId>>>
-> = {
-  percent: {
-    plain: 'keyFigures.middleHalf',
-    negative: 'keyFigures.middleHalfNegative',
-    labelled: 'keyFigures.middleHalfLabelled',
-    labelledNegative: 'keyFigures.middleHalfLabelledNegative',
-  },
-  days: {
-    plain: 'keyFigures.middleHalfDays',
-    negative: 'keyFigures.middleHalfDaysNegative',
-    labelled: 'keyFigures.middleHalfDaysLabelled',
-    labelledNegative: 'keyFigures.middleHalfDaysLabelledNegative',
-  },
-  turnover: {
-    plain: 'keyFigures.middleHalfTurnover',
-    negative: 'keyFigures.middleHalfTurnoverNegative',
-    labelled: 'keyFigures.middleHalfTurnoverLabelled',
-    labelledNegative: 'keyFigures.middleHalfTurnoverLabelledNegative',
-  },
-};
-
-function bound(unit: Exclude<Unit, 'kroner'>, figure: string): string {
-  switch (unit) {
-    case 'percent':
-      return formatPercentNumber(figure);
-    case 'days':
-      return formatDaysNumber(figure);
-    case 'turnover':
-      return formatTurnover(figure);
-  }
-}
-
-/**
- * "midtre halvdel 18,4–49,0 %", or "… −6,3 til 9,1 %" when a bound is
- * negative; "Midtre halvdel: …" with no direction. Days and turnover have
- * their own words (Story 3.1b, decision 5).
- */
-export function middleHalfText(lower: string, upper: string, labelled: boolean, unit: Unit = 'percent'): string {
-  // 7 and 8 are never compared in v1, and no words are approved for a band in kroner per årsverk.
-  if (unit === 'kroner') throw new TypeError('no midtre halvdel words for a figure per årsverk');
-  const lo = bound(unit, lower);
-  const hi = bound(unit, upper);
-  const negative = lo.startsWith('−') || hi.startsWith('−');
-  const ids = MIDDLE_HALF[unit];
-  const id = labelled ? (negative ? ids.labelledNegative : ids.labelled) : negative ? ids.negative : ids.plain;
-  return t(id, { lo, hi });
-}
-
-/** The strip's marks from the engine's positions; `toNumber` only for geometry. */
-export function stripMarks(comparison: Compared, direction: Direction): StripMarks {
-  const at = (mark: Compared['median']) => stripPosition(mark, comparison, direction).at.toNumber();
-  const own = stripPosition(comparison.subject, comparison, direction);
-  return {
-    own: { at: own.at.toNumber(), clipped: own.clipped !== null },
-    median: at(comparison.median),
-    bandFrom: at(comparison.lowerQuartile),
-    bandTo: at(comparison.upperQuartile),
-    best: comparison.best === null ? null : at(comparison.best.quartile),
-    mirrored: direction === 'lower_is_better',
-  };
-}
 
 /**
  * The benchmark of one row: its direction, its comparison, and its kroner as
@@ -409,17 +319,30 @@ function benchmarkOf(key: FigureKey, api: ApiBenchmark, document: DocumentBenchm
 }
 
 /**
- * The whole table: every key figure's row, in its group. `filingYear` is the
- * benchmark filing's, for an absence's words; `smaaForetak` the subject's
- * filing's, for the non-small notice.
+ * Which decomposition fold-out opens under which row (Story 3.2; EXPERIENCE.md
+ * "Fold-out"): on the desktop right after the row, on the phone after the
+ * row's group. "Hva forklarer marginavviket?" under Driftsmargin is Story 3.3's.
+ */
+export const DECOMPOSITION_UNDER: Readonly<Partial<Record<FigureKey, keyof DecompositionView>>> = {
+  totalkapitalrentabilitet: 'margin',
+  lonn: 'pay',
+};
+
+/**
+ * The whole table: every key figure's row, in its group, and the two
+ * decompositions. `filingYear` is the benchmark filing's, for an absence's
+ * words; `smaaForetak` the subject's filing's, for the non-small notice;
+ * `turnover` total asset turnover against the same peers.
  */
 export function keyFigureTableView({
   api,
+  turnover,
   document,
   filingYear,
   smaaForetak,
 }: {
   readonly api: ApiBenchmark;
+  readonly turnover: TurnoverBenchmark;
   readonly document: DocumentBenchmark;
   readonly filingYear: number;
   readonly smaaForetak: boolean | null;
@@ -434,6 +357,7 @@ export function keyFigureTableView({
   const rows = groups.flatMap((group) => group.rows);
   return {
     groups,
+    decompositions: decompositionView({ api, turnover, document, filingYear }),
     notInDataset: rows.some((r) => r.own.notInDataset),
     nonSmall: smaaForetak === false && rows.some((r) => r.comparison.kind === 'below_floor'),
   };

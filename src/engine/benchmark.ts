@@ -209,6 +209,26 @@ export function capitalGap(
   }
 }
 
+/**
+ * Working capital released (`docs/key-figures.md`, "Two amounts that must
+ * never be added"; Story 3.3, decision 7): receivable days (9) plus payable
+ * days (10), which are safe to add because one is an asset and the other a
+ * liability. Only when both are an amount; with either one a strength, below
+ * the floor, not in NOK or absent, there is no total (`none`), and each part
+ * is shown as its own line. Operating asset turnover (11) is never added to
+ * it: its capital base already holds `kundefordringer`. A one-off amount,
+ * never added to the profit uplift. Story 3.5 shows it; Story 3.3 registers
+ * it (`src/engine/amounts.ts`) so the FR-30 tests guard it from the start.
+ */
+export type WorkingCapitalReleased =
+  | { readonly kind: 'amount'; readonly ore: Decimal; readonly oneOff: true }
+  | { readonly kind: 'none' };
+
+export function workingCapitalReleased(kfd: CapitalGap, lgd: CapitalGap): WorkingCapitalReleased {
+  if (kfd.kind !== 'amount' || lgd.kind !== 'amount') return { kind: 'none' };
+  return { kind: 'amount', ore: kfd.ore.plus(lgd.ore), oneOff: true };
+}
+
 const CAPITAL_FIGURES: ReadonlySet<DocumentKeyFigure> = new Set<CapitalFigure>(['kfd', 'lgd', 'oml']);
 
 function isCapitalFigure(figure: DocumentKeyFigure): figure is CapitalFigure {

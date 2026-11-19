@@ -2,7 +2,7 @@
 title: 'Story 3.5: Verdi — how much is closable'
 type: 'feature'
 created: '2026-11-19'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: 'bdcb4834eecbd90b32479a81575176d516e813ab'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -168,16 +168,16 @@ Each row ends with the test that must fail when its guard is removed. The implem
 ## Tasks & Acceptance
 
 **Execution** (one commit per step or two; each type-checks):
-- [ ] `src/engine/benchmark.ts`, `test/engine/no-double-counting.test.ts`, `test/engine/oversikt-cards.test.ts`, `docs/key-figures.md`, AGENTS.md -- decision 1 -- the deferred entry; close it in `deferred-work.md`.
-- [ ] `src/engine/closable.ts`, `src/engine/amounts.ts`, `test/engine/closable.test.ts`, NDC -- `medianStep(comparison)` (exists with exact s_med, or a reason), `profitAtMedian`, `scaleAmount(full, share, sMed)`, `profitAtShare`, the role `'scale'` with "a scale sums nothing" -- decisions 2 and 3.
-- [ ] `src/engine/wire.ts`, `test/engine/wire.test.ts`, `test/types/wire-props.ts` -- `WireDecimal` (branded), `toWire`, `fromWire`; strict grammar, malformed throws -- AD-6.
-- [ ] `src/analysis/view.ts`, `test/analysis/view.test.ts` -- `verdi` open, the real `medianStepExists`.
-- [ ] `src/analysis/verdi-view.ts`, `test/analysis/verdi-view.test.ts` -- `verdiWire(...)` (server) and `verdiCards(wire, andel)` (server and browser): every card, line, median line, step label, reason and announcement as strings.
-- [ ] `src/messages/nb.json`, `test/messages.test.ts` -- the story copy and N1–N12 verbatim, plus `tabs.verdi` "Verdi" and "Endre i Verdi".
-- [ ] `src/components/analysis/analysis-url.tsx`, `analysis-link.tsx`, the links in the Code Map, `peer-change.tsx`, `src/analysis/peer-change.ts`, `test/analysis/peer-change-href.test.ts` -- decision 6.
-- [ ] `src/components/analysis/verdi-panel.tsx` (`'use client'`), `closable-share.tsx`, `analysis-page.tsx`, `tab-links.tsx`, the top note in its three places -- the Verdi tab and "· Endre i Verdi".
-- [ ] `e2e/verdi.spec.ts`, `e2e/wire-identity.spec.ts`, `e2e/analysis-states.spec.ts`, `e2e/peer-adjust.spec.ts`, `e2e/synthetic-documents.spec.ts` (Verdi on the synthetic subject) -- the matrix's e2e rows, at 1280, 375 and 320 px.
-- [ ] EXPERIENCE.md (:238, the new copy), its `.memlog.md`, the technical note :322, `docs/ai-log.md` (what can go wrong with in-browser scaling and the wire, decision 5's derivations), the PRD if FR-31's wording changes -- the planning documents.
+- [x] `src/engine/benchmark.ts`, `test/engine/no-double-counting.test.ts`, `test/engine/oversikt-cards.test.ts`, `docs/key-figures.md`, AGENTS.md -- decision 1 -- the deferred entry; close it in `deferred-work.md`.
+- [x] `src/engine/closable.ts`, `src/engine/amounts.ts`, `test/engine/closable.test.ts`, NDC -- `medianStep(comparison)` (exists with exact s_med, or a reason), `profitAtMedian`, `scaleAmount(full, share, sMed)`, `profitAtShare`, the role `'scale'` with "a scale sums nothing" -- decisions 2 and 3.
+- [x] `src/engine/wire.ts`, `test/engine/wire.test.ts`, `test/types/wire-props.ts` -- `WireDecimal` (branded), `toWire`, `fromWire`; strict grammar, malformed throws -- AD-6.
+- [x] `src/analysis/view.ts`, `test/analysis/view.test.ts` -- `verdi` open, the real `medianStepExists`.
+- [x] `src/analysis/verdi-view.ts`, `test/analysis/verdi-view.test.ts` -- `verdiWire(...)` (server) and `verdiCards(wire, andel)` (server and browser): every card, line, median line, step label, reason and announcement as strings.
+- [x] `src/messages/nb.json`, `test/messages.test.ts` -- the story copy and N1–N12 verbatim, plus `tabs.verdi` "Verdi" and "Endre i Verdi".
+- [x] `src/components/analysis/analysis-url.tsx`, `analysis-link.tsx`, the links in the Code Map, `peer-change.tsx`, `src/analysis/peer-change.ts`, `test/analysis/peer-change-href.test.ts` -- decision 6.
+- [x] `src/components/analysis/verdi-panel.tsx` (`'use client'`), `closable-share.tsx`, `analysis-page.tsx`, `tab-links.tsx`, the top note in its three places -- the Verdi tab and "· Endre i Verdi".
+- [x] `e2e/verdi.spec.ts`, `e2e/wire-identity.spec.ts`, `e2e/analysis-states.spec.ts`, `e2e/peer-adjust.spec.ts`, `e2e/synthetic-documents.spec.ts` (Verdi on the synthetic subject) -- the matrix's e2e rows, at 1280, 375 and 320 px.
+- [x] EXPERIENCE.md (:238, the new copy), its `.memlog.md`, the technical note :322, `docs/ai-log.md` (what can go wrong with in-browser scaling and the wire, decision 5's derivations), the PRD if FR-31's wording changes -- the planning documents.
 
 **Acceptance Criteria:**
 - Given demo A or B, when Verdi renders:

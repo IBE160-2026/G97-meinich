@@ -37,7 +37,7 @@ import {
   type Subject,
 } from '@/analysis/view';
 import { peerRows } from '@/analysis/peer-rows';
-import { shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
+import { driftsmarginComparison, shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { bandFactors, bandSteps } from '@/analysis/size-band';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
@@ -110,9 +110,21 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
   // is dropped with the notice. `ekskl` is checked against the candidate
   // pool (stages 1–3); the shown group and every aggregate use the group
   // after stages 4 and 5 (Stories 2.5, 2.6).
-  const parsed = parseSegments(segments, search, urlContext((band) => groupAt(band)?.orgnrs ?? NO_POOL));
-  const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
+  // Story 3.5: `andel=median` is kept where the median step exists for the
+  // group the URL names, the group at its band minus its `ekskl`.
   const filing = subject?.filing ?? null;
+  const parsed = parseSegments(
+    segments,
+    search,
+    urlContext(
+      (band) => groupAt(band)?.orgnrs ?? NO_POOL,
+      (band, ekskl) => {
+        const entry = groupAt(band);
+        return entry === null || filing === null ? null : driftsmarginComparison(entry.group, ekskl, filing);
+      },
+    ),
+  );
+  const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
   const group =
     at === null || parsed.kind !== 'analysis' || filing === null
       ? null

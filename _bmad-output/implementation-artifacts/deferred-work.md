@@ -28,6 +28,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6a-url-module.md`
   summary: `medianStepExists` has no real implementation until Story 3.5 computes s_med; until then every caller must pass a predicate returning false, so `andel=median` falls back to 50 % with the notice.
   evidence: Story 1.6a AC (the predicate is an input because no engine computes s_med until 3.5); review finding 5.
+  resolved: Story 3.5 (`story/3.5-verdi-closable-share`). `urlContext` takes the subject's driftsmargin comparison for the group the URL names and keeps `andel=median` exactly where `medianStep` (`src/engine/closable.ts`) exists (`test/analysis/view.test.ts` "urlContext resolves the median step"); the peer-change provider parses its base with the server's median step (`test/analysis/peer-change-href.test.ts` "keeps andel=median", Epic 2 retro B6).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6b-analysis-route-states.md`
   summary: The analysis 404 states (invalid orgnr, valid orgnr not in the database) answer HTTP 404, but Next.js 16.4 serves them as its error shell and renders the content on the client after load, so they show nothing without JavaScript. Revisit when a Next.js release renders a nested `not-found.tsx` on the server for a `notFound()` thrown before streaming, or decide that a server-rendered 404 is worth a 200 status.

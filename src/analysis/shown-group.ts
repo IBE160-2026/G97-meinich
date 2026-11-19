@@ -32,6 +32,7 @@ import {
   type TurnoverBenchmark,
 } from '../engine/benchmark.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
+import type { Comparison } from '../engine/types.ts';
 import { marginWaterfall, type MarginWaterfall } from '../engine/waterfall.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { firstUnstatedField, withoutExcluded, type EmptyReason, type FunnelCounts, type StatedField } from '../engine/peers.ts';
@@ -83,6 +84,24 @@ export type FunnelResult<P> = {
   readonly counts: FunnelCounts;
   readonly emptyReason: EmptyReason;
 };
+
+/**
+ * The subject's driftsmargin compared with the group minus `ekskl`, as
+ * `shownGroup` compares it: what the URL module's median-step predicate
+ * reads for `andel=median` (Story 3.5, `urlContext`), computed without the
+ * rest of the analysis.
+ */
+export function driftsmarginComparison<P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures }>(
+  funnel: Pick<FunnelResult<P>, 'group'>,
+  ekskl: readonly string[],
+  filing: Pick<SubjectFiling, 'keyFigures' | 'valuta'>,
+): Comparison {
+  return benchmarkApiFigures(
+    apiInputsFromRow(filing.keyFigures),
+    withoutExcluded(funnel.group, ekskl).map((peer) => apiInputsFromRow(peer.keyFigures)),
+    filing.valuta,
+  ).driftsmargin.comparison;
+}
 
 export function shownGroup<
   P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures; readonly documentBasis: DocumentBasis },

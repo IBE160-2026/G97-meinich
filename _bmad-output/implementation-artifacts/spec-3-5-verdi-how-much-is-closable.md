@@ -225,6 +225,12 @@ Review 2026-11-19, three layers on the diff since `bdcb4834`: Blind Hunter (B), 
 | B12 | A working-capital part that is a strength has no median line | false | Decision 4: a strength has no median line | reject |
 | B14 | Outside NOK the control is active though every card is words | false | Decision 3 (Meinich): the step follows r < M < T outside NOK | reject |
 
+**Patched** by the implementation subagent, re-engaged: `1930f9d` (VG1 group, E1/B3, E5/B6, B8) and `f8e0cae` (B9, B10, B11).
+- **VG1:** `test/analysis/shown-group.test.ts` asserts the fixture's state first (median step with eleven peers, `above_median` with one excluded), then that `driftsmarginComparison` equals `shownGroup`'s comparison with and without the exclusion. It fails when `driftsmarginComparison` ignores `ekskl`. The page's lambda is reached by no unit test; the e2e B6 test covers it on demo A.
+- **E1:** "a card whose median equals its beste fjerdedel reaches it at 100 %" fails without the guard ("Median nås ved over 99 %"; mutation rerun by the BMAD session).
+- **E5:** `line` is built from `wire.step` directly; the empty branch no longer exists.
+- **B8–B11:** each is a test or fixture change.
+
 ## Design Notes
 
 **New copy (Meinich, 2026-11-19).** Ids are the implementation's choice; the texts are fixed.

@@ -221,7 +221,7 @@ action_items:
     epic: 2
     action: "Story 3.5 keeps andel=median across a peer change (B6)"
     owner: "Story 3.5"
-    status: open
+    status: done  # Story 3.5, peerChangeHref (test/analysis/peer-change-href.test.ts)
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"
   - id: "epic-2-retro-item-14-the-prompt-extraction-checks-itself-ever"
     epic: 2

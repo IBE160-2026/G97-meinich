@@ -2,7 +2,8 @@
 title: 'Story 3.3: The margin waterfall'
 type: 'feature'
 created: '2026-11-19'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_commit: 'c315dd5f65c7d0e5ec09b3530329d98dd00c29a9'
 route: 'dispatch'
 review_loop_iteration: 0
 context:

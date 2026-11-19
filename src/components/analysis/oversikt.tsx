@@ -82,8 +82,9 @@ function Nearest({ view, peersHref }: { readonly view: Extract<BeeswarmView, { r
           </tr>
         </thead>
         <tbody>
-          {view.nearest.rows.map((row) => (
-            <tr key={`${row.name}-${row.selected}`} className={`border-t border-divider${row.selected ? ' bg-surface font-semibold' : ''}`} data-selected={row.selected}>
+          {view.nearest.rows.map((row, i) => (
+            // The position is the key: two peers can share a name, and the list is static per render.
+            <tr key={i} className={`border-t border-divider${row.selected ? ' bg-surface font-semibold' : ''}`} data-selected={row.selected}>
               <th scope="row" className={`${cell} font-[inherit] break-words`}>
                 <Name row={row} selected={view.selected} />
               </th>

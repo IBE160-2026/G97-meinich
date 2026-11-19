@@ -229,7 +229,6 @@
   "hero.ctx.best.at": "på beste fjerdedel",
   "hero.noGap": "Driftsmarginen er på eller over beste fjerdedel. Det er ikke noe gap å regne om til kroner.",
   "hero.link": "Se alle nøkkeltall",
-  "oversikt.topNote": "Viser gap ved full tilnærming",
   "oversikt.capital.kicker": "Største kapitalgap",
   "oversikt.capital.amount": "Frigjort kapital: {belop} (engangsbeløp)",
   "oversikt.capital.workingCapital": "Arbeidskapital (kundefordringsdager og leverandørgjeldsdager)",

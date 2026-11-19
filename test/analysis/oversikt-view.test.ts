@@ -166,3 +166,40 @@ describe('one margin string per peer', () => {
     for (const e of view.entries) expect(e.revenue).toBe(`Omsetning ${list.get(e.name)?.omsetning ?? ''}`);
   });
 });
+
+describe('the beeswarm with no comparison', () => {
+  const peers = Array.from({ length: 12 }, (_, i) => peer(i, 2_000_000n - BigInt(i) * 10_000n, i + 1));
+
+  it('an empty group: the hero’s sentence, as given', () => {
+    // Fixture: twelve peers with margins, but the caller passes the empty group's sentence.
+    const view = groupBeeswarm(shownGroup(funnelOf(peers), [], subjectFiling), SUBJECT, 'Peerless sammenligner foreløpig bare selskaper med kalenderår som regnskapsår.');
+    expect(view).toEqual({
+      kind: 'absent',
+      heading: nb['oversikt.beeswarm.heading'],
+      text: 'Peerless sammenligner foreløpig bare selskaper med kalenderår som regnskapsår.',
+    });
+  });
+
+  it('driftsmargin below the floor: "For få sammenlignbare (n av 10)"', () => {
+    // Fixture: twelve peers with margins, three excluded: nine left, below the floor of ten.
+    const group = shownGroup(funnelOf(peers), ['900000000', '900000001', '900000002'], subjectFiling);
+    expect(group.benchmark.driftsmargin.comparison.kind).toBe('below_floor');
+    expect(groupBeeswarm(group, SUBJECT, null)).toEqual({
+      kind: 'absent',
+      heading: nb['oversikt.beeswarm.heading'],
+      text: 'For få sammenlignbare (9 av 10)',
+    });
+  });
+
+  it('the subject’s own margin absent: its reason', () => {
+    // Fixture: twelve peers with margins; the subject states a revenue of 0, so its margin is undefined.
+    const filing = { ...subjectFiling, keyFigures: row(0n, 5_000_000n) };
+    const group = shownGroup(funnelOf(peers), [], filing);
+    expect(group.benchmark.driftsmargin.comparison.kind).toBe('subject_absent');
+    expect(groupBeeswarm(group, { ...SUBJECT, keyFigures: filing.keyFigures }, null)).toEqual({
+      kind: 'absent',
+      heading: nb['oversikt.beeswarm.heading'],
+      text: 'Kan ikke beregnes: omsetningen er null eller negativ',
+    });
+  });
+});

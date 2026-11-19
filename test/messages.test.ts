@@ -234,7 +234,6 @@ describe('Story 3.4 copy', () => {
     ['oversikt.capital.kicker', 'Største kapitalgap'],
     ['oversikt.strength.kicker', 'Største styrke'],
     ['oversikt.missing.kicker', 'Mangler grunnlag'],
-    ['oversikt.topNote', 'Viser gap ved full tilnærming'],
     ['oversikt.capital.notPerYear', 'Ikke per år, og legges ikke til resultatet.'],
     ['oversikt.capital.none', 'Ingen kapitalgap: ingen av kapitalnøkkeltallene ligger under beste fjerdedel.'],
     ['oversikt.strength.none', 'Ingen nøkkeltall ligger på eller over beste fjerdedel.'],

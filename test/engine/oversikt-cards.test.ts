@@ -176,7 +176,7 @@ describe('Største kapitalgap', () => {
       kind: 'shown',
       name: nb['fig.oml'],
       value: nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact('350000')),
-      lines: [nb['oversikt.topNote'], nb['oversikt.capital.notPerYear']],
+      lines: [nb['keyFigures.topNote'], nb['oversikt.capital.notPerYear']],
     });
   });
 
@@ -216,6 +216,23 @@ describe('Største kapitalgap', () => {
     const outside = { comparison: { kind: 'subject_absent', absence: { reason: 'not_in_dataset' }, count: 0, leftOut: 12 } as Comparison, gap: BELOW };
     const notInDataset = benchmarks({ kfd: outside, lgd: outside, oml: outside });
     expect(capitalOf(notInDataset, 'not_in_dataset')).toEqual({ kind: 'empty', text: nb['analysis.figures.notInDataset'], detail: null });
+    // Fixture 1b: the other bases that are not read, each with its own words and, where it has one, its detail line.
+    for (const [basis, absence, text, detail] of [
+      ['failed_reconciliation', { reason: 'failed_reconciliation' }, 'Regnskapet for 2025 kunne ikke leses sikkert', null],
+      ['document_missing', { reason: 'document_missing' }, 'Regnskapet for 2025 er ikke lest inn', null],
+      [
+        'not_read_in_v1',
+        { reason: 'not_read_in_v1', scope: 'paper' },
+        nb['analysis.figures.notReadInV1'],
+        'Regnskapet for 2025 er levert på papir. Denne versjonen av Peerless leser ikke papirregnskap.',
+      ],
+    ] as const) {
+      const absent = { comparison: { kind: 'subject_absent', absence, count: 0, leftOut: 12 } as Comparison, gap: BELOW };
+      const b = benchmarks({ kfd: absent, lgd: absent, oml: absent });
+      const kfdRow = keyFigureRows(b.api, b.document, 2025).find((row) => row.key === 'kfd');
+      expect(kfdRow?.own, basis).toMatchObject({ text, detail });
+      expect(capitalOf(b, basis), basis).toEqual({ kind: 'empty', text, detail });
+    }
     // Rule 1 comes first: outside the demo data, even when another rule would apply.
     expect(capitalOf(benchmarks({ kfd: { gap: NOT_NOK }, lgd: { gap: NOT_NOK }, oml: { gap: NOT_NOK } }), 'not_in_dataset').kind).toBe('empty');
     // Fixture 2: read, an amount there would be not in NOK, the others strengths: "Beløpet er ikke i kroner" before the strengths.

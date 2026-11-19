@@ -227,18 +227,25 @@ test('the capital card shows the engine’s largest amount', async ({ page }) =>
   await expect(capital.locator('[data-card="value"]')).toHaveText(
     nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(largest.ore.toString())),
   );
-  await expect(capital.locator('[data-card="line"]')).toHaveText([nb['oversikt.topNote'], nb['oversikt.capital.notPerYear']]);
+  await expect(capital.locator('[data-card="line"]')).toHaveText([nb['keyFigures.topNote'], nb['oversikt.capital.notPerYear']]);
   // One amount: never a second figure's, never a sum with 11.
   await expect(capital).toContainText(/\d\skr/);
   expect((await capital.innerText()).match(/\d\skr/g)).toHaveLength(1);
 });
 
 test('no document øre reaches Oversikt', async ({ request }) => {
-  // Fixture: the synthetic subject and its ten peers; the capital choice's exact øre added to the scan.
-  const choice = largestCapitalGap(expected.kfd.gap, expected.lgd.gap, expected.oml.gap);
-  if (choice.kind !== 'amount') throw new Error('the fixture has no capital amount');
+  // Fixture: the synthetic subject and its ten peers; the exact øre of (9), (10), (11) and the
+  // working-capital total added to the scan, each as its whole part and as its digits without the point.
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  const capital = [kfd.gap.ore, lgd.gap.ore, oml.gap.ore, kfd.gap.ore.plus(lgd.gap.ore)].flatMap((ore) => [
+    ore.floor().toString(),
+    ore.toString().replace('.', ''),
+  ]);
   await expectNoDocumentFields(request, `${base}/oversikt`, {
-    ore: [...documentOre(), choice.ore.floor().toString()],
+    ore: [...documentOre(), ...capital],
     marker: nb['oversikt.capital.kicker'],
   });
 });

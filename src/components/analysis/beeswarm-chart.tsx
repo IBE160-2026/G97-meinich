@@ -88,7 +88,10 @@ function Plot({
       className="relative touch-manipulation"
       data-layout={kind}
       onPointerMove={(event) => {
-        if (event.pointerType === 'mouse') setOpen(pick(event));
+        if (event.pointerType !== 'mouse') return;
+        const next = pick(event);
+        // Only a change of dot (or to none) re-renders: a mouse moves many times over one dot.
+        setOpen((current) => (current?.index === next?.index ? current : next));
       }}
       onPointerLeave={(event) => {
         if (event.pointerType === 'mouse') setOpen(null);

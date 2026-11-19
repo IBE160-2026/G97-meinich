@@ -80,7 +80,7 @@ export function capitalCard(document: DocumentBenchmark, basis: DocumentBasis['k
       kind: 'shown',
       name: t(CAPITAL_LABEL[choice.figure]),
       value: t('oversikt.capital.amount', { belop: capitalAmountText(choice) }),
-      lines: [t('oversikt.topNote'), t('oversikt.capital.notPerYear')],
+      lines: [t('keyFigures.topNote'), t('oversikt.capital.notPerYear')],
     };
   }
   switch (choice.reason) {

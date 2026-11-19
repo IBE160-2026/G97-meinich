@@ -7,8 +7,7 @@ import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
-import { oversiktCards } from '../src/analysis/oversikt-cards.ts';
-import { benchmarkDocumentFigures, heroContext, type ApiBenchmark } from '../src/engine/benchmark.ts';
+import { atOrBeyondBest, heroContext, type ApiBenchmark } from '../src/engine/benchmark.ts';
 import { formatKronerExact, formatPercent, formatPercentagePoints, formatWholePercent } from '../src/engine/format.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { computeApiKeyFigures } from '../src/engine/key-figures.ts';
@@ -90,7 +89,7 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
         nb['hero.ctx.best.below'].replace('{pp}', formatPercentagePoints(side.toBest.toString())),
       ].join(' · '),
     );
-    await expect(page.getByText(nb['keyFigures.topNote'])).toBeVisible();
+    await expect(hero(page).getByText(nb['keyFigures.topNote'])).toBeVisible();
   });
 
   for (const query of ['', withSettings]) {
@@ -175,8 +174,12 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     else await expect(page.getByTestId('hero-own')).toHaveText(pct(c.subject));
     await expect(hero(page)).toContainText(nb['peers.nonCalendar']);
     await expect(hero(page)).not.toContainText('0 av 10');
+    // Story 3.4: the beeswarm card says the same, with no plot.
+    await expect(page.getByTestId('beeswarm-absent')).toHaveText(nb['peers.nonCalendar']);
+    await expect(page.getByTestId('beeswarm')).not.toContainText('0 av 10');
+    await expect(page.getByTestId('beeswarm').getByRole('img')).toHaveCount(0);
     await expect(heroAmount(page)).toHaveCount(0);
-    await expect(page.getByText(nb['keyFigures.topNote'])).toHaveCount(0);
+    await expect(hero(page).getByText(nb['keyFigures.topNote'])).toHaveCount(0);
   });
 
   for (const [query, band] of [
@@ -224,13 +227,15 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
 
   test('demo A: the cards outside the demo data', async ({ page }) => {
     outsideDemoData();
-    const filingYear = Number(newestFiling(A.orgnr ?? '').filing_year);
-    const cards = oversiktCards({
-      api: expectedBenchmark(A.orgnr ?? '', 0),
-      document: benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK'),
-      basis: 'not_in_dataset',
-      filingYear,
-    });
+    // Fixture: outside the demo data every document figure is absent, so only the three API figures
+    // can be a strength; on the seed, driftsmargin and totalkapitalrentabilitet are compared and below
+    // beste fjerdedel, and egenkapitalandel has no direction.
+    const api = expectedBenchmark(A.orgnr ?? '', 0);
+    for (const key of ['driftsmargin', 'totalkapitalrentabilitet'] as const) {
+      expect(api[key].comparison.kind, key).toBe('compared');
+      expect(atOrBeyondBest(api[key].comparison, api[key].direction), key).toBe(false);
+    }
+    expect(api.egenkapitalandel.direction).toBe('none');
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
     // The hero and the beeswarm as normal: driftsmargin is an API figure.
@@ -239,15 +244,9 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     // Største kapitalgap: the basis's words, and no capital line.
     await expect(card(page, 'card-capital').locator('[data-card="empty"]')).toHaveText(nb['analysis.figures.notInDataset']);
     await expect(card(page, 'card-capital')).not.toContainText(nb['oversikt.capital.notPerYear']);
-    // Største styrke as the view gives it for the engine's benchmarks.
-    if (cards.strength.kind === 'shown') {
-      await expect(card(page, 'card-strength').locator('[data-card="name"]')).toHaveText(cards.strength.name);
-      await expect(card(page, 'card-strength').locator('[data-card="value"]')).toHaveText(cards.strength.value);
-    } else {
-      await expect(card(page, 'card-strength').locator('[data-card="empty"]')).toHaveText(nb['oversikt.strength.none']);
-    }
+    // Største styrke: none of the three is at or beyond beste fjerdedel.
+    await expect(card(page, 'card-strength').locator('[data-card="empty"]')).toHaveText('Ingen nøkkeltall ligger på eller over beste fjerdedel.');
     // Outside the demo data, EBITDA-margin (2) is the first figure without a basis, with eleven more after it (7 and 8 among them).
-    expect(cards.missing).toMatchObject({ kind: 'shown', name: nb['fig.ebitda'], more: 'og 11 til' });
     await expect(card(page, 'card-missing').locator('[data-card="name"]')).toHaveText(nb['fig.ebitda']);
     await expect(card(page, 'card-missing').locator('[data-card="value"]')).toHaveText(nb['analysis.figures.notInDataset']);
     // "og 11 til" opens the table, keeping the settings.
@@ -280,6 +279,21 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     for (const small of [strength, missing]) expect(Math.abs(small.y - capital.y)).toBeLessThan(1);
     expect(capital.y).toBeGreaterThan(hero.y + hero.height - 1);
     expect(Math.abs(strength.width - capital.width)).toBeLessThan(1);
+    await noSidewaysScroll(page);
+    // 800 px: still 12 columns, the phone plot in the 7-column card, three narrow cards side by side.
+    await page.setViewportSize({ width: 800, height: 900 });
+    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await expect(card(page, 'card-missing')).toBeVisible();
+    const narrow = await boxes();
+    const [, narrowPlot, ...smalls] = narrow;
+    expect(narrowPlot?.y).toBeCloseTo(narrow[0]?.y ?? 0, 0);
+    for (const box of smalls) {
+      expect(Math.abs(box.y - (smalls[0]?.y ?? 0))).toBeLessThan(1);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(800);
+    }
+    for (let i = 1; i < smalls.length; i += 1) expect(smalls[i]?.x ?? 0).toBeGreaterThanOrEqual((smalls[i - 1]?.x ?? 0) + (smalls[i - 1]?.width ?? 0));
+    await expect(beeswarm(page).locator('[data-layout="phone"]').getByRole('img')).toBeVisible();
     await noSidewaysScroll(page);
     for (const width of [375, 320]) {
       await page.setViewportSize({ width, height: 800 });
@@ -377,6 +391,40 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     const peers = await peerRows.evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent ?? '')));
     const fromPeers = new Map(peers.map((cells) => [cells[0] ?? '', cells[2] ?? '']));
     for (const row of [...nearest, ...numbers]) expect(row.margin, row.name).toBe(fromPeers.get(row.name));
+  });
+
+  test('tooltip on hover', async ({ page }) => {
+    outsideDemoData();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    const desktop = beeswarm(page).locator('[data-layout="desktop"]');
+    await expect(desktop.getByRole('img')).toBeVisible();
+    // A dot on the axis, away from the edge columns: the middle of the swarm's dots by x.
+    const dots = await desktop.locator('g[data-mark="peer"] circle').evaluateAll((circles) =>
+      circles.map((circle) => {
+        const box = circle.getBoundingClientRect();
+        return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      }),
+    );
+    const dot = [...dots].sort((a, b) => a.x - b.x)[Math.floor(dots.length / 2)];
+    if (dot === undefined) throw new Error('no peer dots');
+    await page.mouse.move(dot.x, dot.y);
+    const tooltip = page.getByTestId('beeswarm-tooltip');
+    await expect(tooltip).toHaveCount(1);
+    await expect(tooltip).toBeVisible();
+    // The tooltip names the dot it belongs to: the picked ring sits on that dot.
+    const picked = await desktop.locator('circle[data-mark="picked"]').boundingBox();
+    if (picked === null) throw new Error('no picked dot');
+    expect(Math.hypot(picked.x + picked.width / 2 - dot.x, picked.y + picked.height / 2 - dot.y)).toBeLessThan(12);
+    // Its name is a peer's, and its value that peer's Driftsmargin in "Vis tallene".
+    const [margin, name] = await tooltip.locator('span').allTextContents();
+    const row = beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr').filter({ has: page.locator('th', { hasText: name ?? '' }) });
+    await expect(row.first().locator('td').first()).toHaveText(margin ?? '');
+    // Out of the plot: no tooltip.
+    const heading = await beeswarm(page).getByRole('heading', { level: 3 }).boundingBox();
+    if (heading === null) throw new Error('no heading');
+    await page.mouse.move(heading.x + 5, heading.y + heading.height / 2);
+    await expect(tooltip).toHaveCount(0);
   });
 
   test.describe('on touch', () => {

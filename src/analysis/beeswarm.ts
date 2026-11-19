@@ -307,6 +307,8 @@ function ticks(domain: Compared, spec: LayoutSpec): PlotText[] {
       if (x < spec.axisFrom + TICK_CLEARANCE || x > spec.axisTo - TICK_CLEARANCE) continue;
       out.push({ x: unit(x), text: formatPercent(value.toString()), anchor: 'middle' });
     }
+    // Every tick of this step fell by an axis end: try a coarser step rather than draw no gridline.
+    if (out.length === 0) continue;
     return out;
   }
   return [];
@@ -402,11 +404,10 @@ export function beeswarmView({
   const domain: Compared = comparison;
   const best = comparison.best;
 
-  const withMargin = peers.flatMap((peer, index) => {
-    const value = exactMargin(peer.keyFigures);
-    return value === null ? [] : [{ peer, index, value }];
-  });
-  const without = peers.filter((peer) => exactMargin(peer.keyFigures) === null);
+  // Each peer's exact margin once, then split: those drawn, and those without one.
+  const margins = peers.map((peer, index) => ({ peer, index, value: exactMargin(peer.keyFigures) }));
+  const withMargin = margins.flatMap(({ peer, index, value }) => (value === null ? [] : [{ peer, index, value }]));
+  const without = margins.filter(({ value }) => value === null).map(({ peer }) => peer);
   const row = (peer: BeeswarmPeer): MarginRow => ({
     name: peer.navn,
     margin: peerMarginText(peer.keyFigures, filingYear),
@@ -512,12 +513,18 @@ export function groupBeeswarm<P extends GroupPeer>(
   empty: string | null,
 ): BeeswarmView {
   const comparison = group.benchmark.driftsmargin.comparison;
-  const absent =
-    comparison.kind === 'below_floor'
-      ? t('keyFigures.belowFloor', { n: String(comparison.count), min: String(MIN_PEERS) })
-      : comparison.kind === 'subject_absent'
-        ? absenceText(comparison.absence, { denominator: 'analysis.figures.reason.revenueNotPositive', filingYear: group.filingYear })
-        : '';
+  let absent: string;
+  if (comparison.kind === 'below_floor') {
+    absent = t('keyFigures.belowFloor', { n: String(comparison.count), min: String(MIN_PEERS) });
+  } else if (comparison.kind === 'subject_absent') {
+    absent = absenceText(comparison.absence, { denominator: 'analysis.figures.reason.revenueNotPositive', filingYear: group.filingYear });
+  } else if (comparison.best === null) {
+    // Driftsmargin has a direction, so a compared one always has a beste fjerdedel.
+    throw new Error('groupBeeswarm: a compared driftsmargin without beste fjerdedel');
+  } else {
+    // Compared: the plot is drawn, and no absence sentence is shown.
+    absent = '';
+  }
   return beeswarmView({
     comparison,
     peers: group.peers.map((peer) => ({

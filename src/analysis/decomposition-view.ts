@@ -28,8 +28,7 @@ import { formatPercent, formatTurnover } from '../engine/format.ts';
 import { MIN_PEERS, type Comparison, type Direction } from '../engine/types.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
-// key-figure-rows.ts calls this module too; the cycle is safe because neither calls the other at load time.
-import { middleHalfText } from './key-figure-rows.ts';
+import { middleHalfText } from './middle-half.ts';
 import { DIRECTION_WORDS, stripMarks, type StripMarks } from './strip-marks.ts';
 
 /** A factor compared against its own peers: its value, their median, its count and its strip. */

@@ -128,7 +128,7 @@ context:
 
 ## Review Triage Log
 
-Review pass 1 (2026-11-18): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session.
+Review pass 1 (2026-11-18): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session. Row 18 (S) is from the BMAD session's own check of the review-fix commit.
 
 | # | Source | Finding | Verdict | Evidence | Route |
 |---|---|---|---|---|---|
@@ -149,6 +149,7 @@ Review pass 1 (2026-11-18): Blind Hunter (BH), Edge Case Hunter (ECH) and Verifi
 | 15 | BH | The keyboard e2e uses Enter only to open and Space only to close. | low | `e2e/key-figures.spec.ts:400-424`. | patch (both keys both ways) |
 | 16 | ECH | `floorSubject` with 30 peers needs 21 exclusions, more than `MAX_EKSKL`. | false | The test throws with a clear message in that case (`peer-adjust.spec.ts:494-501`). It is not misleading, and the seeded subject passed. | reject |
 | 17 | ECH | The turnover factor's `subject_absent` branch in "factors below the floor" is never taken. | low | It is a defensive branch for a seed state that does not occur. The unit test covers the absent text. | reject |
+| 18 | S | The review fix for row 2 made `decomposition-view.ts` import `middleHalfText` from `key-figure-rows.ts`, which imports `decomposition-view.ts`: an import cycle. | low | The BMAD session found it in its own check of the review-fix commit. `middleHalfText` and `Unit` moved to `src/analysis/middle-half.ts`, which both modules import. | patch |
 
 ## Design Notes
 

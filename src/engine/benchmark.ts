@@ -223,22 +223,33 @@ export function capitalGap(
 
 /**
  * Working capital released (`docs/key-figures.md`, "Two amounts that must
- * never be added"; Story 3.3, decision 7): receivable days (9) plus payable
- * days (10), which are safe to add because one is an asset and the other a
- * liability. Only when both are an amount; with either one a strength, below
- * the floor, not in NOK or absent, there is no total (`none`), and each part
- * is shown as its own line. Operating asset turnover (11) is never added to
- * it: its capital base already holds `kundefordringer`. A one-off amount,
- * never added to the profit uplift. Story 3.5 shows it; Story 3.3 registers
- * it (`src/engine/amounts.ts`) so the FR-30 tests guard it from the start.
+ * never be added"; Story 3.3, decision 7; Story 3.5, decision 1): receivable
+ * days (9) plus payable days (10), which are safe to add because one is an
+ * asset and the other a liability. The total exists when both clear the
+ * floor and the filing is in NOK, and a part that is a strength (at or
+ * beyond beste fjerdedel) counts as 0 in it:
+ * - both an amount: their sum;
+ * - one an amount, the other a strength: that amount alone, under the
+ *   total's name;
+ * - both strengths: `strength`, no kroner;
+ * - otherwise (either below the floor, undefined or not in NOK): `none`,
+ *   and each part is shown as its own line.
+ * Operating asset turnover (11) is never added to it: its capital base
+ * already holds `kundefordringer`. A one-off amount, never added to the
+ * profit uplift. Registered in `src/engine/amounts.ts` as a total.
  */
 export type WorkingCapitalReleased =
   | { readonly kind: 'amount'; readonly ore: Decimal; readonly oneOff: true }
+  | { readonly kind: 'strength' }
   | { readonly kind: 'none' };
 
 export function workingCapitalReleased(kfd: CapitalGap, lgd: CapitalGap): WorkingCapitalReleased {
-  if (kfd.kind !== 'amount' || lgd.kind !== 'amount') return { kind: 'none' };
-  return { kind: 'amount', ore: kfd.ore.plus(lgd.ore), oneOff: true };
+  if (kfd.kind === 'amount' && lgd.kind === 'amount') return { kind: 'amount', ore: kfd.ore.plus(lgd.ore), oneOff: true };
+  // A strength counts as 0: the other part's amount is the total.
+  if (kfd.kind === 'amount' && lgd.kind === 'strength') return { kind: 'amount', ore: kfd.ore, oneOff: true };
+  if (kfd.kind === 'strength' && lgd.kind === 'amount') return { kind: 'amount', ore: lgd.ore, oneOff: true };
+  if (kfd.kind === 'strength' && lgd.kind === 'strength') return { kind: 'strength' };
+  return { kind: 'none' };
 }
 
 /** What "Største kapitalgap" can show: the working-capital total (9 + 10), or one capital figure alone. */
@@ -260,9 +271,10 @@ export type LargestCapitalGap =
 
 /**
  * The largest capital gap among, in figure order: the working-capital total
- * when both (9) and (10) are amounts (`workingCapitalReleased`, the only sum
- * this function shows), otherwise whichever of the two is an amount, alone;
- * and (11). It chooses and sums nothing itself: (11) is never added to (9),
+ * when `workingCapitalReleased` gives one (both (9) and (10) amounts, or one
+ * an amount and the other a strength, which counts as 0; the only sum this
+ * function shows), otherwise whichever of the two is an amount, alone; and
+ * (11). It chooses and sums nothing itself: (11) is never added to (9),
  * (10) or their total, only compared with them. The largest exact amount
  * wins; on a tie the lower figure number, so working capital before (11).
  * It never reads the profit gap: it is not ranked against the per-year hero.

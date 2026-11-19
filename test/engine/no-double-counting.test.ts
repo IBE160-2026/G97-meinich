@@ -386,15 +386,24 @@ describe('a choice', () => {
 describe('cluster 2: working capital', () => {
   const amount = (ore: string): CapitalGap => ({ kind: 'amount', ore: new Decimal(ore), oneOff: true });
 
-  it('cluster 2: working capital released is (9) + (10) only, none without both', () => {
+  it('cluster 2: working capital released is (9) + (10) only; a strength counts as 0; none without both clearing the floor in NOK', () => {
+    const STRENGTH: CapitalGap = { kind: 'strength' };
+    // Both amounts: their sum.
     expect(workingCapitalReleased(amount('1000.5'), amount('250.25'))).toEqual({ kind: 'amount', ore: new Decimal('1250.75'), oneOff: true });
+    // Story 3.5, decision 1: one part a strength counts as 0, so the total is the other part's amount.
+    expect(workingCapitalReleased(amount('1000.5'), STRENGTH)).toEqual({ kind: 'amount', ore: new Decimal('1000.5'), oneOff: true });
+    expect(workingCapitalReleased(STRENGTH, amount('250.25'))).toEqual({ kind: 'amount', ore: new Decimal('250.25'), oneOff: true });
+    // Both strengths: a strength, no kroner.
+    expect(workingCapitalReleased(STRENGTH, STRENGTH)).toEqual({ kind: 'strength' });
+    // A part below the floor, undefined or not in NOK: no total, whatever the other part is.
     for (const other of [
-      { kind: 'strength' },
       { kind: 'not_nok' },
       { kind: 'none', reason: 'no_comparison' },
     ] as const satisfies readonly CapitalGap[]) {
-      expect(workingCapitalReleased(amount('1'), other)).toEqual({ kind: 'none' });
-      expect(workingCapitalReleased(other, amount('1'))).toEqual({ kind: 'none' });
+      for (const partner of [amount('1'), STRENGTH]) {
+        expect(workingCapitalReleased(partner, other)).toEqual({ kind: 'none' });
+        expect(workingCapitalReleased(other, partner)).toEqual({ kind: 'none' });
+      }
     }
   });
 

@@ -52,21 +52,34 @@ describe('largestCapitalGap', () => {
     });
   });
 
-  it('one of 9 and 10 alone is shown as that part', () => {
-    // Fixture: (9) an amount, (10) a strength or below the floor, (11) none: (9) alone, no total.
-    for (const other of [STRENGTH, BELOW]) {
-      expect(largestCapitalGap(amount('500'), other, BELOW)).toEqual({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
-      expect(largestCapitalGap(other, amount('700'), BELOW)).toEqual({ kind: 'amount', figure: 'lgd', ore: new Decimal('700'), oneOff: true });
-    }
+  it('one of 9 and 10 alone is shown as that part; beside a strength it is the working-capital total', () => {
+    // Fixture: (9) an amount, (10) below the floor, (11) none: (9) alone, no total.
+    expect(largestCapitalGap(amount('500'), BELOW, BELOW)).toEqual({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
+    expect(largestCapitalGap(BELOW, amount('700'), BELOW)).toEqual({ kind: 'amount', figure: 'lgd', ore: new Decimal('700'), oneOff: true });
+    // Story 3.5, decision 1: beside a strength, which counts as 0, the same amount is the working-capital total.
+    expect(largestCapitalGap(amount('500'), STRENGTH, BELOW)).toEqual({
+      kind: 'amount',
+      figure: 'working_capital',
+      ore: new Decimal('500'),
+      oneOff: true,
+    });
+    expect(largestCapitalGap(STRENGTH, amount('700'), BELOW)).toEqual({
+      kind: 'amount',
+      figure: 'working_capital',
+      ore: new Decimal('700'),
+      oneOff: true,
+    });
     // (9) alone against a smaller (11): (9), never 9 + 11.
-    expect(largestCapitalGap(amount('500'), STRENGTH, amount('400'))).toEqual({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
+    expect(largestCapitalGap(amount('500'), BELOW, amount('400'))).toEqual({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
   });
 
   it('a tie goes to the lower figure number', () => {
     // Fixture: working capital 150 + 150 = 300 øre and (11) 300 øre exactly.
     expect(largestCapitalGap(amount('150'), amount('150'), amount('300'))).toMatchObject({ figure: 'working_capital' });
     // (10) alone against an equal (11): (10).
-    expect(largestCapitalGap(STRENGTH, amount('300'), amount('300'))).toMatchObject({ figure: 'lgd' });
+    expect(largestCapitalGap(BELOW, amount('300'), amount('300'))).toMatchObject({ figure: 'lgd' });
+    // (10) beside a strength is the working-capital total, against an equal (11): working capital.
+    expect(largestCapitalGap(STRENGTH, amount('300'), amount('300'))).toMatchObject({ figure: 'working_capital' });
   });
 
   it('compared before rounding', () => {
@@ -181,12 +194,22 @@ describe('Største kapitalgap', () => {
   });
 
   it('one of 9 and 10 alone is shown as that part, and the total under its own label', () => {
-    // Fixture: (9) 1 000 kr, (10) a strength, (11) none; then both 9 and 10 amounts.
-    const alone = capitalOf(benchmarks({ lgd: { gap: STRENGTH }, oml: { gap: BELOW, comparison: belowFloor(3) } }));
+    // Fixture: (9) 1 000 kr, (10) below the floor, (11) none; then (10) a strength; then both 9 and 10 amounts.
+    const alone = capitalOf(
+      benchmarks({ lgd: { gap: BELOW, comparison: belowFloor(3) }, oml: { gap: BELOW, comparison: belowFloor(3) } }),
+    );
     expect(alone).toMatchObject({ kind: 'shown', name: nb['fig.kfd'], value: nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact('100000')) });
+    // Story 3.5, decision 1: beside a strength the part is the total, named as the total, with the same amount.
+    const besideStrength = capitalOf(benchmarks({ lgd: { gap: STRENGTH }, oml: { gap: BELOW, comparison: belowFloor(3) } }));
+    expect(besideStrength).toMatchObject({
+      kind: 'shown',
+      name: nb['oversikt.capital.workingCapital'],
+      value: nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact('100000')),
+    });
     const both = capitalOf(benchmarks({ oml: { gap: BELOW, comparison: belowFloor(3) } }));
     expect(both).toMatchObject({ name: nb['oversikt.capital.workingCapital'], value: nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact('200000')) });
   });
+
 
   it('the capital card never reads the profit gap', () => {
     // Fixture: the same capital gaps under three profit gaps, from none to far above them.

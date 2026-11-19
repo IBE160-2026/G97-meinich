@@ -210,15 +210,22 @@ test('the capital card shows the engine’s largest amount', async ({ page }) =>
   // Fixture (e2e/synthetic.ts, in its own words): the subject is worse than beste fjerdedel on
   // receivable days (9), payable days (10) and operating asset turnover (11), so each has a
   // capital amount, and 9 and 10 make a working-capital total.
-  for (const key of ['kfd', 'lgd', 'oml'] as const) expect(expected[key].gap.kind, key).toBe('amount');
-  const choice = largestCapitalGap(expected.kfd.gap, expected.lgd.gap, expected.oml.gap);
-  if (choice.kind !== 'amount') throw new Error('the fixture has no capital amount');
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  // The oracle, written out here rather than taken from the engine's choice: the working-capital
+  // total (9 + 10) against (11), the larger exact amount, the total on a tie.
+  const total = kfd.gap.ore.plus(lgd.gap.ore);
+  const largest = oml.gap.ore.gt(total) ? { figure: 'oml' as const, ore: oml.gap.ore } : { figure: 'working_capital' as const, ore: total };
+  const choice = largestCapitalGap(kfd.gap, lgd.gap, oml.gap);
+  expect(choice).toMatchObject({ kind: 'amount', figure: largest.figure });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/oversikt`);
   const capital = rendered(page).getByTestId('card-capital');
-  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL[choice.figure]);
+  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL[largest.figure]);
   await expect(capital.locator('[data-card="value"]')).toHaveText(
-    nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(choice.ore.toString())),
+    nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(largest.ore.toString())),
   );
   await expect(capital.locator('[data-card="line"]')).toHaveText([nb['oversikt.topNote'], nb['oversikt.capital.notPerYear']]);
   // One amount: never a second figure's, never a sum with 11.

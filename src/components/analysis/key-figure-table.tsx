@@ -50,6 +50,7 @@ import { FoldOut, FoldOutLink } from './fold-out';
 import { InfoPopover } from './info-popover';
 import { PhoneRowToggle } from './phone-row-toggle';
 import { StateBlock } from './state-block';
+import { TopNote } from './top-note';
 import { Waterfall } from './waterfall';
 
 const DASH = '–';
@@ -367,7 +368,7 @@ export function KeyFigureTable({
   });
   return (
     <div className="mt-2" data-testid="key-figure-table">
-      <p className="m-0 text-[13px] text-slate">{t('keyFigures.topNote')}</p>
+      <TopNote className="m-0 text-[13px] text-slate" />
       {view.nonSmall ? (
         <div className="mt-4" data-testid="non-small-notice">
           <StateBlock>

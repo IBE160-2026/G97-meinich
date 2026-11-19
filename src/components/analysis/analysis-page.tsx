@@ -21,6 +21,11 @@
 // page reports `serialize` of the state it parsed to the peer-change
 // provider in the layout (PeerChangeCommit), which builds the next change
 // on it, and its panel is marked busy while a change is in flight.
+//
+// Story 3.5: the covered page holds the URL hook's provider
+// (AnalysisUrlProvider) around the tabs and the panel, with the URL it
+// parsed and whether the median step exists for it, so every link keeps the
+// share the browser writes with `history.replaceState`.
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -39,6 +44,7 @@ import {
 import { peerRows } from '@/analysis/peer-rows';
 import { driftsmarginComparison, shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { bandFactors, bandSteps } from '@/analysis/size-band';
+import { AnalysisUrlProvider } from '@/components/analysis/analysis-url';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { KeyFigureTable } from '@/components/analysis/key-figure-table';
@@ -49,6 +55,7 @@ import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
+import { medianStep } from '@/engine/closable';
 import { formatOrgnr } from '@/engine/format';
 import { assemblePeerGroup, V1_FUNNEL, type PeerGroup } from '@/engine/peers';
 import { failureKind, log } from '@/logger';
@@ -209,22 +216,25 @@ function Covered({
 }) {
   if (view.fane === null) return null;
   const peers = view.fane === 'peers' ? peersShown(subject, group, state) : null;
+  const href = serialize(state);
+  const hasMedianStep = medianStep(group.benchmark.driftsmargin.comparison).kind === 'exists';
   return (
-    <>
+    <AnalysisUrlProvider href={href} medianStep={hasMedianStep}>
       <PeerChangeCommit
-        href={serialize(state)}
+        href={href}
         count={group.analysisCount}
         bandLabel={bandFactors(state.band)}
+        medianStep={hasMedianStep}
         renderId={crypto.randomUUID()}
       />
-      <TabLinks state={state} active={view.fane} />
+      <TabLinks active={view.fane} />
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">
           {t(`tabs.${view.fane}`)}
         </h2>
         <PeerChangeAlert />
         <PendingBody>
-          {view.fane === 'oversikt' ? <Oversikt group={group} subject={oversiktSubject(subject)} state={state} /> : null}
+          {view.fane === 'oversikt' ? <Oversikt group={group} subject={oversiktSubject(subject)} /> : null}
           {peers !== null ? (
             <PeerList
               rows={peers.rows}
@@ -252,7 +262,7 @@ function Covered({
           ) : null}
         </PendingBody>
       </section>
-    </>
+    </AnalysisUrlProvider>
   );
 }
 

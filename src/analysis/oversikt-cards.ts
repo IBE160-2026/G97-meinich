@@ -40,7 +40,13 @@ export type SmallCardView =
       readonly name: string;
       /** The value line: the capital amount (C1), the Plassering, or the own value or its absence. */
       readonly value: string;
-      /** Slate lines under the value. */
+      /**
+       * The top note "Viser gap ved full tilnærming · Endre i Verdi" as the
+       * first line under the value: the capital card's amount is at full
+       * convergence (Story 3.5).
+       */
+      readonly topNote: boolean;
+      /** Slate lines under the value (and the top note). */
       readonly lines: readonly string[];
     }
   | { readonly kind: 'empty'; readonly text: string; readonly detail: string | null };
@@ -80,7 +86,8 @@ export function capitalCard(document: DocumentBenchmark, basis: DocumentBasis['k
       kind: 'shown',
       name: t(CAPITAL_LABEL[choice.figure]),
       value: t('oversikt.capital.amount', { belop: capitalAmountText(choice) }),
-      lines: [t('keyFigures.topNote'), t('oversikt.capital.notPerYear')],
+      topNote: true,
+      lines: [t('oversikt.capital.notPerYear')],
     };
   }
   switch (choice.reason) {
@@ -131,6 +138,7 @@ export function strengthCard(api: ApiBenchmark, document: DocumentBenchmark, row
     kind: 'shown',
     name: row.label,
     value: row.comparison.placement.text,
+    topNote: false,
     lines: [t('hero.vs', { own: row.own.text, best: row.comparison.best.text })],
   };
 }
@@ -146,6 +154,7 @@ export function missingBasisCard(rows: readonly KeyFigureRow[]): MissingBasisVie
     kind: 'shown',
     name: first.label,
     value: first.own.text,
+    topNote: false,
     lines: reason === null ? [] : [reason],
     more: missing.length > 1 ? t('oversikt.missing.more', { n: String(missing.length - 1) }) : null,
   };

@@ -12,20 +12,21 @@
 //
 // The 5-column card of Oversikt's 12-column grid (Story 3.4 moved the grid
 // to oversikt.tsx); one column below `md`. The top note sits at the top of
-// the card when there is an amount to qualify. The amount scales with the
+// the card when there is an amount to qualify, with "· Endre i Verdi"
+// (Story 3.5); the amount stays at full convergence whatever the share. The amount scales with the
 // card (`.hero-amount` in globals.css), so it never wraps or overflows.
-import Link from 'next/link';
 import { heroContext, type FigureBenchmark } from '@/engine/benchmark';
 import { formatPercent, formatPercentagePoints, formatWholePercent } from '@/engine/format';
 import type { EmptyReason, StatedField } from '@/engine/peers';
 import { MIN_PEERS } from '@/engine/types';
 import { t, type MessageId } from '@/messages';
-import { serialize, type AnalysisState } from '@/url/analysis-state';
 import { absenceText } from '@/analysis/figure-text';
 import { DIRECTION_WORDS } from '@/analysis/key-figure-rows';
 import { FIGURES } from './api-figures';
 import { kronerAmountText } from '@/analysis/kroner-amount';
+import { AnalysisLink } from './analysis-link';
 import { emptyText, type EmptyContext } from './peer-list';
+import { TopNote } from './top-note';
 
 const KICKER_ID = 'hero-kicker';
 
@@ -136,7 +137,6 @@ function Body({ model }: { readonly model: HeroModel }) {
 
 export function OversiktHero({
   figure,
-  state,
   emptyReason,
   filingYear,
   valuta,
@@ -144,8 +144,6 @@ export function OversiktHero({
 }: {
   /** The shown group's driftsmargin benchmark, the same the table reads. */
   readonly figure: FigureBenchmark;
-  /** The URL's state; the link to the table keeps every setting. */
-  readonly state: AnalysisState;
   readonly emptyReason: EmptyReason;
   /** The subject's benchmark year, named by the empty group's sentence. */
   readonly filingYear: number;
@@ -161,7 +159,7 @@ export function OversiktHero({
       data-testid="hero"
       className="@container min-w-0 rounded-lg border border-divider p-card-padding-phone md:col-span-5 md:p-card-padding"
     >
-      {model.kind === 'compared' ? <p className="m-0 mb-2 text-[13px] text-slate">{t('keyFigures.topNote')}</p> : null}
+      {model.kind === 'compared' ? <TopNote className="m-0 mb-2 text-[13px] text-slate" /> : null}
       <h3 id={KICKER_ID} className="m-0 font-sans text-[11px] font-semibold tracking-[0.06em] text-slate uppercase">
         {t('hero.kicker')}
       </h3>
@@ -173,9 +171,9 @@ export function OversiktHero({
       </p>
       <Body model={model} />
       <p className="m-0 mt-4 text-[13px]">
-        <Link href={serialize({ ...state, fane: 'nokkeltall' })} className="inline-flex min-h-6 items-center">
+        <AnalysisLink target={{ fane: 'nokkeltall' }} className="inline-flex min-h-6 items-center">
           {t('hero.link')}
-        </Link>
+        </AnalysisLink>
       </p>
     </section>
   );

@@ -15,6 +15,7 @@ import { SizeBandControl } from '../../src/components/analysis/size-band.tsx';
 import type { FunnelCounts } from '../../src/engine/peers.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { defaultState, type AnalysisState } from '../../src/url/analysis-state.ts';
+import { withUrl } from './url-provider.ts';
 
 const NBSP = ' ';
 const GLYPH = '✦';
@@ -61,7 +62,8 @@ function props(overrides: Partial<Props> = {}): Props {
 }
 
 function render(overrides: Partial<Props> = {}): string {
-  return renderToString(createElement(PeerList, props(overrides)));
+  const shown = props(overrides);
+  return renderToString(withUrl(createElement(PeerList, shown), shown.state));
 }
 
 const at = (state: Partial<AnalysisState>): AnalysisState => ({ ...defaultState(SUBJECT), fane: 'peers', ...state });
@@ -423,20 +425,20 @@ describe('PeerList', () => {
   });
 
   it('widened: the State block with "Tilbake til standard (0,5–2×)", and no block at Standard', () => {
-    const html = render({ rows: ten, state: at({ band: 1, ekskl: ['900000003'] }) });
+    const html = render({ rows: ten, state: at({ band: 1, ekskl: ['910000004'] }) });
     const block = /<div[^>]*data-testid="widened-block"[\s\S]*?<\/div><\/div>/.exec(html)?.[0] ?? '';
     expect(text(block)).toBe(
       `${nb['peers.widened.body'].replace('{b}', '0,33–3×')}${nb['peers.widened.back'].replace('{b}', '0,5–2×')}`,
     );
     // The link keeps the exclusions and returns the band to Standard.
-    expect(block).toContain(`href="/analyse/${SUBJECT}/peers?ekskl=900000003"`);
+    expect(block).toContain(`href="/analyse/${SUBJECT}/peers?ekskl=910000004"`);
     expect(render({ rows: ten })).not.toContain('data-testid="widened-block"');
   });
 
   it('"Tilbakestill til standard" only when the group is not the standard one, to the URL without ekskl or band', () => {
     const reset = (html: string) => /<a href="([^"]*)"[^>]*>Tilbakestill til standard<\/a>/.exec(html)?.[1];
     expect(reset(render({ rows: ten }))).toBeUndefined();
-    expect(reset(render({ rows: ten, state: at({ ekskl: ['900000003'] }) }))).toBe(`/analyse/${SUBJECT}/peers`);
+    expect(reset(render({ rows: ten, state: at({ ekskl: ['910000004'] }) }))).toBe(`/analyse/${SUBJECT}/peers`);
     expect(reset(render({ rows: ten, state: at({ band: 2 }) }))).toBe(`/analyse/${SUBJECT}/peers`);
     expect(nb['peers.reset']).toBe('Tilbakestill til standard');
   });

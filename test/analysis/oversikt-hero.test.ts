@@ -19,6 +19,7 @@ import type { EmptyReason } from '../../src/engine/peers.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { defaultState, type AnalysisState } from '../../src/url/analysis-state.ts';
+import { withUrl } from './url-provider.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -56,7 +57,7 @@ function peer(margin: string): ApiInputs {
 const PEERS = ['-0.1', '-0.09', '-0.08', '-0.07', '-0.032', '-0.032', '0.091', '0.091', '0.1', '0.2'].map(peer);
 
 const STATE: AnalysisState = {
-  orgnr: '912345678',
+  orgnr: '813235552',
   fane: 'oversikt',
   ekskl: ['910000004'],
   band: 1,
@@ -66,7 +67,7 @@ const STATE: AnalysisState = {
 
 function render(benchmark: ApiBenchmark, emptyReason: EmptyReason = null, state: AnalysisState = STATE): string {
   return renderToString(
-    createElement(OversiktHero, { figure: benchmark.driftsmargin, state, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null }),
+    withUrl(createElement(OversiktHero, { figure: benchmark.driftsmargin, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null }), state),
   );
 }
 
@@ -120,10 +121,13 @@ describe('the hero with a gap', () => {
 
   it('shows the top note and the link to the table, keeping every setting', () => {
     expect(text(html)).toContain(nb['keyFigures.topNote']);
-    expect(html).toContain(`href="/analyse/912345678/nokkeltall?ekskl=910000004&amp;band=1"`);
+    expect(html).toContain(`href="/analyse/813235552/nokkeltall?ekskl=910000004&amp;band=1"`);
     expect(text(html)).toContain(nb['hero.link']);
     const bare = render(amountOf(CLIMAX), null, { ...STATE, ekskl: [], band: 0 });
-    expect(bare).toContain('href="/analyse/912345678/nokkeltall"');
+    expect(bare).toContain('href="/analyse/813235552/nokkeltall"');
+    // Story 3.5: "· Endre i Verdi" links to Verdi, every setting kept.
+    expect(text(html)).toContain(`${nb['keyFigures.topNote']} · ${nb['keyFigures.editInVerdi']}`);
+    expect(html).toContain(`href="/analyse/813235552/verdi?ekskl=910000004&amp;band=1"`);
   });
 
   it('has no red, no green and no hex colour', () => {
@@ -155,15 +159,20 @@ describe('the hero amount and the table', () => {
     ],
   ])('are the same string for %s', (_label, inputs, expected) => {
     const benchmark = amountOf(inputs);
-    const table = renderToString(createElement(KeyFigureTable, {
-      benchmark,
-      turnoverBenchmark: benchmarkTotalAssetTurnover(inputs, PEERS),
-      documentBenchmark: benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK'),
-      waterfall: { kind: 'subject_absent', absence: { reason: 'not_in_dataset' } },
-      companyName: 'X AS',
-      smaaForetak: true,
-      filingYear: 2025,
-    }));
+    const table = renderToString(
+      withUrl(
+        createElement(KeyFigureTable, {
+          benchmark,
+          turnoverBenchmark: benchmarkTotalAssetTurnover(inputs, PEERS),
+          documentBenchmark: benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK'),
+          waterfall: { kind: 'subject_absent', absence: { reason: 'not_in_dataset' } },
+          companyName: 'X AS',
+          smaaForetak: true,
+          filingYear: 2025,
+        }),
+        STATE,
+      ),
+    );
     const hero = byTestId(render(benchmark), 'hero-amount');
     expect(hero).toBe(expected);
     expect(hero).toBe(cell(table));
@@ -224,7 +233,7 @@ describe('the hero without an amount', () => {
 describe('an empty group with a reason, as on the Peers tab', () => {
   const NO_COUNTS = { stage1: 0, stage2: 0, stage3: { legalForm: 0 }, stage4: { businessModel: 0 }, stage5: { classification: 0, flagged: 0 } };
   const peersSentence = (emptyReason: EmptyReason) =>
-    text(renderToString(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 })));
+    text(renderToString(withUrl(createElement(PeerList, { rows: [], counts: NO_COUNTS, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 }))));
 
   it('a non-calendar year: the own value and the Peers tab’s sentence, not "(0 av 10)"', () => {
     const html = render(amountOf(CLIMAX, []), 'subject_non_calendar');
@@ -255,12 +264,12 @@ describe('an empty group with a reason, as on the Peers tab', () => {
   ] as const)('%s: the hero shows the Peers tab’s sentence', (emptyReason, valuta, unstatedField, sentence) => {
     const hero = text(
       renderToString(
-        createElement(OversiktHero, { figure: amountOf(CLIMAX, []).driftsmargin, state: STATE, emptyReason, filingYear: 2025, valuta, unstatedField }),
+        withUrl(createElement(OversiktHero, { figure: amountOf(CLIMAX, []).driftsmargin, emptyReason, filingYear: 2025, valuta, unstatedField }), STATE),
       ),
     );
     const peers = text(
       renderToString(
-        createElement(PeerList, { rows: [], counts: { ...NO_COUNTS, stage1: 3 }, emptyReason, filingYear: 2025, valuta, unstatedField, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 }),
+        withUrl(createElement(PeerList, { rows: [], counts: { ...NO_COUNTS, stage1: 3 }, emptyReason, filingYear: 2025, valuta, unstatedField, state: defaultState('813235552'), steps: [], analysisCount: 0, excludedCount: 0 })),
       ),
     );
     expect(hero).toContain(sentence);

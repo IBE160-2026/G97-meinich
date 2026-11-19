@@ -189,7 +189,8 @@ describe('Største kapitalgap', () => {
       kind: 'shown',
       name: nb['fig.oml'],
       value: nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact('350000')),
-      lines: [nb['keyFigures.topNote'], nb['oversikt.capital.notPerYear']],
+      topNote: true,
+      lines: [nb['oversikt.capital.notPerYear']],
     });
   });
 
@@ -289,6 +290,7 @@ describe('Største styrke', () => {
       kind: 'shown',
       name: nb['fig.ebitda'],
       value: 'bedre enn 87 %',
+      topNote: false,
       lines: ['70,0 % mot 60,0 % i beste fjerdedel'],
     });
     // Fixture: receivable days (9) at 90,5 % shows 91 %, above EBITDA-margin's 90,4 % (90 %).
@@ -343,6 +345,7 @@ describe('Mangler grunnlag', () => {
       kind: 'shown',
       name: nb['fig.driftsmargin'],
       value: '50,0 %',
+      topNote: false,
       lines: ['For få sammenlignbare (7 av 10)'],
       more: 'og 4 til',
     });
@@ -355,6 +358,7 @@ describe('Mangler grunnlag', () => {
       kind: 'shown',
       name: nb['fig.omsArsverk'],
       value: nb['analysis.figures.notReadInV1'],
+      topNote: false,
       lines: [nb['analysis.figures.notReadInV1.notes']],
       more: 'og 1 til',
     });

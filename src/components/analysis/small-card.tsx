@@ -5,9 +5,12 @@
 // place when empty.
 //
 // A server component: the view arrives as strings only
-// (src/analysis/oversikt-cards.ts, AD-4).
-import Link from 'next/link';
+// (src/analysis/oversikt-cards.ts, AD-4). Story 3.5: the capital card's top
+// note links to Verdi, and "og {n} til" is an AnalysisLink.
 import type { SmallCardView } from '@/analysis/oversikt-cards';
+import type { AnalysisTarget } from '@/analysis/peer-change';
+import { AnalysisLink } from './analysis-link';
+import { TopNote } from './top-note';
 
 export function SmallCard({
   id,
@@ -23,7 +26,7 @@ export function SmallCard({
   /** `amount`: DESIGN.md `amount-small` (22 px); `figure`: `figure-pair` (18 px), for words in place of a value. */
   readonly valueSize?: 'amount' | 'figure';
   /** "og {n} til", linking to the table. */
-  readonly more?: { readonly text: string; readonly href: string } | null;
+  readonly more?: { readonly text: string; readonly target: AnalysisTarget } | null;
 }) {
   return (
     <section
@@ -45,6 +48,7 @@ export function SmallCard({
           >
             {view.value}
           </p>
+          {view.topNote ? <TopNote className="m-0 mt-1.5 text-[13px] text-slate" /> : null}
           {view.lines.map((line) => (
             <p key={line} className="m-0 mt-1.5 text-[13px] text-slate" data-card="line">
               {line}
@@ -61,9 +65,9 @@ export function SmallCard({
       )}
       {more !== null ? (
         <p className="m-0 mt-3 text-[13px]">
-          <Link href={more.href} className="inline-flex min-h-6 items-center" data-card="more">
+          <AnalysisLink target={more.target} className="inline-flex min-h-6 items-center" data-card="more">
             {more.text}
-          </Link>
+          </AnalysisLink>
         </p>
       ) : null}
     </section>

@@ -27,17 +27,18 @@
 // all-excluded sentence), then the size-band control and the sentence that
 // nothing else loosens. "Tilbakestill til standard" shows whenever the
 // group is not the standard one. Every change link's href is `serialize`
-// of the state the change asks for (src/analysis/peer-change.ts).
+// of the state the change asks for (src/analysis/peer-change.ts), built by
+// the URL hook with the live share and multiple (Story 3.5).
 //
 // Story 2.10: with MAX_EKSKL exclusions in the URL, the cap text is shown
 // once, above the list, with EXCLUSION_CAP_ID, and every "Ekskluder" in the
 // table and the cards is aria-disabled and described by it.
-import { exclusionCapReached, isStandardGroup, nextState } from '@/analysis/peer-change';
+import { exclusionCapReached, isStandardGroup } from '@/analysis/peer-change';
 import type { PeerDisplayRow } from '@/analysis/peer-rows';
 import { bandFactors, groupTooSmall, widerBand, type BandStep } from '@/analysis/size-band';
 import { isKnownCurrency, type EmptyReason, type FunnelCounts, type StatedField } from '@/engine/peers';
 import { t } from '@/messages';
-import { DEFAULT_BAND, serialize, type AnalysisState } from '@/url/analysis-state';
+import { DEFAULT_BAND, type AnalysisState } from '@/url/analysis-state';
 import { EXCLUSION_CAP_ID, PeerAction, PeerChangeLink } from './peer-action';
 import { CARD_LIST_CLASS, PeerCard, PeerName, type PeerCardLabels } from './peer-card';
 import { PeerFunnel } from './peer-funnel';
@@ -245,10 +246,7 @@ function GroupBlocks({
           <StateBlock>
             <p className="m-0">{t('peers.widened.body', { b: bandFactors(state.band) })}</p>
             <p className="m-0 mt-1">
-              <PeerChangeLink
-                href={serialize(nextState(state, { kind: 'band', band: DEFAULT_BAND }))}
-                change={{ kind: 'band', band: DEFAULT_BAND }}
-              >
+              <PeerChangeLink change={{ kind: 'band', band: DEFAULT_BAND }}>
                 {t('peers.widened.back', { b: bandFactors(DEFAULT_BAND) })}
               </PeerChangeLink>
             </p>
@@ -261,10 +259,7 @@ function GroupBlocks({
             <p className="m-0">{tooSmall.text}</p>
             {tooSmall.widen === null ? null : (
               <p className="m-0 mt-1">
-                <PeerChangeLink
-                  href={serialize(nextState(state, { kind: 'band', band: tooSmall.widen }))}
-                  change={{ kind: 'band', band: tooSmall.widen }}
-                >
+                <PeerChangeLink change={{ kind: 'band', band: tooSmall.widen }}>
                   {t('peers.tooSmallWiden')}
                 </PeerChangeLink>
               </p>
@@ -332,7 +327,7 @@ export function PeerList({
           <PeerFunnel counts={counts} excluded={excludedCount} analysisCount={analysisCount} />
           {isStandardGroup(state) ? null : (
             <p className="m-0 mt-3">
-              <PeerChangeLink href={serialize(nextState(state, { kind: 'reset' }))} change={{ kind: 'reset' }}>
+              <PeerChangeLink change={{ kind: 'reset' }}>
                 {t('peers.reset')}
               </PeerChangeLink>
             </p>

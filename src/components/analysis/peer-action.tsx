@@ -20,11 +20,13 @@
 // the 20th is in flight, before the page shows the cap; "Ta med igjen" is
 // never disabled.
 //
-// The one-off actions are links to the URL the server serialised for the
-// same change, so they work without JavaScript; with it, a click is the
-// same soft navigation as every other change.
+// The one-off actions are links to the URL of the same change, built by the
+// URL hook (Story 3.5: on the page's state with the live share and
+// multiple), so they work without JavaScript; with it, a click is the same
+// soft navigation as every other change.
 import type { MouseEvent, ReactNode } from 'react';
 import { t } from '@/messages';
+import { useAnalysisUrl } from './analysis-url';
 import { usePeerChange, type PeerChange } from './peer-change';
 
 /** The id of the cap text, rendered once on the Peers tab, that every capped "Ekskluder" is described by. */
@@ -64,17 +66,10 @@ export function PeerAction({
   );
 }
 
-export function PeerChangeLink({
-  href,
-  change,
-  children,
-}: {
-  /** The URL the server serialised for this change, for a click without JavaScript. */
-  readonly href: string;
-  readonly change: PeerChange;
-  readonly children: ReactNode;
-}) {
+export function PeerChangeLink({ change, children }: { readonly change: PeerChange; readonly children: ReactNode }) {
   const peerChange = usePeerChange();
+  // The URL of this change, for a click without JavaScript.
+  const href = useAnalysisUrl().hrefFor({ change });
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (peerChange === null || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();

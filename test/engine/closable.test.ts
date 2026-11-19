@@ -9,14 +9,18 @@ import {
   closableSteps,
   medianStep,
   profitAtMedian,
+  productIsApproximate,
   profitAtShare,
   scaleAmount,
+  valueAtShare,
   type ClosableShare,
+  type Multiple,
 } from '../../src/engine/closable.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { formatKronerExact } from '../../src/engine/format.ts';
 import type { Comparison } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
+import { parseMultippel } from '../../src/url/analysis-state.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 
 const d = (value: string | number) => new Decimal(value);
@@ -41,6 +45,13 @@ function compared(r: Decimal, m: Decimal, best: Decimal): Comparison {
 }
 
 const kr = (ore: Decimal) => formatKronerExact(ore.toString());
+
+/** A multiple as the user enters it, through the one function that makes one. */
+function multiple(text: string): Multiple {
+  const parsed = parseMultippel(text);
+  if (parsed === null) throw new Error(`not a multiple: ${text}`);
+  return parsed as Multiple;
+}
 const profitText = (a: Decimal, full: Decimal) => t('verdi.profit.value', { a: kr(a), full: kr(full) });
 
 describe('the median step', () => {
@@ -145,5 +156,51 @@ describe('amounts at a share', () => {
     expect(scaleAmount(d(1000), 'median', d('0.25')).ore.eq(250)).toBe(true);
     expect(() => scaleAmount(d(1000), 'median', null)).toThrow(RangeError);
     expect(() => profitAtShare(d(1000), null, 'median')).toThrow(RangeError);
+  });
+});
+
+describe('the value at a share (Story 3.6)', () => {
+  it('the value at the median is (M − r) × revenue × m, rounded once', () => {
+    // Decision 2's searched case again: (M − r) × revenue is 999,50 kr exactly.
+    const rev = 100_000_000n;
+    const own = d(-4_900_000).div(d(rev.toString()));
+    const c = compared(own, d('-0.0480005'), d('-0.04798593'));
+    const step = medianStep(c);
+    const atMedian = profitAtMedian(c, rev);
+    if (step.kind !== 'exists' || atMedian === null) throw new Error('the case has a median step');
+    const fullAmount = d('-0.04798593').minus(own).mul(d(rev.toString()));
+    const m = multiple('7');
+    // The fixture's state: full × s_med × 7 is 6 996,4999… kr, which rounds to 6 996 kr.
+    expect(atMedian.ore.eq(99_950)).toBe(true);
+    expect(kr(fullAmount.mul(step.share).mul(m))).toBe(N('6 996 kr'));
+    // (M − r) × revenue × 7 = 6 996,5 kr exactly, rounded once: 6 997 kr.
+    const value = valueAtShare(fullAmount, atMedian.ore, 'median', m);
+    expect(kr(value.ore)).toBe(N('6 997 kr'));
+    expect(value.ore.eq(699_650)).toBe(true);
+  });
+
+  it('a fixed step is the profit at that step × m', () => {
+    // UJ-2's full amount 1 752 531,46 kr; at 50 % × 6,5 = 5 695 727,26… kr.
+    const revenue = 1_251_808_200n;
+    const r = d(-61_338_600).div(d(revenue.toString()));
+    const full = d('0.091').minus(r).mul(d(revenue.toString()));
+    for (const share of [0, 25, 50, 75, 100] as const) {
+      expect(valueAtShare(full, null, share, multiple('6,5')).ore.eq(profitAtShare(full, null, share).ore.mul('6.5')), String(share)).toBe(true);
+    }
+    expect(kr(valueAtShare(full, null, 0, multiple('50')).ore)).toBe(N('0 kr'));
+    expect(() => valueAtShare(full, null, 'median', multiple('6'))).toThrow(RangeError);
+  });
+
+  it('the product is approximate exactly when the shown uplift × m is not the shown value', () => {
+    // 585 000 kr exactly × 6,5 = 3 802 500 kr: exact, "=".
+    const exact = d(58_500_000);
+    expect(productIsApproximate(exact, exact.mul('6.5'), multiple('6.5'))).toBe(false);
+    // 999,5 kr × 7: the uplift shows as 1 000 kr, 1 000 × 7 = 7 000, the value 6 996,5 → 6 997 kr: "≈".
+    const half = d(99_950);
+    expect(kr(half)).toBe(N('1 000 kr'));
+    expect(productIsApproximate(half, half.mul(7), multiple('7'))).toBe(true);
+    // 0,1 × 1 000 kr = 100 kr exactly: "="; 0,1 × 1 005 kr = 100,5 → 101 kr: "≈".
+    expect(productIsApproximate(d(100_000), d(10_000), multiple('0,1'))).toBe(false);
+    expect(productIsApproximate(d(100_500), d(10_050), multiple('0,1'))).toBe(true);
   });
 });

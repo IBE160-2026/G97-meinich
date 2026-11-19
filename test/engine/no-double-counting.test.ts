@@ -307,6 +307,59 @@ function sumsInScales(prog: ts.Program, registry: Readonly<Record<string, Amount
   return [...new Set(found)];
 }
 
+/** The capital amounts a value never reaches: (9), (10), (11), their total, the choice among them, and their scale. */
+const CAPITAL_FUNCTIONS: ReadonlySet<string> = new Set(['capitalGap', 'workingCapitalReleased', 'largestCapitalGap', 'scaleAmount']);
+
+/**
+ * What a value does that it must not (Story 3.6, decision 1): it builds on
+ * `profitAtShare` (calls it itself), and makes no `.plus` or `.add` and
+ * reaches no capital function, directly or through any engine function it
+ * calls, exported or module-private.
+ */
+function valueFindings(prog: ts.Program, registry: Readonly<Record<string, AmountEntry>>): string[] {
+  const checker = prog.getTypeChecker();
+  const functions = new Map(exportedFunctions(prog).map((fn) => [fn.name, fn]));
+  const found: string[] = [];
+  for (const [name, entry] of Object.entries(registry)) {
+    if (entry.role !== 'value') continue;
+    const value = functions.get(name);
+    if (value === undefined) {
+      found.push(`${name}: registered as a value but not exported from src/engine`);
+      continue;
+    }
+    let buildsOnProfit = false;
+    const visited = new Set<ts.Node>();
+    const walk = (node: ts.Node, via: string): void => {
+      if (visited.has(node)) return;
+      visited.add(node);
+      const visit = (child: ts.Node): void => {
+        if (ts.isPropertyAccessExpression(child) && (child.name.text === 'plus' || child.name.text === 'add')) {
+          found.push(`${name}${via}: .${child.name.text}`);
+        }
+        if (ts.isCallExpression(child) && via === '' && ts.isIdentifier(child.expression) && child.expression.text === 'profitAtShare') {
+          buildsOnProfit = true;
+        }
+        if (ts.isIdentifier(child)) {
+          let symbol = checker.getSymbolAtLocation(child);
+          if (symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+          for (const declaration of symbol?.declarations ?? []) {
+            const file = path.normalize(declaration.getSourceFile().fileName);
+            if (path.dirname(file) !== path.normalize(ENGINE)) continue;
+            if (CAPITAL_FUNCTIONS.has(symbol?.name ?? '')) found.push(`${name}${via}: ${symbol?.name} (a capital amount)`);
+            const callee = functionBody(declaration);
+            if (callee !== undefined && callee !== node) walk(callee, `${via} → ${symbol?.name}`);
+          }
+        }
+        ts.forEachChild(child, visit);
+      };
+      ts.forEachChild(node, visit);
+    };
+    walk(value.node, '');
+    if (!buildsOnProfit) found.push(`${name}: does not call profitAtShare`);
+  }
+  return [...new Set(found)];
+}
+
 const ENGINE_PROGRAM = program();
 
 // A probe module: an amount function nobody registered, and a total that adds a waterfall bar.
@@ -468,6 +521,60 @@ describe('a scale', () => {
         'scaledThroughTotal → workingCapitalReleased: .plus',
       ]),
     );
+  });
+});
+
+describe('a value', () => {
+  /** A probe module holding one value function, registered as a value. */
+  function probeValue(name: string, lines: readonly string[]): string[] {
+    const probe = program({ 'probe-value.ts': lines.join('\n') });
+    return valueFindings(probe, { ...AMOUNT_FUNCTIONS, [name]: { module: 'probe-value.ts', role: 'value' } }).filter((finding) =>
+      finding.startsWith(name),
+    );
+  }
+
+  it('a value builds on the profit and sums nothing', () => {
+    // Fixture: the engine as built; valueAtShare is registered as the one value.
+    expect(Object.entries(AMOUNT_FUNCTIONS).filter(([, entry]) => entry.role === 'value').map(([name]) => name)).toEqual(['valueAtShare']);
+    expect(valueFindings(ENGINE_PROGRAM, AMOUNT_FUNCTIONS)).toEqual([]);
+    // Probe 1: a value adding working capital released.
+    expect(
+      probeValue('valuePlusWorkingCapital', [
+        "import { workingCapitalReleased, type CapitalGap } from './benchmark.ts';",
+        "import { profitAtShare, type ClosableShare, type Multiple } from './closable.ts';",
+        "import { Decimal } from './decimal.ts';",
+        'export function valuePlusWorkingCapital(full: Decimal, share: ClosableShare, m: Multiple, kfd: CapitalGap, lgd: CapitalGap): { readonly ore: Decimal } {',
+        '  const wc = workingCapitalReleased(kfd, lgd);',
+        "  const value = profitAtShare(full, null, share).ore.mul(m);",
+        "  return { ore: wc.kind === 'amount' ? value.plus(wc.ore) : value };",
+        '}',
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        'valuePlusWorkingCapital: .plus',
+        'valuePlusWorkingCapital: workingCapitalReleased (a capital amount)',
+      ]),
+    );
+    // Probe 2: a value calling scaleAmount, the capital cards' scale.
+    expect(
+      probeValue('valueThroughScale', [
+        "import { scaleAmount, type ClosableShare, type Multiple } from './closable.ts';",
+        "import { Decimal } from './decimal.ts';",
+        'export function valueThroughScale(full: Decimal, share: ClosableShare, sMed: Decimal | null, m: Multiple): { readonly ore: Decimal } {',
+        '  return { ore: scaleAmount(full, share, sMed).ore.mul(m) };',
+        '}',
+      ]),
+    ).toEqual(expect.arrayContaining(['valueThroughScale: scaleAmount (a capital amount)', 'valueThroughScale: does not call profitAtShare']));
+    // Probe 3: full × s_med × m, without profitAtShare (decision 2: the median step's profit is (M − r) × revenue).
+    expect(
+      probeValue('valueFromSMed', [
+        "import type { Multiple } from './closable.ts';",
+        "import { Decimal } from './decimal.ts';",
+        'export function valueFromSMed(full: Decimal, sMed: Decimal, m: Multiple): { readonly ore: Decimal } {',
+        '  return { ore: full.mul(sMed).mul(m) };',
+        '}',
+      ]),
+    ).toEqual(['valueFromSMed: does not call profitAtShare']);
   });
 });
 

@@ -108,6 +108,17 @@ export function wholePercent(percent: string): Decimal {
 }
 
 /**
+ * Exact øre (a plain decimal string, may have a fraction) → whole kroner, as
+ * a value: 99950.5 øre → 1000. Rounded here, ties away from zero, the
+ * rounding `formatKronerExact` writes (test/engine/format.test.ts), so a
+ * rule decided on a displayed amount (Story 3.6: whether the EV product line
+ * is approximate) reads the kroner the page shows.
+ */
+export function wholeKroner(oreAmount: string): Decimal {
+  return roundHalfAwayFromZero(decimal(oreAmount).div(ORE_PER_KRONE), 0);
+}
+
+/**
  * Percent (0–100) → the whole percent, no unit: "12", for a template that
  * writes the unit itself ("Til medianen for driftsmargin ({n} %)", Story 3.5).
  */

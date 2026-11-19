@@ -13,7 +13,7 @@
 // or a property named `kroner` or ending in `Kroner` (an amount as
 // displayed).
 //
-// Stories 3.4 and 3.5 register every amount function they add here, and it
+// Stories 3.4, 3.5 and 3.6 register every amount function they add here, and it
 // passes the FR-30 tests (epics.md).
 
 /**
@@ -29,9 +29,13 @@
  *   calls makes (`workingCapitalReleased`);
  * - `scale` (Story 3.5): one amount at a closable share, the full-convergence
  *   amount × s, or the profit at the median step; it sums nothing, directly
- *   or through any engine function it calls ("a scale sums nothing").
+ *   or through any engine function it calls ("a scale sums nothing");
+ * - `value` (Story 3.6): the enterprise value of the profit uplift at a
+ *   share, `profitAtShare` × the user's multiple; it builds on
+ *   `profitAtShare`, sums nothing and reaches no capital amount ("a value
+ *   builds on the profit and sums nothing").
  */
-export type AmountRole = 'gap' | 'benchmark' | 'total' | 'explanation' | 'choice' | 'scale';
+export type AmountRole = 'gap' | 'benchmark' | 'total' | 'explanation' | 'choice' | 'scale' | 'value';
 
 export type AmountEntry = {
   /** The module under src/engine that exports it. */
@@ -49,6 +53,7 @@ export const AMOUNT_FUNCTIONS = {
   profitAtMedian: { module: 'closable.ts', role: 'scale' },
   scaleAmount: { module: 'closable.ts', role: 'scale' },
   profitAtShare: { module: 'closable.ts', role: 'scale' },
+  valueAtShare: { module: 'closable.ts', role: 'value' },
   marginWaterfall: { module: 'waterfall.ts', role: 'explanation' },
   displayWaterfall: { module: 'waterfall.ts', role: 'explanation' },
 } as const satisfies Readonly<Record<string, AmountEntry>>;

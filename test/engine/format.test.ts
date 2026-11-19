@@ -21,6 +21,7 @@ import {
   formatTurnover,
   formatWholePercent,
   lowerFirst,
+  wholeKroner,
 } from '../../src/engine/format.ts';
 
 const codePoints = (s: string): number[] => [...s].map((c) => c.codePointAt(0) ?? -1);
@@ -190,6 +191,23 @@ describe('formatKronerExact (Story 1.8): exact øre with a fraction, rounded onc
 
   it('refuses a value that is not a plain decimal string', () => {
     expect(() => formatKronerExact('1e5')).toThrow(TypeError);
+  });
+});
+
+describe('wholeKroner (Story 3.6): the whole kroner formatKronerExact writes', () => {
+  // At a half krone of each sign, just under and just over, and an integer.
+  const CASES = ['50', '-50', '150', '-150', '99950', '-99950', '49.9999', '50.0001', '-49.9999', '0', '117000050', '117000049.999'];
+
+  it('agrees with formatKronerExact at half a krone', () => {
+    // The fixture's state: formatKronerExact rounds the halves away from zero.
+    expectBytes(formatKronerExact('50'), `1${NBSP}kr`);
+    expectBytes(formatKronerExact('-150'), `${MINUS}2${NBSP}kr`);
+    for (const ore of CASES) {
+      // whole kroner × 100 is whole øre, which formatKroner writes without a second rounding.
+      expectBytes(formatKroner(wholeKroner(ore).mul(100).toString()), formatKronerExact(ore));
+    }
+    expect(wholeKroner('99950').toString()).toBe('1000');
+    expect(wholeKroner('-50').toString()).toBe('-1');
   });
 });
 

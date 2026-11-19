@@ -168,3 +168,17 @@ The probe was removed, and the app was rebuilt. Each build first stopped with `S
   - `deferred-work.md`: two entries resolved, one added for Story 5.4;
   - `sprint-status.yaml`: the B6 retro item closed.
 - Not affected: the PRD (FR-31's wording holds) and epics.md.
+
+## Merge
+
+CI ran three times on the PR. The run on `87324e3` was cancelled by the next push. On `60bcfeb` (run 44590182367), `e2e/verdi.spec.ts` "a reload after a share change …" failed, also on retry, and `e2e/peers.spec.ts` "the funnel shows stages 1–3 …" was flaky. On `9045926` (run 44593754340), `e2e/synthetic-documents.spec.ts` "Verdi: the three cards against the engine …" failed, also on retry. The review session read the CI logs and found the causes: the tests read the cards as soon as `replaceState` had written the URL, before React rendered them again, and `expectNoModelMarks` read a bare `main` while the stream swapped the fallback and the content, the PR #76 race. After the first fix, it found the third occurrence and checked the other one-shot reads in both Verdi specs. The BMAD session's probe found the fourth, a click made before the control was rendered again. The fixes are described above, in `9045926` and `6000e0a`. CI was green on `6000e0a` (run 44596953057, 10 min 26 s; unit 1874, `test:db` 200, `test:ingest` 392, e2e 206). Before merging, the review session checked the following:
+- the counterexample for decision 2, recomputed with Python Decimal at 40 digits: 99 950 øre, written as 1 000 kr, against 99 949,999… øre, written as 999 kr;
+- the provider's base for `ekskl` and `band`, with the rejected-ekskl test and the B6 test;
+- the `scale` role and its probe;
+- the wire grammar and the `WireDecimal` type test;
+- the technical note :322 and N13–N15;
+- the restored row counts (2 785, 5 556, 2 537, 10 371), with no synthetic company left and 20 manifest entries;
+- the statuses;
+- the PR text's credits.
+
+At Meinich's request (`post review`), the review session posted the GitHub review with seven line comments and nothing to fix ([review 5981936827](https://github.com/IBE160-2026/G97-meinich/pull/78#pullrequestreview-5981936827)). The PR was merged at 19:34 UTC on 2026-11-19 as `fa88ff6`, closing issue #77.

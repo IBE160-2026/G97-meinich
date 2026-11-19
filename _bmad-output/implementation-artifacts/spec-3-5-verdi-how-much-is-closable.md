@@ -2,7 +2,7 @@
 title: 'Story 3.5: Verdi — how much is closable'
 type: 'feature'
 created: '2026-11-19'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'bdcb4834eecbd90b32479a81575176d516e813ab'
 route: 'dispatch'
 review_loop_iteration: 0

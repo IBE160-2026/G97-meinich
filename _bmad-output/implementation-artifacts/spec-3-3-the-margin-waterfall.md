@@ -153,6 +153,18 @@ context:
 
 ## Implementation Notes
 
+Implementation run, 2026-11-19 (subagent). Where the code differs from the Code Map's hints, or a matrix row needed reading:
+
+- **Display rounding is exact bigint arithmetic, not `roundHalfAwayFromZero` and `Decimal.floor()`.** `displayWaterfall` puts the four bars over one common denominator and floors, rounds and compares with bigints. A 40-digit Decimal of 1 000 000/3 keeps fewer decimals than one of 1/3, so two exactly equal fractional parts could compare unequal and a tie would not go in bar order (WF "display rounding: ties go in bar order" uses that case). `decimal.ts`'s comment ("called only by format.ts") stays true and is unchanged.
+- **"At 9 (one excluded) the too-few words" (matrix, Full waterfall e2e).** The synthetic subject's band holds seed companies outside the demo data, so with one synthetic peer excluded *P* is 9 and *P* + `not_in_dataset` ≥ 10: decision 3 gives N1 there. `e2e/synthetic-documents.spec.ts` "excluding one peer leaves no waterfall" checks N1 for that exclusion, then excludes those seed companies too and checks the too-few words with n = 9.
+- **Focus.** The link moves focus to the fold-out heading's button (inside the `h3`), so Enter and Space work at once; the `h3` carries the link's target id, so without script the link still jumps to it. The click is handled in the page: no route, no query, no hash.
+- **Page ids.** A bar is named on the page by its cost share's key (`vare`, `lonn`, `andre`) or `residual`: the e2e payload scan refuses `annenDriftskostnad`, an engine field name.
+- **"Vis tallene" table.** It sits in its own scroll region labelled by its caption (EXPERIENCE "Scroll container"), so at 320 px its four columns scroll inside it and the body does not.
+- **Phone order.** Tag, sentence, then the rows, as on the desktop: the never-added sentence stays directly above the bars at both widths.
+- **A bar of exactly 0 kr** (own share = samlet's) shows "0 kr" with no glyph and no word; no approved copy says "equal".
+- **`workingCapitalReleased`** gives no total when either part is a strength; whether a strength counts as 0 is left to Story 3.5 (`deferred-work.md`).
+- **The forced-colours e2e test** first passed with the `.wf-bar` rules removed (Chromium keeps an SVG's author fill under forced colours). It now also requires every bar's system outline, and fails without the rules (review-fix commit `19940fd`).
+
 ## Spec Change Log
 
 ## Review Triage Log

@@ -199,6 +199,32 @@ Each row ends with the test that must fail when its guard is removed. The implem
 
 ## Review Triage Log
 
+Review 2026-11-19, three layers on the diff since `bdcb4834`: Blind Hunter (B), Edge Case Hunter (E), Verification Gap (VG). One row per finding; findings with one root cause share a route.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| VG1 | `driftsmarginComparison` (the parse predicate's comparison) is never checked against `shownGroup`'s benchmark, nor with an `ekskl` that removes the median step | medium | Both call `benchmarkApiFigures` on `withoutExcluded(funnel.group, ekskl)` today, but `test/analysis/view.test.ts` stubs `driftsmarginAt`, and the e2e fixture has a step with and without its exclusion: replacing `ekskl` by `[]` passes every test | patch (with E6, B1, B13) |
+| E6 | `VerdiPanel` throws if the live `andel=median` meets a wire without a step | medium | Same root as VG1: only reachable if the parse predicate and `group.benchmark` diverge | patch (VG1) |
+| B1 | The median step is decided twice with no check that they agree | medium | Same root as VG1 | patch (VG1) |
+| B13 | The provider's `medianStep` and the wire's step are separate sources | medium | Same root as VG1; both read `group.benchmark` in `Covered` | patch (VG1) |
+| E1 | A card's median line reads "over 99 %" when M = T, where the share is exactly 1 | medium | `medianShare` gives exactly 1, `wholePercent` 100, so N10; the control's line says "samme som 100 %" for the same driftsmargin (N4) | patch (with B3) |
+| B3 | Same as E1 | medium | Same location and claim | patch (E1) |
+| E5 | `line` falls back to `''` | low | Unreachable through the `StepWire` union, but an empty `aria-describedby` target is a silent fallback; the fix is a direct correction | patch (with B6) |
+| B6 | Same as E5 | low | Same location | patch (E5) |
+| B8 | "no displayed total adds two cards" can pass with no amounts parsed | low | With the regex finding nothing, every sum is 0n and skipped; the fixture's state is not asserted first | patch |
+| B9 | The identity fixture's comment promises "−0,5 kr", which no share produces | low | −150 øre gives −0,375, −0,75, −1,125 and −1,5 kr; the comment is wrong and the negative half at 0,5 kr is untested | patch |
+| B10 | No test drives the keyboard: arrows reaching the disabled step, wrap-around, Tab back to the checked step | medium | Only one `ArrowRight` in `e2e/verdi.spec.ts`; "focusable, reached by the arrow keys" (decision 3, EXPERIENCE) is unverified | patch |
+| B11 | No test reloads after a share change | low | Nothing shows the server renders the share `replaceState` wrote, nor that there is no hydration mismatch | patch |
+| B4 | `verdi.share.under` "under 1", `verdi.share.over` "over 99" (and the disabled label "Til medianen for driftsmargin") are copy outside N1–N12 | medium | They compose sentences nobody approved ("Viser under 1 % av gapet.") | intent_gap: held for Meinich at the presentation; no revert, the fix is strings in `nb.json` |
+| E2 | A peer change that removes the median step shows the invalid-settings notice | low | Real: the server falls back to 50 and signals it. Signalled, as AGENTS.md "No silent fallbacks" asks; a quiet fallback would break that and a new notice is new copy | reject; wording raised with Meinich |
+| B2 | Same as E2 | low | Same | reject (E2) |
+| E3 | The notice stays on screen after `replaceShare` rewrites the URL canonically | low | The notice stays true (a setting was reset); a reload correctly shows none | reject |
+| E4 | (11) with `target_not_positive` has no median line | false | Deliberate: a card without a usable target has no median line (EXPERIENCE "Above median" row, decision 4); a median line towards a non-positive turnover target would mean nothing | reject |
+| B5 | `applies` is decided by `endsWith` on the line | low | Developer-only fragility; `test/messages.test.ts` pins the texts, and the fix adds a wire field | reject |
+| B7 | The announcement leaves out the capital cards | false | It is the approved text, word for word (EXPERIENCE Status messages, UX-DR65) | reject |
+| B12 | A working-capital part that is a strength has no median line | false | Decision 4: a strength has no median line | reject |
+| B14 | Outside NOK the control is active though every card is words | false | Decision 3 (Meinich): the step follows r < M < T outside NOK | reject |
+
 ## Design Notes
 
 **New copy (Meinich, 2026-11-19).** Ids are the implementation's choice; the texts are fixed.

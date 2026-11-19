@@ -3730,6 +3730,123 @@ Oversikt is DESIGN's card grid: the hero, a beeswarm of driftsmargin in hand-wri
 
 The review session checked the capital choice and its probe, the strength ranking, `display: none` and its e2e check, K2, the restored row counts with no synthetic company left, the statuses, the `copyIn` owner and the PR text's credits, and found the cause of the first CI failure in its trace. CI was green on `674796c`. At the human's request (`post review`), the review session posted the GitHub review with six line comments. The PR was merged at 16:13 UTC on 2026-11-19 as `bbee937`.
 
+## Story 3.5: Verdi, how much is closable (#77, PR #78)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session went on in the transcript of Story 3.4, without `/clear`, and was compacted once during implementation.
+
+### Prompts to the BMAD session
+
+**2026-11-19 16:20**: the prompt that opened Story 3.5.
+```
+Fra meg:
+/bmad-build Story 3.5: Verdi — how much is closable (epics.md, Story 3.5). Lag branchen story/3.5-verdi-closable-share fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.5, Verdi, andel, s_med, medianStepExists eller wire, minst :29 og :235. For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor. For :235 (teller en del som er en styrke som 0 i arbeidskapitalen?): epics-kravet knytter totalen til at begge delene har nok sammenlignbare, så jeg heller mot 0. Si hva du anbefaler, hva det endrer i kapitalkortet fra 3.4 (largestCapitalGap bruker workingCapitalReleased), og hvilke tester som endres.
+(b) s_med: hvor den regnes ut, og om den bæres som brøk (src/engine/fraction.ts) eller Decimal. Ved Til medianen er profittbeløpet (M − r) × sumDriftsinntekter, fordi (T − r) forkortes bort. Vis testen som sjekker at beløpet ved medianen blir det samme som (M − r) × sumDriftsinntekter avrundet én gang (EXPERIENCE :371, 212 807 kr), også for et beløp nær en halv krone. Si hvor steget står når n blir 0 eller 100 etter avrunding, eller er lik et fast steg. Si hvilken tilstand og hvilken grunn det deaktiverte steget får når driftsmarginen er under grensen, ikke i NOK, en styrke, r ≥ M eller M = T, for teksten i storyen passer bare «over medianen».
+(c) Medianlinjene på kortene: EXPERIENCE :201 sier at hvert kort har sin egen linje «for that figure», mens :238 sier at alle viser «Median: allerede over» når driftsmarginen er over medianen. Foreslå én regel, også for de to delene av arbeidskapitalen, og rett den andre linjen i EXPERIENCE.
+(d) Kortene: hva hvert kort viser for demo A og B (9, 10 og 11 finnes bare i dokumentene, så grunnen er grunnlagets ord som på radene og i 3.4, ikke «for få sammenlignbare»), utenfor NOK og som styrke. Si hvilket subjekt som viser kapitalbeløp i e2e (det syntetiske oppsettet fra 3.1b).
+(e) Wire og payload (AD-4, AD-6): hver WireDecimal som sendes til Verdi. Det skal bare være subjektets verdier og s_med, ingen peerverdier ut over det som er tillatt fra før. Si hvordan payload-skannene endres: Verdi tillater nøyaktig disse verdiene og ingenting annet, og Oversikt-skannet fra 3.4 står uendret. Vis typetesten som gjør number for penger eller en andel til en typefeil.
+(f) URL-hooken og lenkene: det finnes ingen hook og ingen replaceState i koden i dag. Navngi hooken, og list hver lenke og navigering i analysen (faner, «Endre i Verdi», peer-endringene, ekskluder og gjenopprett, bånd, nullstill, tilbake i error.tsx). Si hvilke som leser gjeldende URL etter replaceState. Fanelenker som bygges på serveren, vil ellers miste andel. For B6: hva peer-change-providerens parse-kontekst gjør med andel=median, og testen som feiler hvis den faller tilbake til 50.
+(g) Identitetstesten (AD-6), i Node og i en ekte nettlesermotor: Vitest Browser Mode krever en ny avhengighet festet til eksakt versjon. Alternativet er Playwright med en bunt av motoren, uten ny rute (check:routes). Si hva du anbefaler, og hva det koster i CI-tid og minne.
+(h) Avrunding og summer: det skalerte beløpet rundes én gang fra den eksakte verdien, ikke fra det avrundede fulle beløpet. Vis hvilken funksjon server og nettleser begge kaller, hvilken rolle den har i amounts.ts, og testen som feiler hvis en vist total legger sammen to kort.
+(i) Telefon og tilgjengelighet: radiogroup med roving tabindex, deaktivert steg som fortsatt kan fokuseres, kunngjøring én gang, fokus som blir på steget, mål på minst 24 × 24, fire faner som brytes, 375 og 320 px uten sidelengs scrolling.
+(j) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.5 eller EXPERIENCE. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler: ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. Ingen test velger forventet verdi ut fra dataene med en betingelse; fixturens tilstand slås fast først. Nettleseren regner bare med src/engine, aldri med Number() på penger. Nye avhengigheter festes eksakt og nevnes i PR-en. Underagenten skal ikke skrive om godkjent tekst, og en test sjekker den ordrett. Spec-en går til in-review sammen med storyen og settes til done først etter merge. PR-en sier hva som kan gå galt med skalering av penger i nettleseren og med wire-kodeken, med begrunnelse i ai-log, og hva review-sesjonen bidro med. Små commits. Sjekk 375 og 320 px underveis. Etter siste seed-lasting kjører du pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten før første push. E2e kjøres med én worker, ett Playwright-prosjekt om gangen og synthetic sist med --no-deps. Stopper noe på grunn av minne, si fra i stedet for å starte på nytt. Stopper pnpm build med SecurityFatalError, kjør på nytt og noter det (#71), uten å oppgradere. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, ingen dump slettes, og technology.md røres ikke.
+```
+*Changed:* issue #77, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(j): the deferred entries, s_med as Decimal with the profit at the median step as (M − r) × revenue and a half-krone rounding example, one median line per figure, the cards for demo A and B and the synthetic subject, the wire set and its payload scan, `useAnalysisUrl` with the live URL as the peer-change base, the identity test in Playwright or Vitest Browser Mode, and eight questions.
+
+**16:41**: the answers at the checkpoint.
+```
+Fra meg:
+1. A: en styrke teller som 0 i arbeidskapitalen.
+2. A, med én betingelse. Eksemplet ditt for avrundingen holder ikke. Med 40 sifre og halv opp blir s_med = 0,0000166…667, rundet opp, og full × s_med blir nøyaktig 150,000… øre, altså 2 kr. Med en tredjedel blir det også 150,000… (review-sesjonen regnet begge). Testen består derfor også om profitAtMedian byttes ut med full × s_med. Finn et talleksempel der full × s_med og (M − r) × omsetning gir ulik krone, gjerne ved å søke gjennom mange tall, og vis at testen feiler når vernet fjernes. Finnes det ikke noe slikt med 40 sifre, skriv det i spec-en. Da beskrives testen som en likhetstest mot (M − r) × omsetning, ikke som et vern. EXPERIENCE :371-testen beholdes.
+3. Ja til «under 1 %» og «over 99 %», til plasseringen etter et fast steg, til N3–N5, og til at steget utenfor NOK følger r < M < T. I tillegg: når subjektets egen driftsmargin mangler, får det deaktiverte steget samme ord som raden i tabellen.
+4. Ja til regelen i (c) og rettelsen av :238. På kapitallinjene er teksten N12 «Median: allerede nådd», fordi «over» leses feil for kundefordringsdager, der lavt er bra. Gevinstkortet beholder «Median: allerede over» fra storyen.
+5. Ja til wire-settet og skannet. Skriv i ai-log og PR-en at T kan regnes ut fra profitFull (AD-6), og at M kan regnes ut fra sMed og kan være én peers eksakte margin når antallet er oddetall. Tallene er offentlige regnskapstall.
+6. Ja til useAnalysisUrl og AnalysisLink, men ikke den levende URL-en som base for ekskl og band. I dag bygger providerens base på lastGood, som er URL-en serveren tolket. Derfor kommer et ekskl-element serveren forkastet, aldri tilbake (AD-6, Story 2.8). Behold lastGood eller inFlight for ekskl og band, og ta bare andel og multippel fra den levende URL-en. Testen for forkastede ekskl-elementer skal fortsatt være grønn, og B6-testen kommer i tillegg.
+7. A: Playwright med vite-bunt, uten ny avhengighet. Rett det tekniske notatet :322 i samme PR.
+8. N1–N11 er godkjent, og N12 kommer i tillegg (se 4).
+Spec-en kan holdes samlet. Skriv svarene inn i den frosne delen, commit Epic 3-konteksten på branchen, og sett spec og story til ready-for-dev. Ingen push.
+```
+*Changed:* decisions 1–8 in the frozen spec, among them a real counterexample found by search (1 000 kr against 999 kr) and the provider's base kept for `ekskl` and `band`; the Epic 3 context and the spec ready for dev (`060d88e`, `142b8d6`).
+
+**16:45**: start of implementation.
+```
+Fra meg:
+Start implementeringen. Ingen push.
+Implementeringsrapporten skal vise:
+- at avrundingstesten feiler når profitAtMedian byttes ut med full × s_med (999 kr i stedet for 1 000 kr);
+- at B6-testen feiler med PATH_CONTEXT, og at testen for forkastede ekskl-elementer fortsatt er grønn;
+- at Verdi-skannet feiler når en verdi utenfor wire-settet legges til, og at Oversikt-skannet står uendret;
+- at identitetstesten i Playwright feiler når formateringen endres på én av sidene;
+- at NDC «a scale sums nothing» feiler på proben;
+- de fire tallene etter restore:documents og null syntetiske rester;
+- hvor mye Verdi legger til i payloaden, bare som totaler.
+E2e kjøres med én worker, ett prosjekt om gangen og synthetic sist med --no-deps. Stopper noe på grunn av minne, si fra.
+```
+*Changed:* a strength counted as 0 in working capital released (`1986694`), the wire codec (`4fa8fca`), s_med, the median step and the amounts at a share with the role `scale` (`e116636`), the view and the control (`29ccfc3`, `267939f`), one URL hook and every analysis link built on it (`0875308`), the Verdi tab (`773722f`), e2e and the identity test (`d4b6a74`), the planning documents (`4b519ff`), the rejected-ekskl unit test (`414f77b`), the AI log (`28a3e86`), spec and story in review (`743a8b9`), the review triage and its fixes (`2201e12`, `1930f9d`, `f8e0cae`, `7eebf64`); the full verification then stopped for lack of memory during `pnpm test`, and the BMAD session asked about copy outside N1–N12 and the notice when a peer change removes the median step.
+
+**18:18**: the copy, the notice and the verification step by step.
+```
+Fra meg:
+Svar på de to spørsmålene:
+1. Godkjent: «under 1» / «over 99» og den deaktiverte etiketten «Til medianen for driftsmargin». Før dem inn under New copy i spec-en, med meg som beslutningstaker og dagens dato, og flytt B4 i triagen fra intent_gap til resolved.
+2. Varselet beholdes i v1. Skriv en oppføring i deferred-work.md som eies av Story 5.4: et eget varsel når en peer-endring fjerner median-steget, i stedet for «i lenken». E2/B2 skal vise til den.
+
+Start så verifiseringen på nytt. Kjør stegene hver for seg, ikke som én kjede: test, seed, test:db, test:ingest, restore:documents, build, check:routes, og deretter e2e med ett prosjekt om gangen og synthetic --no-deps til slutt. Stopper pnpm test igjen på grunn av minne, prøv pnpm test -- --maxWorkers=2 og si fra at du gjorde det. Rapporten skal ta med tallene etter restore (2 785 / 5 556 / 2 537 / 10 371), null SYNTETISK-rester og 20 oppføringer i manifestet. Ingen push.
+```
+*Changed:* N13–N15 and the Story 5.4 entry (`c0b1307`); every step green (unit 1874, `test:db` 200, `test:ingest` 392, e2e chromium 175, db-down 7, synthetic 24), with `pnpm build` passing on its second try; the session file and the log (`43992a9`, `87324e3`).
+
+**18:39**: push.
+```
+Fra meg:
+Push branchen og opprett PR-en med teksten i pr-3-5.md. Lenk PR-en i session-fila.
+Skriv også en kort oppfølgingskommentar på #71: SecurityFatalError kom tre ganger i Story 3.5, og bygget gikk gjennom på nytt forsøk hver gang. Fortsatt ingen oppgradering.
+```
+*Changed:* the branch pushed, PR #78 opened, the session file linked to it (`60bcfeb`), and a comment on #71.
+
+**18:54**: the first CI failure.
+```
+Fra meg:
+CI feilet på 60bcfeb. Det er to e2e-feil, og begge er tester som leser for tidlig:
+1. e2e/verdi.spec.ts:171 feilet også på nytt forsøk. Testen leser `before` med en gang URL-en er ?andel=median, men replaceState endrer URL-en før React har tegnet kortene på nytt. På CI var `before` derfor fortsatt 50 %-kortene, mens siden etter reload viste median-kortene. Vent på aria-checked="true" på median-steget før `before` leses, og sjekk at `before` inneholder delteksten for median-steget, så testen ikke kan sammenligne mot en utdatert fasit. Vis at testen feiler hvis ventingen fjernes, for eksempel ved å legge inn en kunstig forsinkelse i render.
+2. e2e/peers.spec.ts:265 var flaky med «locator('main') resolved to 2 elements». Det er samme løp som i 3.4. expectNoModelMarks (:252) bruker page.locator('main') uten å vente. Vent med companyShown og bruk rendered(page) der.
+Ta dem som en egen review-fix-commit, legg inn en rad i Review Triage Log, oppdater session-fila og push. Ingen andre endringer.
+```
+*Changed:* the reload test waits for the median step before reading its cards, and `expectNoModelMarks` waits for the page and reads the rendered `main` (`9045926`).
+
+**19:10**: the second CI failure.
+```
+Fra meg:
+CI feilet på 9045926 i e2e/synthetic-documents.spec.ts:358, og det er samme løp som i reload-testen. Testen klikker 100-steget og leser cardsBefore (:396) med en gang, før React har tegnet kortene på nytt etter replaceState. På CI var cardsBefore derfor 50 %-kortene. Vent på aria-checked="true" på 100-steget og på at profittkortets deltekst sier 100 % før cardsBefore leses.
+Review-sesjonen har sett gjennom de andre engangslesingene i verdi.spec.ts og synthetic-documents.spec.ts, og :396 er det eneste stedet igjen. Bekreft det med et eget søk.
+Vis at testen feiler uten ventingen, med samme probe som sist. Kjør synthetic --no-deps lokalt. Lag en egen commit, utvid rad 22 i Review Triage Log (en tredje forekomst, ikke funnet sist fordi bare den feilende testen ble rettet), oppdater session-fila og push.
+```
+*Changed:* the synthetic Verdi test waits for the 100 step before reading its cards, and, found by the BMAD session's probe, for the 0 step before clicking 100 (`6000e0a`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.5` (11-19): the review session read Story 3.5, AD-5 and AD-6, `docs/key-figures.md`, EXPERIENCE and the code, found that a 40-digit s_med could round the median amount the wrong way near a half krone, that EXPERIENCE :201 and :238 contradict each other on the median lines, that the deferred working-capital entry is the story's, that no URL hook or `replaceState` exists so server-built links would lose `andel`, that the 3.4 payload scan forbids the wire values, and that Vitest Browser Mode is not installed. It drafted the 16:20 prompt.
+- The BMAD session's checkpoint (11-19): the review session recomputed the half-krone example at 40 digits and found it rounded to the right krone either way, so the test would pass with its guard removed, and found that the live URL as the peer-change base would bring back an `ekskl` item the server had dropped (Story 2.8). It recommended the BMAD session's other answers, the table row's words for a missing own margin, "Median: allerede nådd" on capital lines, where "over" misreads for kundefordringsdager, and writing down what can be derived from the wire. It drafted the 16:41 prompt.
+- The BMAD session's ready-for-dev report (11-19): the review session verified the counterexample with Python Decimal (99 950 øre, 1 000 kr, against 99 949,999… øre, 999 kr) and the spec's lines, and drafted the 16:45 prompt.
+- The BMAD session's report that verification had stopped (11-19): the review session checked the branch and the triage, measured 3.6 GB free of 15.7, recommended approving the copy, whose sentences it read, and keeping the notice in v1 with an entry for Story 5.4, and running the steps one at a time. It drafted the 18:18 prompt.
+- The BMAD session's final report (11-19): the review session checked the commits, N13–N15, the deferred entry, the statuses, the `scale` role, the wire type test, the technical note :322 and the PR text's credits, recommended a comment on #71, and drafted the 18:39 prompt.
+- The BMAD session's report that the PR was open (11-19): the review session read the diff and drafted the review; when CI failed on `60bcfeb`, it read the log, found that the reload test read the cards before React rendered them after `replaceState` and that `expectNoModelMarks` read a bare `main` while the stream swapped it (the PR #76 race). It drafted the 18:54 prompt.
+- The BMAD session's first fix report (11-19): the review session checked `9045926`; when CI failed on it, it found the same race a third time in the synthetic Verdi test, which had not run in the earlier round, checked the other one-shot reads in both Verdi specs, and drafted the 19:10 prompt.
+- The BMAD session's second fix report (11-19): the review session checked `6000e0a` and the BMAD session's fourth occurrence, and confirmed the green run.
+- `post review` (11-19): the review session checked every line comment against the diff's hunks and posted the review.
+- `merget - fikser du treet og resten` (11-19): the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+Verdi opens as the fourth tab: a closable-share control of 0–100 % and "Til medianen for driftsmargin", placed by its exact s_med and disabled with its reason where there is none, and three amount cards that are never summed. The share is scaled in the browser by the server's own engine functions, from exact values that cross as `WireDecimal` strings, and written to the URL with the one `history.replaceState` in `src/`; every analysis link keeps `andel` and `multippel`, and `andel=median` survives a peer change. At the median step the profit is (M − r) × revenue, rounded once; a working-capital part that is a strength counts as 0.
+
+### Checks before merging
+
+The review session checked the counterexample, the provider's base and its two tests, the `scale` role and its probe, the wire grammar and its type test, the restored row counts with no synthetic company left, the statuses and the PR text's credits, and found the causes of both CI failures in their logs. CI was green on `6000e0a`. At the human's request (`post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 19:34 UTC on 2026-11-19 as `fa88ff6`.
+
 ---
 
 ## Going forward

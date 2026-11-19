@@ -315,9 +315,15 @@ test('forced colours keep the bars apart', async ({ page }) => {
   const styles = await bars.evaluateAll((paths) =>
     paths.map((path) => {
       const style = getComputedStyle(path);
-      return { kind: path.getAttribute('data-kind') ?? '', look: `${style.fill}|${style.stroke}|${style.strokeDasharray}` };
+      return {
+        kind: path.getAttribute('data-kind') ?? '',
+        stroke: style.stroke,
+        look: `${style.fill}|${style.stroke}|${style.strokeDasharray}`,
+      };
     }),
   );
+  // Every bar has an outline in the system's colours (globals.css, `.wf-bar`): not the author's fill alone.
+  for (const { kind, stroke } of styles) expect(stroke, kind).not.toBe('none');
   // Each kind drawn one way, and no two kinds alike.
   const byKind = new Map<string, Set<string>>();
   for (const { kind, look } of styles) byKind.set(kind, (byKind.get(kind) ?? new Set<string>()).add(look));

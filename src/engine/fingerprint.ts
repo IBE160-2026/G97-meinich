@@ -74,8 +74,10 @@ import {
   BETWEEN_SOURCES_FLOOR_ORE,
   BETWEEN_SOURCES_TOLERANCE,
   COST_LINES,
+  costLinesShortOfTotal,
   type DocumentField,
   type DocumentFigures,
+  MAIN_COST_LINES,
   WITHIN_DOCUMENT_BOUND_ORE,
 } from './document-inputs.ts';
 import { parseOre } from './inputs.ts';
@@ -191,8 +193,8 @@ export type FingerprintResult =
 /** A closed interval of øre; `hi` null is unbounded above. */
 type Interval = { readonly lo: bigint; readonly hi: bigint | null };
 
-/** The cost lines R2 needs read; nedskrivninger may be empty, counted as 0. */
-export const MAIN_COST_LINES = ['varekostnad', 'lonnskostnad', 'avskrivninger', 'annenDriftskostnad'] as const;
+/** The cost lines R2 needs read (`MAIN_COST_LINES` in document-inputs.ts, kept exported here for its callers). */
+export { MAIN_COST_LINES };
 const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer', 'kundefordringer', 'bankinnskudd'] as const;
 
 /**
@@ -300,8 +302,9 @@ export function fingerprintOf(figures: DocumentFigures, subtotals: ApiSubtotals)
     COST_LINES.map((line) => values[line]),
   );
   // R2: every main line read and the lines short of the total (an empty
-  // nedskrivninger counts as 0, as `remainder` skips it).
-  if (rest !== null && rest > ROUNDING_TOLERANCE_ORE && MAIN_COST_LINES.every((line) => values[line] !== null)) {
+  // nedskrivninger counts as 0), through the one predicate the margin
+  // waterfall also asks (`costLinesShortOfTotal` in document-inputs.ts).
+  if (costLinesShortOfTotal(values.sumDriftskostnad, values)) {
     return { kind: 'skip', reason: 'cost_lines_short_of_total' };
   }
   const unexplained = settled(rest);

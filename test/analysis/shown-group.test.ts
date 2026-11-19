@@ -3,7 +3,8 @@
 // subject's own `valuta` passed to the engine, so a filing not in NOK gets no
 // kroner amount.
 import { describe, expect, it } from 'vitest';
-import { shownGroup } from '../../src/analysis/shown-group.ts';
+import { driftsmarginComparison, shownGroup } from '../../src/analysis/shown-group.ts';
+import { medianStep } from '../../src/engine/closable.ts';
 import type { SubjectKeyFigures } from '../../src/analysis/view.ts';
 import { daysBasis, NOT_IN_DATASET, TEN_PEERS } from './document-fixture.ts';
 
@@ -149,5 +150,37 @@ describe('shownGroup', () => {
     // The subject's own basis: outside the dataset, every document figure is absent.
     const outside = shownGroup(funnel, [], { ...filing('NOK'), documentBasis: NOT_IN_DATASET });
     expect(outside.documentBenchmark.kfd.comparison).toMatchObject({ kind: 'subject_absent', absence: { reason: 'not_in_dataset' } });
+  });
+});
+
+// Story 3.5, review: the URL module's median-step predicate reads the
+// subject's driftsmargin compared with the group minus `ekskl`, the same
+// comparison shownGroup shows.
+describe('driftsmarginComparison', () => {
+  // Eleven peers with margins 1, 2, 3, 4, 4.5, 5, 7, 10, 11, 12 and 13 %; the subject at 4.8 %.
+  const margins = [1_000_000, 2_000_000, 3_000_000, 4_000_000, 4_500_000, 5_000_000, 7_000_000, 10_000_000, 11_000_000, 12_000_000, 13_000_000];
+  const eleven = margins.map((result, i) => ({
+    orgnr: `9100000${String(i).padStart(2, '0')}`,
+    keyFigures: row('100000000', String(result)),
+    documentBasis: NOT_IN_DATASET,
+  }));
+  const elevenFunnel = { pool: eleven, group: eleven, flagged: [], counts, emptyReason: null };
+  const subject = { ...filing('NOK'), keyFigures: row('100000000', '4800000') };
+  const top = eleven[10]?.orgnr ?? '';
+
+  it('is shownGroup’s driftsmargin comparison, with and without an ekskl that removes the median step', () => {
+    // The fixture's state: with all eleven the median is 5 % (r < M < T); without the 13 % peer
+    // it is 4.75 %, below the subject's 4.8 %, still above the floor.
+    const all = shownGroup(elevenFunnel, [], subject).benchmark.driftsmargin.comparison;
+    const without = shownGroup(elevenFunnel, [top], subject).benchmark.driftsmargin.comparison;
+    expect(all).toMatchObject({ kind: 'compared', count: 11 });
+    expect(without).toMatchObject({ kind: 'compared', count: 10 });
+    if (all.kind !== 'compared' || without.kind !== 'compared') throw new Error('both compared');
+    expect(all.median.eq('0.05')).toBe(true);
+    expect(without.median.eq('0.0475')).toBe(true);
+    expect(driftsmarginComparison(elevenFunnel, [], subject)).toEqual(all);
+    expect(driftsmarginComparison(elevenFunnel, [top], subject)).toEqual(without);
+    expect(medianStep(driftsmarginComparison(elevenFunnel, [], subject)).kind).toBe('exists');
+    expect(medianStep(driftsmarginComparison(elevenFunnel, [top], subject))).toEqual({ kind: 'none', reason: 'above_median' });
   });
 });

@@ -266,3 +266,54 @@ describe('Story 3.4 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.5: the story's copy and EXPERIENCE's, verbatim, and N1–N12
+// (Meinich, 2026-11-19; the spec's Design Notes).
+describe('Story 3.5 copy', () => {
+  it.each([
+    ['tabs.verdi', 'Verdi'],
+    ['keyFigures.editInVerdi', 'Endre i Verdi'],
+    ['keyFigures.topNoteWithEdit', 'Viser gap ved full tilnærming · {endre}'],
+    ['verdi.control.label', 'Hvor mye av gapet som lukkes'],
+    ['verdi.step.median', 'Til medianen for driftsmargin ({n} %)'],
+    ['verdi.step.medianNone', 'Til medianen for driftsmargin'],
+    ['verdi.median.share', 'Median nås ved {n} % av gapet. Medianen gjelder driftsmargin.'],
+    ['verdi.median.above', '{selskap} ligger allerede over medianen. Medianen gjelder driftsmargin.'],
+    ['verdi.median.applies', 'Medianen gjelder driftsmargin.'],
+    ['verdi.profit.kicker', 'Økt driftsresultat per år'],
+    ['verdi.workingCapital.kicker', 'Frigjort arbeidskapital'],
+    ['verdi.oml.kicker', 'Frigjort kapital i driftseiendeler'],
+    ['verdi.profit.value', '{a} av {full} per år'],
+    ['verdi.capital.value', '{a} av {full}'],
+    ['verdi.workingCapital.noTotal', 'Ingen sum – én del mangler grunnlag'],
+    ['verdi.noTarget', 'Ikke beregnet – for få sammenlignbare på {figur}'],
+    ['verdi.cardMedian.share', 'Median nås ved {x} %'],
+    ['verdi.cardMedian.above', 'Median: allerede over'],
+    [
+      'verdi.profit.strength',
+      '▲ Styrke. Driftsmarginen er på eller over beste fjerdedel, så det er ikke noe økt driftsresultat å regne ut.',
+    ],
+    ['verdi.announce.profit', 'Økt driftsresultat per år: {a} av {full}.'],
+    // N1–N12
+    ['verdi.step.medianUnder', 'Til medianen for driftsmargin (under 1 %)'],
+    ['verdi.step.medianOver', 'Til medianen for driftsmargin (over 99 %)'],
+    ['verdi.median.at', '{selskap} ligger på medianen. Medianen gjelder driftsmargin.'],
+    [
+      'verdi.median.isBest',
+      'Medianen er lik beste fjerdedel, så til medianen er det samme som 100 %. Medianen gjelder driftsmargin.',
+    ],
+    ['verdi.median.belowFloor', 'Ingen median – for få sammenlignbare på driftsmargin. Medianen gjelder driftsmargin.'],
+    ['verdi.profit.share', 'ved {andel} av gapet'],
+    ['verdi.capital.share', 'engangsbeløp, ved {andel} av gapet'],
+    ['verdi.part', '{figur}: {verdi}'],
+    ['verdi.cardMedian.under', 'Median nås ved under 1 %'],
+    ['verdi.cardMedian.over', 'Median nås ved over 99 %'],
+    ['verdi.announce.share', 'Viser {andel} av gapet.'],
+    ['verdi.cardMedian.reached', 'Median: allerede nådd'],
+    // N13–N15, approved after review (Meinich, 2026-11-19)
+    ['verdi.share.under', 'under 1'],
+    ['verdi.share.over', 'over 99'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

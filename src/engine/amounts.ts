@@ -19,17 +19,19 @@
 /**
  * - `gap`: one figure's gap in kroner, profit (1) or capital (9–11);
  * - `benchmark`: a figure's gaps collected beside its comparison, summing nothing;
- * - `total`: a sum of amounts (working capital released, and from Story 3.5
- *   the profit uplift at a share and EV): never a waterfall bar, a cost
- *   share's amount or 11;
+ * - `total`: a sum of amounts (working capital released): never a waterfall
+ *   bar, a cost share's amount or 11;
  * - `explanation`: the margin waterfall, which explains the margin gap
  *   against the peer group as a whole, is never scaled by the closable share
  *   and is never added to any total;
  * - `choice` (Story 3.4): picks one of several amounts by comparing them
  *   exactly, and sums nothing itself; its only sum is the one a `total` it
- *   calls makes (`workingCapitalReleased`).
+ *   calls makes (`workingCapitalReleased`);
+ * - `scale` (Story 3.5): one amount at a closable share, the full-convergence
+ *   amount × s, or the profit at the median step; it sums nothing, directly
+ *   or through any engine function it calls ("a scale sums nothing").
  */
-export type AmountRole = 'gap' | 'benchmark' | 'total' | 'explanation' | 'choice';
+export type AmountRole = 'gap' | 'benchmark' | 'total' | 'explanation' | 'choice' | 'scale';
 
 export type AmountEntry = {
   /** The module under src/engine that exports it. */
@@ -44,6 +46,9 @@ export const AMOUNT_FUNCTIONS = {
   benchmarkDocumentFigures: { module: 'benchmark.ts', role: 'benchmark' },
   workingCapitalReleased: { module: 'benchmark.ts', role: 'total' },
   largestCapitalGap: { module: 'benchmark.ts', role: 'choice' },
+  profitAtMedian: { module: 'closable.ts', role: 'scale' },
+  scaleAmount: { module: 'closable.ts', role: 'scale' },
+  profitAtShare: { module: 'closable.ts', role: 'scale' },
   marginWaterfall: { module: 'waterfall.ts', role: 'explanation' },
   displayWaterfall: { module: 'waterfall.ts', role: 'explanation' },
 } as const satisfies Readonly<Record<string, AmountEntry>>;

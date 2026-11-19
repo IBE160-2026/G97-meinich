@@ -44,7 +44,7 @@ test.describe('covered company', () => {
     expect(invalid.headers().location).toMatch(new RegExp(`/analyse/${A.orgnr}/oversikt\\?band=x$`));
   });
 
-  test('shows the company header, three tabs and the title', async ({ page }) => {
+  test('shows the company header, four tabs and the title', async ({ page }) => {
     await page.goto(`/analyse/${A.orgnr}`);
     await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/oversikt$`));
     await expect(page).toHaveTitle(`${A.navn} – Oversikt – Peerless`);
@@ -56,8 +56,7 @@ test.describe('covered company', () => {
     await expect(meta).toContainText(dataDate(A.orgnr ?? ''));
 
     const links = tabs(page).getByRole('link');
-    await expect(links).toHaveText([nb['tabs.oversikt'], nb['tabs.peers'], nb['tabs.nokkeltall']]);
-    await expect(tabs(page).getByRole('link', { name: 'Verdi' })).toHaveCount(0);
+    await expect(links).toHaveText([nb['tabs.oversikt'], nb['tabs.peers'], nb['tabs.nokkeltall'], nb['tabs.verdi']]);
     await expect(links.nth(0)).toHaveAttribute('aria-current', 'page');
     await expect(links.nth(1)).not.toHaveAttribute('aria-current', /.*/);
     await expect(page.getByRole('heading', { level: 2, name: nb['tabs.oversikt'] })).toBeVisible();
@@ -102,7 +101,16 @@ test.describe('covered company', () => {
     await expect(page).toHaveURL(new RegExp(`/peers\\?band=x$`));
   });
 
-  for (const fane of ['verdi', 'foo']) {
+  test('/verdi renders Verdi, with no notice and no redirect (Story 3.5)', async ({ page, request }) => {
+    expect((await request.get(`/analyse/${A.orgnr}/verdi`, { maxRedirects: 0 })).status()).toBe(200);
+    await page.goto(`/analyse/${A.orgnr}/verdi`);
+    await expect(page).toHaveTitle(`${A.navn} – Verdi – Peerless`);
+    await expect(tabs(page).getByRole('link', { name: nb['tabs.verdi'] })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('heading', { level: 2, name: nb['tabs.verdi'] })).toBeVisible();
+    await expect(notice(page)).toHaveText('');
+  });
+
+  for (const fane of ['foo']) {
     test(`/${fane} renders Oversikt with the notice and no redirect`, async ({ page, request }) => {
       expect((await request.get(`/analyse/${A.orgnr}/${fane}`, { maxRedirects: 0 })).status()).toBe(200);
       await page.goto(`/analyse/${A.orgnr}/${fane}`);
@@ -437,6 +445,12 @@ for (const width of [375, 320]) {
       // Measure the tabs once shown, not in the hidden streamed segment.
       await companyShown(page, A.navn ?? '');
       const nav = tabs(page);
+      // Story 3.5: all four, each a target of at least 24 × 24 px.
+      await expect(nav.getByRole('link')).toHaveCount(4);
+      for (const box of await nav.getByRole('link').evaluateAll((links) => links.map((link) => ({ width: link.getBoundingClientRect().width, height: link.getBoundingClientRect().height })))) {
+        expect(box.width).toBeGreaterThanOrEqual(24);
+        expect(box.height).toBeGreaterThanOrEqual(24);
+      }
       const sizes = await nav.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
       expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);
       await noSidewaysScroll(page);

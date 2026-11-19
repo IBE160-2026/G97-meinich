@@ -107,6 +107,14 @@ export function wholePercent(percent: string): Decimal {
   return roundHalfAwayFromZero(decimal(percent), 0);
 }
 
+/**
+ * Percent (0–100) → the whole percent, no unit: "12", for a template that
+ * writes the unit itself ("Til medianen for driftsmargin ({n} %)", Story 3.5).
+ */
+export function formatWholePercentNumber(percent: string): string {
+  return render(wholePercent(percent), 0);
+}
+
 /** Percent (0–100, e.g. Plassering 61.36…) → whole percent: "61 %". */
 export function formatWholePercent(percent: string): string {
   return `${render(wholePercent(percent), 0)}${NBSP}%`;

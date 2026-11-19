@@ -11,7 +11,9 @@ import {
   urlContext,
   type Subject,
 } from '../../src/analysis/view.ts';
-import { parse, parseSegments } from '../../src/url/analysis-state.ts';
+import { Decimal } from '../../src/engine/decimal.ts';
+import type { Comparison } from '../../src/engine/types.ts';
+import { parse, parseSegments, type Band } from '../../src/url/analysis-state.ts';
 
 // Valid modulus-11 numbers; which company they stand for is set below.
 const COVERED = '813235552';
@@ -121,7 +123,17 @@ describe('covered company with a filing', () => {
     });
   });
 
-  it.each(['verdi', 'foo'])('renders Oversikt for /%s with the notice and no redirect', (fane) => {
+  it('renders Verdi with no notice (Story 3.5)', () => {
+    expect(view(covered, { orgnr: COVERED, fane: 'verdi' })).toEqual({
+      state: 'covered',
+      redirect: null,
+      fane: 'verdi',
+      notice: false,
+      title: 'ADMMIT AS – Verdi – Peerless',
+    });
+  });
+
+  it.each(['foo'])('renders Oversikt for /%s with the notice and no redirect', (fane) => {
     expect(view(covered, { orgnr: COVERED, fane })).toEqual({
       state: 'covered',
       redirect: null,
@@ -224,16 +236,64 @@ describe('precedence: no filing, then uncovered, then non-AS, then covered', () 
 });
 
 describe('PATH_CONTEXT', () => {
-  it('accepts every candidate (path-only parsing) and has no median step until Story 3.5', () => {
+  it('accepts every candidate and has no median step (path-only parsing)', () => {
     expect(PATH_CONTEXT.isCandidate('910000004', 0)).toBe(true);
     expect(PATH_CONTEXT.medianStepExists({ orgnr: COVERED, band: 0, ekskl: [] })).toBe(false);
+  });
+});
+
+describe('urlContext resolves the median step (Story 3.5)', () => {
+  const PEER = '910000004';
+  /** Driftsmargin −5 % against median m and beste fjerdedel 5 %. */
+  const margin = (m: string): Comparison => ({
+    kind: 'compared',
+    subject: new Decimal('-0.05'),
+    source: 'api',
+    count: 12,
+    leftOut: 0,
+    median: new Decimal(m),
+    lowerQuartile: new Decimal('-0.1'),
+    upperQuartile: new Decimal('0.05'),
+    p5: new Decimal('-0.2'),
+    p95: new Decimal('0.2'),
+    best: { quartile: new Decimal('0.05'), percentile: new Decimal('40') },
+  });
+  const asked: { band: Band; ekskl: readonly string[] }[] = [];
+  // Fixture: at band 0 with no exclusion r < M < T (a step exists); excluding PEER moves the median below r (none).
+  const context = urlContext(
+    () => new Set([PEER]),
+    (band, ekskl) => {
+      asked.push({ band, ekskl });
+      return ekskl.includes(PEER) ? margin('-0.06') : margin('-0.03');
+    },
+  );
+
+  it('urlContext resolves the median step', () => {
+    const kept = parseSegments({ orgnr: COVERED, fane: 'verdi' }, '?andel=median', context);
+    expect(kept).toMatchObject({ kind: 'analysis', state: { andel: 'median' }, invalidSettings: false });
+    expect(analysisView(covered, kept, '?andel=median').notice).toBe(false);
+    // The predicate is asked about the group the URL names: its band and its exclusions.
+    const search = `?ekskl=${PEER}&band=1&andel=median`;
+    const dropped = parseSegments({ orgnr: COVERED, fane: 'verdi' }, search, context);
+    expect(dropped).toMatchObject({ kind: 'analysis', state: { andel: 50, ekskl: [PEER], band: 1 }, invalidSettings: true });
+    expect(asked).toEqual([
+      { band: 0, ekskl: [] },
+      { band: 1, ekskl: [PEER] },
+    ]);
+    expect(analysisView(covered, dropped, search).notice).toBe(true);
+    // No group: no median step.
+    const none = urlContext(() => new Set(), () => null);
+    expect(parseSegments({ orgnr: COVERED, fane: 'verdi' }, '?andel=median', none)).toMatchObject({ state: { andel: 50 }, invalidSettings: true });
   });
 });
 
 describe('urlContext', () => {
   const IN_BAND_0 = '910000004';
   const IN_BAND_1 = '910000012';
-  const context = urlContext((band) => (band === 0 ? new Set([IN_BAND_0]) : new Set([IN_BAND_0, IN_BAND_1])));
+  const context = urlContext(
+    (band) => (band === 0 ? new Set([IN_BAND_0]) : new Set([IN_BAND_0, IN_BAND_1])),
+    () => null,
+  );
 
   it('asks the pool at the band it is given', () => {
     expect(context.isCandidate(IN_BAND_1, 0)).toBe(false);

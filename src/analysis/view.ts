@@ -10,8 +10,8 @@
 //   filing, industry not covered      → bare path is the result; a tab redirects to it
 //   filing, covered, not an AS        → bare path is the result; a tab redirects to it
 //                                       (Story 1.7: it can never have peers in v1)
-//   filing, covered, an AS            → bare path redirects to Oversikt; a tab renders,
-//                                       Verdi (Epic 3) renders Oversikt with the notice
+//   filing, covered, an AS            → bare path redirects to Oversikt; a tab renders
+//                                       (Story 3.5: Verdi too)
 //
 // Every redirect keeps the query. With no fallback it is written
 // canonically by `serialize`; when a value fell back, the query is kept as
@@ -20,11 +20,17 @@
 // tab, or verdi) is not carried: an uncovered or no-filing company has no
 // tabs, so its redirect to the bare path drops the tab, and the target shows
 // the notice only if its query has a fallback.
+//
+// Story 3.5: `urlContext` resolves `andel=median` with the engine's median
+// step on driftsmargin for the peer group the URL names (its band and
+// exclusions), so the token is kept exactly where the step exists.
+import { medianStep } from '../engine/closable.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { formatOrgnr } from '../engine/format.ts';
 import type { BusinessType, Fingerprint } from '../engine/fingerprint.ts';
 import { parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
 import { PEER_LEGAL_FORM, type FunnelSubject } from '../engine/peers.ts';
+import type { Comparison } from '../engine/types.ts';
 import { t } from '../messages/index.ts';
 import {
   defaultState,
@@ -37,9 +43,10 @@ import {
 
 /**
  * For parsing only the path (which company, which tab), where no peer group
- * is at hand: the layout's 404 decision and the client components that read
- * the pathname. Every `ekskl` item is accepted; the page parses the query
- * with `urlContext`.
+ * is at hand: the layout's 404 decision. Every `ekskl` item is accepted and
+ * no median step exists; the page parses the query with `urlContext`, and
+ * the client parses its base URL with the server's median step (Story 3.5,
+ * src/analysis/peer-change.ts).
  */
 export const PATH_CONTEXT: ParseContext = {
   isCandidate: () => true,
@@ -51,21 +58,29 @@ export const PATH_CONTEXT: ParseContext = {
  * `isCandidate(peer, band)` asks whether `peer` is in the candidate pool
  * (funnel stages 1–3) at the band `parse` read from the same URL. A subject
  * with no pool (not covered, no filing, not an AS) passes a pool that is
- * always empty. `medianStepExists` is false until Story 3.5 computes s_med,
- * so `andel=median` falls back to 50 with the notice.
+ * always empty. `driftsmarginAt(band, ekskl)` is the subject's driftsmargin
+ * compared with that group (the group at `band` minus `ekskl`), or null with
+ * no group; `andel=median` is kept only where the engine's median step
+ * exists on it (Story 3.5), and otherwise falls back to 50 with the notice.
  */
-export function urlContext(poolAt: (band: Band) => ReadonlySet<string>): ParseContext {
+export function urlContext(
+  poolAt: (band: Band) => ReadonlySet<string>,
+  driftsmarginAt: (band: Band, ekskl: readonly string[]) => Comparison | null,
+): ParseContext {
   return {
     isCandidate: (peer, band) => poolAt(band).has(peer),
-    medianStepExists: () => false,
+    medianStepExists: ({ band, ekskl }) => {
+      const comparison = driftsmarginAt(band, ekskl);
+      return comparison !== null && medianStep(comparison).kind === 'exists';
+    },
   };
 }
 
 /** The id of the analysis panel's heading, which a tab change focuses. */
 export const PANEL_HEADING_ID = 'fane-tittel';
 
-/** The tabs Epics 1–2 render. Verdi is added by Epic 3. */
-export const OPEN_FANER = ['oversikt', 'peers', 'nokkeltall'] as const satisfies readonly Fane[];
+/** The four tabs, in order (Story 3.5 opens Verdi). */
+export const OPEN_FANER = ['oversikt', 'peers', 'nokkeltall', 'verdi'] as const satisfies readonly Fane[];
 export type OpenFane = (typeof OPEN_FANER)[number];
 
 /** The amounts of the subject's filing the header and the API figures read (src/engine/inputs.ts). */
@@ -199,14 +214,12 @@ export function analysisView(subject: Subject | null, parsed: ParseResult, searc
       title: brand,
     };
   }
-  // Verdi is added by Epic 3; until then its path renders Oversikt as an
-  // unknown tab would, with the notice.
-  const fane: OpenFane = state.fane === 'verdi' ? 'oversikt' : state.fane;
+  const fane: OpenFane = state.fane;
   return {
     state: 'covered',
     redirect: null,
     fane,
-    notice: invalidSettings || state.fane === 'verdi',
+    notice: invalidSettings,
     title: t('analysis.title.tab', { selskap: displayName(subject), fane: t(`tabs.${fane}`) }),
   };
 }

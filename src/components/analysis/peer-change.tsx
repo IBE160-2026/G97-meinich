@@ -21,6 +21,14 @@
 //   - which band "Vis alle" is open at (Story 2.7 triage row 14): open
 //     across exclude and restore, closed by a band change.
 //
+// Story 3.5 (decision 6; Epic 2 retro B6): the base of a change keeps its
+// exclusions and band from the change in flight or the last good URL, as
+// before, and takes the share and the multiple from the live URL, which
+// Verdi writes with `history.replaceState`. Each is parsed with the
+// server's median step, which every commit reports, so `andel=median`
+// survives exclude, restore, a band step and reset
+// (`peerChangeHref` in src/analysis/peer-change.ts).
+//
 // Story 2.10: an exclude is refused at MAX_EKSKL exclusions
 // (exclusionCapReached): the second guard after the aria-disabled button,
 // and the only one for a press made while the 20th is in flight.
@@ -37,11 +45,11 @@
 // decided exception, EXPERIENCE.md "Recompute").
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
-import { PANEL_HEADING_ID, PATH_CONTEXT } from '@/analysis/view';
+import { PANEL_HEADING_ID } from '@/analysis/view';
 import { t } from '@/messages';
 import { StateBlock } from './state-block';
-import { announcement, exclusionCapReached, nextState, type PeerChange, type PeerCommit } from '@/analysis/peer-change';
-import { parse, serialize, type Band } from '@/url/analysis-state';
+import { announcement, peerChangeHref, type PeerChange, type PeerCommit } from '@/analysis/peer-change';
+import type { Band } from '@/url/analysis-state';
 
 export type { PeerChange, PeerCommit };
 
@@ -50,7 +58,7 @@ export type PeerChangeValue = {
   /** The last change failed: the alert shows until the next change. */
   readonly failed: boolean;
   readonly change: (change: PeerChange) => void;
-  readonly commit: (commit: PeerCommit) => void;
+  readonly commit: (commit: PeerCommit & { readonly medianStep: boolean }) => void;
   /** Whether a change has been pushed and no page has committed since. Read by [orgnr]/error.tsx. */
   readonly hasChangeInFlight: () => boolean;
   /** The change in flight failed: forget it and show the alert. */
@@ -88,6 +96,8 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const lastGood = useRef<string | null>(null);
+  // Whether the server found the median step for the last good URL (Story 3.5).
+  const lastMedianStep = useRef(false);
   const inFlight = useRef<InFlight | null>(null);
   const [failed, setFailed] = useState(false);
   // Where the failure alert stands: shown after `fail()`, kept through the
@@ -99,17 +109,16 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
 
   const change = useCallback(
     (requested: PeerChange) => {
-      const baseHref = inFlight.current?.href ?? lastGood.current ?? `${window.location.pathname}${window.location.search}`;
-      const base = parse(baseHref, PATH_CONTEXT);
-      if (base.kind !== 'analysis') return;
-      // At the cap the aria-disabled button does not call this; if anything
-      // does, it ends here: no push, so no 21st exclusion and no
-      // invalid-settings notice. Built on
-      // the change in flight, this also refuses a second press while the
-      // 20th is pending, before any page has rendered the cap.
-      if (requested.kind === 'exclude' && exclusionCapReached(base.state)) return;
-      const href = serialize(nextState(base.state, requested));
-      if (href === baseHref) return;
+      const live = `${window.location.pathname}${window.location.search}`;
+      // Null: refused at the cap (also while the 20th is in flight, before
+      // any page has rendered the cap), or a change that changes nothing.
+      const href = peerChangeHref({
+        base: inFlight.current?.href ?? lastGood.current ?? live,
+        live,
+        medianStep: lastMedianStep.current,
+        change: requested,
+      });
+      if (href === null) return;
       inFlight.current = { change: requested, href };
       failure.current = 'none';
       setFailed(false);
@@ -121,8 +130,9 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
     [router],
   );
 
-  const commit = useCallback((committed: PeerCommit) => {
+  const commit = useCallback((committed: PeerCommit & { readonly medianStep: boolean }) => {
     lastGood.current = committed.href;
+    lastMedianStep.current = committed.medianStep;
     if (failure.current === 'awaitingBack') {
       failure.current = 'shown';
     } else if (failure.current === 'shown') {
@@ -176,17 +186,24 @@ export function PeerChangeProvider({ children }: { readonly children: ReactNode 
 
 /**
  * Rendered by every covered analysis page: reports the URL the server
- * parsed (`serialize` of its state), so the next change builds on it, and
- * the count the announcement names. Renders nothing. `renderId` is new for
+ * parsed (`serialize` of its state), so the next change builds on it, the
+ * count the announcement names, and whether the server found the median
+ * step for that URL (Story 3.5). Renders nothing. `renderId` is new for
  * every server render, so each render commits exactly once, also one whose
  * URL and count equal the last (an exclude restored before it committed).
  */
-export function PeerChangeCommit({ href, count, bandLabel, renderId }: PeerCommit & { readonly renderId: string }) {
+export function PeerChangeCommit({
+  href,
+  count,
+  bandLabel,
+  medianStep,
+  renderId,
+}: PeerCommit & { readonly medianStep: boolean; readonly renderId: string }) {
   const context = usePeerChange();
   const commit = context?.commit;
   useEffect(() => {
-    commit?.({ href, count, bandLabel });
-  }, [commit, href, count, bandLabel, renderId]);
+    commit?.({ href, count, bandLabel, medianStep });
+  }, [commit, href, count, bandLabel, medianStep, renderId]);
   return null;
 }
 

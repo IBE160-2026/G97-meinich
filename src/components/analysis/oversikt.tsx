@@ -3,22 +3,22 @@
 // 12-column card grid — the hero (5 columns), the driftsmargin beeswarm with
 // its compact list (7), and three small cards of 4 each, which keep their
 // place when empty. One column below `md`, in that order. No explanation row
-// and no placeholder for it in v1 (Epic 4), and no "· Endre i Verdi" until
-// Story 3.5.
+// and no placeholder for it in v1 (Epic 4). Story 3.5: the hero's and the
+// capital card's top note link to Verdi ("· Endre i Verdi"), and every link
+// is an AnalysisLink, which keeps the live share and multiple.
 //
 // A server component. Every view is built here from the shown group the
 // table reads (src/analysis/beeswarm.ts, src/analysis/oversikt-cards.ts);
 // only their strings and plot coordinates reach the page (AD-4), and the
 // one client module, the chart, receives exactly those.
-import Link from 'next/link';
 import { groupBeeswarm, type BeeswarmView, type MarginRow } from '@/analysis/beeswarm';
 import { oversiktCards } from '@/analysis/oversikt-cards';
 import type { ShownGroup } from '@/analysis/shown-group';
 import type { DocumentBasis } from '@/engine/document-inputs';
 import { t } from '@/messages';
 import type { Candidate } from '@/server/analysis';
-import { serialize, type AnalysisState } from '@/url/analysis-state';
 import type { SubjectKeyFigures } from '@/analysis/view';
+import { AnalysisLink } from './analysis-link';
 import { BeeswarmChart } from './beeswarm-chart';
 import { OversiktHero } from './oversikt-hero';
 import { emptyText } from './peer-list';
@@ -71,7 +71,7 @@ function Legend({ view }: { readonly view: Extract<BeeswarmView, { readonly kind
 const NEAREST_CAPTION_ID = 'beeswarm-nearest-caption';
 
 /** The compact list: the five nearest and the company, highest driftsmargin first. */
-function Nearest({ view, peersHref }: { readonly view: Extract<BeeswarmView, { readonly kind: 'shown' }>; readonly peersHref: string }) {
+function Nearest({ view }: { readonly view: Extract<BeeswarmView, { readonly kind: 'shown' }> }) {
   const cell = 'py-1 pr-3 align-top';
   return (
     <div className="mt-4">
@@ -105,9 +105,9 @@ function Nearest({ view, peersHref }: { readonly view: Extract<BeeswarmView, { r
         </table>
       </div>
       <p className="m-0 mt-2 text-[13px]">
-        <Link href={peersHref} className="inline-flex min-h-6 items-center" data-testid="beeswarm-see-all">
+        <AnalysisLink target={{ fane: 'peers' }} className="inline-flex min-h-6 items-center" data-testid="beeswarm-see-all">
           {view.nearest.seeAll}
-        </Link>
+        </AnalysisLink>
       </p>
     </div>
   );
@@ -165,7 +165,7 @@ function NumbersTable({ view }: { readonly view: Extract<BeeswarmView, { readonl
   );
 }
 
-function BeeswarmCard({ view, peersHref }: { readonly view: BeeswarmView; readonly peersHref: string }) {
+function BeeswarmCard({ view }: { readonly view: BeeswarmView }) {
   return (
     <section
       aria-labelledby={HEADING_ID}
@@ -189,7 +189,7 @@ function BeeswarmCard({ view, peersHref }: { readonly view: BeeswarmView; readon
               {view.noMargin}
             </p>
           ) : null}
-          <Nearest view={view} peersHref={peersHref} />
+          <Nearest view={view} />
           <ShowNumbers show={view.showNumbers} hide={view.hideNumbers} tableId={NUMBERS_ID}>
             <NumbersTable view={view} />
           </ShowNumbers>
@@ -202,7 +202,6 @@ function BeeswarmCard({ view, peersHref }: { readonly view: BeeswarmView; readon
 export function Oversikt({
   group,
   subject,
-  state,
 }: {
   /** The shown group, the same the table and the Peers tab read. */
   readonly group: ShownGroup<Candidate>;
@@ -212,8 +211,6 @@ export function Oversikt({
     /** The subject's document basis: the capital card names it when it is not read. */
     readonly documentBasis: DocumentBasis;
   };
-  /** The URL's state; every link keeps every setting. */
-  readonly state: AnalysisState;
 }) {
   const context = { filingYear: group.filingYear, valuta: group.valuta, unstatedField: group.unstatedField };
   const empty = group.emptyReason === null ? null : emptyText(group.emptyReason, context);
@@ -224,18 +221,16 @@ export function Oversikt({
     basis: subject.documentBasis.kind,
     filingYear: group.filingYear,
   });
-  const table = serialize({ ...state, fane: 'nokkeltall' });
   return (
     <div className="mt-4 grid grid-cols-1 gap-grid-gap-phone md:grid-cols-12 md:gap-grid-gap" data-testid="oversikt">
       <OversiktHero
         figure={group.benchmark.driftsmargin}
-        state={state}
         emptyReason={group.emptyReason}
         filingYear={group.filingYear}
         valuta={group.valuta}
         unstatedField={group.unstatedField}
       />
-      <BeeswarmCard view={beeswarm} peersHref={serialize({ ...state, fane: 'peers' })} />
+      <BeeswarmCard view={beeswarm} />
       <SmallCard id="card-capital" kicker={t('oversikt.capital.kicker')} view={cards.capital} />
       <SmallCard id="card-strength" kicker={t('oversikt.strength.kicker')} view={cards.strength} />
       <SmallCard
@@ -243,7 +238,7 @@ export function Oversikt({
         kicker={t('oversikt.missing.kicker')}
         view={cards.missing}
         valueSize="figure"
-        more={cards.missing.more === null ? null : { text: cards.missing.more, href: table }}
+        more={cards.missing.more === null ? null : { text: cards.missing.more, target: { fane: 'nokkeltall' } }}
       />
     </div>
   );

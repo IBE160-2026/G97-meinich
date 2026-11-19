@@ -29,7 +29,9 @@ import { marginWaterfall, type MarginWaterfall } from '../../src/engine/waterfal
 import { formatKronerExact, formatPercent, formatTurnover } from '../../src/engine/format.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
+import { defaultState } from '../../src/url/analysis-state.ts';
 import { daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
+import { withUrl } from './url-provider.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -85,15 +87,18 @@ function render(
   waterfall: MarginWaterfall = OUTSIDE_WATERFALL,
 ): string {
   return renderToString(
-    createElement(KeyFigureTable, {
-      benchmark,
-      turnoverBenchmark,
-      documentBenchmark,
-      waterfall,
-      companyName: 'FJORDKODE AS',
-      smaaForetak,
-      filingYear: 2025,
-    }),
+    withUrl(
+      createElement(KeyFigureTable, {
+        benchmark,
+        turnoverBenchmark,
+        documentBenchmark,
+        waterfall,
+        companyName: 'FJORDKODE AS',
+        smaaForetak,
+        filingYear: 2025,
+      }),
+      { ...defaultState('813235552'), fane: 'nokkeltall', band: 1 },
+    ),
   );
 }
 

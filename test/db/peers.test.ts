@@ -167,7 +167,7 @@ describe('a peer deleted after 410 Gone', () => {
           expect(after.pool.map((p) => p.orgnr)).not.toContain(peer);
         }
         const pool = new Set(assemblePeerGroup(funnel, candidates, 0).pool.map((p) => p.orgnr));
-        const parsed = parse(serialize({ ...defaultState(funnel.orgnr), ekskl: [peer] }), urlContext(() => pool));
+        const parsed = parse(serialize({ ...defaultState(funnel.orgnr), ekskl: [peer] }), urlContext(() => pool, () => null));
         expect(parsed.kind).toBe('analysis');
         if (parsed.kind !== 'analysis') return;
         expect(parsed.invalidSettings).toBe(true);

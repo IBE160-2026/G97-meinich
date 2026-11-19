@@ -21,6 +21,13 @@
 // page reports `serialize` of the state it parsed to the peer-change
 // provider in the layout (PeerChangeCommit), which builds the next change
 // on it, and its panel is marked busy while a change is in flight.
+//
+// Story 3.5: the covered page holds the URL hook's provider
+// (AnalysisUrlProvider) around the tabs and the panel, with the URL it
+// parsed and whether the median step exists for it, so every link keeps the
+// share the browser writes with `history.replaceState`. Verdi receives only
+// its wire (src/analysis/verdi-view.ts): the exact amounts and s_med as
+// WireDecimals, everything else as strings.
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -37,8 +44,10 @@ import {
   type Subject,
 } from '@/analysis/view';
 import { peerRows } from '@/analysis/peer-rows';
-import { shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
+import { verdiWire } from '@/analysis/verdi-view';
+import { driftsmarginComparison, shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { bandFactors, bandSteps } from '@/analysis/size-band';
+import { AnalysisUrlProvider } from '@/components/analysis/analysis-url';
 import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { KeyFigureTable } from '@/components/analysis/key-figure-table';
@@ -49,6 +58,8 @@ import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
+import { VerdiPanel } from '@/components/analysis/verdi-panel';
+import { medianStep } from '@/engine/closable';
 import { formatOrgnr } from '@/engine/format';
 import { assemblePeerGroup, V1_FUNNEL, type PeerGroup } from '@/engine/peers';
 import { failureKind, log } from '@/logger';
@@ -110,9 +121,21 @@ async function resolve(segments: Segments, searchParams: SearchParams) {
   // is dropped with the notice. `ekskl` is checked against the candidate
   // pool (stages 1–3); the shown group and every aggregate use the group
   // after stages 4 and 5 (Stories 2.5, 2.6).
-  const parsed = parseSegments(segments, search, urlContext((band) => groupAt(band)?.orgnrs ?? NO_POOL));
-  const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
+  // Story 3.5: `andel=median` is kept where the median step exists for the
+  // group the URL names, the group at its band minus its `ekskl`.
   const filing = subject?.filing ?? null;
+  const parsed = parseSegments(
+    segments,
+    search,
+    urlContext(
+      (band) => groupAt(band)?.orgnrs ?? NO_POOL,
+      (band, ekskl) => {
+        const entry = groupAt(band);
+        return entry === null || filing === null ? null : driftsmarginComparison(entry.group, ekskl, filing);
+      },
+    ),
+  );
+  const at = parsed.kind === 'analysis' ? groupAt(parsed.state.band) : null;
   const group =
     at === null || parsed.kind !== 'analysis' || filing === null
       ? null
@@ -184,6 +207,20 @@ function oversiktSubject(subject: Subject) {
   return { name: displayName(subject), keyFigures: filing.keyFigures, documentBasis: filing.documentBasis };
 }
 
+/** What Verdi reads of the subject: its filing (a covered subject always has one, as for oversiktSubject). */
+function verdiShown(subject: Subject, group: ShownGroup) {
+  const filing = subject.filing;
+  if (filing === null) throw new TypeError('verdiShown: a covered subject without a filing');
+  return verdiWire({
+    api: group.benchmark,
+    document: group.documentBenchmark,
+    basis: filing.documentBasis.kind,
+    filingYear: group.filingYear,
+    keyFigures: filing.keyFigures,
+    selskap: displayName(subject),
+  });
+}
+
 function Covered({
   subject,
   state,
@@ -197,22 +234,25 @@ function Covered({
 }) {
   if (view.fane === null) return null;
   const peers = view.fane === 'peers' ? peersShown(subject, group, state) : null;
+  const href = serialize(state);
+  const hasMedianStep = medianStep(group.benchmark.driftsmargin.comparison).kind === 'exists';
   return (
-    <>
+    <AnalysisUrlProvider href={href} medianStep={hasMedianStep}>
       <PeerChangeCommit
-        href={serialize(state)}
+        href={href}
         count={group.analysisCount}
         bandLabel={bandFactors(state.band)}
+        medianStep={hasMedianStep}
         renderId={crypto.randomUUID()}
       />
-      <TabLinks state={state} active={view.fane} />
+      <TabLinks active={view.fane} />
       <section aria-labelledby={PANEL_HEADING_ID} className="px-gutter-phone pt-6 md:px-gutter-desktop md:pt-8">
         <h2 id={PANEL_HEADING_ID} tabIndex={-1} className="m-0 text-xl">
           {t(`tabs.${view.fane}`)}
         </h2>
         <PeerChangeAlert />
         <PendingBody>
-          {view.fane === 'oversikt' ? <Oversikt group={group} subject={oversiktSubject(subject)} state={state} /> : null}
+          {view.fane === 'oversikt' ? <Oversikt group={group} subject={oversiktSubject(subject)} /> : null}
           {peers !== null ? (
             <PeerList
               rows={peers.rows}
@@ -238,9 +278,10 @@ function Covered({
               filingYear={group.filingYear}
             />
           ) : null}
+          {view.fane === 'verdi' ? <VerdiPanel wire={verdiShown(subject, group)} /> : null}
         </PendingBody>
       </section>
-    </>
+    </AnalysisUrlProvider>
   );
 }
 

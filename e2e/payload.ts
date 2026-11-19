@@ -178,3 +178,25 @@ export async function expectNoDocumentFields(
     expect(documentFieldsIn(body), label).toEqual([]);
   }
 }
+
+/**
+ * Story 3.5 (decision 5): the page's HTML and its RSC payload hold exactly `wire` as long decimal
+ * strings and quoted integers of 6 or more digits, besides the subject's
+ * orgnr (the route segment): no other exact value, rounded or not.
+ */
+export async function expectWireSet(request: APIRequestContext, url: string, orgnr: string, wire: readonly string[]): Promise<void> {
+  const html = await (await request.get(url)).text();
+  const payload = await (await request.get(url, { headers: { RSC: '1' } })).text();
+  for (const [label, body] of [
+    ['html', html],
+    ['rsc', payload],
+  ] as const) {
+    const quoted = [...body.matchAll(/\\?"(-?\d+(?:\.\d+)?)\\?"/g)]
+      .map((match) => match[1] ?? '')
+      .filter((value) => value.replace(/[-.]/g, '').length >= 6 || /\.\d{6,}/.test(value));
+    // And a long decimal anywhere, quoted or not.
+    const decimals = [...body.matchAll(/(?<![\d.])-?\d+\.\d{6,}(?!\d)/g)].map((match) => match[0]);
+    const found = new Set([...quoted, ...decimals].filter((value) => value !== orgnr));
+    expect([...found].sort(), label).toEqual(wire);
+  }
+}

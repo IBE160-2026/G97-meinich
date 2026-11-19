@@ -4,13 +4,13 @@
 
 ## Goal
 
-Turn the three-figure slice from Epic 1 into the full analysis. Every key figure in `docs/key-figures.md`, document figures included, is computed exactly and shown with its gap in kroner. Both decompositions and the margin waterfall explain where a gap sits. Oversikt gets its remaining cards. A fourth tab, Verdi, lets the user choose how much of a gap is closable and, optionally, apply an EV/EBIT multiple. Every kroner amount traces back to its formula, its filed values and its source. Without this epic the product cannot say what the peer gaps are worth, and that is its central promise. No-double-counting is enforced by tests, not by convention.
+Turn the three-figure slice from Epic 1 into the full analysis. Every key figure in `docs/key-figures.md`, document figures included, is computed exactly and shown with its gap in kroner. Both decompositions and the margin waterfall explain where a gap sits. Oversikt gets its remaining cards. A fourth tab, Verdi, lets the user choose how much of a gap is closable and, optionally, apply an EV/EBIT multiple. Every kroner amount traces back to its formula, its filed values and its source. Without this epic the product cannot say what the peer gaps are worth, which is its central promise. No-double-counting is enforced by tests, not by convention.
 
 ## Stories
 
-- Story 3.1a: The engine computes every key figure
-- Story 3.1b: The full key-figure table
-- Story 3.2: The two decompositions
+- Story 3.1a: The engine computes every key figure (done)
+- Story 3.1b: The full key-figure table (done)
+- Story 3.2: The two decompositions (done, PR #72)
 - Story 3.3: The margin waterfall
 - Story 3.4: The rest of Oversikt
 - Story 3.5: Verdi — how much is closable
@@ -19,117 +19,58 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 
 ## Requirements & Constraints
 
-- **Formulas are exactly `docs/key-figures.md`.** That covers figures 1–14 and cash share. A formula changes in that document and in the code in the same commit. Each figure has a test against a hand-calculated value from real filed accounts. The reference cases include negative equity, zero revenue and a missing component. A non-calendar year is excluded by funnel stage 2, never adjusted.
-- **Identities hold exactly.** ROA = margin × (`sumDriftsinntekter`/`sumEiendeler`), and personnel share = cost per FTE ÷ revenue per FTE. Both are asserted with `Decimal` equality and no tolerance, on the reference cases and on generated øre inputs.
-- **Undefined is never zero.** A missing component is derived from stated totals, one level deep and in the engine only. It is checked before the denominator's sign. A derived denominator of 5 kr or less counts as not positive, and that applies to a derived document `sumDriftsinntekter` too.
-- **Empty document cost lines** are derived from the column's stated `sumDriftskostnad` (remainder = total − stated lines): within ±5 kr every empty line is 0; exactly one empty line with a remainder above +5 kr is that remainder; otherwise each empty line is undefined. Every derived line is marked derived, and a denominator with a derived part is a derived denominator. Balance lines, `salgsinntekt` and `driftsresultat` are never derived.
-- **The 10-peer floor applies per figure and per source.** Below it the subject's own value stays, the row reads "n av 10", and there is no comparison and no kroner.
-- **Every absence has exactly one reason**, from the closed set in Story 2.9. The basis order is decided in `document-inputs.ts`. R3 applies: a current `kundefordringer` or `bankinnskudd` above the API `sumOmloepsmidler` + max(5 kr, 0.001 %) is absent as `exceeds_api_subtotal`, so figures 9 and 11 are undefined for that company.
-- **Direction rules:**
-  - Figures 6, 8, 13, 14 and cash share have no beste fjerdedel, no Plassering and no kroner.
-  - Total cost share (6) is a check row.
-  - Cash share is a diagnostic. It is never ranked or sorted, and it is never eligible for Største styrke.
-  - Figures 7 and 8 are absent in v1 because `aarsverk` is not read.
-  - Revenue growth (14) uses the prior-year column of the same document. It is undefined (component missing) when that column is missing or did not reconcile, and undefined as a line not read safely when the prior column's `sum_driftsinntekter` fails the register check. A prior column with no register filing to check against (`not_evaluable`) is used, and that path is unguarded.
-- **Kroner, with target T = beste fjerdedel at every share s:**
-  - Profit (1): (T−r)·`sumDriftsinntekter`·s. This amount is annual, and it is produced only when `valuta` is NOK.
-  - Figure 9: (r−T)/365·`salgsinntekt`·s.
-  - Figure 10: (T−r)/365·(`varekostnad`+`annenDriftskostnad`)·s.
-  - Figure 11: ((`sumEiendeler`−`bankinnskudd`) − `sumDriftsinntekter`/T)·s.
-  - Figures 9–11 are one-off amounts ("engangsbeløp"), computed at s = 1 in the engine from the subject's exact figure, and produced only when `valuta` is NOK (otherwise the reason `not_nok`, as for profit).
-  - Figure 11 has no amount when T is zero or negative (`target_not_positive`).
-  - At or beyond T there is no amount, only a strength.
-  - Cost shares (3–5) never yield kroner of their own.
-- **No double counting (FR-30), in two clusters:**
-  - Cluster 1: no total includes a waterfall bar or a cost-share amount.
-  - Cluster 2: working capital released is (9)+(10) only. A total is shown only when both clear the floor. Figure 11 is never summed with either.
-  - Both clusters are tested against the engine's amount functions.
-- **EV** = exact annual profit uplift × a user-entered multiple, based on API `driftsresultat`. There is no default, no placeholder and no suggestion, and no code path that produces a multiple.
-- **Provenance tells the truth.** The data-quality line comes from the stored per-filing status and the manifest, never inferred. A degraded filing is reported unavailable, never estimated.
-- **Phone width:** layouts work at 375 px and 320 px, and the body never scrolls horizontally. Tables and charts get their own scroll containers.
-- **Every PR** states what could go wrong, which `docs/ai-log.md` records. It also has a "Planning documents:" line.
+- **Formulas are exactly `docs/key-figures.md`** (figures 1–14 and cash share). A formula changes in the document and the code in the same commit. Each figure is tested against a hand-calculated value from real filed accounts.
+- **Exactness.** Identities (ROA = margin × turnover; personnel share = cost per FTE ÷ revenue per FTE) hold with `Decimal` equality, no tolerance.
+- **Undefined is never zero.** Missing components are derived from stated totals, one level deep, in the engine only. Empty document cost lines are derived from the column's `sumDriftskostnad` (within ±5 kr every empty line is 0; exactly one empty line with a remainder above +5 kr takes it; otherwise undefined), and are marked derived. A derived denominator of 5 kr or less is not positive.
+- **10-peer floor per figure and per source.** Below it: the subject's value, "n av 10", no comparison, no kroner. Every absence has exactly one reason from Story 2.9's closed set.
+- **Direction rules.** Figures 6, 8, 13, 14 and cash share have no beste fjerdedel, Plassering or kroner. 6 is a check row. Cash share is never ranked. 7 and 8 are absent in v1 (`aarsverk` not read).
+- **Kroner, target T = beste fjerdedel at every share s.** Profit (1) is annual; 9, 10, 11 are one-off ("engangsbeløp"), computed at s = 1. All are produced only when `valuta` is NOK (`not_nok` otherwise). 11 has no amount when T ≤ 0. At or beyond T: a strength, no amount. Cost shares (3–5) never yield kroner of their own.
+- **Margin waterfall (Story 3.3).**
+  - Common peer set *P*: peers whose `driftsresultat`, `varekostnad`, `lonnskostnad` and `annenDriftskostnad` all come from the same reconciled benchmark-year filing, with `sumDriftsinntekter` > 0. One set for every bar. Under 10 in *P*, or a subject component missing → no waterfall, count stated (test at 9 and 10).
+  - The cost lines are document (OCR) figures. The fourth bar, "Avskrivninger og øvrige poster", is the residual, so margin = 1 − the four shares exactly.
+  - Peer-gruppen samlet is revenue-weighted (Σnum/Σrevenue), never a mean of ratios. Bar = (Aₓ − cₓ) × subject revenue; the exact bars sum to (margin − M) × revenue (`Decimal` equality).
+  - Display: the total `driftsresultat` − M × revenue is rounded once (half away from zero); start = `driftsresultat` − displayed total; bars by signed largest remainder (floor, then the leftover kroner to the largest fractions). Tests cover negative bars, ties and a residual of either sign.
+  - Never scaled by the share (test over every `andel`), never added to any total.
+- **No double counting (FR-30), owned by 3.3, inherited by 3.5.** Cluster 1: no cost share yields kroner, and no total (profit uplift, EV, any card) includes a waterfall bar. Cluster 2: working capital released is (9)+(10) only, totalled only when both clear the floor; (11) is never summed with either. Both run against the engine's amount functions.
+- **EV** = exact annual profit uplift × a user-entered multiple. No default, placeholder, suggestion or code path that produces a multiple.
+- **Provenance tells the truth.** The data-quality line comes from the stored per-filing status and the manifest, never inferred. A degraded filing is unavailable, never estimated.
+- **Phone width:** 375 px and 320 px, no horizontal body scroll; tables and charts in their own scroll containers.
+- **Every PR** states what could go wrong (recorded in `docs/ai-log.md`) and has a "Planning documents:" line.
 
 ## Technical Decisions
 
-- **One engine (AD-1).** All arithmetic lives in `src/engine`, as pure functions. The browser runs only share and EV scaling, through the same engine function the server uses.
-- **Money (AD-8).**
-  - Filed amounts are `bigint` øre. Derived amounts are decimal.js through `src/engine/decimal.ts`.
-  - Database strings are parsed with `parseOre`/`parseDecimal`. A `number` never holds money.
-  - Rounding happens once, in `src/engine/format.ts`: % to 1 dp, days whole, kroner whole, ties away from zero. The percentile is shown in whole percent.
-  - Quartiles and the median use `PERCENTILE.INC` with linear interpolation. The strip spans P5–P95 and is mirrored for lower-is-better figures.
-- **Margin waterfall.**
-  - The common peer set *P* is the peers with all four lines from the same reconciled benchmark filing and revenue > 0. It needs at least 10.
-  - The peer reference is revenue-weighted (Σnum/Σrevenue), never a mean of ratios. The fourth bar, "Avskrivninger og øvrige poster", is the residual.
-  - Exact bars sum to (margin − M)·revenue. The total is rounded once. The start is `driftsresultat` − the displayed total.
-  - Bars are rounded by signed largest remainder: floor each bar, then hand out the remaining kroner by largest fraction.
-  - The waterfall is never scaled by the share.
-- **Decompositions.** Each factor is compared against its own median, each with its own 10-peer gate, and the factors are never multiplied (the median margin × the median turnover is not the median ROA). No single peer is named as the benchmark. Total asset turnover (`sumDriftsinntekter`/`sumEiendeler`, total assets, not figure 11's operating assets) is a derived factor under the same-basis rule: it shows a median and its peer count, with no beste fjerdedel, no Plassering and no kroner, and it is never labelled as figure 11 or driftsmidlenes omløpshastighet. In v1 no `aarsverk` is read, so the pay-level decomposition shows Story 2.9's not-read-in-v1 state for both factors and computes no median.
-- **Read path (AD-4).** Server-rendered pages embed only this analysis's figures, including every peer value behind each shown figure.
-- **URL state (AD-5).** `src/url/analysis-state.ts` is the only reader and writer of `andel` (0, 25, 50, 75, 100 or `median`) and `multippel` ((0, 50], step 0.1). The server resolves `median` to the exact s_med = (M−r)/(T−r), which exists only where r < M < T. The amounts use the exact s_med, never the rounded label. The `medianStepExists` placeholder (always false today) gets its real implementation in 3.5.
-- **Recalculation (AD-6).**
-  - Share and EV are written via `window.history.replaceState` through one URL hook, never `router.replace`. They are read with `useSearchParams`.
-  - Every link and navigation keeps `andel` and `multippel`.
-  - Exact values cross the server/client boundary through `src/engine/wire.ts` as `WireDecimal` strings.
-  - A test checks that Node and a real browser give byte-identical output from the same wire values.
-- **Stored as filed (AD-15).** Only a reconciled column's figures reach the engine, via `documentFigures` → `guardCurrentAssets`. The status and absence reasons are as defined in Story 2.9.
-- **Data time (AD-18).** Every figure shows its filing year and its read date. Dates are formatted server-side in Europe/Oslo. The engine has no clock.
-- **Settled in 3.1a (keep them):**
-  - The fingerprint reads only a stated `sumDriftsinntekter`, never a derived one.
-  - The filing a document belongs to has one source: `pnpm derive` and the request path join it through one shared fragment, so R3 uses the same `sumOmloepsmidler` in both.
-  - A fingerprint bound computed from an API subtotal takes the between-sources rule, max(5 kr, 0.001 %); bounds within one document keep 5 kr, which lives once in the engine.
-- **Settled in 3.1b (keep them):**
-  - `src/analysis/key-figure-rows.ts` is the one pure view builder for the table (order, groups, units, denominator words, absence states). Client components receive only formatted strings and `StripMarks`; øre, `Decimal`, `bigint` and document bases stay on the server.
-  - `shownGroup` runs the document benchmark beside the API one, over the group less `ekskl`.
-  - The table has no sorting and no `aria-sort`. The cost-share group (6 included) is indented 30 px on desktop and 16 px on phone.
-  - The "Mer om dette" popover is a hand-written client component that opens in the cell's flow, with no new dependency.
-  - Three e2e specs commit synthetic companies (project `synthetic`). The third, a subject with 10 peers that all have reconciled document columns, is the fixture for full document rows and the øre payload scan.
-  - Approved copy goes into `nb.json` verbatim and is asserted in `test/messages.test.ts`. A subagent never rewords it, and EXPERIENCE gets new strings in the same commit.
-- **Provenance inputs exist.** Every figure result carries each formula input with its column and whether it was derived, so the drill-down can show derived numerators as well as derived denominators.
-- **Copy** lives in `src/messages/nb.json` under `fig.*` and Story 2.9's absence copy. No hard-coded strings.
+- **One engine (AD-1).** All arithmetic in `src/engine` as pure functions. The browser runs only share and EV scaling, through the same engine function the server uses.
+- **Money (AD-8).** Filed amounts are `bigint` øre; derived amounts are decimal.js via `src/engine/decimal.ts`; figures as exact fractions divided once. Rounding only in `src/engine/format.ts` (% 1 dp, days and kroner whole, ties away from zero; percentile whole percent). Quartiles use `PERCENTILE.INC`.
+- **Read path (AD-4).** Pages embed only this analysis's figures. `'use client'` modules receive only strings, booleans and `StripMarks`; no øre, `Decimal`, `Fraction` or `bigint` crosses.
+- **URL state (AD-5, AD-6).** `src/url/analysis-state.ts` alone reads and writes `andel` (0/25/50/75/100/`median`) and `multippel` ((0, 50], step 0.1). The server resolves `median` to the exact s_med = (M−r)/(T−r), only where r < M < T. Share and EV are written with `window.history.replaceState` through one URL hook and read with `useSearchParams`. Exact values cross as `WireDecimal` strings (`src/engine/wire.ts`), with a Node-vs-browser byte-identity test.
+- **Stored as filed (AD-15).** Only a reconciled column reaches the engine (`documentFigures` → `guardCurrentAssets`, R3).
+- **Data time (AD-18).** Every figure shows its filing year and read date, formatted server-side in Europe/Oslo.
+- **Settled in 3.1a:** the fingerprint reads only a stated `sumDriftsinntekter`; one shared fragment (`DOCUMENT_FILING_JOIN`) decides the filing a document belongs to; fingerprint bounds against an API subtotal take max(5 kr, 0.001 %). Every figure result carries its formula inputs with column and derived flag.
+- **Settled in 3.1b:** `src/analysis/key-figure-rows.ts` is the one pure view builder for the table; `shownGroup` runs the document benchmark beside the API one over the group less `ekskl`; no sorting; the "Mer om dette" popover is hand-written; the `synthetic` e2e project holds a subject with 10 reconciled-document peers, the fixture for full document rows and the øre payload scan.
+- **Settled in 3.2:**
+  - `src/components/analysis/fold-out.tsx` is the one hand-written fold-out (no shadcn anywhere): `h3 > button`, `aria-expanded`/`aria-controls`, `aria-hidden` caret, body `hidden` on `surface-foldout`, indented 30 px desktop / 16 px phone. On desktop it is its own row right after its figure; on phone its own row group after that figure's group.
+  - `src/components/analysis/factor-pair.tsx` shows each factor with own, median, strip, "Midtre halvdel" text, direction words and counts, never beste fjerdedel, Plassering or kroner.
+  - A source scan forbids any multiplication of decomposition factors in `src/`, with an allow-list that starts empty.
+- **Copy** lives in `src/messages/nb.json`. Approved copy goes in verbatim, is asserted in `test/messages.test.ts`, and is never reworded by a subagent; EXPERIENCE gets new keys in the same commit.
 
 ## UX & Interaction Patterns
 
-- **Key-figure table.**
-  - Rows are grouped as in `docs/key-figures.md`.
-  - Cost shares sit indented under Driftsmargin, in their own `<tbody>` with the `th scope="rowgroup"` heading "Forklarer marginavviket – summeres ikke". Their kroner cell reads "Se forklaring av marginen", which becomes a link to the waterfall in 3.3.
-  - Rows with no direction show "Midtre halvdel" and "Ingen retning".
-  - Figures 9–11 show "engangsbeløp", "▲ Styrke", or "Ingen kronebeløp".
-  - On phone the table follows Story 1.8's pattern: three columns and a row button that opens an expansion row.
-- **Outside the demo seed.** Document rows read "Ikke i demodataene" with a "Mer om dette" Popover button. One State block above the table explains it, and every such cell points to it with `aria-describedby`.
-- **Subject whose own filing failed (FR-71).** Document rows read "Regnskapet for {år} kunne ikke leses sikkert". The API rows keep their full comparison.
-- **Fold-outs.** Inline, never dialogs. A hand-written fold-out (no shadcn), closed by default, an `h3` with a `button` trigger, `aria-expanded`/`aria-controls`, an `aria-hidden` ▸/▾ caret, and Enter/Space to toggle. The header is in `label-strong` and the heading level is `h3`. The body sits on `surface-foldout`, indented 30 px. On phone it opens full width below its row group, never nested inside the row. "Hva forklarer marginavviket?" goes under Driftsmargin, "Margin eller kapitalbruk?" under Totalkapitalrentabilitet, and "Lønnsnivå eller produktivitet?" under Lønnskostnadsandel. All are open to every visitor in v1 (the account wall is stage 2).
-- **Factor pair.** The two factors sit side by side on desktop and stack on phone. Below the floor a factor shows the subject's value with "For få sammenlignbare (n av 10)". Outside the demo seed, "Margin eller kapitalbruk?" is shown (both factors are API), while the waterfall reads "Ikke i demodataene" and the pay-level fold-out the not-read-in-v1 state, as everywhere in v1.
-- **Waterfall.**
-  - Colours: the start bar uses the median fill, the end bar navy-700, favourable bars petrol, unfavourable bars amber, and the residual slate. Each bar has a sign, ▲/▼ and a word.
-  - It carries a reference tag and the sentence that the bars explain the gap and are never added to profit.
-- **Charts.** SVG `role="img"`, not focusable, with a summary `aria-label`. A "Vis tallene" toggle opens a table, and charts work under `forced-colors`.
-- **Oversikt layout.** A 12-column grid: hero 5, beeswarm and list 7, three small cards of 4. The explanation row is left for Epic 4. On phone it is one column.
-- **Oversikt content.**
-  - The beeswarm has a hover/tap tooltip, which is a convenience only.
-  - The compact list shows the five nearest peers.
-  - Driftsmargin values are byte-identical across the compact list, the "Vis tallene" table and the Peers list.
-- **Oversikt cards.** Each card keeps its place in the grid when empty.
-  - Største kapitalgap carries "Ikke per år, og legges ikke til resultatet."
-  - Største styrke shows the highest Plassering, with ties broken by figure number.
-  - Mangler grunnlag shows the first figure without a comparison, plus "og {n} til".
-- **Verdi.**
-  - The share control is a segmented `radiogroup` with roving tabindex: 0, 25, 50, 75 and 100 %, plus "Til medianen". It defaults to 50 %. When disabled, the median step is `aria-disabled` but still focusable, with its reason.
-  - Three amount cards are never summed. Only they move with the share. The table and the Oversikt cards stay at full convergence.
-  - Each change is announced once, and focus stays on the step.
-  - Every target is at least 24 × 24 px.
-- **EV field.** A 90 px numeric input that accepts a comma or a point. It is validated on Enter or blur, with an inline error using `aria-invalid` and `aria-describedby`. A "≈" prefix appears when the displayed product differs from the result.
-- **Drill-down.** It shows the formula, the quartile derivation (n and method) with "Vis fordelingen", the filed fields in monospace with their year and read date, and the source. Focus moves to its heading. "Lukk" or Esc returns focus.
+- **Key-figure table.** Grouped as in `docs/key-figures.md`. Cost shares sit indented under Driftsmargin in their own `<tbody>` headed `th scope="rowgroup"` "Forklarer marginavviket – summeres ikke". Their kroner cell reads "Se forklaring av marginen", plain text until 3.3 makes it a link that opens the waterfall fold-out and moves focus to its heading. Phone: Story 1.8's three-column row with an expansion row.
+- **Outside the demo seed.** Document rows read "Ikke i demodataene" with a "Mer om dette" popover, explained once by a State block above the table. "Margin eller kapitalbruk?" still shows (API factors); the waterfall fold-out reads "Ikke i demodataene"; the pay-level fold-out shows the not-read-in-v1 state.
+- **Waterfall ("Hva forklarer marginavviket?" under Driftsmargin).**
+  - Desktop: six columns from "Peer-gruppen samlet" (`median` fill) through Varekostnad, Lønn, Andre driftskostnader, Avskrivninger og øvrige poster to the company (`navy-700`). Favourable bars petrol, unfavourable amber, the residual slate whatever its sign. Each bar has signed kroner, ▲/▼ plus a word and "own mot samlet" shares; "Mot peer-gruppen samlet, ikke medianen" is added where the row and the bar disagree. Thin `connector` lines; rounded data end. The legend names all three bar kinds, the residual included.
+  - It leads with the tag "Mot peer-gruppen samlet: x %, ikke beste fjerdedel", then, directly above the bars, "Dette forklarer avviket. Det er ikke et gap som skal lukkes, og det legges aldri til økt driftsresultat."
+  - Empty: "Ingen forklaring av marginen: bare {n} sammenlignbare har alle kostnadslinjene (av 10 som trengs)."
+  - Phone: vertical rows (name and signed value, subline, a 10 px floating bar on a shared kroner scale), then the tag and the sentence.
+- **Charts.** Non-focusable SVG `role="img"` with a summary `aria-label`; a "Vis tallene"/"Skjul tallene" toggle opens a table (caption, `th scope="row"`; for the waterfall: start, four parts, end, reference); bars and markers distinguishable under `forced-colors: active`.
+- **Oversikt (3.4).** 12-column grid: hero 5, beeswarm and list 7, three small cards of 4 that keep their place when empty; one column on phone. Driftsmargin values byte-identical across the compact list, "Vis tallene" and Peers. "Største kapitalgap" carries "Ikke per år, og legges ikke til resultatet."
+- **Verdi (3.5, 3.6).** Segmented `radiogroup` with roving tabindex, default 50 %, "Til medianen" `aria-disabled` but focusable when unavailable. Three amount cards, never summed, are the only things that move with the share. EV: a 90 px input accepting comma or point, validated on Enter or blur. Targets at least 24 × 24 px.
+- **Drill-down (3.7).** Inline: formula, quartile derivation with "Vis fordelingen", filed fields in monospace with year and read date, source. Focus to its heading; "Lukk" or Esc returns it.
 
 ## Cross-Story Dependencies
 
-- **Build order:** 3.1a (done) → 3.1b (done) → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Epic 3 starts after Epic 2 and Story 5.2. Story 5.4 (the demo seed) follows directly, and Epic 4's explanation row and its digest build on 3.1a's engine output.
-- **3.1a** (done) supplies every figure and amount that 3.1b–3.7 render. **3.1b** (done) supplies the table, its view builder and the phone pattern into which 3.2's and 3.3's fold-outs open.
-- **3.2 → 3.3:** the fold-out component that 3.2 builds is reused by the waterfall. **3.3** turns 3.1b's cost-share cells into links, and it holds the FR-30 tests that 3.5 inherits.
-- **3.4's cards and 3.5's note.** 3.4 leaves out "· Endre i Verdi". 3.5 adds that link to the table, the hero and the cards, makes `verdi` a real tab, and fixes the peer-change provider so it keeps `andel=median` (B6).
-- **3.6** depends on 3.5's share and on the URL hook. **3.7** adds the hero's "Hvordan er dette regnet?" link, which Story 1.9 left out. It also owns two deferred entries that 3.1b moved to it: the benchmark-filing order written in three places (Epic 1 retro D2), and the document lines that no check covers (Story 2.3 B9).
-- **From Epic 2** this epic relies on:
-  - Story 2.9's absence model.
-  - Story 2.1b's prior-year columns.
-  - Story 2.5c's R3 guard.
-  - The v1 funnel, in which `group` = `pool` and stages 4 and 5 are off.
-  - The document dump restored locally after `pnpm seed`. Without it, document rows show "Ikke i demodataene" until Story 5.4.
+- **Build order:** 3.1a → 3.1b → 3.2 (all done) → 3.3 → 3.4 → 3.5 → 3.6 → 3.7. Story 5.4 (demo seed) follows; Epic 4's explanation row builds on 3.1a's output.
+- **3.2 → 3.3:** the waterfall reuses 3.2's fold-out component and its row placement, and turns 3.1b's cost-share cells into links. 3.3's FR-30 tests are inherited by 3.5.
+- **3.4 / 3.5:** 3.4 leaves out "· Endre i Verdi"; 3.5 adds it to the table, hero and cards, makes `verdi` a real tab, and makes the peer-change provider keep `andel=median`.
+- **3.6** depends on 3.5's share and URL hook. **3.7** adds the hero's "Hvordan er dette regnet?" link and owns two deferred entries (benchmark-filing order in three places; document lines no check covers).
+- **From Epic 2:** Story 2.9's absence model, 2.1b's prior-year columns, 2.5c's R3 guard, the v1 funnel (`group` = `pool`), and the document dump restored after `pnpm seed`; without it document rows show "Ikke i demodataene" until Story 5.4.

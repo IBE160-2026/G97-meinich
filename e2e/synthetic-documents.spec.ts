@@ -38,6 +38,7 @@ import {
   formatWholePercent,
 } from '../src/engine/format.ts';
 import { BAR_FIGURE, marginWaterfall } from '../src/engine/waterfall.ts';
+import { MAX_EKSKL } from '../src/url/analysis-state.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
 const { subject, peers, filingYear } = SYNTHETIC_DOCUMENTS;
@@ -345,12 +346,17 @@ test('excluding one peer leaves no waterfall', async ({ page }) => {
     .locator('[data-peer-action]')
     .evaluateAll((actions) => actions.map((action) => action.getAttribute('data-peer-action') ?? ''));
   const outside = [...new Set(members)].filter((orgnr) => !synthetic.has(orgnr));
+  // The fixture's band holds seed companies outside the demo data, and all of
+  // them plus the one peer fit under the exclusion cap, so neither step below
+  // is a case the URL would refuse.
+  expect(outside.length).toBeGreaterThan(0);
+  expect(outside.length + 1).toBeLessThanOrEqual(MAX_EKSKL);
   // One synthetic peer excluded: P is 9. With peers outside the demo data making up the 10, N1 (decision 3).
   await page.goto(`${base}/nokkeltall?ekskl=${peer.orgnr}`);
   await waterfallButton(page, 'desktop').click();
   const body = await waterfallBody(page, 'desktop');
   const tooFew = 'Ingen forklaring av marginen: bare 9 sammenlignbare har alle kostnadslinjene (av 10 som trengs).';
-  await expect(body.getByTestId('waterfall-absent')).toHaveText(outside.length > 0 ? nb['waterfall.notLoaded'] : tooFew);
+  await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['waterfall.notLoaded']);
   await expect(body.getByRole('img')).toHaveCount(0);
   // Those excluded too: 9 with all their lines, none outside the demo data, the too-few words with n.
   const ekskl = [peer.orgnr, ...outside].sort().join(',');

@@ -2,7 +2,7 @@
 title: 'Story 3.6: EV/EBIT — what the uplift is worth'
 type: 'feature'
 created: '2026-11-19'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '17d06194aa16a58b9b31cdf476d15437532111fe'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -144,13 +144,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/engine/closable.ts`, `format.ts`, `amounts.ts`, `test/engine/closable.test.ts`, `format.test.ts`, NDC: decisions 1 and 3, with the role `'value'` and its probes.
-- [ ] `src/url/analysis-state.ts`, `test/no-multiple-source.test.ts`, `test/types/wire-props.ts`, and the tests listed in the Code Map: decision 2.
-- [ ] `src/analysis/verdi-view.ts`, `test/analysis/verdi-view.test.ts`: the `ev` view, decisions 3, 6 and 7.
-- [ ] `src/messages/nb.json`, `test/messages.test.ts`: the story copy and the approved new copy, verbatim.
-- [ ] `analysis-url.tsx`, `multiple-field.tsx`, `verdi-panel.tsx`, `test/one-replace-state.test.ts`: decisions 4 and 5.
-- [ ] `e2e/verdi.spec.ts`, `e2e/wire-identity.spec.ts` (+ entry, fixtures), `e2e/synthetic-currency.spec.ts`: the matrix's e2e rows at 1280, 375 and 320 px.
-- [ ] Planning documents:
+- [x] `src/engine/closable.ts`, `format.ts`, `amounts.ts`, `test/engine/closable.test.ts`, `format.test.ts`, NDC: decisions 1 and 3, with the role `'value'` and its probes.
+- [x] `src/url/analysis-state.ts`, `test/no-multiple-source.test.ts`, `test/types/wire-props.ts`, and the tests listed in the Code Map: decision 2.
+- [x] `src/analysis/verdi-view.ts`, `test/analysis/verdi-view.test.ts`: the `ev` view, decisions 3, 6 and 7.
+- [x] `src/messages/nb.json`, `test/messages.test.ts`: the story copy and the approved new copy, verbatim.
+- [x] `analysis-url.tsx`, `multiple-field.tsx`, `verdi-panel.tsx`, `test/one-replace-state.test.ts`: decisions 4 and 5.
+- [x] `e2e/verdi.spec.ts`, `e2e/wire-identity.spec.ts` (+ entry, fixtures), `e2e/synthetic-currency.spec.ts`: the matrix's e2e rows at 1280, 375 and 320 px.
+- [x] Planning documents:
   - EXPERIENCE:202 ("prefixed" corrected, decision 3), :240, :277 and a `(change)` line in the UX `.memlog.md`;
   - `epics.md`: UX-DR28 (:277) and Story 3.6's acceptance criterion, "prefixed" corrected (decision 3); epics.md has no memlog;
   - `docs/key-figures.md:164`, for the rounding and "≈";

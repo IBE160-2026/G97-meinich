@@ -66,7 +66,7 @@ export function ClosableShareControl({
       <div
         role="radiogroup"
         aria-labelledby={LABEL_ID}
-        className="grid w-full grid-cols-3 overflow-visible rounded-lg border border-input-border md:max-w-3xl md:grid-cols-6"
+        className="grid w-full grid-cols-3 overflow-visible rounded-lg border border-input-border md:max-w-4xl md:grid-cols-6"
       >
         {steps.map((step, index) => {
           const checked = step.share === current;

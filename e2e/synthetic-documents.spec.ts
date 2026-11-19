@@ -11,8 +11,20 @@
 // no document field and no document line in øre.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
-import { noSidewaysScroll, rendered } from './seed.ts';
-import { expectNoDocumentFields } from './payload.ts';
+import {
+  allFilings,
+  companyByOrgnr,
+  comparability,
+  keyFigureRow,
+  keyFigures,
+  noSidewaysScroll,
+  ore,
+  orNull,
+  rendered,
+  type SeedCandidate,
+} from './seed.ts';
+import { assemblePeerGroup, V1_FUNNEL, type FunnelSubject } from '../src/engine/peers.ts';
+import { expectNoDocumentFields, expectWireSet } from './payload.ts';
 import {
   SYNTHETIC_DOCUMENTS,
   insertSyntheticDocuments,
@@ -20,7 +32,10 @@ import {
   syntheticDocumentCompanies,
   type SyntheticDocumentCompany,
 } from './synthetic.ts';
-import { benchmarkDocumentFigures, largestCapitalGap } from '../src/engine/benchmark.ts';
+import { benchmarkApiFigures, benchmarkDocumentFigures, largestCapitalGap, workingCapitalReleased } from '../src/engine/benchmark.ts';
+import { medianStep } from '../src/engine/closable.ts';
+import { Decimal } from '../src/engine/decimal.ts';
+import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import {
   DOCUMENT_FIGURE_COLUMNS,
   documentBasis,
@@ -227,7 +242,11 @@ test('the capital card shows the engine’s largest amount', async ({ page }) =>
   await expect(capital.locator('[data-card="value"]')).toHaveText(
     nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(largest.ore.toString())),
   );
-  await expect(capital.locator('[data-card="line"]')).toHaveText([nb['keyFigures.topNote'], nb['oversikt.capital.notPerYear']]);
+  // Story 3.5: the top note, with "· Endre i Verdi", then the separation line.
+  const note = capital.getByTestId('top-note');
+  await expect(note).toHaveText(`${nb['keyFigures.topNote']} · ${nb['keyFigures.editInVerdi']}`);
+  await expect(note.getByRole('link', { name: nb['keyFigures.editInVerdi'] })).toHaveAttribute('href', `${base}/verdi`);
+  await expect(capital.locator('[data-card="line"]')).toHaveText([nb['oversikt.capital.notPerYear']]);
   // One amount: never a second figure's, never a sum with 11.
   await expect(capital).toContainText(/\d\skr/);
   expect((await capital.innerText()).match(/\d\skr/g)).toHaveLength(1);
@@ -248,6 +267,151 @@ test('no document øre reaches Oversikt', async ({ request }) => {
     ore: [...documentOre(), ...capital],
     marker: nb['oversikt.capital.kicker'],
   });
+});
+
+// Story 3.5: Verdi on the synthetic subject, whose 9, 10 and 11 each have an amount.
+// The profit oracle is the engine's benchmark over the group the funnel gives the
+// subject here: the ten synthetic peers and the seed's companies in its band, rebuilt
+// from the seed's files and the fixture (the server reads the same rows), and the
+// group's size is asserted against the page's first.
+const SYNTHETIC_FILING = {
+  regnskapstype: 'SELSKAP',
+  periodeFra: '2025-01-01',
+  periodeTil: '2025-12-31',
+  valuta: 'NOK',
+  regnskapsregler: 'regnskapslovenAlminneligRegler',
+  smaaForetak: false,
+  avviklingsregnskap: false,
+} as const;
+
+function syntheticCandidate(company: SyntheticDocumentCompany): SeedCandidate {
+  return {
+    orgnr: company.orgnr,
+    navn: company.navn,
+    organisasjonsform: 'AS',
+    naeringskode1: '62.100',
+    brregId: BigInt(company.brregId),
+    filingYear,
+    sumDriftsinntekter: BigInt(company.keyFigures.sum_driftsinntekter_ore),
+    fingerprint: null,
+    classification: null,
+    ...SYNTHETIC_FILING,
+  };
+}
+
+const syntheticGroup = (() => {
+  const seedCandidates: SeedCandidate[] = allFilings
+    .filter((f) => f.filing_year === String(filingYear) && companyByOrgnr.get(f.orgnr ?? '')?.naeringskode1 === '62.100')
+    .map((f) => {
+      const c = companyByOrgnr.get(f.orgnr ?? '');
+      return {
+        orgnr: f.orgnr ?? '',
+        navn: c?.navn ?? '',
+        organisasjonsform: orNull(c?.organisasjonsform),
+        naeringskode1: orNull(c?.naeringskode1),
+        brregId: BigInt(f.brreg_id ?? '0'),
+        filingYear,
+        sumDriftsinntekter: ore(keyFigures.get(f.brreg_id ?? '')?.sum_driftsinntekter_ore),
+        fingerprint: null,
+        classification: null,
+        ...comparability(f),
+      };
+    });
+  const funnel: FunnelSubject = {
+    orgnr: subject.orgnr,
+    naeringskode1: '62.100',
+    filingYear,
+    sumDriftsinntekter: BigInt(subject.keyFigures.sum_driftsinntekter_ore),
+    fingerprint: null,
+    classification: null,
+    ...SYNTHETIC_FILING,
+  };
+  return assemblePeerGroup(funnel, [...seedCandidates, ...peers.map(syntheticCandidate)], 0, V1_FUNNEL).group;
+})();
+
+const syntheticByOrgnr = new Map(peers.map((peer) => [peer.orgnr, peer]));
+const apiExpected = benchmarkApiFigures(
+  apiInputsFromRow(subject.keyFigures),
+  syntheticGroup.map((member) => {
+    const synthetic = syntheticByOrgnr.get(member.orgnr);
+    return apiInputsFromRow(synthetic !== undefined ? synthetic.keyFigures : keyFigureRow(String(member.brregId)));
+  }),
+  'NOK',
+);
+
+function verdiOracle() {
+  const c = apiExpected.driftsmargin.comparison;
+  const gap = apiExpected.driftsmargin.gap;
+  if (c.kind !== 'compared' || gap.kind !== 'amount') throw new Error('the fixture has a driftsmargin amount');
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  const total = workingCapitalReleased(kfd.gap, lgd.gap);
+  if (total.kind !== 'amount') throw new Error('the fixture has a working-capital total');
+  return { step: medianStep(c), profitFull: gap.ore, kfd: kfd.gap.ore, lgd: lgd.gap.ore, total: total.ore, oml: oml.gap.ore };
+}
+
+const kroner = (ore: Decimal) => formatKronerExact(ore.toString());
+const capitalText = (ore: Decimal, factor: Decimal) => `${kroner(ore.mul(factor))} av ${kroner(ore)}`;
+
+test('Verdi: the three cards against the engine, the median step disabled with its reason', async ({ page }) => {
+  const o = verdiOracle();
+  // The fixture's state: the subject's driftsmargin (22 %) is above the group's median, so there is no
+  // median step, while every card has an amount.
+  expect(o.step).toEqual({ kind: 'none', reason: 'above_median' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/verdi`);
+  await expect(rendered(page).getByTestId('verdi')).toBeVisible();
+  // And the page's group is the oracle's, the ten synthetic peers among it.
+  expect(await groupSize(page)).toBe(syntheticGroup.length);
+  expect(syntheticGroup.filter((member) => syntheticByOrgnr.has(member.orgnr))).toHaveLength(peers.length);
+  const card = (id: string) => rendered(page).getByTestId(id);
+  const check = async (factor: Decimal, share: string) => {
+    await expect(card('verdi-profit').locator('[data-card="amount"]')).toHaveText(`${kroner(o.profitFull.mul(factor))} av ${kroner(o.profitFull)} per år`);
+    const parts = card('verdi-working-capital').locator('[data-card="parts"] li');
+    await expect(parts).toHaveCount(2);
+    await expect(parts.first()).toContainText(`${nb['fig.kfd']}: ${capitalText(o.kfd, factor)}`);
+    await expect(parts.nth(1)).toContainText(`${nb['fig.lgd']}: ${capitalText(o.lgd, factor)}`);
+    await expect(card('verdi-working-capital').locator('[data-card="amount"]')).toHaveText(capitalText(o.total, factor));
+    await expect(card('verdi-oml').locator('[data-card="amount"]')).toHaveText(capitalText(o.oml, factor));
+    for (const id of ['verdi-working-capital', 'verdi-oml']) {
+      await expect(card(id).locator('[data-card="share"]')).toHaveText(nb['verdi.capital.share'].replace('{andel}', formatWholePercent(share)));
+    }
+    // No displayed total adds two cards: the page shows no sum of any two or three of them.
+    const text = await rendered(page).getByTestId('verdi-cards').innerText();
+    for (const sum of [o.profitFull.plus(o.total), o.profitFull.plus(o.oml), o.total.plus(o.oml), o.profitFull.plus(o.total).plus(o.oml)]) {
+      expect(text).not.toContain(kroner(sum.mul(factor)));
+    }
+  };
+  await check(new Decimal('0.5'), '50');
+  // The median step: last, aria-disabled, focusable, described by its reason; choosing it changes nothing.
+  const median = page.locator('[data-share-step="median"]');
+  await expect(median).toHaveText(nb['verdi.step.medianNone']);
+  await expect(median).toHaveAttribute('aria-disabled', 'true');
+  const reason = nb['verdi.median.above'].replace('{selskap}', subject.navn);
+  await expect(page.locator(`#${await median.getAttribute('aria-describedby')}`)).toHaveText(reason);
+  await page.locator('[data-share-step="100"]').click();
+  await page.keyboard.press('ArrowRight');
+  await expect(median).toBeFocused();
+  // Space on it: Playwright counts aria-disabled as disabled and would not click it.
+  await page.keyboard.press('Space');
+  await expect.poll(() => new URL(page.url()).search).toBe('?andel=100');
+  await check(new Decimal(1), '100');
+  // Each card's median line is its own figure's: the profit card "allerede over".
+  await expect(card('verdi-profit').locator('[data-card="median"]')).toHaveText(nb['verdi.cardMedian.above']);
+  await page.locator('[data-share-step="75"]').click();
+  await expect.poll(() => new URL(page.url()).search).toBe('?andel=75');
+  await check(new Decimal('0.75'), '75');
+});
+
+test('Verdi carries exactly the wire set and no document øre', async ({ request }) => {
+  const o = verdiOracle();
+  // The fixture's state: no median step, so no s_med and no profit at the median cross.
+  expect(o.step.kind).toBe('none');
+  const wire = [o.profitFull, o.kfd, o.lgd, o.total, o.oml].map((value) => value.toString()).sort();
+  await expectWireSet(request, `${base}/verdi`, subject.orgnr, wire);
+  await expectNoDocumentFields(request, `${base}/verdi`, { ore: documentOre(), marker: 'VerdiPanel' });
 });
 
 for (const width of [375, 320]) {

@@ -49,7 +49,7 @@ test('a failed subject keeps its tabs and peers, with the subline and no uncover
   await expect(page).toHaveURL(new RegExp(`${base}/oversikt$`));
   await expect(h1(page)).toHaveText(SYNTHETIC.navn);
   await expect(subline(page)).toHaveText(FAILED);
-  await expect(tabs(page).getByRole('link')).toHaveText([nb['tabs.oversikt'], nb['tabs.peers'], nb['tabs.nokkeltall']]);
+  await expect(tabs(page).getByRole('link')).toHaveText([nb['tabs.oversikt'], nb['tabs.peers'], nb['tabs.nokkeltall'], nb['tabs.verdi']]);
   await expect(page.getByText(nb['analysis.uncovered.kicker'])).toHaveCount(0);
   // A peer group of its own: the count is in the header, and the Peers tab lists them.
   const count = page.getByTestId('header-peer-count');

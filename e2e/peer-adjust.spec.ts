@@ -14,7 +14,8 @@ import { PANEL_HEADING_ID } from '../src/analysis/view.ts';
 import { BUDGETS } from '../src/rate-limit/budgets.ts';
 import { expect, test } from './fixtures.ts';
 import { formatPercent, formatTurnover } from '../src/engine/format.ts';
-import { A, expectedBenchmark, expectedGroup, expectedTurnover, floorSubject, noSidewaysScroll, notice } from './seed.ts';
+import { A, expectedBenchmark, expectedGroup, expectedTurnover, floorSubject, noSidewaysScroll, notice, tabs } from './seed.ts';
+import { medianStep } from '../src/engine/closable.ts';
 
 const DB_DOWN_PORT = '3101'; // playwright.config.ts: the server whose database is unreachable
 
@@ -176,6 +177,47 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}`);
     await expect(status(page)).toHaveText(fill('peers.announce.excluded', { navn: first?.navn ?? '', m: String(group0.length - 1) }));
     await expect(notice(page)).toHaveText('');
+  });
+
+  // Story 3.5 (Epic 2 retro B6): a peer change keeps andel=median, which the
+  // provider's base used to lose to 50 by parsing it with no median step.
+  test('exclude, restore, a band step and reset keep andel=median', async ({ page }) => {
+    const peer = first?.orgnr ?? '';
+    // Fixture: the median step exists for the standard group, with the peer excluded, and at band 1.
+    for (const [band, ekskl] of [
+      [0, []],
+      [0, [peer]],
+      [1, [peer]],
+      [1, []],
+    ] as const) {
+      expect(medianStep(expectedBenchmark(A.orgnr ?? '', band, ekskl).driftsmargin.comparison).kind, `${band} ${ekskl.join()}`).toBe('exists');
+    }
+    await open(page, `${PEERS}?andel=median`);
+    await expect(notice(page)).toHaveText('');
+    await action(page, peer).click();
+    await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}&andel=median`);
+    await expect(status(page)).toHaveText(fill('peers.announce.excluded', { navn: first?.navn ?? '', m: String(group0.length - 1) }));
+    await expect(notice(page)).toHaveText('');
+    await page.locator('[data-band-step="1"]').click();
+    await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}&band=1&andel=median`);
+    await expect(notice(page)).toHaveText('');
+    await action(page, peer).click();
+    await expect.poll(() => shown(page)).toBe(`${PEERS}?band=1&andel=median`);
+    await page.getByRole('link', { name: nb['peers.reset'] }).click();
+    await expect.poll(() => shown(page)).toBe(`${PEERS}?andel=median`);
+    await expect(notice(page)).toHaveText('');
+  });
+
+  test('a share written on Verdi is kept by a later peer change', async ({ page }) => {
+    const peer = first?.orgnr ?? '';
+    await page.goto(`/analyse/${A.orgnr}/verdi`);
+    await page.locator('[data-share-step="75"]').click();
+    await expect.poll(() => shown(page)).toBe(`/analyse/${A.orgnr}/verdi?andel=75`);
+    await tabs(page).getByRole('link', { name: nb['tabs.peers'] }).click();
+    await expect.poll(() => shown(page)).toBe(`${PEERS}?andel=75`);
+    await expect(page.getByTestId('size-band')).toBeVisible();
+    await action(page, peer).click();
+    await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}&andel=75`);
   });
 
   test('an exclusion takes a figure below the floor and back', async ({ page }) => {

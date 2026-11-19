@@ -67,37 +67,43 @@ function Legend({ view }: { readonly view: Extract<BeeswarmView, { readonly kind
   );
 }
 
+/** The compact list's caption, which names its scroll region. */
+const NEAREST_CAPTION_ID = 'beeswarm-nearest-caption';
+
 /** The compact list: the five nearest and the company, highest driftsmargin first. */
 function Nearest({ view, peersHref }: { readonly view: Extract<BeeswarmView, { readonly kind: 'shown' }>; readonly peersHref: string }) {
   const cell = 'py-1 pr-3 align-top';
   return (
     <div className="mt-4">
-      <table className="w-full border-collapse text-left text-[13px]" data-testid="beeswarm-nearest">
-        <caption className="pb-1 text-left text-[13px] font-semibold">{view.nearest.caption}</caption>
-        <thead className="sr-only">
-          <tr>
-            <th scope="col">{view.table.heads.name}</th>
-            <th scope="col">{view.table.heads.margin}</th>
-            <th scope="col">{view.table.heads.revenue}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {view.nearest.rows.map((row, i) => (
-            // The position is the key: two peers can share a name, and the list is static per render.
-            <tr key={i} className={`border-t border-divider${row.selected ? ' bg-surface font-semibold' : ''}`} data-selected={row.selected}>
-              <th scope="row" className={`${cell} font-[inherit] break-words`}>
-                <Name row={row} selected={view.selected} />
-              </th>
-              <td className={`figure ${cell} text-right whitespace-nowrap`} data-cell="margin">
-                {row.margin}
-              </td>
-              <td className={`figure ${cell} pr-0 text-right whitespace-nowrap text-slate`} data-cell="revenue">
-                {row.revenue}
-              </td>
+      {/* Its own scroll region, as every table on the page (UX-DR37): at 320 px a long name and two figures can be wider than the card. */}
+      <div role="region" tabIndex={0} aria-labelledby={NEAREST_CAPTION_ID} className="scroll-region">
+        <table className="w-full border-collapse text-left text-[13px]" data-testid="beeswarm-nearest">
+          <caption id={NEAREST_CAPTION_ID} className="pb-1 text-left text-[13px] font-semibold">{view.nearest.caption}</caption>
+          <thead className="sr-only">
+            <tr>
+              <th scope="col">{view.table.heads.name}</th>
+              <th scope="col">{view.table.heads.margin}</th>
+              <th scope="col">{view.table.heads.revenue}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {view.nearest.rows.map((row, i) => (
+              // The position is the key: two peers can share a name, and the list is static per render.
+              <tr key={i} className={`border-t border-divider${row.selected ? ' bg-surface font-semibold' : ''}`} data-selected={row.selected}>
+                <th scope="row" className={`${cell} font-[inherit] break-words`}>
+                  <Name row={row} selected={view.selected} />
+                </th>
+                <td className={`figure ${cell} text-right whitespace-nowrap`} data-cell="margin">
+                  {row.margin}
+                </td>
+                <td className={`figure ${cell} pr-0 text-right whitespace-nowrap text-slate`} data-cell="revenue">
+                  {row.revenue}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="m-0 mt-2 text-[13px]">
         <Link href={peersHref} className="inline-flex min-h-6 items-center" data-testid="beeswarm-see-all">
           {view.nearest.seeAll}

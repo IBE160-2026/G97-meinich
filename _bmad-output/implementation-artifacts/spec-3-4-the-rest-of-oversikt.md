@@ -219,6 +219,7 @@ Review pass 1 (2026-11-19): Blind Hunter (BH), Edge Case Hunter (ECH) and Verifi
 | 21 | BH | The strength tie rule depends on the key order of `KEY_FIGURE_ROWS`. | low | That order is figure order for every figure that can qualify (commented). Ties between 2 and 11 and between 9 and 2 are tested. | reject |
 | 22 | BH | `data-selected` is written differently in the compact list and the table. | low | Cosmetic. The e2e selectors are written for each. | reject |
 | 23 | BH | Counts are written with `String(n)`, not through `format.ts`. | false | The existing convention for counts (`peer-list.tsx:213, 315`). The format rule covers figures and amounts. | reject |
+| 24 | Verification (BMAD session, e2e `synthetic`) | The compact list's `table` was not in a scroll container of its own. | medium | `e2e/failed-subject.spec.ts` "at 1280 px … each table has its own scroll container" failed on `oversikt` (`inRegion && regionOwn` false). AGENTS.md: tables get their own `overflow-x: auto` container. | patch: `role="region"` `.scroll-region` named by its caption |
 
 ## Design Notes
 

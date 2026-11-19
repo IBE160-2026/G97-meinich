@@ -50,7 +50,7 @@ const kr = (ore: Decimal) => formatKronerExact(ore.toString());
 function multiple(text: string): Multiple {
   const parsed = parseMultippel(text);
   if (parsed === null) throw new Error(`not a multiple: ${text}`);
-  return parsed as Multiple;
+  return parsed;
 }
 const profitText = (a: Decimal, full: Decimal) => t('verdi.profit.value', { a: kr(a), full: kr(full) });
 

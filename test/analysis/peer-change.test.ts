@@ -3,9 +3,8 @@
 // for one peer included.
 import { describe, expect, it } from 'vitest';
 import { announcement, exclusionCapReached, nextState, type PeerChange } from '../../src/analysis/peer-change.ts';
-import { Decimal } from '../../src/engine/decimal.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
-import { MAX_EKSKL, defaultState, serialize, type AnalysisState } from '../../src/url/analysis-state.ts';
+import { MAX_EKSKL, defaultState, parseMultippel, serialize, type AnalysisState } from '../../src/url/analysis-state.ts';
 
 const fill = (id: keyof typeof nb, vars: Record<string, string> = {}) =>
   Object.entries(vars).reduce((text, [name, value]) => text.replace(`{${name}}`, value), nb[id]);
@@ -16,7 +15,7 @@ const base: AnalysisState = {
   ekskl: ['900000001'],
   band: 1,
   andel: 75,
-  multippel: new Decimal('6.5'),
+  multippel: parseMultippel('6.5'),
 };
 
 describe('nextState', () => {

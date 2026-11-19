@@ -2,8 +2,10 @@
 // client prop that holds money or a ratio is a `WireDecimal`, so a `number`
 // or a plain `string` in its place is a type error. Each `@ts-expect-error`
 // fails the typecheck if the line below it ever compiles.
+import { valueAtShare, type Multiple } from '../../src/engine/closable.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { toWire, type WireDecimal } from '../../src/engine/wire.ts';
+import { defaultState, parseMultippel, type AnalysisState } from '../../src/url/analysis-state.ts';
 import type { CapitalWire, ProfitWire, StepWire, VerdiWire } from '../../src/analysis/verdi-view.ts';
 import type { VerdiPanel } from '../../src/components/analysis/verdi-panel.tsx';
 
@@ -47,3 +49,16 @@ export const propsNumber: PanelProps = {
   // @ts-expect-error the panel's wire holds no number
   wire: { ...wire, step: { kind: 'exists', sMed: 0.1214 } },
 };
+
+// Story 3.6, decision 2: a multiple is a `Multiple`, which only
+// `parseMultippel` makes; a plain Decimal or a number in its place is a type error.
+// @ts-expect-error a plain Decimal is not a multiple
+export const plainMultiple: Multiple = new Decimal('6.5');
+export const parsedMultiple: Multiple | null = parseMultippel('6,5');
+// @ts-expect-error the URL state's multiple is never a plain Decimal
+export const stateWithDecimal: AnalysisState = { ...defaultState('813235552'), multippel: new Decimal('6.5') };
+export const stateWithParsed: AnalysisState = { ...defaultState('813235552'), multippel: parsedMultiple };
+// @ts-expect-error valueAtShare takes only a Multiple
+export const valueOfDecimal = valueAtShare(new Decimal(1000), null, 50, new Decimal('6.5'));
+// @ts-expect-error nor a number
+export const valueOfNumber = valueAtShare(new Decimal(1000), null, 50, 6.5);

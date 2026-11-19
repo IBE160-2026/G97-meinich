@@ -389,7 +389,7 @@ describe('the query as a whole', () => {
 
   it('keeps settings that are valid when others fall back', () => {
     const { state, invalidSettings } = analysis(`/analyse/${SUBJECT}/foo?band=3&andel=75&multippel=6,5&ekskl=${A}`);
-    expect(state).toEqual({ ...defaultState(SUBJECT), fane: 'oversikt', andel: 75, ekskl: [A], multippel: new Decimal('6.5') });
+    expect(state).toEqual({ ...defaultState(SUBJECT), fane: 'oversikt', andel: 75, ekskl: [A], multippel: parseMultippel('6.5') });
     expect(invalidSettings).toBe(true);
   });
 });
@@ -400,7 +400,7 @@ describe('serialize', () => {
   });
 
   it('writes a multiple with a point and no trailing zero', () => {
-    expect(serialize({ ...defaultState(SUBJECT), multippel: new Decimal('6.50') })).toBe(`/analyse/${SUBJECT}?multippel=6.5`);
+    expect(serialize({ ...defaultState(SUBJECT), multippel: parseMultippel('6.50') })).toBe(`/analyse/${SUBJECT}?multippel=6.5`);
   });
 });
 

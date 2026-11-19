@@ -28,6 +28,7 @@ import {
   A,
   companyShown,
   expectedBenchmark,
+  expectedGroup,
   expectedPool,
   keyFigureRow,
   newestFiling,
@@ -388,6 +389,10 @@ test.describe('EV/EBIT (Story 3.6)', () => {
       `/analyse/${orgnr}/verdi?multippel=50`,
       `/analyse/${orgnr}/verdi?multippel=0.1`,
     ]);
+    // One announcement per changing entry, none for " 6.5 " and "6.50" (the multiple already there).
+    await expect
+      .poll(() => announced(page))
+      .toEqual(['6.5', '6', '50', '0.1'].map((m) => fill('verdi.ev.announce', { v: evOracle(oracle, 50, m).v })));
     // Clearing removes it and says the empty sentence.
     await evField(page).fill('');
     await evField(page).press('Enter');
@@ -470,6 +475,137 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await expect(page.getByTestId('multiple-status')).toHaveText('');
     await expect(notice(page)).toHaveText('');
     expect(errors).toEqual([]);
+  });
+
+  test('EV: band and share are kept by every multiple entry', async ({ page }) => {
+    // Band 1 is another group than the oracles' band 0, so the value is checked as shown, not computed.
+    const { orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi?band=1&andel=25`);
+    await companyShown(page, navn);
+    // The fixture's state: the URL's band and share are valid, so nothing falls back.
+    await expect(notice(page)).toHaveText('');
+    await expect(step(page, 25)).toHaveAttribute('aria-checked', 'true');
+    await expect(ev(page, 'empty')).toHaveText(nb['verdi.ev.empty']);
+    await evField(page).fill('6,5');
+    await evField(page).press('Enter');
+    await expect.poll(() => new URL(page.url()).search).toBe('?band=1&andel=25&multippel=6.5');
+    await expect(ev(page, 'value')).toHaveCount(1);
+    await expect(ev(page, 'value')).toHaveText(/kr$/);
+    await evField(page).fill('');
+    await evField(page).press('Enter');
+    await expect.poll(() => new URL(page.url()).search).toBe('?band=1&andel=25');
+    await expect(ev(page, 'empty')).toHaveText(nb['verdi.ev.empty']);
+    await evField(page).fill('abc');
+    await evField(page).press('Enter');
+    await expect(page.getByTestId('multiple-status').locator('p')).toHaveText(nb['verdi.ev.error']);
+    expect(new URL(page.url()).search).toBe('?band=1&andel=25');
+  });
+
+  test('EV: from an error to a value, and from an error to an empty field', async ({ page }) => {
+    const { oracle, orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    await countReplaceState(page);
+    await recordAnnouncements(page);
+    const error = page.getByTestId('multiple-status').locator('p');
+    // An invalid entry from a URL with no multiple shows the error and writes nothing.
+    await evField(page).fill('abc');
+    await evField(page).press('Enter');
+    await expect(error).toHaveText(nb['verdi.ev.error']);
+    await expect(evField(page)).toHaveAttribute('aria-invalid', 'true');
+    expect(await replaced(page)).toEqual([]);
+    expect(await announced(page)).toEqual([nb['verdi.ev.error']]);
+    // Invalid → valid: the error and its ties go, the value shows, the URL is written, one announcement.
+    const expected = evOracle(oracle, 50, '6.5');
+    await evField(page).fill('6,5');
+    await evField(page).press('Enter');
+    await expect.poll(() => new URL(page.url()).search).toBe('?multippel=6.5');
+    await expect(ev(page, 'value')).toHaveText(expected.v);
+    await expect(error).toHaveCount(0);
+    await expect(evField(page)).not.toHaveAttribute('aria-invalid', /.*/);
+    await expect(evField(page)).not.toHaveAttribute('aria-describedby', /.*/);
+    await expect(page.getByTestId('multiple-status')).toHaveText(fill('verdi.ev.announce', { v: expected.v }));
+    expect(await replaced(page)).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
+    expect(await announced(page)).toEqual([nb['verdi.ev.error'], fill('verdi.ev.announce', { v: expected.v })]);
+    // Invalid (removing the multiple) → cleared: the error goes, the empty sentence is announced once.
+    await evField(page).fill('xyz');
+    await evField(page).press('Enter');
+    await expect(error).toHaveText(nb['verdi.ev.error']);
+    await expect.poll(() => new URL(page.url()).search).toBe('');
+    await evField(page).fill('');
+    await evField(page).press('Enter');
+    await expect(error).toHaveCount(0);
+    await expect(page.getByTestId('multiple-status')).toHaveText(nb['verdi.ev.empty']);
+    await expect(evField(page)).not.toHaveAttribute('aria-invalid', /.*/);
+    await expect
+      .poll(() => announced(page))
+      .toEqual([nb['verdi.ev.error'], fill('verdi.ev.announce', { v: expected.v }), nb['verdi.ev.error'], nb['verdi.ev.empty']]);
+  });
+
+  test('EV: two different invalid entries announce twice, the same one twice announces once', async ({ page }) => {
+    const { orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    await recordAnnouncements(page);
+    await evField(page).fill('abc');
+    await evField(page).press('Enter');
+    await expect.poll(() => announced(page)).toEqual([nb['verdi.ev.error']]);
+    await evField(page).fill('6,55');
+    await evField(page).press('Enter');
+    await expect.poll(() => announced(page)).toEqual([nb['verdi.ev.error'], nb['verdi.ev.error']]);
+    // The same invalid text again, by Enter and by blur: nothing changes, so there is nothing to wait for;
+    // the wait covers the field's 50 ms announcement delay.
+    await evField(page).press('Enter');
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(300);
+    expect(await announced(page)).toEqual([nb['verdi.ev.error'], nb['verdi.ev.error']]);
+  });
+
+  test('EV: Enter and an immediate blur are one entry', async ({ page }) => {
+    const { oracle, orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    await countReplaceState(page);
+    await recordAnnouncements(page);
+    await evField(page).fill('6,5');
+    // Enter and the blur in one task, before Next.js renders the new URL into the field's props.
+    await evField(page).evaluate((input) => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      (input as HTMLInputElement).blur();
+    });
+    const expected = evOracle(oracle, 50, '6.5');
+    await expect(ev(page, 'value')).toHaveText(expected.v);
+    await expect.poll(() => announced(page)).toEqual([fill('verdi.ev.announce', { v: expected.v })]);
+    expect(await replaced(page)).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
+  });
+
+  test('EV: a multiple of 1 writes the "=" line', async ({ page }) => {
+    const { oracle, orgnr, navn } = DEMO_A;
+    const expected = evOracle(oracle, 50, '1');
+    // The fixture's state: × 1 the shown uplift is the shown value, so the line is exact.
+    expect(expected.approximate).toBe(false);
+    await page.goto(`/analyse/${orgnr}/verdi?multippel=1`);
+    await companyShown(page, navn);
+    await expect(ev(page, 'value')).toHaveText(expected.v);
+    await expect(ev(page, 'product')).toHaveText(fill('verdi.ev.product', { a: expected.a, m: expected.m, v: expected.v }));
+  });
+
+  test('EV: a peer change keeps the multiple, and Verdi shows it after', async ({ page }) => {
+    const { orgnr, navn } = DEMO_A;
+    const peer = expectedGroup(orgnr, 0)[0]?.orgnr ?? '';
+    // The fixture's state: demo A has a peer to exclude.
+    expect(peer).toMatch(/^\d{9}$/);
+    await page.goto(`/analyse/${orgnr}/peers?multippel=6.5`);
+    await companyShown(page, navn);
+    await page.locator(`[data-peer-action="${peer}"]:visible`).click();
+    await expect.poll(() => new URL(page.url()).search).toBe(`?ekskl=${peer}&multippel=6.5`);
+    await tabs(page).getByRole('link', { name: nb['tabs.verdi'] }).click();
+    await expect.poll(() => new URL(page.url()).pathname + new URL(page.url()).search).toBe(`/analyse/${orgnr}/verdi?ekskl=${peer}&multippel=6.5`);
+    await expect(page.getByRole('heading', { level: 2, name: nb['tabs.verdi'] })).toBeFocused();
+    await expect(evField(page)).toHaveValue('6,5');
+    await expect(ev(page, 'value')).toHaveText(/kr$/);
+    await expect(ev(page, 'product')).toHaveCount(1);
+    await expect(notice(page)).toHaveText('');
   });
 
   test('EV: the payload with a multiple carries exactly the wire set', async ({ request }) => {

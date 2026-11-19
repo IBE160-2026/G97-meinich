@@ -169,6 +169,29 @@ Implementation run, 2026-11-19 (subagent). Where the code differs from the Code 
 
 ## Review Triage Log
 
+Review pass 1 (2026-11-19): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session on the diff since `c315dd5` (spec and sprint status excluded; the spec went to ECH alone as the claims file).
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | VG | The bars' geometry (start, each step's from/to/end, end column, zero) is checked only for keys and range; a misplaced bar passes every test. | medium | `waterfall-view.test.ts` checks `end`, `from`, `to` are numbers in [0, 1]; the table test matches any `d`. | patch (test) |
+| 2 | VG | "Mot peer-gruppen samlet, ikke medianen" is untested for a favourable bar on a row worse than the median. | low | Three of four combinations are in "bars carry sign, glyph, word and shares"; narrowing the condition passes. | patch (test) |
+| 3 | VG | `marginComponents` has no test for a derived revenue of 5 kr or less, nor for a missing line checked before the revenue's sign. | low | `DERIVED_ZERO_BOUND` appears in tests only as a constant check; "who enters P" uses stated 0 and −5 øre. | patch (test) |
+| 4 | VG | The FR-30 total check walks only exported engine functions, so a total that reaches a bar through a module-private helper passes. | medium | `exportedFunctions` builds the walk from `getExportsOfModule`; both probes reference the bar directly. Stories 3.4 and 3.5 rely on this test. | patch (test) |
+| 5 | BH | The "Vis tallene" table puts ▲/▼ into the cell text, so a screen reader reads the glyph. | medium | `stepText` joins value, glyph and word into `row.kroner`; EXPERIENCE :287 requires direction glyphs `aria-hidden`, as the chart and rows do. | patch |
+| 6 | BH | No UX `.memlog.md` line for the DESIGN.md and EXPERIENCE.md changes (Recharts removed, waterfall copy). | low | The diff edits both and adds no `(change)` line; Story 3.2 added one. | patch (docs) |
+| 7 | BH | `docs/key-figures.md` states that a strength gives no working-capital total, while the deferred entry calls that open for Story 3.5. | low | The new sentence "with either one a strength … there is no total" reads as settled. | patch (docs: mark it as v1's behaviour until Story 3.5 decides) |
+| 8 | BH | The PRD's FR-30 line and memlog line leave out the not-NOK case that epics.md and key-figures.md add. | low | The PRD bullet names not-in-demo-data, a component and R2 only. | patch (docs) |
+| 9 | BH | `fingerprint.ts` re-exports `MAIN_COST_LINES` for one script. | low | Only `scripts/ocr-sm2-compare.ts` imports it from there. | patch |
+| 10 | BH, ECH | A cost bar of exactly 0 is drawn amber (`unfavourable`); a bar under 1 kr that rounds to "0 kr" keeps ▲/▼. | low | Real in the code, but needs an own share equal to samlet's as exact fractions, or a bar under one krone on a company in the millions; a fix needs a fourth bar kind with legend and copy. | reject |
+| 11 | ECH | `word` null while `glyph` is set drops the glyph. | false | `word` is null only when the 40-digit Decimals are equal; for two different fractions of øre over the same company that cannot happen at that precision for any figure in the dataset, and the glyph is `aria-hidden` anyway. | reject |
+| 12 | ECH | A null `valuta` reads "Beløpet er ikke i kroner". | low | Same rule as `driftsmarginGap` and the capital gaps (`valuta !== 'NOK'`), the words decision 4 chose; changing it is outside this story. | reject |
+| 13 | BH | `marginWaterfall` never checks the subject's document year. | false | The subject's basis is built by `documentBasisOf(row, row.filing_year)` (`src/server/analysis.ts:136`), the same year passed as `year`. | reject |
+| 14 | BH | No visible total of the gap; only the `aria-label` holds it. | low | The fold-out shows the start and end values and every bar; the matrix and approved copy set the table's rows (start, four, end, reference). | reject |
+| 15 | BH | The too-few sentence blames missing lines for every exclusion; no singular form for n = 1. | low | The copy is Meinich's approved N-text, kept verbatim; in v1 only the synthetic fixture reaches it. Put to Meinich. | reject (copy approved) |
+| 16 | BH | No session file; ai-log Outcome lacks the review fix and PR. | false | Step 5 writes the session file and updates the Outcome; not part of the diff under review. | reject |
+| 17 | BH | `workingCapitalReleased` has no caller outside tests. | low | Decision 7 put the registry and the function in this story so Stories 3.4 and 3.5 build on it. | reject |
+| 18 | BH | The not-NOK fold-out shows the bare "Beløpet er ikke i kroner"; no e2e for not-NOK or R2. | low | Decision 4: the row's absence words; both states are covered in the view tests. | reject |
+
 ## Design Notes
 
 **Rounding bound.** Let T be the exact total, D = round(T) half away from zero, and fᵢ the fractional part of bar i. Then the remainder R = D − Σ⌊barᵢ⌋ = (D − T) + Σfᵢ lies in (−0.5, 0.5 + k), where k is the number of bars with fᵢ > 0. Since R is an integer, 0 ≤ R ≤ k ≤ 4. So the remainder is never negative, and each unit goes to a different bar with a nonzero fraction. Ties go in bar order: varekostnad, lønn, andre, residual. Display: E = round(driftsresultat) half away from zero, start = E − D. Then start + Σ bars = E exactly in whole kroner, even when `driftsresultat` has øre.

@@ -48,9 +48,15 @@ export function MultipleField({
   readonly announcementFor: (multiple: Multiple) => string;
 }) {
   const [text, setText] = useState(ev.field);
-  const [invalid, setInvalid] = useState(false);
+  /** The invalid text the error is shown for, or null: no error. */
+  const [invalidText, setInvalidText] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // What the field last wrote, or found in the URL ("6.5", or null for none), and the invalid text
+  // it last showed the error for. Read by `commit` from refs, not from props or state, so Enter
+  // followed at once by a blur, before Next.js renders the new URL, is one entry, not two.
+  const committed = useRef<string | null>(current === null ? null : current.toString());
+  const lastInvalid = useRef<string | null>(null);
   const disabled = ev.kind === 'disabled';
 
   useEffect(
@@ -60,6 +66,18 @@ export function MultipleField({
     [],
   );
 
+  // The URL's multiple changed without this field writing it (back or forward, a link, a peer change
+  // that keeps the panel mounted): the field shows it, and any error goes. The input is not
+  // remounted, so focus stays where it is.
+  const currentText = current === null ? null : current.toString();
+  useEffect(() => {
+    if (currentText === committed.current) return;
+    committed.current = currentText;
+    lastInvalid.current = null;
+    setInvalidText(null);
+    setText(currentText === null ? '' : formatMultiple(currentText));
+  }, [currentText]);
+
   const announce = (sentence: string) => {
     // Cleared first, so the same sentence twice in a row is announced again; one announcement per entry.
     setMessage('');
@@ -67,33 +85,48 @@ export function MultipleField({
     timer.current = setTimeout(() => setMessage(sentence), 50);
   };
 
+  /** Removes the multiple from the URL, if the field's last write or the URL holds one. */
+  const removeCommitted = () => {
+    if (committed.current === null) return;
+    committed.current = null;
+    onCommit(null);
+  };
+
   const commit = () => {
     if (disabled) return;
     const trimmed = text.trim();
     if (trimmed === '') {
-      // Nothing in the field and nothing in the URL: unchanged.
-      if (current === null && !invalid) return;
+      // Nothing in the field, nothing in the URL and no error: unchanged.
+      if (committed.current === null && lastInvalid.current === null) return;
       setText('');
-      setInvalid(false);
-      if (current !== null) onCommit(null);
+      lastInvalid.current = null;
+      setInvalidText(null);
+      removeCommitted();
       announce(ev.cleared);
       return;
     }
     const parsed = parseMultippel(trimmed);
     if (parsed === null) {
-      // Already showing the error: unchanged.
-      if (invalid) return;
-      setInvalid(true);
+      // The same invalid text again: unchanged. Another invalid text is a new entry and is
+      // announced again: the error paragraph is keyed by the text, so the region changes once.
+      if (trimmed === lastInvalid.current) return;
+      lastInvalid.current = trimmed;
+      setInvalidText(trimmed);
       // The error, shown in the status region, is this entry's announcement.
       setMessage('');
       if (timer.current !== null) clearTimeout(timer.current);
-      if (current !== null) onCommit(null);
+      removeCommitted();
       return;
     }
-    setText(formatMultiple(parsed.toString()));
-    if (!invalid && current !== null && current.toString() === parsed.toString()) return;
-    setInvalid(false);
-    onCommit(parsed);
+    const value = parsed.toString();
+    setText(formatMultiple(value));
+    if (lastInvalid.current === null && committed.current === value) return;
+    lastInvalid.current = null;
+    setInvalidText(null);
+    if (committed.current !== value) {
+      committed.current = value;
+      onCommit(parsed);
+    }
     announce(announcementFor(parsed));
   };
 
@@ -118,14 +151,18 @@ export function MultipleField({
         value={disabled ? ev.field : text}
         readOnly={disabled}
         aria-disabled={disabled ? true : undefined}
-        aria-invalid={!disabled && invalid ? true : undefined}
-        aria-describedby={disabled ? MULTIPLE_REASON_ID : invalid ? MULTIPLE_ERROR_ID : undefined}
+        aria-invalid={!disabled && invalidText !== null ? true : undefined}
+        aria-describedby={disabled ? MULTIPLE_REASON_ID : invalidText !== null ? MULTIPLE_ERROR_ID : undefined}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={onKeyDown}
         onBlur={commit}
         className={[
-          'figure h-9 w-[90px] rounded-md bg-background px-2 text-base',
-          disabled ? 'border border-divider text-slate' : invalid ? 'border-2 border-unfavourable' : 'border border-input-border',
+          'figure h-9 w-[90px] rounded-md px-2 text-base',
+          disabled
+            ? 'cursor-not-allowed border border-input-border bg-surface text-disabled-text'
+            : invalidText !== null
+              ? 'border-2 border-unfavourable bg-background'
+              : 'border border-input-border bg-background',
         ].join(' ')}
       />
       {disabled ? (
@@ -134,8 +171,8 @@ export function MultipleField({
         </p>
       ) : null}
       <div role="status" className="text-[13px]" data-testid="multiple-status">
-        {!disabled && invalid ? (
-          <p id={MULTIPLE_ERROR_ID} className="m-0 mt-1.5 flex items-start gap-2">
+        {!disabled && invalidText !== null ? (
+          <p key={invalidText} id={MULTIPLE_ERROR_ID} className="m-0 mt-1.5 flex items-start gap-2">
             <svg aria-hidden="true" viewBox="0 0 16 16" className="mt-0.5 size-4 shrink-0 text-unfavourable">
               <circle cx="8" cy="8" r="7" fill="currentColor" />
               <rect x="7.1" y="3.5" width="1.8" height="6" fill="white" />

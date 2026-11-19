@@ -18,19 +18,28 @@ import type {
   FigureBenchmark,
   KronerGap,
 } from '../../src/engine/benchmark.ts';
-import { FIXED_SHARES, type ClosableShare } from '../../src/engine/closable.ts';
+import { FIXED_SHARES, type ClosableShare, type Multiple } from '../../src/engine/closable.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import type { DocumentKeyFigure } from '../../src/engine/document-absence.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
 import { DOCUMENT_FIGURE_DIRECTIONS } from '../../src/engine/document-key-figures.ts';
 import { API_FIGURE_DIRECTIONS } from '../../src/engine/key-figures.ts';
 import type { Comparison, Direction } from '../../src/engine/types.ts';
+import { toWire } from '../../src/engine/wire.ts';
 import { t } from '../../src/messages/index.ts';
+import { parseMultippel } from '../../src/url/analysis-state.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 
 const d = (value: string | number) => new Decimal(value);
 const N = (text: string) => text.replaceAll(' ', ' ');
 const SHARES: readonly ClosableShare[] = [...FIXED_SHARES, 'median'];
+
+/** A multiple as the user enters it: trimmed, then through the one function that makes one. */
+function multiple(text: string): Multiple {
+  const parsed = parseMultippel(text.trim());
+  if (parsed === null) throw new Error(`not a multiple: ${JSON.stringify(text)}`);
+  return parsed;
+}
 
 /** A compared figure: own r, median M and beste fjerdedel T in the figure's direction (none: no T). */
 function compared(direction: Direction, r: string, m: string, best: string): Comparison {
@@ -148,7 +157,7 @@ describe('the median step on the control', () => {
       ],
     ];
     for (const [overrides, reason] of cases) {
-      const view = verdiCards(wireOf(overrides), 50);
+      const view = verdiCards(wireOf(overrides), 50, null);
       const median = view.steps.find((step) => step.share === 'median');
       expect(median, reason).toEqual({ share: 'median', label: nb['verdi.step.medianNone'], disabled: true });
       expect(view.line, reason).toBe(reason);
@@ -164,7 +173,7 @@ describe('the median step on the control', () => {
   });
 
   it('an existing step is enabled in its place, with its whole percent and line', () => {
-    const view = verdiCards(wireOf(), 50);
+    const view = verdiCards(wireOf(), 50, null);
     expect(view.steps.map((step) => step.share)).toEqual([0, 'median', 25, 50, 75, 100]);
     expect(view.steps[1]).toEqual({ share: 'median', label: nb['verdi.step.median'].replace('{n}', '20'), disabled: false });
     expect(view.line).toBe(nb['verdi.median.share'].replace('{n}', '20'));
@@ -177,12 +186,12 @@ describe('the cards', () => {
     // Fixture: full 10 000 kr, at the median 2 000 kr.
     const wire = wireOf();
     expect(wire.profit).toMatchObject({ kind: 'amount', full: '1000000', atMedian: '200000' });
-    const at50 = verdiCards(wire, 50);
+    const at50 = verdiCards(wire, 50, null);
     expect(at50.profit.value).toEqual({ kind: 'amount', text: `${N('5 000 kr')} av ${N('10 000 kr')} per år` });
     expect(at50.profit.share).toBe(t('verdi.profit.share', { andel: N('50 %') }));
     expect(at50.announcement).toBe(t('verdi.announce.profit', { a: N('5 000 kr'), full: N('10 000 kr') }));
-    expect(verdiCards(wire, 'median').profit.value?.text).toBe(`${N('2 000 kr')} av ${N('10 000 kr')} per år`);
-    expect(verdiCards(wire, 0).profit.value?.text).toBe(`${N('0 kr')} av ${N('10 000 kr')} per år`);
+    expect(verdiCards(wire, 'median', null).profit.value?.text).toBe(`${N('2 000 kr')} av ${N('10 000 kr')} per år`);
+    expect(verdiCards(wire, 0, null).profit.value?.text).toBe(`${N('0 kr')} av ${N('10 000 kr')} per år`);
   });
 
   it('working capital lines and total', () => {
@@ -190,12 +199,12 @@ describe('the cards', () => {
     const kfd = nb['fig.kfd'];
     const lgd = nb['fig.lgd'];
     // Both amounts: two lines, the total (9) + (10) = 3 000 kr, at 50 %.
-    const both = verdiCards(wireOf(), 50);
+    const both = verdiCards(wireOf(), 50, null);
     expect(lines(both)).toEqual([`${kfd}: ${N('500 kr')} av ${N('1 000 kr')}`, `${lgd}: ${N('1 000 kr')} av ${N('2 000 kr')}`]);
     expect(both.workingCapital.value).toEqual({ kind: 'amount', text: `${N('1 500 kr')} av ${N('3 000 kr')}` });
     expect(both.workingCapital.share).toBe(t('verdi.capital.share', { andel: N('50 %') }));
     // Decision 1: (10) a strength counts as 0: its line reads "▲ Styrke" and the total is (9)'s amount.
-    const strength = verdiCards(wireOf({ lgd: { gap: STRENGTH, comparison: compared('higher_is_better', '50', '30', '40') } }), 50);
+    const strength = verdiCards(wireOf({ lgd: { gap: STRENGTH, comparison: compared('higher_is_better', '50', '30', '40') } }), 50, null);
     expect(lines(strength)).toEqual([`${kfd}: ${N('500 kr')} av ${N('1 000 kr')}`, `${lgd}: ${nb['keyFigures.strength']}`]);
     expect(strength.workingCapital.value).toEqual({ kind: 'amount', text: `${N('500 kr')} av ${N('1 000 kr')}` });
     // Both strengths: the card is a strength, with no kroner and no median line.
@@ -205,16 +214,18 @@ describe('the cards', () => {
         lgd: { gap: STRENGTH, comparison: compared('higher_is_better', '50', '30', '40') },
       }),
       50,
+      null,
     );
     expect(both2.workingCapital).toEqual({ value: { kind: 'text', text: nb['keyFigures.strength'] }, detail: null, share: null, median: null, parts: [] });
     // One part below the floor: its reason on its line, and no total.
-    const one = verdiCards(wireOf({ lgd: { gap: NO_COMPARISON, comparison: belowFloor(7) } }), 50);
+    const one = verdiCards(wireOf({ lgd: { gap: NO_COMPARISON, comparison: belowFloor(7) } }), 50, null);
     expect(lines(one)).toEqual([`${kfd}: ${N('500 kr')} av ${N('1 000 kr')}`, `${lgd}: ${t('keyFigures.belowFloor', { n: '7', min: '10' })}`]);
     expect(one.workingCapital.value).toEqual({ kind: 'text', text: nb['verdi.workingCapital.noTotal'] });
     // Neither part has an amount, nor are both strengths: the two lines, no total and no share.
     const none = verdiCards(
       wireOf({ kfd: { gap: NO_COMPARISON, comparison: belowFloor(4) }, lgd: { gap: NO_COMPARISON, comparison: belowFloor(7) } }),
       50,
+      null,
     );
     expect(none.workingCapital.value).toBeNull();
     expect(none.workingCapital.share).toBeNull();
@@ -222,10 +233,13 @@ describe('the cards', () => {
   });
 
   it('no displayed total adds two cards', () => {
-    // Fixture: profit 10 000 kr, working capital 3 000 kr, (11) 3 500 kr at full convergence; at every share.
+    // Fixture: profit 10 000 kr, working capital 3 000 kr, (11) 3 500 kr at full convergence; at every share,
+    // with EV at 6,7 (Story 3.6; 6,5 would make EV at the median 13 000 kr, by chance the same as
+    // profit + working capital at full convergence).
     const wire = wireOf();
+    const kronerIn = (text: string) => [...text.matchAll(/(\d[\d ]*) kr/g)].map((match) => BigInt((match[1] ?? '').replaceAll(' ', '')));
     for (const share of SHARES) {
-      const view = verdiCards(wire, share);
+      const view = verdiCards(wire, share, multiple('6,7'));
       const amounts = [view.profit, view.workingCapital, view.oml].map((card) => {
         if (card.value?.kind !== 'amount') throw new Error('every card has an amount in the fixture');
         // "{a} av {full}…": the amount at the share and the full amount, in øre-free kroner.
@@ -245,6 +259,17 @@ describe('the cards', () => {
       // And no text anywhere on the cards holds such a sum either.
       const texts = JSON.stringify(view);
       for (const sum of ['13 000 kr', '13 500 kr', '6 500 kr', '16 500 kr']) expect(texts).not.toContain(N(sum));
+      // EV (Story 3.6): the fixture's state, a value at every share; no displayed amount is EV plus a
+      // card's amount, at the share or full (working capital's included).
+      if (view.ev.kind !== 'value') throw new Error('the fixture has an EV value');
+      const [ev = 0n] = kronerIn(view.ev.value);
+      const evShown = [...shown, ...kronerIn(view.ev.value), ...kronerIn(view.ev.product)];
+      expect(evShown, String(share)).toContain(ev);
+      expect(kronerIn(texts).length, String(share)).toBeGreaterThan(shown.length);
+      for (const other of shown) {
+        if (ev === 0n || other === 0n) continue;
+        expect(kronerIn(texts), `${String(share)}: EV + ${other}`).not.toContain(ev + other);
+      }
     }
   });
 
@@ -256,6 +281,7 @@ describe('the cards', () => {
         oml: { comparison: compared('higher_is_better', '1', '1.003', '3') },
       }),
       50,
+      null,
     );
     expect(view.profit.median).toBe(t('verdi.cardMedian.share', { x: '20' }));
     // (9): (55 − 60) / (40 − 60) = 25 %; (10): 50 %; (11): 0,003 / 2 = 0,15 %, under 1 %.
@@ -272,19 +298,20 @@ describe('the cards', () => {
         oml: { comparison: compared('higher_is_better', '2.9995', '2', '3') },
       }),
       50,
+      null,
     );
     expect(reached.profit.median).toBe(nb['verdi.cardMedian.above']);
     expect(reached.workingCapital.parts[0]?.median).toBe(nb['verdi.cardMedian.reached']);
     expect(reached.oml.median).toBe(nb['verdi.cardMedian.reached']);
     // Over 99 %: (10) at 20 against a median of 39,999 and beste fjerdedel 40.
-    expect(verdiCards(wireOf({ lgd: { comparison: compared('higher_is_better', '20', '39.999', '40') } }), 50).workingCapital.parts[1]?.median).toBe(
+    expect(verdiCards(wireOf({ lgd: { comparison: compared('higher_is_better', '20', '39.999', '40') } }), 50, null).workingCapital.parts[1]?.median).toBe(
       nb['verdi.cardMedian.over'],
     );
   });
 
   it('a card whose median equals its beste fjerdedel reaches it at 100 %', () => {
     // Fixture: (10) at 20 against a median and beste fjerdedel both 40, so its own share is exactly 1.
-    const view = verdiCards(wireOf({ lgd: { comparison: compared('higher_is_better', '20', '40', '40') } }), 50);
+    const view = verdiCards(wireOf({ lgd: { comparison: compared('higher_is_better', '20', '40', '40') } }), 50, null);
     expect(view.workingCapital.parts[1]?.median).toBe(t('verdi.cardMedian.share', { x: '100' }));
     expect(view.workingCapital.parts[1]?.median).not.toBe(nb['verdi.cardMedian.over']);
   });
@@ -293,13 +320,14 @@ describe('the cards', () => {
     const view = verdiCards(
       wireOf({ driftsmargin: { comparison: compared('higher_is_better', '0.06', '-0.03', '0.05'), profit: { kind: 'strength' } } }),
       50,
+      null,
     );
     expect(view.profit).toEqual({ value: { kind: 'text', text: nb['verdi.profit.strength'] }, detail: null, share: null, median: null });
     expect(view.steps.find((step) => step.share === 'median')?.disabled).toBe(true);
     // No profit amount: the announcement names the share.
     expect(view.announcement).toBe(t('verdi.announce.share', { andel: N('50 %') }));
     // A capital strength: "▲ Styrke", no kroner, no median line.
-    const oml = verdiCards(wireOf({ oml: { gap: STRENGTH, comparison: compared('higher_is_better', '4', '2', '3') } }), 50).oml;
+    const oml = verdiCards(wireOf({ oml: { gap: STRENGTH, comparison: compared('higher_is_better', '4', '2', '3') } }), 50, null).oml;
     expect(oml).toEqual({ value: { kind: 'text', text: nb['keyFigures.strength'] }, detail: null, share: null, median: null });
   });
 
@@ -310,6 +338,7 @@ describe('the cards', () => {
         oml: { comparison: belowFloor(3), gap: NO_COMPARISON },
       }),
       50,
+      null,
     );
     expect(view.profit.value?.text).toBe(t('verdi.noTarget', { figur: 'driftsmargin' }));
     expect(view.oml.value?.text).toBe(t('verdi.noTarget', { figur: 'omløpshastighet driftseiendeler' }));
@@ -330,6 +359,7 @@ describe('the cards', () => {
         'not_in_dataset',
       ),
       50,
+      null,
     );
     expect(view.workingCapital.value).toEqual({ kind: 'text', text: nb['analysis.figures.notInDataset'] });
     expect(view.workingCapital.parts).toEqual([]);
@@ -347,6 +377,7 @@ describe('the cards', () => {
         oml: { gap: NOT_NOK },
       }),
       'median',
+      null,
     );
     // The step follows r < M < T as in NOK.
     expect(view.steps.find((step) => step.share === 'median')?.disabled).toBe(false);
@@ -354,5 +385,95 @@ describe('the cards', () => {
     // Each keeps its own median line; no amount crosses the wire.
     expect(view.profit.median).toBe(t('verdi.cardMedian.share', { x: '20' }));
     expect(JSON.stringify(wireOf({ driftsmargin: { profit: { kind: 'not_nok' } }, kfd: { gap: NOT_NOK }, lgd: { gap: NOT_NOK }, oml: { gap: NOT_NOK } }))).not.toMatch(/"(full|atMedian)"/);
+  });
+});
+
+describe('the EV section (Story 3.6)', () => {
+  it('without a multiple the card reads the empty sentence', () => {
+    // Fixture: the profit card has an amount, so the field is enabled.
+    const view = verdiCards(wireOf(), 50, null);
+    expect(view.profit.value?.kind).toBe('amount');
+    expect(view.ev).toEqual({ kind: 'empty', field: '', text: nb['verdi.ev.empty'], error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
+    // No value and no product line anywhere.
+    expect(JSON.stringify(view)).not.toContain(' × ');
+  });
+
+  it('a valid multiple', () => {
+    // Fixture: the profit at 50 % is 5 000 kr exactly.
+    expect(verdiCards(wireOf(), 50, null).profit.value?.text).toBe(`${N('5 000 kr')} av ${N('10 000 kr')} per år`);
+    const cases: readonly [string, string, string][] = [
+      ['6,5', '6,5', '32 500 kr'],
+      [' 6.5 ', '6,5', '32 500 kr'],
+      ['6.50', '6,5', '32 500 kr'],
+      ['06', '6', '30 000 kr'],
+      ['50', '50', '250 000 kr'],
+      ['0,1', '0,1', '500 kr'],
+    ];
+    for (const [typed, field, value] of cases) {
+      const ev = verdiCards(wireOf(), 50, multiple(typed)).ev;
+      expect(ev, typed).toEqual({
+        kind: 'value',
+        field,
+        value: N(value),
+        product: t('verdi.ev.product', { a: N('5 000 kr'), m: field, v: N(value) }),
+        explanation: nb['verdi.ev.explanation'],
+        announcement: t('verdi.ev.announce', { v: N(value) }),
+        error: nb['verdi.ev.error'],
+        cleared: nb['verdi.ev.empty'],
+      });
+    }
+    // It rescales with the share: at the median step 2 000 kr × 6,5 = 13 000 kr; at 0 nothing.
+    expect(verdiCards(wireOf(), 'median', multiple('6,5')).ev).toMatchObject({ kind: 'value', value: N('13 000 kr') });
+    expect(verdiCards(wireOf(), 0, multiple('6,5')).ev).toMatchObject({ kind: 'value', value: N('0 kr') });
+    // Only the EV section reads the multiple: the cards and the share's announcement are the same without it.
+    const without = verdiCards(wireOf(), 75, null);
+    const withIt = verdiCards(wireOf(), 75, multiple('7'));
+    expect({ ...withIt, ev: null }).toEqual({ ...without, ev: null });
+  });
+
+  it('the product line is approximate only when U × m ≠ V', () => {
+    const profitAt = (full: string): VerdiWire => ({
+      ...wireOf(),
+      profit: { kind: 'amount', full: toWire(d(full)), atMedian: toWire(d(full).div(2)), median: null },
+    });
+    // 585 000 kr exactly at 50 % (full 1 170 000 kr) × 6,5 = 3 802 500 kr: U × m = V, "=".
+    expect(verdiCards(profitAt('117000000'), 50, null).profit.value?.text).toBe(`${N('585 000 kr')} av ${N('1 170 000 kr')} per år`);
+    expect(verdiCards(profitAt('117000000'), 50, multiple('6,5')).ev).toMatchObject({
+      kind: 'value',
+      product: `${N('585 000 kr')} × 6,5 = ${N('3 802 500 kr')}`,
+    });
+    // 999,5 kr at 50 % (full 1 999 kr), shown as 1 000 kr; × 7 = 6 996,5 → 6 997 kr, but 1 000 × 7 = 7 000: "≈".
+    const half = verdiCards(profitAt('199900'), 50, multiple('7'));
+    expect(half.profit.value?.text).toBe(`${N('1 000 kr')} av ${N('1 999 kr')} per år`);
+    expect(half.ev).toMatchObject({ kind: 'value', value: N('6 997 kr'), product: `${N('1 000 kr')} × 7 ≈ ${N('6 997 kr')}` });
+    // "≈" replaces "=", never both (decision 3, Meinich Q1 B).
+    if (half.ev.kind !== 'value') throw new Error('a value');
+    expect(half.ev.product).not.toContain('=');
+    expect(half.ev.product.startsWith('≈')).toBe(false);
+  });
+
+  it('the field is disabled with the profit card’s reason', () => {
+    const ownMissing: Comparison = { kind: 'subject_absent', absence: { reason: 'undefined', cause: 'denominator_not_positive' }, count: 12, leftOut: 0 };
+    const cases: readonly [string, Partial<Record<FigureKey, Override>>, string][] = [
+      ['strength', { driftsmargin: { comparison: compared('higher_is_better', '0.06', '-0.03', '0.05'), profit: { kind: 'strength' } } }, nb['verdi.profit.strength']],
+      ['below the floor', { driftsmargin: { comparison: belowFloor(7), profit: { kind: 'none' } } }, t('verdi.noTarget', { figur: 'driftsmargin' })],
+      ['not NOK', { driftsmargin: { profit: { kind: 'not_nok' } } }, nb['keyFigures.notInKroner']],
+      [
+        'own missing',
+        { driftsmargin: { comparison: ownMissing, profit: { kind: 'none' } } },
+        t('analysis.figures.undefined', { grunn: nb['analysis.figures.reason.revenueNotPositive'] }),
+      ],
+    ];
+    for (const [label, overrides, reason] of cases) {
+      const wire = wireOf(overrides);
+      // The fixture's state: the profit card reads the reason, and no profit amount crosses the wire.
+      expect(verdiCards(wire, 50, null).profit.value, label).toEqual({ kind: 'text', text: reason });
+      expect(wire.profit.kind, label).toBe('text');
+      expect(verdiCards(wire, 50, null).ev, label).toEqual({ kind: 'disabled', reason, field: '', error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
+      // A valid multiple in the URL stays and shows read-only; still no value and no product line.
+      const withMultiple = verdiCards(wire, 50, multiple('6.5'));
+      expect(withMultiple.ev, label).toEqual({ kind: 'disabled', reason, field: '6,5', error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
+      expect(JSON.stringify(withMultiple), label).not.toContain(' × ');
+    }
   });
 });

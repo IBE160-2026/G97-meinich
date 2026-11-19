@@ -8,6 +8,6 @@ import { FIXED_SHARES, type ClosableShare } from '../../src/engine/closable.ts';
 export function texts(wires: readonly VerdiWire[]): string {
   const shares: readonly ClosableShare[] = [...FIXED_SHARES, 'median'];
   return JSON.stringify(
-    wires.map((wire) => shares.filter((share) => share !== 'median' || wire.step.kind === 'exists').map((share) => verdiCards(wire, share))),
+    wires.map((wire) => shares.filter((share) => share !== 'median' || wire.step.kind === 'exists').map((share) => verdiCards(wire, share, null))),
   );
 }

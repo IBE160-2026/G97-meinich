@@ -84,7 +84,7 @@ function Card({
 export function VerdiPanel({ wire }: { readonly wire: VerdiWire }) {
   const url = useAnalysisUrl();
   const share = url.state.andel;
-  const view = verdiCards(wire, share);
+  const view = verdiCards(wire, share, url.state.multippel);
   const [message, setMessage] = useState('');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -100,7 +100,7 @@ export function VerdiPanel({ wire }: { readonly wire: VerdiWire }) {
     // Cleared first, so the same sentence twice in a row is announced again; one announcement per change.
     setMessage('');
     if (timer.current !== null) clearTimeout(timer.current);
-    const text = verdiCards(wire, next).announcement;
+    const text = verdiCards(wire, next, url.state.multippel).announcement;
     timer.current = setTimeout(() => setMessage(text), 50);
   };
 

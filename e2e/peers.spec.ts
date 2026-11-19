@@ -14,6 +14,7 @@ import {
   A,
   ABSENT,
   companies,
+  companyShown,
   classificationOf,
   covered,
   expectedGroup,
@@ -51,6 +52,8 @@ test.describe('the peer group (Story 1.7)', () => {
 
   test('the header shows "{n} sammenlignbare" after the revenue', async ({ page }) => {
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    // allTextContents does not wait: read the header once the page is shown.
+    await companyShown(page, A.navn ?? '');
     const items = page.getByTestId('company-meta').locator('span:not([aria-hidden])');
     const texts = await items.allTextContents();
     expect(texts[texts.indexOf(revenue(A.orgnr ?? '')) + 1]).toBe(headerCount(pool0.length));

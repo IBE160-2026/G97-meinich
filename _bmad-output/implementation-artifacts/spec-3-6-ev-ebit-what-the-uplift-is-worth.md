@@ -166,6 +166,13 @@ context:
 
 ## Implementation Notes
 
+- **Commit order.** The copy commit comes before the view commit, not after: `verdiCards` reads the `verdi.ev.*` keys through the typed `t`, so the view does not type-check without them. EXPERIENCE.md's Multiple field row gets its keys in the copy commit, as the copy rule asks.
+- **Copy keys.** `verdi.ev.label`, `verdi.ev.kicker`, `verdi.ev.empty`, `verdi.ev.error`, `verdi.ev.announce`, and E1–E3 as `verdi.ev.product`, `verdi.ev.productApprox` and `verdi.ev.explanation`. No other new copy.
+- **`productIsApproximate(upliftOre, valueOre, multiple)`** takes the exact uplift and the exact value the two amounts are rounded from, so the rule reads the value the page displays, not a second product.
+- **"No displayed total adds two cards" runs EV at 6,7.** At 6,5 the fixture's EV at the median step (2 000 kr × 6,5 = 13 000 kr) equals profit + working capital at full convergence (10 000 + 3 000 kr) by chance, which the existing literal check reads as a sum.
+- **The field's props.** `MultipleField` takes the `ev` view, the URL's current multiple, `onCommit` (the panel's `replaceSettings({ multippel })`) and `announcementFor` (the panel's `verdiCards(…).ev.announcement` at the current share), so the field computes nothing itself. An entry that leaves the field's state as it was (the same multiple, an empty field with none in the URL, a second invalid entry while the error shows) writes and announces nothing.
+- **`announcementFor` throws** if a multiple on an enabled field gives no value; the field is enabled only where the profit card has an amount, so this is unreachable, and it is not a silent fallback.
+
 ## Spec Change Log
 
 ## Review Triage Log

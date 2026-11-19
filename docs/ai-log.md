@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 35 |
-| money | 31 |
+| money | 32 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
-| docs | 26 |
+| docs | 27 |
 
 ## Entry template
 
@@ -1030,3 +1030,20 @@ Rejected findings and their reasons are in the triage log.
 8. **A median step offered where none exists.** `urlContext` keeps `andel=median` only where `medianStep` finds r < M < T on driftsmargin for the group the URL names (`test/analysis/view.test.ts` "urlContext resolves the median step", failing with the predicate always false); the client parses with the server's flag, and `verdiCards` throws on `median` with no step rather than show some other amount.
 **Caught by:** The implementation run's guard removal, row by row of the spec's I/O matrix. Two tests were wrong on their first run: the replaceState count saw two calls, one of them Next.js's own sync, and now counts only calls without Next.js's internal state; and the synthetic subject's Verdi test assumed a median step, but its group holds seven seed companies besides the ten synthetic peers and its margin is above their median, so it now asserts that state (`above_median`) first and tests the disabled step and its reason there.
 **Outcome:** Commits on `story/3.5-verdi-closable-share` from `1986694`; issue #77. The share fragments `verdi.share.under` "under 1" and `verdi.share.over` "over 99" and the disabled label `verdi.step.medianNone` came from the implementation, not the approved list; Meinich approved them after review (spec, N13–N15; `test/messages.test.ts` "Story 3.5 copy").
+
+### 2026-11-19 — Story 3.6: EV/EBIT, a user-entered multiple applied to money
+**Tags:** money, docs
+**Tool:** Claude Code (Opus 5.5): an implementation subagent dispatched by the BMAD session
+**Asked:** A field "EV/EBIT-multippel" on Verdi, empty by default and suggesting nothing, and a card "Økt selskapsverdi" = round(exact profit uplift at the current share × m), computed in the browser by one engine function built on `profitAtShare` from Story 3.5's wire values, with a product line and "≈" by an exact rule; `multippel` written through the one URL hook; a branded type so that no code path can produce a multiple (FR-32, FR-55; issue #79; spec decisions 1–9, Meinich 2026-11-19).
+**Got:** `valueAtShare` and `productIsApproximate` in `src/engine/closable.ts` with the branded `Multiple`, `wholeKroner` in `src/engine/format.ts`, the role `value` in `src/engine/amounts.ts`, `parseMultippel` returning `Multiple`, the `ev` view in `verdiCards`, `replaceSettings` in `src/components/analysis/analysis-url.tsx`, `src/components/analysis/multiple-field.tsx` and the EV section in `verdi-panel.tsx`.
+**Problem:** What could go wrong with a user-entered multiple applied to money (each test below failed with its guard removed in the implementation run):
+1. **A multiple the user did not enter.** A default, a placeholder, a "typical" value or a fallback would put a valuation on the page that Peerless implied, which FR-32 forbids. `Multiple` is a branded Decimal: a plain Decimal or a number in its place is a type error (`test/types/wire-props.ts`, "Unused '@ts-expect-error' directive" three times when the brand is removed), and `test/no-multiple-source.test.ts` scans `src/` with the compiler's parser: one `as Multiple`, in `parseMultippel`, which only `parse` and the field call, never on a literal (failing on an added `new Decimal('6') as Multiple` and on `parseMultippel('6')`). The field has no placeholder (`e2e/verdi.spec.ts` "EV: empty by default").
+2. **Rounding twice, or the median step rebuilt from s_med.** The value is `profitAtShare` × m, rounded once; at the median step that is (M − r) × revenue × m. Built as full × s_med × m, decision 2's case rounds to "6 996 kr" instead of "6 997 kr" (`test/engine/closable.test.ts` "the value at the median is (M − r) × revenue × m, rounded once").
+3. **A product line that does not multiply out.** The line shows the displayed uplift U, and U × m can differ from the displayed value V by rounding; "≈" replaces "=" exactly when U × m ≠ V, decided on the kroner the page shows (`wholeKroner`, which rounds as `formatKronerExact` does: `test/engine/format.test.ts` "agrees with formatKronerExact at half a krone", failing with round-half-even). Reversed, `test/analysis/verdi-view.test.ts` "the product line is approximate only when U × m ≠ V" fails on "585 000 kr × 6,5 ≈ 3 802 500 kr".
+4. **EV summed with another amount (FR-30).** It is a value of its own, never added to the profit, working capital or (11): `test/engine/no-double-counting.test.ts` "a value builds on the profit and sums nothing" checks that a `value` calls `profitAtShare`, makes no `.plus`/`.add` and reaches no capital function, and catches three probes (a value adding working capital released, one calling `scaleAmount`, one computing full × s_med × m); `verdi-view.test.ts` "no displayed total adds two cards" fails when the announcement shows EV + profit.
+5. **Bounds that drift between the field and the URL.** The field trims its text and calls `parseMultippel` itself, so the bounds (0, 50] in tenths are the URL module's; an invalid entry shows the error, sets `aria-invalid` and `aria-describedby`, shows no value and removes `multippel` (`e2e/verdi.spec.ts` "EV: invalid input", six inputs).
+6. **A second URL writer.** `replaceSettings` is the only `history.replaceState` in `src/` (`test/one-replace-state.test.ts`, failing when a second call is added), and an unchanged value writes and announces nothing (`e2e/verdi.spec.ts` "EV: a multiple replaces the URL, announces once").
+7. **EV where there is no profit amount.** Where the profit card has no amount (a strength, below the floor, not NOK, own margin missing) the field is `aria-disabled`, read-only and described by that card's own words, with no value even when the URL holds a multiple (`verdi-view.test.ts` "the field is disabled with the profit card’s reason"; `e2e/synthetic-currency.spec.ts` "EV disabled below the floor").
+8. **More on the wire.** EV adds no wire value: Verdi with `?multippel=6.5` carries exactly 3.5's wire set (`e2e/verdi.spec.ts` "EV: the payload with a multiple carries exactly the wire set"). The multiple itself is the user's own input, in the URL they share.
+**Caught by:** The implementation run's guard removal, row by row of the spec's I/O matrix. One test fixture was changed in the run: "no displayed total adds two cards" at m = 6,5 found EV at the median step (13 000 kr) equal to profit + working capital at full convergence by chance, so the test runs at 6,7. Review pending.
+**Outcome:** Commits on `story/3.6-ev-ebit` from `cdd6553`; issue #79.

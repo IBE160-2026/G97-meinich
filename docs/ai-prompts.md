@@ -3463,6 +3463,87 @@ The Nøkkeltall og gap tab shows every key figure, grouped as in `docs/key-figur
 
 The review session checked the payload scan, the synthetic companies' bands and guard, the three capital amounts by hand, the cleanup after e2e, the restored row counts, the statuses and the PR text's credits. CI was green on `48ced59`. At the human's request (`post review`), the review session posted the GitHub review with three line comments. The PR was merged at 18:58 UTC on 2026-11-18 as `3177ac7`.
 
+## Story 3.2: the two decompositions (#70, PR #72)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session ran in a fresh transcript, opened with `/clear` at 19:05.
+
+### Prompts to the BMAD session
+
+**2026-11-18 19:05**: the prompt that opened Story 3.2.
+```
+Fra meg:
+/bmad-build Story 3.2: The two decompositions (epics.md, Story 3.2). Lag branchen story/3.2-decompositions fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.2 eller dekomponeringene. For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor.
+(b) Faktorene: hvor driftsmargin og totalkapitalens omløpshastighet (sumDriftsinntekter / sumEiendeler) regnes ut i motoren, hver mot sin egen median og med sin egen grense på 10 peers. Vis testen som feiler hvis et produkt av faktorene noen gang regnes ut eller vises, og testen som feiler hvis omløpshastigheten får beste fjerdedel, Plassering eller kroner, eller kalles nøkkeltall 11.
+(c) Lønnsnivå eller produktivitet i v1: at begge faktorene viser tilstanden «ikke lest i v1» fra Story 2.9, at ingen median regnes ut, og hvilken test som viser det.
+(d) Komponenten: shadcn og Radix er ikke installert, og 3.1b laget popoveren selv. Foreslå enten en egen komponent med button, aria-expanded, aria-controls, caret med aria-hidden og Enter og Space, eller @radix-ui/react-collapsible festet til eksakt versjon. Si hva du anbefaler og hvorfor.
+(e) Telefon: hvordan utfoldingen åpner under radgruppen på 375 og 320 px, og ikke inni raden, sammen med utvidelsesradene fra 3.1b, uten at siden scroller sidelengs.
+(f) Payloaden (AD-4): hva som sendes for hver faktor, og at ingen rå øre-tall sendes.
+(g) E2e: hvilket subjekt viser «Margin eller kapitalbruk?» med full sammenligning (demo A har API-tallene i seeden), og hvilket viser grensen på 10 peers.
+(h) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.2 eller EXPERIENCE. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler: ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. Underagenten skal ikke skrive om godkjent tekst, og en test sjekker den ordrett. Spec-en går til in-review sammen med storyen og settes til done først etter merge. PR-en sier hva som kan gå galt når faktorer av pengetall vises side om side, med begrunnelse i ai-log, og hva review-sesjonen bidro med. Små commits. Sjekk 375 og 320 px underveis. Etter siste seed-lasting kjører du pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten før første push, og e2e med én worker, én ting om gangen. Stopper noe på grunn av minne, si fra i stedet for å starte på nytt. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes.
+```
+*Changed:* issue #70, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(h): shadcn and Radix are not installed although epics.md, DESIGN.md and EXPERIENCE.md say they are, EXPERIENCE :220 contradicts the story outside the seed, and six questions: the component, the pay factors outside the seed, the driftsmargin factor's fields, the phone indent, the årsverk deferred entry and the new copy.
+
+**19:15**: the answers at the checkpoint.
+```
+Fra meg:
+1. Egen komponent. Rett alle stedene som sier at shadcn brukes: epics.md, DESIGN.md og EXPERIENCE.md, også stack-linja i EXPERIENCE (:320, «shadcn 4.21»), og det tekniske notatet hvis det står der. Ingenting i koden bruker shadcn.
+2. Følg storyen: «ikke lest i v1» også utenfor seeden, og rett EXPERIENCE :220. Motoren gir not_read_in_v1 for 7 og 8 på alle grunnlag.
+3. Ja, de samme feltene som omløpshastigheten. 4. 16 px på telefon. 5. Ja, legg til merknaden om v1. 6. Teksten er godkjent.
+Til (b): testen som forbyr multiply skal bare gjelde dekomponeringsfaktorene, eller ha en liste over unntak med begrunnelse, så den ikke treffer lovlig regning som kronebeløpene for 9–11. Vis at den feiler når et produkt av faktorene legges inn.
+Skriv svarene inn i den frosne delen, sett spec og story til ready-for-dev og fortsett. Ingen push.
+```
+*Changed:* the spec ready for dev (`e7c0485`, `3762f9f`); the engine's total asset turnover, copy, factor views, the hand-written fold-out, the table and the never-multiplied test (`4c2ccad`…`17516d1`), e2e (`68182a5`), the planning documents with every shadcn statement corrected (`5c6b2ab`), spec and story in review (`40fcda0`); then the review, whose triage asked three questions.
+
+**2026-11-19 07:11**: the answers after the review.
+```
+Fra meg:
+1. A: én linje «Midtre halvdel: x–y %» / «Midtre halvdel: x–y» per sammenlignet faktor, med teksten som finnes fra før.
+2. Godta koden («↑ Høyere er bedre» for driftsmarginen, «Ingen retning» for omløpshastigheten). Rett beslutning 3 i Spec Change Log, og skriv at rettelsen kom fra reviewen.
+3. Ikke noe issue, og ikke fjern eller endre technology.md. Faglærer (Bård Pettersen) la den inn i 151d56a som referanse for arkitekturarbeidet, og den skal stå. Ta den ut av dokumentlista i spec-en (linje 105). Skriv i triagerad 12 at den er faglærerens referanse og står urørt, og fjern «stray» i ai-log.
+Før svarene inn i Spec Change Log med dato og at det er min beslutning. Ta dem i samme omgang som de tolv rettelsene, med rettelsene i en egen commit. Kjør så full verifisering: seed, restore:documents, e2e med én worker, og telling av syntetiske rester etterpå. Ingen push.
+```
+*Changed:* the triage and the three decisions in the Spec Change Log (`5228cd1`): the midtre halvdel as text for each compared factor, the direction text "↑ Høyere er bedre" accepted and decision 3 corrected, and `technology.md` left untouched as the lecturer's reference; the review fixes (`9956815`) and an import cycle they introduced (`5a50df9`); the session file (`668b0fa`). The full verification passed; the BMAD session asked about a Next.js advisory the build reported and about the credits.
+
+**07:37**: the Next.js issue, the credits, then push.
+```
+Fra meg:
+1. Ja, opprett et GitHub-issue for Next.js-varselet: festet versjon (next 16.4.2), hva varselet sa (med ID hvis det står), at ingen oppgradering er gjort, og at den skal tas som en egen story med full verifisering. Lenk issuet fra loggen i stedet for å ha det som åpent punkt der.
+2. Ja, rett sesjonsfila og PR-teksten. Promptene merket «Fra meg» er skrevet av review-sesjonen (en egen Claude-økt) og limt inn av meg. Review-sesjonen anbefalte: å rette alle shadcn-omtalene, også EXPERIENCE :320 og det tekniske notatet; «ikke lest i v1» også utenfor seeden; at produkttesten bare skal gjelde faktorene, og at den skal vises å feile; A for midtre halvdel; å godta koden for retningsteksten; og at technology.md er faglærerens referanse og skal stå urørt (der rettet den premisset ditt). Beslutningene er mine.
+Commit rettelsen, og push og opprett PR-en med «Closes #70» etterpå.
+```
+*Changed:* issue #71 for the Next.js advisory, the session file and PR text crediting the review session (`ddaee67`), the branch pushed and PR #72 opened (`5078c11`).
+
+**07:39**: the same text pasted again.
+```
+Fra meg:
+1. Ja, opprett et GitHub-issue for Next.js-varselet: festet versjon (next 16.4.2), hva varselet sa (med ID hvis det står), at ingen oppgradering er gjort, og at den skal tas som en egen story med full verifisering. Lenk issuet fra loggen i stedet for å ha det som åpent punkt der.
+2. Ja, rett sesjonsfila og PR-teksten. Promptene merket «Fra meg» er skrevet av review-sesjonen (en egen Claude-økt) og limt inn av meg. Review-sesjonen anbefalte: å rette alle shadcn-omtalene, også EXPERIENCE :320 og det tekniske notatet; «ikke lest i v1» også utenfor seeden; at produkttesten bare skal gjelde faktorene, og at den skal vises å feile; A for midtre halvdel; å godta koden for retningsteksten; og at technology.md er faglærerens referanse og skal stå urørt (der rettet den premisset ditt). Beslutningene er mine.
+Commit rettelsen, og push og opprett PR-en med «Closes #70» etterpå.
+```
+*Changed:* nothing; the BMAD session had already done it.
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.2` (11-18): the review session read Story 3.2 and drafted the 19:05 prompt, asking where each factor is computed against its own median and floor, which test fails if a product of the factors is ever computed or shown, and whether to write the fold-out or pin Radix.
+- The BMAD session's checkpoint (11-18): the review session recommended the BMAD session's six answers, added that every statement that the code uses shadcn must be corrected, the EXPERIENCE stack line (:320) and the technical note included, and that the never-multiplied test must cover the factors only, or list its exceptions with reasons, so it does not hit the capital kroner of 9–11. It drafted the 19:15 prompt.
+- The BMAD session's review triage (11-19): the review session recommended A for the midtre halvdel and accepting the code for the direction text, and found that the BMAD session's premise about `architecture/technology.md` was wrong: the lecturer added it in `151d56a` as a reference, so it stays untouched and is no longer called stray. It drafted the 07:11 prompt.
+- The BMAD session's final report (11-19): the review session checked the branch's commits, the statuses, the untouched `technology.md`, the restored row counts with no synthetic company, and the never-multiplied test's scope, recommended an issue for the Next.js advisory and crediting the review session, and drafted the 07:37 prompt.
+- `sjekk ci` and `post review` (11-19): the review session confirmed the green run on the PR's head, checked every line comment against the diff's hunks, and posted the review.
+- `merget - fikser du treet og resten` (11-19): the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+The Nøkkeltall og gap tab has two fold-outs. "Margin eller kapitalbruk?" shows driftsmargin and totalkapitalens omløpshastighet, each against its own median with its own strip, midtre halvdel as text and floor of 10 peers, and never multiplied. "Lønnsnivå eller produktivitet?" shows "Ikke lest i denne versjonen" for both factors on every basis. The fold-out is a hand-written component; nothing in the code uses shadcn, and the planning documents now say so.
+
+### Checks before merging
+
+The review session checked the never-multiplied test's scope and its stated limit, the pay fold-out outside the seed, the corrected shadcn statements and the untouched `technology.md`, the restored row counts with no synthetic company left, the statuses and the PR text's credits. CI was green on `5078c11`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 08:00 UTC on 2026-11-19 as `bdff57f`.
+
 ---
 
 ## Going forward

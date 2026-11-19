@@ -115,7 +115,7 @@ Decided once; used verbatim everywhere. This table is the source the message fil
 | Figure with no kroner translation | Ingen kronebeløp | The kroner cell of EBITDA-margin and Totalkapitalrentabilitet (`docs/key-figures.md`: none) |
 | Operating asset turnover (11) with beste fjerdedel at or below zero | Ingen kronebeløp: beste fjerdedel er ikke over null | Its kroner cell; there is no capital base (Story 3.1b) |
 | Adjusted group, explanation | Forklaringen gjelder standard peer-gruppe. Tilbakestill for å se den. | Replaces the explanation; "Tilbakestill" is the reset action |
-| Capital amount | Frigjort kapital i driftseiendeler: 412 000 kr (engangsbeløp, ved full tilnærming) | Profit amounts say "per år"; capital amounts always "engangsbeløp" plus the share |
+| Capital amount | Frigjort kapital: 412 000 kr (engangsbeløp) | Profit amounts say "per år"; capital amounts always "engangsbeløp". On Oversikt's capital card (Story 3.4) the figure's name stands on its own line above it and the top note gives full convergence; where a share other than full convergence applies (Verdi, Story 3.5) the share is stated with the amount |
 | Capital never summed | Ikke per år, og legges ikke til resultatet. | Mandatory under every capital amount on Oversikt |
 | Cost-share group row | Forklarer marginavviket – summeres ikke | |
 | Table top note | Viser gap ved full tilnærming · Endre i Verdi | On the key-figure table, the Oversikt hero and the small cards |

@@ -392,6 +392,10 @@ test('Verdi: the three cards against the engine, the median step disabled with i
   const reason = nb['verdi.median.above'].replace('{selskap}', subject.navn);
   await expect(page.locator(`#${await median.getAttribute('aria-describedby')}`)).toHaveText(reason);
   await page.locator('[data-share-step="100"]').click();
+  // replaceState writes the URL before React renders the cards again (PR #78, CI): read them only once
+  // the step is checked and the profit card is at 100 %.
+  await expect(page.locator('[data-share-step="100"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(card('verdi-profit').locator('[data-card="share"]')).toHaveText(nb['verdi.profit.share'].replace('{andel}', formatWholePercent('100')));
   // The arrow keys reach the disabled step: focus on it, nothing chosen, the URL and the cards unchanged.
   const cardsBefore = await rendered(page).getByTestId('verdi-cards').innerText();
   await page.keyboard.press('ArrowRight');
@@ -405,6 +409,8 @@ test('Verdi: the three cards against the engine, the median step disabled with i
   await page.keyboard.press('ArrowLeft');
   await expect(median).toBeFocused();
   await expect.poll(() => new URL(page.url()).search).toBe('?andel=0');
+  // Clicking the step the control still shows as checked does nothing: wait for 0 to be rendered first.
+  await expect(page.locator('[data-share-step="0"]')).toHaveAttribute('aria-checked', 'true');
   await page.locator('[data-share-step="100"]').click();
   await page.keyboard.press('ArrowRight');
   await expect(median).toBeFocused();

@@ -131,6 +131,30 @@ The probe was removed and the app rebuilt. The first build of each pair stopped 
 
 **Run locally after the fix,** one worker: `e2e/verdi.spec.ts` and `e2e/peers.spec.ts` in `chromium`, 36 passed. Lint and typecheck are clean.
 
+**CI on `9045926` failed once more**, with the same race in a third place. **The review session found it:**
+- `e2e/synthetic-documents.spec.ts` "Verdi: the three cards …" clicked the 100 step and read `cardsBefore` (:396) at once. On CI, `cardsBefore` was still the 50 % cards.
+- It was missed on `60bcfeb` because only the failing test was fixed, not the pattern.
+
+**A search for one-shot reads** (`= await …innerText()`, `textContent`, `getAttribute`, `evaluate` and the like) in `e2e/verdi.spec.ts` and `e2e/synthetic-documents.spec.ts` was made by the review session and repeated by the BMAD session. :396 is the only read after a share change with no wait before it.
+
+**The probe found a fourth occurrence** (BMAD session), with the same 1,5 s delay as before. The same test clicked 0, waited only for the URL, and clicked 100. While the control still rendered 100 as checked, that click did nothing, and the URL stayed `?andel=0`. It is an action before the render, not a read, so the search could not find it.
+
+**The fix** (one commit; spec, Review Triage Log, row 22, extended):
+- **Before reading `cardsBefore`:** wait for `aria-checked="true"` on the 100 step and for the profit card's "ved 100 % av gapet".
+- **Before clicking 100:** wait for `aria-checked="true"` on the 0 step.
+
+**Shown failing under the probe:**
+- **Without the first wait:** `cardsBefore` reads "ved 50 % av gapet" while the page shows 100 %.
+- **With the first wait but not the second:** the test fails at `?andel=0`.
+- **With both waits:** it passes, and all of `e2e/verdi.spec.ts` (12 tests) passes under the probe too.
+
+The probe was removed, and the app was rebuilt. Each build first stopped with `SecurityFatalError` and passed on the rerun (#71).
+
+**Run locally after the fix:**
+- `synthetic --no-deps`: 24 passed;
+- afterwards: 0 SYNTETISK companies, and 20 manifest entries;
+- lint and typecheck: clean.
+
 ## Links
 
 - Spec: `_bmad-output/implementation-artifacts/spec-3-5-verdi-how-much-is-closable.md`.

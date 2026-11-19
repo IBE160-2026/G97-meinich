@@ -317,7 +317,7 @@ flowchart LR
 
 - **Runtime:** Node 24 LTS (`.nvmrc` 24.21.0).
 - **Framework:** Next.js 16.4 (App Router; pin the patched 16.4.x due 2026-10-14), with Cache Components off. React 19.3. TypeScript 6.x, strict.
-- **UI:** Tailwind 4.3 and Recharts 3.10. No shadcn: nothing in the code uses it, and interactive components are hand-written (Story 3.2, decision 1, Meinich 2026-11-18).
+- **UI:** Tailwind 4.3. No chart library: charts are hand-written SVG (Story 3.3, decision 6, Meinich 2026-11-19). No shadcn: nothing in the code uses it, and interactive components are hand-written (Story 3.2, decision 1, Meinich 2026-11-18).
 - **Package manager:** pnpm 12, pinned through `packageManager`.
 - **Tests and CI (chosen in Story 1.1):** Vitest 5 for unit tests; its Browser Mode with Playwright runs AD-6's identity test in a real browser engine when that test is written. Playwright Test renders the built app for page-level checks such as phone width. CI is GitHub Actions (`.github/workflows/ci.yml`): exact-pin check, `NEXT_PUBLIC_` check, lint, typecheck, unit tests, build and Playwright on every pull request.
 - **Database:** Supabase CLI 2.120, pinned exactly. Local Postgres 17 with `pg_trgm` and `unaccent` for name search.

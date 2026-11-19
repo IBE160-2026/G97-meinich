@@ -1,6 +1,6 @@
 ---
 name: Peerless
-description: Peer benchmarking from public Norwegian accounts, every gap in kroner. Tailwind on Next.js, Recharts for charts, interactive components hand-written (no shadcn/ui, Story 3.2); this file specifies the brand layer and the chart grammar. Light mode only in v1.
+description: Peer benchmarking from public Norwegian accounts, every gap in kroner. Tailwind on Next.js, charts hand-written as SVG with no chart library (Story 3.3), interactive components hand-written (no shadcn/ui, Story 3.2); this file specifies the brand layer and the chart grammar. Light mode only in v1.
 status: final
 updated: 2026-10-10
 sources:

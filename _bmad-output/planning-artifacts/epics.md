@@ -178,7 +178,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 
 **Stack seed (TN, verified 2026-10-10)**
 
-- Node 24 LTS, `.nvmrc` 24.21.0; Next.js 16.4 App Router, Cache Components off; React 19.3; TypeScript 6.x strict; Tailwind 4.3, Recharts 3.10, no shadcn (interactive components hand-written, Story 3.2); pnpm 12 via `packageManager`; Supabase CLI 2.120 pinned exactly; local Postgres 17 with `pg_trgm` + `unaccent`; postgres.js 3.4.9 (no ORM); decimal.js 10.6.0 exact; step 1 Python 3.14 (`.python-version`), `uv` from a pinned image tag with committed `uv.lock`, Tesseract 5.5 with `nor` from `tessdata_best` pinned by commit, in Docker.
+- Node 24 LTS, `.nvmrc` 24.21.0; Next.js 16.4 App Router, Cache Components off; React 19.3; TypeScript 6.x strict; Tailwind 4.3, no chart library (charts hand-written as SVG, Story 3.3), no shadcn (interactive components hand-written, Story 3.2); pnpm 12 via `packageManager`; Supabase CLI 2.120 pinned exactly; local Postgres 17 with `pg_trgm` + `unaccent`; postgres.js 3.4.9 (no ORM); decimal.js 10.6.0 exact; step 1 Python 3.14 (`.python-version`), `uv` from a pinned image tag with committed `uv.lock`, Tesseract 5.5 with `nor` from `tessdata_best` pinned by commit, in Docker.
 - Deferred: hosted deployment (stage 2, behind licence, persistent rate-limit and refresh-cadence gates); render caching; automatic refresh; test runner/CI provider (setup story); embeddings via pgvector.
 
 **Consistency conventions (TN)**
@@ -323,7 +323,7 @@ v1 only; DESIGN.md is visual, EXPERIENCE.md behavioural; spines win over mocks.
 - UX-DR68: Reflow to 320 CSS px with no body horizontal scroll; no fixed phone-table column widths that cannot shrink.
 - UX-DR69: Target size ≥24×24 px everywhere (inline "Ekskluder", "Ta med igjen", "Les mer", "Lukk" padded); 44×44 recommended on phone.
 - UX-DR70: `<html lang="nb">`; standalone tab label "Peers" may carry `lang="en"`.
-- UX-DR71: Reduced motion: honour `prefers-reduced-motion` (Recharts `isAnimationActive={false}`, no recompute transitions, static loading text); recompute never animates in any mode.
+- UX-DR71: Reduced motion: honour `prefers-reduced-motion` (charts do not animate: they are hand-written SVG, Story 3.3; no recompute transitions, static loading text); recompute never animates in any mode.
 - UX-DR72: Charts: non-focusable `role="img"` SVG with `aria-label` summary plus an adjacent table or "Vis tallene"/"Skjul tallene" toggle; direction glyphs `aria-hidden` with words for screen readers ("bedre mot høyre"); markers and bars tested under `forced-colors: active`.
 - UX-DR73: Caveats inline: key text always on the page, long text behind an info-button popover, never only in a tooltip; hover-only affordances banned.
 
@@ -463,7 +463,7 @@ So that every later story starts from the same versions, the same guards and a l
 **When** the dependencies are installed with pnpm
 **Then** pnpm is exactly 12.11.2, pinned in `package.json` `packageManager`
 **And** `next` is exactly 16.4.0, `react` and `react-dom` exactly 19.3.0, `typescript` exactly 6.0.3 and `tailwindcss` exactly 4.3.3, each written without a range — the latest releases in those lines on 2026-10-10, checked against the npm registry (TypeScript's overall latest is 7.x; the project stays on 6.x)
-**And** when a later story adds them, `recharts` exactly 3.10.1, `postgres` exactly 3.4.9 and `decimal.js` exactly 10.6.0, unless the PR adding one records a newer patch release and why
+**And** when a later story adds them, `postgres` exactly 3.4.9 and `decimal.js` exactly 10.6.0, unless the PR adding one records a newer patch release and why (`recharts` 3.10.1 was planned here and never added: charts are hand-written SVG, Story 3.3, decision 6)
 **And** no dependency spec in `package.json` contains `^` or `~` (a CI check fails on either)
 
 **Given** the Next.js security release announced for 2026-10-14
@@ -2083,7 +2083,7 @@ So that I understand the margin gap without it being counted twice.
 **Given** a subject and its peer group
 **When** the engine builds the common peer set *P*
 **Then** *P* holds the peers whose `driftsresultat`, `varekostnad`, `lonnskostnad` and `annenDriftskostnad` all come from the same reconciled benchmark-year filing with `sumDriftsinntekter` > 0, and every bar uses that one set
-**And** with fewer than 10 in *P*, or a component missing for the subject, no decomposition is computed, and "Hva forklarer marginavviket?" reads "Ingen forklaring av marginen: bare {n} sammenlignbare har alle kostnadslinjene (av 10 som trengs)." (test at 9 and 10)
+**And** with fewer than 10 in *P*, or a component missing for the subject, no decomposition is computed, and "Hva forklarer marginavviket?" reads "Ingen forklaring av marginen: bare {n} sammenlignbare har alle kostnadslinjene (av 10 som trengs)." (test at 9 and 10); when *P* plus the group's peers outside the demo data reach 10, it reads "Ingen forklaring av marginen: regnskapstallene til de sammenlignbare er ikke i demodataene." instead; a subject without its components gives the words of its Varekostnadsandel row, one whose cost lines fall short of sum driftskostnader (R2) "Ingen forklaring av marginen: kostnadslinjene i regnskapet for {år} summerer ikke til sum driftskostnader.", and one not in NOK "Beløpet er ikke i kroner" (Story 3.3, decisions 2–5 and 11)
 
 **Given** *P*
 **When** the bars are computed
@@ -2180,6 +2180,7 @@ So that the first page gives the whole picture before I open the table.
 **Given** the PR
 **When** it is opened
 **Then** it states what could go wrong with this change — which capital amount is chosen for the card, and the card being read as an annual amount (AGENTS.md Working style) — and the reasoning is recorded in `docs/ai-log.md`
+**And** every new amount function is registered in `src/engine/amounts.ts` and passes the FR-30 tests
 
 ### Story 3.5: Verdi — how much is closable
 
@@ -2241,6 +2242,7 @@ So that the kroner reflect a realistic ambition, not only full convergence.
 **Given** the PR
 **When** it is opened
 **Then** it states what could go wrong with in-browser scaling of money and the wire codec (AGENTS.md Working style), and the reasoning is recorded in `docs/ai-log.md`
+**And** every new amount function is registered in `src/engine/amounts.ts` and passes the FR-30 tests
 
 ### Story 3.6: EV/EBIT — what the uplift is worth
 

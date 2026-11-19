@@ -312,7 +312,7 @@ const CAPITAL_FUNCTIONS: ReadonlySet<string> = new Set(['capitalGap', 'workingCa
 
 /**
  * What a value does that it must not (Story 3.6, decision 1): it builds on
- * `profitAtShare` (calls it itself), and makes no `.plus` or `.add` and
+ * `profitAtShare` (calls it itself), and makes no `.plus`, `.add` or `.sum` (`Decimal.sum`) and
  * reaches no capital function, directly or through any engine function it
  * calls, exported or module-private.
  */
@@ -333,7 +333,7 @@ function valueFindings(prog: ts.Program, registry: Readonly<Record<string, Amoun
       if (visited.has(node)) return;
       visited.add(node);
       const visit = (child: ts.Node): void => {
-        if (ts.isPropertyAccessExpression(child) && (child.name.text === 'plus' || child.name.text === 'add')) {
+        if (ts.isPropertyAccessExpression(child) && ['plus', 'add', 'sum'].includes(child.name.text)) {
           found.push(`${name}${via}: .${child.name.text}`);
         }
         if (ts.isCallExpression(child) && via === '' && ts.isIdentifier(child.expression) && child.expression.text === 'profitAtShare') {
@@ -575,6 +575,16 @@ describe('a value', () => {
         '}',
       ]),
     ).toEqual(['valueFromSMed: does not call profitAtShare']);
+    // Probe 4: a value summing with Decimal.sum, which is neither .plus nor .add.
+    expect(
+      probeValue('valueWithSum', [
+        "import { profitAtShare, type ClosableShare, type Multiple } from './closable.ts';",
+        "import { Decimal } from './decimal.ts';",
+        'export function valueWithSum(full: Decimal, share: ClosableShare, m: Multiple, other: Decimal): { readonly ore: Decimal } {',
+        '  return { ore: Decimal.sum(profitAtShare(full, null, share).ore.mul(m), other) };',
+        '}',
+      ]),
+    ).toEqual(['valueWithSum: .sum']);
   });
 });
 

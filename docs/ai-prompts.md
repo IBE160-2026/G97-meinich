@@ -3633,6 +3633,103 @@ The Nøkkeltall og gap tab has "Hva forklarer marginavviket?" under Driftsmargin
 
 The review session checked the rounding bound (0 ≤ R ≤ k ≤ 4, exact ties in bar order), the registry test and its stated name-not-data-flow gap, the determinate exclusion test, the restored row counts with no synthetic company left, the statuses, the deferred entry and the PR text's credits. CI was green on `c8e1e11`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 12:01 UTC on 2026-11-19 as `c7666c9`.
 
+## Story 3.4: the rest of Oversikt (#75, PR #76)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session ran in a fresh transcript, opened with `/clear` at 12:06, and was compacted once after the PR was opened.
+
+### Prompts to the BMAD session
+
+**2026-11-19 12:06**: the prompt that opened Story 3.4.
+```
+Fra meg:
+/bmad-build Story 3.4: The rest of Oversikt (epics.md, Story 3.4). Lag branchen story/3.4-oversikt-cards fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.4, Oversikt, kortene eller beeswarm. For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor.
+(b) Største kapitalgap: hvilke beløp kortet velger mellom. Si hva det gjør når bare én av 9 og 10 finnes (key-figures.md:164 viser da delen alene og ingen total), hvordan like beløp avgjøres, at sammenligningen er eksakt i Decimal før avrunding, og hva kortet viser utenfor NOK og når et beløp mangler. Vis testen som feiler hvis 11 legges sammen med 9 eller 10, hvis en kostnadsandel kvalifiserer, eller hvis kortet rangeres mot hero. Nye beløpsfunksjoner registreres i src/engine/amounts.ts og består FR-30-testene.
+(c) Hvor kortet kan vises med tall: 9, 10 og 11 finnes bare i dokumentene. Si hva demo A og B viser i seeden og lokalt etter restore:documents (totaler), og hvilket subjekt som viser et kapitalbeløp i e2e (det syntetiske oppsettet fra 3.1b).
+(d) Største styrke: hva «høyest Plassering» rangeres på. Plassering vises i hele prosent. Jeg heller mot å rangere på hele prosent med nummeret på nøkkeltallet ved likhet, så valget kan forklares ut fra det brukeren ser. Si hva du anbefaler. Vis at nøkkeltall uten retning og kontantandel aldri kvalifiserer.
+(e) Mangler grunnlag: hva som teller som «uten sammenligning» (under grensen, subjektet mangler tallet, ikke i demodataene, ikke lest i v1), i hvilken rekkefølge, og hva demo A og B viser.
+(f) Beeswarm: håndskrevet SVG som fordelingsstripen og fossen, ikke et diagrambibliotek. Vis hvordan prikkene pakkes uten overlapp, at det er deterministisk og testet, og hvilken gruppe som tegnes (gruppen minus ekskl, peers uten driftsmargin). Tooltipen er bare en bekvemmelighet: én åpen om gangen på berøring, og over plottet med strek på telefon. «Fem nærmeste»: nærmest i driftsmargin, slik EXPERIENCE :306 sorterer? Si hvordan like avstander avgjøres.
+(g) Byte-like verdier: hvor driftsmarginen formateres, så kompaktlisten, «Vis tallene» og Peers-lista viser nøyaktig samme streng, og testen som sjekker det.
+(h) Rutenettet: 12 kolonner på desktop og én kolonne på 375 og 320 px uten sidelengs scrolling. Forklaringsraden er Epic 4s: si om den står tom eller ikke er der, uten plassholder.
+(i) Payloaden (AD-4): hva som sendes til klienten for beeswarm og kortene, bare strenger og posisjoner, ingen rå øre-tall. Utvid skannet om nødvendig.
+(j) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.4 eller EXPERIENCE. Vis meg den før den står i nb.json og EXPERIENCE.
+(k) Utenfor storyen: feilen i test:db i 3.3 (28 feil i én fil rett etter seed) passer med oppføringen fra 2.5c i deferred-work.md (:185–188, copyIn i test/db/seed.test.ts, som har 28 tester). Den har ingen eier. Foreslå en eier, men ikke rett den i denne storyen.
+
+Regler: ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. Ingen test velger forventet verdi ut fra dataene med en betingelse; fixturens tilstand slås fast først. Underagenten skal ikke skrive om godkjent tekst, og en test sjekker den ordrett. Spec-en går til in-review sammen med storyen og settes til done først etter merge. PR-en sier hva som kan gå galt (hvilket kapitalbeløp kortet velger, og at det kan leses som et årlig beløp), med begrunnelse i ai-log, og hva review-sesjonen bidro med. Små commits. Sjekk 375 og 320 px underveis. Etter siste seed-lasting kjører du pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten før første push, og e2e med én worker, én ting om gangen. Stopper noe på grunn av minne, si fra i stedet for å starte på nytt. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes. technology.md er faglærerens referanse og røres ikke.
+```
+*Changed:* issue #75, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(k): the capital card's candidates (working capital only when both 9 and 10 are amounts, else the one that is, and 11), compared in exact Decimal before rounding, demo A and B showing no capital amount because none of their peers is on the manifest, the synthetic fixture of Story 3.1b as the e2e subject, a packed beeswarm in hand-written SVG, and nine questions.
+
+**12:19**: the answers at the checkpoint.
+```
+Fra meg:
+1. Ja til reglene i (b), med rollen 'choice' og proben som legger 11 til 9.
+2. Ja: hele prosent, og laveste nummer ved likhet.
+3. Ja, 7 og 8 teller. Tomtilstanden testes i enhetstestene.
+4. B, men skriv i spec-en prikkenes radius og plottets største høyde ved 1280, 375 og 320 px, hva som skjer når svermen ikke får plass innenfor den høyden, og hvordan selskapets markør vises hvis selskapet ligger utenfor P5–P95. Vis meg det før du implementerer.
+5. Ja. 6. Ja. 7. Ja, helt utelatt.
+8. 1, 2 og 4–11 er godkjent. K2 endres til: «Ingen kapitalgap blant kapitalnøkkeltallene som har grunnlag for sammenligning.»
+9. Ja, Story 5.7. Legg til i bevislinjen at 3.3 hadde 28 feil i én fil rett etter seed (2026-11-19). Fila er ikke bekreftet, men seed.test.ts har 28 tester.
+Spec-en kan holdes samlet. Skriv svarene inn i den frosne delen. Sett spec og story til ready-for-dev først når du har vist meg svaret på 4. Ingen push.
+```
+*Changed:* decisions 1–9 in the frozen spec, K2 in the new wording, the `copyIn` entry owned by Story 5.7 with the 3.3 evidence; the beeswarm's geometry shown before implementation: two server-computed layouts, the radius and the maximum height at 1280, 375 and 320 px, the radius stepping down to 2 and then the swarm growing, edge columns outside P5–P95 and the company marker at the axis end.
+
+**12:33**: the geometry approved, with one condition.
+```
+Fra meg:
+Ja. Én betingelse: den skjulte utformingen skal ha display: none, så skjermleseren bare får én role="img" om gangen. E2e skal sjekke at bare én img med aria-label er tilgjengelig ved 1280, 375 og 320 px. Implementeringsrapporten tar med faktisk radius og høyde for demo A og B og hvor mye beeswarm legger til i payloaden, bare som totaler.
+Sett spec og story til ready-for-dev og fortsett. Ingen push.
+```
+*Changed:* the spec ready for dev and the Epic 3 context (`55be9e8`, `dfb8eb2`); the capital choice, the strength predicate and the shown whole percent (`518b2ef`), the copy verbatim (`6231e28`), the cards and the beeswarm (`c1f1dfb`, `95d9730`), e2e (`7eb4048`), two tests that had passed with their guard removed fixed (`409fa18`, `22ae2d6`), the payload trimmed (`3a282f1`), the docs (`f2cc4ff`), spec and story in review (`6d5c2ea`), the review fixes and triage (`7575bb7`, `df3c9df`, `4cd6803`, `af50f93`); the full e2e run then stopped for lack of memory after 59 passed, and the BMAD session asked how to run e2e and reported the Next.js build stopping with `SecurityFatalError`.
+
+**13:47**: e2e one project at a time, and the Next.js error.
+```
+Fra meg:
+2: ett Playwright-prosjekt om gangen med én worker, og ingenting annet kjørende. Kjør synthetic sist med --no-deps, så de andre prosjektene ikke kjøres på nytt. Global setup kjører likevel og rydder. Stopper en kjøring på minne, si fra og ikke start den på nytt. Tell syntetiske selskaper og manifest-oppføringer etter siste kjøring, og bekreft de fire tallene fra restore.
+Next.js: ingen oppgradering i denne storyen. Legg en kommentar på issue #71 om at pnpm build nå av og til stopper med SecurityFatalError, med feiltekst og ID hvis den står, og at en ny kjøring går gjennom. Nevn det i PR-teksten som en kjent risiko for CI, med lenke til #71.
+Radius 2 på telefon og payloaden er godkjent. Når e2e er grønn: PR-tekst, sesjonsfil og sesjonslogg som du beskrev. Ingen push før jeg sier fra.
+```
+*Changed:* e2e per project (chromium 160, db-down 7, synthetic with `--no-deps` 22), after a fix the existing `e2e/failed-subject.spec.ts` asked for (`a231239`), with no synthetic company left; a comment on issue #71; the session file and the log (`247cd88`, `44bf54f`).
+
+**14:53**: push.
+```
+Fra meg:
+Legg en kort tilleggskommentar på #71 om at det ble fire ganger i alt i denne økten, ikke tre. Push branchen og opprett PR-en med teksten fra pr-3-4.md. Lenk PR-en i session-fila og commit og push det.
+```
+*Changed:* a follow-up comment on #71 (four times, not three), the branch pushed, PR #76 opened, and the session file linked to it (`5fdccb6`).
+
+**15:08**: the CI failure.
+```
+Fra meg:
+CI på #76 feilet i e2e/analysis-states.spec.ts:85 («a route change to another company focuses its h1»), også ved retry. Review-sesjonen leste tracen fra CI-artefakten:
+- Etter navigasjonen finnes main h1 to ganger. Den gamle (ADMMIT AS) ligger i <div hidden id="S:0">, React-strømmingens Suspense-segment for demo A sin Oversikt, som aldri ble satt inn på plass.
+- React 19.3 samler visningen av ferdige grenser ($RB/$RV). Testen søker før demo A sin side er vist, og klientnavigasjonen etterlater segmentet frakoblet.
+- Etter 3.4 er Oversikt for demo A omtrent 245 KB tyngre, så vinduet er lengre på CI.
+Brukerne merker ingenting, siden segmentet er skjult. Feilen ligger i testen.
+Rett testen så den venter til h1 for demo A er synlig med demo A sitt navn før den søker. Behold main h1 og fokussjekken som de er. Søk gjennom e2e etter andre tester som gjør noe rett etter goto på en analyseside uten å vente på synlig innhold først, og rett dem på samme måte, eller si hvorfor de ikke trenger det. Commit dette som en egen review-fix med årsaken i meldingen. Før det inn i spec-ens triage-logg og i session-fila, og skriv at review-sesjonen fant årsaken. Kjør analysis-states.spec.ts lokalt, og push.
+```
+*Changed:* `companyShown` in `e2e/seed.ts` and its use in the failing test and four others that acted on an analysis page before it was shown (`860b874`), the triage log's row 25 and the session file (`674796c`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.4` (11-19): the review session read Story 3.4, `docs/key-figures.md` and the code, found that 9, 10 and 11 exist only in the documents, that `docs/key-figures.md` shows a part of working capital alone when the other is missing, that "highest Plassering" could rank two figures the user sees as equal, and that the 3.3 `test:db` failure matched the unowned `copyIn` entry from Story 2.5c, whose file has 28 tests. It drafted the 12:06 prompt.
+- The BMAD session's checkpoint (11-19): the review session recommended the BMAD session's answers, the `choice` role with a probe that adds (11) to (9), ranking on the whole percent with the lowest figure number on a tie, K2's wording, Story 5.7 as the `copyIn` owner, and the beeswarm's geometry shown before implementation. It drafted the 12:19 prompt.
+- The beeswarm's geometry (11-19): the review session approved it on the condition that the hidden layout be `display: none` and e2e check one accessible image at 1280, 375 and 320 px, and asked for the measured radius, height and payload. It drafted the 12:33 prompt.
+- The BMAD session's status report (11-19): the review session checked the branch, `display: none` and its e2e check, K2, the `choice` registration and its probe, the `copyIn` owner, and the restored row counts, measured 3.0 GB free of 15.7, recommended one Playwright project at a time with `synthetic` last under `--no-deps`, and a comment on #71 rather than an upgrade. It drafted the 13:47 prompt.
+- The BMAD session's final report (11-19): the review session checked the scroll-region fix, the PR text and its credits, and the #71 comment, which said three times where the PR said four. It drafted the 14:53 prompt.
+- `ci feilet sjekk ut` (11-19): the review session downloaded the Playwright report from the failed run, read the trace, and found demo A's streamed Suspense segment left hidden in the document (`<div hidden id="S:0">`) after the client navigation, React 19.3 batching the reveal of finished boundaries, and the heavier Oversikt making the window longer on CI. It drafted the 15:08 prompt.
+- `post review` (11-19): the review session checked the fix, confirmed the green run on the PR's head, checked every line comment against the diff's hunks, and posted the review.
+- `merget - fikser du treet og resten` (11-19): the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+Oversikt is DESIGN's card grid: the hero, a beeswarm of driftsmargin in hand-written SVG over P5–P95 with edge columns, two server-computed layouts of which the hidden one is `display: none`, the five nearest peers and "Vis tallene", and three small cards. "Største kapitalgap" picks the largest one-off capital amount and never sums (11) with working capital, registered as a `choice` in `src/engine/amounts.ts`; "Største styrke" ranks on the shown whole percent; "Mangler grunnlag" shows the first figure without a comparison. One column on phone.
+
+### Checks before merging
+
+The review session checked the capital choice and its probe, the strength ranking, `display: none` and its e2e check, K2, the restored row counts with no synthetic company left, the statuses, the `copyIn` owner and the PR text's credits, and found the cause of the first CI failure in its trace. CI was green on `674796c`. At the human's request (`post review`), the review session posted the GitHub review with six line comments. The PR was merged at 16:13 UTC on 2026-11-19 as `bbee937`.
+
 ---
 
 ## Going forward

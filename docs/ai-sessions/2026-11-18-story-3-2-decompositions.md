@@ -11,7 +11,7 @@
 - **Implementation:** `4c2ccad` to `5c6b2ab`.
 - **Review triage and Meinich's change-log decisions:** `5228cd1`.
 - **Review fixes:** `9956815` (code, tests and docs) and `5a50df9` (import cycle).
-- **PR:** not opened yet; no push before Meinich says so.
+- **PR:** [#72](https://github.com/IBE160-2026/G97-meinich/pull/72).
 
 ## Goal
 

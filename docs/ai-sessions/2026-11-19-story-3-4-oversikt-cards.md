@@ -16,7 +16,7 @@
 - **Review triage:** `4cd6803`.
 - **Review fixes:** `7575bb7` and `df3c9df` (the fifteen patch findings), and `a231239` (the compact list's scroll region, found by the BMAD session's e2e run).
 - **Planning:** the epic context `55be9e8`, the UX memlog `af50f93`.
-- **PR:** opened when Meinich says so.
+- **PR:** [#76](https://github.com/IBE160-2026/G97-meinich/pull/76), opened when Meinich said so.
 
 ## Goal
 

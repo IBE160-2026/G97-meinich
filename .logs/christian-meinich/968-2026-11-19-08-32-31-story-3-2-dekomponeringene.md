@@ -23,7 +23,7 @@ Bygge Story 3.2 med `bmad-build`: utfoldingene «Margin eller kapitalbruk?» og 
   - `restore:documents` ga 2785 / 5556 / 2537 / 10371.
   - e2e: 173 grønne med én worker.
   - Ingen syntetiske rester etterpå.
-- **Build:** stoppet én gang på Next.js sin sikkerhetssjekk (`SecurityFatalError`) og gikk grønt ved nytt forsøk.
+- **Build:** stoppet én gang på Next.js sin sikkerhetssjekk (`SecurityFatalError`) og gikk grønt ved nytt forsøk. Ingen oppgradering er gjort; den følges i issue [#71](https://github.com/IBE160-2026/G97-meinich/issues/71) som egen story.
 
 ### Åpne punkter
-- Next.js-varselet om en kjent sårbarhet i den festede versjonen venter på Meinichs beslutning: oppgradering, og om den skal føres som et GitHub-issue.
+Ingen.

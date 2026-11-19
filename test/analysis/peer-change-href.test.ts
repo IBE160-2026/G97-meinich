@@ -51,9 +51,9 @@ describe('peerChangeHref', () => {
 
   it('a rejected ekskl stays gone: the exclusions come from the base, never the live URL', () => {
     // Fixture: the browser still shows the link with DROPPED, which the server rejected; the last good URL has none.
-    const live = page(`ekskl=${DROPPED}&andel=median`);
-    const href = peerChangeHref({ base: page('andel=median'), live, medianStep: true, change: { kind: 'exclude', orgnr: PEER, navn: 'A AS' } });
-    expect(href).toBe(page(`ekskl=${PEER}&andel=median`));
+    const live = page(`ekskl=${DROPPED}&andel=75`);
+    const href = peerChangeHref({ base: page('andel=75'), live, medianStep: false, change: { kind: 'exclude', orgnr: PEER, navn: 'A AS' } });
+    expect(href).toBe(page(`ekskl=${PEER}&andel=75`));
   });
 
   it('pushes nothing for a change that changes nothing, or an exclude at the cap', () => {

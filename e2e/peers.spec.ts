@@ -14,6 +14,7 @@ import {
   A,
   ABSENT,
   companies,
+  company,
   companyShown,
   classificationOf,
   covered,
@@ -28,6 +29,7 @@ import {
   nonCalendar,
   notice,
   pick,
+  rendered,
   revenue,
   revenueOf,
   tabs,
@@ -247,9 +249,15 @@ const narrowedAsBuiltSubject = seedSubject(
   'whose as-built group (AS_BUILT) is smaller than its pool',
 );
 
-/** What v1's Peers tab never shows (Story 5.2): the basis and flag columns and ✦. */
-async function expectNoModelMarks(page: Page): Promise<void> {
-  const main = page.locator('main');
+/**
+ * What v1's Peers tab never shows (Story 5.2): the basis and flag columns
+ * and ✦. Read only once the subject's page is shown, and from the rendered
+ * <main>, never the Suspense fallback's: while the stream swaps them, both
+ * are in the document (the PR #76 race).
+ */
+async function expectNoModelMarks(page: Page, orgnr: string): Promise<void> {
+  await companyShown(page, company(orgnr).navn ?? '');
+  const main = rendered(page);
   await expect(main.getByTestId('ai-mark')).toHaveCount(0);
   const body = (await main.textContent()) ?? '';
   expect(body).not.toContain(GLYPH);
@@ -276,7 +284,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     // Three columns side by side at desktop width.
     const tops = await stages.evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top)));
     expect(new Set(tops).size).toBe(1);
-    await expectNoModelMarks(page);
+    await expectNoModelMarks(page, A.orgnr ?? '');
   });
 
   // Demo A is not in the labelled set: row by row, names and reasons may be compared.
@@ -292,7 +300,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     await expect(shown.locator('td:nth-child(3)')).toHaveText(rows.map((row) => row.driftsmargin));
     await expect(shown.locator('td:nth-child(4)')).toHaveText(rows.map((row) => row.hvorforMed));
     await expect(shown.first().locator('td')).toHaveCount(5);
-    await expectNoModelMarks(page);
+    await expectNoModelMarks(page, A.orgnr ?? '');
   });
 
   // These subjects' peers may be in the labelled set, so a failure must not
@@ -311,7 +319,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(`/analyse/${orgnr}/peers`);
       await expect(desktopRows(page)).toHaveCount(rows.length);
-      await expectNoModelMarks(page);
+      await expectNoModelMarks(page, orgnr);
     });
 
     test(`${label}: the HTML and the RSC payload carry no orgnr outside the group, peer key-figure amount or server field`, async ({ request }) => {
@@ -332,7 +340,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     await expect(region.locator('caption')).toHaveText(nb['peers.regionLabel']);
     await expect(region.locator('caption')).toHaveClass(/sr-only/);
     await expect(region.locator('thead th')).toHaveCount(5);
-    await expectNoModelMarks(page);
+    await expectNoModelMarks(page, A.orgnr ?? '');
   });
 
   for (const width of [375, 320]) {
@@ -374,7 +382,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
             .filter((box) => box.width < 24 || box.height < 24).length,
       );
       expect(small).toBe(0);
-      await expectNoModelMarks(page);
+      await expectNoModelMarks(page, A.orgnr ?? '');
       await noSidewaysScroll(page);
     });
   }

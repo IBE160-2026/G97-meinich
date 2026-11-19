@@ -13,7 +13,7 @@
 - **Spec:** written at the checkpoint, ready for dev at `142b8d6`, in progress at `2ef6c0c`, the report's contents at `29be22d`; in review with the story in review at `743a8b9`. The spec stays `in-review` until the PR is merged.
 - **Implementation:** `1986694` to `28a3e86` (11 commits).
 - **Review triage:** `2201e12`; outcomes and the B6 retro item closed, `7eebf64`.
-- **Review fixes:** `1930f9d` and `f8e0cae`.
+- **Review fixes:** `1930f9d` and `f8e0cae`; the CI fix in the commit after `60bcfeb` (two e2e tests that read too early).
 - **Copy approved after review, and the deferred notice:** `c0b1307`.
 - **Planning:** the epic context `060d88e`; the planning documents `4b519ff`.
 - **PR:** [#78](https://github.com/IBE160-2026/G97-meinich/pull/78), opened when Meinich said so.
@@ -112,6 +112,24 @@ Open the Verdi tab:
   - `synthetic` (`--no-deps`), last: 24 passed.
 - **Afterwards:** 0 SYNTETISK companies in the database; the manifest has 20 entries, none of them synthetic.
 - **Phone width:** the implementation run's e2e checks Verdi at 375 and 320 px (control in 3 × 2, cards stacked, no sideways scroll, four tabs wrapping), and screenshots of demo A at 1280, 375 and 320 px.
+
+## CI on PR #78
+
+CI failed on `60bcfeb` with two e2e failures. **The review session found both causes**; both were tests that read too early.
+- **`e2e/verdi.spec.ts` "a reload after a share change …"** failed, also on retry. The test read `before` as soon as the URL was `?andel=median`. But `replaceState` writes the URL before React renders the cards again, so on CI `before` was still the 50 % cards. After the reload the page showed the median cards, and the comparison failed.
+- **`e2e/peers.spec.ts` :265** was flaky with "locator('main') resolved to 2 elements": the same streaming race as in Story 3.4. `expectNoModelMarks` used `page.locator('main')` without waiting.
+
+**The fix** (Meinich's instruction, one review-fix commit; spec, Review Triage Log, row 22):
+- **The reload test** waits for `aria-checked="true"` on the median step before reading `before`. It then asserts that `before` holds the median step's "ved 15 % av gapet", so it cannot compare against a stale answer.
+- **`expectNoModelMarks`** takes the subject's orgnr, waits with `companyShown`, and reads `rendered(page)`.
+
+**Shown failing without the wait** (BMAD session), with an uncommitted probe that delays the URL hook's live share by 1,5 s, as a slow runner might:
+- with the wait removed, the test reads "ved 50 % av gapet" and fails on "ved 15 % av gapet";
+- with the wait, it passes under the same delay.
+
+The probe was removed and the app rebuilt. The first build of each pair stopped with `SecurityFatalError` and passed on the rerun (#71).
+
+**Run locally after the fix,** one worker: `e2e/verdi.spec.ts` and `e2e/peers.spec.ts` in `chromium`, 36 passed. Lint and typecheck are clean.
 
 ## Links
 

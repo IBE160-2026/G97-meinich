@@ -169,7 +169,7 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('a reload after a share change renders the same step and cards, with no hydration error', async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = DEMO_A;
     const errors: string[] = [];
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text());
@@ -179,7 +179,11 @@ test.describe('Verdi (Story 3.5)', () => {
     await companyShown(page, navn);
     await step(page, 'median').click();
     await expect.poll(() => new URL(page.url()).search).toBe('?andel=median');
+    // replaceState writes the URL before React renders the cards again (PR #78, CI): read them
+    // only once the median step is checked, and check they are the median step's.
+    await expect(step(page, 'median')).toHaveAttribute('aria-checked', 'true');
     const before = await rendered(page).getByTestId('verdi-cards').innerText();
+    expect(before).toContain(fill('verdi.profit.share', { andel: fill('verdi.share.percent', { n: oracle.percent }) }));
     await page.reload();
     await companyShown(page, navn);
     await expect(step(page, 'median')).toHaveAttribute('aria-checked', 'true');

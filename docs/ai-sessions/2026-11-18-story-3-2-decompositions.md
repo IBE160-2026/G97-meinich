@@ -3,7 +3,7 @@
 **Date:** 2026-11-18 to 2026-11-19
 **Tool:** Claude Code (Opus 5.5), running `bmad-build`.
 - **Subagents dispatched by the BMAD session:** one compiled the epic context, three investigated, and one implemented the story and its review fixes. The three review layers ran as subagents too.
-- **Prompts:** Meinich pasted them in, headed "Fra meg".
+- **Prompts:** the prompts headed "Fra meg" were written by the review session, a separate Claude session, and pasted in by Meinich. The review session recommended the decisions credited to it below. Every decision is Meinich's.
 
 **Story / issue:** #70, Story 3.2
 **Result:**
@@ -44,11 +44,18 @@ Show which lever a gap sits on. "Margin eller kapitalbruk?" opens under Totalkap
   4. The indent is 16 px on the phone.
   5. The årsverk entry in deferred work gets a v1 line.
   6. The copy is approved.
-  7. Meinich added that the no-product test covers only the decomposition factors, so the capital kroner of 9–11 are not caught, and that the report must show it failing.
-- **Meinich's review decisions** (Spec Change Log, 2026-11-19):
+  7. The no-product test covers only the decomposition factors, so the capital kroner of 9–11 are not caught, and the report must show it failing.
+
+  The review session recommended:
+  - correcting every shadcn mention, including EXPERIENCE :320 and the technical note (decision 1);
+  - "ikke lest i v1" outside the seed too (decision 2);
+  - limiting the no-product test to the factors and showing it fail (decision 7).
+
+  Decisions 3–6 followed the BMAD session's checkpoint recommendations.
+- **Meinich's review decisions** (Spec Change Log, 2026-11-19), each on the review session's recommendation:
   - Each compared factor also shows its midtre halvdel as text, from existing copy.
   - The driftsmargin factor's direction words "↑ Høyere er bedre" are accepted in place of decision 3's "Bedre →".
-  - `architecture/technology.md` is the course lecturer's reference (`151d56a`) and stays untouched.
+  - `architecture/technology.md` is the course lecturer's reference (`151d56a`) and stays untouched. The review session corrected the BMAD session's premise here: the BMAD session had taken the file for a stray.
 - **The final prompt** asked for the review fixes in their own commit, then full verification: seed, `restore:documents`, e2e on one worker, and a count of synthetic leftovers.
 
 ## What came back, and what was done with it
@@ -71,7 +78,7 @@ Show which lever a gap sits on. "Margin eller kapitalbruk?" opens under Totalkap
 - **Checks:** `check:pins`, `lint` and `typecheck` are clean. `pnpm test`: 1670 passed.
 - **Seed:** `pnpm seed`, then `test:db` 200 passed and `test:ingest` 392 passed.
 - **`pnpm restore:documents`:** documents 2785, columns 5556, fingerprints 2537, classification rows 10371.
-- **`pnpm build`:** the first attempt stopped on Next.js's security-advisory check (`SecurityFatalError`), and the retry passed. `check:routes` is clean.
+- **`pnpm build`:** the first attempt stopped on Next.js's security-advisory check (`SecurityFatalError`), and the retry passed. No upgrade was made; issue [#71](https://github.com/IBE160-2026/G97-meinich/issues/71) tracks it as its own story. `check:routes` is clean.
 - **`pnpm test:e2e`:** 173 passed with 1 worker.
 - **Afterwards:** 0 synthetic companies, filings or documents remain, and the manifest holds no synthetic orgnr.
 

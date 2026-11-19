@@ -53,7 +53,8 @@ export type WaterfallColumn = {
 };
 
 export type WaterfallStepView = {
-  readonly key: WaterfallBar;
+  /** The bar's id on the page: its cost share's key (`vare`, `lonn`, `andre`) or `residual`, never an engine field name (AD-4). */
+  readonly key: 'vare' | 'lonn' | 'andre' | 'residual';
   readonly label: string;
   /** Signed whole kroner: "+1 019 571 kr", "−501 428 kr". */
   readonly value: string;
@@ -197,7 +198,7 @@ export function waterfallView({
     const side = figure === null ? null : rowSide(document[figure].comparison);
     const favourable = sign > 0n;
     return {
-      key: step.bar,
+      key: figure ?? 'residual',
       label: t(BAR_LABEL[step.bar]),
       value: formatSignedKroner(ore(step.kroner)),
       kind: step.bar === 'residual' ? 'residual' : favourable ? 'favourable' : 'unfavourable',

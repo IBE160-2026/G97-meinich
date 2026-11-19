@@ -34,56 +34,68 @@ function Legend({ view }: { readonly view: Shown }) {
   );
 }
 
-function NumbersTable({ view, companyName }: { readonly view: Shown; readonly companyName: string }) {
-  const cell = 'py-1.5 pr-2 align-top break-words';
+/**
+ * The "Vis tallene" table in its own scroll region (EXPERIENCE.md "Scroll
+ * container"), labelled by the table's caption: at 320 px its four columns
+ * can be wider than the screen, and the body never scrolls sideways. Figures
+ * never break inside a number; names wrap at spaces.
+ */
+function NumbersTable({ view, companyName, id }: { readonly view: Shown; readonly companyName: string; readonly id: string }) {
+  const cell = 'py-1.5 pr-3 align-top';
+  const figure = `figure ${cell} whitespace-nowrap`;
+  const captionId = `${id}-caption`;
   return (
-    <table className="w-full table-fixed border-collapse text-left text-[13px]" data-testid="waterfall-table">
-      <caption className="pb-1 text-left text-slate">{view.table.caption}</caption>
-      <thead>
-        <tr className="border-b border-divider text-slate">
-          <th scope="col" className={`${cell} w-[34%] font-semibold`}>
-            {view.table.heads.post}
-          </th>
-          <th scope="col" className={`${cell} font-semibold`}>
-            {companyName}
-          </th>
-          <th scope="col" className={`${cell} font-semibold`}>
-            {view.table.heads.all}
-          </th>
-          <th scope="col" className={`${cell} w-[30%] font-semibold`}>
-            {view.table.heads.kroner}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {view.table.rows.map((row) => (
-          <tr key={row.head} className="border-b border-divider">
-            <th scope="row" className={`${cell} font-normal`}>
-              {row.head}
+    <div role="region" tabIndex={0} aria-labelledby={captionId} className="scroll-region">
+      <table className="min-w-full border-collapse text-left text-[13px]" data-testid="waterfall-table">
+        <caption id={captionId} className="pb-1 text-left text-slate">
+          {view.table.caption}
+        </caption>
+        <thead>
+          <tr className="border-b border-divider text-slate">
+            <th scope="col" className={`${cell} font-semibold`}>
+              {view.table.heads.post}
             </th>
-            <td className={`figure ${cell}`}>{row.own}</td>
-            <td className={`figure ${cell}`}>{row.all}</td>
-            <td className={`figure ${cell}`}>{row.kroner}</td>
+            <th scope="col" className={`${cell} font-semibold`}>
+              {companyName}
+            </th>
+            <th scope="col" className={`${cell} font-semibold`}>
+              {view.table.heads.all}
+            </th>
+            <th scope="col" className={`${cell} font-semibold`}>
+              {view.table.heads.kroner}
+            </th>
           </tr>
-        ))}
-        <tr className="border-b border-divider">
-          <th scope="row" className={`${cell} font-normal`}>
-            {companyName}
-          </th>
-          <td className={`figure ${cell}`}>{view.table.end.own}</td>
-          <td className={`figure ${cell}`} />
-          <td className={`figure ${cell}`}>{view.table.end.kroner}</td>
-        </tr>
-        <tr>
-          <th scope="row" className={`${cell} font-normal`}>
-            {view.table.reference.head}
-          </th>
-          <td colSpan={3} className={`figure ${cell}`}>
-            {view.table.reference.text}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {view.table.rows.map((row) => (
+            <tr key={row.head} className="border-b border-divider">
+              <th scope="row" className={`${cell} font-normal`}>
+                {row.head}
+              </th>
+              <td className={figure}>{row.own}</td>
+              <td className={figure}>{row.all}</td>
+              <td className={figure}>{row.kroner}</td>
+            </tr>
+          ))}
+          <tr className="border-b border-divider">
+            <th scope="row" className={`${cell} font-normal`}>
+              {companyName}
+            </th>
+            <td className={figure}>{view.table.end.own}</td>
+            <td className={figure} />
+            <td className={figure}>{view.table.end.kroner}</td>
+          </tr>
+          <tr>
+            <th scope="row" className={`${cell} font-normal`}>
+              {view.table.reference.head}
+            </th>
+            <td colSpan={3} className={`figure ${cell}`}>
+              {view.table.reference.text}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -104,6 +116,7 @@ export function Waterfall({
       </p>
     );
   }
+  const numbersId = `kf-${layout === 'desktop' ? 'd' : 'p'}-wf-numbers`;
   return (
     <div data-testid="waterfall">
       <p className="m-0">
@@ -118,8 +131,8 @@ export function Waterfall({
         {layout === 'desktop' ? <WaterfallChart view={view} companyName={companyName} /> : <WaterfallRows view={view} companyName={companyName} />}
       </div>
       <Legend view={view} />
-      <ShowNumbers show={view.showNumbers} hide={view.hideNumbers} tableId={`kf-${layout === 'desktop' ? 'd' : 'p'}-wf-numbers`}>
-        <NumbersTable view={view} companyName={companyName} />
+      <ShowNumbers show={view.showNumbers} hide={view.hideNumbers} tableId={numbersId}>
+        <NumbersTable view={view} companyName={companyName} id={numbersId} />
       </ShowNumbers>
     </div>
   );

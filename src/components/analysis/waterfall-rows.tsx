@@ -49,9 +49,9 @@ function Row({
 }) {
   return (
     <li className="border-b border-divider py-2" data-wf-row={rowKey}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+      <div className="flex items-baseline justify-between gap-x-3">
         <span className="min-w-0 font-semibold break-words">{name}</span>
-        <span className="figure font-semibold whitespace-nowrap">{value}</span>
+        <span className="figure shrink-0 font-semibold whitespace-nowrap">{value}</span>
       </div>
       <p className="figure m-0 text-[13px] break-words text-slate">
         {direction !== null ? (

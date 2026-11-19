@@ -388,6 +388,26 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     await expect(payBody.getByTestId('distribution-strip')).toHaveCount(0);
   });
 
+  // Story 3.3: demo A is outside the demo data, so "Hva forklarer marginavviket?" reads "Ikke i demodataene".
+  test('the waterfall is not in the demo data', async ({ page }) => {
+    for (const [width, scope] of [
+      [1280, region],
+      [375, phone],
+    ] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
+      const button = scope(page).getByRole('button', { name: nb['keyFigures.foldout.waterfall'] });
+      await expect(button).toHaveAttribute('aria-expanded', 'false');
+      await button.click();
+      const body = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+      await expect(body).toBeVisible();
+      await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['analysis.figures.notInDataset']);
+      await expect(body.locator('svg')).toHaveCount(0);
+      await expect(body).not.toContainText(/\d\skr/);
+      await noSidewaysScroll(page);
+    }
+  });
+
   for (const width of [1280, 375, 320]) {
     test(`fold-outs: keyboard and phone (${width} px)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });

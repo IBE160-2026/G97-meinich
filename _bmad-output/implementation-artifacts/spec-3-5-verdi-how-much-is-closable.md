@@ -190,6 +190,11 @@ Each row ends with the test that must fail when its guard is removed. The implem
 
 ## Implementation Notes
 
+- **Copy beside N1–N12.** `verdi.share.under` "under 1" and `verdi.share.over` "over 99" fill `{n}`/`{andel}` at the ends ("ved under 1 % av gapet", "Median nås ved under 1 % av gapet. …"), the same words as N1, N2, N9 and N10; `verdi.share.percent` "{n} %" writes a share. Not in the approved list: for Meinich to confirm or reword.
+- **The synthetic subject has no median step.** Its group is the ten synthetic peers and seven seed companies in its band, and its driftsmargin (22 %) is above their median (20 %), so `e2e/synthetic-documents.spec.ts` asserts `above_median` first and checks the disabled step, its reason and the cards at 50, 100 and 75 %; demo A and B check the enabled step and the median amount.
+- **Counting `replaceState`.** Next.js's own state sync calls `history.replaceState` again after a page's call, with its internal `__NA` state; `e2e/verdi.spec.ts` counts only the page's calls.
+- **Props dropped.** `Oversikt` and `OversiktHero` no longer take `state`, and `TabLinks` and `PeerChangeLink` no longer take a server-built href: every link is built by `useAnalysisUrl`. `SmallCardView` gets `topNote`, so the capital card's top note can carry its link.
+
 ## Spec Change Log
 
 ## Review Triage Log

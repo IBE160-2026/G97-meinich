@@ -190,7 +190,7 @@ Each row ends with the test that must fail when its guard is removed. The implem
 
 ## Implementation Notes
 
-- **Copy beside N1–N12.** `verdi.share.under` "under 1" and `verdi.share.over` "over 99" fill `{n}`/`{andel}` at the ends ("ved under 1 % av gapet", "Median nås ved under 1 % av gapet. …"), the same words as N1, N2, N9 and N10; `verdi.share.percent` "{n} %" writes a share. Not in the approved list: for Meinich to confirm or reword.
+- **Copy beside N1–N12.** `verdi.share.under` "under 1" and `verdi.share.over` "over 99" fill `{n}`/`{andel}` at the ends ("ved under 1 % av gapet", "Median nås ved under 1 % av gapet. …"), the same words as N1, N2, N9 and N10; `verdi.share.percent` "{n} %" writes a share. Approved by Meinich after review (2026-11-19), with `verdi.step.medianNone`: N13–N15 in the Design Notes.
 - **The synthetic subject has no median step.** Its group is the ten synthetic peers and seven seed companies in its band, and its driftsmargin (22 %) is above their median (20 %), so `e2e/synthetic-documents.spec.ts` asserts `above_median` first and checks the disabled step, its reason and the cards at 50, 100 and 75 %; demo A and B check the enabled step and the median amount.
 - **Counting `replaceState`.** Next.js's own state sync calls `history.replaceState` again after a page's call, with its internal `__NA` state; `e2e/verdi.spec.ts` counts only the page's calls.
 - **Props dropped.** `Oversikt` and `OversiktHero` no longer take `state`, and `TabLinks` and `PeerChangeLink` no longer take a server-built href: every link is built by `useAnalysisUrl`. `SmallCardView` gets `topNote`, so the capital card's top note can carry its link.
@@ -215,9 +215,9 @@ Review 2026-11-19, three layers on the diff since `bdcb4834`: Blind Hunter (B), 
 | B9 | The identity fixture's comment promises "−0,5 kr", which no share produces | low | −150 øre gives −0,375, −0,75, −1,125 and −1,5 kr; the comment is wrong and the negative half at 0,5 kr is untested | patch |
 | B10 | No test drives the keyboard: arrows reaching the disabled step, wrap-around, Tab back to the checked step | medium | Only one `ArrowRight` in `e2e/verdi.spec.ts`; "focusable, reached by the arrow keys" (decision 3, EXPERIENCE) is unverified | patch |
 | B11 | No test reloads after a share change | low | Nothing shows the server renders the share `replaceState` wrote, nor that there is no hydration mismatch | patch |
-| B4 | `verdi.share.under` "under 1", `verdi.share.over` "over 99" (and the disabled label "Til medianen for driftsmargin") are copy outside N1–N12 | medium | They compose sentences nobody approved ("Viser under 1 % av gapet.") | intent_gap: held for Meinich at the presentation; no revert, the fix is strings in `nb.json` |
-| E2 | A peer change that removes the median step shows the invalid-settings notice | low | Real: the server falls back to 50 and signals it. Signalled, as AGENTS.md "No silent fallbacks" asks; a quiet fallback would break that and a new notice is new copy | reject; wording raised with Meinich |
-| B2 | Same as E2 | low | Same | reject (E2) |
+| B4 | `verdi.share.under` "under 1", `verdi.share.over` "over 99" (and the disabled label "Til medianen for driftsmargin") are copy outside N1–N12 | medium | They compose sentences nobody approved ("Viser under 1 % av gapet.") | resolved: Meinich approved all three (2026-11-19); Design Notes, N13–N15 |
+| E2 | A peer change that removes the median step shows the invalid-settings notice | low | Real: the server falls back to 50 and signals it. Signalled, as AGENTS.md "No silent fallbacks" asks; a quiet fallback would break that and a new notice is new copy | reject for v1 (Meinich, 2026-11-19: the notice stays); a notice of its own is in `deferred-work.md`, owned by Story 5.4 |
+| B2 | Same as E2 | low | Same | reject for v1 (E2); `deferred-work.md`, Story 5.4 |
 | E3 | The notice stays on screen after `replaceShare` rewrites the URL canonically | low | The notice stays true (a setting was reset); a reload correctly shows none | reject |
 | E4 | (11) with `target_not_positive` has no median line | false | Deliberate: a card without a usable target has no median line (EXPERIENCE "Above median" row, decision 4); a median line towards a non-positive turnover target would mean nothing | reject |
 | B5 | `applies` is decided by `endsWith` on the line | low | Developer-only fragility; `test/messages.test.ts` pins the texts, and the fix adds a wire field | reject |
@@ -249,6 +249,16 @@ Review 2026-11-19, three layers on the diff since `bdcb4834`: Blind Hunter (B), 
 | N10 | Median nås ved over 99 % |
 | N11 | Viser {andel} av gapet. |
 | N12 | Median: allerede nådd |
+
+**Added after review (Meinich, 2026-11-19, triage B4):**
+
+| | Key | Text |
+|---|---|---|
+| N13 | `verdi.share.under` | under 1 |
+| N14 | `verdi.share.over` | over 99 |
+| N15 | `verdi.step.medianNone` | Til medianen for driftsmargin |
+
+N13 and N14 fill `{n}` in `verdi.share.percent` "{n} %" where s_med rounds to 0 or 100, so a share reads "under 1 %" or "over 99 %" in N6, N7, N11 and the control's line, as in N1, N2, N9 and N10. N15 is the median step's label where there is none.
 
 **From the story and EXPERIENCE, verbatim:**
 - "Til medianen for driftsmargin ({n} %)"

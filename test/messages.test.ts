@@ -310,6 +310,9 @@ describe('Story 3.5 copy', () => {
     ['verdi.cardMedian.over', 'Median nås ved over 99 %'],
     ['verdi.announce.share', 'Viser {andel} av gapet.'],
     ['verdi.cardMedian.reached', 'Median: allerede nådd'],
+    // N13–N15, approved after review (Meinich, 2026-11-19)
+    ['verdi.share.under', 'under 1'],
+    ['verdi.share.over', 'over 99'],
   ] as const)('%s', (id, text) => {
     expect(nb[id]).toBe(text);
   });

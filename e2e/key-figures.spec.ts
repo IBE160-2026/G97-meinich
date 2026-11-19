@@ -368,6 +368,7 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     // Neither product of the factors is shown.
     for (const product of [margin.subject.mul(turnover.subject), margin.median.mul(turnover.median)]) {
       await expect(body).not.toContainText(formatPercent(product.toString()));
+      await expect(body).not.toContainText(formatTurnover(product.toString()));
     }
 
     // "Lønnsnivå eller produktivitet?": both factors not read in v1, with no median, count or strip.
@@ -397,7 +398,7 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
         const button = scope.getByRole('button', { name: nb[`keyFigures.foldout.${which}`] });
         await expect(button).toBeVisible();
         const body = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
-        // Closed by default; Enter opens it and Space closes it, from the keyboard.
+        // Closed by default; Enter and Space each open and close it, from the keyboard.
         await expect(button).toHaveAttribute('aria-expanded', 'false');
         await expect(body).toBeHidden();
         await button.focus();
@@ -421,6 +422,13 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
           expect(box.x + box.width).toBeLessThanOrEqual(width);
         }
         await noSidewaysScroll(page);
+        // Each key both ways: Enter closes, Space opens and closes.
+        await page.keyboard.press('Enter');
+        await expect(button).toHaveAttribute('aria-expanded', 'false');
+        await expect(body).toBeHidden();
+        await page.keyboard.press('Space');
+        await expect(button).toHaveAttribute('aria-expanded', 'true');
+        await expect(body).toBeVisible();
         await page.keyboard.press('Space');
         await expect(button).toHaveAttribute('aria-expanded', 'false');
         await expect(body).toBeHidden();

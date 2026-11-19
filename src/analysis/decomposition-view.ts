@@ -28,6 +28,8 @@ import { formatPercent, formatTurnover } from '../engine/format.ts';
 import { MIN_PEERS, type Comparison, type Direction } from '../engine/types.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
+// key-figure-rows.ts calls this module too; the cycle is safe because neither calls the other at load time.
+import { middleHalfText } from './key-figure-rows.ts';
 import { DIRECTION_WORDS, stripMarks, type StripMarks } from './strip-marks.ts';
 
 /** A factor compared against its own peers: its value, their median, its count and its strip. */
@@ -39,6 +41,8 @@ export type ComparedFactorView = {
   /** "{n} sammenlignbare brukt · {k} utelatt": this factor's own count. */
   readonly counts: string;
   readonly strip: StripMarks;
+  /** The strip is aria-hidden, so the quartiles are text too: "Midtre halvdel: {lo}–{hi} %" or "Midtre halvdel: {lo}–{hi}". */
+  readonly middleHalf: string;
   /** "↑ Høyere er bedre" for driftsmargin, "Ingen retning" for turnover. */
   readonly direction: string;
 };
@@ -78,6 +82,8 @@ type Factor = {
   readonly comparison: Comparison;
   readonly direction: Direction;
   readonly format: (value: string) => string;
+  /** The unit `middleHalfText` writes the midtre halvdel in. */
+  readonly unit: 'percent' | 'turnover';
   /** The words for a zero or negative denominator. */
   readonly denominator: MessageId;
 };
@@ -104,7 +110,8 @@ function factorView(factor: Factor, filingYear: number): FactorView {
   // Each factor is read against its own median: the strip draws no beste
   // fjerdedel, which for driftsmargin stays in its row (decision 3).
   const strip: StripMarks = { ...stripMarks(c, factor.direction), best: null };
-  return { label, own, median: factor.format(c.median.toString()), counts, strip, direction };
+  const middleHalf = middleHalfText(c.lowerQuartile.toString(), c.upperQuartile.toString(), true, factor.unit);
+  return { label, own, median: factor.format(c.median.toString()), counts, strip, middleHalf, direction };
 }
 
 /**
@@ -151,6 +158,7 @@ export function decompositionView({
             comparison: api.driftsmargin.comparison,
             direction: api.driftsmargin.direction,
             format: formatPercent,
+            unit: 'percent',
             denominator: 'analysis.figures.reason.revenueNotPositive',
           },
           filingYear,
@@ -161,6 +169,7 @@ export function decompositionView({
             comparison: turnover.comparison,
             direction: TOTAL_ASSET_TURNOVER_DIRECTION,
             format: formatTurnover,
+            unit: 'turnover',
             denominator: 'analysis.figures.reason.assetsNotPositive',
           },
           filingYear,

@@ -33,6 +33,7 @@ function Factor({ factor, companyName }: { readonly factor: FactorView; readonly
       {'strip' in factor ? (
         <div className="mt-1">
           <DistributionStrip marks={factor.strip} fluid />
+          <span className="figure mt-1 block text-[13px] text-slate">{factor.middleHalf}</span>
         </div>
       ) : null}
       {'belowFloor' in factor ? <p className="m-0 mt-1 text-[13px] text-slate italic">{factor.belowFloor}</p> : null}

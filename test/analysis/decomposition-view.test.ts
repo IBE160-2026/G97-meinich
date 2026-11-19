@@ -70,22 +70,27 @@ describe('the margin decomposition', () => {
   it('turnover has no best, Plassering or kroner', () => {
     const [margin, turnover] = view().margin.factors;
     // Exactly these fields: no beste fjerdedel, no Plassering, no percentile, no gap.
-    expect(keys(turnover)).toEqual(['counts', 'direction', 'label', 'median', 'own', 'strip']);
+    expect(keys(turnover)).toEqual(['counts', 'direction', 'label', 'median', 'middleHalf', 'own', 'strip']);
     if (!('strip' in turnover)) throw new Error('turnover is compared');
     expect(turnover.own).toBe('2,50');
     // PERCENTILE.INC at 0,5 of 0,1 … 1 by tenths' reciprocals: (1/5 + 1/6) / 2 = 0,1833… → 0,18.
     expect(turnover.median).toBe('0,18');
     expect(turnover.counts).toBe('10 sammenlignbare brukt · 0 utelatt');
     expect(turnover.direction).toBe(nb['keyFigures.dir.none']);
+    // The strip is aria-hidden: the midtre halvdel is text too (Spec Change Log, 2026-11-19).
+    // PERCENTILE.INC at 0,25 and 0,75 of 1/10 … 1: 0,1(3)… → 0,13 and 0,3125 → 0,31.
+    expect(turnover.middleHalf).toBe('Midtre halvdel: 0,13–0,31');
     expect(turnover.strip.best).toBeNull();
     expect(turnover.strip.mirrored).toBe(false);
     expect(strings(turnover)).not.toMatch(/bedre enn|beste fjerdedel|kr\b|kronebeløp|engangsbeløp/i);
     // The driftsmargin factor has the same fields: its beste fjerdedel,
     // Plassering and kroner stay in the Driftsmargin row (decision 3).
-    expect(keys(margin)).toEqual(['counts', 'direction', 'label', 'median', 'own', 'strip']);
+    expect(keys(margin)).toEqual(['counts', 'direction', 'label', 'median', 'middleHalf', 'own', 'strip']);
     if (!('strip' in margin)) throw new Error('driftsmargin is compared');
     expect(margin.own).toBe(`2,1${NBSP}%`);
     expect(margin.median).toBe(`5,5${NBSP}%`);
+    // 1 % … 10 %: lower quartile 3,25 %, upper quartile 7,75 %.
+    expect(margin.middleHalf).toBe(`Midtre halvdel: 3,3–7,8${NBSP}%`);
     expect(margin.direction).toBe(nb['keyFigures.dir.higher']);
     // Its strip draws no beste fjerdedel either: that stays in the row.
     expect(margin.strip.best).toBeNull();
@@ -128,6 +133,12 @@ describe('the margin decomposition', () => {
     expect(turnover.own).toBe('2,50');
   });
 
+  it('an undefined driftsmargin factor reads its reason, as its row', () => {
+    const [margin] = view(PEERS, { ...SUBJECT, sumDriftsinntekter: 0n }).margin.factors;
+    expect(keys(margin)).toEqual(['detail', 'label', 'own']);
+    expect(margin.own).toBe(`Kan ikke beregnes: ${nb['analysis.figures.reason.revenueNotPositive']}`);
+  });
+
   it('an undefined factor reads its reason', () => {
     const [margin, turnover] = view(PEERS, { ...SUBJECT, sumEiendeler: 0n }).margin.factors;
     expect('median' in margin).toBe(true);
@@ -137,6 +148,22 @@ describe('the margin decomposition', () => {
 });
 
 describe('the pay decomposition', () => {
+  it('refuses a pay factor that is not "not read in v1"', () => {
+    const document = benchmarkDocumentFigures(daysBasis(50n, 5n), TEN_PEERS, 'NOK');
+    const read = {
+      ...document,
+      lonnArsverk: { ...document.lonnArsverk, comparison: document.vare.comparison },
+    };
+    expect(() =>
+      decompositionView({
+        api: benchmarkApiFigures(SUBJECT, PEERS, 'NOK'),
+        turnover: benchmarkTotalAssetTurnover(SUBJECT, PEERS),
+        document: read,
+        filingYear: 2025,
+      }),
+    ).toThrow('the pay factors are not read in v1');
+  });
+
   it('pay factors are not read in v1 and carry no median', () => {
     for (const basis of [daysBasis(50n, 5n), NOT_IN_DATASET, FAILED]) {
       const pair = view(PEERS, SUBJECT, basis).pay;

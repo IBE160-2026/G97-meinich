@@ -33,7 +33,7 @@ export function DistributionStrip({
   fluid = false,
 }: {
   readonly marks: StripMarks;
-  /** Scale with its container, up to 240 px wide, instead of a fixed 160 px (a decomposition's factor, Story 3.2). */
+  /** Scale with its container, up to its native 160 px, instead of a fixed 160 px (a decomposition's factor, Story 3.2). */
   readonly fluid?: boolean;
 }) {
   const own = x(marks.own.at);
@@ -49,7 +49,7 @@ export function DistributionStrip({
         height={fluid ? undefined : HEIGHT}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         focusable="false"
-        className={fluid ? 'block h-auto w-full max-w-60 min-w-0' : 'block shrink-0'}
+        className={fluid ? 'block h-auto w-full max-w-40 min-w-0' : 'block shrink-0'}
       >
         <rect x={PAD} y={TRACK_Y} width={WIDTH - 2 * PAD} height={TRACK_H} rx={2} fill="var(--color-divider)" />
         <rect x={from} y={TRACK_Y} width={Math.max(to - from, 1)} height={TRACK_H} rx={2} fill="var(--color-band)" />

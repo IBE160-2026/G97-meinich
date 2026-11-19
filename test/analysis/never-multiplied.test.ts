@@ -2,15 +2,19 @@
 // docs/key-figures.md, "Decompositions"): the median driftsmargin × the
 // median total asset turnover is not the median return on assets, and the
 // subject's own product is totalkapitalrentabilitet, which its row shows.
-// So nothing in `src/` may compute a product that involves a factor.
+// So nothing in `src/` or `scripts/` may compute a product that involves a
+// factor.
 //
-// The scan reads every TypeScript module under `src/` with the compiler's
+// The scan reads every TypeScript module under `src/` and `scripts/` with the compiler's
 // parser and finds each multiplication: `*`, `*=`, and calls of `.mul(`,
 // `.times(` or `multiply(`. A multiplication involves a factor when
 // - it sits in a module that is only about the factors
 //   (`FACTOR_MODULES`: every multiplication there is one), or
 // - the smallest function around it (or, outside any function, its
 //   top-level statement) names a factor (`FACTOR_NAMES`).
+// The scan matches names in the enclosing function, not data flow: a product
+// computed by a helper that takes plain Decimals passed in from elsewhere
+// names no factor and is not caught.
 // Only the decomposition factors are covered: the capital kroner of 9–11
 // and every other legitimate product name no factor and are not caught.
 // The one legitimate product of the factors, the identity ROA = margin ×
@@ -22,6 +26,7 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 const SRC = path.join(ROOT, 'src');
+const SCRIPTS = path.join(ROOT, 'scripts');
 
 /** The identifiers that name a decomposition factor, its benchmark or its view. */
 const FACTOR_NAMES: ReadonlySet<string> = new Set([
@@ -104,8 +109,8 @@ function namesAFactor(scope: ts.Node): boolean {
   return found;
 }
 
-/** Every multiplication in `src/` that involves a factor, as `file:line: text`. */
-function factorProducts(files: readonly string[] = sourceFiles(SRC)): string[] {
+/** Every multiplication in `src/` and `scripts/` that involves a factor, as `file:line: text`. */
+function factorProducts(files: readonly string[] = [...sourceFiles(SRC), ...sourceFiles(SCRIPTS)]): string[] {
   const found: string[] = [];
   for (const file of files) {
     const relative = path.relative(ROOT, file).split(path.sep).join('/');

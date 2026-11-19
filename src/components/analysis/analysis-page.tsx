@@ -43,7 +43,7 @@ import { ApiFigures } from '@/components/analysis/api-figures';
 import { CompanyHeader } from '@/components/analysis/company-header';
 import { KeyFigureTable } from '@/components/analysis/key-figure-table';
 import { AnalysisLoading } from '@/components/analysis/analysis-loading';
-import { OversiktHero } from '@/components/analysis/oversikt-hero';
+import { Oversikt } from '@/components/analysis/oversikt';
 import { PeerChangeAlert, PeerChangeCommit, PendingBody } from '@/components/analysis/peer-change';
 import { PeerList } from '@/components/analysis/peer-list';
 import { SettingsNotice } from '@/components/analysis/settings-notice';
@@ -201,14 +201,11 @@ function Covered({
         </h2>
         <PeerChangeAlert />
         <PendingBody>
-          {view.fane === 'oversikt' ? (
-            <OversiktHero
-              figure={group.benchmark.driftsmargin}
+          {view.fane === 'oversikt' && subject.filing !== null ? (
+            <Oversikt
+              group={group}
+              subject={{ name: displayName(subject), keyFigures: subject.filing.keyFigures, documentBasis: subject.filing.documentBasis }}
               state={state}
-              emptyReason={group.emptyReason}
-              filingYear={group.filingYear}
-              valuta={group.valuta}
-              unstatedField={group.unstatedField}
             />
           ) : null}
           {peers !== null ? (

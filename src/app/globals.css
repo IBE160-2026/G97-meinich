@@ -193,3 +193,33 @@
     background-color: Highlight;
   }
 }
+
+/*
+ * The beeswarm's marks under forced colours (Story 3.4; EXPERIENCE.md
+ * "Accessibility Floor"): the system replaces every colour, so each mark
+ * keeps its own look in the system's colours. Peer dots are filled in the
+ * text colour, the company is filled in Highlight with a text-coloured
+ * outline, the median is a dashed line and beste fjerdedel a hollow
+ * triangle. They also differ by shape, as everywhere (DESIGN.md "Shapes").
+ */
+@media (forced-colors: active) {
+  .bs-mark {
+    forced-color-adjust: none;
+  }
+  .bs-mark[data-mark='peer'] {
+    fill: CanvasText;
+    stroke: Canvas;
+  }
+  .bs-mark[data-mark='company'] {
+    fill: Highlight;
+    stroke: CanvasText;
+  }
+  .bs-mark[data-mark='median'] {
+    stroke: CanvasText;
+    stroke-dasharray: 3 2;
+  }
+  .bs-mark[data-mark='best'] {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+}

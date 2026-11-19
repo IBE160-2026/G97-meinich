@@ -102,7 +102,7 @@ context:
 - [x] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE.md -- approved keys verbatim, in one commit.
 - [x] `src/components/analysis/fold-out.tsx`, `factor-pair.tsx`, `key-figure-table.tsx` + `test/analysis/fold-out.test.ts`, KT -- the component, placement and the factor pair.
 - [x] `e2e/key-figures.spec.ts`, `e2e/peer-adjust.spec.ts` -- compared, keyboard, phone, below the floor.
-- [x] `docs/ai-log.md` (what can go wrong with factors side by side), `deferred-work.md` (decision 5), epics.md / DESIGN.md / EXPERIENCE.md / technical note / `architecture/technology.md` (decisions 1, 2: every current-state shadcn mention, EXPERIENCE :220 and :320; dated reviews and memlogs are records and stay), PRD if FR-26 or a shadcn mention is affected.
+- [x] `docs/ai-log.md` (what can go wrong with factors side by side), `deferred-work.md` (decision 5), epics.md / DESIGN.md / EXPERIENCE.md / technical note (decisions 1, 2: every current-state shadcn mention, EXPERIENCE :220 and :320; dated reviews and memlogs are records and stay), PRD if FR-26 or a shadcn mention is affected.
 
 **Acceptance Criteria:**
 - Given the PR, then it states what could go wrong with factors of money figures shown side by side, and with multiplying them, with the reasoning in `docs/ai-log.md`. It credits the review session's contributions and has a "Planning documents:" line.
@@ -112,7 +112,43 @@ context:
 
 ## Spec Change Log
 
+- **2026-11-19, Meinich: each compared factor also shows its midtre halvdel as text** (review pass 1, triage row 2, found by the Blind Hunter review layer).
+  - Decision 3 and the matrix row "Derived factor" fixed a compared factor's fields as label, own, median, counts, strip and direction.
+  - The strip draws the midtre halvdel band but is `aria-hidden`, and no text gave the quartiles. EXPERIENCE "Distribution strip" hides strips only because the cells carry that text.
+  - Each compared factor now has one more field, `middleHalf`, with the existing labelled text: "Midtre halvdel: {lo}–{hi} %" for driftsmargin and "Midtre halvdel: {lo}–{hi}" for total asset turnover, from `middleHalfText`. There is no new wording.
+  - Still absent: beste fjerdedel, Plassering and kroner.
+  - KEEP: everything else in the factor views.
+- **2026-11-19, Meinich: the driftsmargin factor's direction text is "↑ Høyere er bedre", not "Bedre →"** (review pass 1, triage row 3, found by the Edge Case Hunter review layer).
+  - Decision 3 wrote "direction text ("Bedre →")", a wording taken over from the BMAD session's checkpoint summary.
+  - "Bedre →" is drawn only on a mirrored strip, that is, where lower is better. Driftsmargin is not mirrored.
+  - The code shows the table's direction words, and Meinich accepted it: "↑ Høyere er bedre" for driftsmargin and "Ingen retning" for total asset turnover. The code does not change.
+- **2026-11-19, Meinich: `_bmad-output/planning-artifacts/architecture/technology.md` is out of scope.**
+  - It is the course lecturer's (Bård Pettersen's) reference for the architecture work, added in `151d56a`, and stays untouched.
+  - It is removed from the docs task. Before this, that task listed it as a planning document to correct.
+
 ## Review Triage Log
+
+Review pass 1 (2026-11-18): Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG), all run by the BMAD session.
+
+| # | Source | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|---|
+| 1 | VG | The driftsmargin factor's text when the margin cannot be computed is untested, and its denominator id is duplicated from the row. | low | "an undefined factor reads its reason" sets only `sumEiendeler: 0n`. Nothing puts driftsmargin in `subject_absent` and reads the fold-out. | patch (test) |
+| 2 | BH | A compared factor's strip draws the midtre halvdel band, is `aria-hidden`, and no text gives the quartiles. | medium | EXPERIENCE "Distribution strip" hides the strip only because the cells carry the midtre halvdel text. The factor view has no such field. Decision 3 and the matrix fix the fields, so adding one renegotiates the frozen block. | patch (Meinich, 2026-11-19: option A; Spec Change Log) |
+| 3 | ECH | Decision 3 says direction text "Bedre →"; the driftsmargin factor shows "↑ Høyere er bedre". | low | "Bedre →" is drawn only on a mirrored strip (`distribution-strip.tsx:98`), and driftsmargin is not mirrored, so the code follows the table's words. The frozen wording came from the checkpoint summary. | accept code (Meinich, 2026-11-19; Spec Change Log) |
+| 4 | BH | UX-DR22 in epics.md still says the pay pair uses UX-DR21's pattern and gating. | low | Decision 2: in v1 both pay factors are not read, with no median, strip or count. | patch (docs) |
+| 5 | BH | DESIGN.md "Factor pair" still describes bordered boxes with "Fjordkode x · median y". | low | The code has no border and uses a `<dl>`. | patch (docs) |
+| 6 | BH | The pay fold-out sits inside the cost-share `<tbody>`, under its row-group heading. | low | This is matrix row "Placement": desktop, its own `tr` right after the figure row. A fix edits the frozen spec. | reject |
+| 7 | BH, ECH | `payFactorView` throws (500 for the tab), and the guard has no test. | low | No input reaches it: 7 and 8 are `not_read_in_v1` on every basis (`document-absence.ts:85`). A loud failure on an unreachable state is correct, but AGENTS.md wants a test for every guard. | patch (test) |
+| 8 | BH, ECH | The no-product scan reads only `src/` and matches names, not data flow. | low | `scripts/` names no factor today. Adding `scripts/` is one entry. The name-based limit is stated in the ai-log, not in the test header. | patch (scan `scripts/`, note the limit) |
+| 9 | BH | The e2e no-product check formats only as a percent. | low | The unit test also checks `formatTurnover`. | patch |
+| 10 | BH | No e2e test covers the fold-outs for a subject in the demo data. | low | Unit fixtures cover every basis. One assertion in `e2e/synthetic-documents.spec.ts` adds the in-dataset case. | patch |
+| 11 | BH | `turnoverBenchmark` sits in `DOCUMENT_SERVER_FIELDS`, though it is an API figure. | low | Both lists are scanned on every tab (`e2e/payload.ts:95`, :133), so nothing leaks, but the name misleads. | patch (move to `SERVER_FIELDS`) |
+| 12 | BH | No session file, no end hash in the ai-log Outcome, and no tracking for `architecture/technology.md`. | low | The session file and PR come at the end. The Outcome names no end hash. `technology.md` is the course lecturer's (Bård Pettersen's) reference for the architecture work, added in `151d56a`. It stays untouched, and nothing tracks it for removal (Meinich, 2026-11-19). | patch (Outcome); session file at presentation; technology.md: reject |
+| 13 | BH, ECH | Desktop and phone fold-outs keep separate open state. | low | This is the same two-table pattern as 3.1b's phone rows. It matters only when the viewport crosses `md`, and the fix lifts state across a server component. | reject |
+| 14 | BH | The fluid strip scales up to 1.5× at 240 px, so the track is thicker than the table's. | low | `max-w-60` against a 160 px viewBox. Capping at 160 px (`max-w-40`) is a direct correction. | patch |
+| 15 | BH | The keyboard e2e uses Enter only to open and Space only to close. | low | `e2e/key-figures.spec.ts:400-424`. | patch (both keys both ways) |
+| 16 | ECH | `floorSubject` with 30 peers needs 21 exclusions, more than `MAX_EKSKL`. | false | The test throws with a clear message in that case (`peer-adjust.spec.ts:494-501`). It is not misleading, and the seeded subject passed. | reject |
+| 17 | ECH | The turnover factor's `subject_absent` branch in "factors below the floor" is never taken. | low | It is a defensive branch for a seed state that does not occur. The unit test covers the absent text. | reject |
 
 ## Design Notes
 

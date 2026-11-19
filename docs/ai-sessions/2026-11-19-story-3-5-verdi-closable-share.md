@@ -16,7 +16,7 @@
 - **Review fixes:** `1930f9d` and `f8e0cae`.
 - **Copy approved after review, and the deferred notice:** `c0b1307`.
 - **Planning:** the epic context `060d88e`; the planning documents `4b519ff`.
-- **PR:** not opened; it waits for Meinich.
+- **PR:** [#78](https://github.com/IBE160-2026/G97-meinich/pull/78), opened when Meinich said so.
 
 ## Goal
 
@@ -105,7 +105,7 @@ Open the Verdi tab:
 - **Checks:** lint and typecheck clean. `pnpm test`: 1874 passed, with the default worker count (the `--maxWorkers=2` fallback was not needed).
 - **Seed:** `pnpm seed`, then `test:db` (200 passed) and `test:ingest` (392 passed).
 - **`pnpm restore:documents` after the last seed:** documents 2785, columns 5556, fingerprints 2537, classification rows 10371.
-- **`pnpm build`:** stopped with `SecurityFatalError` ("Your version of Next.js is affected by a known security vulnerability.") on the first try and passed on the rerun; the implementation run saw the same twice. No upgrade (#71). `check:routes` is clean.
+- **`pnpm build`:** stopped with `SecurityFatalError` ("Your version of Next.js is affected by a known security vulnerability.") on the first try and passed on the rerun; the implementation run saw the same twice. No upgrade; noted on [#71](https://github.com/IBE160-2026/G97-meinich/issues/71#issuecomment-7018464157). `check:routes` is clean.
 - **E2e, one worker, one project at a time:**
   - `chromium`: 175 passed;
   - `db-down`: 7 passed;

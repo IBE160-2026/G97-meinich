@@ -2,7 +2,7 @@
 title: 'Story 3.4: The rest of Oversikt'
 type: 'feature'
 created: '2026-11-19'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'bb3f9326adafdd57066cf9c0d94df7038d85637c'
 route: 'dispatch'
 review_loop_iteration: 0

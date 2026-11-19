@@ -248,3 +248,15 @@ The capital cards' value is "{a} av {full}", with N7 under it.
 
 **Manual checks:**
 - Verdi at 1280, 375 and 320 px for demo A and the synthetic subject.
+
+**The implementation report shows** (Meinich, 2026-11-19), with each removal undone afterwards:
+- for every matrix row, the guard removed and the named test's failing output;
+- the rounding test failing with "999 kr" instead of "1 000 kr" when `profitAtMedian` is replaced by full × s_med;
+- the B6 test failing when the provider parses with `PATH_CONTEXT`, and the rejected-`ekskl` tests still green;
+- the Verdi scan failing when a value outside the wire set is added, and the Oversikt scan unchanged (`git diff` of its lines);
+- the identity test failing when the formatting changes on one side only;
+- NDC "a scale sums nothing" failing on its probe;
+- the four counts after `pnpm restore:documents`, and zero synthetic remains;
+- what Verdi adds to the payload, as totals only (HTML and RSC bytes for demo A's Verdi against its Oversikt).
+
+**Commits:** small, one logical step each, each type-checking, as the Tasks list them. Never push.

@@ -231,6 +231,8 @@ describe('the cards', () => {
         // "{a} av {full}…": the amount at the share and the full amount, in øre-free kroner.
         return [...card.value.text.matchAll(/(\d[\d ]*) kr/g)].map((match) => BigInt((match[1] ?? '').replaceAll(' ', '')));
       });
+      // The fixture's state: each card shows its amount at the share and its full amount.
+      expect(amounts.map((pair) => pair.length), String(share)).toEqual([2, 2, 2]);
       const shown = amounts.flat();
       // Every pair and the triple, of the amounts at the share and of the full ones.
       for (const index of [0, 1]) {
@@ -278,6 +280,13 @@ describe('the cards', () => {
     expect(verdiCards(wireOf({ lgd: { comparison: compared('higher_is_better', '20', '39.999', '40') } }), 50).workingCapital.parts[1]?.median).toBe(
       nb['verdi.cardMedian.over'],
     );
+  });
+
+  it('a card whose median equals its beste fjerdedel reaches it at 100 %', () => {
+    // Fixture: (10) at 20 against a median and beste fjerdedel both 40, so its own share is exactly 1.
+    const view = verdiCards(wireOf({ lgd: { comparison: compared('higher_is_better', '20', '40', '40') } }), 50);
+    expect(view.workingCapital.parts[1]?.median).toBe(t('verdi.cardMedian.share', { x: '100' }));
+    expect(view.workingCapital.parts[1]?.median).not.toBe(nb['verdi.cardMedian.over']);
   });
 
   it('a strength reads the story’s sentence', () => {

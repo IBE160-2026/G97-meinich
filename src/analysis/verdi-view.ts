@@ -120,9 +120,13 @@ function medianLine(comparison: Comparison, direction: Direction, card: 'profit'
   if (share === null) return null;
   if (share.kind === 'reached') return t(card === 'profit' ? 'verdi.cardMedian.above' : 'verdi.cardMedian.reached');
   const percent = share.share.mul(100).toString();
-  const whole = wholePercent(percent);
-  if (whole.eq(0)) return t('verdi.cardMedian.under');
-  if (whole.eq(100)) return t('verdi.cardMedian.over');
+  // N9 and N10 only for a share strictly between 0 and 1 that rounds to an end; at exactly 1
+  // (the figure's median equals its beste fjerdedel) the median is reached at 100 %.
+  if (share.share.lt(1)) {
+    const whole = wholePercent(percent);
+    if (whole.eq(0)) return t('verdi.cardMedian.under');
+    if (whole.eq(100)) return t('verdi.cardMedian.over');
+  }
   return t('verdi.cardMedian.share', { x: formatWholePercentNumber(percent) });
 }
 
@@ -347,7 +351,7 @@ export function verdiCards(wire: VerdiWire, share: ClosableShare): VerdiCardsVie
       ? { share: step, label: t('verdi.step.medianNone'), disabled: true }
       : { share: step, label: medianStepLabel(sMed), disabled: false };
   });
-  const line = sMed === null ? (wire.step.kind === 'none' ? wire.step.reason : '') : t('verdi.median.share', { n: medianPercentNumber(sMed) });
+  const line = wire.step.kind === 'exists' ? t('verdi.median.share', { n: medianPercentNumber(fromWire(wire.step.sMed)) }) : wire.step.reason;
   const appliesText = t('verdi.median.applies');
 
   let profit: CardView;

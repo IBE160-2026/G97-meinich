@@ -6,13 +6,21 @@
 // engine's, computed here from the seed (e2e/seed.ts), with the median
 // step's profit as (M − r) × revenue; each fixture's state is asserted
 // before it is used.
+//
+// Story 3.6 (FR-32, FR-55): the EV/EBIT multiple field and "Økt
+// selskapsverdi": empty by default, a valid entry written to the URL with
+// the same one `history.replaceState` and announced once, an invalid one
+// shown as an error with `multippel` removed, the multiple kept by a share
+// change and a reload, the payload unchanged with a multiple, and the
+// phone. Every read after a `replaceState` change first waits for the
+// change to render (PR #78).
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 import { medianStep } from '../src/engine/closable.ts';
 import { Decimal } from '../src/engine/decimal.ts';
-import { formatKronerExact, formatWholePercentNumber } from '../src/engine/format.ts';
+import { formatKronerExact, formatMultiple, formatWholePercentNumber, wholeKroner } from '../src/engine/format.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { computeApiKeyFigures, resolveApiInputs } from '../src/engine/key-figures.ts';
 import { expectNoPeerFields, expectWireSet } from './payload.ts';
@@ -50,14 +58,69 @@ function profitOracle(orgnr: string) {
     percent: formatWholePercentNumber(step.share.mul(100).toString()),
     full: kr(full),
     at: (share: number | 'median') => kr(share === 'median' ? atMedian : full.mul(share).div(100)),
+    /** The exact profit uplift at a share, in øre. */
+    exactAt: (share: number | 'median') => (share === 'median' ? atMedian : full.mul(share).div(100)),
     fullExact: full,
   };
+}
+
+/**
+ * Story 3.6: EV at a share and a multiple (as the URL writes it, "6.5"), rounded once from the exact
+ * uplift × m, and whether its product line is approximate: U × m ≠ V, U and V the displayed kroner.
+ */
+function evOracle(oracle: ReturnType<typeof profitOracle>, share: number | 'median', m: string) {
+  const exact = oracle.exactAt(share);
+  const value = exact.mul(m);
+  const shownUplift = wholeKroner(exact.toString());
+  return {
+    a: formatKronerExact(exact.toString()),
+    m: formatMultiple(m),
+    v: formatKronerExact(value.toString()),
+    approximate: !shownUplift.mul(m).eq(wholeKroner(value.toString())),
+  };
+}
+
+/** Records every call the page's own code makes to window.history.replaceState (see "a share change …"). */
+async function countReplaceState(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __replaced: string[] };
+    w.__replaced = [];
+    const wrapped = window.history.replaceState.bind(window.history);
+    window.history.replaceState = (data: unknown, unused: string, url?: string | URL | null) => {
+      const internal = typeof data === 'object' && data !== null && '__NA' in data;
+      if (!internal) w.__replaced.push(String(url ?? ''));
+      wrapped(data, unused, url);
+    };
+  });
+}
+
+async function replaced(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __replaced: string[] }).__replaced);
+}
+
+/** Records every non-empty text the multiple field's status region takes, from now on: one per announcement. */
+async function recordAnnouncements(page: Page): Promise<void> {
+  await page.getByTestId('multiple-status').evaluate((region) => {
+    const w = window as unknown as { __announced: string[] };
+    w.__announced = [];
+    new MutationObserver(() => {
+      const text = region.textContent ?? '';
+      if (text !== '') w.__announced.push(text);
+    }).observe(region, { childList: true, subtree: true, characterData: true });
+  });
+}
+
+async function announced(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __announced: string[] }).__announced);
 }
 
 const control = (page: Page) => page.getByRole('radiogroup', { name: nb['verdi.control.label'] });
 const step = (page: Page, share: number | 'median') => control(page).locator(`[data-share-step="${share}"]`);
 const card = (page: Page, id: string) => rendered(page).getByTestId(id);
 const profitValue = (page: Page) => card(page, 'verdi-profit').locator('[data-card="amount"]');
+const evSection = (page: Page) => rendered(page).getByTestId('verdi-ev');
+const evField = (page: Page) => evSection(page).getByRole('textbox', { name: nb['verdi.ev.label'] });
+const ev = (page: Page, part: 'value' | 'product' | 'explanation' | 'empty' | 'reason') => evSection(page).locator(`[data-ev="${part}"]`);
 
 const DEMOS = DEMO_COMPANIES.map((demo) => ({ ...demo, oracle: profitOracle(demo.orgnr) }));
 const DEMO_A = ((): (typeof DEMOS)[number] => {
@@ -254,6 +317,168 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 });
 
+test.describe('EV/EBIT (Story 3.6)', () => {
+  test('EV: empty by default', async ({ page }) => {
+    const { orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    // The fixture's state: demo A's profit card has an amount, so the field is enabled.
+    await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: DEMO_A.oracle.at(50), full: DEMO_A.oracle.full }));
+    await expect(evSection(page).getByRole('heading', { level: 3 })).toHaveText(nb['verdi.ev.kicker']);
+    await expect(evField(page)).toHaveValue('');
+    await expect(evField(page)).not.toHaveAttribute('placeholder', /.*/);
+    await expect(evField(page)).not.toHaveAttribute('aria-disabled', /.*/);
+    await expect(evField(page)).toHaveAttribute('inputmode', 'decimal');
+    await expect(ev(page, 'empty')).toHaveText(nb['verdi.ev.empty']);
+    await expect(ev(page, 'value')).toHaveCount(0);
+    await expect(ev(page, 'product')).toHaveCount(0);
+    await expect(page.getByTestId('multiple-status')).toHaveText('');
+  });
+
+  test('EV: a multiple replaces the URL, announces once', async ({ page }) => {
+    const { oracle, orgnr, navn } = DEMO_A;
+    const expected = evOracle(oracle, 50, '6.5');
+    // The fixture's state: at 50 % × 6,5 demo A's shown uplift × 6,5 is not the shown value, so "≈".
+    expect(expected.approximate).toBe(true);
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    await countReplaceState(page);
+    await recordAnnouncements(page);
+    const lengthBefore = await page.evaluate(() => window.history.length);
+    await evField(page).fill('6,5');
+    // Not per keystroke: nothing is written or announced before Enter.
+    expect(await replaced(page)).toEqual([]);
+    await evField(page).press('Enter');
+    await expect.poll(() => new URL(page.url()).search).toBe('?multippel=6.5');
+    // Wait for the change to render before any one-shot read (PR #78).
+    await expect(ev(page, 'value')).toHaveText(expected.v);
+    await expect(ev(page, 'product')).toHaveText(fill('verdi.ev.productApprox', { a: expected.a, m: expected.m, v: expected.v }));
+    await expect(ev(page, 'explanation')).toHaveText(nb['verdi.ev.explanation']);
+    await expect(ev(page, 'empty')).toHaveCount(0);
+    await expect(evField(page)).toBeFocused();
+    await expect(evField(page)).toHaveValue('6,5');
+    await expect(page.getByTestId('multiple-status')).toHaveText(fill('verdi.ev.announce', { v: expected.v }));
+    // Blur: an unchanged value writes and announces nothing more.
+    await page.keyboard.press('Tab');
+    await expect(evField(page)).not.toBeFocused();
+    expect(await replaced(page)).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
+    expect(await announced(page)).toEqual([fill('verdi.ev.announce', { v: expected.v })]);
+    expect(await page.evaluate(() => window.history.length)).toBe(lengthBefore);
+    // The share's region says nothing; the cards are unchanged.
+    await expect(page.getByTestId('verdi-status')).toHaveText('');
+    await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: oracle.at(50), full: oracle.full }));
+    // Each accepted form; " 6.5 " and "6.50" are the multiple already in the URL and write nothing;
+    // "06" is shown as "6".
+    for (const [typed, shown, written] of [
+      [' 6.5 ', '6,5', '6.5'],
+      ['6.50', '6,5', '6.5'],
+      ['06', '6', '6'],
+      ['50', '50', '50'],
+      ['0,1', '0,1', '0.1'],
+    ] as const) {
+      await evField(page).fill(typed);
+      await evField(page).press('Enter');
+      await expect(evField(page), typed).toHaveValue(shown);
+      await expect.poll(() => new URL(page.url()).search, typed).toBe(`?multippel=${written}`);
+      await expect(ev(page, 'value'), typed).toHaveText(evOracle(oracle, 50, written).v);
+    }
+    expect(await replaced(page)).toEqual([
+      `/analyse/${orgnr}/verdi?multippel=6.5`,
+      `/analyse/${orgnr}/verdi?multippel=6`,
+      `/analyse/${orgnr}/verdi?multippel=50`,
+      `/analyse/${orgnr}/verdi?multippel=0.1`,
+    ]);
+    // Clearing removes it and says the empty sentence.
+    await evField(page).fill('');
+    await evField(page).press('Enter');
+    await expect.poll(() => new URL(page.url()).search).toBe('');
+    await expect(ev(page, 'empty')).toHaveText(nb['verdi.ev.empty']);
+    await expect(page.getByTestId('multiple-status')).toHaveText(nb['verdi.ev.empty']);
+    expect((await replaced(page)).length).toBe(5);
+  });
+
+  test('EV: invalid input', async ({ page }) => {
+    const { orgnr, navn } = DEMO_A;
+    for (const typed of ['0', '50,1', '6,55', 'abc', '6 ,5', '-1']) {
+      // From a URL holding a valid multiple, so the removal shows.
+      await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
+      await companyShown(page, navn);
+      await expect(ev(page, 'value')).toHaveCount(1);
+      await evField(page).fill(typed);
+      await evField(page).press('Enter');
+      await expect.poll(() => new URL(page.url()).search, typed).toBe('');
+      const error = page.getByTestId('multiple-status').locator('p');
+      await expect(error, typed).toHaveText(nb['verdi.ev.error']);
+      await expect(evField(page), typed).toHaveAttribute('aria-invalid', 'true');
+      await expect(evField(page), typed).toHaveAttribute('aria-describedby', (await error.getAttribute('id')) ?? 'none');
+      await expect(evField(page), typed).toHaveValue(typed);
+      await expect(evField(page), typed).toBeFocused();
+      await expect(ev(page, 'value'), typed).toHaveCount(0);
+      await expect(ev(page, 'product'), typed).toHaveCount(0);
+      await expect(notice(page), typed).toHaveText('');
+    }
+  });
+
+  test('EV: a share change keeps the multiple', async ({ page }) => {
+    const { oracle, orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
+    await companyShown(page, navn);
+    await expect(ev(page, 'value')).toHaveText(evOracle(oracle, 50, '6.5').v);
+    await expect(evField(page)).toHaveValue('6,5');
+    await recordAnnouncements(page);
+    await step(page, 25).click();
+    await expect.poll(() => new URL(page.url()).search).toBe('?andel=25&multippel=6.5');
+    // Wait for the share to render, then the value rescales with it.
+    await expect(step(page, 25)).toHaveAttribute('aria-checked', 'true');
+    const at25 = evOracle(oracle, 25, '6.5');
+    // The fixture's state: at 25 % the product line is approximate too.
+    expect(at25.approximate).toBe(true);
+    await expect(ev(page, 'value')).toHaveText(at25.v);
+    await expect(ev(page, 'product')).toHaveText(fill('verdi.ev.productApprox', { a: at25.a, m: at25.m, v: at25.v }));
+    await expect(evField(page)).toHaveValue('6,5');
+    // One announcement: the share's, 3.5's approved sentence; the field's region says nothing.
+    await expect(page.getByTestId('verdi-status')).toHaveText(fill('verdi.announce.profit', { a: oracle.at(25), full: oracle.full }));
+    expect(await announced(page)).toEqual([]);
+    // The median step: (M − r) × revenue × m.
+    await step(page, 'median').click();
+    await expect.poll(() => new URL(page.url()).search).toBe('?andel=median&multippel=6.5');
+    await expect(step(page, 'median')).toHaveAttribute('aria-checked', 'true');
+    await expect(ev(page, 'value')).toHaveText(evOracle(oracle, 'median', '6.5').v);
+  });
+
+  test('EV: a reload renders the same, with no hydration error', async ({ page }) => {
+    const { oracle, orgnr, navn } = DEMO_A;
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    await evField(page).fill('6,5');
+    await evField(page).press('Enter');
+    await expect.poll(() => new URL(page.url()).search).toBe('?multippel=6.5');
+    // Wait for the value to render before reading the section (PR #78).
+    const expected = evOracle(oracle, 50, '6.5');
+    await expect(ev(page, 'value')).toHaveText(expected.v);
+    const before = await evSection(page).innerText();
+    expect(before).toContain(fill('verdi.ev.productApprox', { a: expected.a, m: expected.m, v: expected.v }));
+    await page.reload();
+    await companyShown(page, navn);
+    await expect(evField(page)).toHaveValue('6,5');
+    await expect.poll(() => evSection(page).innerText()).toBe(before);
+    await expect(page.getByTestId('multiple-status')).toHaveText('');
+    await expect(notice(page)).toHaveText('');
+    expect(errors).toEqual([]);
+  });
+
+  test('EV: the payload with a multiple carries exactly the wire set', async ({ request }) => {
+    const { orgnr } = DEMO_A;
+    // The multiple adds no wire value: the browser computes EV from the profit's own.
+    await expectWireSet(request, `/analyse/${orgnr}/verdi?multippel=6.5`, orgnr, wireSetOf(DEMO_A.oracle));
+  });
+});
+
 /** Demo A's wire values: the profit at full convergence and at the median step, and s_med. */
 function wireSetOf(oracle: (typeof DEMOS)[number]['oracle']): string[] {
   const { orgnr } = DEMO_A;
@@ -293,6 +518,21 @@ for (const width of [375, 320]) {
     expect(cards[2] ?? 0).toBeGreaterThan(cards[1] ?? 0);
     // Every tab is on the page, wrapping rather than scrolling.
     await expect(tabs(page).getByRole('link')).toHaveCount(4);
+    await noSidewaysScroll(page);
+    // Story 3.6: the multiple field is 90 px and a target of at least 24 × 24; its value, product line and
+    // error fit without sideways scroll.
+    const field = evField(page);
+    const fieldBox = await field.boundingBox();
+    expect(fieldBox?.width).toBe(90);
+    expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(24);
+    await field.fill('6,5');
+    await field.press('Enter');
+    await expect(ev(page, 'value')).toHaveText(evOracle(DEMO_A.oracle, 50, '6.5').v);
+    await expect(ev(page, 'product')).toBeVisible();
+    await noSidewaysScroll(page);
+    await field.fill('abc');
+    await field.press('Enter');
+    await expect(page.getByTestId('multiple-status').locator('p')).toHaveText(nb['verdi.ev.error']);
     await noSidewaysScroll(page);
   });
 }

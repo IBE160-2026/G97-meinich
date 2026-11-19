@@ -45,3 +45,35 @@ for (const width of [1280, 375, 320]) {
     await noSidewaysScroll(page);
   });
 }
+
+// Story 3.6 (decision 7): the USD subject's group is empty, so driftsmargin is below the floor and the
+// profit card has no amount. The EV field is aria-disabled and read-only, still focusable, described by
+// the profit card's own words; a valid multiple in the URL stays there and shows read-only; no value.
+test('EV disabled below the floor', async ({ page }) => {
+  const reason = nb['verdi.noTarget'].replace('{figur}', 'driftsmargin');
+  await page.goto(`${base}/verdi?multippel=6.5`);
+  const verdi = page.locator('main:not([aria-busy="true"])').getByTestId('verdi');
+  // The fixture's state: the profit card reads the below-floor words.
+  await expect(verdi.getByTestId('verdi-profit').locator('[data-card="text"]')).toHaveText(reason);
+  const ev = verdi.getByTestId('verdi-ev');
+  const field = ev.getByRole('textbox', { name: nb['verdi.ev.label'] });
+  await expect(field).toHaveAttribute('aria-disabled', 'true');
+  await expect(field).toHaveAttribute('readonly', '');
+  // Never the native disabled attribute (Playwright's toBeDisabled also counts aria-disabled).
+  await expect(field).not.toHaveAttribute('disabled', /.*/);
+  await expect(field).toHaveValue('6,5');
+  const describedBy = await field.getAttribute('aria-describedby');
+  expect(describedBy).not.toBeNull();
+  await expect(page.locator(`[id="${describedBy ?? ''}"]`)).toHaveText(reason);
+  await field.focus();
+  await expect(field).toBeFocused();
+  // Typing changes nothing, and Enter writes nothing: the multiple stays in the URL, and no value shows.
+  await page.keyboard.type('7');
+  await page.keyboard.press('Enter');
+  await expect(field).toHaveValue('6,5');
+  expect(new URL(page.url()).search).toBe('?multippel=6.5');
+  await expect(ev.locator('[data-ev="value"]')).toHaveCount(0);
+  await expect(ev.locator('[data-ev="product"]')).toHaveCount(0);
+  await expect(ev.locator('[data-ev="empty"]')).toHaveCount(0);
+  await expect(page.getByTestId('settings-notice')).toHaveText('');
+});

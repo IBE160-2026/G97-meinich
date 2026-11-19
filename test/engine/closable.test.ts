@@ -4,6 +4,7 @@
 // its label, and the amounts at a share, each rounded once at display.
 // Every fixture is hand-made, its state asserted before it is used.
 import { describe, expect, it } from 'vitest';
+import { medianStepLabel } from '../../src/analysis/verdi-view.ts';
 import {
   closableSteps,
   medianStep,
@@ -16,6 +17,7 @@ import { Decimal } from '../../src/engine/decimal.ts';
 import { formatKronerExact } from '../../src/engine/format.ts';
 import type { Comparison } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
+import nb from '../../src/messages/nb.json' with { type: 'json' };
 
 const d = (value: string | number) => new Decimal(value);
 /** A kroner amount as format.ts writes it: no-break spaces in the digits and before "kr". */
@@ -82,6 +84,14 @@ describe('the median step', () => {
     // No median step: it stands last, disabled.
     expect(closableSteps(null)).toEqual([0, 25, 50, 75, 100, 'median']);
   });
+
+  it('under 1 % and over 99 %', () => {
+    // Fixture: s_med that rounds to 0 and to 100 whole percent, and one that does not.
+    expect(medianStepLabel(d('0.004'))).toBe(nb['verdi.step.medianUnder']);
+    expect(medianStepLabel(d('0.996'))).toBe(nb['verdi.step.medianOver']);
+    expect(medianStepLabel(d('0.005'))).toBe(nb['verdi.step.median'].replace('{n}', '1'));
+    expect(medianStepLabel(d('0.1214'))).toBe(nb['verdi.step.median'].replace('{n}', '12'));
+  });
 });
 
 describe('amounts at a share', () => {
@@ -94,6 +104,7 @@ describe('amounts at a share', () => {
   it('the median step uses the exact s, not the rounded n', () => {
     const step = medianStep(uj2);
     if (step.kind !== 'exists') throw new Error('UJ-2 has a median step');
+    expect(medianStepLabel(step.share)).toBe(nb['verdi.step.median'].replace('{n}', '12'));
     const atMedian = profitAtMedian(uj2, revenue);
     if (atMedian === null) throw new Error('UJ-2 has a profit at the median');
     const shown = profitText(profitAtShare(full, atMedian.ore, 'median').ore, full);

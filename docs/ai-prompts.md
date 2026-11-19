@@ -3544,6 +3544,95 @@ The Nøkkeltall og gap tab has two fold-outs. "Margin eller kapitalbruk?" shows 
 
 The review session checked the never-multiplied test's scope and its stated limit, the pay fold-out outside the seed, the corrected shadcn statements and the untouched `technology.md`, the restored row counts with no synthetic company left, the statuses and the PR text's credits. CI was green on `5078c11`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 08:00 UTC on 2026-11-19 as `bdff57f`.
 
+## Story 3.3: the margin waterfall (#73, PR #74)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session went on in the transcript of Story 3.2, without `/clear`, and was compacted once during implementation.
+
+### Prompts to the BMAD session
+
+**2026-11-19 08:06**: the prompt that opened Story 3.3.
+```
+Fra meg:
+/bmad-build Story 3.3: The margin waterfall (epics.md, Story 3.3). Lag branchen story/3.3-margin-waterfall fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.3, marginfossen eller peer-gruppen samlet. For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor.
+(b) Kildene: hvor hvert av de fem tallene kommer fra for subjektet og for hver peer (sumDriftsinntekter, driftsresultat, varekostnad, lonnskostnad, annenDriftskostnad). Si om en kostnadslinje utledet etter regelen fra 3.1a (documentCostLines) teller i P, om utledet omsetning teller, og hva en kolonne som feilet avstemmingen, mangler eller er utelatt etter R2/R3 gjør med P. Vis hvordan «samme avstemte innsending for referanseåret» sjekkes.
+(c) Hvor fossen kan vises: P for demo A og demo B i seeden, og lokalt etter restore:documents, som totaler. Varekostnad, lønn og andre driftskostnader finnes bare i dokumentene, og seeden har dem bare for orgnr på allow-listen. Hvis demo A og B kommer under 10 fordi seeden mangler dokumentene, og ikke fordi peerne mangler linjene, er «bare {n} sammenlignbare har alle kostnadslinjene» feil grunn. Vis hva de to viser, og foreslå teksten. Si hvilket subjekt som viser fullt vannfall i e2e (det syntetiske oppsettet fra 3.1b har nøyaktig 10 peers), og hvor testene for 9 og 10 ligger.
+(d) Subjektet mangler en komponent: storyen gir samme setning som for færre enn 10 i P, men da kan n være 10 eller mer. Vis hva som vises når subjektets dokument mangler, feilet avstemmingen eller mangler en linje, og gjenbruk tilstandene fra 2.9 og 3.1a der de finnes.
+(e) Avrundingen: funksjonen i motoren, i Decimal. Si hvordan like rester avgjøres (fast rekkefølge), at det som skal fordeles alltid er 0–4 kroner og aldri negativt, og hvordan sluttverdien vises når driftsresultat har øre, slik at start + søyler = slutt holder eksakt. Testene: negative søyler, like rester, rest med begge fortegn, og en egenskapstest over mange tilfeldige tilfeller.
+(f) Ingen dobbelttelling (FR-30): hvilke beløpsfunksjoner i motoren klynge 1 og 2 tester mot i dag. Økt driftsresultat, implisitt EV og kortsummer kommer i 3.4 og 3.5. Si hvordan testen bygges slik at de storiene arver den og ikke kan legge til en søyle uten at den feiler, og hvilken oppføring i deferred-work eller epics.md som sier det. Testen over alle andel-verdier: hvilke verdier, og hvor de er definert.
+(g) Diagrammet: Recharts er ikke installert, selv om EXPERIENCE nevner det i stack-lista. Foreslå håndskrevet SVG, slik som fordelingsstripen, eller Recharts festet til eksakt versjon, og si hva du anbefaler. Vis hvordan role="img", aria-label, «Vis tallene» med tabellen og forced-colors testes. Hvis det blir uten Recharts, rett alle stedene som sier at koden bruker det, slik som med shadcn i 3.2.
+(h) Plassering og lenken: hvor «Hva forklarer marginavviket?» står i forhold til utfoldingene fra 3.2, hvordan «Se forklaring av marginen» åpner den og flytter fokus uten ny rute (check:routes), og på telefon (375 og 320 px, 10 px søyler på felles kroneskala).
+(i) Utenfor NOK, og utenfor seeden: hva fossen viser for et subjekt som ikke rapporterer i NOK (motoren gir ellers not_nok), og at et 62.100-selskap utenfor seeden viser «Ikke i demodataene».
+(j) Payloaden (AD-4): hva som sendes til klienten, bare strenger og søyleposisjoner, ingen rå øre-tall for subjektet eller peerne. Utvid skannet i e2e/payload.ts hvis det trengs.
+(k) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.3 eller EXPERIENCE. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler: ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra. Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes, og rapporten viser hva som ble fjernet og hvilken test som feilet. Underagenten skal ikke skrive om godkjent tekst, og en test sjekker den ordrett. Spec-en går til in-review sammen med storyen og settes til done først etter merge. PR-en sier hva som kan gå galt med dekomponeringen, avrundingen og dobbelttelling, med begrunnelse i ai-log, og hva review-sesjonen bidro med. Små commits. Sjekk 375 og 320 px underveis. Etter siste seed-lasting kjører du pnpm restore:documents og bekrefter de fire tallene. Kjør hele suiten før første push, og e2e med én worker, én ting om gangen. Stopper noe på grunn av minne, si fra i stedet for å starte på nytt. Ingen push før jeg sier fra. PR-en skal ha linjen «Planning documents:». pnpm classify kjøres ikke, og ingen dump slettes. technology.md er faglærerens referanse og røres ikke.
+```
+*Changed:* issue #73, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(k): no deferred entry names the story, all five figures can come from one reconciled document column, demo A's and B's P is 0 because none of them is on the manifest, the synthetic fixture gives P exactly 10, the remainder lies in 0–4, Recharts is not installed; and nine questions.
+
+**08:17**: the answers at the checkpoint.
+```
+Fra meg:
+1. Ja, alle fem fra den ene avstemte kolonnen. Skriv i ai-log at sluttverdien kan avvike fra API-ets driftsresultat med opptil toleransen mellom kildene, og legg til en test som viser at subjektets margin i fossen vises likt med Driftsmargin-raden. Hvis de kan vises ulikt, si fra.
+2. Ja: utledede linjer og utledet omsetning teller, og R2 brukes på P og subjektet. Et subjekt som faller ut på R2, skal ha en egen grunn, ikke «en regnskapslinje mangler». Vis meg teksten.
+3. Ja, med «demodataene»: «Ingen forklaring av marginen: regnskapstallene til de sammenlignbare er ikke i demodataene.»
+4. Ja, radens fraværsord, men R2 med sin egen grunn (se 2).
+5. Ja. 6. Ja, håndskrevet SVG, og rett alle Recharts-omtalene unntatt technology.md og historiske poster.
+7. Ja, men registertesten skal finne beløpsfunksjonene selv, ut fra returtypen med TypeScript-kompilatoren eller alle eksporter fra én modul, og ikke ut fra en liste som må huskes. Vis at den feiler når en ny beløpsfunksjon legges til uten å stå i registeret, og når en total tar med en fossesøyle. workingCapitalReleased vises ikke i 3.3. AC-linjene i 3.4 og 3.5 er godkjent.
+8. N2–N6 er godkjent, og N1 med rettelsen i 3.
+9. Ja.
+Skriv svarene inn i den frosne delen, sett spec og story til ready-for-dev og fortsett. Teksten for R2 vil jeg se før den står i nb.json. Ingen push.
+```
+*Changed:* decisions 1–9 in the frozen spec; two more questions: whether the waterfall's margin can be shown differently from the Driftsmargin row (yes, on a rounding boundary), and the R2 copy.
+
+**08:19**: the margin and the R2 copy.
+```
+Fra meg:
+10. A: fossens «margin {m}» viser dokumentets margin. Ta med begge testene og avviket i ai-log.
+11. Godkjent, med år: «Ingen forklaring av marginen: kostnadslinjene i regnskapet for {år} summerer ikke til sum driftskostnader.»
+Sett spec og story til ready-for-dev og fortsett. Ingen push.
+```
+*Changed:* the spec ready for dev (`c315dd5`, `f72a280`); one R2 predicate, the waterfall, the amount registry and working capital released (`6b9b8e8`…`2af3421`), the copy verbatim (`c3ede59`), the view and the fold-out with the link (`47d6301`, `08a5bca`), e2e and its forced-colours fix (`17d8e9a`, `19940fd`), the planning documents with every Recharts statement corrected and the docs (`d8ec631`, `8a48c8a`), spec and story in review (`a93f7a1`), the review triage (`595fa76`) and its fixes (`8e9e4bb`); e2e then stopped for lack of memory, and `test:db` had failed once in one file right after `pnpm seed` and passed on a rerun.
+
+**11:16**: the exclusion test, the too-few copy, the zero bars and `test:db`.
+```
+Fra meg:
+1. Jeg lukker det jeg kan. Kjør e2e igjen når du har gjort punkt 2, med én worker, og tell syntetiske rester etterpå.
+2. Godta testen, men gjør den bestemt: slå fast at fixturen har seed-selskaper i båndet (outside.length > 0), forvent N1 uten ternary, og sjekk at outside.length + 1 ≤ 20, så ekskl ikke avvises ved grensen. Rett raden i Spec Change Log.
+3. Ja, «for få»-teksten står som godkjent. Legg n = 0 og n = 1 («bare 1 sammenlignbare») inn i deferred-work.md med Story 5.4 som eier.
+4. Ja, avvis nullsøylene.
+I tillegg: test:db hadde 28 feil i én fil rett etter seed. Prøv å gjenskape det med pnpm seed og test:db rett etter, og si hvilken fil og hvilken feil. CI kjører i samme rekkefølge. Kan det ikke gjenskapes, skriv det i sesjonsfila.
+Ingen push.
+```
+*Changed:* the exclusion e2e test made determinate (`4eb68d1`) and the matrix row corrected in the Spec Change Log, n = 0 and n = 1 deferred to Story 5.4 (`3783c4c`); e2e passed 180 of 180 with one worker; the `test:db` failure did not recur with `pnpm seed` run right before it; the session file and ai-log (`56f3f86`).
+
+**11:35**: push.
+```
+Fra meg:
+Push branchen og opprett PR-en med «Closes #73», linjen «Planning documents:», hva som kan gå galt med dekomponeringen, avrundingen og dobbelttelling, og hva review-sesjonen bidro med. Nevn feilen i test:db som ikke kom igjen. Lenk PR-en i sesjonsfila.
+```
+*Changed:* the branch pushed, PR #74 opened, and the session file linked to it (`b242c66`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.3` (11-19): the review session read Story 3.3, `docs/key-figures.md` and the code, found that varekostnad, lønn and andre driftskostnader exist only in the documents, so P can hold only companies with document figures and "bare {n} sammenlignbare" would give the wrong reason for a seed without them, that one sentence covers both too few peers and a subject missing a component, that the largest-remainder rounding needs a fixed tie order, that Recharts is not installed, and that some of FR-30's totals do not exist before Stories 3.4 and 3.5. It drafted the 08:06 prompt.
+- The BMAD session's checkpoint (11-19): the review session checked that cost shares 3–5 divide by the document's revenue and that "no total without both" is already in `docs/key-figures.md`, recommended the BMAD session's answers, "demodataene" rather than "demoversjonen" in N1, an own reason for R2, and that the registry test find the amount functions itself rather than from a list someone must remember. It drafted the 08:17 prompt.
+- The BMAD session's two follow-up questions (11-19): the review session recommended A, the document's margin, so the waterfall agrees with its own bars, and the R2 copy with the year. It drafted the 08:19 prompt.
+- The BMAD session's report that e2e had stopped (11-19): the review session measured 2.9 GB free of 15.7 and named the processes, found that the exclusion e2e test chose its expected text with a condition on the data and so would pass whatever the fixture held, recommended keeping the too-few copy with n = 0 and n = 1 deferred to Story 5.4 and rejecting the zero bars, and asked for the one-off `test:db` failure to be reproduced, since CI runs `test:db` right after `pnpm seed`. It drafted the 11:16 prompt.
+- The BMAD session's final report (11-19): the review session checked the determinate test, the statuses, the counts, the deferred entry and the credits, and drafted the 11:35 prompt.
+- `er ci grønn?` and `post review` (11-19): the review session checked the rounding bound by hand, confirmed the green run on the PR's head, checked every line comment against the diff's hunks, and posted the review.
+- `merget - fikser du treet og resten` (11-19): the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+The Nøkkeltall og gap tab has "Hva forklarer marginavviket?" under Driftsmargin: a hand-written SVG waterfall from the peer group as a whole to the company through four bars, all from one reconciled document column per company, with R2 applied to P and the subject, the total rounded once and the bars by signed largest remainder in exact bigint arithmetic, and "Vis tallene" with its table; on phone, vertical rows. Every engine function returning kroner is registered in `src/engine/amounts.ts`, and `test/engine/no-double-counting.test.ts` finds them from their return types and fails on an unregistered one or on a total that takes a waterfall bar, a cost share or (11).
+
+### Checks before merging
+
+The review session checked the rounding bound (0 ≤ R ≤ k ≤ 4, exact ties in bar order), the registry test and its stated name-not-data-flow gap, the determinate exclusion test, the restored row counts with no synthetic company left, the statuses, the deferred entry and the PR text's credits. CI was green on `c8e1e11`. At the human's request (`post review`), the review session posted the GitHub review with five line comments. The PR was merged at 12:01 UTC on 2026-11-19 as `c7666c9`.
+
 ---
 
 ## Going forward

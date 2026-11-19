@@ -152,6 +152,19 @@ function unregistered(prog: ts.Program, registry: Readonly<Record<string, Amount
     .map(([name, file]) => `${file}: ${name}`);
 }
 
+/** The function a declaration declares, exported or not: a function declaration, or a variable holding a function. */
+function functionBody(declaration: ts.Declaration): ts.Node | undefined {
+  if (ts.isFunctionDeclaration(declaration) && declaration.body !== undefined) return declaration;
+  if (
+    ts.isVariableDeclaration(declaration) &&
+    declaration.initializer !== undefined &&
+    (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer))
+  ) {
+    return declaration.initializer;
+  }
+  return undefined;
+}
+
 /** The keys a total may never name: the three cost shares (no kroner of their own) and 11 (never added to 9 or 10). */
 const FORBIDDEN_KEYS: ReadonlySet<string> = new Set(['vare', 'lonn', 'andre', 'oml']);
 
@@ -186,10 +199,10 @@ function forbiddenInTotals(prog: ts.Program, registry: Readonly<Record<string, A
             const file = path.normalize(declaration.getSourceFile().fileName);
             if (file === path.normalize(WATERFALL)) found.push(`${name}${via}: ${child.text} (waterfall.ts)`);
             if (explanations.has(child.text)) found.push(`${name}${via}: ${child.text} (an explanation)`);
-            // Follow a call into another engine function.
-            const callee = symbol === undefined ? undefined : functions.get(symbol.name);
-            if (callee !== undefined && callee.node !== node && path.dirname(file) === path.normalize(ENGINE)) {
-              walk(callee.node, `${via} → ${symbol?.name}`);
+            // Follow a reference into any function under src/engine, exported or module-private.
+            const callee = functionBody(declaration);
+            if (callee !== undefined && callee !== node && path.dirname(file) === path.normalize(ENGINE)) {
+              walk(callee, `${via} → ${symbol?.name}`);
             }
           }
         }
@@ -228,6 +241,28 @@ describe('the FR-30 registry', () => {
     expect(unregistered(ENGINE_PROGRAM, AMOUNT_FUNCTIONS)).toEqual([]);
     // The compiler finds the registered ones: none is stale.
     expect([...amountFunctions(ENGINE_PROGRAM).keys()].sort()).toEqual(Object.keys(AMOUNT_FUNCTIONS).sort());
+  });
+
+  it('a total reaching a bar through a module-private helper is caught', () => {
+    const probe = program({
+      'probe-private.ts': [
+        "import { Decimal } from './decimal.ts';",
+        "import type { DocumentBasis } from './document-inputs.ts';",
+        "import { marginWaterfall } from './waterfall.ts';",
+        'function hidden(subject: DocumentBasis, peers: readonly DocumentBasis[]): bigint {',
+        "  const w = marginWaterfall(subject, peers, 2025, 'NOK');",
+        "  return w.kind === 'decomposition' ? w.display.totalKroner : 0n;",
+        '}',
+        'const alsoHidden = (subject: DocumentBasis, peers: readonly DocumentBasis[]): bigint => hidden(subject, peers);',
+        'export function upliftThroughHelper(subject: DocumentBasis, peers: readonly DocumentBasis[]): { readonly ore: Decimal } {',
+        '  return { ore: new Decimal(alsoHidden(subject, peers).toString()) };',
+        '}',
+      ].join('\n'),
+    });
+    const registry = { ...AMOUNT_FUNCTIONS, upliftThroughHelper: { module: 'probe-private.ts', role: 'total' } } as const;
+    expect(forbiddenInTotals(probe, registry)).toEqual(
+      expect.arrayContaining(['upliftThroughHelper → alsoHidden → hidden: marginWaterfall (waterfall.ts)']),
+    );
   });
 
   it('every amount function is registered: fails on an unregistered new function and on a total referencing a bar', () => {

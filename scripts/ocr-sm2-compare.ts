@@ -14,10 +14,10 @@ import {
   documentFigures,
   exceedsApiSubtotal,
   guardCurrentAssets,
+  MAIN_COST_LINES,
 } from '../src/engine/document-inputs.ts';
 import {
   type ApiSubtotals,
-  MAIN_COST_LINES,
   ROUNDING_TOLERANCE_ORE,
   apiSubtotalsFromRow,
   businessType,

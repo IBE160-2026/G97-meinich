@@ -74,7 +74,11 @@ function NumbersTable({ view, companyName, id }: { readonly view: Shown; readonl
               </th>
               <td className={figure}>{row.own}</td>
               <td className={figure}>{row.all}</td>
-              <td className={figure}>{row.kroner}</td>
+              <td className={figure}>
+                {row.kroner}
+                {row.glyph !== null ? <span aria-hidden="true">{` ${row.glyph}`}</span> : null}
+                {row.word !== null ? ` ${row.word}` : null}
+              </td>
             </tr>
           ))}
           <tr className="border-b border-divider">

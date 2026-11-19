@@ -91,6 +91,8 @@ describe('the common peer set P and the floor', () => {
       driftsresultatMissing: company(10_000_000n, 1n, 2n, 3n, 4n, { driftsresultat: null }),
       revenueZero: company(0n, 1n, 2n, 3n, 4n),
       revenueNegative: company(-5n, 1n, 2n, 3n, 4n),
+      // A derived revenue of 5 kr is not positive, as for key figures 3–5: driftsresultat 1 + sumDriftskostnad 4.
+      derivedRevenueFiveKroner: company(5n, 1n, 1n, 1n, 1n, { sumDriftsinntekter: null }),
       anotherYear: ofYear(company(10_000_000n, 1n, 2n, 3n, 4n), 2024),
     };
     for (const [name, basis] of Object.entries(left)) {
@@ -101,6 +103,20 @@ describe('the common peer set P and the floor', () => {
     const derivedRevenue = company(10_000_000n, 1_000_000n, 6_000_000n, 2_000_000n, 300_000n, { sumDriftsinntekter: null });
     expect(commonPeerSet([derivedLine, derivedRevenue], YEAR)).toHaveLength(2);
     expect(commonPeerSet([TEN[0] as DocumentBasis], YEAR)).toHaveLength(1);
+  });
+
+  it('a derived revenue of 5 kr or less is not positive, and a missing line is checked before the sign', () => {
+    expect(marginComponents(company(5n, 1n, 1n, 1n, 1n, { sumDriftsinntekter: null }))).toEqual({
+      kind: 'absent',
+      absence: { reason: 'undefined', cause: 'denominator_not_positive' },
+    });
+    // 6 kr derived is positive.
+    expect(marginComponents(company(6n, 1n, 1n, 1n, 1n, { sumDriftsinntekter: null })).kind).toBe('value');
+    // Revenue 0 and two lines missing (300 kr unexplained): component missing, not revenue not positive.
+    expect(marginComponents(company(0n, 100n, 200n, 300n, 400n, { varekostnad: null, lonnskostnad: null }))).toEqual({
+      kind: 'absent',
+      absence: { reason: 'undefined', cause: 'component_missing' },
+    });
   });
 
   it('R2 leaves a peer out of P', () => {

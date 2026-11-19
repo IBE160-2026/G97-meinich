@@ -77,7 +77,6 @@ import {
   costLinesShortOfTotal,
   type DocumentField,
   type DocumentFigures,
-  MAIN_COST_LINES,
   WITHIN_DOCUMENT_BOUND_ORE,
 } from './document-inputs.ts';
 import { parseOre } from './inputs.ts';
@@ -193,8 +192,6 @@ export type FingerprintResult =
 /** A closed interval of øre; `hi` null is unbounded above. */
 type Interval = { readonly lo: bigint; readonly hi: bigint | null };
 
-/** The cost lines R2 needs read (`MAIN_COST_LINES` in document-inputs.ts, kept exported here for its callers). */
-export { MAIN_COST_LINES };
 const ASSET_LINES = ['sumImmaterielleEiendeler', 'sumVarigeDriftsmidler', 'varer', 'kundefordringer', 'bankinnskudd'] as const;
 
 /**

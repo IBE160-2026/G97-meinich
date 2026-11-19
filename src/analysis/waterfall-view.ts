@@ -79,7 +79,12 @@ export type WaterfallTable = {
     readonly head: string;
     readonly own: string;
     readonly all: string;
+    /** The kroner, signed for a step. */
     readonly kroner: string;
+    /** ▲/▼ for a step, shown aria-hidden (EXPERIENCE.md "Accessibility Floor"); null for the start or a bar of 0. */
+    readonly glyph: '▲' | '▼' | null;
+    /** "lavere enn samlet" / "høyere enn samlet"; null for the start or a share equal to samlet's. */
+    readonly word: string | null;
   }[];
   /** The end row, headed by the company's name (the component writes it): its margin and driftsresultat. */
   readonly end: { readonly own: string; readonly kroner: string };
@@ -221,8 +226,6 @@ export function waterfallView({
     margin: t('waterfall.margin', { m: subjectMargin }),
     geometry: geometry(position, 0n, display.endKroner),
   };
-  const stepText = (step: WaterfallStepView) =>
-    [step.value, step.glyph, step.word].filter((part): part is string => part !== null).join(' ');
   return {
     kind: 'shown',
     heading: t('keyFigures.foldout.waterfall'),
@@ -246,12 +249,14 @@ export function waterfallView({
       caption: t('waterfall.table.caption'),
       heads: { post: t('waterfall.table.post'), all: t('waterfall.table.all'), kroner: t('waterfall.table.kroner') },
       rows: [
-        { head: start.label, own: '', all: aggregateMargin, kroner: start.value },
+        { head: start.label, own: '', all: aggregateMargin, kroner: start.value, glyph: null, word: null },
         ...steps.map((step, i) => ({
           head: step.label,
           own: formatPercent(waterfall.steps[i]?.own.toString() ?? '0'),
           all: formatPercent(waterfall.steps[i]?.all.toString() ?? '0'),
-          kroner: stepText(step),
+          kroner: step.value,
+          glyph: step.glyph,
+          word: step.word,
         })),
       ],
       end: { own: subjectMargin, kroner: end.value },

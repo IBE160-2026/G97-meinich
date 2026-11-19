@@ -14,6 +14,7 @@ import {
   benchmarkDocumentFigures,
   benchmarkTotalAssetTurnover,
 } from '../../src/engine/benchmark.ts';
+import { Decimal } from '../../src/engine/decimal.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
 import { formatKroner, formatPercent, formatSignedKroner } from '../../src/engine/format.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
@@ -93,6 +94,8 @@ describe('the waterfall’s states', () => {
       ['no document', { kind: 'document_missing', filingYear: YEAR }],
       ['paper', { kind: 'not_read_in_v1', scope: 'paper', filingYear: YEAR }],
       ['revenue zero', company(0n, 1n, 1n, 1n, 1n)],
+      // A missing line is checked before the revenue's sign: component missing, not revenue not positive.
+      ['revenue zero and a line missing', company(0n, 100n, 200n, 300n, 400n, { varekostnad: null, lonnskostnad: null })],
     ];
     for (const [name, basis] of cases) {
       const v = view(basis);
@@ -156,6 +159,23 @@ describe('the shown waterfall', () => {
     expect(v.end.value).toBe(formatKroner(kr(engine.display.endKroner)));
     engine.steps.forEach((step, i) => expect(v.steps[i]?.value).toBe(formatSignedKroner(kr(step.kroner))));
     expect(engine.display.startKroner + engine.steps.reduce((a, s) => a + s.kroner, 0n)).toBe(engine.display.endKroner);
+    // Geometry, from the displayed kroner: the levels after the start and each bar, on one scale from the lowest
+    // level (or 0) to the highest.
+    const levels = [engine.display.startKroner];
+    for (const step of engine.steps) levels.push((levels[levels.length - 1] ?? 0n) + step.kroner);
+    const all = [...levels, engine.display.endKroner, 0n];
+    const lo = all.reduce((a, b) => (b < a ? b : a));
+    const hi = all.reduce((a, b) => (b > a ? b : a));
+    const position = (k: bigint) => new Decimal((k - lo).toString()).div(new Decimal((hi - lo).toString())).toNumber();
+    const span = (from: bigint, to: bigint) => ({
+      from: Math.min(position(from), position(to)),
+      to: Math.max(position(from), position(to)),
+      end: position(to),
+    });
+    expect(v.zero).toBe(position(0n));
+    expect(v.start.geometry).toEqual(span(0n, engine.display.startKroner));
+    v.steps.forEach((step, i) => expect(step.geometry, step.key).toEqual(span(levels[i] ?? 0n, levels[i + 1] ?? 0n)));
+    expect(v.end.geometry).toEqual(span(0n, engine.display.endKroner));
     expect(v.summary).toBe(
       `Fra ${v.start.value} (peer-gruppen samlet) til ${v.end.value}, fire poster, sum ${formatSignedKroner(kr(engine.display.totalKroner))}`,
     );
@@ -176,9 +196,22 @@ describe('the shown waterfall', () => {
     expect(v.table.caption).toBe(nb['waterfall.table.caption']);
     expect(v.table.heads).toEqual({ post: 'Post', all: 'Samlet', kroner: 'Kroner' });
     expect(v.table.rows.map((r) => r.head)).toEqual(['Peer-gruppen samlet', 'Varekostnad', 'Lønn', 'Andre driftskostnader', 'Avskrivninger og øvrige poster']);
-    expect(v.table.rows[1]?.kroner).toBe(`${vare?.value} ▼ høyere enn samlet`);
+    expect(v.table.rows[1]).toMatchObject({ kroner: vare?.value, glyph: '▼', word: 'høyere enn samlet' });
+    expect(v.table.rows[0]).toMatchObject({ glyph: null, word: null });
     expect(v.table.end).toEqual({ own: `20,0${NBSP}%`, kroner: v.end.value });
     expect(v.table.reference).toEqual({ head: 'Referanse', text: v.tag });
+  });
+
+  it('a favourable bar on a cost-share row worse than the median says so', () => {
+    // Nine peers at 10 % andre driftskostnader and one large peer at 40 %: the median is 10 %, samlet 25,8 %.
+    const peers = [
+      ...Array.from({ length: 9 }, () => company(10_000_000n, 3_000_000n, 5_000_000n, 1_000_000n, 500_000n)),
+      company(100_000_000n, 5_000_000n, 30_000_000n, 40_000_000n, 5_000_000n),
+    ];
+    // The subject's 20 %: worse than the median in its row, lower than samlet in the waterfall.
+    const andre = shown(view(company(20_000_000n, 4_000_000n, 8_000_000n, 4_000_000n, 1_000_000n), peers)).steps[2];
+    expect(andre).toMatchObject({ key: 'andre', kind: 'favourable', glyph: '▲', word: 'lavere enn samlet' });
+    expect(andre?.notMedian).toBe(nb['waterfall.notMedian']);
   });
 
   it('a residual of either sign stays slate', () => {

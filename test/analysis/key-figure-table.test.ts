@@ -1020,6 +1020,9 @@ describe('the margin waterfall (Story 3.3)', () => {
         'Referanse',
       ]);
       expect(text(numbers)).toMatch(/[+−][\d ]+ kr ▼ høyere enn samlet/);
+      // The glyph is aria-hidden: screen readers hear the word (EXPERIENCE.md "Accessibility Floor").
+      expect(numbers).toContain('<span aria-hidden="true"> ▼</span>');
+      expect(numbers.replace(/<span aria-hidden="true">[^<]*<\/span>/g, '')).not.toMatch(/[▲▼]/);
     }
   });
 

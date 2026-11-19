@@ -282,6 +282,9 @@ export type BeeswarmPeer = {
   readonly keyFigures: SubjectKeyFigures;
 };
 
+/** A coordinate as the page receives it: to a hundredth of a unit, which no screen can show finer. Geometry only. */
+const unit = (value: number): number => Math.round(value * 100) / 100;
+
 /** Candidate tick steps, as fractions (0.001 is 0,1 pp). */
 const TICK_STEPS = ['0.001', '0.002', '0.0025', '0.005', '0.01', '0.02', '0.025', '0.05', '0.1', '0.2', '0.25', '0.5', '1', '2', '5', '10', '20', '50', '100'];
 /** No tick this close to an axis end, where the edge counts sit. */
@@ -302,7 +305,7 @@ function ticks(domain: Compared, spec: LayoutSpec): PlotText[] {
       const value = first.plus(i).mul(step);
       const x = dotX(value, domain, spec);
       if (x < spec.axisFrom + TICK_CLEARANCE || x > spec.axisTo - TICK_CLEARANCE) continue;
-      out.push({ x, text: formatPercent(value.toString()), anchor: 'middle' });
+      out.push({ x: unit(x), text: formatPercent(value.toString()), anchor: 'middle' });
     }
     return out;
   }
@@ -332,22 +335,22 @@ function layout(
   for (const dot of swarm.dots) {
     const index = order.get(dot.key);
     if (index === undefined) throw new Error('a packed dot has no entry');
-    dots[index] = { x: dot.x, y: ABOVE + pad + swarm.radius + (top - dot.offset) };
+    dots[index] = { x: unit(dot.x), y: unit(ABOVE + pad + swarm.radius + (top - dot.offset)) };
   }
   const own = stripPosition(domain.subject, domain, 'higher_is_better');
-  const companyX = spec.axisFrom + own.at.toNumber() * (spec.axisTo - spec.axisFrom);
+  const companyX = unit(spec.axisFrom + own.at.toNumber() * (spec.axisTo - spec.axisFrom));
   const lows = swarm.dots.filter((dot) => dot.x === spec.edgeLow).length;
   const highs = swarm.dots.filter((dot) => dot.x === spec.edgeHigh).length;
   const axisY = ABOVE + area + 5;
-  const at = (value: Decimal) => spec.axisFrom + stripPosition(value, domain, 'higher_is_better').at.toNumber() * (spec.axisTo - spec.axisFrom);
+  const at = (value: Decimal) => unit(spec.axisFrom + stripPosition(value, domain, 'higher_is_better').at.toNumber() * (spec.axisTo - spec.axisFrom));
   if (domain.best === null) throw new Error('a compared driftsmargin has a beste fjerdedel');
   return {
     width: spec.width,
-    height: ABOVE + area + BELOW,
+    height: unit(ABOVE + area + BELOW),
     radius: swarm.radius,
     swarmTop: ABOVE,
-    swarmBottom: ABOVE + area,
-    axis: { from: spec.axisFrom, to: spec.axisTo, y: axisY },
+    swarmBottom: unit(ABOVE + area),
+    axis: { from: spec.axisFrom, to: spec.axisTo, y: unit(axisY) },
     dots,
     company: { x: companyX, clipped: own.clipped, label: companyLabel(companyX, subjectName, spec) },
     median: at(domain.median),

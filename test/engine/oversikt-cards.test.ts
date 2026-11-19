@@ -192,7 +192,7 @@ describe('Største kapitalgap', () => {
     // Fixture: the same capital gaps under three profit gaps, from none to far above them.
     const cards = (
       [{ kind: 'strength' }, { kind: 'not_nok' }, { kind: 'amount', ore: new Decimal('999999999999') }] as const satisfies readonly KronerGap[]
-    ).map((profit) => capitalOf(benchmarks({ driftsmargin: { profit } })));
+    ).map((profit) => oversiktCards({ ...benchmarks({ driftsmargin: { profit } }), basis: 'read', filingYear: 2025 }).capital);
     expect(cards[1]).toEqual(cards[0]);
     expect(cards[2]).toEqual(cards[0]);
   });

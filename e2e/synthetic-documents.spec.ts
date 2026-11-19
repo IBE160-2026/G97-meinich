@@ -20,7 +20,7 @@ import {
   syntheticDocumentCompanies,
   type SyntheticDocumentCompany,
 } from './synthetic.ts';
-import { benchmarkDocumentFigures } from '../src/engine/benchmark.ts';
+import { benchmarkDocumentFigures, largestCapitalGap } from '../src/engine/benchmark.ts';
 import {
   DOCUMENT_FIGURE_COLUMNS,
   documentBasis,
@@ -179,8 +179,8 @@ test('excluding one peer puts the document rows below the floor', async ({ page 
   await expect(page.getByTestId('non-small-notice')).toHaveText(nb['keyFigures.nonSmall']);
 });
 
-test('no document øre reaches the page', async ({ request }) => {
-  // Story 3.3: the waterfall's aggregate over P, its exact total and bars in øre, too.
+/** Every document line in øre of the fixture, and the waterfall's aggregate, exact total and bars in øre (Story 3.3). */
+function documentOre(): string[] {
   if (expectedWaterfall.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
   const sum = (field: 'sumDriftsinntekter' | 'driftsresultat' | 'varekostnad' | 'lonnskostnad' | 'annenDriftskostnad') =>
     String(peers.reduce((total, peer) => total + BigInt(peer.current[field] ?? '0'), 0n));
@@ -193,11 +193,47 @@ test('no document øre reaches the page', async ({ request }) => {
     expectedWaterfall.totalOre.numerator.toString(),
     ...expectedWaterfall.steps.map((step) => step.ore.numerator.toString()),
   ];
-  const ore = [
+  return [
     ...syntheticDocumentCompanies().flatMap((company) => [...Object.values(company.current), ...Object.values(company.prior)]),
     ...aggregate,
   ];
-  await expectNoDocumentFields(request, `${base}/nokkeltall`, { ore, marker: nb['keyFigures.regionLabel'] });
+}
+
+test('no document øre reaches the page', async ({ request }) => {
+  await expectNoDocumentFields(request, `${base}/nokkeltall`, { ore: documentOre(), marker: nb['keyFigures.regionLabel'] });
+});
+
+// Story 3.4: Oversikt's "Største kapitalgap" over the fixture.
+const CAPITAL_LABEL = { working_capital: nb['oversikt.capital.workingCapital'], kfd: nb['fig.kfd'], lgd: nb['fig.lgd'], oml: nb['fig.oml'] };
+
+test('the capital card shows the engine’s largest amount', async ({ page }) => {
+  // Fixture (e2e/synthetic.ts, in its own words): the subject is worse than beste fjerdedel on
+  // receivable days (9), payable days (10) and operating asset turnover (11), so each has a
+  // capital amount, and 9 and 10 make a working-capital total.
+  for (const key of ['kfd', 'lgd', 'oml'] as const) expect(expected[key].gap.kind, key).toBe('amount');
+  const choice = largestCapitalGap(expected.kfd.gap, expected.lgd.gap, expected.oml.gap);
+  if (choice.kind !== 'amount') throw new Error('the fixture has no capital amount');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/oversikt`);
+  const capital = rendered(page).getByTestId('card-capital');
+  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL[choice.figure]);
+  await expect(capital.locator('[data-card="value"]')).toHaveText(
+    nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(choice.ore.toString())),
+  );
+  await expect(capital.locator('[data-card="line"]')).toHaveText([nb['oversikt.topNote'], nb['oversikt.capital.notPerYear']]);
+  // One amount: never a second figure's, never a sum with 11.
+  await expect(capital).toContainText(/\d\skr/);
+  expect((await capital.innerText()).match(/\d\skr/g)).toHaveLength(1);
+});
+
+test('no document øre reaches Oversikt', async ({ request }) => {
+  // Fixture: the synthetic subject and its ten peers; the capital choice's exact øre added to the scan.
+  const choice = largestCapitalGap(expected.kfd.gap, expected.lgd.gap, expected.oml.gap);
+  if (choice.kind !== 'amount') throw new Error('the fixture has no capital amount');
+  await expectNoDocumentFields(request, `${base}/oversikt`, {
+    ore: [...documentOre(), choice.ore.floor().toString()],
+    marker: nb['oversikt.capital.kicker'],
+  });
 });
 
 for (const width of [375, 320]) {

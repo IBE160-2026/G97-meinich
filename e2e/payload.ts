@@ -20,6 +20,10 @@
 // `marker` is a string the tab always renders, so an empty or failed page
 // cannot pass the scan.
 //
+// Story 3.4: `exact` adds strings the page must never carry, such as each
+// peer's exact driftsmargin: Oversikt's beeswarm places peers by it on the
+// server and sends only formatted strings and plot coordinates.
+//
 // Story 3.1b: both scans also look for the server's document fields (the
 // document lines' names as the engine and the read call them, the
 // `cur_`/`pri_` columns, the document basis), and `expectNoDocumentFields`
@@ -114,11 +118,14 @@ export async function expectNoPeerFields(
     pool,
     marker,
     inUrl = [],
+    exact = [],
   }: {
     readonly pool: readonly SeedCandidate[];
     readonly marker: string;
     /** Orgnrs the page may carry: those the URL names, and on Peers the group's. */
     readonly inUrl?: readonly string[];
+    /** Strings that must not occur at all, such as exact values (Story 3.4). */
+    readonly exact?: readonly string[];
   },
 ): Promise<void> {
   const html = await (await request.get(url)).text();
@@ -141,6 +148,7 @@ export async function expectNoPeerFields(
     expect(amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body)), label).toEqual([]);
     expect(SERVER_FIELDS.filter((field) => body.includes(field)), label).toEqual([]);
     expect(documentFieldsIn(body), label).toEqual([]);
+    expect(exact.filter((value) => body.includes(value)), label).toEqual([]);
   }
 }
 

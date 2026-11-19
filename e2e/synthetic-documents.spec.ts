@@ -28,7 +28,17 @@ import {
   type DocumentColumnRow,
   type DocumentField,
 } from '../src/engine/document-inputs.ts';
-import { formatDays, formatKronerExact, formatPercent, formatTurnover, formatWholePercent } from '../src/engine/format.ts';
+import {
+  formatDays,
+  formatKroner,
+  formatKronerExact,
+  formatPercent,
+  formatSignedKroner,
+  formatTurnover,
+  formatWholePercent,
+} from '../src/engine/format.ts';
+import { BAR_FIGURE, marginWaterfall } from '../src/engine/waterfall.ts';
+import { MAX_EKSKL } from '../src/url/analysis-state.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
 const { subject, peers, filingYear } = SYNTHETIC_DOCUMENTS;
@@ -64,6 +74,9 @@ function basisOf(company: SyntheticDocumentCompany): DocumentBasis {
 }
 
 const expected = benchmarkDocumentFigures(basisOf(subject), peers.map(basisOf), 'NOK');
+
+/** The margin waterfall over the fixture (Story 3.3): the seed's companies in the band have no document, so P is the ten. */
+const expectedWaterfall = marginWaterfall(basisOf(subject), peers.map(basisOf), filingYear, 'NOK');
 
 /** The document rows with a comparison, each with how its values are written. 7 and 8 are not read in v1. */
 const ROWS = [
@@ -167,10 +180,23 @@ test('excluding one peer puts the document rows below the floor', async ({ page 
 });
 
 test('no document øre reaches the page', async ({ request }) => {
-  const ore = syntheticDocumentCompanies().flatMap((company) => [
-    ...Object.values(company.current),
-    ...Object.values(company.prior),
-  ]);
+  // Story 3.3: the waterfall's aggregate over P, its exact total and bars in øre, too.
+  if (expectedWaterfall.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+  const sum = (field: 'sumDriftsinntekter' | 'driftsresultat' | 'varekostnad' | 'lonnskostnad' | 'annenDriftskostnad') =>
+    String(peers.reduce((total, peer) => total + BigInt(peer.current[field] ?? '0'), 0n));
+  const aggregate = [
+    sum('sumDriftsinntekter'),
+    sum('driftsresultat'),
+    sum('varekostnad'),
+    sum('lonnskostnad'),
+    sum('annenDriftskostnad'),
+    expectedWaterfall.totalOre.numerator.toString(),
+    ...expectedWaterfall.steps.map((step) => step.ore.numerator.toString()),
+  ];
+  const ore = [
+    ...syntheticDocumentCompanies().flatMap((company) => [...Object.values(company.current), ...Object.values(company.prior)]),
+    ...aggregate,
+  ];
   await expectNoDocumentFields(request, `${base}/nokkeltall`, { ore, marker: nb['keyFigures.regionLabel'] });
 });
 
@@ -196,5 +222,178 @@ for (const width of [375, 320]) {
       await expect(page.locator(`[id="kf-p-exp-${key}"]`), key).toBeVisible();
       await noSidewaysScroll(page);
     }
+  });
+}
+
+// Story 3.3: the margin waterfall fold-out under Driftsmargin.
+const waterfallButton = (page: Page, layout: 'desktop' | 'phone') =>
+  (layout === 'desktop' ? region(page) : page.locator('table[data-layout="phone"]')).getByRole('button', {
+    name: nb['keyFigures.foldout.waterfall'],
+  });
+const waterfallBody = async (page: Page, layout: 'desktop' | 'phone') =>
+  page.locator(`[id="${await waterfallButton(page, layout).getAttribute('aria-controls')}"]`);
+/** Whole kroner as the formatter takes them: øre as a whole-number string. */
+const kr = (kroner: bigint) => (kroner * 100n).toString();
+
+test('Se forklaring av marginen opens the waterfall', async ({ page }) => {
+  for (const [width, layout] of [
+    [1280, 'desktop'],
+    [375, 'phone'],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${base}/nokkeltall`);
+    await expect(rendered(page)).toBeVisible();
+    const button = waterfallButton(page, layout);
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    const before = page.url();
+    const link =
+      layout === 'desktop'
+        ? cell(page, 'lonn', 'gap').getByRole('link', { name: nb['keyFigures.costShare.kroner'] })
+        : page
+            .locator('table[data-layout="phone"] tr:has(button[aria-controls="kf-p-exp-lonn"]) td[data-cell="gap"]')
+            .getByRole('link', { name: nb['keyFigures.costShare.kroner'] });
+    await link.click();
+    // Opened, focus on its heading's button, and no route or URL state.
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await expect(button).toBeFocused();
+    await expect(await waterfallBody(page, layout)).toBeVisible();
+    expect(page.url()).toBe(before);
+  }
+});
+
+test('the waterfall against the engine', async ({ page }) => {
+  if (expectedWaterfall.kind !== 'decomposition') throw new Error(`the fixture has no waterfall: ${expectedWaterfall.kind}`);
+  expect(expectedWaterfall.n).toBe(peers.length);
+  const { display, steps } = expectedWaterfall;
+  // Start + the four displayed bars = the end, in whole kroner.
+  expect(display.startKroner + steps.reduce((total, step) => total + step.kroner, 0n)).toBe(display.endKroner);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await waterfallButton(page, 'desktop').click();
+  const body = await waterfallBody(page, 'desktop');
+  await expect(body.getByTestId('waterfall-tag')).toHaveText(
+    `Mot peer-gruppen samlet: ${formatPercent(expectedWaterfall.aggregateMargin.toString())}, ikke beste fjerdedel`,
+  );
+  await expect(body.getByTestId('waterfall-sentence')).toHaveText(nb['waterfall.neverAdded']);
+  await expect(body.locator('[data-wf-value="start"]')).toHaveText(formatKroner(kr(display.startKroner)));
+  await expect(body.locator('[data-wf-value="end"]')).toHaveText(formatKroner(kr(display.endKroner)));
+  for (const step of steps) {
+    // The page names a bar by its cost share's key, never by an engine field name.
+    const id = BAR_FIGURE[step.bar] ?? 'residual';
+    await expect(body.locator(`[data-wf-value="${id}"]`), step.bar).toHaveText(formatSignedKroner(kr(step.kroner)));
+  }
+  await expect(body.locator('[data-wf-label="end"]')).toContainText(`margin ${formatPercent(expectedWaterfall.subjectMargin.toString())}`);
+  // The chart: a non-focusable image whose name is the summary.
+  const chart = body.getByRole('img');
+  await expect(chart).toHaveAttribute('focusable', 'false');
+  await expect(chart).toHaveAccessibleName(
+    `Fra ${formatKroner(kr(display.startKroner))} (peer-gruppen samlet) til ${formatKroner(kr(display.endKroner))}, fire poster, sum ${formatSignedKroner(kr(display.totalKroner))}`,
+  );
+  // "Vis tallene" opens the table, "Skjul tallene" closes it.
+  await body.getByRole('button', { name: nb['chart.showNumbers'] }).click();
+  const numbers = body.getByRole('table', { name: nb['waterfall.table.caption'] });
+  await expect(numbers).toBeVisible();
+  await expect(numbers.getByRole('rowheader')).toHaveText([
+    nb['waterfall.start'],
+    nb['waterfall.bar.varekostnad'],
+    nb['waterfall.bar.lonnskostnad'],
+    nb['waterfall.bar.annenDriftskostnad'],
+    nb['waterfall.bar.residual'],
+    subject.navn,
+    nb['waterfall.table.reference'],
+  ]);
+  await body.getByRole('button', { name: nb['chart.hideNumbers'] }).click();
+  await expect(numbers).toBeHidden();
+});
+
+test('forced colours keep the bars apart', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await waterfallButton(page, 'desktop').click();
+  const bars = (await waterfallBody(page, 'desktop')).locator('path.wf-bar');
+  await expect(bars).toHaveCount(6);
+  const styles = await bars.evaluateAll((paths) =>
+    paths.map((path) => {
+      const style = getComputedStyle(path);
+      return {
+        kind: path.getAttribute('data-kind') ?? '',
+        stroke: style.stroke,
+        look: `${style.fill}|${style.stroke}|${style.strokeDasharray}`,
+      };
+    }),
+  );
+  // Every bar has an outline in the system's colours (globals.css, `.wf-bar`): not the author's fill alone.
+  for (const { kind, stroke } of styles) expect(stroke, kind).not.toBe('none');
+  // Each kind drawn one way, and no two kinds alike.
+  const byKind = new Map<string, Set<string>>();
+  for (const { kind, look } of styles) byKind.set(kind, (byKind.get(kind) ?? new Set<string>()).add(look));
+  for (const [kind, looks] of byKind) expect(looks.size, kind).toBe(1);
+  const looks = [...byKind.values()].map((set) => [...set][0]);
+  expect(new Set(looks).size).toBe(byKind.size);
+  expect(byKind.size).toBeGreaterThanOrEqual(4);
+});
+
+test('excluding one peer leaves no waterfall', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const peer = peers[0];
+  if (peer === undefined) throw new Error('the fixture has no peers');
+  // The group's other members: the seed's companies in the band, outside the demo data.
+  await page.goto(`${base}/peers`);
+  await expect(rendered(page)).toBeVisible();
+  const synthetic = new Set(syntheticDocumentCompanies().map((company) => company.orgnr));
+  const members = await page
+    .locator('[data-peer-action]')
+    .evaluateAll((actions) => actions.map((action) => action.getAttribute('data-peer-action') ?? ''));
+  const outside = [...new Set(members)].filter((orgnr) => !synthetic.has(orgnr));
+  // The fixture's band holds seed companies outside the demo data, and all of
+  // them plus the one peer fit under the exclusion cap, so neither step below
+  // is a case the URL would refuse.
+  expect(outside.length).toBeGreaterThan(0);
+  expect(outside.length + 1).toBeLessThanOrEqual(MAX_EKSKL);
+  // One synthetic peer excluded: P is 9. With peers outside the demo data making up the 10, N1 (decision 3).
+  await page.goto(`${base}/nokkeltall?ekskl=${peer.orgnr}`);
+  await waterfallButton(page, 'desktop').click();
+  const body = await waterfallBody(page, 'desktop');
+  const tooFew = 'Ingen forklaring av marginen: bare 9 sammenlignbare har alle kostnadslinjene (av 10 som trengs).';
+  await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['waterfall.notLoaded']);
+  await expect(body.getByRole('img')).toHaveCount(0);
+  // Those excluded too: 9 with all their lines, none outside the demo data, the too-few words with n.
+  const ekskl = [peer.orgnr, ...outside].sort().join(',');
+  await page.goto(`${base}/nokkeltall?ekskl=${ekskl}`);
+  await waterfallButton(page, 'desktop').click();
+  await expect((await waterfallBody(page, 'desktop')).getByTestId('waterfall-absent')).toHaveText(tooFew);
+});
+
+for (const width of [375, 320]) {
+  test(`phone: the waterfall as rows (${width} px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${base}/nokkeltall`);
+    await waterfallButton(page, 'phone').click();
+    const body = await waterfallBody(page, 'phone');
+    const rows = body.locator('[data-wf-row]');
+    await expect(rows).toHaveCount(6);
+    // The tag, then the sentence, then the rows.
+    const tag = await body.getByTestId('waterfall-tag').boundingBox();
+    const sentence = await body.getByTestId('waterfall-sentence').boundingBox();
+    const first = await rows.first().boundingBox();
+    if (tag === null || sentence === null || first === null) throw new Error('the waterfall is not rendered');
+    expect(sentence.y).toBeGreaterThan(tag.y);
+    expect(first.y).toBeGreaterThan(sentence.y);
+    // A 10 px bar per row, each on a track of the same width: one kroner scale.
+    const tracks = await rows
+      .locator('.wf-bar')
+      .evaluateAll((bars) =>
+        bars.map((bar) => ({ height: bar.getBoundingClientRect().height, track: bar.parentElement?.getBoundingClientRect().width ?? 0 })),
+      );
+    expect(tracks).toHaveLength(6);
+    for (const { height, track } of tracks) {
+      expect(height).toBe(10);
+      expect(track).toBe(tracks[0]?.track);
+    }
+    await noSidewaysScroll(page);
+    await body.getByRole('button', { name: nb['chart.showNumbers'] }).click();
+    await expect(body.getByRole('table', { name: nb['waterfall.table.caption'] })).toBeVisible();
+    await noSidewaysScroll(page);
   });
 }

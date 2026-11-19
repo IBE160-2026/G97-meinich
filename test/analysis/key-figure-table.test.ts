@@ -25,6 +25,7 @@ import { Decimal } from '../../src/engine/decimal.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
+import { marginWaterfall, type MarginWaterfall } from '../../src/engine/waterfall.ts';
 import { formatKronerExact, formatPercent, formatTurnover } from '../../src/engine/format.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
@@ -70,6 +71,9 @@ const TEN = MARGINS.map((m, i) => peer(m, EK[i] ?? '0.4'));
 /** The document figures of a subject outside the demo data: every document row is absent. */
 const OUTSIDE: DocumentBenchmark = benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK');
 
+/** The margin waterfall of a subject outside the demo data (Story 3.3). */
+const OUTSIDE_WATERFALL: MarginWaterfall = marginWaterfall({ kind: 'not_in_dataset' }, [], 2025, 'NOK');
+
 /** Total asset turnover of SUBJECT against TEN: compared, the margin fold-out's second factor (Story 3.2). */
 const TURNOVER: TurnoverBenchmark = benchmarkTotalAssetTurnover(SUBJECT, TEN);
 
@@ -78,12 +82,14 @@ function render(
   smaaForetak: boolean | null = true,
   documentBenchmark: DocumentBenchmark = OUTSIDE,
   turnoverBenchmark: TurnoverBenchmark = TURNOVER,
+  waterfall: MarginWaterfall = OUTSIDE_WATERFALL,
 ): string {
   return renderToString(
     createElement(KeyFigureTable, {
       benchmark,
       turnoverBenchmark,
       documentBenchmark,
+      waterfall,
       companyName: 'FJORDKODE AS',
       smaaForetak,
       filingYear: 2025,
@@ -92,15 +98,24 @@ function render(
 }
 
 const showNonSmallNotice = (benchmark: ApiBenchmark, smaaForetak: boolean | null) =>
-  keyFigureTableView({ api: benchmark, turnover: TURNOVER, document: OUTSIDE, filingYear: 2025, smaaForetak }).nonSmall;
+  keyFigureTableView({ api: benchmark, turnover: TURNOVER, document: OUTSIDE, waterfall: OUTSIDE_WATERFALL, filingYear: 2025, smaaForetak })
+    .nonSmall;
 
 const standard = () => benchmarkApiFigures(SUBJECT, TEN, 'NOK');
 
 /** The desktop table, or the phone table. */
 function table(html: string, layout: 'desktop' | 'phone'): string {
-  const match = new RegExp(`<table[^>]*data-layout="${layout}"[^>]*>[\\s\\S]*?</table>`).exec(html);
-  if (match === null) throw new Error(`no ${layout} table`);
-  return match[0];
+  const start = html.search(new RegExp(`<table[^>]*data-layout="${layout}"`));
+  if (start < 0) throw new Error(`no ${layout} table`);
+  // The waterfall's "Vis tallene" table sits inside a fold-out cell (Story 3.3): match nested tables.
+  const tags = /<table\b|<\/table>/g;
+  tags.lastIndex = start;
+  let depth = 0;
+  for (let tag = tags.exec(html); tag !== null; tag = tags.exec(html)) {
+    depth += tag[0] === '</table>' ? -1 : 1;
+    if (depth === 0) return html.slice(start, tag.index + tag[0].length);
+  }
+  throw new Error(`the ${layout} table is not closed`);
 }
 
 /** One desktop row by its figure. */
@@ -444,7 +459,13 @@ describe('the full key-figure table (Story 3.1b)', () => {
   const documents = (subject: DocumentBasis = SUBJECT_DOC, peers: readonly DocumentBasis[] = TEN_PEERS, valuta = 'NOK') =>
     benchmarkDocumentFigures(subject, peers, valuta);
   const full = (subject: DocumentBasis = SUBJECT_DOC, peers: readonly DocumentBasis[] = TEN_PEERS, valuta = 'NOK') =>
-    render(benchmarkApiFigures(SUBJECT, TEN, valuta), true, documents(subject, peers, valuta));
+    render(
+      benchmarkApiFigures(SUBJECT, TEN, valuta),
+      true,
+      documents(subject, peers, valuta),
+      TURNOVER,
+      marginWaterfall(subject, peers, 2025, valuta),
+    );
   const ORDER = [
     'driftsmargin',
     'ebitda',
@@ -526,8 +547,9 @@ describe('the full key-figure table (Story 3.1b)', () => {
       expect(phoneRows(html, key).row).toMatch(/<th scope="row" class="[^"]*pl-4/);
       expect(cellText(r, 'gap')).toBe(nb['keyFigures.costShare.kroner']);
       expect(text(phoneRows(html, key).row)).toContain(nb['keyFigures.costShare.kroner']);
-      // Not a link until Story 3.3.
-      expect(rawCell(r, 'gap')).not.toMatch(/<a /);
+      // Story 3.3: a link to the waterfall fold-out's heading, in the same layout.
+      expect(rawCell(r, 'gap')).toMatch(/<a href="#kf-d-fold-waterfall-heading" data-opens="kf-d-fold-waterfall"/);
+      expect(phoneRows(html, key).row).toContain('<a href="#kf-p-fold-waterfall-heading" data-opens="kf-p-fold-waterfall"');
       expect(text(r)).not.toMatch(/\d kr/);
     }
     // A merged cell in the group names the group's heading among its headers too.
@@ -787,13 +809,15 @@ describe('the decomposition fold-outs (Story 3.2)', () => {
     const sequence = [...desktop.matchAll(/<tr[^>]*data-(figure|foldout)="([^"]+)"/g)].map((m) => `${m[1]}:${m[2]}`);
     expect(sequence.indexOf('foldout:margin')).toBe(sequence.indexOf('figure:totalkapitalrentabilitet') + 1);
     expect(sequence.indexOf('foldout:pay')).toBe(sequence.indexOf('figure:lonn') + 1);
-    expect(sequence.filter((s) => s.startsWith('foldout:'))).toEqual(['foldout:pay', 'foldout:margin']);
+    expect(sequence.indexOf('foldout:waterfall')).toBe(sequence.indexOf('figure:driftsmargin') + 1);
+    expect(sequence.filter((s) => s.startsWith('foldout:'))).toEqual(['foldout:waterfall', 'foldout:pay', 'foldout:margin']);
     expect(desktopFold(html, 'margin')).toMatch(/^<tr[^>]*><td colSpan="7"/);
     // Phone: each its own tbody, right after its row group, full width.
     const phone = table(html, 'phone');
     const bodies = [...phone.matchAll(/<tbody data-(group|foldout)="([^"]+)"/g)].map((m) => `${m[1]}:${m[2]}`);
     expect(bodies).toEqual([
       'group:margin',
+      'foldout:waterfall',
       'group:cost',
       'foldout:pay',
       'group:productivity',
@@ -863,5 +887,149 @@ describe('the decomposition fold-outs (Story 3.2)', () => {
     }
     // The subject's product is the totalkapitalrentabilitet row's own value, outside the fold-out.
     expect(cellText(row(html, 'totalkapitalrentabilitet'), 'own')).toBe(formatPercent(products[0]!.toString()));
+  });
+});
+
+// Story 3.3: the margin waterfall fold-out under Driftsmargin.
+describe('the margin waterfall (Story 3.3)', () => {
+  /** A read company: revenue and its parts in whole kroner, driftsresultat revenue less them. */
+  const company = (revenueKr: bigint, vareKr: bigint, lonnKr: bigint, annenKr: bigint, avskrKr: bigint): DocumentBasis => {
+    const kr = (amount: bigint) => (amount * 100n).toString();
+    const costs = vareKr + lonnKr + annenKr + avskrKr;
+    return readBasis({
+      sumDriftsinntekter: kr(revenueKr),
+      salgsinntekt: kr(revenueKr),
+      varekostnad: kr(vareKr),
+      lonnskostnad: kr(lonnKr),
+      annenDriftskostnad: kr(annenKr),
+      avskrivninger: kr(avskrKr),
+      nedskrivninger: '0',
+      sumDriftskostnad: kr(costs),
+      driftsresultat: kr(revenueKr - costs),
+    });
+  };
+  const PEERS = [
+    ...Array.from({ length: 9 }, () => company(10_000_000n, 3_000_000n, 5_000_000n, 1_000_000n, 500_000n)),
+    company(100_000_000n, 5_000_000n, 50_000_000n, 10_000_000n, 5_000_000n),
+  ];
+  const DOC = company(20_000_000n, 4_000_000n, 8_000_000n, 3_000_000n, 1_200_000n);
+  const html = () =>
+    render(
+      benchmarkApiFigures(SUBJECT, TEN, 'NOK'),
+      true,
+      benchmarkDocumentFigures(DOC, PEERS, 'NOK'),
+      TURNOVER,
+      marginWaterfall(DOC, PEERS, 2025, 'NOK'),
+    );
+  /** From the fold-out's opening tag to the next figure row or row group: it holds a table of its own. */
+  const between = (html: string, start: RegExp, next: RegExp) => {
+    const from = html.search(start);
+    if (from < 0) return '';
+    const rest = html.slice(from + 1);
+    const to = rest.search(next);
+    return html.slice(from, to < 0 ? undefined : from + 1 + to);
+  };
+  const desktopFold = (h: string) => between(table(h, 'desktop'), /<tr[^>]*data-foldout="waterfall"/, /<tr[^>]*data-figure=/);
+  const phoneFold = (h: string) => between(table(h, 'phone'), /<tbody[^>]*data-foldout="waterfall"/, /<tbody[^>]*data-group=/);
+
+  it('the waterfall fold-out', () => {
+    const h = html();
+    const desktop = desktopFold(h);
+    const phone = phoneFold(h);
+    // An h3 > button with its own body, closed, and a heading id the cost-share links point to.
+    expect(desktop).toContain('<h3 id="kf-d-fold-waterfall-heading"');
+    expect(desktop).toMatch(/<button[^>]*aria-expanded="false"[^>]*aria-controls="kf-d-fold-waterfall"/);
+    expect(desktop).toMatch(/<div id="kf-d-fold-waterfall" hidden=""/);
+    expect(phone).toContain('<h3 id="kf-p-fold-waterfall-heading"');
+    expect(text(desktop)).toContain(nb['keyFigures.foldout.waterfall']);
+    for (const [fold, chart] of [
+      [desktop, 'data-testid="waterfall-chart"'],
+      [phone, 'data-testid="waterfall-rows"'],
+    ] as const) {
+      // The tag first, then the never-added sentence directly above the bars.
+      const tag = fold.indexOf('data-testid="waterfall-tag"');
+      const sentence = fold.indexOf('data-testid="waterfall-sentence"');
+      const bars = fold.indexOf(chart);
+      expect(tag).toBeGreaterThan(-1);
+      expect(sentence).toBeGreaterThan(tag);
+      expect(bars).toBeGreaterThan(sentence);
+      const words = text(fold);
+      expect(words).toContain(`Mot peer-gruppen samlet: 18,2${NBSP}%, ikke beste fjerdedel`);
+      expect(words).toContain(nb['waterfall.neverAdded']);
+      // Start, four steps, end; each step with sign, ▲/▼ (aria-hidden) and a word, and own mot samlet.
+      for (const label of ['Peer-gruppen samlet', 'Varekostnad', 'Lønn', 'Andre driftskostnader', 'Avskrivninger og øvrige poster', 'FJORDKODE AS']) {
+        expect(words, label).toContain(label);
+      }
+      expect(fold).toContain('<span aria-hidden="true">▼ </span>høyere enn samlet');
+      expect(fold).toContain('<span aria-hidden="true">▲ </span>lavere enn samlet');
+      expect(words).toContain(`20,0${NBSP}% mot 16,8${NBSP}%`);
+      // Varekostnad: a strength in its row, unfavourable against samlet.
+      expect(words).toContain(nb['waterfall.notMedian']);
+      expect(words).toContain(`margin 18,2${NBSP}%`);
+      // The legend names all three kinds, the residual included.
+      for (const kind of ['favourable', 'unfavourable', 'residual']) expect(fold).toContain(`data-legend="${kind}"`);
+      expect(words).toContain(nb['waterfall.legend.residual']);
+    }
+    // Desktop: six columns, the residual slate whatever its sign, start median, end navy-700.
+    expect([...desktop.matchAll(/<path[^>]*class="wf-bar" data-kind="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      'start',
+      'unfavourable',
+      'favourable',
+      'unfavourable',
+      'residual',
+      'end',
+    ]);
+    expect(desktop).toMatch(/data-kind="residual" data-bar="residual" d="[^"]+" fill="var\(--color-slate\)"/);
+    expect(desktop).toMatch(/data-kind="start" data-bar="start" d="[^"]+" fill="var\(--color-median\)"/);
+    expect(desktop).toMatch(/data-kind="end" data-bar="end" d="[^"]+" fill="var\(--color-navy-700\)"/);
+    // Phone: one row per step, each with a 10 px floating bar.
+    expect(phone.match(/data-wf-row=/g)).toHaveLength(6);
+    expect(phone.match(/class="wf-bar absolute top-0 h-2\.5/g)).toHaveLength(6);
+  });
+
+  it('the chart is an image with a summary and a table', () => {
+    const h = html();
+    const desktop = desktopFold(h);
+    const svg = /<svg[^>]*data-testid="waterfall-svg"[^>]*>([\s\S]*?)<\/svg>/.exec(desktop);
+    expect(svg).not.toBeNull();
+    const open = /<svg[^>]*>/.exec(svg?.[0] ?? '')?.[0] ?? '';
+    expect(open).toContain('role="img"');
+    expect(open).toContain('focusable="false"');
+    expect(open).toMatch(/aria-label="Fra [^"]+ \(peer-gruppen samlet\) til [^"]+, fire poster, sum [+−][^"]+ kr"/);
+    // Every mark inside is aria-hidden; nothing in it is focusable.
+    for (const element of (svg?.[1] ?? '').match(/<(path|line)[^>]*>/g) ?? []) expect(element).toContain('aria-hidden="true"');
+    expect(svg?.[0]).not.toMatch(/tabindex/i);
+    for (const [fold, id] of [
+      [desktop, 'kf-d-wf-numbers'],
+      [phoneFold(h), 'kf-p-wf-numbers'],
+    ] as const) {
+      // "Vis tallene" controls a hidden table.
+      expect(fold).toMatch(new RegExp(`<button[^>]*aria-expanded="false"[^>]*aria-controls="${id}"[^>]*>${nb['chart.showNumbers']}</button>`));
+      expect(fold).toContain(`<div id="${id}" hidden=""`);
+      const numbers = /<table[^>]*data-testid="waterfall-table"[^>]*>[\s\S]*?<\/table>/.exec(fold)?.[0] ?? '';
+      expect(text(/<caption[^>]*>[\s\S]*?<\/caption>/.exec(numbers)?.[0] ?? '')).toBe(nb['waterfall.table.caption']);
+      expect([...numbers.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual(['Post', 'FJORDKODE AS', 'Samlet', 'Kroner']);
+      // Start, the four parts with sign and word, the end, and the reference.
+      expect([...numbers.matchAll(/<th scope="row"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual([
+        'Peer-gruppen samlet',
+        'Varekostnad',
+        'Lønn',
+        'Andre driftskostnader',
+        'Avskrivninger og øvrige poster',
+        'FJORDKODE AS',
+        'Referanse',
+      ]);
+      expect(text(numbers)).toMatch(/[+−][\d ]+ kr ▼ høyere enn samlet/);
+      // The glyph is aria-hidden: screen readers hear the word (EXPERIENCE.md "Accessibility Floor").
+      expect(numbers).toContain('<span aria-hidden="true"> ▼</span>');
+      expect(numbers.replace(/<span aria-hidden="true">[^<]*<\/span>/g, '')).not.toMatch(/[▲▼]/);
+    }
+  });
+
+  it('shows one sentence when there is no waterfall: outside the demo data', () => {
+    const h = render(standard());
+    expect(text(desktopFold(h))).toContain(nb['analysis.figures.notInDataset']);
+    expect(desktopFold(h)).toContain('data-testid="waterfall-absent"');
+    expect(desktopFold(h)).not.toContain('<svg');
   });
 });

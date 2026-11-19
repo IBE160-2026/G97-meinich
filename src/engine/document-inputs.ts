@@ -319,6 +319,38 @@ export function documentCostLines(figures: DocumentFigures): Readonly<Record<Cos
   return out;
 }
 
+/** The cost lines R2 needs read; `nedskrivninger` may be empty, counted as 0. */
+export const MAIN_COST_LINES = [
+  'varekostnad',
+  'lonnskostnad',
+  'avskrivninger',
+  'annenDriftskostnad',
+] as const satisfies readonly CostLine[];
+
+/**
+ * R2 (Story 2.5c; Meinich 2026-11-06), the one predicate: the four main cost
+ * lines are read (an empty `nedskrivninger` counts as 0) and they fall short
+ * of the stated `sumDriftskostnad` by more than the within-document bound, 5
+ * kr. The probe found such a column to hold one misread digit in a read
+ * line, so no share of it can be trusted. A column with a main line empty, or
+ * with `sumDriftskostnad` empty, is not short by this rule. The fingerprint
+ * (`fingerprintOf`) and the margin waterfall (`marginComponents`) both ask
+ * it, so the two cannot drift apart.
+ */
+export function costLinesShortOfTotal(
+  sumDriftskostnad: bigint | null,
+  lines: Readonly<Record<CostLine, bigint | null>>,
+): boolean {
+  if (sumDriftskostnad === null) return false;
+  if (!MAIN_COST_LINES.every((line) => lines[line] !== null)) return false;
+  let rest = sumDriftskostnad;
+  for (const line of COST_LINES) {
+    const amount = lines[line];
+    if (amount !== null) rest -= amount;
+  }
+  return rest > WITHIN_DOCUMENT_BOUND_ORE;
+}
+
 /** One stored document of a company and filing year, as the analysis reads it. */
 export type StoredDocument = {
   /** `register.document.status`. */

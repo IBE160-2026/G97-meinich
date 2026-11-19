@@ -159,6 +159,7 @@ describe('the hero amount and the table', () => {
       benchmark,
       turnoverBenchmark: benchmarkTotalAssetTurnover(inputs, PEERS),
       documentBenchmark: benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK'),
+      waterfall: { kind: 'subject_absent', absence: { reason: 'not_in_dataset' } },
       companyName: 'X AS',
       smaaForetak: true,
       filingYear: 2025,

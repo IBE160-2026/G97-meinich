@@ -20,6 +20,9 @@
 //
 // Story 3.2: total asset turnover, the return-on-assets decomposition's
 // second factor, is benchmarked beside them, over the same peers.
+//
+// Story 3.3: the margin waterfall against the same peers' document bases,
+// for the benchmark year, in the subject's currency.
 import {
   benchmarkApiFigures,
   benchmarkDocumentFigures,
@@ -29,6 +32,7 @@ import {
   type TurnoverBenchmark,
 } from '../engine/benchmark.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
+import { marginWaterfall, type MarginWaterfall } from '../engine/waterfall.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { firstUnstatedField, withoutExcluded, type EmptyReason, type FunnelCounts, type StatedField } from '../engine/peers.ts';
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
@@ -56,6 +60,8 @@ export type ShownGroup<P> = {
   readonly turnoverBenchmark: TurnoverBenchmark;
   /** The subject's twelve document figures against `peers`, each from its document basis (Story 3.1b). */
   readonly documentBenchmark: DocumentBenchmark;
+  /** The margin waterfall against the peer group as a whole, over `peers` (Story 3.3). */
+  readonly waterfall: MarginWaterfall;
   /** The subject's filing's smaaForetak, for the non-small notice. */
   readonly smaaForetak: boolean | null;
   /** The group's currency, the subject's: stage 2 makes every peer's equal. */
@@ -112,6 +118,12 @@ export function shownGroup<
     documentBenchmark: benchmarkDocumentFigures(
       filing.documentBasis,
       peers.map((peer) => peer.documentBasis),
+      filing.valuta,
+    ),
+    waterfall: marginWaterfall(
+      filing.documentBasis,
+      peers.map((peer) => peer.documentBasis),
+      filing.filingYear,
       filing.valuta,
     ),
     smaaForetak: filing.smaaForetak,

@@ -55,6 +55,14 @@ export const SERVER_FIELDS = [
   'industry_and_size_only',
   // Story 3.2: the turnover benchmark stays on the server; the page gets the factor view's strings.
   'turnoverBenchmark',
+  // Story 3.3: the engine's margin waterfall stays on the server; the page gets its view's strings and geometry.
+  'totalOre',
+  'totalKroner',
+  'startKroner',
+  'endKroner',
+  'barKroner',
+  'subjectMargin',
+  'aggregateMargin',
 ] as const;
 
 const DOCUMENT_FIELDS = Object.keys(DOCUMENT_FIGURE_COLUMNS) as DocumentField[];

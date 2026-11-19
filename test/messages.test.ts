@@ -189,3 +189,41 @@ describe('Story 3.2 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.3: the copy approved in the spec (Meinich, 2026-11-19, decisions 8 and 11), verbatim.
+describe('Story 3.3 copy', () => {
+  it.each([
+    ['keyFigures.foldout.waterfall', 'Hva forklarer marginavviket?'],
+    ['waterfall.start', 'Peer-gruppen samlet'],
+    ['waterfall.bar.varekostnad', 'Varekostnad'],
+    ['waterfall.bar.lonnskostnad', 'Lønn'],
+    ['waterfall.bar.annenDriftskostnad', 'Andre driftskostnader'],
+    ['waterfall.bar.residual', 'Avskrivninger og øvrige poster'],
+    ['waterfall.tag', 'Mot peer-gruppen samlet: {x}, ikke beste fjerdedel'],
+    ['waterfall.neverAdded', 'Dette forklarer avviket. Det er ikke et gap som skal lukkes, og det legges aldri til økt driftsresultat.'],
+    ['waterfall.notMedian', 'Mot peer-gruppen samlet, ikke medianen'],
+    ['waterfall.tooFew', 'Ingen forklaring av marginen: bare {n} sammenlignbare har alle kostnadslinjene (av 10 som trengs).'],
+    ['waterfall.notLoaded', 'Ingen forklaring av marginen: regnskapstallene til de sammenlignbare er ikke i demodataene.'],
+    [
+      'waterfall.shortOfTotal',
+      'Ingen forklaring av marginen: kostnadslinjene i regnskapet for {aar} summerer ikke til sum driftskostnader.',
+    ],
+    ['waterfall.margin', 'margin {m}'],
+    ['waterfall.shares', '{own} mot {all}'],
+    ['waterfall.lower', 'lavere enn samlet'],
+    ['waterfall.higher', 'høyere enn samlet'],
+    ['waterfall.summary', 'Fra {start} (peer-gruppen samlet) til {end}, fire poster, sum {sum}'],
+    ['waterfall.legend.favourable', 'Hever marginen mot samlet'],
+    ['waterfall.legend.unfavourable', 'Senker marginen mot samlet'],
+    ['waterfall.legend.residual', 'Restpost, uten retning'],
+    ['waterfall.table.caption', 'Marginavviket mot peer-gruppen samlet, i kroner'],
+    ['waterfall.table.post', 'Post'],
+    ['waterfall.table.all', 'Samlet'],
+    ['waterfall.table.kroner', 'Kroner'],
+    ['waterfall.table.reference', 'Referanse'],
+    ['chart.showNumbers', 'Vis tallene'],
+    ['chart.hideNumbers', 'Skjul tallene'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

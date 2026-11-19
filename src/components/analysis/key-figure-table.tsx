@@ -25,23 +25,32 @@
 // eller produktivitet?" after Lønnskostnadsandel); on the phone each is its
 // own `<tbody>` right after that figure's row group, full width, never inside
 // a figure row.
+//
+// Story 3.3: the margin waterfall fold-out, "Hva forklarer marginavviket?",
+// under Driftsmargin in the same way: the SVG chart on the desktop, the rows
+// on the phone. Each cost share's "Se forklaring av marginen" is a link that
+// opens it in the same layout and moves focus to its heading.
 import { Fragment, type ReactNode } from 'react';
 import type { ApiBenchmark, DocumentBenchmark, TurnoverBenchmark } from '@/engine/benchmark';
+import type { MarginWaterfall } from '@/engine/waterfall';
 import { t } from '@/messages';
-import type { DecompositionView, FactorPairView } from '@/analysis/decomposition-view';
+import type { FactorPairView } from '@/analysis/decomposition-view';
 import {
   DECOMPOSITION_UNDER,
   keyFigureTableView,
   type CellText,
+  type FoldOutKind,
   type GapCell,
   type KeyFigureRow,
+  type KeyFigureTableView,
 } from '@/analysis/key-figure-rows';
 import { DistributionStrip } from './distribution-strip';
 import { FactorPair } from './factor-pair';
-import { FoldOut } from './fold-out';
+import { FoldOut, FoldOutLink } from './fold-out';
 import { InfoPopover } from './info-popover';
 import { PhoneRowToggle } from './phone-row-toggle';
 import { StateBlock } from './state-block';
+import { Waterfall } from './waterfall';
 
 const DASH = '–';
 
@@ -60,7 +69,20 @@ function Text({ cell, className }: { readonly cell: CellText; readonly className
   );
 }
 
-function Gap({ gap }: { readonly gap: GapCell }) {
+type Layout = 'd' | 'p';
+
+/** The waterfall fold-out's ids in one layout: its body, and its heading, the link's target. */
+const waterfallIds = (layout: Layout) => ({ body: `kf-${layout}-fold-waterfall`, heading: `kf-${layout}-fold-waterfall-heading` });
+
+function Gap({ gap, layout }: { readonly gap: GapCell; readonly layout: Layout }) {
+  if (gap.waterfall === true) {
+    const ids = waterfallIds(layout);
+    return (
+      <FoldOutLink bodyId={ids.body} headingId={ids.heading}>
+        {gap.text}
+      </FoldOutLink>
+    );
+  }
   return (
     <>
       <Text cell={gap} className={gap.amount ? 'font-semibold whitespace-nowrap' : undefined} />
@@ -138,7 +160,7 @@ function DesktopRow({ row, groupHeadingId }: { readonly row: KeyFigureRow; reado
             <span className="figure mt-1 block text-[13px] whitespace-nowrap text-slate">{c.middleHalf}</span>
           </td>
           <td className={`figure ${cell}`} data-cell="gap">
-            {row.gap !== null ? <Gap gap={row.gap} /> : null}
+            {row.gap !== null ? <Gap gap={row.gap} layout="d" /> : null}
           </td>
         </>
       ) : (
@@ -169,7 +191,7 @@ function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
   let gap: ReactNode;
   if (c.kind === 'below_floor') gap = <span className="text-slate italic">{c.short}</span>;
   else if (c.kind === 'subject_absent') gap = <Text cell={{ text: DASH, srOnly: t('keyFigures.notApplicable') }} />;
-  else gap = row.gap !== null ? <Gap gap={row.gap} /> : null;
+  else gap = row.gap !== null ? <Gap gap={row.gap} layout="p" /> : null;
   return (
     <PhoneRowToggle
       expansionId={`kf-p-exp-${row.key}`}
@@ -206,7 +228,7 @@ function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
             <ExpansionItem label={t('keyFigures.col.count')}>{row.counts}</ExpansionItem>
             {row.gap !== null ? (
               <ExpansionItem label={t('keyFigures.col.gap')}>
-                <Gap gap={row.gap} />
+                <Gap gap={row.gap} layout="p" />
               </ExpansionItem>
             ) : null}
           </dl>
@@ -244,14 +266,37 @@ function Decomposition({
   );
 }
 
+/** The fold-out a row opens, in one layout: the margin waterfall (Story 3.3) or a decomposition (Story 3.2). */
+function FoldOutUnder({
+  which,
+  view,
+  companyName,
+  layout,
+}: {
+  readonly which: FoldOutKind;
+  readonly view: KeyFigureTableView;
+  readonly companyName: string;
+  readonly layout: Layout;
+}) {
+  if (which === 'waterfall') {
+    const ids = waterfallIds(layout);
+    return (
+      <FoldOut bodyId={ids.body} headingId={ids.heading} heading={t('keyFigures.foldout.waterfall')}>
+        <Waterfall view={view.waterfall} companyName={companyName} layout={layout === 'd' ? 'desktop' : 'phone'} />
+      </FoldOut>
+    );
+  }
+  return <Decomposition pair={view.decompositions[which]} bodyId={`kf-${layout}-fold-${which}`} companyName={companyName} />;
+}
+
 /** The desktop fold-out under a figure row, if one opens there: its own row, spanning the table. */
 function DesktopFoldOut({
   figure,
-  decompositions,
+  view,
   companyName,
 }: {
   readonly figure: KeyFigureRow['key'];
-  readonly decompositions: DecompositionView;
+  readonly view: KeyFigureTableView;
   readonly companyName: string;
 }) {
   const which = DECOMPOSITION_UNDER[figure];
@@ -259,7 +304,7 @@ function DesktopFoldOut({
   return (
     <tr className="border-b border-divider" data-foldout={which}>
       <td colSpan={DESKTOP_COLUMNS} className="py-2 pr-4">
-        <Decomposition pair={decompositions[which]} bodyId={`kf-d-fold-${which}`} companyName={companyName} />
+        <FoldOutUnder which={which} view={view} companyName={companyName} layout="d" />
       </td>
     </tr>
   );
@@ -268,11 +313,11 @@ function DesktopFoldOut({
 /** The phone fold-outs after a row group: each its own `<tbody>`, full width. */
 function PhoneFoldOuts({
   figures,
-  decompositions,
+  view,
   companyName,
 }: {
   readonly figures: readonly KeyFigureRow['key'][];
-  readonly decompositions: DecompositionView;
+  readonly view: KeyFigureTableView;
   readonly companyName: string;
 }) {
   return figures.map((figure) => {
@@ -282,7 +327,7 @@ function PhoneFoldOuts({
       <tbody key={`fold-${which}`} data-foldout={which} className={groupRule}>
         <tr>
           <td colSpan={PHONE_COLUMNS} className="py-2">
-            <Decomposition pair={decompositions[which]} bodyId={`kf-p-fold-${which}`} companyName={companyName} />
+            <FoldOutUnder which={which} view={view} companyName={companyName} layout="p" />
           </td>
         </tr>
       </tbody>
@@ -294,6 +339,7 @@ export function KeyFigureTable({
   benchmark,
   turnoverBenchmark,
   documentBenchmark,
+  waterfall,
   companyName,
   smaaForetak,
   filingYear,
@@ -302,6 +348,8 @@ export function KeyFigureTable({
   /** Total asset turnover against the same peers: the margin decomposition's second factor (Story 3.2). */
   readonly turnoverBenchmark: TurnoverBenchmark;
   readonly documentBenchmark: DocumentBenchmark;
+  /** The margin waterfall over the same peers (Story 3.3). */
+  readonly waterfall: MarginWaterfall;
   /** The own column's head: the company's name. */
   readonly companyName: string;
   /** The subject's filing's smaaForetak: false shows the notice when any figure is below the floor. */
@@ -313,6 +361,7 @@ export function KeyFigureTable({
     api: benchmark,
     turnover: turnoverBenchmark,
     document: documentBenchmark,
+    waterfall,
     filingYear,
     smaaForetak,
   });
@@ -377,7 +426,7 @@ export function KeyFigureTable({
               {group.rows.map((row) => (
                 <Fragment key={row.key}>
                   <DesktopRow row={row} groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null} />
-                  <DesktopFoldOut figure={row.key} decompositions={view.decompositions} companyName={companyName} />
+                  <DesktopFoldOut figure={row.key} view={view} companyName={companyName} />
                 </Fragment>
               ))}
             </tbody>
@@ -411,11 +460,7 @@ export function KeyFigureTable({
                 <PhoneRow key={row.key} row={row} />
               ))}
             </tbody>
-            <PhoneFoldOuts
-              figures={group.rows.map((row) => row.key)}
-              decompositions={view.decompositions}
-              companyName={companyName}
-            />
+            <PhoneFoldOuts figures={group.rows.map((row) => row.key)} view={view} companyName={companyName} />
           </Fragment>
         ))}
       </table>

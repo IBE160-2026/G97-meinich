@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { keyFigureTableView } from '../../src/analysis/key-figure-rows.ts';
 import { benchmarkApiFigures, benchmarkDocumentFigures, benchmarkTotalAssetTurnover } from '../../src/engine/benchmark.ts';
+import { marginWaterfall } from '../../src/engine/waterfall.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import { daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
 
@@ -31,6 +32,17 @@ function leaves(value: unknown, path: string, out: { path: string; value: unknow
     expect(Object.keys(strip.own as object).sort(), `${path}.own`).toEqual(['at', 'clipped']);
     return;
   }
+  // The margin waterfall's geometry (Story 3.3): positions on its kroner scale, nothing else.
+  if (path.endsWith('.geometry')) {
+    const geometry = value as Record<string, unknown>;
+    expect(Object.keys(geometry).sort(), path).toEqual(['end', 'from', 'to']);
+    for (const key of ['end', 'from', 'to']) expect(typeof geometry[key], `${path}.${key}`).toBe('number');
+    return;
+  }
+  if (path.endsWith('.waterfall.zero')) {
+    expect(typeof value, path).toBe('number');
+    return;
+  }
   if (value !== null && typeof value === 'object') {
     // Plain arrays and objects only: a Decimal (or any class instance) is not.
     const proto = Object.getPrototypeOf(value);
@@ -55,6 +67,7 @@ describe('the key-figure view', () => {
         api: benchmarkApiFigures(API, API_PEERS, 'NOK'),
         turnover: benchmarkTotalAssetTurnover(API, API_PEERS),
         document: benchmarkDocumentFigures(subject, peers, 'NOK'),
+        waterfall: marginWaterfall(subject, peers, 2025, 'NOK'),
         filingYear: 2025,
         smaaForetak: false,
       });

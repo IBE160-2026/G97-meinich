@@ -27,12 +27,14 @@ import {
   formatWholePercent,
 } from '../engine/format.ts';
 import { MIN_PEERS, type ApiKeyFigures, type Comparison, type Direction } from '../engine/types.ts';
+import type { MarginWaterfall } from '../engine/waterfall.ts';
 import { t, type MessageId } from '../messages/index.ts';
 import { decompositionView, type DecompositionView } from './decomposition-view.ts';
 import { capitalAmountText, kronerAmountText } from './kroner-amount.ts';
 import { absenceDetail, absenceText } from './figure-text.ts';
 import { DIRECTION_WORDS, stripMarks, type StripMarks } from './strip-marks.ts';
 import { middleHalfText, type Unit } from './middle-half.ts';
+import { waterfallView, type WaterfallView } from './waterfall-view.ts';
 
 export { DIRECTION_WORDS, middleHalfText, stripMarks, type StripMarks };
 
@@ -113,8 +115,18 @@ export const KEY_FIGURE_GROUPS: readonly {
 /** A cell's visible text and, where it shows only a dash, what a screen reader hears instead. */
 export type CellText = { readonly text: string; readonly srOnly?: string };
 
-/** The kroner cell: the main text (an amount is 600), an optional slate subline. */
-export type GapCell = { readonly text: string; readonly sub?: string; readonly srOnly?: string; readonly amount: boolean };
+/**
+ * The kroner cell: the main text (an amount is 600), an optional slate
+ * subline. `waterfall`: the text is a link that opens the margin waterfall
+ * fold-out and moves focus to its heading (a cost share, Story 3.3).
+ */
+export type GapCell = {
+  readonly text: string;
+  readonly sub?: string;
+  readonly srOnly?: string;
+  readonly amount: boolean;
+  readonly waterfall?: true;
+};
 
 export type KeyFigureRow = {
   readonly key: FigureKey;
@@ -154,6 +166,8 @@ export type KeyFigureTableView = {
   readonly groups: readonly KeyFigureGroup[];
   /** The two decomposition fold-outs' factor pairs (Story 3.2). */
   readonly decompositions: DecompositionView;
+  /** The margin waterfall fold-out under Driftsmargin (Story 3.3). */
+  readonly waterfall: WaterfallView;
   /** Some row's own value is "Ikke i demodataene": the State block above the table is shown. */
   readonly notInDataset: boolean;
   /** A subject that is not a small enterprise, with any figure below the floor. */
@@ -228,8 +242,8 @@ function gapCell(definition: RowDefinition, benchmark: RowBenchmark): GapCell | 
   if (benchmark.comparison.kind !== 'compared') return null;
   if (definition.role === 'check') return { ...notApplicable(), amount: false };
   if (benchmark.direction === 'none') return { ...notApplicableNoDirection(), amount: false };
-  // Cost shares have no kroner of their own: the margin decomposition explains them (Story 3.3 links it).
-  if (definition.role === 'cost_share') return { text: t('keyFigures.costShare.kroner'), amount: false };
+  // Cost shares have no kroner of their own: the margin waterfall explains them, and the cell links to it (Story 3.3).
+  if (definition.role === 'cost_share') return { text: t('keyFigures.costShare.kroner'), amount: false, waterfall: true };
   const kroner = benchmark.kroner;
   switch (kroner.kind) {
     case 'profit':
@@ -318,12 +332,16 @@ function benchmarkOf(key: FigureKey, api: ApiBenchmark, document: DocumentBenchm
   }
 }
 
+/** A fold-out of the table: one of the two decompositions (Story 3.2) or the margin waterfall (Story 3.3). */
+export type FoldOutKind = keyof DecompositionView | 'waterfall';
+
 /**
- * Which decomposition fold-out opens under which row (Story 3.2; EXPERIENCE.md
+ * Which fold-out opens under which row (Stories 3.2, 3.3; EXPERIENCE.md
  * "Fold-out"): on the desktop right after the row, on the phone after the
- * row's group. "Hva forklarer marginavviket?" under Driftsmargin is Story 3.3's.
+ * row's group.
  */
-export const DECOMPOSITION_UNDER: Readonly<Partial<Record<FigureKey, keyof DecompositionView>>> = {
+export const DECOMPOSITION_UNDER: Readonly<Partial<Record<FigureKey, FoldOutKind>>> = {
+  driftsmargin: 'waterfall',
   totalkapitalrentabilitet: 'margin',
   lonn: 'pay',
 };
@@ -338,12 +356,15 @@ export function keyFigureTableView({
   api,
   turnover,
   document,
+  waterfall,
   filingYear,
   smaaForetak,
 }: {
   readonly api: ApiBenchmark;
   readonly turnover: TurnoverBenchmark;
   readonly document: DocumentBenchmark;
+  /** The engine's margin waterfall over the same peers (Story 3.3). */
+  readonly waterfall: MarginWaterfall;
   readonly filingYear: number;
   readonly smaaForetak: boolean | null;
 }): KeyFigureTableView {
@@ -358,6 +379,7 @@ export function keyFigureTableView({
   return {
     groups,
     decompositions: decompositionView({ api, turnover, document, filingYear }),
+    waterfall: waterfallView({ waterfall, document, filingYear }),
     notInDataset: rows.some((r) => r.own.notInDataset),
     nonSmall: smaaForetak === false && rows.some((r) => r.comparison.kind === 'below_floor'),
   };

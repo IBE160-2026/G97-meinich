@@ -230,6 +230,7 @@ function Covered({
               benchmark={group.benchmark}
               turnoverBenchmark={group.turnoverBenchmark}
               documentBenchmark={group.documentBenchmark}
+              waterfall={group.waterfall}
               companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
               smaaForetak={group.smaaForetak}
               filingYear={group.filingYear}

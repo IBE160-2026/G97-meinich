@@ -152,3 +152,44 @@
     outline-offset: 2px;
   }
 }
+
+/*
+ * The margin waterfall's bars under forced colours (Story 3.3; EXPERIENCE.md
+ * "Accessibility Floor", "Forced colours"): the system replaces every colour,
+ * so each kind of bar keeps its own fill and outline in the system's colours
+ * instead. Favourable is filled, unfavourable hollow with a solid outline, the
+ * residual hollow with a dashed one, the start hollow with a dotted one and
+ * the end in Highlight. Each bar also carries its sign and its word as text.
+ */
+@media (forced-colors: active) {
+  .wf-bar {
+    forced-color-adjust: none;
+    stroke: CanvasText;
+    stroke-width: 2px;
+    border: 2px solid CanvasText;
+  }
+  .wf-bar[data-kind='start'] {
+    fill: Canvas;
+    background-color: Canvas;
+    stroke-dasharray: 2 2;
+    border-style: dotted;
+  }
+  .wf-bar[data-kind='favourable'] {
+    fill: CanvasText;
+    background-color: CanvasText;
+  }
+  .wf-bar[data-kind='unfavourable'] {
+    fill: Canvas;
+    background-color: Canvas;
+  }
+  .wf-bar[data-kind='residual'] {
+    fill: Canvas;
+    background-color: Canvas;
+    stroke-dasharray: 6 3;
+    border-style: dashed;
+  }
+  .wf-bar[data-kind='end'] {
+    fill: Highlight;
+    background-color: Highlight;
+  }
+}

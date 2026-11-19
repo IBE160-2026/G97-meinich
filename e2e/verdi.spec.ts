@@ -143,6 +143,51 @@ test.describe('Verdi (Story 3.5)', () => {
     expect(await page.evaluate(() => window.history.length)).toBe(before.length);
   });
 
+  test('the arrow keys wrap and choose; Tab leaves the group and Shift+Tab returns to the checked step', async ({ page }) => {
+    const { orgnr, navn } = DEMO_A;
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    // The fixture's state: demo A's steps, the median step second, all enabled.
+    await expect(control(page).getByRole('radio')).toHaveCount(6);
+    await expect(control(page).locator('[aria-disabled="true"]')).toHaveCount(0);
+    await step(page, 0).click();
+    await expect.poll(() => new URL(page.url()).search).toBe('?andel=0');
+    await page.keyboard.press('ArrowLeft');
+    await expect(step(page, 100)).toBeFocused();
+    await expect(step(page, 100)).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(() => new URL(page.url()).search).toBe('?andel=100');
+    await page.keyboard.press('ArrowRight');
+    await expect(step(page, 0)).toBeFocused();
+    await expect(step(page, 0)).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(() => new URL(page.url()).search).toBe('?andel=0');
+    // Roving tabindex: only the checked step is in the tab order.
+    await expect(control(page).locator('[tabindex="0"]')).toHaveCount(1);
+    await page.keyboard.press('Tab');
+    await expect(control(page).locator(':focus')).toHaveCount(0);
+    await page.keyboard.press('Shift+Tab');
+    await expect(step(page, 0)).toBeFocused();
+  });
+
+  test('a reload after a share change renders the same step and cards, with no hydration error', async ({ page }) => {
+    const { orgnr, navn } = DEMO_A;
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, navn);
+    await step(page, 'median').click();
+    await expect.poll(() => new URL(page.url()).search).toBe('?andel=median');
+    const before = await rendered(page).getByTestId('verdi-cards').innerText();
+    await page.reload();
+    await companyShown(page, navn);
+    await expect(step(page, 'median')).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(() => rendered(page).getByTestId('verdi-cards').innerText()).toBe(before);
+    expect(errors.filter((text) => /hydrat/i.test(text))).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
   test('a tab change after a share change keeps both', async ({ page }) => {
     const { oracle, orgnr, navn } = DEMO_A;
     await page.goto(`/analyse/${orgnr}/oversikt`);

@@ -11,6 +11,8 @@ import { texts } from './wire-identity/entry.ts';
 import { WIRES } from './wire-identity/fixtures.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
+const NBSP = ' ';
+const MINUS = '−';
 
 /** The entry bundled as one script that sets `globalThis.WireIdentity`. */
 async function bundle(): Promise<string> {
@@ -41,6 +43,9 @@ test('byte-identical Verdi texts in Node and Chromium for the same wire values',
   expect(WIRES.map((wire) => JSON.stringify(wire)).join('')).toMatch(/\d{9}\.\d{31}/);
   expect(node).toContain('−');
   expect(node).toContain('0 kr');
+  // A half krone of each sign, rounded away from zero: −0,5 kr at the median step and 1,5 kr at 25 %.
+  expect(node).toContain(`"${MINUS}1${NBSP}kr av ${MINUS}10${NBSP}kr per år"`);
+  expect(node).toContain(`"2${NBSP}kr av 6${NBSP}kr"`);
   const code = await bundle();
   await page.setContent('<!doctype html><html lang="nb"><head><meta charset="utf-8"></head><body></body></html>');
   await page.addScriptTag({ content: code });

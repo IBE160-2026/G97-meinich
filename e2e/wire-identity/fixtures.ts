@@ -27,16 +27,19 @@ export const WIRES: readonly VerdiWire[] = [
     oml: { kind: 'amount', full: w('999999999999.99999999999999999999999999') , median: null },
   },
   {
-    // Rounding at the half: 0,5 kr and −0,5 kr; a zero; s_med rounding to under 1 %.
+    // Rounding at the half, both signs: (11) 600 øre at 25 % is 1,5 kr, written "2 kr" ("2 kr av 6 kr");
+    // the profit at the median, −50 øre, is −0,5 kr, written "−1 kr" ("−1 kr av −10 kr per år"). The
+    // negative profit is a synthetic value, for the formatting only (the engine gives no negative
+    // uplift). A zero; s_med rounding to under 1 %.
     step: { kind: 'exists', sMed: w('0.004999999999999999999999999999999999999') },
-    profit: { kind: 'amount', full: w('-150'), atMedian: w('-0.75'), median: null },
+    profit: { kind: 'amount', full: w('-1000'), atMedian: w('-50'), median: null },
     workingCapital: {
       kind: 'parts',
       kfd: { label: 'Kundefordringsdager', value: { kind: 'amount', full: w('0') }, median: null },
       lgd: { label: 'Leverandørgjeldsdager', value: { kind: 'text', text: '▲ Styrke' }, median: null },
       total: { kind: 'amount', full: w('0') },
     },
-    oml: { kind: 'amount', full: w('200'), median: 'Median nås ved over 99 %' },
+    oml: { kind: 'amount', full: w('600'), median: 'Median nås ved over 99 %' },
   },
   {
     // No median step: the reason, and cards in words.

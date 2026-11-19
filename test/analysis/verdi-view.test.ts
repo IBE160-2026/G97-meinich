@@ -10,6 +10,7 @@ import { KEY_FIGURE_ROWS, type FigureKey } from '../../src/analysis/key-figure-r
 import { verdiCards, verdiWire, type VerdiWire } from '../../src/analysis/verdi-view.ts';
 import type { SubjectKeyFigures } from '../../src/analysis/view.ts';
 import { ClosableShareControl } from '../../src/components/analysis/closable-share.tsx';
+import { MULTIPLE_REASON_ID, MultipleField } from '../../src/components/analysis/multiple-field.tsx';
 import type {
   ApiBenchmark,
   CapitalGap,
@@ -396,6 +397,12 @@ describe('the EV section (Story 3.6)', () => {
     expect(view.ev).toEqual({ kind: 'empty', field: '', text: nb['verdi.ev.empty'], error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
     // No value and no product line anywhere.
     expect(JSON.stringify(view)).not.toContain(' × ');
+    // The field renders empty, with no placeholder, enabled, and its status region empty from load.
+    const html = renderToString(createElement(MultipleField, { ev: view.ev, current: null, onCommit: () => {}, announcementFor: () => '' }));
+    const input = html.match(/<input[^>]*>/)?.[0] ?? '';
+    for (const attribute of ['type="text"', 'inputMode="decimal"', 'value=""']) expect(input).toContain(attribute);
+    expect(html).not.toMatch(/placeholder|aria-disabled|aria-invalid|readOnly/i);
+    expect(html).toMatch(/role="status"[^>]*><span class="sr-only"><\/span><\/div>/);
   });
 
   it('a valid multiple', () => {
@@ -474,6 +481,17 @@ describe('the EV section (Story 3.6)', () => {
       const withMultiple = verdiCards(wire, 50, multiple('6.5'));
       expect(withMultiple.ev, label).toEqual({ kind: 'disabled', reason, field: '6,5', error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
       expect(JSON.stringify(withMultiple), label).not.toContain(' × ');
+      // The field renders aria-disabled and read-only, never disabled, so it stays focusable, described by the reason.
+      const html = renderToString(
+        createElement(MultipleField, { ev: withMultiple.ev, current: multiple('6.5'), onCommit: () => {}, announcementFor: () => '' }),
+      );
+      const input = html.match(/<input[^>]*>/)?.[0] ?? '';
+      for (const attribute of ['value="6,5"', 'readOnly=""', 'aria-disabled="true"', `aria-describedby="${MULTIPLE_REASON_ID}"`]) {
+        expect(input, label).toContain(attribute);
+      }
+      expect(html, label).not.toMatch(/\sdisabled=""/);
+      expect(html, label).toContain(`id="${MULTIPLE_REASON_ID}"`);
+      expect(html, label).toContain(reason.replaceAll('"', '&quot;'));
     }
   });
 });

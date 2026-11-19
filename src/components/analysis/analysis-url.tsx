@@ -1,9 +1,10 @@
 'use client';
 // The one URL hook of an analysis page (Story 3.5, decision 6; AD-5, AD-6):
 // `useAnalysisUrl()` gives the state the page shows, every link's href, and
-// the one write of the share, `replaceShare`, the only
-// `history.replaceState` in `src/` (never `router.replace`: a share change
-// renders nothing on the server and adds no history entry).
+// the one write of the share and the multiple, `replaceSettings` (Story 3.6,
+// decision 4), the only `history.replaceState` in `src/`
+// (test/one-replace-state.test.ts; never `router.replace`: a share or
+// multiple change renders nothing on the server and adds no history entry).
 //
 // The provider sits in the covered analysis page, around the tabs and the
 // panel. It holds the URL the server parsed (`href`, `serialize` of its
@@ -18,7 +19,7 @@
 import { useSearchParams } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { committedContext, targetState, withLiveSettings, type AnalysisTarget } from '@/analysis/peer-change';
-import type { ClosableShare } from '@/engine/closable';
+import type { ClosableShare, Multiple } from '@/engine/closable';
 import { parse, serialize, type AnalysisState } from '@/url/analysis-state';
 
 export type AnalysisUrlValue = {
@@ -28,9 +29,17 @@ export type AnalysisUrlValue = {
   readonly medianStep: boolean;
   /** The href of a link to `target`, every other setting kept. */
   readonly hrefFor: (target: AnalysisTarget) => string;
-  /** Writes `andel` into the URL with `history.replaceState`: one entry replaced, none added. */
-  readonly replaceShare: (andel: ClosableShare) => void;
+  /**
+   * Writes the share, the multiple or both into the URL with
+   * `history.replaceState`: one entry replaced, none added. A setting left
+   * out keeps its live value; `multippel: null` removes the multiple. A
+   * change that leaves the URL as it is writes nothing.
+   */
+  readonly replaceSettings: (settings: Settings) => void;
 };
+
+/** What `replaceSettings` writes: the closable share and the multiple (null: none). */
+export type Settings = { readonly andel?: ClosableShare; readonly multippel?: Multiple | null };
 
 const AnalysisUrlContext = createContext<AnalysisUrlValue | null>(null);
 
@@ -64,13 +73,23 @@ export function AnalysisUrlProvider({
   }, [href, medianStep, search]);
 
   const hrefFor = useCallback((target: AnalysisTarget) => serialize(targetState(state, target)), [state]);
-  const replaceShare = useCallback(
-    (andel: ClosableShare) => {
-      window.history.replaceState(null, '', serialize({ ...state, andel }));
+  const replaceSettings = useCallback(
+    (settings: Settings) => {
+      const next: AnalysisState = {
+        ...state,
+        andel: settings.andel ?? state.andel,
+        multippel: settings.multippel === undefined ? state.multippel : settings.multippel,
+      };
+      const href = serialize(next);
+      if (href === serialize(state)) return;
+      window.history.replaceState(null, '', href);
     },
     [state],
   );
 
-  const value = useMemo<AnalysisUrlValue>(() => ({ state, medianStep, hrefFor, replaceShare }), [state, medianStep, hrefFor, replaceShare]);
+  const value = useMemo<AnalysisUrlValue>(
+    () => ({ state, medianStep, hrefFor, replaceSettings }),
+    [state, medianStep, hrefFor, replaceSettings],
+  );
   return <AnalysisUrlContext.Provider value={value}>{children}</AnalysisUrlContext.Provider>;
 }

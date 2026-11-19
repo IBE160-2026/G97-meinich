@@ -215,6 +215,54 @@ function forbiddenInTotals(prog: ts.Program, registry: Readonly<Record<string, A
   return [...new Set(found)];
 }
 
+/** The one sum a choice may make, through the total that makes it (Story 3.4, decision 1). */
+const CHOICE_MAY_CALL: ReadonlySet<string> = new Set(['workingCapitalReleased']);
+
+/**
+ * Every `.plus` or `.add` a choice makes, directly or through any engine
+ * function it calls (exported or module-private), except through
+ * `workingCapitalReleased` (Story 3.4, decision 1: a choice compares amounts
+ * and sums nothing; its only sum is working capital's own).
+ */
+function sumsInChoices(prog: ts.Program, registry: Readonly<Record<string, AmountEntry>>): string[] {
+  const checker = prog.getTypeChecker();
+  const functions = new Map(exportedFunctions(prog).map((fn) => [fn.name, fn]));
+  const found: string[] = [];
+  for (const [name, entry] of Object.entries(registry)) {
+    if (entry.role !== 'choice') continue;
+    const choice = functions.get(name);
+    if (choice === undefined) {
+      found.push(`${name}: registered as a choice but not exported from src/engine`);
+      continue;
+    }
+    const visited = new Set<ts.Node>();
+    const walk = (node: ts.Node, via: string): void => {
+      if (visited.has(node)) return;
+      visited.add(node);
+      const visit = (child: ts.Node): void => {
+        if (ts.isPropertyAccessExpression(child) && (child.name.text === 'plus' || child.name.text === 'add')) {
+          found.push(`${name}${via}: .${child.name.text}`);
+        }
+        if (ts.isIdentifier(child) && !CHOICE_MAY_CALL.has(child.text)) {
+          let symbol = checker.getSymbolAtLocation(child);
+          if (symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+          for (const declaration of symbol?.declarations ?? []) {
+            const file = path.normalize(declaration.getSourceFile().fileName);
+            const callee = functionBody(declaration);
+            if (callee !== undefined && callee !== node && path.dirname(file) === path.normalize(ENGINE)) {
+              walk(callee, `${via} → ${symbol?.name}`);
+            }
+          }
+        }
+        ts.forEachChild(child, visit);
+      };
+      ts.forEachChild(node, visit);
+    };
+    walk(choice.node, '');
+  }
+  return [...new Set(found)];
+}
+
 const ENGINE_PROGRAM = program();
 
 // A probe module: an amount function nobody registered, and a total that adds a waterfall bar.
@@ -298,6 +346,40 @@ describe('cluster 1: cost shares and the waterfall', () => {
       expect(figure.comparison.kind, key).toBe('compared');
       expect(figure.gap, key).toEqual({ kind: 'none', reason: 'no_translation' });
     }
+  });
+});
+
+describe('a choice', () => {
+  it('a choice sums nothing', () => {
+    // Fixture: the engine as built; largestCapitalGap is registered as the one choice.
+    expect(AMOUNT_FUNCTIONS.largestCapitalGap.role).toBe('choice');
+    expect(sumsInChoices(ENGINE_PROGRAM, AMOUNT_FUNCTIONS)).toEqual([]);
+    // A choice is not a total: no total references it, and the totals' checks still hold.
+    expect(forbiddenInTotals(ENGINE_PROGRAM, AMOUNT_FUNCTIONS)).toEqual([]);
+    // The check sees a sum: a probe choice adding (11) to (9), directly and through a private helper, is caught.
+    const probe = program({
+      'probe-choice.ts': [
+        "import type { CapitalGap } from './benchmark.ts';",
+        "import { Decimal } from './decimal.ts';",
+        'function both(a: CapitalGap, b: CapitalGap): Decimal | null {',
+        "  return a.kind === 'amount' && b.kind === 'amount' ? a.ore.plus(b.ore) : null;",
+        '}',
+        'export function largestWithSum(kfd: CapitalGap, oml: CapitalGap): { readonly ore: Decimal | null } {',
+        "  return { ore: kfd.kind === 'amount' && oml.kind === 'amount' ? kfd.ore.add(oml.ore) : null };",
+        '}',
+        'export function largestThroughHelper(kfd: CapitalGap, oml: CapitalGap): { readonly ore: Decimal | null } {',
+        '  return { ore: both(kfd, oml) };',
+        '}',
+      ].join('\n'),
+    });
+    const registry = {
+      ...AMOUNT_FUNCTIONS,
+      largestWithSum: { module: 'probe-choice.ts', role: 'choice' },
+      largestThroughHelper: { module: 'probe-choice.ts', role: 'choice' },
+    } as const;
+    expect(sumsInChoices(probe, registry)).toEqual(
+      expect.arrayContaining(['largestWithSum: .add', 'largestThroughHelper → both: .plus']),
+    );
   });
 });
 

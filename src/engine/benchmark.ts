@@ -45,6 +45,20 @@ export type KronerGap =
   | { readonly kind: 'none' };
 
 /**
+ * Whether a compared figure is a strength (FR-29): its own value at or
+ * beyond beste fjerdedel in the figure's direction, compared exactly — at or
+ * above it where higher is better, at or below it where lower is better.
+ * False for a figure with no direction (no beste fjerdedel), below the floor
+ * or with no own value. The one test of a strength: the kroner gaps, the
+ * table's "▲ Styrke" and Oversikt's "Største styrke" (Story 3.4) all read it.
+ */
+export function atOrBeyondBest(comparison: Comparison, direction: Direction): boolean {
+  if (comparison.kind !== 'compared' || comparison.best === null || direction === 'none') return false;
+  const target = comparison.best.quartile;
+  return direction === 'lower_is_better' ? comparison.subject.lte(target) : comparison.subject.gte(target);
+}
+
+/**
  * The driftsmargin gap for a comparison. `revenueOre` is the resolved
  * (stated or derived) sumDriftsinntekter behind the subject's margin — the
  * exact øre, never a rounded figure. `valuta` is the subject's filing's.
@@ -52,7 +66,7 @@ export type KronerGap =
 export function driftsmarginGap(comparison: Comparison, revenueOre: bigint | null, valuta: string | null): KronerGap {
   if (comparison.kind !== 'compared' || comparison.best === null) return { kind: 'none' };
   const target = comparison.best.quartile;
-  if (comparison.subject.gte(target)) return { kind: 'strength' };
+  if (atOrBeyondBest(comparison, API_FIGURE_DIRECTIONS.driftsmargin)) return { kind: 'strength' };
   if (valuta !== 'NOK') return { kind: 'not_nok' };
   // A compared margin has a defined, positive revenue behind it.
   if (revenueOre === null) throw new RangeError('a compared driftsmargin needs its revenue');
@@ -187,10 +201,8 @@ export function capitalGap(
   valuta: string | null,
 ): CapitalGap {
   if (comparison.kind !== 'compared' || comparison.best === null || exact.kind !== 'value') return NO_COMPARISON;
-  const r = comparison.subject;
   const target = comparison.best.quartile;
-  const lowerIsBetter = DOCUMENT_FIGURE_DIRECTIONS[figure] === 'lower_is_better';
-  if (lowerIsBetter ? r.lte(target) : r.gte(target)) return { kind: 'strength' };
+  if (atOrBeyondBest(comparison, DOCUMENT_FIGURE_DIRECTIONS[figure])) return { kind: 'strength' };
   if (figure === 'oml' && target.lte(0)) return { kind: 'none', reason: 'target_not_positive' };
   if (valuta !== 'NOK') return { kind: 'not_nok' };
   const days = dec(DAYS_PER_YEAR);
@@ -227,6 +239,49 @@ export type WorkingCapitalReleased =
 export function workingCapitalReleased(kfd: CapitalGap, lgd: CapitalGap): WorkingCapitalReleased {
   if (kfd.kind !== 'amount' || lgd.kind !== 'amount') return { kind: 'none' };
   return { kind: 'amount', ore: kfd.ore.plus(lgd.ore), oneOff: true };
+}
+
+/** What "Største kapitalgap" can show: the working-capital total (9 + 10), or one capital figure alone. */
+export type CapitalChoice = 'working_capital' | CapitalFigure;
+
+/**
+ * Oversikt's "Største kapitalgap" (Story 3.4, decision 1; FR-30;
+ * `docs/key-figures.md`, "Two amounts that must never be added"):
+ * - `amount`: the largest one-off amount at full convergence, the exact øre
+ *   compared before any rounding; `figure` names what it is;
+ * - `none`: no amount, with the first reason that applies: `not_nok` (an
+ *   amount there would be is not in kroner), `all_strengths` (9, 10 and 11
+ *   are each at or beyond beste fjerdedel), or `no_gap` (otherwise: some
+ *   below the floor, undefined, a strength or without a capital base).
+ */
+export type LargestCapitalGap =
+  | { readonly kind: 'amount'; readonly figure: CapitalChoice; readonly ore: Decimal; readonly oneOff: true }
+  | { readonly kind: 'none'; readonly reason: 'not_nok' | 'all_strengths' | 'no_gap' };
+
+/**
+ * The largest capital gap among, in figure order: the working-capital total
+ * when both (9) and (10) are amounts (`workingCapitalReleased`, the only sum
+ * this function shows), otherwise whichever of the two is an amount, alone;
+ * and (11). It chooses and sums nothing itself: (11) is never added to (9),
+ * (10) or their total, only compared with them. The largest exact amount
+ * wins; on a tie the lower figure number, so working capital before (11).
+ * It never reads the profit gap: it is not ranked against the per-year hero.
+ */
+export function largestCapitalGap(kfd: CapitalGap, lgd: CapitalGap, oml: CapitalGap): LargestCapitalGap {
+  const candidates: { readonly figure: CapitalChoice; readonly ore: Decimal }[] = [];
+  const workingCapital = workingCapitalReleased(kfd, lgd);
+  if (workingCapital.kind === 'amount') candidates.push({ figure: 'working_capital', ore: workingCapital.ore });
+  else if (kfd.kind === 'amount') candidates.push({ figure: 'kfd', ore: kfd.ore });
+  else if (lgd.kind === 'amount') candidates.push({ figure: 'lgd', ore: lgd.ore });
+  if (oml.kind === 'amount') candidates.push({ figure: 'oml', ore: oml.ore });
+  let chosen: (typeof candidates)[number] | null = null;
+  // Strictly greater: an equal later candidate (a higher figure number) never replaces the earlier one.
+  for (const candidate of candidates) if (chosen === null || candidate.ore.gt(chosen.ore)) chosen = candidate;
+  if (chosen !== null) return { kind: 'amount', figure: chosen.figure, ore: chosen.ore, oneOff: true };
+  const gaps = [kfd, lgd, oml];
+  if (gaps.some((gap) => gap.kind === 'not_nok')) return { kind: 'none', reason: 'not_nok' };
+  if (gaps.every((gap) => gap.kind === 'strength')) return { kind: 'none', reason: 'all_strengths' };
+  return { kind: 'none', reason: 'no_gap' };
 }
 
 const CAPITAL_FIGURES: ReadonlySet<DocumentKeyFigure> = new Set<CapitalFigure>(['kfd', 'lgd', 'oml']);

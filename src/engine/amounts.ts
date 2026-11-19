@@ -24,9 +24,12 @@
  *   share's amount or 11;
  * - `explanation`: the margin waterfall, which explains the margin gap
  *   against the peer group as a whole, is never scaled by the closable share
- *   and is never added to any total.
+ *   and is never added to any total;
+ * - `choice` (Story 3.4): picks one of several amounts by comparing them
+ *   exactly, and sums nothing itself; its only sum is the one a `total` it
+ *   calls makes (`workingCapitalReleased`).
  */
-export type AmountRole = 'gap' | 'benchmark' | 'total' | 'explanation';
+export type AmountRole = 'gap' | 'benchmark' | 'total' | 'explanation' | 'choice';
 
 export type AmountEntry = {
   /** The module under src/engine that exports it. */
@@ -40,6 +43,7 @@ export const AMOUNT_FUNCTIONS = {
   benchmarkApiFigures: { module: 'benchmark.ts', role: 'benchmark' },
   benchmarkDocumentFigures: { module: 'benchmark.ts', role: 'benchmark' },
   workingCapitalReleased: { module: 'benchmark.ts', role: 'total' },
+  largestCapitalGap: { module: 'benchmark.ts', role: 'choice' },
   marginWaterfall: { module: 'waterfall.ts', role: 'explanation' },
   displayWaterfall: { module: 'waterfall.ts', role: 'explanation' },
 } as const satisfies Readonly<Record<string, AmountEntry>>;

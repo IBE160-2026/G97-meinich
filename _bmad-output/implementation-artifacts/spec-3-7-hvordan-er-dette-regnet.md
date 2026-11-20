@@ -2,7 +2,7 @@
 title: 'Story 3.7: "Hvordan er dette regnet?"'
 type: 'feature'
 created: '2026-11-20'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_commit: '0c3301cac7415ff3f6e98dddc803525889596999'
 route: 'dispatch'
 review_loop_iteration: 0

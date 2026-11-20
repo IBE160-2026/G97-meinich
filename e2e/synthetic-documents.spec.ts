@@ -146,7 +146,8 @@ test('every document row is compared against the engine', async ({ page }) => {
   for (const key of ['kfd', 'lgd', 'oml'] as const) {
     const gap = expected[key].gap;
     if (gap.kind !== 'amount') throw new Error(`the fixture's ${key} has no capital amount`);
-    await expect(cell(page, key, 'gap'), key).toHaveText(`${formatKronerExact(gap.ore.toString())}${nb['keyFigures.oneOff']}`);
+    // Story 3.7: followed by its "Hvordan er dette regnet?".
+    await expect(cell(page, key, 'gap'), key).toHaveText(`${formatKronerExact(gap.ore.toString())}${nb['keyFigures.oneOff']}${nb['provenance.trigger']}`);
   }
   for (const key of ['vare', 'lonn', 'andre']) {
     await expect(cell(page, key, 'gap'), key).toHaveText(nb['keyFigures.costShare.kroner']);

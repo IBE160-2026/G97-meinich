@@ -101,3 +101,22 @@ Run step by step after the review fixes, with free memory checked before each st
 - AI log: "2026-11-19 — Story 3.6: EV/EBIT, a user-entered multiple applied to money".
 - Spec: `_bmad-output/implementation-artifacts/spec-3-6-ev-ebit-what-the-uplift-is-worth.md`, decisions 1–9 and the Review Triage Log.
 - Planning documents: EXPERIENCE.md and DESIGN.md with `(change)` lines in the UX memlog; `epics.md` (UX-DR28 and Story 3.6's acceptance criteria; it has no memlog); `docs/key-figures.md`; the technical note; AGENTS.md. The PRD is not affected.
+
+## Merge
+
+CI ran twice on the PR. The run on `febfcba` was cancelled by the next push, and the run on `10b024d` was green (run 44696708610, 11 min). The first full verification after the review fixes stopped on low memory. On the review session's recommendation, it was rerun step by step with `pnpm test --maxWorkers=2`, with free memory checked before each step. Before merging, the review session checked the following:
+- the rounding example for decision 1, recomputed with Python Decimal at 40 digits: 699 650 øre, written as 6 997 kr, against full × s_med × 7 = 699 649,999… øre, written as 6 996 kr;
+- the "≈" rule on the displayed kroner, with 585 000 kr × 6,5 giving "=" and 999,5 kr × 7 giving "≈";
+- the one `as Multiple`, in `parseMultippel`, and the two scans that now use the type checker;
+- `replaceSettings` as the one `history.replaceState`, writing nothing when the URL is unchanged;
+- the `value` role and its probes;
+- the disabled field with the profit card's own words;
+- the invalid-settings flag for an invalid `multippel` from the URL;
+- `571240e`, the two early reads after the field's announcement;
+- the restored row counts (2 785, 5 556, 2 537, 10 371), with no synthetic company left and 20 manifest entries;
+- the statuses;
+- the PR text's credits.
+
+The review session also recommended changing the error text "… for eksempel 6 eller 6,5": both examples are realistic EV/EBIT multiples, which FR-32 rules out, and the text did not say why 6,55 is refused. Meinich decided the new text, "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal" (`cb187e1`).
+
+At Meinich's request (`post review`), the review session posted the GitHub review with eight line comments and nothing to fix ([review 5989226598](https://github.com/IBE160-2026/G97-meinich/pull/80#pullrequestreview-5989226598)). The PR was merged at 07:52 UTC on 2026-11-20 as `a5aa92c`, closing issue #79. The BMAD session's updated session log (`067e2d3`) was not pushed before the merge and stays local, like the other session logs.

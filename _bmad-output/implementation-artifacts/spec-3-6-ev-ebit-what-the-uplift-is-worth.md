@@ -2,7 +2,7 @@
 title: 'Story 3.6: EV/EBIT — what the uplift is worth'
 type: 'feature'
 created: '2026-11-19'
-status: 'in-review'
+status: 'done'
 baseline_commit: '17d06194aa16a58b9b31cdf476d15437532111fe'
 route: 'dispatch'
 review_loop_iteration: 0

@@ -5,15 +5,18 @@
 // a company outside the demo data claiming no reconciliation; and every
 // surface at 375 and 320 px. Every read after opening a drill-down or "Vis
 // fordelingen" first waits for it to be visible.
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { Decimal } from '../src/engine/decimal.ts';
-import { formatKroner, formatKronerExact, formatPercent } from '../src/engine/format.ts';
+import { formatKroner, formatKronerExact, formatPercent, shownPercent, wholeKroner } from '../src/engine/format.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { resolveApiInputs } from '../src/engine/key-figures.ts';
+import { lineIsApproximate } from '../src/engine/provenance.ts';
 import { percentileInc } from '../src/engine/statistics.ts';
-import { A, companyShown, dataDate, expectedBenchmark, keyFigureRow, newestFiling, noSidewaysScroll, rendered } from './seed.ts';
+import { A, companyShown, dataDate, expectedBenchmark, keyFigureRow, newestFiling, noSidewaysScroll, rendered, root } from './seed.ts';
 
 const fill = (id: keyof typeof nb, vars: Record<string, string>) =>
   Object.entries(vars).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), nb[id]);
@@ -34,6 +37,8 @@ function oracle() {
   return {
     c,
     best: c.best,
+    gapOre: figure.gap.ore,
+    revenueOre: revenue.ore,
     amount: formatKronerExact(figure.gap.ore.toString()),
     atMedian: formatKronerExact(c.median.minus(c.subject).mul(new Decimal(revenue.ore.toString())).toString()),
     driftsresultat: row.driftsresultat_ore,
@@ -67,7 +72,15 @@ test.describe('the drill-down (Story 3.7)', () => {
     for (const step of ['formula', 'figure', 'filed', 'source'] as const) await expect(drill).toContainText(nb[`provenance.step.${step}`]);
     const lines = await chips(drill);
     expect(lines[0]).toBe('(T − r) × sumDriftsinntekter');
-    expect(lines[1]).toMatch(new RegExp(`[=≈] ${plain(o.amount)} ${nb['keyFigures.perYear']}$`));
+    // The fixture's state, by the displayed-operand rule: demo A's own margin is positive (no
+    // parentheses), and (T − r) × revenue from the displayed T, r and revenue is not the displayed
+    // amount, so the line reads "≈".
+    const T = formatPercent(o.best.quartile.toString());
+    const r = formatPercent(o.c.subject.toString());
+    expect(o.c.subject.isPositive()).toBe(true);
+    const shown = shownPercent(o.best.quartile.toString()).minus(shownPercent(o.c.subject.toString())).mul(wholeKroner(o.revenueOre.toString()));
+    expect(lineIsApproximate(shown, wholeKroner(o.gapOre.toString()))).toBe(true);
+    expect(lines[1]).toBe(plain(`(${T} − ${r}) × ${formatKroner(o.revenueOre.toString())} ≈ ${o.amount} ${nb['keyFigures.perYear']}`));
     expect(lines).toContain(`T = ${plain(formatPercent(o.best.quartile.toString()))}`);
     expect(lines).toContain(`M = ${plain(formatPercent(o.c.median.toString()))}`);
     expect(lines.some((line) => line.startsWith('r = driftsresultat / sumDriftsinntekter') && line.endsWith(plain(formatPercent(o.c.subject.toString()))))).toBe(true);
@@ -108,7 +121,12 @@ test.describe('the drill-down (Story 3.7)', () => {
   });
 
   test('outside the demo data: no reconciliation claim', async ({ page }) => {
-    // The fixture's state: demo A is not on the manifest's list (test/db/analysis.test.ts).
+    // The fixture's state: demo A is not on the committed manifest's list of orgnrs with document figures.
+    const manifest = JSON.parse(readFileSync(path.join(root, 'seed/demo/manifest.json'), 'utf8')) as {
+      readonly document_figure_orgnrs: readonly string[];
+    };
+    expect(manifest.document_figure_orgnrs.length).toBeGreaterThan(0);
+    expect(manifest.document_figure_orgnrs).not.toContain(orgnr);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/nokkeltall`);
     await companyShown(page, A.navn ?? '');
@@ -143,8 +161,10 @@ test.describe('the drill-down (Story 3.7)', () => {
     for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
     // PERCENTILE.INC at 0,75 on the shown values, written as the page writes T.
     expect(formatPercent(percentileInc(values, '0.75').toString())).toBe(formatPercent(o.best.quartile.toString()));
-    const marked = await list.locator('li[data-marked]').count();
-    expect([1, 2]).toContain(marked);
+    // The fixture's state: h = (n − 1) × 0,75 has the fraction f = 0,25 for demo A's n, so T lies
+    // between two values and both are marked.
+    expect(new Decimal(o.c.count - 1).mul('0.75').mod(1).toString()).toBe('0.25');
+    await expect(list.locator('li[data-marked]')).toHaveCount(2);
   });
 
   test('focus: opening moves it to the heading; Lukk and Esc return it to the trigger', async ({ page }) => {

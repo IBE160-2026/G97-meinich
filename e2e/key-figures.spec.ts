@@ -27,7 +27,8 @@ import {
   noSidewaysScroll,
   notice,
   withFiling,
-  profitDrillFields,
+  PROFIT_DRILL_FIELDS,
+  expectProfitInputsStated,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
 
@@ -64,16 +65,13 @@ test.describe('the key-figure table (Story 1.8)', () => {
         );
       }
     }
+    // The fixture's state: demo A's driftsmargin is below beste fjerdedel, a profit amount, followed by
+    // its "Hvordan er dette regnet?" (Story 3.7).
     const gap = expected.driftsmargin.gap;
-    const gapText =
-      gap.kind === 'amount'
-        ? // Story 3.7: an amount is followed by its "Hvordan er dette regnet?".
-          `${formatKronerExact(gap.ore.toString())}${nb['keyFigures.perYear']}${nb['provenance.trigger']}`
-        : gap.kind === 'strength'
-          ? nb['keyFigures.strength']
-          : '';
-    expect(gapText).not.toBe('');
-    await expect(cell(page, 'driftsmargin', 'gap')).toHaveText(gapText);
+    if (gap.kind !== 'amount') throw new Error(`demo A's driftsmargin gap is ${gap.kind}, not an amount`);
+    await expect(cell(page, 'driftsmargin', 'gap')).toHaveText(
+      `${formatKronerExact(gap.ore.toString())}${nb['keyFigures.perYear']}${nb['provenance.trigger']}`,
+    );
     await expect(cell(page, 'totalkapitalrentabilitet', 'gap')).toHaveText(nb['keyFigures.noKroner']);
     await expect(page.getByText(nb['keyFigures.nonSmall'])).toHaveCount(0);
   });
@@ -197,11 +195,12 @@ test.describe('the key-figure table (Story 1.8)', () => {
   }
 
   test('the HTML and the RSC payload carry no peer orgnr, peer key-figure amount or server field', async ({ request }) => {
+    expectProfitInputsStated(A.orgnr ?? '');
     await expectNoPeerFields(request, `/analyse/${A.orgnr}/nokkeltall`, {
       pool: expectedPool(A.orgnr ?? '', 0),
       marker: nb['keyFigures.regionLabel'],
       // Story 3.7: demo A's one amount is driftsmargin's, outside the demo data.
-      fields: profitDrillFields(A.orgnr ?? ''),
+      fields: PROFIT_DRILL_FIELDS,
     });
   });
 

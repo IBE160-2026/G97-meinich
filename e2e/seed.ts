@@ -62,17 +62,18 @@ export function newestFiling(orgnr: string): Record<string, string> {
 }
 
 /**
- * Story 3.7: the field names a profit drill-down shows for `orgnr` (its own
- * filing, outside the demo data, so no failure names): driftsresultat and
- * sumDriftsinntekter, and for an empty one the field it is derived from
- * besides the other (docs/key-figures.md, "Deriving a missing API input"),
- * written out here as an oracle independent of the engine's table.
+ * Story 3.7: the field names demo A's profit drill-down shows. Its own filing
+ * states both inputs and it is outside the demo data, so no derivation rule
+ * and no failure adds a name: a fixed list, valid only once the caller has
+ * asserted that state with `expectProfitInputsStated`.
  */
-export function profitDrillFields(orgnr: string): string[] {
+export const PROFIT_DRILL_FIELDS: readonly string[] = ['driftsresultat', 'sumDriftsinntekter'];
+
+/** The fixture's state for PROFIT_DRILL_FIELDS: the subject's filing states driftsresultat and sumDriftsinntekter. */
+export function expectProfitInputsStated(orgnr: string): void {
   const k = keyFigureRow(newestFiling(orgnr).brreg_id ?? '');
-  const fields = ['driftsresultat', 'sumDriftsinntekter'];
-  if (k.driftsresultat_ore === null || k.sum_driftsinntekter_ore === null) fields.push('sumDriftskostnad');
-  return fields;
+  expect(k.driftsresultat_ore, `${orgnr}: driftsresultat stated`).not.toBeNull();
+  expect(k.sum_driftsinntekter_ore, `${orgnr}: sumDriftsinntekter stated`).not.toBeNull();
 }
 
 export function company(orgnr: string): Record<string, string> {

@@ -24,7 +24,8 @@ import {
   notice,
   rendered,
   root,
-  profitDrillFields,
+  PROFIT_DRILL_FIELDS,
+  expectProfitInputsStated,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
 
@@ -201,13 +202,14 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
       const pool = expectedPool(A.orgnr ?? '', band);
       const exact = exactMargins([...pool.map((peer) => String(peer.brregId)), newestFiling(A.orgnr ?? '').brreg_id ?? '']);
       expect(exact.length).toBeGreaterThan(pool.length / 2);
+      expectProfitInputsStated(A.orgnr ?? '');
       await expectNoPeerFields(request, `/analyse/${A.orgnr}/oversikt${query}`, {
         pool,
         marker: nb['oversikt.beeswarm.heading'],
         inUrl: query === '' ? [] : [firstPeer],
         exact,
         // Story 3.7: the hero's drill-down; demo A is outside the demo data, so the capital card has none.
-        fields: profitDrillFields(A.orgnr ?? ''),
+        fields: PROFIT_DRILL_FIELDS,
       });
     });
   }

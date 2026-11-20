@@ -324,13 +324,13 @@ test('no document øre reaches Oversikt', async ({ request }) => {
     ore.floor().toString(),
     ore.toString().replace('.', ''),
   ]);
-  const choice = largestCapitalGap(kfd.gap, lgd.gap, oml.gap);
-  if (choice.kind !== 'amount') throw new Error('the fixture has a capital amount');
+  // The fixture's state: (11)'s amount is larger than working capital's, so the capital card shows (11).
+  expect(largestCapitalGap(kfd.gap, lgd.gap, oml.gap)).toMatchObject({ kind: 'amount', figure: 'oml' });
   await expectNoDocumentFields(request, `${base}/oversikt`, {
     ore: [...documentOre(), ...capital],
     marker: nb['oversikt.capital.kicker'],
-    // Story 3.7: the hero's drill-down and the capital card's, of the amount it shows.
-    fields: [...PROFIT_FIELDS, ...(choice.figure === 'oml' ? OML_FIELDS : [...KFD_FIELDS, ...LGD_FIELDS])],
+    // Story 3.7: the hero's drill-down and the capital card's, of (11).
+    fields: [...PROFIT_FIELDS, ...OML_FIELDS],
     ...LINES,
   });
 });

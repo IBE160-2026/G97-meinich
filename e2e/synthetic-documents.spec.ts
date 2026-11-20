@@ -290,18 +290,18 @@ test('the capital card shows the engine’s largest amount', async ({ page }) =>
   if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
     throw new Error('the fixture has an amount on 9, 10 and 11');
   }
-  // The oracle, written out here rather than taken from the engine's choice: the working-capital
-  // total (9 + 10) against (11), the larger exact amount, the total on a tie.
+  // The fixture's state, written out here rather than taken from the engine's choice: (11) is
+  // larger than the working-capital total (9 + 10), and its amount shows as 864 967 742 kr.
   const total = kfd.gap.ore.plus(lgd.gap.ore);
-  const largest = oml.gap.ore.gt(total) ? { figure: 'oml' as const, ore: oml.gap.ore } : { figure: 'working_capital' as const, ore: total };
-  const choice = largestCapitalGap(kfd.gap, lgd.gap, oml.gap);
-  expect(choice).toMatchObject({ kind: 'amount', figure: largest.figure });
+  expect(oml.gap.ore.gt(total)).toBe(true);
+  expect(formatKronerExact(oml.gap.ore.toString())).toBe('864 967 742 kr'.replaceAll(' ', String.fromCharCode(0xa0)));
+  expect(largestCapitalGap(kfd.gap, lgd.gap, oml.gap)).toMatchObject({ kind: 'amount', figure: 'oml' });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/oversikt`);
   const capital = rendered(page).getByTestId('card-capital');
-  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL[largest.figure]);
+  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL.oml);
   await expect(capital.locator('[data-card="value"]')).toHaveText(
-    nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(largest.ore.toString())),
+    nb['oversikt.capital.amount'].replace('{belop}', '864 967 742 kr'.replaceAll(' ', String.fromCharCode(0xa0))),
   );
   // Story 3.5: the top note, with "· Endre i Verdi", then the separation line.
   const note = capital.getByTestId('top-note');

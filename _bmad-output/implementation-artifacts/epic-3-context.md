@@ -58,7 +58,7 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
   1. The formula. The share factor appears only when the drill-down is opened from Verdi.
   2. The key figure and how beste fjerdedel was derived: quartile, n, and the PERCENTILE.INC-style linear interpolation, with a "Vis fordelingen" link.
   3. The filed values, with register field names in monospace slate, their filing year and their read date.
-  4. The source and the data-quality line: "Avstemt mot innsendt årsregnskap", "Ikke avstemt – årsregnskapet er ikke i demodataene" or "Avvik ved avstemming: {felt}".
+  4. The source and the data-quality line: "Avstemt mot innsendt årsregnskap", "Ikke avstemt – årsregnskapet er ikke i demodataene" or "Avvik ved avstemming: {felt}". A failed filing with nothing that differed, only a line a required check could not read, reads "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}" (Story 3.7, Meinich 2026-11-20).
 
   Each calculation sits in a `surface` chip. Opening moves focus to the drill-down's heading, and "Lukk" or Esc returns focus to the trigger. The link colour is `link`.
 

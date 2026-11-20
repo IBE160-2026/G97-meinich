@@ -45,7 +45,12 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function dispatch(id: string, event: ProvenanceEvent): void {
+function notify(): void {
+  for (const listener of listeners) listener();
+}
+
+/** Applies `event` to the drill-down `id`; exported for its unit test. */
+export function dispatchProvenance(id: string, event: ProvenanceEvent): void {
   const open = nextProvenanceOpen(opened.has(id), event);
   if (open) {
     opened.add(id);
@@ -54,8 +59,27 @@ function dispatch(id: string, event: ProvenanceEvent): void {
     opened.delete(id);
     focusPending.delete(id);
   }
-  for (const listener of listeners) listener();
+  notify();
 }
+
+/**
+ * Forgets the drill-down `id` when its body unmounts: after a client
+ * navigation to another company, a drill-down with the same id
+ * (`hero-prov`, `kf-d-prov-…`) starts closed, as on a fresh page.
+ */
+export function forgetProvenance(id: string): void {
+  if (!opened.has(id) && !focusPending.has(id)) return;
+  opened.delete(id);
+  focusPending.delete(id);
+  notify();
+}
+
+/** Whether `id` is open in the store; for its unit test. */
+export function provenanceOpen(id: string): boolean {
+  return opened.has(id);
+}
+
+const dispatch = dispatchProvenance;
 
 function useOpen(id: string): boolean {
   return useSyncExternalStore(
@@ -99,6 +123,7 @@ export function ProvenanceBody({
 }) {
   const open = useOpen(id);
   const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => () => forgetProvenance(id), [id]);
   useEffect(() => {
     if (open && focusPending.has(id)) {
       focusPending.delete(id);

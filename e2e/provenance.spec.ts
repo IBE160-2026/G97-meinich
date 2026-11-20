@@ -16,7 +16,8 @@ import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { resolveApiInputs } from '../src/engine/key-figures.ts';
 import { lineIsApproximate, REGISTER_FIELD_NAMES } from '../src/engine/provenance.ts';
 import { percentileInc } from '../src/engine/statistics.ts';
-import { A, companyShown, dataDate, expectedBenchmark, keyFigureRow, newestFiling, noSidewaysScroll, rendered, root } from './seed.ts';
+import { DEMO_COMPANIES } from '../src/demo-companies.ts';
+import { A, companyShown, dataDate, expectedBenchmark, headerSearch, keyFigureRow, newestFiling, noSidewaysScroll, rendered, root } from './seed.ts';
 
 const fill = (id: keyof typeof nb, vars: Record<string, string>) =>
   Object.entries(vars).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), nb[id]);
@@ -187,6 +188,24 @@ test.describe('the drill-down (Story 3.7)', () => {
     await page.keyboard.press('Escape');
     await expect(drill).toBeHidden();
     await expect(button).toBeFocused();
+  });
+
+  // Review: the open state is kept by id outside React, so it must be forgotten when the drill-down
+  // unmounts; otherwise the next company's hero drill-down, with the same id, opens unasked.
+  test('a drill-down open on one company is closed on the next, after a client navigation', async ({ page }) => {
+    const [, demoB] = DEMO_COMPANIES;
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${orgnr}/oversikt`);
+    await companyShown(page, A.navn ?? '');
+    await open(page, 'hero-prov');
+    await headerSearch(page).fill(demoB.navn);
+    await page.getByRole('option', { name: demoB.navn }).first().click();
+    await companyShown(page, demoB.navn);
+    // The fixture's state: demo B's hero has a drill-down too.
+    const button = trigger(rendered(page), 'hero-prov');
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await expect(body(rendered(page), 'hero-prov')).toBeHidden();
   });
 
   // DESIGN.md: a register field name may break anywhere, so the longest one never widens the page.

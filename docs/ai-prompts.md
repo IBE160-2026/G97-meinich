@@ -3847,6 +3847,122 @@ Verdi opens as the fourth tab: a closable-share control of 0–100 % and "Til me
 
 The review session checked the counterexample, the provider's base and its two tests, the `scale` role and its probe, the wire grammar and its type test, the restored row counts with no synthetic company left, the statuses and the PR text's credits, and found the causes of both CI failures in their logs. CI was green on `6000e0a`. At the human's request (`post review`), the review session posted the GitHub review with seven line comments. The PR was merged at 19:34 UTC on 2026-11-19 as `fa88ff6`.
 
+## Story 3.6: EV/EBIT, what the uplift is worth (#79, PR #80)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt.
+
+### Prompts to the BMAD session
+
+**2026-11-19 19:42**: the prompt that opened Story 3.6.
+```
+Fra meg:
+/bmad-build Story 3.6: EV/EBIT — what the uplift is worth (epics.md, Story 3.6). Lag branchen story/3.6-ev-ebit fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: hver oppføring i deferred-work.md som nevner Story 3.6, multippel, EV/EBIT eller selskapsverdi. Review-sesjonen fant ingen. Bekreft det med et eget søk.
+(b) Engine-funksjonen: navn, signatur og rolle i amounts.ts. Selskapsverdien skal bygge på profitAtShare, så den ved median-steget er (M − r) × omsetning × m, rundet én gang. Vis testen som feiler hvis den regnes som full × s_med × m, og NDC-proben som feiler hvis selskapsverdien legges sammen med et annet kort eller med arbeidskapitalen.
+(c) «≈»-regelen: si nøyaktig hva som sammenlignes. Mitt forslag er at det eksakte produktet av den viste økningen i hele kroner og m sammenlignes med round(eksakt økning × m). Vis fixtures med og uten «≈», og en test som feiler hvis regelen snus. Slå fast fixturens tilstand først.
+(d) URL og replaceState: det skal fortsatt finnes bare ett kall til history.replaceState i src/. Si hvordan replaceShare blir generell, og hva URL-en blir når feltet tømmes og når verdien er ugyldig. Si om en gyldig multippel bevares når andel eller en peer-endring endrer seg, og pek på testen for det.
+(e) Feltet: type="text" med inputmode="decimal"? Si om mellomrom foran og bak godtas, hvordan «6.50» og «06» vises etter blur, og hvordan feltet ser ut ved reload med multippel i URL-en, uten hydreringsfeil. Grensene skal importeres fra URL-modulen, og parseMultippel skal brukes, ikke en kopi.
+(f) Deaktivert felt: list hver grunn til at gevinstkortet ikke har noe beløp (styrke, under minstegrensen, ikke NOK, egen margin mangler). Si hvilken tekst feltet viser for hver, og om feltet er disabled eller aria-disabled og kan fokuseres som steget i 3.5. Si hva som vises når URL-en har en multippel mens feltet er deaktivert.
+(g) «Ingen kodevei lager en multippel»: hvordan testen er bygd, og hva som får den til å feile. En grep etter tall holder ikke.
+(h) Wire, payload og identitet: om det trengs nye wire-verdier (jeg forventer ingen), om Verdi-skannet fra 3.5 står uendret, og hvordan identitetstesten i Playwright utvides med selskapsverdi og produktlinje for flere multipler, også et tilfelle med «≈».
+(i) Telefon og tilgjengelighet: felt på 90 px, feilmelding med aria-invalid og aria-describedby, kunngjøring én gang på Enter eller blur og ikke ved blur uten endring, mål på minst 24 × 24, 375 og 320 px uten sidelengs scrolling.
+(j) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.6 eller EXPERIENCE, særlig produktlinjen og teksten i feltet når det er deaktivert. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler:
+- Ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra.
+- Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Rapporten viser hva som ble fjernet og hvilken test som feilet.
+- Ingen test velger forventet verdi ut fra dataene med en betingelse. Fixturens tilstand slås fast først.
+- Nettleseren regner bare med src/engine, aldri med Number() på penger eller på multippelen.
+- Hvis en test leser siden etter en endring som skrives med replaceState, venter den først på at endringen er tegnet. Søk gjennom alle slike lesinger, ikke bare den som feiler (PR #78).
+- Spec-en går til in-review sammen med storyen og settes til done først etter merge.
+- PR-en sier hva som kan gå galt når en multippel brukeren skriver inn brukes på penger, med begrunnelse i ai-log, og hva review-sesjonen bidro med.
+- Commit i små steg, og sjekk 375 og 320 px underveis.
+- Kjør pnpm restore:documents etter siste seed, og bekreft de fire tallene.
+- E2e kjøres med én worker, ett prosjekt om gangen og synthetic sist med --no-deps. Stopper noe på grunn av minne, si fra i stedet for å starte på nytt.
+- Stopper pnpm build med SecurityFatalError, kjør på nytt og noter det (#71). Ingen oppgradering.
+- Ingen push før jeg sier fra. PR-en har linjen «Planning documents:».
+- pnpm classify kjøres ikke, ingen dump slettes, og technology.md røres ikke.
+```
+*Changed:* issue #79, the branch and the spec draft, stopped at the checkpoint with the answers to (a)–(j): no deferred entry, `valueAtShare` on `profitAtShare` with the role `value` and a rounding example (6 997 kr against 6 996 kr), the "≈" rule on the displayed kroner, `replaceSettings` as the one `replaceState`, the field as `type="text"` with `trim()` and `formatMultiple`, the disabled field's four reasons, a branded `Multiple` minted only by `parseMultippel`, no new wire value, and four questions.
+
+**19:53**: the answers at the checkpoint.
+```
+Fra meg:
+1. B: «1 000 kr × 7 ≈ 6 997 kr». Rett «prefixed» i EXPERIENCE:202, UX-DR28 og akseptansekriteriet i epics.md i samme PR, og legg inn en (change)-linje i memloggene.
+2. Ja: E3 står under produktlinjen. E1 og E3 er godkjent.
+3. A: en gyldig multippel blir stående i URL-en og vises skrivebeskyttet i det deaktiverte feltet.
+4. A: gevinstkortets egne ord for hver grunn, uten ny tekst.
+Ja til valueAtShare med rollen 'value' og de tre probene, til replaceSettings og one-replace-state.test.ts, til trim() før parseMultippel, til typen Multiple og no-multiple-source.test.ts, og til at identitetstesten utvides med 999,5 kr-wiren. formatMultiple skal ligge i src/engine/format.ts. Bekreft det i spec-en.
+Spec-en kan holdes samlet. Skriv svarene inn i den frosne delen, commit Epic 3-konteksten på branchen, og sett spec og story til ready-for-dev. Ingen push.
+```
+*Changed:* decisions B ("1 000 kr × 7 ≈ 6 997 kr", with "prefixed" to be corrected in EXPERIENCE, UX-DR28 and `epics.md`), E1 and E3, the multiple kept read-only in the disabled field, and the profit card's own words, in the frozen spec; the Epic 3 context and the spec ready for dev (`a29fc4d`, `01b4083`).
+
+**19:57**: start of implementation.
+```
+Fra meg:
+Start implementeringen i denne sesjonen. Ingen push.
+Implementeringsrapporten skal vise:
+- at verditesten feiler når valueAtShare regnes som full × s_med × m (6 996 kr i stedet for 6 997 kr);
+- at «≈»-testen feiler når regelen snus, og at wholeKroner-testen feiler hvis avrundingen avviker fra formatKronerExact på en halv krone;
+- at hver av de tre NDC-probene for 'value' feiler;
+- at one-replace-state.test.ts feiler med et ekstra replaceState-kall, og at no-multiple-source.test.ts feiler på begge probene;
+- at identitetstesten i Playwright feiler når formateringen av multippelen endres på én av sidene;
+- at e2e-testene som leser siden etter replaceSettings, venter på at endringen er tegnet, og hvilke lesinger søket fant;
+- de fire tallene etter restore:documents og null syntetiske rester;
+- 375 og 320 px for feltet, feilmeldingen og kortet.
+E2e kjøres med én worker, ett prosjekt om gangen og synthetic sist med --no-deps. Stopper noe på grunn av minne, si fra.
+```
+*Changed:* the report items in the spec (`ec492d4`), `valueAtShare` and the approximate product rule (`cdd6553`), `Multiple` (`31fd401`), the copy (`89e0d15`), the EV view (`d322fa7`), the field, the EV section and `replaceSettings` (`1a4505c`), e2e (`841afbf`), the planning documents (`fcedd8f`), spec and story in review (`b477b84`), the review fixes and the triage (`df283ce`, `eb694ae`, `8f51267`, `e476ed2`); the full verification then stopped for lack of memory during `pnpm test`, and the BMAD session asked how to go on.
+
+**2026-11-20 07:01**: the verification step by step.
+```
+Fra meg:
+Alternativ 2. Kjør verifiseringen ett steg om gangen og sjekk ledig minne før hvert steg.
+- Kjør pnpm test med --maxWorkers=2. Stopper det igjen, prøv --maxWorkers=1 én gang før du spør meg.
+- Kjør resten av kjeden i vanlig rekkefølge: seed, test:db, test:ingest, restore:documents, build og check:routes.
+- E2e: én worker og ett prosjekt om gangen, synthetic sist med --no-deps. Feiler build på første forsøk, prøv én gang til og si fra.
+- Etter kjeden: tallene etter restore:documents, null SYNTETISK-rester og 20 oppføringer i manifestet.
+- Rapporter antall tester per steg og sammenlign med tallene fra før rettelsene: 1 895, 181, 7 og 25. Forklar hver endring.
+- Commit ai-log-oppdateringen som et eget steg, før sesjonsfilen.
+- Skriv deretter sesjonsfilen, sesjonsloggen og PR-teksten.
+Ingen push før jeg sier fra.
+```
+*Changed:* the AI log (`fbb9088`); every step green (unit 1 895 with `--maxWorkers=2`, `test:db` 200, `test:ingest` 392, e2e chromium 187, db-down 7, synthetic 25), with `pnpm build` passing on its second try; two e2e reads that did not wait for the field's announcement, found by the run and fixed by the BMAD session (`571240e`); the triage outcomes, the session file and the log (`2e1440b`, `5147355`, `e117111`); and the question whether the error text's examples read as a suggested multiple.
+
+**07:37**: the error text, and push.
+```
+Fra meg:
+Feilteksten endres. «for eksempel 6 eller 6,5» foreslår realistiske multipler, og det strider mot FR-32 («never … offers a range»). Teksten forklarer heller ikke hvorfor 6,55 avvises.
+Ny tekst: «Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal».
+- Oppdater nb.json, epics.md (UX-DR28 og AC-en for Story 3.6), EXPERIENCE og spec-ens Spec Change Log. Skriv at endringen ble foreslått av review-sesjonen og avgjort av meg 2026-11-20. Legg til en (change)-linje i UX-memloggen.
+- Søk etter den gamle teksten i src/, e2e/ og test/, og rett alle forekomster.
+- Kjør message-testene, typecheck og e2e/verdi.spec.ts. Hele kjeden trengs ikke på nytt, siden endringen bare gjelder tekst.
+- Gjør det som én commit. Flytt «Raised, not changed» i PR-teksten til «Fixed», og legg til commiten i sesjonsfilen.
+Push deretter og åpne PR-en. Lenk PR-en i sesjonsfilen i en egen commit.
+```
+*Changed:* the error text "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal" in the copy, `epics.md`, EXPERIENCE and the spec's change log (`cb187e1`); the branch pushed, PR #80 opened, and the session file updated and linked to it (`febfcba`, `10b024d`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.6` (11-19): the review session read Story 3.6, FR-32, EXPERIENCE :202 and :277, `docs/key-figures.md` and the code, found that the "≈" rule did not say what is compared, that the enterprise value is an amount that must build on `profitAtShare` and be registered in `amounts.ts`, that a second URL write would break the one `replaceState`, that the profit card has three more reasons than a strength to show no amount, that "no code path makes a multiple" needs a test a grep cannot pass, that `parseMultippel` refuses surrounding spaces, and that the product line's wording was not given. It drafted the 19:42 prompt.
+- The BMAD session's checkpoint (11-19): the review session recomputed the rounding example with Python Decimal (699 650 øre, 6 997 kr, against 699 649,999… øre, 6 996 kr) and both "≈" fixtures, and recommended form B, E3 under the product line, keeping a valid multiple read-only, and the profit card's own words. It drafted the 19:53 prompt.
+- The BMAD session's ready-for-dev report (11-19): the review session checked the statuses, the decisions in the spec, `formatMultiple` and the I/O matrix's named tests, and drafted the 19:57 prompt.
+- The BMAD session's report that verification had stopped (11-20): the review session checked the branch and the triage, measured 1,9 GB free of 15,7, recommended `--maxWorkers=2` and one step at a time, and drafted the 07:01 prompt.
+- The BMAD session's final report (11-20): the review session checked the commits, the statuses, the restored row counts, `571240e` and the PR text, recommended replacing the error text's examples, which FR-32 rules out, with the format, and drafted the 07:37 prompt.
+- The BMAD session's report that the PR was open (11-20): the review session read the diff and drafted the review, and recommended pushing the BMAD session's updated session log; it was not pushed before the merge.
+- `post review` (11-20): the review session checked every line comment against the diff's hunks and posted the review.
+- `merget - fikser du treet og resten` (11-20): the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+Verdi gets the field "EV/EBIT-multippel", empty by default and with no suggestion, read by the URL module's own `parseMultippel`, and the card "Økt selskapsverdi": round(exact profit uplift at the share × m), computed in the browser by `valueAtShare` on Story 3.5's wire values, with a product line that reads "≈" when the displayed numbers do not multiply out. The multiple is a branded `Multiple` that only `parseMultippel` makes, written to the URL by `replaceSettings`, still the one `history.replaceState`; both rules are checked with the type checker. Where the profit card has no amount, the field is disabled with the card's own words.
+
+### Checks before merging
+
+The review session checked the rounding example, the "≈" rule, the one `as Multiple`, the two scans, the `value` role, the disabled field, the invalid-settings flag for an invalid `multippel`, the restored row counts with no synthetic company left, the statuses and the PR text's credits. CI was green on `10b024d`. At the human's request (`post review`), the review session posted the GitHub review with eight line comments. The PR was merged at 07:52 UTC on 2026-11-20 as `a5aa92c`.
+
 ---
 
 ## Going forward

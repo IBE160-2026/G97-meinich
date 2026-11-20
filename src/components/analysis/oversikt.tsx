@@ -13,6 +13,7 @@
 // one client module, the chart, receives exactly those.
 import { groupBeeswarm, type BeeswarmView, type MarginRow } from '@/analysis/beeswarm';
 import { oversiktCards } from '@/analysis/oversikt-cards';
+import type { ProvenanceView } from '@/analysis/provenance';
 import type { ShownGroup } from '@/analysis/shown-group';
 import type { DocumentBasis } from '@/engine/document-inputs';
 import { t } from '@/messages';
@@ -26,6 +27,12 @@ import { ShowNumbers } from './show-numbers';
 import { SmallCard } from './small-card';
 
 const HEADING_ID = 'beeswarm-heading';
+
+/** The capital card's drill-down where it shows an amount; an amount with none is a bug. */
+function capitalProvenance(shown: boolean, view: ProvenanceView | null): { readonly id: string; readonly view: ProvenanceView } | null {
+  if (shown !== (view !== null)) throw new Error('the capital card’s amount and its drill-down disagree');
+  return view === null ? null : { id: CAPITAL_PROVENANCE_ID, view };
+}
 const NUMBERS_ID = 'beeswarm-numbers';
 
 /** A row's company name, marked when it is the company's own. */
@@ -199,9 +206,13 @@ function BeeswarmCard({ view }: { readonly view: BeeswarmView }) {
   );
 }
 
+/** The capital card's drill-down's id. */
+const CAPITAL_PROVENANCE_ID = 'card-capital-prov';
+
 export function Oversikt({
   group,
   subject,
+  provenance,
 }: {
   /** The shown group, the same the table and the Peers tab read. */
   readonly group: ShownGroup<Candidate>;
@@ -211,6 +222,8 @@ export function Oversikt({
     /** The subject's document basis: the capital card names it when it is not read. */
     readonly documentBasis: DocumentBasis;
   };
+  /** The drill-downs of the hero's and the capital card's amounts (Story 3.7); null where there is none. */
+  readonly provenance: { readonly hero: ProvenanceView | null; readonly capital: ProvenanceView | null };
 }) {
   const context = { filingYear: group.filingYear, valuta: group.valuta, unstatedField: group.unstatedField };
   const empty = group.emptyReason === null ? null : emptyText(group.emptyReason, context);
@@ -229,9 +242,15 @@ export function Oversikt({
         filingYear={group.filingYear}
         valuta={group.valuta}
         unstatedField={group.unstatedField}
+        provenance={provenance.hero}
       />
       <BeeswarmCard view={beeswarm} />
-      <SmallCard id="card-capital" kicker={t('oversikt.capital.kicker')} view={cards.capital} />
+      <SmallCard
+        id="card-capital"
+        kicker={t('oversikt.capital.kicker')}
+        view={cards.capital}
+        provenance={capitalProvenance(cards.capital.kind === 'shown', provenance.capital)}
+      />
       <SmallCard id="card-strength" kicker={t('oversikt.strength.kicker')} view={cards.strength} />
       <SmallCard
         id="card-missing"

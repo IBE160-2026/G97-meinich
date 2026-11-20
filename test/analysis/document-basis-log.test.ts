@@ -35,6 +35,15 @@ function row(overrides: Partial<DocumentBasisColumns>): DocumentBasisColumns {
     prior_status: 'reconciled',
     prior_api_fail_fields: [],
     sum_omloepsmidler_ore: null,
+    // Story 3.7: the document's read time and the current column's stored checks.
+    document_read_at: new Date('2026-10-21T08:00:00Z'),
+    current_c1: 'pass',
+    current_c2: 'pass',
+    current_c3: 'pass',
+    current_c4: 'pass',
+    current_c5: 'pass',
+    current_api_check: 'pass',
+    current_api_fail_fields: [],
     ...figures,
     ...overrides,
   } as DocumentBasisColumns;

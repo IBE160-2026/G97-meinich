@@ -28,6 +28,11 @@
 // share the browser writes with `history.replaceState`. Verdi receives only
 // its wire (src/analysis/verdi-view.ts): the exact amounts and s_med as
 // WireDecimals, everything else as strings.
+//
+// Story 3.7: the drill-downs ("Hvordan er dette regnet?") are built here, on
+// the server, from the subject's own filing and the shown group's
+// benchmarks (src/analysis/provenance.ts), and reach the page as rendered
+// steps: the table's four gap cells, the hero, the capital card and Verdi.
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
@@ -45,6 +50,13 @@ import {
 } from '@/analysis/view';
 import { peerRows } from '@/analysis/peer-rows';
 import { verdiWire } from '@/analysis/verdi-view';
+import {
+  largestCapitalProvenance,
+  profitProvenance,
+  provenanceSubject,
+  tableProvenance,
+  type ProvenanceSubject,
+} from '@/analysis/provenance';
 import { driftsmarginComparison, shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
 import { bandFactors, bandSteps } from '@/analysis/size-band';
 import { AnalysisUrlProvider } from '@/components/analysis/analysis-url';
@@ -59,6 +71,8 @@ import { SettingsNotice } from '@/components/analysis/settings-notice';
 import { StateBlock } from '@/components/analysis/state-block';
 import { TabLinks } from '@/components/analysis/tab-links';
 import { VerdiPanel } from '@/components/analysis/verdi-panel';
+import { verdiProvenance } from '@/components/analysis/verdi-provenance';
+import { apiInputsFromRow } from '@/engine/inputs';
 import { medianStep } from '@/engine/closable';
 import { formatOrgnr } from '@/engine/format';
 import { assemblePeerGroup, V1_FUNNEL, type PeerGroup } from '@/engine/peers';
@@ -207,6 +221,17 @@ function oversiktSubject(subject: Subject) {
   return { name: displayName(subject), keyFigures: filing.keyFigures, documentBasis: filing.documentBasis };
 }
 
+/**
+ * What the drill-downs read of the subject: its filing's API inputs, read
+ * date and document (a covered subject always has a filing, as for
+ * oversiktSubject).
+ */
+function drillDownSubject(subject: Subject): ProvenanceSubject {
+  const filing = subject.filing;
+  if (filing === null) throw new TypeError('drillDownSubject: a covered subject without a filing');
+  return provenanceSubject(apiInputsFromRow(filing.keyFigures), filing);
+}
+
 /** What Verdi reads of the subject: its filing (a covered subject always has one, as for oversiktSubject). */
 function verdiShown(subject: Subject, group: ShownGroup) {
   const filing = subject.filing;
@@ -236,6 +261,7 @@ function Covered({
   const peers = view.fane === 'peers' ? peersShown(subject, group, state) : null;
   const href = serialize(state);
   const hasMedianStep = medianStep(group.benchmark.driftsmargin.comparison).kind === 'exists';
+  const drillDown = drillDownSubject(subject);
   return (
     <AnalysisUrlProvider href={href} medianStep={hasMedianStep}>
       <PeerChangeCommit
@@ -252,7 +278,16 @@ function Covered({
         </h2>
         <PeerChangeAlert />
         <PendingBody>
-          {view.fane === 'oversikt' ? <Oversikt group={group} subject={oversiktSubject(subject)} /> : null}
+          {view.fane === 'oversikt' ? (
+            <Oversikt
+              group={group}
+              subject={oversiktSubject(subject)}
+              provenance={{
+                hero: profitProvenance(drillDown, group.benchmark.driftsmargin),
+                capital: largestCapitalProvenance(drillDown, group.documentBenchmark),
+              }}
+            />
+          ) : null}
           {peers !== null ? (
             <PeerList
               rows={peers.rows}
@@ -276,9 +311,15 @@ function Covered({
               companyName={subject.navn ?? formatOrgnr(subject.orgnr)}
               smaaForetak={group.smaaForetak}
               filingYear={group.filingYear}
+              provenance={tableProvenance(drillDown, group.benchmark, group.documentBenchmark)}
             />
           ) : null}
-          {view.fane === 'verdi' ? <VerdiPanel wire={verdiShown(subject, group)} /> : null}
+          {view.fane === 'verdi' ? (
+            <VerdiPanel
+              wire={verdiShown(subject, group)}
+              provenance={verdiProvenance(drillDown, group.benchmark, group.documentBenchmark)}
+            />
+          ) : null}
         </PendingBody>
       </section>
     </AnalysisUrlProvider>

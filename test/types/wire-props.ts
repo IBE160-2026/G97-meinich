@@ -44,7 +44,7 @@ export const wire: VerdiWire = {
   workingCapital: { kind: 'text', text: '', detail: null },
   oml: { kind: 'text', text: '', detail: null, median: null },
 };
-export const props: PanelProps = { wire };
+export const props: PanelProps = { wire, provenance: { profit: null, workingCapital: null, oml: null, ev: null } };
 export const propsNumber: PanelProps = {
   // @ts-expect-error the panel's wire holds no number
   wire: { ...wire, step: { kind: 'exists', sMed: 0.1214 } },

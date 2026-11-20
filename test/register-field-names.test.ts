@@ -48,3 +48,49 @@ describe('register field names', () => {
     for (const column of API_KEY_FIGURE_COLUMNS) expect(REGISTER_FIELD_NAMES[column]).toMatch(/^[a-z][A-Za-z]+$/);
   });
 });
+
+// Story 3.7, decision 3: in the drill-down an API input shows its register
+// name, a document line its engine name under "Fra årsregnskapet", each as
+// `<code data-provenance-field>`, the one form the payload scan admits.
+describe('the names in the drill-down', () => {
+  it('API names in step 3, the document lines under "Fra årsregnskapet"', async () => {
+    const { createElement } = await import('react');
+    const { renderToString } = await import('react-dom/server');
+    const { ProvenanceSteps } = await import('../src/components/analysis/provenance-steps.tsx');
+    const { capitalProvenance, profitProvenance, provenanceSubject } = await import('../src/analysis/provenance.ts');
+    const { benchmarkApiFigures, benchmarkDocumentFigures } = await import('../src/engine/benchmark.ts');
+    const { readBasis, TEN_PEERS } = await import('./analysis/document-fixture.ts');
+    const nb = (await import('../src/messages/nb.json', { with: { type: 'json' } })).default;
+    const api = {
+      sumDriftsinntekter: 1_000_000_000n,
+      driftsresultat: 20_000_000n,
+      sumDriftskostnad: 980_000_000n,
+      sumEiendeler: 300_000_000n,
+      sumEgenkapitalGjeld: 300_000_000n,
+      sumEgenkapital: 100_000_000n,
+      sumGjeld: 200_000_000n,
+    };
+    const peers = Array.from({ length: 10 }, (_, i) => ({ ...api, driftsresultat: BigInt(i + 1) * 10_000_000n }));
+    const basis = readBasis();
+    const subject = provenanceSubject(api, {
+      filingYear: 2025,
+      readAt: new Date('2026-10-03T08:00:00Z'),
+      documentBasis: basis,
+      documentFacts: { readAt: new Date('2026-10-21T08:00:00Z'), current: null },
+    });
+    const profit = profitProvenance(subject, benchmarkApiFigures(api, peers, 'NOK').driftsmargin);
+    const kfd = capitalProvenance(subject, 'kfd', benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK').kfd);
+    if (profit === null || kfd === null) throw new Error('the fixture has both amounts');
+    const html = (view: typeof profit) => renderToString(createElement(ProvenanceSteps, { id: 'x', view }));
+    const profitHtml = html(profit);
+    expect(profitHtml).toContain('<code data-provenance-field="">sumDriftsinntekter</code>');
+    expect(profitHtml).not.toContain(nb['provenance.fromDocument']);
+    const kfdHtml = html(kfd);
+    const heading = kfdHtml.indexOf(nb['provenance.fromDocument']);
+    expect(heading).toBeGreaterThan(-1);
+    // Step 3's names follow the heading; no name is written outside a <code data-provenance-field>.
+    expect(kfdHtml.indexOf('<code data-provenance-field="">kundefordringer</code>', heading)).toBeGreaterThan(heading);
+    const bare = kfdHtml.replace(/<code data-provenance-field="">\w+<\/code>/g, '');
+    for (const name of ['kundefordringer', 'salgsinntekt']) expect(bare).not.toContain(name);
+  });
+});

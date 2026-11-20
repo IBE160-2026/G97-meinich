@@ -43,12 +43,13 @@ import {
   productIsApproximate,
   profitAtShare,
   scaleAmount,
+  shareLineIsApproximate,
   valueAtShare,
   type ClosableShare,
   type MedianStepReason,
   type Multiple,
 } from '../engine/closable.ts';
-import type { Decimal } from '../engine/decimal.ts';
+import { Decimal } from '../engine/decimal.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { formatKronerExact, formatMultiple, formatWholePercent, formatWholePercentNumber, lowerFirst, wholePercent } from '../engine/format.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
@@ -295,11 +296,22 @@ export type CardView = {
   /** N6 or N7: the share the amount is at. */
   readonly share: string | null;
   readonly median: string | null;
+  /**
+   * The drill-down's share line (Story 3.7, decision 7): "{full} × {andel}
+   * = {a}", "≈" in place of "=" where the displayed full amount times the
+   * displayed share is not the displayed amount (`shareLineIsApproximate`).
+   * Null without an amount, and on the profit card at the median step, whose
+   * amount is (M − r) × sumDriftsinntekter, never full × s_med: its
+   * drill-down shows that formula instead.
+   */
+  readonly shareLine: string | null;
 };
 
 export type WorkingCapitalView = CardView & {
   /** One line per part, N8 "{figur}: {verdi}", each with its own median line. */
   readonly parts: readonly { readonly text: string; readonly median: string | null }[];
+  /** The drill-down's share lines: the total's, or each part's with an amount when there is no total. */
+  readonly shareLines: readonly string[];
 };
 
 /**
@@ -374,12 +386,32 @@ function shareText(share: ClosableShare, sMed: Decimal | null): string {
   return t('verdi.share.percent', { n: medianPercentNumber(sMed) });
 }
 
+/**
+ * The share as `shareText` displays it, as a factor: 0.5 for "50 %", the
+ * whole percent of s_med / 100 at the median step; null where the text is
+ * words ("under 1 %", "over 99 %"), which no product can equal.
+ */
+function shownShare(share: ClosableShare, sMed: Decimal | null): Decimal | null {
+  if (share !== 'median') return new Decimal(share).div(100);
+  if (sMed === null) throw new RangeError('the median step needs s_med');
+  const whole = wholePercent(sMed.mul(100).toString());
+  return whole.eq(0) || whole.eq(100) ? null : whole.div(100);
+}
+
+/** "{full} × {andel} = {a}", or "≈" where the displayed numbers do not give the displayed amount. */
+function shareLine(full: Decimal, amount: Decimal, share: ClosableShare, sMed: Decimal | null, andel: string): string {
+  const factor = shownShare(share, sMed);
+  const vars = { full: kroner(full), andel, a: kroner(amount) };
+  const approximate = factor === null || shareLineIsApproximate(full, factor, amount);
+  return t(approximate ? 'provenance.shareApprox' : 'provenance.share', vars);
+}
+
 function kroner(ore: Decimal): string {
   return formatKronerExact(ore.toString());
 }
 
 function textCard(wire: TextWire & { readonly median?: string | null }): CardView {
-  return { value: { kind: 'text', text: wire.text }, detail: wire.detail, share: null, median: wire.median ?? null };
+  return { value: { kind: 'text', text: wire.text }, detail: wire.detail, share: null, median: wire.median ?? null, shareLine: null };
 }
 
 /**
@@ -439,13 +471,15 @@ export function verdiCards(wire: VerdiWire, share: ClosableShare, multiple: Mult
   if (wire.profit.kind === 'amount') {
     const full = fromWire(wire.profit.full);
     const atMedian = wire.profit.atMedian === null ? null : fromWire(wire.profit.atMedian);
-    const a = kroner(profitAtShare(full, atMedian, share).ore);
+    const atShare = profitAtShare(full, atMedian, share).ore;
+    const a = kroner(atShare);
     const fullText = kroner(full);
     profit = {
       value: { kind: 'amount', text: t('verdi.profit.value', { a, full: fullText }) },
       detail: null,
       share: t('verdi.profit.share', { andel }),
       median: wire.profit.median,
+      shareLine: share === 'median' ? null : shareLine(full, atShare, share, sMed, andel),
     };
     announcement = t('verdi.announce.profit', { a, full: fullText });
   } else {
@@ -456,17 +490,27 @@ export function verdiCards(wire: VerdiWire, share: ClosableShare, multiple: Mult
     const exact = fromWire(full);
     return t('verdi.capital.value', { a: kroner(scaleAmount(exact, share, sMed).ore), full: kroner(exact) });
   };
+  const capitalShareLine = (full: WireDecimal): string => {
+    const exact = fromWire(full);
+    return shareLine(exact, scaleAmount(exact, share, sMed).ore, share, sMed, andel);
+  };
   const capitalShare = t('verdi.capital.share', { andel });
 
   const oml: CardView =
     wire.oml.kind === 'amount'
-      ? { value: { kind: 'amount', text: capitalValue(wire.oml.full) }, detail: null, share: capitalShare, median: wire.oml.median }
+      ? {
+          value: { kind: 'amount', text: capitalValue(wire.oml.full) },
+          detail: null,
+          share: capitalShare,
+          median: wire.oml.median,
+          shareLine: capitalShareLine(wire.oml.full),
+        }
       : textCard(wire.oml);
 
   let workingCapital: WorkingCapitalView;
   const wc = wire.workingCapital;
   if (wc.kind === 'text') {
-    workingCapital = { ...textCard(wc), parts: [] };
+    workingCapital = { ...textCard(wc), parts: [], shareLines: [] };
   } else {
     const parts = [wc.kfd, wc.lgd].map((part) => ({
       text: t('verdi.part', {
@@ -487,7 +531,12 @@ export function verdiCards(wire: VerdiWire, share: ClosableShare, multiple: Mult
       share: anyAmount ? capitalShare : null,
       // Each part carries its own median line.
       median: null,
+      shareLine: null,
       parts,
+      shareLines:
+        wc.total?.kind === 'amount'
+          ? [capitalShareLine(wc.total.full)]
+          : [wc.kfd.value, wc.lgd.value].flatMap((value) => (value.kind === 'amount' ? [capitalShareLine(value.full)] : [])),
     };
   }
 

@@ -219,7 +219,15 @@ describe('the cards', () => {
       50,
       null,
     );
-    expect(both2.workingCapital).toEqual({ value: { kind: 'text', text: nb['keyFigures.strength'] }, detail: null, share: null, median: null, parts: [] });
+    expect(both2.workingCapital).toEqual({
+      value: { kind: 'text', text: nb['keyFigures.strength'] },
+      detail: null,
+      share: null,
+      median: null,
+      shareLine: null,
+      parts: [],
+      shareLines: [],
+    });
     // One part below the floor: its reason on its line, and no total.
     const one = verdiCards(wireOf({ lgd: { gap: NO_COMPARISON, comparison: belowFloor(7) } }), 50, null);
     expect(lines(one)).toEqual([`${kfd}: ${N('500 kr')} av ${N('1 000 kr')}`, `${lgd}: ${t('keyFigures.belowFloor', { n: '7', min: '10' })}`]);
@@ -325,13 +333,13 @@ describe('the cards', () => {
       50,
       null,
     );
-    expect(view.profit).toEqual({ value: { kind: 'text', text: nb['verdi.profit.strength'] }, detail: null, share: null, median: null });
+    expect(view.profit).toEqual({ value: { kind: 'text', text: nb['verdi.profit.strength'] }, detail: null, share: null, median: null, shareLine: null });
     expect(view.steps.find((step) => step.share === 'median')?.disabled).toBe(true);
     // No profit amount: the announcement names the share.
     expect(view.announcement).toBe(t('verdi.announce.share', { andel: N('50 %') }));
     // A capital strength: "▲ Styrke", no kroner, no median line.
     const oml = verdiCards(wireOf({ oml: { gap: STRENGTH, comparison: compared('higher_is_better', '4', '2', '3') } }), 50, null).oml;
-    expect(oml).toEqual({ value: { kind: 'text', text: nb['keyFigures.strength'] }, detail: null, share: null, median: null });
+    expect(oml).toEqual({ value: { kind: 'text', text: nb['keyFigures.strength'] }, detail: null, share: null, median: null, shareLine: null });
   });
 
   it('a card without a target', () => {
@@ -391,6 +399,9 @@ describe('the cards', () => {
   });
 });
 
+/** An EV product line, "{a} × {m} = {v}": a multiple after "×", never a share in percent. */
+const PRODUCT_LINE = / × [\d,]+ [=≈] /;
+
 describe('the EV section (Story 3.6)', () => {
   it('without a multiple the card reads the empty sentence', () => {
     // Fixture: the profit card has an amount, so the field is enabled.
@@ -398,7 +409,8 @@ describe('the EV section (Story 3.6)', () => {
     expect(view.profit.value?.kind).toBe('amount');
     expect(view.ev).toEqual({ kind: 'empty', field: '', text: nb['verdi.ev.empty'], error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
     // No value and no product line anywhere.
-    expect(JSON.stringify(view)).not.toContain(' × ');
+    // (Story 3.7's share lines, "× 50 % =", are not a product line: a product line multiplies by a multiple.)
+    expect(JSON.stringify(view)).not.toMatch(PRODUCT_LINE);
     // The field renders empty, with no placeholder, enabled, and its status region empty from load.
     const html = renderToString(createElement(MultipleField, { ev: view.ev, current: null, onCommit: () => {}, announcementFor: () => '' }));
     const input = html.match(/<input[^>]*>/)?.[0] ?? '';
@@ -482,7 +494,7 @@ describe('the EV section (Story 3.6)', () => {
       // A valid multiple in the URL stays and shows read-only; still no value and no product line.
       const withMultiple = verdiCards(wire, 50, multiple('6.5'));
       expect(withMultiple.ev, label).toEqual({ kind: 'disabled', reason, field: '6,5', error: nb['verdi.ev.error'], cleared: nb['verdi.ev.empty'] });
-      expect(JSON.stringify(withMultiple), label).not.toContain(' × ');
+      expect(JSON.stringify(withMultiple), label).not.toMatch(PRODUCT_LINE);
       // The field renders aria-disabled and read-only, never disabled, so it stays focusable, described by the reason.
       const html = renderToString(
         createElement(MultipleField, { ev: withMultiple.ev, current: multiple('6.5'), onCommit: () => {}, announcementFor: () => '' }),
@@ -495,5 +507,52 @@ describe('the EV section (Story 3.6)', () => {
       expect(html, label).toContain(`id="${MULTIPLE_REASON_ID}"`);
       expect(html, label).toContain(reason.replaceAll('"', '&quot;'));
     }
+  });
+});
+
+// Story 3.7, decision 7: the drill-down's share line, "{full} × {andel} = {a}",
+// with "≈" exactly where the displayed full amount times the displayed share is
+// not the displayed amount; at the median step the profit has none (its
+// drill-down shows (M − r) × sumDriftsinntekter), and a capital amount reads
+// its full amount × the whole percent of s_med.
+describe('the share line', () => {
+  const w = (value: string) => toWire(d(value));
+  const wire: VerdiWire = {
+    // s_med 24,49 %, shown "24 %".
+    step: { kind: 'exists', sMed: w('0.2449') },
+    profit: { kind: 'amount', full: w('100100'), atMedian: w('24524.9'), median: null },
+    workingCapital: {
+      kind: 'parts',
+      kfd: { label: 'Kundefordringsdager', value: { kind: 'amount', full: w('300000') }, median: null },
+      lgd: { label: 'Leverandørgjeldsdager', value: { kind: 'amount', full: w('100050') }, median: null },
+      total: { kind: 'amount', full: w('400050') },
+    },
+    oml: { kind: 'amount', full: w('350000'), median: null },
+  };
+
+  it('at 50 %: "=" where the displayed numbers give the amount, "≈" where they do not', () => {
+    const view = verdiCards(wire, 50, null);
+    // The fixture's state: 1 001 kr × 0,5 = 500,5, while the card shows 501 kr; 3 500 kr × 0,5 = 1 750 kr exactly.
+    expect(view.profit.value?.text).toBe(`${N('501 kr')} av ${N('1 001 kr')} per år`);
+    expect(view.oml.value?.text).toBe(`${N('1 750 kr')} av ${N('3 500 kr')}`);
+    expect(view.profit.shareLine).toBe(t('provenance.shareApprox', { full: N('1 001 kr'), andel: N('50 %'), a: N('501 kr') }));
+    expect(view.oml.shareLine).toBe(t('provenance.share', { full: N('3 500 kr'), andel: N('50 %'), a: N('1 750 kr') }));
+    // Working capital: the total's line (4 000,5 kr shown as 4 001 kr; × 0,5 = 2 000,5, shown 2 000 kr).
+    expect(view.workingCapital.shareLines).toEqual([t('provenance.shareApprox', { full: N('4 001 kr'), andel: N('50 %'), a: N('2 000 kr') })]);
+  });
+
+  it('at the median: no share line on the profit, whose amount is the median formula; capital × s_med', () => {
+    const view = verdiCards(wire, 'median', null);
+    // The fixture's state: the profit is the wire's (M − r) × sumDriftsinntekter, 245,249 kr, not 1 001 × 0,2449.
+    expect(view.profit.value?.text).toBe(`${N('245 kr')} av ${N('1 001 kr')} per år`);
+    expect(view.profit.shareLine).toBeNull();
+    // 3 500 kr × 24 % = 840 kr, but the card shows 3 500 × 0,2449 = 857,15 → 857 kr.
+    expect(view.oml.value?.text).toBe(`${N('857 kr')} av ${N('3 500 kr')}`);
+    expect(view.oml.shareLine).toBe(t('provenance.shareApprox', { full: N('3 500 kr'), andel: N('24 %'), a: N('857 kr') }));
+  });
+
+  it('no share line without an amount', () => {
+    const view = verdiCards(wireOf({ oml: { gap: NO_COMPARISON, comparison: belowFloor(4) } }), 50, null);
+    expect(view.oml.shareLine).toBeNull();
   });
 });

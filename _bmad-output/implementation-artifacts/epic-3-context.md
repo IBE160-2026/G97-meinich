@@ -14,8 +14,8 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 - Story 3.3: The margin waterfall (done)
 - Story 3.4: The rest of Oversikt (done)
 - Story 3.5: Verdi — how much is closable (done, PR #78)
-- Story 3.6: EV/EBIT — what the uplift is worth (next)
-- Story 3.7: "Hvordan er dette regnet?"
+- Story 3.6: EV/EBIT — what the uplift is worth (done, PR #80)
+- Story 3.7: "Hvordan er dette regnet?" (next)
 
 ## Requirements & Constraints
 

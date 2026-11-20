@@ -474,12 +474,16 @@ export async function insertSyntheticDocuments(): Promise<void> {
           ['prior', company.prior],
         ] as const) {
           // c1 and c3 pass, nothing fails: the column is reconciled, as the status CHECK requires.
+          // Story 3.7: the current column's lines equal the key figures (both are built from the
+          // same amounts above), so its comparison with the API passes, as step 1 would store it;
+          // the prior column has no API filing of its own year here.
           const { names, values } = columnValues(lines);
+          const apiCheck = role === 'current' ? 'pass' : 'not_evaluable';
           await tx.unsafe(
             `insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, c5, status,
                                                    api_check, api_fail_fields, digits_pass_fields, dataset, ${names.join(', ')})
              values ($1, $2, $3, $4, 'pass', 'not_evaluable', 'pass', 'not_evaluable', 'not_evaluable', 'reconciled',
-                     'not_evaluable', '{}', '{}', 'demo', ${names.map((_, i) => `$${i + 5}`).join(', ')})`,
+                     '${apiCheck}', '{}', '{}', 'demo', ${names.map((_, i) => `$${i + 5}`).join(', ')})`,
             [company.orgnr, year, role, role === 'current' ? year : year - 1, ...values],
           );
         }

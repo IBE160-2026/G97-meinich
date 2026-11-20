@@ -61,6 +61,20 @@ export function newestFiling(orgnr: string): Record<string, string> {
   return own[0];
 }
 
+/**
+ * Story 3.7: the field names a profit drill-down shows for `orgnr` (its own
+ * filing, outside the demo data, so no failure names): driftsresultat and
+ * sumDriftsinntekter, and for an empty one the field it is derived from
+ * besides the other (docs/key-figures.md, "Deriving a missing API input"),
+ * written out here as an oracle independent of the engine's table.
+ */
+export function profitDrillFields(orgnr: string): string[] {
+  const k = keyFigureRow(newestFiling(orgnr).brreg_id ?? '');
+  const fields = ['driftsresultat', 'sumDriftsinntekter'];
+  if (k.driftsresultat_ore === null || k.sum_driftsinntekter_ore === null) fields.push('sumDriftskostnad');
+  return fields;
+}
+
 export function company(orgnr: string): Record<string, string> {
   const found = companies.find((c) => c.orgnr === orgnr);
   if (found === undefined) throw new Error(`${orgnr} is not in the seed`);

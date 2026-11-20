@@ -28,88 +28,21 @@
 // document lines' names as the engine and the read call them, the
 // `cur_`/`pri_` columns, the document basis), and `expectNoDocumentFields`
 // scans a page for every document line in øre of its subject and its peers.
+//
+// Story 3.7 (decision 6): the drill-down's field names are allowed only as
+// `<code data-provenance-field>` (or its RSC form); `provenanceFields` takes
+// those out first, and every scan below runs on the rest unchanged. The
+// names it took out must be exactly `fields`, the subject's inputs for the
+// tab's amounts. `expectNoDocumentFields` also refuses a peer's document
+// line written in kroner, and both refuse the stored reconciliation
+// (`api_check`, `api_fail_fields`, `c1`–`c5`): e2e/payload-scan.ts, whose
+// probes are test/payload-scan.test.ts.
 import type { APIRequestContext } from '@playwright/test';
-import { DOCUMENT_FIGURE_COLUMNS, type DocumentField } from '../src/engine/document-inputs.ts';
 import { expect } from './fixtures.ts';
+import { SERVER_FIELDS, documentFieldsIn, formattedPeerLinesIn, provenanceFields } from './payload-scan.ts';
 import { keyFigureRow, type SeedCandidate } from './seed.ts';
 
-/** Field names of the server's subject and candidate reads that must never reach the browser. */
-export const SERVER_FIELDS = [
-  'sumDriftsinntekter',
-  'sum_driftsinntekter_ore',
-  'driftsresultat_ore',
-  'sum_eiendeler_ore',
-  'sum_egenkapital_ore',
-  'keyFigures',
-  'brregId',
-  'fingerprint',
-  'costOfGoods',
-  'personnelCost',
-  'assetIntensity',
-  'capitalisedIntangibles',
-  'classification',
-  'business_type',
-  'forretningsadresse_kommune',
-  'organisasjonsform',
-  // Story 2.7: the match basis reaches the page as its label, never as its id.
-  'matchBasis',
-  'description_and_accounts',
-  'accounts_only',
-  'description_only',
-  'industry_and_size_only',
-  // Story 3.2: the turnover benchmark stays on the server; the page gets the factor view's strings.
-  'turnoverBenchmark',
-  // Story 3.3: the engine's margin waterfall stays on the server; the page gets its view's strings and geometry.
-  'totalOre',
-  'totalKroner',
-  'startKroner',
-  'endKroner',
-  'barKroner',
-  'subjectMargin',
-  'aggregateMargin',
-] as const;
-
-const DOCUMENT_FIELDS = Object.keys(DOCUMENT_FIGURE_COLUMNS) as DocumentField[];
-
-/**
- * The document fields of the server's reads that must never reach the
- * browser, as names that cannot be ordinary page text: the columns
- * (`kundefordringer_ore`), the engine's names made of more than one word
- * (`annenDriftskostnad`), and the document basis and its parts.
- */
-export const DOCUMENT_SERVER_FIELDS: readonly string[] = [
-  ...Object.values(DOCUMENT_FIGURE_COLUMNS),
-  ...DOCUMENT_FIELDS.filter((field) => /[A-Z]/.test(field)),
-  'documentBasis',
-  'documentBenchmark',
-  'document_status',
-  'current_status',
-  'prior_status',
-  'prior_api_fail_fields',
-  'in_manifest',
-  'priorRevenueFailsApi',
-  'numeratorOre',
-  'denominatorOre',
-];
-
-/**
- * The single-word engine names (`kundefordringer`, `varekostnad`), which
- * Norwegian copy may contain ("varekostnad og andre driftskostnader …"):
- * found only as an object key, `"kundefordringer":` in the RSC payload and
- * `\"kundefordringer\":` inside the HTML's inline payload.
- */
-const DOCUMENT_KEYS = DOCUMENT_FIELDS.filter((field) => !/[A-Z]/.test(field)).map(
-  (field) => new RegExp(`"${field}\\\\?"\\s*:`),
-);
-
-/** The document fields found in `body`: names, keys and the `cur_`/`pri_` columns. */
-function documentFieldsIn(body: string): string[] {
-  return [
-    ...DOCUMENT_SERVER_FIELDS.filter((field) => body.includes(field)),
-    ...DOCUMENT_KEYS.filter((key) => key.test(body)).map(String),
-    ...(/\b(cur|pri)_[a-z]/.test(body) ? ['cur_/pri_'] : []),
-  ];
-}
+export { SERVER_FIELDS } from './payload-scan.ts';
 
 export async function expectNoPeerFields(
   request: APIRequestContext,
@@ -119,9 +52,12 @@ export async function expectNoPeerFields(
     marker,
     inUrl = [],
     exact = [],
+    fields,
   }: {
     readonly pool: readonly SeedCandidate[];
     readonly marker: string;
+    /** The field names the tab's drill-downs show: exactly the subject's inputs for its amounts (Story 3.7). */
+    readonly fields: readonly string[];
     /** Orgnrs the page may carry: those the URL names, and on Peers the group's. */
     readonly inUrl?: readonly string[];
     /** Strings that must not occur at all, such as exact values (Story 3.4). */
@@ -139,10 +75,12 @@ export async function expectNoPeerFields(
     .filter((digits) => digits.length >= 6);
   expect(amounts.length).toBeGreaterThan(pool.length);
   const scanned = pool.filter((peer) => !inUrl.includes(peer.orgnr));
-  for (const [label, body] of [
+  for (const [label, full] of [
     ['html', html],
     ['rsc', payload],
   ] as const) {
+    const { rest: body, fields: shown } = provenanceFields(full);
+    expect(shown, label).toEqual([...new Set(fields)].sort());
     expect(body, label).toContain(marker);
     expect(scanned.filter((peer) => body.includes(peer.orgnr)).map((peer) => peer.orgnr), label).toEqual([]);
     expect(amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body)), label).toEqual([]);
@@ -160,7 +98,21 @@ export async function expectNoPeerFields(
 export async function expectNoDocumentFields(
   request: APIRequestContext,
   url: string,
-  { ore, marker }: { readonly ore: readonly string[]; readonly marker: string },
+  {
+    ore,
+    marker,
+    fields,
+    peerOre,
+    subjectOre,
+  }: {
+    readonly ore: readonly string[];
+    readonly marker: string;
+    /** The field names the tab's drill-downs show: exactly the subject's inputs for its amounts (Story 3.7). */
+    readonly fields: readonly string[];
+    /** The peers' document lines in øre, never on the page even as kroner, and the subject's own (Story 3.7). */
+    readonly peerOre: readonly string[];
+    readonly subjectOre: readonly string[];
+  },
 ): Promise<void> {
   const html = await (await request.get(url)).text();
   const rsc = await request.get(url, { headers: { RSC: '1' } });
@@ -168,10 +120,14 @@ export async function expectNoDocumentFields(
   const payload = await rsc.text();
   const amounts = [...new Set(ore.map((amount) => amount.replace(/^-/, '')).filter((digits) => digits.length >= 6))];
   expect(amounts.length).toBeGreaterThan(10);
-  for (const [label, body] of [
+  expect(peerOre.length).toBeGreaterThan(10);
+  for (const [label, full] of [
     ['html', html],
     ['rsc', payload],
   ] as const) {
+    const { rest: body, fields: shown } = provenanceFields(full);
+    expect(shown, label).toEqual([...new Set(fields)].sort());
+    expect(formattedPeerLinesIn(full, peerOre, subjectOre), label).toEqual([]);
     expect(body, label).toContain(marker);
     expect(amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body)), label).toEqual([]);
     expect(SERVER_FIELDS.filter((field) => body.includes(field)), label).toEqual([]);

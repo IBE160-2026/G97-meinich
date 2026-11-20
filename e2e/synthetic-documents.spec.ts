@@ -214,8 +214,26 @@ function documentOre(): string[] {
   ];
 }
 
+// Story 3.7, decision 6: the field names each drill-down shows, written out from
+// docs/key-figures.md's formulas (the subject's inputs; the fixture states every line,
+// so nothing is derived), and every company's document lines, which no peer's may
+// reach the page even as kroner.
+const PROFIT_FIELDS = ['driftsresultat', 'sumDriftsinntekter'];
+const KFD_FIELDS = ['kundefordringer', 'salgsinntekt'];
+const LGD_FIELDS = ['leverandorgjeld', 'varekostnad', 'annenDriftskostnad'];
+const OML_FIELDS = ['sumDriftsinntekter', 'sumEiendeler', 'bankinnskudd'];
+const linesOf = (company: SyntheticDocumentCompany) => [...Object.values(company.current), ...Object.values(company.prior)];
+const LINES = { peerOre: peers.flatMap(linesOf), subjectOre: linesOf(subject) };
+
 test('no document øre reaches the page', async ({ request }) => {
-  await expectNoDocumentFields(request, `${base}/nokkeltall`, { ore: documentOre(), marker: nb['keyFigures.regionLabel'] });
+  // The fixture's state: 9, 10 and 11 each have an amount, so each gap cell has its drill-down.
+  expect([expected.kfd.gap.kind, expected.lgd.gap.kind, expected.oml.gap.kind]).toEqual(['amount', 'amount', 'amount']);
+  await expectNoDocumentFields(request, `${base}/nokkeltall`, {
+    ore: documentOre(),
+    marker: nb['keyFigures.regionLabel'],
+    fields: [...PROFIT_FIELDS, ...KFD_FIELDS, ...LGD_FIELDS, ...OML_FIELDS],
+    ...LINES,
+  });
 });
 
 // Story 3.4: Oversikt's "Største kapitalgap" over the fixture.
@@ -263,9 +281,14 @@ test('no document øre reaches Oversikt', async ({ request }) => {
     ore.floor().toString(),
     ore.toString().replace('.', ''),
   ]);
+  const choice = largestCapitalGap(kfd.gap, lgd.gap, oml.gap);
+  if (choice.kind !== 'amount') throw new Error('the fixture has a capital amount');
   await expectNoDocumentFields(request, `${base}/oversikt`, {
     ore: [...documentOre(), ...capital],
     marker: nb['oversikt.capital.kicker'],
+    // Story 3.7: the hero's drill-down and the capital card's, of the amount it shows.
+    fields: [...PROFIT_FIELDS, ...(choice.figure === 'oml' ? OML_FIELDS : [...KFD_FIELDS, ...LGD_FIELDS])],
+    ...LINES,
   });
 });
 
@@ -431,7 +454,13 @@ test('Verdi carries exactly the wire set and no document øre', async ({ request
   expect(o.step.kind).toBe('none');
   const wire = [o.profitFull, o.kfd, o.lgd, o.total, o.oml].map((value) => value.toString()).sort();
   await expectWireSet(request, `${base}/verdi`, subject.orgnr, wire);
-  await expectNoDocumentFields(request, `${base}/verdi`, { ore: documentOre(), marker: 'VerdiPanel' });
+  await expectNoDocumentFields(request, `${base}/verdi`, {
+    ore: documentOre(),
+    marker: 'VerdiPanel',
+    // Story 3.7: the three cards' drill-downs (no multiple, so no EV).
+    fields: [...PROFIT_FIELDS, ...KFD_FIELDS, ...LGD_FIELDS, ...OML_FIELDS],
+    ...LINES,
+  });
 });
 
 for (const width of [375, 320]) {

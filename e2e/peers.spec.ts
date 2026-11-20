@@ -90,6 +90,8 @@ test.describe('the peer group (Story 1.7)', () => {
       marker: nb['peers.funnel.stage3'],
       // Story 2.8: every group member's orgnr, for its exclude action.
       inUrl: pool0.map((peer) => peer.orgnr),
+      // Story 3.7: the Peers tab shows no kroner amount, so no drill-down.
+      fields: [],
     });
   });
 
@@ -101,6 +103,7 @@ test.describe('the peer group (Story 1.7)', () => {
       pool: expectedPool(A.orgnr ?? '', 2),
       marker: nb['peers.funnel.stage3'],
       inUrl: group2.map((peer) => peer.orgnr),
+      fields: [],
     });
   });
 
@@ -329,6 +332,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
         marker: nb['peers.funnel.stage3'],
         // Story 2.8: the group's orgnrs, for the exclude actions.
         inUrl: expectedGroup(orgnr, 0).map((peer) => peer.orgnr),
+        fields: [],
       });
     });
   }

@@ -27,6 +27,7 @@ import {
   noSidewaysScroll,
   notice,
   withFiling,
+  profitDrillFields,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
 
@@ -198,6 +199,8 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await expectNoPeerFields(request, `/analyse/${A.orgnr}/nokkeltall`, {
       pool: expectedPool(A.orgnr ?? '', 0),
       marker: nb['keyFigures.regionLabel'],
+      // Story 3.7: demo A's one amount is driftsmargin's, outside the demo data.
+      fields: profitDrillFields(A.orgnr ?? ''),
     });
   });
 

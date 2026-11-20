@@ -36,6 +36,7 @@ import {
   notice,
   rendered,
   tabs,
+  profitDrillFields,
 } from './seed.ts';
 
 const fill = (id: keyof typeof nb, vars: Record<string, string>) =>
@@ -313,7 +314,8 @@ test.describe('Verdi (Story 3.5)', () => {
     expect(exact.length).toBeGreaterThan(pool.length / 2);
     const url = `/analyse/${orgnr}/verdi`;
     // The client component's name: in the RSC payload, and in the HTML's inline copy of it.
-    await expectNoPeerFields(request, url, { pool, marker: 'VerdiPanel', exact });
+    // Story 3.7: the profit card's drill-down, demo A's only amount here.
+    await expectNoPeerFields(request, url, { pool, marker: 'VerdiPanel', exact, fields: profitDrillFields(orgnr) });
     await expectWireSet(request, url, orgnr, wireSetOf(DEMO_A.oracle));
   });
 });

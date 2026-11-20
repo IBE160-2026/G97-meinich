@@ -24,6 +24,7 @@ import {
   notice,
   rendered,
   root,
+  profitDrillFields,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
 
@@ -197,6 +198,8 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
         marker: nb['oversikt.beeswarm.heading'],
         inUrl: query === '' ? [] : [firstPeer],
         exact,
+        // Story 3.7: the hero's drill-down; demo A is outside the demo data, so the capital card has none.
+        fields: profitDrillFields(A.orgnr ?? ''),
       });
     });
   }

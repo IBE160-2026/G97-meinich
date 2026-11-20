@@ -14,6 +14,7 @@
 - **Implementation:** `cdd6553` to `fcedd8f` (7 commits).
 - **Review triage:** `e476ed2`; outcomes `2e1440b`.
 - **Review fixes:** `df283ce`, `eb694ae` and `8f51267` (the implementation subagent); `571240e` (the BMAD session, two e2e reads found by the full verification run).
+- **Error text after review:** `cb187e1`.
 - **AI log:** the entry with the implementation (`fcedd8f`), its review outcome `fbb9088`.
 - **Planning:** the epic context `a29fc4d`; the planning documents `fcedd8f`, DESIGN.md `eb694ae`.
 - **PR:** opened when Meinich says so.
@@ -51,6 +52,7 @@ On the Verdi tab:
   - **(c):** the "≈" rule itself: the exact product of the displayed uplift in whole kroner and m, compared with round(exact uplift × m), which the BMAD session adopted as decision 3.
   - **(a):** that the review session had found no deferred entry, to be confirmed by a search of the BMAD session's own.
   - **The implementation report's list:** 6 996 kr instead of 6 997 kr; the "≈" test and `wholeKroner` at a half krone; each `'value'` probe; one extra `replaceState`; both multiple-source probes; the identity test with one side's formatting changed; the e2e reads after `replaceSettings` and what the search found; the four restore counts and zero synthetic remains; 375 and 320 px.
+  - **The new error text** (2026-11-20), after Blind Hunter raised the old one.
   - **After a run stopped on memory:** run the chain step by step with a memory check before each, `pnpm test` with `--maxWorkers=2` (and `--maxWorkers=1` once if that stops), compare the test counts per step with the counts before the fixes and explain each change, and commit the AI-log update on its own before this file.
 
 ## What came back, and what was done with it
@@ -73,7 +75,7 @@ On the Verdi tab:
   - **The disabled field's tokens** (Blind Hunter): `bg-surface text-disabled-text`, as DESIGN reserves for disabled controls; DESIGN.md now describes the field's disabled state and the EV section.
 - **Found by the BMAD session's full verification run** (after the review fixes): two EV e2e reads did not wait for the field's announcement, which comes 50 ms after the value renders. The accepted-forms loop cancelled two announcements by typing on, and the reload test's `before` held the announcement or not depending on timing. Both now wait (`571240e`). A search of every announcement and `innerText()` read in the two specs found no other.
 - **Rejected** (spec, Review Triage Log): an invalid `multippel` loaded from the URL staying in the address bar when the field is cleared; the field's status region keeping its last sentence after a share change; Decimal precision 40 before the display rounding; the signature of `productIsApproximate`; the move from m = 6,5 to 6,7.
-- **Raised with Meinich, not changed:** the error "… for eksempel 6 eller 6,5" can read as a suggested multiple (Blind Hunter). It is Story 3.6's and EXPERIENCE's copy, verbatim.
+- **The error text, changed after review** (`cb187e1`): Blind Hunter raised that "… for eksempel 6 eller 6,5" can read as a suggested multiple; it was Story 3.6's and EXPERIENCE's copy, verbatim, so the BMAD session left it for Meinich. The review session proposed "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal", which names no multiple (FR-32) and says why 6,55 is refused; Meinich decided it on 2026-11-20 (spec, Spec Change Log). Checked by `test/messages.test.ts` (182 passed), typecheck and `e2e/verdi.spec.ts` (24 passed) after a rebuild.
 
 ## Verification
 

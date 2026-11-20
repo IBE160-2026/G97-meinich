@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 36 |
-| money | 34 |
+| auth | 37 |
+| money | 35 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
-| docs | 29 |
+| docs | 30 |
 
 ## Entry template
 
@@ -1089,3 +1089,18 @@ Rejected findings and their reasons are in the triage log.
 **Problem:** The first implementation wrote "Avvik ved avstemming: driftsresultat" for a column where nothing was found to differ, a failure named as a deviation no one saw; and several tests took their expected value from the data with a condition, so a changed fixture would have changed the expectation instead of failing.
 **Caught by:** The BMAD session's step-3 verification (the conditions, the e2e-only rows); the review session (the stored columns behind the split and its wording).
 **Outcome:** Commits on `story/3.7-provenance` after `8a7faa9`. Review pending.
+
+### 2026-11-20 — Story 3.7: review pass 1, what the drill-down exposes and a reconciliation claim that can go stale
+**Tags:** money, auth, docs
+**Tool:** Claude Code (Opus 5.5): three context-free review subagents (Blind Hunter, Edge Case Hunter, Verification Gap) over the diff from the baseline, triaged by the BMAD session; the implementation subagent applied the patches
+**Asked:** Review Story 3.7's change and record the triage in the spec (`## Review Triage Log`, 21 rows).
+**Got:** Six patches, each a commit "Story 3.7 review fix: …":
+- **A drill-down reopened on another company's page** (Blind Hunter, Edge Case Hunter): the open state lived in a module-level set keyed by fixed ids and was never cleared. `ProvenanceBody` now forgets its id on unmount; `test/analysis/provenance-store.test.ts`, and `e2e/provenance.spec.ts` "a drill-down open on one company is closed on the next, after a client navigation", which fails (aria-expanded "true") with the cleanup removed.
+- **Untested lines** (Verification Gap): the "Vis fordelingen" line, "Det største av …" and a strength counted as 0 in the working-capital line (`test/analysis/provenance.test.ts`; swapping `between` and `betweenApprox`, or k1 = k, now fails two tests each), and Verdi's share line on the rendered page (`e2e/provenance.spec.ts`, `e2e/synthetic-documents.spec.ts`; the (11) slot showing working capital's line fails with "Expected 864 967 742 kr × 50 % = 432 483 871 kr").
+- A negative T after "−" or "/" in parentheses (Edge Case Hunter); EXPERIENCE.md and `epics.md` no longer say the data-quality line is "one of" three (Blind Hunter).
+**Problem:** What could go wrong, beyond the first Story 3.7 entry:
+1. **What "Vis fordelingen" exposes, for (9)–(11) too.** The first entry argued only for driftsmargin. For kundefordringsdager, leverandørgjeldsdager and omløpshastighet driftseiendeler the list is every peer's ratio, computed from that peer's OCR-read document lines, sorted, without name or orgnr (decision 2, Meinich). No line itself reaches the page (the payload scan refuses a peer's document line in øre and in kroner), but a ratio with a name beside it would; the list carries none, and the Peers tab shows no capital ratio per peer. With the floor of 10 peers, a value cannot be tied to a peer from the page alone. The payload scan checks lines, not ratios, by design.
+2. **A reconciliation claim that can go stale** (Blind Hunter, rejected as unlikely, raised with Meinich). `api_check` compares the document with the one SELSKAP filing of its year (`filing_brreg_id`), else `not_evaluable`, so "Avstemt" is about the filing the engine chooses. A second filing of that year added by a plain `pnpm ingest` after the document's last reconciliation would leave a `pass` that compared the other filing, until the next `--documents` run reconciles it again. No test covers it.
+3. **What the review found false** (each with its evidence in the triage): a failed column with nothing that failed cannot be stored by step 1, so `failure` always has a cause; `api_check` `fail` always carries its fields; every column the engine orders a filing by is `NOT NULL`.
+**Caught by:** The review subagents named above; each claim verified by the BMAD session against the code, `supabase/migrations` and `ingest/src/peerless_ingest/reconcile.py`.
+**Outcome:** Commits on `story/3.7-provenance` from `20fd02f`; triage in `_bmad-output/implementation-artifacts/spec-3-7-hvordan-er-dette-regnet.md`. This closes "Review pending" in the two entries above.

@@ -49,15 +49,26 @@ context:
 
    The forms for (9)–(11) also go into `docs/key-figures.md` in this PR, stated as the same amounts.
 
-   **The waterfall bars are left out.** They explain the profit gap and are not gaps themselves. "Vis tallene" does **not** give enough numbers to recompute a bar (see Design Notes). So a `deferred-work.md` entry with a named owner and a line under FR-60 in the PRD go into this PR.
+   **The waterfall bars are left out.** They explain the profit gap and are not gaps themselves. "Vis tallene" does **not** give enough numbers to recompute a bar (see Design Notes). So this PR adds:
+   - a `deferred-work.md` entry owned by **Story 3.8 "Vannfallet kan regnes ut for hånd"** (Meinich, 2026-11-20);
+   - Story 3.8 itself in `epics.md`, in FR-60's row of the coverage map, and in `sprint-status.yaml` as `backlog`;
+   - a line under FR-60 in the PRD pointing to 3.8.
 2. **Beste fjerdedel.**
    - **n:** n = `Comparison.count`, the peers with a value from the subject's source.
    - **Text:** "Beste fjerdedel {T} = {øvre|nedre} kvartil av {n} verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)". The quartile follows `best.quartile`'s direction, through `percentileInc`.
    - **"Vis fordelingen"** is a fold-out inside the drill-down, not a link. It shows the n values sorted, without name or orgnr, with T marked, so that T can be computed by hand.
+     - **Caption:** "De {n} verdiene, sortert fra lavest til høyest".
+     - **The T line,** with h = (n − 1) × p, k = ⌊h⌋ + 1 (1-based) and f = h − ⌊h⌋ as a number:
+       - "Beste fjerdedel ligger mellom verdi {k} og {k1}: {a} + {f} × ({b} − {a}) = {T}";
+       - "≈" replaces "=" when the sum with the displayed numbers does not give the displayed T, decided in the engine on the same principle as `productIsApproximate`;
+       - when f = 0: "Beste fjerdedel er verdi {k}: {T}".
+     - **Tests:** one fixture with "=", one with "≈", one with f = 0, each for both the upper and the lower quartile. The test fails if the rule is reversed.
    - **Planning documents:** "linking" is corrected in `epics.md` (UX-DR29 and Story 3.7's acceptance criterion) and in EXPERIENCE, with a `(change)` line in the UX memlog.
 3. **Filed values.**
    - **Names:** API fields show the register's leaf name in monospace (`sumDriftsinntekter`), from `parse.py` `KEY_FIGURES`, with a test that the TS table equals it. Document lines show the engine name from `docs/key-figures.md` in monospace, grouped under "Fra årsregnskapet".
    - **Derived values:** shown as "avledet: {regel}", from one engine table, tested against `resolveApiInputs` and `documentCostLines`.
+     - **A cost line set to 0** because the remainder is within the bound follows `documentCostLines`' rule (±5 kr, both bounds inclusive): "avledet: {regel} = {rest}, innenfor ±5 kr, satt til 0".
+     - **Tests:** a remainder of exactly +5 kr and one of exactly −5 kr.
    - **Data-date lines,** one per source:
      - "Registerets nøkkeltall: Regnskapsår {aar} · hentet {dato}", from `filing.read_at`;
      - "Innsendt årsregnskap: Regnskapsår {aar} · hentet {dato}", from `document.read_at`.
@@ -110,7 +121,7 @@ context:
    - **An unavailable amount gets no trigger;** its cell keeps its stored reason (AC 3).
    - Calc chips sit on `surface`.
    - At 375 and 320 px there is no sideways scroll, and targets are at least 24 × 24 px.
-10. **Copy.** Approved as listed in Design Notes, verbatim. Copy that Design Notes marks *pending* enters `nb.json` only after Meinich approves it.
+10. **Copy.** Approved as listed in Design Notes, verbatim; nothing is pending.
 11. **One spec,** kept whole (above 1600 tokens; Meinich).
 
 ## Boundaries & Constraints
@@ -148,6 +159,8 @@ context:
 | Engine identity | each drill-down, demo A, default URL, and `andel=median&multippel=6.5` | every shown value equals the engine's formatted output | `test/analysis/provenance.test.ts` "every value is the engine's"; `e2e/provenance.spec.ts` "values equal the engine" |
 | Quartile | higher-is-better and lower-is-better figures | "øvre" / "nedre"; n = `count` | `provenance.test.ts` "the quartile follows the direction" |
 | Distribution | "Vis fordelingen" | n sorted values, no name or orgnr, T marked; recomputing `percentileInc` from the shown list gives T | `provenance.test.ts` "T recomputes from the shown values"; `e2e/provenance.spec.ts` |
+| T line | upper and lower quartile × {"=", "≈", f = 0} | the three forms; "≈" by the engine's rule | `test/engine/provenance.test.ts` "the T line: =, ≈ and f = 0, both quartiles" (fails with the rule reversed) |
+| Cost line set to 0 | remainder exactly +5 kr and −5 kr | "avledet: … = {rest}, innenfor ±5 kr, satt til 0" | `test/engine/provenance.test.ts` "a cost line within ±5 kr, both bounds" |
 | Names | API vs document inputs | register leaf names equal `parse.py`; document lines under "Fra årsregnskapet" | `test/register-field-names.test.ts` |
 | Derived rule | each derivation | the rule reproduces the derived value | `test/engine/provenance.test.ts` "each rule reproduces its value" |
 | Dates | an amount from both sources | two lines, filing and document `read_at` | `provenance.test.ts` "one data-date line per source" |
@@ -198,8 +211,9 @@ context:
   - `epics.md`: UX-DR29 (:278) and Story 3.7's acceptance criterion ("linking").
   - EXPERIENCE:203 and the UX memlog.
   - `docs/key-figures.md` (9)–(11).
-  - PRD FR-60 (:901) and its memlog.
-  - `deferred-work.md`: close D2 and B9, and add the waterfall entry.
+  - PRD FR-60 (:901) and its memlog: the line pointing to Story 3.8.
+  - `epics.md`: Story 3.8 "Vannfallet kan regnes ut for hånd" and FR-60's row of the coverage map. `sprint-status.yaml`: `3-8-…: backlog`.
+  - `deferred-work.md`: close D2 and B9, and add the waterfall entry, owner Story 3.8.
   - The technical note: AD-15 (the B9 line) and D2.
   - AGENTS.md.
   - `docs/ai-log.md`.
@@ -269,10 +283,11 @@ context:
 - "Det største av {liste}"
 - The two source lines (decision 5)
 
-**Pending Meinich's approval** (raised 2026-11-20; it does not enter `nb.json` before then):
-- the "Vis fordelingen" caption;
-- the line that marks T and shows the interpolation;
-- the derived-cost-line rule when the remainder is within 5 kr and the line is set to 0.
+**Also approved (Meinich, 2026-11-20, second answer):**
+- "De {n} verdiene, sortert fra lavest til høyest"
+- "Beste fjerdedel ligger mellom verdi {k} og {k1}: {a} + {f} × ({b} − {a}) = {T}", and the same with "≈"
+- "Beste fjerdedel er verdi {k}: {T}"
+- "avledet: {regel} = {rest}, innenfor ±5 kr, satt til 0"
 
 Formula lines use only numbers, field names and symbols, plus the existing "per år" and "engangsbeløp".
 
@@ -289,7 +304,10 @@ Formula lines use only numbers, field names and symbols, plus the existing "per 
 - the three scan probes failing;
 - payload size per tab before and after;
 - every read after a drill-down or `replaceState` change waiting for the render, with the list the search found;
-- the four counts;
+- "Avstemt mot innsendt årsregnskap" never on an amount with an uncompared input, and the test failing with rule 8b (the "not compared" row) removed;
+- the line for a 62.100 company outside the demo seed claiming no reconciliation;
+- the identity test covering Verdi's formula lines, the median step included;
+- the four counts after `pnpm restore:documents`, zero synthetic remains, and 20 entries in the manifest;
 - every surface at 375 and 320 px.
 
 **Commits:** small, in the Tasks' order, each type-checking. Never push.

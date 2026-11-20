@@ -251,12 +251,17 @@ function descending(a: string | bigint, b: string | bigint): number {
   return a > b ? -1 : 1;
 }
 
+/** What `benchmarkFiling` orders a company's filings by. */
+export type BenchmarkOrder = Pick<CandidateFiling, 'filingYear' | 'regnskapstype' | 'periodeTil' | 'periodeFra' | 'brregId'>;
+
 /**
  * A company's benchmark filing among its filings: one with the benchmark
  * year, preferring the subject's `regnskapstype`, then the latest
  * `periodeTil`, `periodeFra` and `brregId`. Null when it has none that year.
+ * The one place this order is written (Story 3.7, D2): the subject's filing
+ * is chosen by `subjectBenchmarkFiling` below, on the same order.
  */
-export function benchmarkFiling<C extends CandidateFiling>(
+export function benchmarkFiling<C extends BenchmarkOrder>(
   filings: readonly C[],
   year: number,
   regnskapstype: string,
@@ -270,6 +275,22 @@ export function benchmarkFiling<C extends CandidateFiling>(
       descending(a.brregId, b.brregId),
   );
   return inYear[0] ?? null;
+}
+
+/** The subject's filings are its SELSKAP filings (SUBJECT_SQL reads only those). */
+export const SUBJECT_REGNSKAPSTYPE = 'SELSKAP';
+
+/**
+ * The subject's benchmark filing (Story 3.7, D2; AD-18): among its SELSKAP
+ * filings, those of its newest filing year, then `benchmarkFiling`'s order
+ * (the latest `periodeTil`, `periodeFra` and `brregId`). The benchmark year
+ * is this filing's year. Null when it has no filing. SUBJECT_SQL reads every
+ * SELSKAP filing and chooses none itself.
+ */
+export function subjectBenchmarkFiling<C extends BenchmarkOrder>(filings: readonly C[]): C | null {
+  let newest: number | null = null;
+  for (const filing of filings) if (newest === null || filing.filingYear > newest) newest = filing.filingYear;
+  return newest === null ? null : benchmarkFiling(filings, newest, SUBJECT_REGNSKAPSTYPE);
 }
 
 /** Stage 1's revenue test: r in [lo×s, hi×s], both bounds included. `s` > 0. */

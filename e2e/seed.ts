@@ -46,8 +46,9 @@ export const filings = csv('filing.csv').filter((f) => f.regnskapstype === 'SELS
 export const keyFigures = new Map(csv('key_figures.csv').map((k) => [k.brreg_id, k]));
 export const withFiling = new Set(filings.map((f) => f.orgnr));
 
-// The subject's filing as SUBJECT_SQL picks it: newest filing_year, then
-// periode_til, periode_fra and brreg_id, each descending.
+// The subject's filing as the engine's `subjectBenchmarkFiling` picks it
+// (Story 3.7, D2): newest filing_year, then periode_til, periode_fra and
+// brreg_id, each descending. Kept here as an independent oracle.
 export const filingOrder = (a: Record<string, string>, b: Record<string, string>): number =>
   Number(b.filing_year) - Number(a.filing_year) ||
   (b.periode_til ?? '').localeCompare(a.periode_til ?? '') ||

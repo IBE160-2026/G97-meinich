@@ -19,6 +19,7 @@ import {
   isCalendarYear,
   isKnownCurrency,
   matchBasis,
+  subjectBenchmarkFiling,
   withoutExcluded,
   type CandidateFiling,
   type MatchBasis,
@@ -447,6 +448,28 @@ describe('the benchmark filing', () => {
     const laterStart = candidate('900000001', { periodeFra: '2025-02-01' });
     expect(benchmarkFiling([candidate('900000001'), laterStart], 2025, 'SELSKAP')).toBe(laterStart);
     expect(benchmarkFiling([konsern], 2024, 'SELSKAP')).toBeNull();
+  });
+
+  // Story 3.7 (D2): the subject's filing is chosen here too, never in SQL. The
+  // order is the one SUBJECT_SQL used before: filing_year, periode_til,
+  // periode_fra and brreg_id, each descending.
+  it('the subject’s benchmark filing: the newest year, then the latest period end, start and id', () => {
+    const older = candidate('900000001', { filingYear: 2024, periodeFra: '2024-01-01', periodeTil: '2024-12-31', brregId: 99n });
+    const newer = candidate('900000001', { filingYear: 2025, brregId: 1n });
+    expect(subjectBenchmarkFiling([newer, older])).toBe(newer);
+    expect(subjectBenchmarkFiling([older, newer])).toBe(newer);
+    // Two filings in one year: the later period end, then the later start, then the higher id.
+    const firstHalf = candidate('900000001', { periodeFra: '2025-01-01', periodeTil: '2025-06-30', brregId: 50n });
+    const secondHalf = candidate('900000001', { periodeFra: '2025-07-01', periodeTil: '2025-12-31', brregId: 2n });
+    expect(subjectBenchmarkFiling([secondHalf, firstHalf, older])).toBe(secondHalf);
+    expect(subjectBenchmarkFiling([firstHalf, secondHalf])).toBe(secondHalf);
+    const laterStart = candidate('900000001', { periodeFra: '2025-02-01', periodeTil: '2025-12-31', brregId: 1n });
+    expect(subjectBenchmarkFiling([candidate('900000001', { brregId: 7n }), laterStart])).toBe(laterStart);
+    const lowId = candidate('900000001', { brregId: 10n });
+    const highId = candidate('900000001', { brregId: 9_000_000_000_000_000_000n });
+    expect(subjectBenchmarkFiling([lowId, highId])).toBe(highId);
+    expect(subjectBenchmarkFiling([highId, lowId])).toBe(highId);
+    expect(subjectBenchmarkFiling([])).toBeNull();
   });
 
   it('a KONSERN filing chosen for want of a SELSKAP one is out at stage 2', () => {

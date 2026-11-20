@@ -76,6 +76,58 @@ describe('loadSubject', () => {
     expect((await loadSubject(DEMO_C))?.filing?.filingYear).toBe(row?.newest);
   });
 
+  // Story 3.7 (D2): SUBJECT_SQL returns every SELSKAP filing and the engine
+  // chooses. Against the order the query itself used before (filing_year,
+  // periode_til, periode_fra, brreg_id, each descending, LIMIT 1), for every
+  // stored company with more than one SELSKAP filing. Totals only.
+  it('chooses the same filing the old SQL chose, for every company with several filings', async () => {
+    const expected = await readerSql()<{ orgnr: string; filing_year: number; periode_fra: string; periode_til: string }[]>`
+      select distinct on (orgnr) orgnr, filing_year, periode_fra::text as periode_fra, periode_til::text as periode_til
+        from register.filing
+       where regnskapstype = 'SELSKAP'
+         and orgnr in (select orgnr from register.filing where regnskapstype = 'SELSKAP' group by orgnr having count(*) > 1)
+       order by orgnr, filing_year desc, periode_til desc, periode_fra desc, brreg_id desc`;
+    expect(expected.length).toBeGreaterThan(0);
+    const differing: string[] = [];
+    for (const row of expected) {
+      const filing = (await loadSubject(row.orgnr))?.filing;
+      const got = filing === null || filing === undefined ? null : [filing.filingYear, filing.periodeFra, filing.periodeTil];
+      if (JSON.stringify(got) !== JSON.stringify([row.filing_year, row.periode_fra, row.periode_til])) differing.push(row.orgnr);
+    }
+    expect(differing.length).toBe(0);
+  });
+
+  // Two filings in one year, in a rolled-back transaction: a second filing
+  // ending on the same day but starting later is chosen over the stored one.
+  it('chooses between two filings in one year by the later period start', async () => {
+    class Rollback extends Error {}
+    let chosen: readonly [number, string, string] | null = null;
+    let year = 0;
+    await expect(
+      owner.begin(async (tx) => {
+        const [base] = await tx<{ brreg_id: string; filing_year: number; periode_fra: string }[]>`
+          select brreg_id::text, filing_year, periode_fra::text from register.filing
+           where orgnr = ${DEMO_A.orgnr}::char(9) and regnskapstype = 'SELSKAP'
+           order by filing_year desc limit 1`;
+        if (base === undefined) throw new Error('demo A has no filing');
+        year = base.filing_year;
+        expect(base.periode_fra).toBe(`${year}-01-01`);
+        await tx`
+          insert into register.filing (orgnr, regnskapstype, periode_fra, periode_til, brreg_id, filing_year, valuta,
+                                       regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at)
+          select orgnr, regnskapstype, make_date(${year}, 7, 1), periode_til, 1, filing_year, valuta,
+                 regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at
+            from register.filing where brreg_id = ${base.brreg_id}::bigint`;
+        const rows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [DEMO_A.orgnr]);
+        expect(rows.filter((row) => row.filing_year === year).length).toBe(2);
+        const filing = toSubject(rows).filing;
+        chosen = filing === null ? null : [filing.filingYear, filing.periodeFra, filing.periodeTil];
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+    expect(chosen).toEqual([year, `${year}-07-01`, `${year}-12-31`]);
+  });
+
   it('is one parameterised query that reads only the register tables it needs', () => {
     expect(SUBJECT_SQL).toContain('$1::char(9)');
     const tables = [...SUBJECT_SQL.matchAll(/register\.(\w+)/g)].map((m) => m[1]);
@@ -174,11 +226,11 @@ describe('the document basis of a year', () => {
              set manifest = jsonb_set(manifest, '{document_figure_orgnrs}',
                                       (manifest -> 'document_figure_orgnrs') || to_jsonb(${ORGNR}::text))`;
         expect(listed.count).toBe(1);
-        const [subjectRow] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [ORGNR]);
+        const subjectRows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [ORGNR]);
         const candidateRows = await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, ['000000000', '62.100', 2024]);
         const candidateRow = candidateRows.find((row) => row.orgnr === ORGNR);
-        if (subjectRow === undefined || candidateRow === undefined) throw new Error('the synthetic company was not read');
-        read = { subject: toSubject(subjectRow).filing?.documentBasis, candidate: toCandidate(candidateRow).documentBasis };
+        if (subjectRows.length === 0 || candidateRow === undefined) throw new Error('the synthetic company was not read');
+        read = { subject: toSubject(subjectRows).filing?.documentBasis, candidate: toCandidate(candidateRow).documentBasis };
         throw new Rollback();
       });
     } catch (error) {

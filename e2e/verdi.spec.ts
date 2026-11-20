@@ -370,18 +370,23 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: oracle.at(50), full: oracle.full }));
     // Each accepted form; " 6.5 " and "6.50" are the multiple already in the URL and write nothing;
     // "06" is shown as "6".
-    for (const [typed, shown, written] of [
-      [' 6.5 ', '6,5', '6.5'],
-      ['6.50', '6,5', '6.5'],
-      ['06', '6', '6'],
-      ['50', '50', '50'],
-      ['0,1', '0,1', '0.1'],
+    for (const [typed, shown, written, announces] of [
+      [' 6.5 ', '6,5', '6.5', false],
+      ['6.50', '6,5', '6.5', false],
+      ['06', '6', '6', true],
+      ['50', '50', '50', true],
+      ['0,1', '0,1', '0.1', true],
     ] as const) {
       await evField(page).fill(typed);
       await evField(page).press('Enter');
       await expect(evField(page), typed).toHaveValue(shown);
       await expect.poll(() => new URL(page.url()).search, typed).toBe(`?multippel=${written}`);
       await expect(ev(page, 'value'), typed).toHaveText(evOracle(oracle, 50, written).v);
+      // A changing entry is announced 50 ms after it renders; the next entry within that time would
+      // cancel it, so wait for the announcement before the next one (PR #78).
+      if (announces) {
+        await expect(page.getByTestId('multiple-status'), typed).toHaveText(fill('verdi.ev.announce', { v: evOracle(oracle, 50, written).v }));
+      }
     }
     expect(await replaced(page)).toEqual([
       `/analyse/${orgnr}/verdi?multippel=6.5`,
@@ -466,12 +471,22 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     // Wait for the value to render before reading the section (PR #78).
     const expected = evOracle(oracle, 50, '6.5');
     await expect(ev(page, 'value')).toHaveText(expected.v);
-    const before = await evSection(page).innerText();
+    // And for the announcement, which comes 50 ms later; the section is then read without its status
+    // region, which a reload leaves empty (PR #78).
+    await expect(page.getByTestId('multiple-status')).toHaveText(fill('verdi.ev.announce', { v: expected.v }));
+    const shown = () =>
+      evSection(page).evaluate((section) => {
+        const copy = section.cloneNode(true) as HTMLElement;
+        copy.querySelector('[data-testid="multiple-status"]')?.remove();
+        return copy.textContent;
+      });
+    const before = await shown();
     expect(before).toContain(fill('verdi.ev.productApprox', { a: expected.a, m: expected.m, v: expected.v }));
+    expect(before).not.toContain(fill('verdi.ev.announce', { v: expected.v }));
     await page.reload();
     await companyShown(page, navn);
     await expect(evField(page)).toHaveValue('6,5');
-    await expect.poll(() => evSection(page).innerText()).toBe(before);
+    await expect.poll(shown).toBe(before);
     await expect(page.getByTestId('multiple-status')).toHaveText('');
     await expect(notice(page)).toHaveText('');
     expect(errors).toEqual([]);

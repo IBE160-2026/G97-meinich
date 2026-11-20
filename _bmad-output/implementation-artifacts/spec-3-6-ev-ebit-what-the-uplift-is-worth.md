@@ -177,6 +177,8 @@ context:
 
 ## Spec Change Log
 
+- **2026-11-20, the error text (decided by Meinich; proposed by the review session, after Blind Hunter raised it in triage row B12).** "Skriv inn et tall større enn 0 og høyst 50, for eksempel 6 eller 6,5" becomes "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal". The old example named realistic multiples, which FR-32 forbids ("never … offers a range"), and did not say why 6,55 is refused. Changed in `src/messages/nb.json` (`verdi.ev.error`), `test/messages.test.ts`, `epics.md` (UX-DR28 and Story 3.6's acceptance criterion), EXPERIENCE.md, the epic context and this spec's Design Notes, with a `(change)` line in the UX memlog. B12's row stays as it was logged; this entry supersedes its route.
+
 ## Review Triage Log
 
 Review 2026-11-19, three layers on the diff since `17d06194`: Blind Hunter (B), Edge Case Hunter (E), Verification Gap (VG); plus one note from the BMAD session's own reading of the diff (S). One row per finding; findings with one root cause share a route.
@@ -219,7 +221,7 @@ Review 2026-11-19, three layers on the diff since `17d06194`: Blind Hunter (B), 
 - "EV/EBIT-multippel"
 - "Økt selskapsverdi"
 - "Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel."
-- "Skriv inn et tall større enn 0 og høyst 50, for eksempel 6 eller 6,5"
+- "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal"
 - "Økt selskapsverdi: {v}."
 
 **New copy (Meinich, 2026-11-19, decision 8):**

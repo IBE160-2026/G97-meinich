@@ -48,7 +48,7 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 ## UX & Interaction Patterns
 
 - **Multiple field (3.6).** Labelled "EV/EBIT-multippel", a 90 px numeric input, empty by default. It is validated on Enter or blur, not per keystroke.
-  - Error: "Skriv inn et tall større enn 0 og høyst 50, for eksempel 6 eller 6,5", tied to the field with `aria-invalid` and `aria-describedby`. The error state looks like the search field's.
+  - Error: "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal", tied to the field with `aria-invalid` and `aria-describedby`. The error state looks like the search field's.
   - Empty card: "Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel."
   - "Økt selskapsverdi" card: a visible product line built from the displayed uplift, prefixed "≈" when that product differs from the result. It rescales with the current share.
   - Announcement: "Økt selskapsverdi: {v}." once, on Enter or blur. Focus stays in the field.

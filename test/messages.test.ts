@@ -325,7 +325,7 @@ describe('Story 3.6 copy', () => {
     ['verdi.ev.label', 'EV/EBIT-multippel'],
     ['verdi.ev.kicker', 'Økt selskapsverdi'],
     ['verdi.ev.empty', 'Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel.'],
-    ['verdi.ev.error', 'Skriv inn et tall større enn 0 og høyst 50, for eksempel 6 eller 6,5'],
+    ['verdi.ev.error', 'Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal'],
     ['verdi.ev.announce', 'Økt selskapsverdi: {v}.'],
     // E1–E3
     ['verdi.ev.product', '{a} × {m} = {v}'],

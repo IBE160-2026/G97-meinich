@@ -300,9 +300,10 @@ export function qualityLine(quality: DataQuality): Line {
       const parts: Line[] = [];
       if (quality.apiFields.length > 0) parts.push(names(quality.apiFields));
       for (const check of quality.checks) parts.push(equation(check));
-      if (parts.length === 0) parts.push(names(quality.unread));
       return copyLine('provenance.quality.failed', { felt: joinLines(parts, '; ') });
     }
+    case 'lines_not_read':
+      return copyLine('provenance.quality.linesNotRead', { felt: names(quality.fields), aar: String(quality.filingYear) });
     case 'reconciled':
       return line(t('provenance.quality.reconciled'));
     case 'not_compared':

@@ -299,8 +299,9 @@ export type StoredDocumentFacts = {
  *   drill-down: such an amount does not exist);
  * - for an API amount: `not_in_dataset`, `not_read_in_v1`,
  *   `document_missing`, `not_read_safely` (refused, or not yet reconciled),
- *   `failed` (with what failed), `reconciled` (every input compared) or
- *   `not_compared`;
+ *   `failed` (with what differed), `lines_not_read` (failed with nothing
+ *   that differed: a required check could not read a line), `reconciled`
+ *   (every input compared) or `not_compared`;
  * - for a document amount with a read document: always `not_compared`.
  */
 export type DataQuality =
@@ -315,12 +316,17 @@ export type DataQuality =
       readonly apiFields: readonly string[];
       /** The checks that failed, in order. */
       readonly checks: readonly CheckId[];
+    }
+  | {
       /**
-       * Only when nothing failed outright: the lines a required check could
-       * not read (c1, or both c3 and c5, not evaluable), in register names.
-       * See Implementation Notes: "≠" would claim an inequality no one saw.
+       * A failed column where nothing differed (Story 3.7, decision 4 as
+       * split by Meinich, 2026-11-20): a required check (c1, or both c3 and
+       * c5) was not evaluable, and `fields` are the lines it could not read,
+       * in register names. "≠" would claim an inequality no one saw.
        */
-      readonly unread: readonly string[];
+      readonly kind: 'lines_not_read';
+      readonly fields: readonly string[];
+      readonly filingYear: number;
     }
   | { readonly kind: 'reconciled' }
   | { readonly kind: 'not_compared'; readonly fields: readonly string[] };
@@ -350,15 +356,23 @@ export function inputCompared(input: ProvenanceInput, api: ApiInputs, current: C
   return apiStated(api, input.field) !== null && columnFigure(current.figures, input.field) !== null;
 }
 
-/** The checks a failed column failed, its API fields, or (with neither) the lines its required checks could not read. */
-function failure(current: CurrentReconciliation | null): Extract<DataQuality, { readonly kind: 'failed' }> {
+/**
+ * Why a column failed: the API fields and checks that differed (`failed`);
+ * only when nothing differed, the lines its required checks could not read
+ * (`lines_not_read`). A column with both shows only what differed.
+ */
+function failure(
+  current: CurrentReconciliation | null,
+  filingYear: number,
+): Extract<DataQuality, { readonly kind: 'failed' | 'lines_not_read' }> {
   const apiFields = (current?.apiFailFields ?? []).map((field) => {
     if (!(SHARED_FIELDS as readonly string[]).includes(field)) throw new Error(`not a shared field: ${field}`);
     return sharedFieldName(field as SharedField);
   });
   const checks = current === null ? [] : CHECKS.filter((check) => current.checks[check] === 'fail');
+  if (apiFields.length > 0 || checks.length > 0) return { kind: 'failed', apiFields, checks };
   const unread: string[] = [];
-  if (current !== null && apiFields.length === 0 && checks.length === 0) {
+  if (current !== null) {
     // step 1's column_status: c1 must pass, and the balance by c3 or c5.
     const required: CheckId[] = [];
     if (current.checks.c1 !== 'pass') required.push('c1');
@@ -370,10 +384,8 @@ function failure(current: CurrentReconciliation | null): Extract<DataQuality, { 
       }
     }
   }
-  if (apiFields.length === 0 && checks.length === 0 && unread.length === 0) {
-    throw new Error('a failed column with nothing that failed: no stored check names it');
-  }
-  return { kind: 'failed', apiFields, checks, unread };
+  if (unread.length === 0) throw new Error('a failed column with nothing that failed: no stored check names it');
+  return { kind: 'lines_not_read', fields: unread, filingYear };
 }
 
 /**
@@ -408,7 +420,7 @@ export function dataQuality({
     case 'not_reconciled':
       return document ? { kind: 'absent' } : { kind: 'not_read_safely', filingYear: basis.filingYear };
     case 'failed_reconciliation':
-      return document ? { kind: 'absent' } : failure(facts.current);
+      return document ? { kind: 'absent' } : failure(facts.current, basis.filingYear);
     case 'read': {
       const notCompared = inputs.filter((input) => !inputCompared(input, api, facts.current)).map((input) => input.field);
       const fields = [...new Set(notCompared)];

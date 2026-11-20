@@ -193,10 +193,29 @@ describe('the data-quality line (decision 4)', () => {
       checks: { ...reconciliation().checks, c3: 'fail', c5: 'fail' },
     });
     expect(failed(both)).toBe(t('provenance.quality.failed', { felt: `sumGjeld; ${equations.c3}; ${equations.c5}` }));
-    // Nothing failed outright: a required check could not be read; the lines it could not read, never "≠".
+  });
+
+  // Decision 4 as split (Meinich, 2026-11-20; proposed by the review session): "Avvik" only
+  // where something differed; a required check that could not read a line says so.
+  it('a failed column with only unread lines: not reconciled, the lines named, no "Avvik" and no "≠"', () => {
+    // The fixture's state: c1 not evaluable because driftsresultat is not read; no check fails, no API field.
     const unread = reconciliation({ checks: { ...reconciliation().checks, c1: 'not_evaluable' } }, { driftsresultat: null });
-    expect(failed(unread)).toBe(t('provenance.quality.failed', { felt: 'driftsresultat' }));
-    expect(failed(unread)).not.toContain('≠');
+    expect(CHECKS.filter((check) => unread.checks[check] === 'fail')).toEqual([]);
+    expect(unread.apiFailFields).toEqual([]);
+    const text = lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, current: unread }, api: SUBJECT, inputs: [], amount: 'api' })));
+    expect(text).toBe('Ikke avstemt – driftsresultat kunne ikke leses i regnskapet for 2025');
+    expect(text).not.toContain('Avvik');
+    expect(text).not.toContain('≠');
+  });
+
+  it('a failed column with a failing check and an unread line: only the deviation', () => {
+    // The fixture's state: c2 fails, and c1 could not read driftsresultat.
+    const both = reconciliation(
+      { checks: { ...reconciliation().checks, c1: 'not_evaluable', c2: 'fail' } },
+      { driftsresultat: null },
+    );
+    const text = lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, current: both }, api: SUBJECT, inputs: [], amount: 'api' })));
+    expect(text).toBe(t('provenance.quality.failed', { felt: 'driftsresultat + nettoFinans ≠ ordinaertResultatFoerSkattekostnad' }));
   });
 });
 

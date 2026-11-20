@@ -3,7 +3,7 @@
 // zero, and each kind of card, so every text `verdiCards` writes is compared
 // between Node and Chromium. Story 3.6 adds the multiples, as typed, and a
 // wire whose profit at 50 % and at the median step is 999,5 kr, so the EV
-// product line reads "≈" at 7.
+// product line reads "≈" at 7. Story 3.7 adds a wire whose share lines read "=".
 import type { VerdiWire } from '../../src/analysis/verdi-view.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { toWire } from '../../src/engine/wire.ts';
@@ -57,6 +57,20 @@ export const WIRES: readonly VerdiWire[] = [
     profit: { kind: 'amount', full: w('199900'), atMedian: w('99950'), median: 'Median nås ved 50 %' },
     workingCapital: { kind: 'text', text: 'Ikke i demodataene', detail: null },
     oml: { kind: 'text', text: 'Ikke i demodataene', detail: null, median: null },
+  },
+  {
+    // Story 3.7, the "=" share lines: 1 170 000 kr × 50 % = 585 000 kr exactly, and at the median
+    // step (s_med exactly 25 %) the capital amounts 3 500 kr × 25 % = 875 kr and 4 000 kr × 25 % =
+    // 1 000 kr. (WIRES[0] gives the median step's "≈" with capital amounts.)
+    step: { kind: 'exists', sMed: w('0.25') },
+    profit: { kind: 'amount', full: w('117000000'), atMedian: w('29250000'), median: 'Median nås ved 25 %' },
+    workingCapital: {
+      kind: 'parts',
+      kfd: { label: 'Kundefordringsdager', value: { kind: 'amount', full: w('300000') }, median: null },
+      lgd: { label: 'Leverandørgjeldsdager', value: { kind: 'amount', full: w('100000') }, median: null },
+      total: { kind: 'amount', full: w('400000') },
+    },
+    oml: { kind: 'amount', full: w('350000'), median: null },
   },
 ];
 

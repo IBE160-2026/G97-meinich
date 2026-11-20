@@ -91,6 +91,14 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
       ].join(' · '),
     );
     await expect(hero(page).getByText(nb['keyFigures.topNote'])).toBeVisible();
+    // Story 3.7 (UX-DR12): the hero's "Hvordan er dette regnet?", the link Story 1.9 left out, opens the
+    // drill-down of the same amount.
+    const drillDown = hero(page).getByRole('button', { name: nb['provenance.trigger'] });
+    await expect(drillDown).toHaveAttribute('aria-expanded', 'false');
+    await drillDown.click();
+    const body = hero(page).locator('[data-provenance-body="hero-prov"]');
+    await expect(body).toBeVisible();
+    await expect(body).toContainText(amountFor(expected));
   });
 
   for (const query of ['', withSettings]) {

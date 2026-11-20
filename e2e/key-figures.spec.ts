@@ -67,7 +67,8 @@ test.describe('the key-figure table (Story 1.8)', () => {
     const gap = expected.driftsmargin.gap;
     const gapText =
       gap.kind === 'amount'
-        ? `${formatKronerExact(gap.ore.toString())}${nb['keyFigures.perYear']}`
+        ? // Story 3.7: an amount is followed by its "Hvordan er dette regnet?".
+          `${formatKronerExact(gap.ore.toString())}${nb['keyFigures.perYear']}${nb['provenance.trigger']}`
         : gap.kind === 'strength'
           ? nb['keyFigures.strength']
           : '';

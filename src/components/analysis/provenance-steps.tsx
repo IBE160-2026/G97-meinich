@@ -40,8 +40,9 @@ function Step({ title, children }: { readonly title: string; readonly children: 
 function Filed({ values }: { readonly values: readonly FiledValue[] }) {
   return (
     <ul className="m-0 list-none p-0">
-      {values.map((value) => (
-        <li key={value.name} className="mt-1">
+      {/* The position is the key: a field name may reach the page only inside its <code> marker. */}
+      {values.map((value, i) => (
+        <li key={i} className="mt-1">
           <span className="figure">
             <code data-provenance-field="">{value.name}</code> {value.value}
           </span>

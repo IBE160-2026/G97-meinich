@@ -78,6 +78,24 @@ test('the API figures and the driftsmargin kroner are compared as for a company 
   }
 });
 
+// Story 3.7 (decision 4): the profit's drill-down names what failed, the stored c1 as its
+// equation in register names (e2e/synthetic.ts stores c1 fail and nothing else failing), and no
+// capital cell has a drill-down.
+test('the drill-down: "Avvik ved avstemming" with the failed check, and no capital trigger', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await expect(h1(page)).toHaveText(SYNTHETIC.navn);
+  const desktop = rendered(page).locator('table[data-layout="desktop"]');
+  await expect(desktop.locator('[data-provenance-trigger]')).toHaveCount(1);
+  await desktop.locator('[data-provenance-trigger="kf-d-prov-driftsmargin"]').click();
+  const body = desktop.locator('[data-provenance-body="kf-d-prov-driftsmargin"]');
+  await expect(body).toBeVisible();
+  await expect(body.locator('[data-provenance-quality]')).toHaveText(
+    nb['provenance.quality.failed'].replace('{felt}', 'sumDriftsinntekter − sumDriftskostnad ≠ driftsresultat'),
+  );
+  await expect(body).not.toContainText(nb['provenance.quality.reconciled']);
+});
+
 for (const width of [1280, 375, 320]) {
   test(`at ${width} px the subline wraps, the body does not scroll sideways, and each table has its own scroll container`, async ({
     page,

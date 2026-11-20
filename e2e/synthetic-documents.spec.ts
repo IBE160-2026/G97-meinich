@@ -236,6 +236,48 @@ test('no document øre reaches the page', async ({ request }) => {
   });
 });
 
+// Story 3.7 (decision 4): the fixture's current column reconciled and its API comparison passed
+// (e2e/synthetic.ts), so the profit, whose two inputs both sources hold, is "Avstemt"; a capital
+// amount reads lines no check covers, so it never is, and names them. Each amount is the engine's.
+test('the drill-downs: the profit Avstemt, each capital amount not checked, with its lines', async ({ page }) => {
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await expect(region(page)).toBeVisible();
+  const opened = async (key: string) => {
+    await region(page).locator(`[data-provenance-trigger="kf-d-prov-${key}"]`).click();
+    const body = region(page).locator(`[data-provenance-body="kf-d-prov-${key}"]`);
+    await expect(body).toBeVisible();
+    return body;
+  };
+  await expect((await opened('driftsmargin')).locator('[data-provenance-quality]')).toHaveText(nb['provenance.quality.reconciled']);
+  const notCompared = (felt: string) => nb['provenance.quality.notCompared'].replace('{felt}', felt);
+  for (const [key, gap, felt] of [
+    ['kfd', kfd.gap, 'kundefordringer, salgsinntekt'],
+    ['lgd', lgd.gap, 'leverandorgjeld, varekostnad, annenDriftskostnad'],
+    ['oml', oml.gap, 'bankinnskudd'],
+  ] as const) {
+    const body = await opened(key);
+    await expect(body.locator('[data-provenance-quality]'), key).toHaveText(notCompared(felt));
+    await expect(body, key).toContainText(`${formatKronerExact(gap.ore.toString())} ${nb['keyFigures.oneOff']}`);
+    await expect(body, key).toContainText(nb['provenance.fromDocument']);
+    await expect(body, key).toContainText(nb['provenance.source.document']);
+  }
+  // Verdi's working-capital card: one drill-down, both parts.
+  await page.goto(`${base}/verdi`);
+  const card = rendered(page).getByTestId('verdi-working-capital');
+  await card.locator('[data-provenance-trigger="verdi-prov-working-capital"]').click();
+  const wc = card.locator('[data-provenance-body="verdi-prov-working-capital"]');
+  await expect(wc).toBeVisible();
+  await expect(wc).toContainText(nb['fig.kfd']);
+  await expect(wc).toContainText(nb['fig.lgd']);
+  await expect(wc).toContainText(`${formatKronerExact(kfd.gap.ore.plus(lgd.gap.ore).toString())} ${nb['keyFigures.oneOff']}`);
+  await noSidewaysScroll(page);
+});
+
 // Story 3.4: Oversikt's "Største kapitalgap" over the fixture.
 const CAPITAL_LABEL = { working_capital: nb['oversikt.capital.workingCapital'], kfd: nb['fig.kfd'], lgd: nb['fig.lgd'], oml: nb['fig.oml'] };
 

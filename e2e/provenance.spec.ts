@@ -14,7 +14,7 @@ import { Decimal } from '../src/engine/decimal.ts';
 import { formatKroner, formatKronerExact, formatPercent, shownPercent, wholeKroner } from '../src/engine/format.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { resolveApiInputs } from '../src/engine/key-figures.ts';
-import { lineIsApproximate } from '../src/engine/provenance.ts';
+import { lineIsApproximate, REGISTER_FIELD_NAMES } from '../src/engine/provenance.ts';
 import { percentileInc } from '../src/engine/statistics.ts';
 import { A, companyShown, dataDate, expectedBenchmark, keyFigureRow, newestFiling, noSidewaysScroll, rendered, root } from './seed.ts';
 
@@ -187,6 +187,29 @@ test.describe('the drill-down (Story 3.7)', () => {
     await page.keyboard.press('Escape');
     await expect(drill).toBeHidden();
     await expect(button).toBeFocused();
+  });
+
+  // DESIGN.md: a register field name may break anywhere, so the longest one never widens the page.
+  // Demo A's own names are short, so the longest register name is put into a chip of the most
+  // deeply indented drill-down, Verdi's EV, at 320 px, as a field name is written.
+  test('phone: the longest register field name wraps inside its chip at 320 px', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
+    await companyShown(page, A.navn ?? '');
+    const drill = await open(page, 'verdi-prov-ev');
+    const longest = Object.values(REGISTER_FIELD_NAMES).reduce((a, b) => (b.length > a.length ? b : a));
+    expect(longest).toBe('ordinaertResultatFoerSkattekostnad');
+    const chip = drill.locator('[data-provenance-chip]').first();
+    await chip.evaluate((element, name) => {
+      const code = document.createElement('code');
+      code.setAttribute('data-provenance-field', '');
+      code.textContent = name;
+      element.append(code);
+    }, longest);
+    await expect(chip.locator('code', { hasText: longest })).toBeVisible();
+    await noSidewaysScroll(page);
+    const box = await chip.boundingBox();
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(320);
   });
 
   for (const width of [375, 320]) {

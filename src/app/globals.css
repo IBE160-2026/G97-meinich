@@ -154,15 +154,15 @@
 
   /*
    * A register field name in the provenance drill-down (Story 3.7; DESIGN.md
-   * "Provenance drill-down"): monospace slate, and free to break anywhere, so
-   * a long name ("ordinaertResultatFoerSkattekostnad") never widens the page
-   * at 320 px. The theme has no monospace token, so the system's is used.
+   * "Provenance drill-down"): monospace slate. The theme has no monospace
+   * token, so the system's is used. A long name ("ordinaertResultatFoerSkatte-
+   * kostnad") breaks by the drill-down's own `break-words`
+   * (e2e/provenance.spec.ts "the longest register field name wraps …").
    */
   code[data-provenance-field] {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
     font-size: 0.95em;
     color: var(--color-slate);
-    overflow-wrap: anywhere;
   }
 }
 

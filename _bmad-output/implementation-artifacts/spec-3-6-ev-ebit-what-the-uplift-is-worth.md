@@ -206,6 +206,12 @@ Review 2026-11-19, three layers on the diff since `17d06194`: Blind Hunter (B), 
 | B10 | No session file, empty triage log, ai-log "Review pending" | false | Not a defect of the diff: the triage is this table, and the session file, the ai-log update and the session log come in the present step, before the PR | reject |
 | B12 | The error's "for eksempel 6 eller 6,5" reads as a suggested multiple, against FR-32 | low | The text is Story 3.6's acceptance criterion and EXPERIENCE's, verbatim, approved; changing it is Meinich's call, not a patch | reject (raised with Meinich at the checkpoint) |
 | S2 | "No displayed total adds two cards" had to move from m = 6,5 to 6,7 | false | The check compares displayed numbers by design (Story 3.5); a chance equality at 6,5 is that design working, not a sum in the code | reject |
+| S3 | The full chromium run after the review fixes (BMAD session, 2026-11-20): two EV tests read before the field's announcement, which comes 50 ms after the value renders. (a) The accepted-forms loop typed the next entry before the previous one's announcement, which cancelled it: "6" and "50" were never announced. (b) The reload test read the whole section, status region included, so `before` held the announcement or not depending on timing | medium | Both failed in the full run and passed in the fix run's spec-only run; the PR #78 pattern. A search of every read of `announced(page)`, `multiple-status` and `innerText()` in `e2e/verdi.spec.ts` and `e2e/synthetic-currency.spec.ts` found no other read after a change without a wait: the others wait for the status text or the error first, or are negative checks | patch: (a) wait for each changing entry's announcement in the loop; (b) wait for it, then compare the section without its status region (`571240e`) |
+
+**Patched** by the implementation subagent, re-engaged: `df283ce` (P4, P5, P6), `eb694ae` (P2, P3, P7) and `8f51267` (P1); and by the BMAD session: `571240e` (S3).
+- **P2, P3:** with the pre-fix field (`1a4505c`) rebuilt, "EV: Enter and an immediate blur are one entry" and "EV: two different invalid entries announce twice, the same one twice announces once" fail.
+- **P4, P5, P6:** each bypass has a probe that the type-checked scan catches.
+- **P2's back-navigation case** has no e2e test: through the UI no back or forward step changes the multiple while Verdi stays mounted (a multiple is written only by `replaceState`, which adds no entry, and every pushed entry leaves Verdi); see the Implementation Notes.
 
 ## Design Notes
 

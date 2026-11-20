@@ -47,7 +47,8 @@ export const BASE_LINES: Readonly<Record<DocumentField, string | null>> = {
   utsattSkattefordel: null,
 };
 
-function column(lines: Lines): DocumentColumnRow {
+/** One reconciled column: BASE_LINES with `lines` over them. */
+export function column(lines: Lines): DocumentColumnRow {
   const figures: Record<DocumentField, string | null> = { ...BASE_LINES, ...lines };
   const columns = Object.fromEntries(
     (Object.keys(DOCUMENT_FIGURE_COLUMNS) as DocumentField[]).map((field) => [DOCUMENT_FIGURE_COLUMNS[field], figures[field]]),

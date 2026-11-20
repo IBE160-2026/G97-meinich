@@ -56,6 +56,8 @@ function compared(direction: Direction, r: string, m: string, best: string): Com
     upperQuartile: lowerIsBetter ? d(m).plus(1) : d(best),
     p5: d(m).minus(100),
     p95: d(m).plus(100),
+    // A hand-made comparison: no test here reads its distribution (Story 3.7's "Vis fordelingen").
+    sorted: [],
     best: direction === 'none' ? null : { quartile: d(best), percentile: d(50) },
   };
 }

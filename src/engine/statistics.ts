@@ -103,6 +103,7 @@ export function compareFigure(
     upperQuartile,
     p5,
     p95,
+    sorted,
     best,
   };
 }

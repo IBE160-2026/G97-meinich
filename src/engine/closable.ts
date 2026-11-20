@@ -26,6 +26,7 @@
 // code path can produce one (test/no-multiple-source.test.ts).
 import { Decimal } from './decimal.ts';
 import { wholeKroner } from './format.ts';
+import { lineIsApproximate } from './provenance.ts';
 import type { Comparison, Direction } from './types.ts';
 
 declare const MULTIPLE: unique symbol;
@@ -172,7 +173,17 @@ export function valueAtShare(full: Decimal, atMedian: Decimal | null, share: Clo
  * round. A boolean, not an amount.
  */
 export function productIsApproximate(upliftOre: Decimal, valueOre: Decimal, multiple: Multiple): boolean {
-  const shown = wholeKroner(upliftOre.toString());
-  const value = wholeKroner(valueOre.toString());
-  return !shown.mul(multiple).eq(value);
+  return shareLineIsApproximate(upliftOre, multiple, valueOre);
+}
+
+/**
+ * The same rule for any product of a displayed amount and a factor (Story
+ * 3.7, decision 7): the Verdi drill-downs' share line "{full} × {andel} =
+ * {a}" reads "≈" exactly when the displayed full amount, in whole kroner,
+ * times the factor as displayed (`shownFactor`: 0.5 for "50 %", the whole
+ * percent of s_med at the median step) is not the displayed amount. `fullOre`
+ * and `amountOre` are the exact øre the two amounts are rounded from.
+ */
+export function shareLineIsApproximate(fullOre: Decimal, shownFactor: Decimal, amountOre: Decimal): boolean {
+  return lineIsApproximate(wholeKroner(fullOre.toString()).mul(shownFactor), wholeKroner(amountOre.toString()));
 }

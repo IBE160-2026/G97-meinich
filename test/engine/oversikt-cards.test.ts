@@ -128,6 +128,8 @@ function compared(direction: Direction, subject: string, percentile = '50'): Com
     upperQuartile: d('0.6'),
     p5: d('0.1'),
     p95: d('0.9'),
+    // A hand-made comparison: no test here reads its distribution (Story 3.7's "Vis fordelingen").
+    sorted: [],
     best:
       direction === 'none'
         ? null

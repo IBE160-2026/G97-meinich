@@ -256,6 +256,8 @@ describe('urlContext resolves the median step (Story 3.5)', () => {
     upperQuartile: new Decimal('0.05'),
     p5: new Decimal('-0.2'),
     p95: new Decimal('0.2'),
+    // A hand-made comparison: no test here reads its distribution (Story 3.7's "Vis fordelingen").
+    sorted: [],
     best: { quartile: new Decimal('0.05'), percentile: new Decimal('40') },
   });
   const asked: { band: Band; ekskl: readonly string[] }[] = [];

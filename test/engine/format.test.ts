@@ -21,6 +21,10 @@ import {
   formatTurnover,
   formatWholePercent,
   lowerFirst,
+  formatFactor,
+  shownDays,
+  shownPercent,
+  shownTurnover,
   wholeKroner,
 } from '../../src/engine/format.ts';
 
@@ -221,5 +225,33 @@ describe('formatPercentNumber (Story 1.8): a range bound, no unit', () => {
     ['0.0005', '0,1'],
   ])('%s', (fraction, expected) => {
     expectBytes(formatPercentNumber(fraction), expected);
+  });
+});
+
+describe('shownPercent, shownDays, shownTurnover (Story 3.7): the value a displayed figure shows', () => {
+  it.each(['0.02149', '0.02150', '-0.02150', '0.1', '0', '-0.00049', '1.23456'])('percent %s formats as itself', (value) => {
+    expectBytes(formatPercent(shownPercent(value).toString()), formatPercent(value));
+  });
+  it.each(['47.5', '-47.5', '48.4999', '0', '365'])('days %s formats as itself', (value) => {
+    expectBytes(formatDays(shownDays(value).toString()), formatDays(value));
+  });
+  it.each(['2.845', '-2.845', '2.8449', '19'])('turnover %s formats as itself', (value) => {
+    expectBytes(formatTurnover(shownTurnover(value).toString()), formatTurnover(value));
+  });
+  it('rounds as the formatter does: half away from zero', () => {
+    expect(shownPercent('0.02150').toString()).toBe('0.022');
+    expect(shownPercent('-0.02150').toString()).toBe('-0.022');
+    expect(shownDays('47.5').toString()).toBe('48');
+  });
+});
+
+describe('formatFactor (Story 3.7): an interpolation factor, exactly', () => {
+  it('writes a quartile’s factor with no trailing zero', () => {
+    expectBytes(formatFactor('0.25'), '0,25');
+    expectBytes(formatFactor('0.5'), '0,5');
+    expectBytes(formatFactor('0.75'), '0,75');
+  });
+  it('refuses a factor it would have to round', () => {
+    expect(() => formatFactor('0.125')).toThrow(RangeError);
   });
 });

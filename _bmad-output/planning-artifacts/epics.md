@@ -275,7 +275,7 @@ v1 only; DESIGN.md is visual, EXPERIENCE.md behavioural; spines win over mocks.
 - UX-DR26: Closable-share control: segmented `radiogroup` 0/25/50/75/100 % plus "Til medianen for driftsmargin (n %)" in its ordered place; n = exact s_med shown whole percent, amounts use exact s; exists only where r < median < beste fjerdedel, else `aria-disabled="true"` (still focusable) with `aria-describedby` reason; median line with 2×12px tick and "Medianen gjelder driftsmargin." always; starts at 50 %; moves only Verdi amount cards; wraps to two rows on phone.
 - UX-DR27: Amount cards (Verdi), three always: "Økt driftsresultat per år" ("585 000 kr av 1 170 000 kr per år"); "Frigjort arbeidskapital" with kundefordringsdager and leverandørgjeldsdager lines and a total only when both clear the floor ("Ingen sum – én del mangler grunnlag" otherwise); "Frigjort kapital i driftseiendeler" beside, never added; capital amounts "engangsbeløp"; per-card median line ("Median nås ved x %" / "Median: allerede over"); no target → "Ikke beregnet – for få sammenlignbare på …"; stacked on phone.
 - UX-DR28: EV/EBIT multiple field: 90px numeric input "EV/EBIT-multippel", empty by default, no suggestion; accepts (0, 50] in 0,1 steps, comma or point; error "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal"; result "Økt selskapsverdi" = round(exact uplift × m), product line with "≈" in place of "=" when the displayed uplift × m differs from the displayed value ("1 000 kr × 7 ≈ 6 997 kr"; Story 3.6, decision 3); carried in URL; announced on Enter/blur.
-- UX-DR29: Provenance drill-down "Hvordan er dette regnet?" on every kroner amount, inline: (1) formula (share factor only from Verdi); (2) key figure and beste fjerdedel derivation ("… = øvre kvartil av 23 verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)") with "Vis fordelingen"; (3) filed values with register field names in monospace; (4) source, filing year, read date, data-quality line ("Avstemt mot innsendt årsregnskap" / "Ikke avstemt – årsregnskapet er ikke i demodataene" / "Avvik ved avstemming: {felt}"); calc chips on surface; focus to heading on open, "Lukk"/Esc returns focus to trigger.
+- UX-DR29: Provenance drill-down "Hvordan er dette regnet?" on every kroner amount, inline: (1) formula (share factor only from Verdi); (2) key figure and beste fjerdedel derivation ("… = øvre kvartil av 23 verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)") with "Vis fordelingen", a fold-out inside the drill-down that lists the figure's values sorted, without name or orgnr, beste fjerdedel marked (Story 3.7, decision 2; not a link); (3) filed values with register field names in monospace; (4) source, filing year, read date, data-quality line ("Avstemt mot innsendt årsregnskap" / "Ikke avstemt – årsregnskapet er ikke i demodataene" / "Avvik ved avstemming: {felt}"); calc chips on surface; focus to heading on open, "Lukk"/Esc returns focus to trigger.
 - UX-DR30: State block component: surface, 4px navy-700 left accent, kicker + one or two sentences, at most one link/action; the only banner-like component (no separate banner).
 - UX-DR31: Info button: real `button` ("Mer om dette", visible ⓘ, ≥24px) opening a hand-written popover; toggles on tap/click/Enter/Space, Esc/outside closes, stays open while hovered; never the only place a caveat lives.
 - UX-DR32: Tag (non-interactive state label, never sole carrier of a number; soft variant); no uncertain-classification tag in v1 (stages 4 and 5 select nothing, Story 5.2); tooltip (background, divider border, shadow, value 13px/600 tabular; supplementary only; one open at a time on touch; phone: opens above plot with leader line).
@@ -385,7 +385,7 @@ FR-56: Epic 1, 2 — Tables and charts scroll in their own containers (the Epic 
 FR-57: Epic 2 — Data quality flag per filing
 FR-58: Epic 2 — Reconciliation rules
 FR-59: Epic 1, 2 — No OCR or fetch at query time (Stories 1.3a, 1.7; documents read in the batch only, Story 2.1b); the run over the rest of `62.100` is not part of v1
-FR-60: Epic 3 — Traceability to filed values
+FR-60: Epic 3 — Traceability to filed values (Story 3.7; the margin waterfall's bars by hand in Story 3.8)
 FR-61: Epic 1 — Front page (industry overviews in Epic 6)
 FR-62: Epic 1, 3 — Tabs: Oversikt, Peers and Nøkkeltall og gap in Epic 1 (three tabs during Epics 1–2); Verdi added in Epic 3, so four open tabs once Epic 3 is done (Utvikling in Epic 6)
 FR-64: Epic 1, 2, 3 — Filing year and read date: stored by Story 1.3a (and per document by Story 2.1b), and shown for the subject in the company header by Story 1.6b; for peer aggregates and in every provenance drill-down in Epic 3 (PDF and saved parts in Epic 6)
@@ -435,7 +435,7 @@ For sprint planning. Story numbers stay as they are; five stories are split into
   1. Epic 1 (1.1 → 1.2 → 1.3a → 1.3b → 1.4 → 1.5a → 1.5b → 1.6a → 1.6b → 1.7 → 1.8 → 1.9 → 1.10)
   2. Epic 2 (2.1a → 2.1b → 2.2 → … → 2.9 → 2.10, the follow-ups the Epic 2 retrospective added)
   3. Story 5.2, the layer-by-layer measurement, directly after Epic 2: it needs only the funnel and the labelled set, and the teacher calls the measurement the core of the project.
-  4. Epic 3 (3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7)
+  4. Epic 3 (3.1a → 3.1b → 3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7 → 3.8)
   5. Story 5.4, the demo seed, directly after Epic 3, so the sensor sees document figures and kroner even if Epic 4 or the rest of Epic 5 slips.
   6. Epic 4 (4.1 → 4.4)
   7. Story 5.5, the 30-explanation review
@@ -2295,7 +2295,7 @@ So that I can verify any number on screen by hand.
 
 **Given** any kroner amount — table cells, the hero, Oversikt cards, Verdi cards and EV
 **When** its "Hvordan er dette regnet?" is opened
-**Then** an inline drill-down shows, in order: the formula (the share factor only from Verdi); the key figure and how beste fjerdedel was derived ("… = øvre kvartil av 23 verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)", with the actual quartile, n and method) with "Vis fordelingen" linking to the distribution; the filed values with register field names in monospace and their filing year and read date; and the source
+**Then** an inline drill-down shows, in order: the formula (the share factor only from Verdi); the key figure and how beste fjerdedel was derived ("… = øvre kvartil av 23 verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)", with the actual quartile, n and method) with "Vis fordelingen", a fold-out inside the drill-down listing the n values sorted, without name or orgnr, with beste fjerdedel marked and the line that computes it (Story 3.7, decision 2: not a link); the filed values with register field names in monospace and their filing year and read date; and the source
 **And** the hero card gains its link "Hvordan er dette regnet?" (left out of Story 1.9), opening the same drill-down for the hero amount
 
 **Given** the drill-down's data-quality line
@@ -2318,6 +2318,23 @@ So that I can verify any number on screen by hand.
 **Given** the PR
 **When** it is opened
 **Then** it states what could go wrong with this change — what the drill-down exposes from the filed values, and a reconciliation claim that is not true (AGENTS.md Working style) — and the reasoning is recorded in `docs/ai-log.md`
+
+
+### Story 3.8: Vannfallet kan regnes ut for hånd
+
+As a sensor checking the arithmetic,
+I want each bar of the margin waterfall to be recomputable from what the page shows,
+So that the decomposition of the margin gap can be verified by hand as every kroner amount can.
+
+**Implements:** FR-60 · **UX:** UX-DR29 · added by Story 3.7 (decision 1, Meinich 2026-11-20); its deferred-work entry is in `_bmad-output/implementation-artifacts/deferred-work.md`
+
+**Why:** each bar is (Aₓ − cₓ) × the subject's revenue, with Aₓ pooled over the common peer set P and the displayed bars distributed by largest remainder; "Vis tallene" shows per bar only the rounded own and pooled shares and the bar's kroner, not the subject's revenue, the unrounded shares, P or the peers' numerators, so no bar can be recomputed from the page. Story 3.7 left the bars without a drill-down for this reason.
+
+**Acceptance Criteria:**
+
+**Given** the margin waterfall
+**When** a reader follows a bar back
+**Then** the page gives what is needed to recompute it (decided in this story's spec), and nothing that reaches a peer's document line in any form
 
 ## Epic 4: Understand the gaps — the explanation
 

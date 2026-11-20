@@ -79,6 +79,7 @@ development_status:
   3-5-verdi-how-much-is-closable: done  # issue #77
   3-6-ev-ebit-what-the-uplift-is-worth: done  # issue #79
   3-7-hvordan-er-dette-regnet: in-progress
+  3-8-vannfallet-kan-regnes-ut-for-hand: backlog  # added by Story 3.7, decision 1 (Meinich, 2026-11-20)
   epic-3-retrospective: optional
 
   epic-4: backlog

@@ -242,6 +242,8 @@ flowchart LR
     - a prior-year `sum_driftsinntekter` with no API filing of its own year to check against (`api_check` `not_evaluable`), which revenue growth (14) uses: 1 017 of the 2 430 reconciled current columns with a reconciled prior column in the local document run (2026-11-15; 20 more fail the API on it and are not used) (Story 3.1a, decision 2);
     - `kundefordringer` and `bankinnskudd` together above the subtotal while each is within it.
 
+    These are shown, not guarded (Story 3.7, decision 4; Story 2.3's B9 closes with it, and no ingest guard is added): every kroner amount's drill-down ends with a data-quality line decided from the stored status, the column's `api_check` and the manifest, never inferred. An input counts as compared only when it is one of the figures both sources hold (`SHARED_FIELDS`), stated in the API, read in the document and `api_check` passed; R3 is not a comparison. An amount with an input not compared reads "Ikke kontrollert mot andre tall: {felt}", so a document amount ((9), (10), (11) and what is built on them) is never "Avstemt mot innsendt årsregnskap" (`dataQuality` in `src/engine/provenance.ts`).
+
 ### AD-16 — One seed path, with a manifest `[ADOPTED]`
 
 - **Binds:** `pnpm seed`, `pnpm seed:full`, `pnpm seed:export`, the loader, `supabase/config.toml`, migrations.
@@ -286,7 +288,7 @@ flowchart LR
 - **Rule:**
   - **Read date:** step 1 stamps `read_at timestamptz` per filing at fetch, and export and load preserve it.
   - **Filing year:** taken from the returned `regnskapsperiode`, never from the requested year.
-  - **No clock in the engine:** the benchmark year is derived from the subject's latest filing.
+  - **No clock in the engine:** the benchmark year is derived from the subject's latest filing. The engine chooses that filing (Story 3.7, D2): `SUBJECT_SQL` returns every SELSKAP filing of the subject, and `subjectBenchmarkFiling` in `src/engine/peers.ts` takes the newest year and `benchmarkFiling`'s order (the latest `periode_til`, `periode_fra` and register id), the one place that order is written.
   - **Formatting:** dates are formatted on the server only, in `Europe/Oslo`.
   - **Refresh:** a manual batch run (FR-64).
 

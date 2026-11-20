@@ -904,6 +904,7 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 
 **Consequences (testable):**
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
+- The margin waterfall's bars explain the profit gap and are not gaps themselves; they get no drill-down in Story 3.7, and "Vis tallene" does not give enough to recompute a bar by hand. Making them recomputable is Story 3.8, "Vannfallet kan regnes ut for hånd" (Meinich, 2026-11-20).
 - Filings that cannot be read reliably are reported as unavailable rather than estimated. A paper filing is stored with status `paper` and never read; none was seen after 2013 in a 30-company sample (`docs/data-sources-brreg.md`), so in 2021–2025 they should be rare. A generated document is unavailable when it was refused at reading (`not_extracted`: an unknown layout, a scaled reporting unit, an unreadable or mismatched year header, or an OCR error) or when its column failed reconciliation (FR-57).
 
 #### FR-71: When the subject's own filing fails reconciliation · v1

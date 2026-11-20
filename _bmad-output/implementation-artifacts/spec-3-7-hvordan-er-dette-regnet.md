@@ -221,19 +221,19 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/engine/peers.ts`, `src/server/analysis.ts`, `test/engine/peers.test.ts`, `test/db/analysis.test.ts`: decision 8 (D2).
-- [ ] `src/engine/provenance.ts` (new) and its test:
+- [x] `src/engine/peers.ts`, `src/server/analysis.ts`, `test/engine/peers.test.ts`, `test/db/analysis.test.ts`: decision 8 (D2).
+- [x] `src/engine/provenance.ts` (new) and its test:
   - inputs with values and their derivation rules;
   - register leaf names, with `test/register-field-names.test.ts`;
   - the compared-input rule and the data-quality switch (decision 4);
   - `productIsApproximate` made general.
-- [ ] `src/analysis/document-basis.ts` and `test/db`: the new stored columns, passed only to the server.
-- [ ] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE: the approved copy, before the views.
-- [ ] `src/analysis/provenance.ts` (new) and `test/analysis/provenance.test.ts`: the drill-down view per amount (decisions 1–5), all strings.
-- [ ] `src/components/analysis/provenance.tsx` (`'use client'`): trigger, body, focus, Esc and Lukk; "Vis fordelingen" as a fold-out inside it. Wired into the table (both layouts), the hero, the capital card, the Verdi cards and EV. Verdi's share line comes from `verdiCards`.
-- [ ] `e2e/payload.ts` and `test/payload-scan.test.ts`: decision 6 and its probes.
-- [ ] `e2e/provenance.spec.ts` (new), plus extensions of failed-subject, synthetic-documents, oversikt and wire-identity: the matrix rows at 1280, 375 and 320 px.
-- [ ] Planning documents (Code Map), `docs/ai-log.md` and AGENTS.md.
+- [x] `src/analysis/document-basis.ts` and `test/db`: the new stored columns, passed only to the server.
+- [x] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE: the approved copy, before the views.
+- [x] `src/analysis/provenance.ts` (new) and `test/analysis/provenance.test.ts`: the drill-down view per amount (decisions 1–5), all strings.
+- [x] `src/components/analysis/provenance.tsx` (`'use client'`): trigger, body, focus, Esc and Lukk; "Vis fordelingen" as a fold-out inside it. Wired into the table (both layouts), the hero, the capital card, the Verdi cards and EV. Verdi's share line comes from `verdiCards`.
+- [x] `e2e/payload.ts` and `test/payload-scan.test.ts`: decision 6 and its probes.
+- [x] `e2e/provenance.spec.ts` (new), plus extensions of failed-subject, synthetic-documents, oversikt and wire-identity: the matrix rows at 1280, 375 and 320 px.
+- [x] Planning documents (Code Map), `docs/ai-log.md` and AGENTS.md.
 
 **Acceptance Criteria:**
 - **Demo A, Nøkkeltall:** given the default URL, when the driftsmargin cell's "Hvordan er dette regnet?" is opened, then the four steps show, the values equal the engine's, and focus is on the heading.
@@ -244,6 +244,13 @@ context:
   - It names what the review session contributed.
 
 ## Implementation Notes
+
+- **A failure with nothing that failed (decision 4, {felt}).** In the local document run, 141 of the 164 failed current columns have no check `fail` and no API field: step 1 failed them because a required check (c1, or both c3 and c5) was `not_evaluable`, a line not read. The spec's {felt} names failing API fields and failing checks as equations with "≠"; for these columns that would claim an inequality no one saw. The implementation names the lines the required check could not read instead ("Avvik ved avstemming: driftsresultat"), only when nothing failed outright (`failure` in `src/engine/provenance.ts`; `test/analysis/provenance.test.ts` "felt names the failing fields or equation", the last case). A failed column with no stored check at all throws (step 1 never writes one). For Meinich to confirm or change.
+- **The distribution's values** are `Comparison.sorted`, added to the compared variant, so "Vis fordelingen" lists exactly the values the quartiles were taken from and n is `count` (the view checks that the two agree). Four hand-made comparisons in tests carry `sorted: []` with a comment; none of those tests reads a distribution.
+- **Formula lines.** Each amount has a symbolic line (T, r, M and field names) and a line of displayed numbers; step 2 binds the symbols ("r = …", "M = …", "T = …"). The median line appears on driftsmargin only, whose formula reads M at Verdi's median step. Negative operands after an operator are written in parentheses.
+- **Where the drill-down sits.** In the table: the trigger in the gap cell; on the desktop the body in a full-width row after the figure's row (before its fold-out), on the phone inside the row's expansion, under its gap (already a full-width row). On cards: under the amount. Verdi's fixed parts are server-rendered nodes passed to `VerdiPanel`; its share lines and EV's product line come from `verdiCards` through `VerdiViewContext`.
+- **Payload growth** (bytes, HTML / RSC, before → after, demo A): Oversikt 268 997 / 148 642 → 347 500 / 173 613; Peers unchanged; Nøkkeltall 167 380 / 80 366 → 248 619 / 128 830; Verdi 26 402 / 11 598 → 135 477 / 60 761. Most of it is "Vis fordelingen" (demo A's group has about 180 peers), rendered once per layout on Nøkkeltall and twice on Verdi (the profit card and EV).
+- **A stray file.** A screenshot script (`tmp-shot.mjs`) was committed by mistake in `87f0796` and removed in `2fe466e`.
 
 ## Spec Change Log
 

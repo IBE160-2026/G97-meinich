@@ -18,10 +18,10 @@ import {
   type ProvenanceView,
 } from '../../src/analysis/provenance.ts';
 import { capitalAmountText, kronerAmountText } from '../../src/analysis/kroner-amount.ts';
-import { benchmarkApiFigures, benchmarkDocumentFigures, type ApiBenchmark, type DocumentBenchmark } from '../../src/engine/benchmark.ts';
+import { benchmarkApiFigures, benchmarkDocumentFigures, largestCapitalGap, type ApiBenchmark, type DocumentBenchmark } from '../../src/engine/benchmark.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
-import { formatDays, formatKroner, formatPercent, formatReadDate, formatTurnover } from '../../src/engine/format.ts';
+import { formatDays, formatKroner, formatKronerExact, formatPercent, formatReadDate, formatTurnover } from '../../src/engine/format.ts';
 import {
   CHECKS,
   type CheckId,
@@ -34,7 +34,7 @@ import { percentileInc } from '../../src/engine/statistics.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
-import { BASE_LINES, column, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS, type Lines } from './document-fixture.ts';
+import { BASE_LINES, column, daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS, type Lines } from './document-fixture.ts';
 
 const NBSP = ' ';
 const N = (text: string) => text.replaceAll(' ', NBSP);
@@ -333,5 +333,81 @@ describe('one data-date line per source', () => {
     expect(kfd?.filed.apiDate).toBeNull();
     // The two dates differ in the fixture, so the test tells them apart.
     expect(formatReadDate(READ_AT)).not.toBe(formatReadDate(DOCUMENT_READ_AT));
+  });
+});
+
+// Review: the line that computes beste fjerdedel from the shown values, by the copy's three
+// forms: "=", "≈" (with a negative a in parentheses) and f = 0.
+describe('the distribution’s T line', () => {
+  /** Peers at `margins` (fractions) on the subject's revenue, against a subject at −20 %, below every T here. */
+  function lineFor(margins: readonly string[]): string {
+    const peers = margins.map((margin) => ({ ...SUBJECT, driftsresultat: BigInt(new Decimal(margin).mul(1_000_000_000).toFixed(0)) }));
+    const subject: ApiInputs = { ...SUBJECT, driftsresultat: -200_000_000n };
+    const view = profitProvenance(subjectOf(subject, NOT_IN_DATASET, { readAt: null, current: null }), benchmarkApiFigures(subject, peers, 'NOK').driftsmargin);
+    if (view === null) throw new Error('the fixture has a profit amount');
+    return view.figures[0]?.distribution.line ?? '';
+  }
+
+  it('"=": the shown values give the shown T', () => {
+    // Ten peers; the upper quartile is h = 6,75: 7,0 % + 0,75 × (8,2 % − 7,0 %) = 7,9 %, exactly as shown.
+    const margins = ['0.01', '0.02', '0.03', '0.04', '0.05', '0.06', '0.07', '0.082', '0.09', '0.1'];
+    expect(new Decimal('0.07').plus(new Decimal('0.75').mul('0.012')).toString()).toBe('0.079');
+    expect(lineFor(margins)).toBe(
+      t('provenance.distribution.between', { k: '7', k1: '8', a: N('7,0 %'), f: '0,75', b: N('8,2 %'), T: N('7,9 %') }),
+    );
+  });
+
+  it('"≈", with a negative value in parentheses after an operator', () => {
+    // −4,0 % + 0,75 × (−3,0 % − (−4,0 %)) = −3,25 %, shown as −3,3 %.
+    const margins = ['-0.1', '-0.09', '-0.08', '-0.07', '-0.06', '-0.05', '-0.04', '-0.03', '-0.02', '-0.01'];
+    expect(new Decimal('-0.04').plus(new Decimal('0.75').mul('0.01')).toString()).toBe('-0.0325');
+    expect(lineFor(margins)).toBe(
+      t('provenance.distribution.betweenApprox', { k: '7', k1: '8', a: N('(−4,0 %)'), f: '0,75', b: N('−3,0 %'), T: N('−3,3 %') }),
+    );
+  });
+
+  it('f = 0: the one value', () => {
+    // Thirteen peers: h = 12 × 0,75 = 9, so T is value 10.
+    const margins = Array.from({ length: 13 }, (_, i) => new Decimal(i + 1).div(100).toString());
+    expect(new Decimal(12).mul('0.75').toString()).toBe('9');
+    expect(lineFor(margins)).toBe(t('provenance.distribution.at', { k: '10', T: N('10,0 %') }));
+  });
+});
+
+// Review: "Største kapitalgap"'s comparison line, and working capital with a part that is a strength.
+describe('the capital choice and working capital', () => {
+  const kr = (text: string) => N(`${text} kr`);
+
+  it('(11) beats working capital: "Det største av {A} og {B}", then (11)’s formula', () => {
+    // Receivable days 50 and payable days 50 against T 32,5 and 77,5: 17 500 kr + 27 500 kr = 45 000 kr;
+    // turnover 5 against T 19: 1 473 684 kr.
+    const basis = daysBasis(50n, 5n);
+    const document = benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK');
+    const choice = largestCapitalGap(document.kfd.gap, document.lgd.gap, document.oml.gap);
+    expect(choice).toMatchObject({ kind: 'amount', figure: 'oml' });
+    expect(choice.kind === 'amount' ? choice.candidates.map((c) => formatKronerExact(c.ore.toString())) : []).toEqual([kr('45 000'), kr('1 473 684')]);
+    const view = largestCapitalProvenance(subjectOf(SUBJECT, basis, READ_FACTS), document);
+    expect(lineText(view?.formula[0]?.lines[0] ?? [])).toBe(
+      t('provenance.largestOf', {
+        liste: t('list.and', {
+          first: t('verdi.part', { figur: nb['oversikt.capital.workingCapital'], verdi: kr('45 000') }),
+          last: t('verdi.part', { figur: nb['fig.oml'], verdi: kr('1 473 684') }),
+        }),
+      }),
+    );
+    expect(lineText(view?.formula[1]?.lines[0] ?? [])).toBe('(sumEiendeler − bankinnskudd) − sumDriftsinntekter / T');
+  });
+
+  it('(9) an amount and (10) a strength: "{kfd} + 0 kr = {total} engangsbeløp" and the strength line', () => {
+    // Payable days 100, beyond T 77,5: a strength, counted as 0; receivable days 50: 17 500 kr.
+    const basis = daysBasis(50n, 5n, { leverandorgjeld: '10000000' });
+    const document = benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK');
+    expect(document.lgd.gap.kind).toBe('strength');
+    expect(document.kfd.gap.kind === 'amount' ? formatKronerExact(document.kfd.gap.ore.toString()) : null).toBe(kr('17 500'));
+    const view = workingCapitalProvenance(subjectOf(SUBJECT, basis, READ_FACTS), document);
+    // 17 500 kr + 0 kr is the shown total exactly: "=".
+    expect(lineText(view?.formula[0]?.lines[0] ?? [])).toBe(`${kr('17 500')} + ${kr('0')} = ${kr('17 500')} ${nb['keyFigures.oneOff']}`);
+    const lgd = view?.formula.find((group) => group.label === nb['fig.lgd']);
+    expect(lgd?.lines.map(lineText)).toEqual([t('provenance.strengthPart', { del: nb['fig.lgd'] })]);
   });
 });

@@ -35,6 +35,7 @@ const filing = {
   fingerprint: null,
   classification: null,
   documentBasis: { kind: 'not_in_dataset' },
+  documentFacts: { readAt: null, current: null },
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',

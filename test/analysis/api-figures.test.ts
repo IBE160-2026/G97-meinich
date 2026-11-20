@@ -31,6 +31,7 @@ function figures(keyFigures: Partial<SubjectKeyFigures>): Record<string, string>
     fingerprint: null,
     classification: null,
     documentBasis: { kind: 'not_in_dataset' },
+    documentFacts: { readAt: null, current: null },
     keyFigures: { ...base, ...keyFigures },
   };
   const html = renderToString(createElement(ApiFigures, { filing }));

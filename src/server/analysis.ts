@@ -25,6 +25,7 @@ import {
   DOCUMENT_JOINS,
   DOCUMENT_SELECT,
   documentBasisOf,
+  documentFactsOf,
   logCandidatesRead,
   logSubjectRead,
   type DocumentBasisColumns,
@@ -166,6 +167,7 @@ export function toSubject(rows: readonly SubjectRow[]): Subject {
           fingerprint: fingerprintFromColumns(row),
           classification: businessTypeFromColumn(row.classification),
           documentBasis: documentBasisOf(row, chosen.row.filing_year),
+          documentFacts: documentFactsOf(row),
           keyFigures: apiKeyFigures(row),
         };
   return {

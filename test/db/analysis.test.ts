@@ -166,6 +166,51 @@ describe('loadSubject', () => {
   });
 });
 
+// Story 3.7: the drill-down's data date and data-quality line read the
+// stored document's read time and its current column's checks. Against the
+// stored rows of the listed companies whose benchmark-year document has a
+// current column. Totals only: no company is named.
+describe('the stored document facts', () => {
+  it('equal the stored read time, checks and API comparison of the current column', async () => {
+    const stored = await readerSql()<
+      {
+        orgnr: string;
+        filing_year: number;
+        read_at: Date;
+        c1: string;
+        c2: string;
+        c3: string;
+        c4: string;
+        c5: string | null;
+        api_check: string | null;
+        api_fail_fields: string[] | null;
+      }[]
+    >`
+      select d.orgnr, d.filing_year, d.read_at, cur.c1, cur.c2, cur.c3, cur.c4, cur.c5, cur.api_check, cur.api_fail_fields
+        from register.document d
+        join register.document_column cur on cur.orgnr = d.orgnr and cur.filing_year = d.filing_year and cur.role = 'current'
+       where d.orgnr in (select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') from register.dataset)`;
+    let compared = 0;
+    for (const row of stored) {
+      const filing = (await loadSubject(row.orgnr))?.filing;
+      if (filing === null || filing === undefined || filing.filingYear !== row.filing_year) continue;
+      compared += 1;
+      expect(filing.documentFacts.readAt?.getTime()).toBe(row.read_at.getTime());
+      expect(filing.documentFacts.current).toMatchObject({
+        checks: { c1: row.c1, c2: row.c2, c3: row.c3, c4: row.c4, c5: row.c5 },
+        apiCheck: row.api_check,
+        apiFailFields: row.api_fail_fields,
+      });
+    }
+    // The seed's listed companies each have their benchmark year's document.
+    expect(compared).toBeGreaterThan(0);
+  });
+
+  it('are empty for a company with no stored document', async () => {
+    expect((await loadSubject(DEMO_C))?.filing?.documentFacts).toEqual({ readAt: null, current: null });
+  });
+});
+
 describe('the reader connection', () => {
   it('is read-only', async () => {
     const [row] = await readerSql()<{ transaction_read_only: string }[]>`show transaction_read_only`;

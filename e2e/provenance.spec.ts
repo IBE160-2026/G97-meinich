@@ -14,6 +14,7 @@ import { Decimal } from '../src/engine/decimal.ts';
 import { formatKroner, formatKronerExact, formatPercent, shownPercent, wholeKroner } from '../src/engine/format.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { resolveApiInputs } from '../src/engine/key-figures.ts';
+import { shareLineIsApproximate } from '../src/engine/closable.ts';
 import { lineIsApproximate, REGISTER_FIELD_NAMES } from '../src/engine/provenance.ts';
 import { percentileInc } from '../src/engine/statistics.ts';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
@@ -119,6 +120,38 @@ test.describe('the drill-down (Story 3.7)', () => {
     const ev = await open(page, 'verdi-prov-ev');
     const product = plain(await rendered(page).getByTestId('verdi-ev').locator('[data-ev="product"]').innerText());
     expect(await chips(ev)).toContain(product);
+  });
+
+  // Review: the share line the browser writes into Verdi's drill-down, at 50 % and after a share change.
+  test('Verdi: the profit drill-down’s share line is its own card’s, and follows the share', async ({ page }) => {
+    const o = oracle();
+    const line = (percent: number) => {
+      const factor = new Decimal(percent).div(100);
+      const amount = o.gapOre.mul(factor);
+      return {
+        // The fixture's state for the sign: "=" where the shown full × the share is the shown amount.
+        approximate: shareLineIsApproximate(o.gapOre, factor, amount),
+        text: (sign: '=' | '≈') =>
+          plain(`${formatKronerExact(o.gapOre.toString())} × ${percent} % ${sign} ${formatKronerExact(amount.toString())}`),
+      };
+    };
+    // Demo A: 3 128 453 kr exact to the øre is odd in whole kroner, so 50 % is "≈" and 25 % too.
+    const at50 = line(50);
+    const at25 = line(25);
+    expect(at50.approximate).toBe(true);
+    expect(at25.approximate).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(`/analyse/${orgnr}/verdi`);
+    await companyShown(page, A.navn ?? '');
+    const drill = await open(page, 'verdi-prov-profit');
+    expect(await chips(drill)).toContain(at50.text('≈'));
+    await rendered(page).locator('[data-share-step="25"]').click();
+    // Wait for the share to render before reading the drill-down (PR #78).
+    await expect(rendered(page).locator('[data-share-step="25"]')).toHaveAttribute('aria-checked', 'true');
+    await expect(drill.locator('[data-provenance-chip]', { hasText: ' × 25' })).toHaveCount(1);
+    const lines = await chips(drill);
+    expect(lines).toContain(at25.text('≈'));
+    expect(lines).not.toContain(at50.text('≈'));
   });
 
   test('outside the demo data: no reconciliation claim', async ({ page }) => {

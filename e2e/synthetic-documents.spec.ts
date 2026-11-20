@@ -33,7 +33,7 @@ import {
   type SyntheticDocumentCompany,
 } from './synthetic.ts';
 import { benchmarkApiFigures, benchmarkDocumentFigures, largestCapitalGap, workingCapitalReleased } from '../src/engine/benchmark.ts';
-import { medianStep } from '../src/engine/closable.ts';
+import { medianStep, shareLineIsApproximate } from '../src/engine/closable.ts';
 import { Decimal } from '../src/engine/decimal.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import {
@@ -489,6 +489,46 @@ test('Verdi: the three cards against the engine, the median step disabled with i
   await page.locator('[data-share-step="75"]').click();
   await expect.poll(() => new URL(page.url()).search).toBe('?andel=75');
   await check(new Decimal('0.75'), '75');
+});
+
+// Review: the share line the browser writes into Verdi's (11) and working-capital drill-downs,
+// each its own card's, at 50 % and after a share change.
+test('Verdi: the capital drill-downs’ share lines are their own cards’, and follow the share', async ({ page }) => {
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  const NBSP = String.fromCharCode(0xa0);
+  const plain = (text: string) => text.replaceAll(NBSP, ' ');
+  const line = (full: Decimal, percent: number) => {
+    const factor = new Decimal(percent).div(100);
+    const amount = full.mul(factor);
+    const sign = shareLineIsApproximate(full, factor, amount) ? '≈' : '=';
+    return { sign, text: plain(`${formatKronerExact(full.toString())} × ${percent} % ${sign} ${formatKronerExact(amount.toString())}`) };
+  };
+  const total = kfd.gap.ore.plus(lgd.gap.ore);
+  // The fixture's state: each line's sign by the displayed-operand rule, written out.
+  expect([line(oml.gap.ore, 50).sign, line(total, 50).sign, line(oml.gap.ore, 75).sign, line(total, 75).sign]).toEqual(['=', '≈', '≈', '≈']);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/verdi`);
+  const chips = async (id: string) => (await rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`).allInnerTexts()).map(plain);
+  for (const id of ['verdi-prov-oml', 'verdi-prov-working-capital']) {
+    await rendered(page).locator(`[data-provenance-trigger="${id}"]`).click();
+    await expect(rendered(page).locator(`[data-provenance-body="${id}"]`)).toBeVisible();
+  }
+  expect(await chips('verdi-prov-oml')).toContain(line(oml.gap.ore, 50).text);
+  expect(await chips('verdi-prov-oml')).not.toContain(line(total, 50).text);
+  expect(await chips('verdi-prov-working-capital')).toContain(line(total, 50).text);
+  expect(await chips('verdi-prov-working-capital')).not.toContain(line(oml.gap.ore, 50).text);
+  await rendered(page).locator('[data-share-step="75"]').click();
+  // Wait for the share to render before reading the drill-downs (PR #78).
+  await expect(rendered(page).locator('[data-share-step="75"]')).toHaveAttribute('aria-checked', 'true');
+  for (const id of ['verdi-prov-oml', 'verdi-prov-working-capital']) {
+    await expect(rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`, { hasText: ' × 75' })).toHaveCount(1);
+  }
+  expect(await chips('verdi-prov-oml')).toContain(line(oml.gap.ore, 75).text);
+  expect(await chips('verdi-prov-working-capital')).toContain(line(total, 75).text);
+  expect(await chips('verdi-prov-oml')).not.toContain(line(oml.gap.ore, 50).text);
 });
 
 test('Verdi carries exactly the wire set and no document øre', async ({ request }) => {

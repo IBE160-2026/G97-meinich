@@ -355,6 +355,7 @@
   "provenance.quality.notReadInV1": "Ikke avstemt – regnskapet for {aar} er ikke lest i denne versjonen",
   "provenance.quality.documentMissing": "Ikke avstemt – regnskapet for {aar} er ikke lest inn",
   "provenance.quality.notReadSafely": "Ikke avstemt – regnskapet for {aar} kunne ikke leses sikkert",
+  "provenance.quality.linesNotRead": "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}",
   "provenance.strengthPart": "{del} er en styrke og teller som 0",
   "provenance.largestOf": "Det største av {liste}",
   "provenance.source.api": "Kilde: Brønnøysundregistrene, nøkkeltallene i Regnskapsregisteret. Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene. Bearbeidet av Peerless.",

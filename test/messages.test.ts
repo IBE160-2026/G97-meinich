@@ -386,6 +386,9 @@ describe('Story 3.7 copy', () => {
       'Beste fjerdedel ligger mellom verdi {k} og {k1}: {a} + {f} × ({b} − {a}) ≈ {T}',
     ],
     ['provenance.distribution.at', 'Beste fjerdedel er verdi {k}: {T}'],
+    // Decision 4's split (Meinich, 2026-11-20; proposed by the review session): a failed column
+    // whose required check could not read a line, with nothing that differed.
+    ['provenance.quality.linesNotRead', 'Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}'],
     ['provenance.derivedZero', 'avledet: {regel} = {rest}, innenfor ±5 kr, satt til 0'],
     // Decision 7: Verdi's share line, a formula line of numbers and symbols.
     ['provenance.share', '{full} × {andel} = {a}'],

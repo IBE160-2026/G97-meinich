@@ -189,12 +189,15 @@ describe('the stored document facts', () => {
       select d.orgnr, d.filing_year, d.read_at, cur.c1, cur.c2, cur.c3, cur.c4, cur.c5, cur.api_check, cur.api_fail_fields
         from register.document d
         join register.document_column cur on cur.orgnr = d.orgnr and cur.filing_year = d.filing_year and cur.role = 'current'
-       where d.orgnr in (select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') from register.dataset)`;
-    let compared = 0;
+       where d.orgnr in (select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') from register.dataset)
+         and d.filing_year = (select max(f.filing_year) from register.filing f
+                               where f.orgnr = d.orgnr and f.regnskapstype = 'SELSKAP')`;
+    // The fixture's state: the listed companies' benchmark-year documents are stored.
+    expect(stored.length).toBeGreaterThan(0);
     for (const row of stored) {
       const filing = (await loadSubject(row.orgnr))?.filing;
-      if (filing === null || filing === undefined || filing.filingYear !== row.filing_year) continue;
-      compared += 1;
+      expect(filing?.filingYear).toBe(row.filing_year);
+      if (filing === null || filing === undefined) throw new Error('a listed company has its filing');
       expect(filing.documentFacts.readAt?.getTime()).toBe(row.read_at.getTime());
       expect(filing.documentFacts.current).toMatchObject({
         checks: { c1: row.c1, c2: row.c2, c3: row.c3, c4: row.c4, c5: row.c5 },
@@ -202,8 +205,6 @@ describe('the stored document facts', () => {
         apiFailFields: row.api_fail_fields,
       });
     }
-    // The seed's listed companies each have their benchmark year's document.
-    expect(compared).toBeGreaterThan(0);
   });
 
   it('are empty for a company with no stored document', async () => {

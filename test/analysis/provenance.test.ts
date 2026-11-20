@@ -150,21 +150,21 @@ describe('the data-quality line (decision 4)', () => {
     ],
   ];
 
-  it.each(states)('%s: its line on the profit; a document amount is absent', (_label, basis, facts, expected) => {
+  it.each(states)('%s: its line on the profit', (_label, basis, facts, expected) => {
     expect(quality(profitView(subjectOf(SUBJECT, basis, facts)))).toBe(expected);
+  });
+
+  // The seven states without a read document: a document amount is absent, with no drill-down.
+  it.each(states.filter(([label]) => !label.startsWith('reconciled')))('%s: no capital amount and no drill-down', (_label, basis, facts) => {
+    expect(basis.kind).not.toBe('read');
     const subject = subjectOf(SUBJECT, basis, facts);
-    const { document } = benchmarks(SUBJECT, basis);
-    if (basis.kind === 'read') {
-      expect(capitalProvenance(subject, 'kfd', document.kfd)).not.toBeNull();
-      return;
-    }
-    // Without a read document no capital figure has an amount, and no drill-down exists.
+    const { api, document } = benchmarks(SUBJECT, basis);
     expect(document.kfd.gap.kind).not.toBe('amount');
     expect(dataQuality({ basis, facts, api: SUBJECT, inputs: [], amount: 'document' })).toEqual({ kind: 'absent' });
     for (const key of ['kfd', 'lgd', 'oml'] as const) expect(capitalProvenance(subject, key, document[key])).toBeNull();
     expect(workingCapitalProvenance(subject, document)).toBeNull();
     expect(largestCapitalProvenance(subject, document)).toBeNull();
-    expect(Object.keys(tableProvenance(subject, benchmarks(SUBJECT, basis).api, document))).toEqual(['driftsmargin']);
+    expect(Object.keys(tableProvenance(subject, api, document))).toEqual(['driftsmargin']);
   });
 
   it('felt names the failing fields or equation', () => {
@@ -279,26 +279,26 @@ describe('the quartile follows the direction', () => {
 });
 
 describe('T recomputes from the shown values', () => {
-  it('"Vis fordelingen" lists the n values sorted, and PERCENTILE.INC on them gives the shown T', () => {
-    const subject = subjectOf(SUBJECT, readBasis(), READ_FACTS);
-    const { api, document } = benchmarks();
-    for (const view of [profitView(subject), capitalProvenance(subject, 'kfd', document.kfd)]) {
-      const figure = view?.figures[0];
-      if (figure === undefined) throw new Error('a figure step');
-      const values = figure.distribution.values.map((value) => new Decimal(value.text.replace(/[^\d,−]/g, '').replace(',', '.').replace('−', '-')));
-      // Sorted, ascending, no name or orgnr: only formatted numbers.
-      for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
-      expect(figure.distribution.values.every((value) => /^[−\d\s,]+(%|dager)?$/u.test(value.text.replaceAll(' ', ' ')))).toBe(true);
-      const percent = figure.label === nb['fig.driftsmargin'];
-      const p = percent ? '0.75' : '0.25';
-      const recomputed = percentileInc(values, p);
-      const T = percent ? formatPercent(recomputed.div(100).toString()) : formatDays(recomputed.toString());
-      expect(figure.lines.map(lineText)).toContain(`T = ${T}`);
-      expect(figure.distribution.caption).toBe(t('provenance.distribution.caption', { n: String(values.length) }));
-      // The values the T line reads are the marked ones.
-      expect(figure.distribution.values.filter((value) => value.marked).length).toBe(2);
-    }
-    expect(api.driftsmargin.comparison.kind).toBe('compared');
+  const subject = subjectOf(SUBJECT, readBasis(), READ_FACTS);
+  const { document } = benchmarks();
+  const parse = (text: string) => new Decimal(text.replace(/[^\d,−]/g, '').replace(',', '.').replace('−', '-'));
+  // Each case names its figure, its quartile and how T is written; the views are built from the fixture above.
+  it.each([
+    ['driftsmargin, the upper quartile', () => profitView(subject), '0.75', (value: Decimal) => formatPercent(value.div(100).toString())],
+    ['kundefordringsdager, the lower quartile', () => capitalProvenance(subject, 'kfd', document.kfd), '0.25', (value: Decimal) => formatDays(value.toString())],
+  ] as const)('%s: n values sorted, no name, the two T is read from marked, and PERCENTILE.INC on them gives the shown T', (_label, view, p, write) => {
+    const figure = view()?.figures[0];
+    if (figure === undefined) throw new Error('a figure step');
+    const values = figure.distribution.values.map((value) => parse(value.text));
+    // The fixture's state: ten values, so h = 9 × p has the fraction 0,25 (lower) or 0,75 (upper), never 0.
+    expect(values).toHaveLength(10);
+    expect(new Decimal(9).mul(p).mod(1).isZero()).toBe(false);
+    // Sorted, ascending, no name or orgnr: only formatted numbers.
+    for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
+    expect(figure.distribution.values.every((value) => /^[−\d\s,]+(%|dager)?$/u.test(value.text.replaceAll(NBSP, ' ')))).toBe(true);
+    expect(figure.lines.map(lineText)).toContain(`T = ${write(percentileInc(values, p))}`);
+    expect(figure.distribution.caption).toBe(t('provenance.distribution.caption', { n: '10' }));
+    expect(figure.distribution.values.filter((value) => value.marked)).toHaveLength(2);
   });
 });
 

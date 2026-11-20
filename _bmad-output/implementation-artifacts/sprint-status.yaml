@@ -78,7 +78,7 @@ development_status:
   3-4-the-rest-of-oversikt: done  # issue #75
   3-5-verdi-how-much-is-closable: done  # issue #77
   3-6-ev-ebit-what-the-uplift-is-worth: done  # issue #79
-  3-7-hvordan-er-dette-regnet: backlog
+  3-7-hvordan-er-dette-regnet: ready-for-dev
   epic-3-retrospective: optional
 
   epic-4: backlog

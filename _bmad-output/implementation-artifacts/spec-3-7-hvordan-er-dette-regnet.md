@@ -1,0 +1,295 @@
+---
+title: 'Story 3.7: "Hvordan er dette regnet?"'
+type: 'feature'
+created: '2026-11-20'
+status: 'ready-for-dev'
+baseline_commit: '0c3301cac7415ff3f6e98dddc803525889596999'
+route: 'dispatch'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
+  - '{project-root}/_bmad-output/implementation-artifacts/spec-3-6-ev-ebit-what-the-uplift-is-worth.md'
+  - '{project-root}/docs/key-figures.md'
+  - '{project-root}/_bmad-output/planning-artifacts/ux-designs/ux-Peerless-2026-10-04/EXPERIENCE.md'
+  - '{project-root}/_bmad-output/planning-artifacts/ux-designs/ux-Peerless-2026-10-04/DESIGN.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** No kroner amount can be traced, so a sensor cannot verify any number by hand. The formula, how beste fjerdedel was found, the filed values and whether they were checked are all hidden (FR-60, FR-64, issue #81). The hero still lacks the link that Story 1.9 left out (UX-DR12).
+
+**Approach:**
+- Every displayed kroner amount gets a "Hvordan er dette regnet?" trigger that opens an inline drill-down.
+- Its text is built on the server from the engine's output through `src/engine/format.ts`. On Verdi, the share and multiple parts are built in the browser by `verdiCards` from the existing wire.
+- The data-quality line is decided from stored states and the manifest, never inferred (AD-15).
+- D2: the subject's benchmark filing is chosen in the engine.
+
+**Decisions (proposed by the BMAD session at the checkpoint; approved by Meinich, 2026-11-20):**
+
+1. **The amounts.** A trigger on each of these:
+   - **Nøkkeltall:** the four gap cells (driftsmargin, kfd (9), lgd (10), oml (11)), on desktop and in the phone expansion.
+   - **Oversikt:** the hero and "Største kapitalgap".
+   - **Verdi:** the three cards, one drill-down per card. The working-capital card's drill-down shows both parts.
+   - **EV.**
+
+   **The formulas** are the ones the engine uses:
+
+   | Amount | Formula |
+   |---|---|
+   | Profit | (T − r) × `sumDriftsinntekter` |
+   | Profit at the median step | (M − r) × `sumDriftsinntekter`, never full × s_med |
+   | (9) | `kundefordringer` − T × `salgsinntekt` / 365 |
+   | (10) | T × (`varekostnad` + `annenDriftskostnad`) / 365 − `leverandorgjeld` |
+   | (11) | (`sumEiendeler` − `bankinnskudd`) − `sumDriftsinntekter` / T |
+   | Working capital | (9) + (10), a strength counted as 0 |
+   | Største kapitalgap | the candidates compared, then the chosen amount's formula |
+   | EV | profit × m, with "≈" by 3.6's rule |
+
+   The forms for (9)–(11) also go into `docs/key-figures.md` in this PR, stated as the same amounts.
+
+   **The waterfall bars are left out.** They explain the profit gap and are not gaps themselves. "Vis tallene" does **not** give enough numbers to recompute a bar (see Design Notes). So a `deferred-work.md` entry with a named owner and a line under FR-60 in the PRD go into this PR.
+2. **Beste fjerdedel.**
+   - **n:** n = `Comparison.count`, the peers with a value from the subject's source.
+   - **Text:** "Beste fjerdedel {T} = {øvre|nedre} kvartil av {n} verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)". The quartile follows `best.quartile`'s direction, through `percentileInc`.
+   - **"Vis fordelingen"** is a fold-out inside the drill-down, not a link. It shows the n values sorted, without name or orgnr, with T marked, so that T can be computed by hand.
+   - **Planning documents:** "linking" is corrected in `epics.md` (UX-DR29 and Story 3.7's acceptance criterion) and in EXPERIENCE, with a `(change)` line in the UX memlog.
+3. **Filed values.**
+   - **Names:** API fields show the register's leaf name in monospace (`sumDriftsinntekter`), from `parse.py` `KEY_FIGURES`, with a test that the TS table equals it. Document lines show the engine name from `docs/key-figures.md` in monospace, grouped under "Fra årsregnskapet".
+   - **Derived values:** shown as "avledet: {regel}", from one engine table, tested against `resolveApiInputs` and `documentCostLines`.
+   - **Data-date lines,** one per source:
+     - "Registerets nøkkeltall: Regnskapsår {aar} · hentet {dato}", from `filing.read_at`;
+     - "Innsendt årsregnskap: Regnskapsår {aar} · hentet {dato}", from `document.read_at`.
+4. **The data-quality line,** per amount. It is decided by an exhaustive switch in `documentBasis` order:
+
+   | State | API amount (profit, hero, Verdi profit, EV) | Document amount ((9), (10), (11), working capital, Største kapitalgap, Verdi capital cards) |
+   |---|---|---|
+   | not on the manifest | "Ikke avstemt – årsregnskapet er ikke i demodataene" | absent |
+   | year outside 2021–2025, or `paper` | "Ikke avstemt – regnskapet for {aar} er ikke lest i denne versjonen" | absent |
+   | no document | "Ikke avstemt – regnskapet for {aar} er ikke lest inn" | absent |
+   | `not_extracted`, or status NULL | "Ikke avstemt – regnskapet for {aar} kunne ikke leses sikkert" | absent |
+   | `failed_reconciliation` | "Avvik ved avstemming: {felt}" | absent |
+   | reconciled, and every input compared | "Avstemt mot innsendt årsregnskap" | never |
+   | reconciled, and an input not compared | "Ikke kontrollert mot andre tall: {felt}" | always the same line |
+
+   - **Compared** means the field is in `SHARED_FIELDS`, is stated (not derived) in the API, is read in the document, and `api_check` = `pass`. R3 does not count as compared.
+   - **{felt}** for a failure:
+     - `api_fail_fields`, mapped to register names;
+     - a c-check, as its equation in register names (c1 `sumDriftsinntekter − sumDriftskostnad ≠ driftsresultat`, c2 `driftsresultat + nettoFinans ≠ ordinaertResultatFoerSkattekostnad`, c3 `sumEiendeler ≠ sumEgenkapitalGjeld`, c4 `sumEgenkapital + sumGjeld ≠ sumEgenkapitalGjeld`, c5 `sumEiendeler ≠ sumEgenkapital + sumGjeld`);
+     - when both fail, the API fields first, then the equations, joined with "; ".
+   - **{felt}** for "not compared" is the inputs that were not compared.
+   - **B9** closes with this line, and no ingest guard is added.
+5. **The source line.**
+   - **API values:** "Kilde: Brønnøysundregistrene, nøkkeltallene i Regnskapsregisteret. Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene. Bearbeidet av Peerless."
+   - **Document values:** "Kilde: Brønnøysundregistrene, årsregnskapet som er sendt inn til Regnskapsregisteret. Lest maskinelt (OCR) og bearbeidet av Peerless."
+6. **The payload scan.**
+   - The øre scans are unchanged.
+   - A field name is allowed only as `<code data-provenance-field>name</code>`, or its RSC form. Those occurrences are removed first, and the existing substring scans run over the rest unchanged.
+   - New checks:
+     - the drill-downs' field names are exactly the subject's inputs for that tab's amounts;
+     - no peer's document line appears, not even formatted;
+     - `api_check`, `api_fail_fields` and `c1`–`c5` are forbidden.
+   - Probes show the scan failing on a field name outside the marker, on a peer's formatted document line, and on each new column.
+   - Growth is measured before and after.
+7. **Verdi and the wire.** No new wire value.
+   - The fixed parts come from the server as formatted strings.
+   - `verdiCards` builds the share line "{full} × {andel} = {a}". At the median step the capital amounts read "{full} × {s_med} ≈ {a}".
+   - "≈" comes from `productIsApproximate`, made general.
+   - The identity test gets fixtures for the median step with capital amounts and for an "=" case.
+8. **D2.**
+   - `SUBJECT_SQL` drops its `ORDER BY … LIMIT 1` and returns every `SELSKAP` filing of the subject with its joins.
+   - The engine's `subjectBenchmarkFiling(filings)` in `peers.ts` takes the newest year (AD-18) and `benchmarkFiling`'s order.
+   - SQL keeps `orgnr`, the `SELSKAP` filter and the joins.
+   - `e2e/seed.ts:49-61` keeps its own copy.
+9. **UI.**
+   - **Trigger:** a `button` in `link` colour with `aria-expanded` and `aria-controls`, under the amount.
+   - **Body:** inline. In the tables it is a full-width row, as `DesktopFoldOut` and `PhoneFoldOuts` are.
+   - **Focus:** opening moves focus to the heading (`tabIndex=-1`). "Lukk", or Esc with focus inside, closes it and returns focus to the trigger. Nothing is announced.
+   - **Several may be open at once.**
+   - **An unavailable amount gets no trigger;** its cell keeps its stored reason (AC 3).
+   - Calc chips sit on `surface`.
+   - At 375 and 320 px there is no sideways scroll, and targets are at least 24 × 24 px.
+10. **Copy.** Approved as listed in Design Notes, verbatim. Copy that Design Notes marks *pending* enters `nb.json` only after Meinich approves it.
+11. **One spec,** kept whole (above 1600 tokens; Meinich).
+
+## Boundaries & Constraints
+
+**Always:**
+- **Values:** every value in a drill-down equals the engine's output for that URL, through the one formatter.
+- **Payload:** øre never reaches it. A peer's document lines never reach it, in any form. The subject's document lines appear only as formatted kroner.
+- **No estimates:** a degraded filing is never estimated or substituted.
+- **Copy:** enters `nb.json` and EXPERIENCE verbatim, and `test/messages.test.ts` checks it.
+- **Tests:**
+  - Every I/O row names the test that fails when its guard is removed.
+  - No test picks its expected value from the data with a condition; each fixture's state is asserted first.
+  - A read after a `replaceState` change, or after opening a drill-down or "Vis fordelingen", waits for the change to render. Every such read is searched, not only the failing one.
+- **Commits:** small, each type-checks. Check 375 and 320 px along the way.
+
+**Never:**
+- No new route, endpoint or server action (`pnpm check:routes` unchanged), and no client fetch.
+- No new wire value, and no second URL writer.
+- Nothing per orgnr from the labelled set, and no test naming its companies.
+- No `pnpm classify`, no dump deleted, no edit to `architecture/technology.md`, no upgrade.
+- No push before Meinich says so.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected | Failing test |
+|---|---|---|---|
+| Avstemt | profit; reconciled, `api_check` pass, both inputs stated and read | "Avstemt mot innsendt årsregnskap" | `test/analysis/provenance.test.ts` "Avstemt only where every input was compared" |
+| Derived API input | as above, `driftsresultat` derived | "Ikke kontrollert mot andre tall: `driftsresultat`" | same, "a derived input is not compared" |
+| Document amount | (9), (10), (11), WC, Største kapitalgap, reconciled and API pass | never "Avstemt"; {felt} as decision 4 | same, "a document line no check covers is never Avstemt" |
+| Every AD-15 state | each row of decision 4's table | its line; a document amount is absent with no trigger | same, `it.each` over the table |
+| {felt} | API failure; each of c1–c5; both together | the names, the equation, "; " | same, "felt names the failing fields or equation" |
+| Outside the seed | a 62.100 company not on the manifest | profit: "Ikke avstemt – årsregnskapet er ikke i demodataene"; no capital trigger | `e2e/provenance.spec.ts` "outside the demo seed: no reconciliation claim" |
+| Failed | `SYNTHETIC` | "Avvik ved avstemming: …"; no capital trigger | `e2e/failed-subject.spec.ts` (extended) |
+| Reconciled | `SYNTHETIC_DOCUMENTS` | profit "Avstemt…"; capital lines "Ikke kontrollert mot andre tall: …" | `e2e/synthetic-documents.spec.ts` (extended) |
+| Engine identity | each drill-down, demo A, default URL, and `andel=median&multippel=6.5` | every shown value equals the engine's formatted output | `test/analysis/provenance.test.ts` "every value is the engine's"; `e2e/provenance.spec.ts` "values equal the engine" |
+| Quartile | higher-is-better and lower-is-better figures | "øvre" / "nedre"; n = `count` | `provenance.test.ts` "the quartile follows the direction" |
+| Distribution | "Vis fordelingen" | n sorted values, no name or orgnr, T marked; recomputing `percentileInc` from the shown list gives T | `provenance.test.ts` "T recomputes from the shown values"; `e2e/provenance.spec.ts` |
+| Names | API vs document inputs | register leaf names equal `parse.py`; document lines under "Fra årsregnskapet" | `test/register-field-names.test.ts` |
+| Derived rule | each derivation | the rule reproduces the derived value | `test/engine/provenance.test.ts` "each rule reproduces its value" |
+| Dates | an amount from both sources | two lines, filing and document `read_at` | `provenance.test.ts` "one data-date line per source" |
+| Share line | Verdi at 50 % and at the median | "{full} × 50 % = / ≈ {a}"; median profit from `profitAtMedian` | `test/analysis/verdi-view.test.ts` "the share line" |
+| Wire identity | the Verdi drill-down texts | byte-identical in Node and Chromium | `e2e/wire-identity.spec.ts` |
+| Payload | every tab, demo A and `SYNTHETIC_DOCUMENTS` | decision 6 holds | `e2e/payload.ts` callers; `test/payload-scan.test.ts` (the probes) |
+| D2 | two filings in one year; older and newer years | the same filing the old SQL chose | `test/engine/peers.test.ts` "the subject's benchmark filing"; `test/db/analysis.test.ts` |
+| Focus | open, Lukk, Esc | to the heading; back to the trigger | `e2e/provenance.spec.ts` "focus" |
+| Hero | Oversikt | the hero has the trigger | `e2e/oversikt.spec.ts` (extended) |
+| Phone | 375 and 320 px, every surface open | no sideways scroll; targets ≥ 24 × 24 | `e2e/provenance.spec.ts` "phone" |
+| Routes | build | unchanged | `pnpm check:routes` |
+
+</frozen-after-approval>
+
+## Code Map
+
+- **Engine**
+  - `src/engine/amounts.ts:46-59`: the registry. The new provenance functions return no kroner amount, so they are not registered; any that does is registered.
+  - `benchmark.ts`: `driftsmarginGap` :66, `capitalGap` :197, `workingCapitalReleased` :246, `largestCapitalGap` :282.
+  - `closable.ts`: `profitAtMedian` :121, `scaleAmount` :135, `profitAtShare` :148, `valueAtShare` :163, and `productIsApproximate` :174 (to be made general).
+  - `statistics.ts`: `percentileInc` :12; `compareFigure` :57, which gives `count` and `best.quartile` (:88-94).
+  - `types.ts:80` `FigureInput` has no value. The values come from `resolveApiInputs` (`key-figures.ts:44`), from the document terms (`document-key-figures.ts:96-125`) and from `documentCostLines` (`document-inputs.ts:~280-320`; a cost line is derived as `sumDriftskostnad` − the other lines, or 0 within 5 kr). The document's `sumDriftsinntekter` is derived as `driftsresultat` + `sumDriftskostnad` (:222-243).
+  - `format.ts`: `formatKronerExact` :67, `formatPercent` :91, `formatDays` :150, `formatTurnover` :160, `formatReadDate` :227.
+  - `peers.ts:259` `benchmarkFiling`.
+- **Data**
+  - `src/server/analysis.ts:73-114` `SUBJECT_SQL` (ORDER BY :108).
+  - `src/analysis/document-basis.ts:57-105`: add `cur.api_check`, `cur.api_fail_fields`, `cur.c1`–`c5` and `d.read_at`.
+  - `document-inputs.ts:390-460` `DocumentBasis`.
+  - `reconcile.py:46-58,94-111`.
+  - `parse.py:32-75`.
+- **Views and UI**
+  - `key-figure-rows.ts`: `profitCell` ~211, `capitalCell` ~225. `GapCell.amount` marks a real amount and is where a trigger goes.
+  - `key-figure-table.tsx`: `Gap` :79, `DesktopFoldOut` :258, `PhoneFoldOuts` :276.
+  - `oversikt-hero.tsx:57-100`.
+  - `oversikt-cards.ts:77`: `capitalCard` must also return the chosen figure and the candidates.
+  - `small-card.tsx`.
+  - `verdi-panel.tsx`: `Card` :61, `EvSection` :96.
+  - `verdi-view.ts`: `verdiCards` :423.
+  - `fold-out.tsx`: the pattern.
+  - `info-popover.tsx:45-61`: the Esc pattern, with the pure `nextOpen`.
+- **Tests**
+  - `e2e/payload.ts`: `SERVER_FIELDS` :36, `documentFieldsIn` :112, `expectWireSet` :188.
+  - `e2e/wire-identity/*`.
+  - `e2e/synthetic.ts`.
+  - `e2e/seed.ts`: `noSidewaysScroll` :226.
+  - `test/messages.test.ts`.
+- **Planning documents**
+  - `epics.md`: UX-DR29 (:278) and Story 3.7's acceptance criterion ("linking").
+  - EXPERIENCE:203 and the UX memlog.
+  - `docs/key-figures.md` (9)–(11).
+  - PRD FR-60 (:901) and its memlog.
+  - `deferred-work.md`: close D2 and B9, and add the waterfall entry.
+  - The technical note: AD-15 (the B9 line) and D2.
+  - AGENTS.md.
+  - `docs/ai-log.md`.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [ ] `src/engine/peers.ts`, `src/server/analysis.ts`, `test/engine/peers.test.ts`, `test/db/analysis.test.ts`: decision 8 (D2).
+- [ ] `src/engine/provenance.ts` (new) and its test:
+  - inputs with values and their derivation rules;
+  - register leaf names, with `test/register-field-names.test.ts`;
+  - the compared-input rule and the data-quality switch (decision 4);
+  - `productIsApproximate` made general.
+- [ ] `src/analysis/document-basis.ts` and `test/db`: the new stored columns, passed only to the server.
+- [ ] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE: the approved copy, before the views.
+- [ ] `src/analysis/provenance.ts` (new) and `test/analysis/provenance.test.ts`: the drill-down view per amount (decisions 1–5), all strings.
+- [ ] `src/components/analysis/provenance.tsx` (`'use client'`): trigger, body, focus, Esc and Lukk; "Vis fordelingen" as a fold-out inside it. Wired into the table (both layouts), the hero, the capital card, the Verdi cards and EV. Verdi's share line comes from `verdiCards`.
+- [ ] `e2e/payload.ts` and `test/payload-scan.test.ts`: decision 6 and its probes.
+- [ ] `e2e/provenance.spec.ts` (new), plus extensions of failed-subject, synthetic-documents, oversikt and wire-identity: the matrix rows at 1280, 375 and 320 px.
+- [ ] Planning documents (Code Map), `docs/ai-log.md` and AGENTS.md.
+
+**Acceptance Criteria:**
+- **Demo A, Nøkkeltall:** given the default URL, when the driftsmargin cell's "Hvordan er dette regnet?" is opened, then the four steps show, the values equal the engine's, and focus is on the heading.
+- **Verdi:** given `?andel=median`, when the profit card's drill-down is opened, then it shows (M − r) × `sumDriftsinntekter` and the card's amount.
+- **The PR:**
+  - It has "Planning documents:".
+  - It says what can go wrong: what the drill-down exposes from the filed values, and a reconciliation claim that is not true. The reasoning is in `docs/ai-log.md`.
+  - It names what the review session contributed.
+
+## Implementation Notes
+
+## Spec Change Log
+
+## Review Triage Log
+
+## Design Notes
+
+**Why "Vis tallene" cannot recompute a bar** (decision 1). Each bar is (Aₓ − cₓ) × the subject's revenue.
+- Aₓ is pooled over the common peer set P (Σ numerator / Σ revenue, `aggregateShares`).
+- `displayWaterfall` distributes the rounded total by largest remainder.
+- The table (`waterfall-view.ts:240-255`) shows per bar only `formatPercent` of the own and pooled shares, plus the bar's kroner.
+- It does not show the subject's revenue, the unrounded shares, P or the peers' numerators.
+- So the deferred entry and the FR-60 line are needed.
+
+**Copy from the story and EXPERIENCE, verbatim:**
+- "Hvordan er dette regnet?" (also the drill-down's heading)
+- "Lukk"
+- "Vis fordelingen"
+- "Avstemt mot innsendt årsregnskap"
+- "Ikke avstemt – årsregnskapet er ikke i demodataene"
+- "Avvik ved avstemming: {felt}"
+
+**New copy approved (Meinich, 2026-11-20):**
+- Steps: "Formel", "Nøkkeltall", "Innsendte verdier", "Kilde"
+- "Beste fjerdedel {T} = {kvartil} kvartil av {n} verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)", where {kvartil} is "øvre" or "nedre"
+- "Fra årsregnskapet"
+- "avledet: {regel}"
+- Data dates:
+  - "Registerets nøkkeltall: Regnskapsår {aar} · hentet {dato}"
+  - "Innsendt årsregnskap: Regnskapsår {aar} · hentet {dato}"
+- Data-quality lines:
+  - "Ikke kontrollert mot andre tall: {felt}"
+  - "Ikke avstemt – regnskapet for {aar} er ikke lest i denne versjonen"
+  - "Ikke avstemt – regnskapet for {aar} er ikke lest inn"
+  - "Ikke avstemt – regnskapet for {aar} kunne ikke leses sikkert"
+- "{del} er en styrke og teller som 0"
+- "Det største av {liste}"
+- The two source lines (decision 5)
+
+**Pending Meinich's approval** (raised 2026-11-20; it does not enter `nb.json` before then):
+- the "Vis fordelingen" caption;
+- the line that marks T and shows the interpolation;
+- the derived-cost-line rule when the remainder is within 5 kr and the line is set to 0.
+
+Formula lines use only numbers, field names and symbols, plus the existing "per år" and "engangsbeløp".
+
+## Verification
+
+**Commands:**
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`: clean.
+- `pnpm seed`, `pnpm test:db`, `pnpm test:ingest`, then `pnpm restore:documents` after the last seed: the four counts confirmed.
+- `pnpm build` (rerun once on `SecurityFatalError`, noted on #71), then `pnpm check:routes`: unchanged and clean.
+- E2e: one worker, one project at a time: `chromium`, `db-down`, then `synthetic --no-deps`. Afterwards, 0 synthetic remains. On a memory stop, report it; do not restart.
+
+**The implementation report shows,** with each removal undone afterwards:
+- for every matrix row, the guard removed and the failing output;
+- the three scan probes failing;
+- payload size per tab before and after;
+- every read after a drill-down or `replaceState` change waiting for the render, with the list the search found;
+- the four counts;
+- every surface at 375 and 320 px.
+
+**Commits:** small, in the Tasks' order, each type-checking. Never push.

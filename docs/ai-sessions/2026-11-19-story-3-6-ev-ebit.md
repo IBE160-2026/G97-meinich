@@ -17,7 +17,7 @@
 - **Error text after review:** `cb187e1`.
 - **AI log:** the entry with the implementation (`fcedd8f`), its review outcome `fbb9088`.
 - **Planning:** the epic context `a29fc4d`; the planning documents `fcedd8f`, DESIGN.md `eb694ae`.
-- **PR:** opened when Meinich says so.
+- **PR:** [#80](https://github.com/IBE160-2026/G97-meinich/pull/80), opened on 2026-11-20 when Meinich said so.
 
 ## Goal
 

@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 36 |
-| money | 33 |
+| money | 34 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
-| docs | 28 |
+| docs | 29 |
 
 ## Entry template
 
@@ -1066,3 +1066,26 @@ Rejected findings and their reasons are in the triage log.
 6. **The benchmark filing chosen twice (D2).** The order lives once, in `benchmarkFiling`; `subjectBenchmarkFiling` takes the newest year (`test/engine/peers.test.ts` "the subject’s benchmark filing: …", failing with the first filing taken; `test/db/analysis.test.ts` against the old SQL's choice for every company with several filings, and two filings in one year).
 **Caught by:** The implementation run's guard removal. It found one redundant guard: excluding a derived input separately from its source's empty value failed no test, because an input is derived exactly when its own source left it empty; it was removed, and each remaining condition fails a test without it. Review pending.
 **Outcome:** Commits on `story/3.7-provenance` from `2a4ca5c`; issue #81.
+
+### 2026-11-20 — Story 3.7: step-3 follow-ups and decision 4's split
+**Tags:** money, docs
+**Tool:** Claude Code (Opus 5.5): the implementation subagent, re-engaged by the BMAD session after its step-3 verification
+**Asked:** Close the gaps step 3 found (expected values picked from the data with a condition; matrix rows backed only by e2e with no guard removed; the reads after a change), and implement Meinich's decision on the failed state of decision 4, worded by the review session after it checked the stored columns.
+**Got:**
+- **Conditional expectations fixed** (each now asserts the fixture's state, then one fixed value): `e2e/seed.ts` `PROFIT_DRILL_FIELDS` with `expectProfitInputsStated` (key-figures, oversikt and verdi payload tests); `e2e/synthetic-documents.spec.ts` "no document øre reaches Oversikt" (the capital card shows (11)) and Story 3.4's "the capital card shows the engine's largest amount" (found by the subagent's search; 864 967 742 kr); `e2e/provenance.spec.ts` "values equal the engine" (the "≈" line asserted by the displayed-operand rule, then compared whole), "Vis fordelingen" (f = 0,25, two marked) and "outside the demo data" (reads the committed manifest); `e2e/key-figures.spec.ts` "demo A: every cell matches …"; `test/analysis/provenance.test.ts` "T recomputes" (two named cases) and the AD-15 states table (split, no branch); `test/db/analysis.test.ts` "the stored document facts" (benchmark-year rows selected in SQL, none skipped).
+- **E2e guards removed one at a time, rebuilt, one spec at one worker, restored** (every rebuild stopped once on `SecurityFatalError` and passed on the rerun; no upgrade):
+  - focus to the heading → `e2e/provenance.spec.ts` "values equal the engine: demo A’s driftsmargin cell …" and "focus: …" (heading "Received: inactive");
+  - the Esc handler → "focus: …" (body "Received: visible");
+  - the hero's trigger → `e2e/oversikt.spec.ts` "search for demo A by name …" (element not found) and both Oversikt payload tests;
+  - `min-h-6` on the trigger → "phone: … at 375 px" and "… at 320 px" (height 18.84375 < 24);
+  - the `not_in_dataset` case reading Avstemt → "values equal the engine …" and "outside the demo data: no reconciliation claim";
+  - the `failed_reconciliation` case reading "kunne ikke leses sikkert" → `e2e/failed-subject.spec.ts` "the drill-down: "Avvik ved avstemming" …";
+  - the synthetic column's `api_check = 'pass'` → `e2e/synthetic-documents.spec.ts` "the drill-downs: the profit Avstemt …";
+  - the distribution reversed → "“Vis fordelingen”: n sorted values …";
+  - T taken as the median → "values equal the engine …" ("(3,6 % − 1,8 %) …" for "(13,7 % − 1,8 %) …");
+  - the share line always "=" → `e2e/wire-identity.spec.ts` "byte-identical Verdi texts …".
+- **A redundant guard:** removing `overflow-wrap: anywhere` from the field-name rule failed nothing, because the drill-down's body and chips carry `break-words`. The rule's line was removed, and `e2e/provenance.spec.ts` "phone: the longest register field name wraps inside its chip at 320 px" puts `ordinaertResultatFoerSkattekostnad` into Verdi's EV drill-down; it fails (430 > 320) with `break-words` removed.
+- **Decision 4's split (decided by Meinich; wording proposed by the review session):** "Avvik ved avstemming: {felt}" only where something differed (the `api_fail_fields` fields, the checks with `fail`); a failed column with neither reads "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}" (`lines_not_read`, `provenance.quality.linesNotRead`), and a column with both shows only the deviation. `test/analysis/provenance.test.ts` "a failed column with only unread lines: …" fails ("Received: Avvik ved avstemming: driftsresultat") when the unread lines are routed back to "Avvik"; "a failed column with a failing check and an unread line: only the deviation" (and "felt names the failing fields or equation") fails when the unread lines win over a failing check.
+**Problem:** The first implementation wrote "Avvik ved avstemming: driftsresultat" for a column where nothing was found to differ, a failure named as a deviation no one saw; and several tests took their expected value from the data with a condition, so a changed fixture would have changed the expectation instead of failing.
+**Caught by:** The BMAD session's step-3 verification (the conditions, the e2e-only rows); the review session (the stored columns behind the split and its wording).
+**Outcome:** Commits on `story/3.7-provenance` after `8a7faa9`. Review pending.

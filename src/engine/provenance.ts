@@ -341,11 +341,12 @@ function apiStated(api: ApiInputs, field: string): bigint | null {
  * Whether an input was compared with the other source (decision 4): it is
  * one of the shared figures, stated (not derived) in the API, read in the
  * document, and the column's `api_check` passed. A derived input is never
- * compared; R3 is not a comparison.
+ * compared: an input is derived exactly when its own source left it empty,
+ * which one of the two tests below finds. R3 is not a comparison.
  */
 export function inputCompared(input: ProvenanceInput, api: ApiInputs, current: CurrentReconciliation | null): boolean {
   if (current === null || current.apiCheck !== 'pass') return false;
-  if (!SHARED_NAMES.has(input.field) || input.derivation !== null) return false;
+  if (!SHARED_NAMES.has(input.field)) return false;
   return apiStated(api, input.field) !== null && columnFigure(current.figures, input.field) !== null;
 }
 

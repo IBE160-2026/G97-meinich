@@ -259,6 +259,33 @@ context:
 
 ## Review Triage Log
 
+Review pass 1 (2026-11-20), over the diff from `baseline_commit` to `4028bf5` plus the status commit: Blind Hunter (B), Edge Case Hunter (E), Verification Gap (V), each in its own context-free subagent; the BMAD session verified each claim against the code, the schema and step 1.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| B1 | "Avstemt" does not check that the API comparison used the filing the engine chose | low | `api_check` compares with `filing_brreg_id`, the one SELSKAP filing of the year, else `not_evaluable` (reconcile.py `api_check`, write.py `filing_brreg_id`); with one filing that is the engine's choice. Only a second filing added by a plain run after the last `--documents` run, before the document is reconciled again, leaves a stale `pass`. | rejected: unlikely, and the fix adds a stored-id guard; raised with Meinich |
+| B2, E6, V-other | A failed column with nothing that failed, `current` null, or a derived-flag mismatch throws and turns the tab into a 500 | false | Step 1 sets `failed_reconciliation` only from a `fail` check, an `api_check` `fail` (which always carries fields) or a required check `not_evaluable` (a line not read), so `failure` always has a cause; `current` exists for every stored document status but `paper`/`not_extracted`, which map to other states. Loud failure on a state never shown reachable is intended (spec: an amount without its drill-down throws). | rejected |
+| B3 | `api_check = 'fail'` with empty `api_fail_fields` falls through to `lines_not_read` | false | reconcile.py returns `fail` only with a non-empty `failed` tuple, and write.py stores it as `api_fail_fields`. | rejected |
+| B4 | `lines_not_read` has no rendered-page test | low | Unit tests cover it end to end through `qualityLine`; the page renders it through the same `LineText` path the e2e-tested `failed` line uses. A second failed synthetic company is a large fixture for a copy branch. | rejected |
+| B5 | The I/O matrix was not updated for the split | false | The frozen block is corrected in the Spec Change Log (AGENTS.md); its two tests are named there and in Implementation Notes. The fix would edit this build's spec. | rejected |
+| B6 | The first AI-log entry was left standing after it was superseded | false | `docs/ai-log.md` rules: entries are never edited; a new entry corrects one, as the second 2026-11-20 entry does. | rejected |
+| B7 | The Review Triage Log is empty | false | This table; the review ran after the step-3 fixes. | rejected |
+| B8 | "Vis fordelingen" lists every peer's document-derived ratio, and the AI log reasons only about driftsmargin | low | Decision 2 (Meinich) puts the n values of each figure on the page, without name or orgnr; the payload scan refuses a peer's document line but not a ratio, by design. The log's "what could go wrong" omits (9)–(11). | patch: the review's AI-log entry states it |
+| B9 | Payload growth is unbudgeted and Verdi carries the same distribution twice | low | Verdi 26 402 → 135 477 bytes of HTML on a local v1; the profit card and EV render the same list. Sharing one distribution adds structure across server and client. | rejected; the figures are in Implementation Notes and raised with Meinich |
+| B10, E1 | The open store outlives unmount, so a drill-down reopens on another company's page | medium | `opened` is module-level, keyed by fixed ids (`hero-prov`, `kf-d-prov-*`), never cleared. | patch |
+| B11 | Three candidates in "Det største av" lack "og" | false | `largestCapitalGap` pushes at most one of working capital, (9) or (10), then (11): never three. | rejected |
+| B12 | D2 silently picks an older filing when the newest has a NULL column | false | `periode_fra`, `periode_til`, `filing_year`, `regnskapstype` and `read_at` are `NOT NULL` in `register.filing`; only the no-filing left-join row has NULLs. | rejected |
+| B13 | EXPERIENCE's step (4) and epics' AC still say "one of" three lines | low | The same row's Rules list every state. A direct correction. | patch |
+| V1 | No rendered-page test of Verdi's share line in the drill-downs | low | Filed with evidence: only `verdiCards`' strings are tested. | patch |
+| V2 | No test reads the "Vis fordelingen" line (`distribution.line`) | medium | Filed with evidence: only the engine's booleans are tested; swapping the copy keys passes. | patch |
+| V3 | "Det største av …" and the strength-as-0 working-capital line are untested | medium | Filed with evidence: `largestOf` and `strengthPart` occur only in `test/messages.test.ts`. | patch |
+| E2 | EV shows a value with no drill-down if `provenance.ev` is null | false | `provenance.ev` is null only without a profit amount, and EV has a value only with one. | rejected |
+| E3 | A negative T after "−" or "/" is not parenthesised | low | Every other operand after an operator is; a direct correction. | patch |
+| E4 | A displayed denominator of 0 gives Infinity and an unexplained "≈" | low | Needs revenue under 0,5 kr or T shown as 0,00 with T > 0; the fix adds a branch. | rejected |
+| E5 | The copy hard-codes "±5 kr" | low | Approved verbatim by Meinich; the bound is a constant changed only with a story. | rejected |
+| E7 | At the median step the slot may show no (M − r) line | false | `andel=median` survives `urlContext` only where `medianStep` exists, which is where `profitAtMedian` is non-null. | rejected |
+| E8 | A median-step capital line can read "=" where decision 7 says "≈" | false | Decision 7: "≈" comes from `productIsApproximate` made general; "=" where the shown numbers do give the amount is that rule. | rejected |
+
 ## Design Notes
 
 **Why "Vis tallene" cannot recompute a bar** (decision 1). Each bar is (Aₓ − cₓ) × the subject's revenue.

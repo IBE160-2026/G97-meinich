@@ -317,3 +317,21 @@ describe('Story 3.5 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.6: the story's copy and EXPERIENCE's, verbatim, and E1–E3
+// (Meinich, 2026-11-19; the spec's Design Notes).
+describe('Story 3.6 copy', () => {
+  it.each([
+    ['verdi.ev.label', 'EV/EBIT-multippel'],
+    ['verdi.ev.kicker', 'Økt selskapsverdi'],
+    ['verdi.ev.empty', 'Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel.'],
+    ['verdi.ev.error', 'Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal'],
+    ['verdi.ev.announce', 'Økt selskapsverdi: {v}.'],
+    // E1–E3
+    ['verdi.ev.product', '{a} × {m} = {v}'],
+    ['verdi.ev.productApprox', '{a} × {m} ≈ {v}'],
+    ['verdi.ev.explanation', 'Økt driftsresultat per år ganger multippelen du har lagt inn.'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

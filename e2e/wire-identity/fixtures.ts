@@ -1,7 +1,9 @@
 // The wire values of the identity test (Story 3.5; AD-6): Verdi wires as the
 // server sends them, with 40-digit amounts and s_med, a negative amount, a
 // zero, and each kind of card, so every text `verdiCards` writes is compared
-// between Node and Chromium.
+// between Node and Chromium. Story 3.6 adds the multiples, as typed, and a
+// wire whose profit at 50 % and at the median step is 999,5 kr, so the EV
+// product line reads "≈" at 7.
 import type { VerdiWire } from '../../src/analysis/verdi-view.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { toWire } from '../../src/engine/wire.ts';
@@ -48,4 +50,15 @@ export const WIRES: readonly VerdiWire[] = [
     workingCapital: { kind: 'text', text: 'Ikke i demodataene', detail: null },
     oml: { kind: 'text', text: 'Ikke i demodataene', detail: null, median: null },
   },
+  {
+    // Story 3.6, the "≈" case: 999,5 kr at 50 % and at the median step, shown as 1 000 kr; × 7 is
+    // 6 996,5 kr, written 6 997 kr, while 1 000 × 7 = 7 000.
+    step: { kind: 'exists', sMed: w('0.5') },
+    profit: { kind: 'amount', full: w('199900'), atMedian: w('99950'), median: 'Median nås ved 50 %' },
+    workingCapital: { kind: 'text', text: 'Ikke i demodataene', detail: null },
+    oml: { kind: 'text', text: 'Ikke i demodataene', detail: null, median: null },
+  },
 ];
+
+/** The multiples as a user types them (Story 3.6): the bounds, a comma, a whole number. */
+export const MULTIPLES: readonly string[] = ['0,1', '6,5', '7', '50'];

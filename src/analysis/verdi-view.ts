@@ -20,6 +20,15 @@
 // The three cards are never summed: no function here adds one card's amount
 // to another's (test/analysis/verdi-view.test.ts "no displayed total adds
 // two cards").
+//
+// Story 3.6 (FR-32, FR-55): `verdiCards` also takes the multiple the user
+// entered, a `Multiple` from the URL or none, and writes the EV section:
+// "Økt selskapsverdi" = round(exact profit uplift at the share × m), by
+// `valueAtShare` on the same wire values as the profit card (no new wire
+// value), with its product line, "≈" by `productIsApproximate`; the empty
+// sentence without a multiple; and the profit card's own words as the
+// reason the field is disabled where the profit card has no amount. The
+// value is its own amount: nothing here adds it to a card.
 import {
   workingCapitalReleased,
   type ApiBenchmark,
@@ -31,14 +40,17 @@ import {
   medianShare,
   medianStep,
   profitAtMedian,
+  productIsApproximate,
   profitAtShare,
   scaleAmount,
+  valueAtShare,
   type ClosableShare,
   type MedianStepReason,
+  type Multiple,
 } from '../engine/closable.ts';
 import type { Decimal } from '../engine/decimal.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
-import { formatKronerExact, formatWholePercent, formatWholePercentNumber, lowerFirst, wholePercent } from '../engine/format.ts';
+import { formatKronerExact, formatMultiple, formatWholePercent, formatWholePercentNumber, lowerFirst, wholePercent } from '../engine/format.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { resolveApiInputs } from '../engine/key-figures.ts';
 import type { Comparison, Direction } from '../engine/types.ts';
@@ -290,6 +302,40 @@ export type WorkingCapitalView = CardView & {
   readonly parts: readonly { readonly text: string; readonly median: string | null }[];
 };
 
+/**
+ * The EV section (Story 3.6, decisions 3, 6 and 7). `field` is the multiple
+ * field's text on load, `formatMultiple` of the URL's multiple or "", the
+ * same on the server and in the browser; `error` the words an invalid entry
+ * shows; `cleared` what clearing the field announces (the empty sentence).
+ */
+export type EvView = {
+  readonly field: string;
+  readonly error: string;
+  readonly cleared: string;
+} & (
+  | {
+      /** The profit card has no amount: the field is aria-disabled, described by the profit card's own words. */
+      readonly kind: 'disabled';
+      readonly reason: string;
+    }
+  | {
+      /** No multiple: the empty sentence, no value. */
+      readonly kind: 'empty';
+      readonly text: string;
+    }
+  | {
+      readonly kind: 'value';
+      /** "Økt selskapsverdi", rounded once from the exact value. */
+      readonly value: string;
+      /** E1 "{a} × {m} = {v}" or E2 "{a} × {m} ≈ {v}". */
+      readonly product: string;
+      /** E3, under the product line. */
+      readonly explanation: string;
+      /** "Økt selskapsverdi: {v}.", once, when the multiple is entered. */
+      readonly announcement: string;
+    }
+);
+
 export type VerdiCardsView = {
   readonly steps: readonly StepView[];
   /** Under the control: "Median nås ved n % av gapet. …", or the reason there is no median step. */
@@ -299,6 +345,7 @@ export type VerdiCardsView = {
   readonly profit: CardView;
   readonly workingCapital: WorkingCapitalView;
   readonly oml: CardView;
+  readonly ev: EvView;
   /** The one announcement after a share change. */
   readonly announcement: string;
 };
@@ -336,11 +383,44 @@ function textCard(wire: TextWire & { readonly median?: string | null }): CardVie
 }
 
 /**
- * Every string of the Verdi tab at `share`, from the wire. `share` is
- * 'median' only where the median step exists: the URL module refuses it
- * elsewhere, and the control never offers it.
+ * The EV section at `share` with `multiple` (Story 3.6): disabled with the
+ * profit card's own words where it has no amount (a strength, below the
+ * floor, not in NOK, the subject's own driftsmargin missing), the empty
+ * sentence without a multiple, otherwise the value, rounded once from
+ * `valueAtShare`, and its product line from the profit card's displayed
+ * amount {a}.
  */
-export function verdiCards(wire: VerdiWire, share: ClosableShare): VerdiCardsView {
+function evView(profit: ProfitWire, share: ClosableShare, multiple: Multiple | null): EvView {
+  const common = {
+    field: multiple === null ? '' : formatMultiple(multiple.toString()),
+    error: t('verdi.ev.error'),
+    cleared: t('verdi.ev.empty'),
+  };
+  if (profit.kind === 'text') return { ...common, kind: 'disabled', reason: profit.text };
+  if (multiple === null) return { ...common, kind: 'empty', text: t('verdi.ev.empty') };
+  const full = fromWire(profit.full);
+  const atMedian = profit.atMedian === null ? null : fromWire(profit.atMedian);
+  const uplift = profitAtShare(full, atMedian, share).ore;
+  const value = valueAtShare(full, atMedian, share, multiple).ore;
+  const v = kroner(value);
+  const product = { a: kroner(uplift), m: common.field, v };
+  return {
+    ...common,
+    kind: 'value',
+    value: v,
+    product: productIsApproximate(uplift, value, multiple) ? t('verdi.ev.productApprox', product) : t('verdi.ev.product', product),
+    explanation: t('verdi.ev.explanation'),
+    announcement: t('verdi.ev.announce', { v }),
+  };
+}
+
+/**
+ * Every string of the Verdi tab at `share`, from the wire, with the
+ * multiple the URL holds (or none). `share` is 'median' only where the
+ * median step exists: the URL module refuses it elsewhere, and the control
+ * never offers it.
+ */
+export function verdiCards(wire: VerdiWire, share: ClosableShare, multiple: Multiple | null): VerdiCardsView {
   const sMed = wire.step.kind === 'exists' ? fromWire(wire.step.sMed) : null;
   if (share === 'median' && sMed === null) throw new RangeError('andel=median where there is no median step');
   const andel = shareText(share, sMed);
@@ -418,6 +498,7 @@ export function verdiCards(wire: VerdiWire, share: ClosableShare): VerdiCardsVie
     profit,
     workingCapital,
     oml,
+    ev: evView(wire.profit, share, multiple),
     announcement,
   };
 }

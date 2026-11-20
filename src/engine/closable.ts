@@ -18,8 +18,26 @@
 // Pure: Decimals in, Decimals out. The browser runs `scaleAmount` and
 // `profitAtShare` on values that crossed the wire (src/engine/wire.ts), the
 // same functions the server runs (AD-6).
+//
+// Story 3.6 (FR-32, FR-55): the enterprise value the profit uplift is worth
+// at a multiple the user entered, round(exact uplift at the share × m), by
+// `valueAtShare` on the same wire values. The multiple is a `Multiple`, a
+// branded Decimal that only the URL module's `parseMultippel` mints, so no
+// code path can produce one (test/no-multiple-source.test.ts).
 import { Decimal } from './decimal.ts';
+import { wholeKroner } from './format.ts';
 import type { Comparison, Direction } from './types.ts';
+
+declare const MULTIPLE: unique symbol;
+
+/**
+ * An EV/EBIT multiple the user entered: greater than 0, at most 50, a whole
+ * number of tenths. Minted only by `parseMultippel` in
+ * src/url/analysis-state.ts, with the one `as Multiple` in `src/`: Peerless
+ * never suggests, infers or defaults one, so a plain Decimal in its place is
+ * a type error (test/types/wire-props.ts).
+ */
+export type Multiple = Decimal & { readonly [MULTIPLE]: true };
 
 /** The fixed steps of the closable-share control, in percent. */
 export const FIXED_SHARES = [0, 25, 50, 75, 100] as const;
@@ -133,4 +151,28 @@ export function profitAtShare(full: Decimal, atMedian: Decimal | null, share: Cl
     return { ore: atMedian };
   }
   return { ore: full.mul(fixedFactor(share)) };
+}
+
+/**
+ * The enterprise value the profit uplift is worth at a share (Story 3.6,
+ * decision 1): `profitAtShare(full, atMedian, share)` × the user's multiple,
+ * the exact non-integer øre, rounded once at display. At the median step it
+ * is therefore (M − r) × sumDriftsinntekter × m, never full × s_med × m. It
+ * sums nothing and reaches no capital amount (role `value` in amounts.ts).
+ */
+export function valueAtShare(full: Decimal, atMedian: Decimal | null, share: ClosableShare, multiple: Multiple): { readonly ore: Decimal } {
+  return { ore: profitAtShare(full, atMedian, share).ore.mul(multiple) };
+}
+
+/**
+ * Whether the product line is approximate (Story 3.6, decision 3): U is the
+ * profit uplift as displayed, in whole kroner, V the value as displayed, in
+ * whole kroner, and the line reads "≈" exactly when the exact product U × m
+ * is not V. `upliftOre` and `valueOre` are the exact øre the two cards
+ * round. A boolean, not an amount.
+ */
+export function productIsApproximate(upliftOre: Decimal, valueOre: Decimal, multiple: Multiple): boolean {
+  const shown = wholeKroner(upliftOre.toString());
+  const value = wholeKroner(valueOre.toString());
+  return !shown.mul(multiple).eq(value);
 }

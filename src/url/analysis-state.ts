@@ -20,6 +20,7 @@
 // "6.50" → "6.5" — is not a fallback. Unknown parameters (fbclid, utm_…)
 // are ignored without the flag and are not written back.
 
+import type { Multiple } from '../engine/closable.ts';
 import { Decimal } from '../engine/decimal.ts';
 import { compactOrgnr, isValidOrgnr } from '../engine/orgnr.ts';
 import type { SizeBand } from '../engine/peers.ts';
@@ -54,8 +55,8 @@ export type AnalysisState = {
   readonly ekskl: readonly string[];
   readonly band: Band;
   readonly andel: Andel;
-  /** Never a float; `null` when no multiple is set. */
-  readonly multippel: Decimal | null;
+  /** Never a float; `null` when no multiple is set. Only `parseMultippel` makes one (Story 3.6). */
+  readonly multippel: Multiple | null;
 };
 
 export type ParseResult =
@@ -111,15 +112,20 @@ function isFane(text: string): text is Fane {
  * Reads a multiple as typed or as found in a URL: digits with an optional
  * point or decimal comma and decimals. Returns the value when it is greater
  * than 0, at most 50 and a whole number of tenths; otherwise `null`.
+ *
+ * The one place a `Multiple` is made (Story 3.6, decision 2): it is called
+ * only by `parse` and by the multiple field, on what the user wrote, never
+ * on a literal, so Peerless never suggests, infers or defaults a multiple
+ * (test/no-multiple-source.test.ts).
  */
-export function parseMultippel(text: string): Decimal | null {
+export function parseMultippel(text: string): Multiple | null {
   if (!/^\d+([.,]\d+)?$/.test(text)) return null;
   const value = new Decimal(text.replace(',', '.'));
   if (value.lte(0) || value.gt(MULTIPPEL_MAX)) return null;
   // Exact: no more decimal places than the step has. Dividing by the step
   // would round at precision 40 and keep 6.5000…0001.
   if (value.decimalPlaces() > MULTIPPEL_STEP.decimalPlaces()) return null;
-  return value;
+  return value as Multiple;
 }
 
 function parseBand(text: string): Band | null {
@@ -229,7 +235,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
     }
   }
 
-  let multippel: Decimal | null = null;
+  let multippel: Multiple | null = null;
   const multippelText = single('multippel');
   if (multippelText !== null) {
     multippel = parseMultippel(multippelText);

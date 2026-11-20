@@ -444,7 +444,7 @@ function capitalPart(subject: ProvenanceSubject, key: CapitalFigure, figure: Doc
   switch (key) {
     case 'kfd': {
       symbolic = line(field('kundefordringer'), ' − T × ', field('salgsinntekt'), ` / ${days}`);
-      numbers = `${kr(v('kundefordringer').ore)} − ${T.text} × ${operand(kr(v('salgsinntekt').ore))} / ${days}`;
+      numbers = `${kr(v('kundefordringer').ore)} − ${operand(T.text)} × ${operand(kr(v('salgsinntekt').ore))} / ${days}`;
       expression = k('kundefordringer').minus(T.value.mul(k('salgsinntekt')).div(daysValue));
       const ownApproximate = lineIsApproximate(k('kundefordringer').div(k('salgsinntekt')).mul(daysValue), r.value);
       own = line(
@@ -477,7 +477,7 @@ function capitalPart(subject: ProvenanceSubject, key: CapitalFigure, figure: Doc
     case 'oml': {
       symbolic = line('(', field('sumEiendeler'), ' − ', field('bankinnskudd'), ') − ', field('sumDriftsinntekter'), ' / T');
       const base = `(${kr(v('sumEiendeler').ore)} − ${operand(kr(v('bankinnskudd').ore))})`;
-      numbers = `${base} − ${operand(kr(v('sumDriftsinntekter').ore))} / ${T.text}`;
+      numbers = `${base} − ${operand(kr(v('sumDriftsinntekter').ore))} / ${operand(T.text)}`;
       const baseValue = k('sumEiendeler').minus(k('bankinnskudd'));
       expression = baseValue.minus(k('sumDriftsinntekter').div(T.value));
       const ownApproximate = lineIsApproximate(k('sumDriftsinntekter').div(baseValue), r.value);

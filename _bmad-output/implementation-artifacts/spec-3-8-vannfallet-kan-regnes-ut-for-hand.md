@@ -189,8 +189,29 @@ Implementation run, 2026-11-22 (subagent). Where the code differs from the Code 
   - **The reason no subject has a waterfall locally:** the peers are not on the manifest. Each of the 20 manifest companies has P < 10, so 0 of them show a waterfall or a (9)/(11) distribution after `restore:documents`. Demo A has no waterfall for that reason too, and also because it is itself not on the manifest.
   - **Before Story 5.4,** only the synthetic fixture reaches a shown waterfall in e2e.
 - **2026-11-22, decisions 1–7 replace the draft's Open Questions** (Meinich).
+- **2026-11-22, the read-date boundary is read with decision 5 (review B4; recorded by the BMAD session, for Meinich to confirm).** Boundaries says the payload never holds "any peer's … read date". Decision 5 shows the range of P's read dates, whose two ends are peers' dates without a name. Excluding a peer in a second URL can move an end. The boundary means no read date per peer; the range of decision 5 is allowed. By decision 1's invariant, a member of P is on the manifest, and its own page shows its own read date.
 
 ## Review Triage Log
+
+Review pass 1 (2026-11-22), over the diff from `baseline_commit` to the in-review commit: Blind Hunter (B), Edge Case Hunter (E) and Verification Gap (V), each in its own context-free subagent. The BMAD session verified each claim against the code.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| B1, B2, E6 | The kroner lines (Aₓ × R, M × R, beside R) give Aₓ and M to about 1/R. The ai-log and Design Notes cite the 2-decimal row (341 k kr) as what the page exposes | low | True. The page now matches the "bars with own lines" measurement (median 7,8 k kr, the exact level), not the 2-decimal one. Decision 2 chose the kroner line knowing Aₓ × R = bar + own line; decision 1's invariant covers the exposure. The record is wrong, not the code. | patch: the ai-log entry and Design Notes cite the right row |
+| B3, E1 | The start's inputs omit `driftsresultat`, though its shown value is end − sum | low | True: `waterfallProvenance` passes only R to the start's `view`. `driftsresultat` is always read for a waterfall and is compared whenever R is, so "Kontrollert" is never false; the line only names one field too few. A direct correction. | patch |
+| E4 | `finePercentsIn` misses a negative share: the page writes U+2212, the scan builds ASCII "-" | low | True: `toString()`/`toFixed` writes "-". A negative M (a loss-making group) beyond 2 decimals would pass the scan. A direct correction. | patch |
+| E5 | `finePercentsIn` uses `toString()`, which writes an exponent for very small shares | low | True for \|x\| < 1e-7. A direct correction (`toFixed()`). | patch |
+| E2 | The residual's A line takes the shares by position | false | `WATERFALL_BARS` is a fixed constant in bar order, and `marginWaterfall` maps it in that order. A reorder is a change to the waterfall itself, which the spec forbids. | rejected |
+| E3 | `byBar` is cast to a full record without checking the keys | false | `marginWaterfall` always returns the four steps of `WATERFALL_BARS`. | rejected |
+| V1, B8 | No test puts the rounding note through `waterfallProvenance`, only `roundingNote` directly, and none has a negative bar | medium | Filed with evidence: dropping the note's spread, or a wrong index, passes every test. | patch: a case through `waterfallProvenance` with a moved bar, a negative bar among them, asserting the note on that bar only |
+| V2 | No test reads `shownGroup(...).waterfallFacts` with `ekskl` while a waterfall is shown | medium | Filed with evidence: passing `funnel.group` instead of `peers` passes every test. | patch: `test/analysis/shown-group.test.ts`, `ekskl` holding a peer outside P |
+| B4 | The read-date range contradicts the frozen boundary "never any peer's read date", with no Spec Change Log entry | low | True: the boundary's wording is the BMAD session's, and decision 5 (Meinich) asks for the range. The fix edits this spec, so it is rejected as a code finding. AGENTS.md nevertheless asks for the correction, so it is recorded in the Spec Change Log for Meinich to confirm. | rejected (code); Spec Change Log entry |
+| B5 | `waterfall.prov.sumNotGap` is committed and tested without approval, and nothing tracks it | low | True: it was put to Meinich in the session (decision 6) and is unanswered. No code fix: Meinich confirms or changes one line. | rejected (code); asked again before merge |
+| B6 | Peer 5's andre and avskrivninger lines equal two Aₓ × R values, so the scan allows those two øre values anywhere on Nøkkeltall | low | True, by the fixture's construction (peer 5's revenue is the subject's). A leak of exactly those two lines elsewhere would pass. Changing the fixture moves numbers that 3.1b and 3.7 assert; narrowing the allowance adds structure to the scan. Unlikely to be met. | rejected; put to Meinich |
+| B7 | `waterfallFacts` throws on a P member without a read date, and `outsideLine` on an inconsistent count, failing the whole page | false | `register.document.read_at` is `NOT NULL`, and a member of P has a document row. `outsideLine`'s invariant holds by construction: the same peers give n and the counts. Loud failure on unreachable states is intended. | rejected |
+| B9 | The seven triggers have the same accessible name | low | They sit in the kroner cell of a row with `th scope="row"`, so table navigation announces the row, as for 3.7's gap cells. | rejected |
+| B10 | Each drill-down is rendered twice (desktop and phone), the notes repeat, and +8 kB gzip goes unquestioned; the end's step 2 is labelled "Driftsmargin" | low | Rendered twice by 3.7's pattern, measured, and under 3.7's 30 kB. The end's step 2 shows m = `driftsresultat` / R, which is the driftsmargin. | rejected |
+| B11 | Several page states (two dates, several reasons, derived R, none outside P) are unit-tested only | low | They render through the same `ProvenanceSteps` path the e2e covers. Each would need another committed synthetic company. | rejected |
 
 ## Design Notes
 
@@ -221,6 +242,7 @@ Excluding one peer and reconstructing its line from that peer's revenue (`format
 |---|---|
 | Aₓ, 2 decimals | 341 k kr (7,9 %) |
 | Today's 3.3 bars | 9,9 k kr (0,22 %) |
+| This story's drill-downs: bars with the own lines and R in kroner (equivalently Aₓ × R) | 7,8 k kr (0,18 %): what the page now exposes (review B1) |
 | Aₓ exact | 7,7 k kr |
 
 - An exact Σ gives the line to the krone.

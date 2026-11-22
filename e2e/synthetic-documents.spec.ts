@@ -9,7 +9,7 @@
 // figures here (an oracle independent of the page's view builder), one
 // exclusion takes every document row below the floor, and the page carries
 // no document field and no document line in øre.
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import {
   allFilings,
@@ -27,6 +27,7 @@ import { assemblePeerGroup, V1_FUNNEL, type FunnelSubject } from '../src/engine/
 import { expectNoDocumentFields, expectWireSet } from './payload.ts';
 import {
   SYNTHETIC_DOCUMENTS,
+  SYNTHETIC_WATERFALL,
   insertSyntheticDocuments,
   removeSyntheticDocuments,
   syntheticDocumentCompanies,
@@ -215,6 +216,9 @@ function documentOre(): string[] {
   ];
 }
 
+// Story 3.8: the waterfall's drill-downs read the subject's revenue, driftsresultat and three cost lines.
+const WATERFALL_FIELDS = ['sumDriftsinntekter', 'driftsresultat', 'varekostnad', 'lonnskostnad', 'annenDriftskostnad'];
+
 // Story 3.7, decision 6: the field names each drill-down shows, written out from
 // docs/key-figures.md's formulas (the subject's inputs; the fixture states every line,
 // so nothing is derived), and every company's document lines, which no peer's may
@@ -227,13 +231,31 @@ const linesOf = (company: SyntheticDocumentCompany) => [...Object.values(company
 const LINES = { peerOre: peers.flatMap(linesOf), subjectOre: linesOf(subject) };
 
 test('no document øre reaches the page', async ({ request }) => {
-  // The fixture's state: 9, 10 and 11 each have an amount, so each gap cell has its drill-down.
+  // The fixture's state: 9, 10 and 11 each have an amount, so each gap cell has its drill-down,
+  // and the waterfall is shown, so each of its columns has one (Story 3.8).
   expect([expected.kfd.gap.kind, expected.lgd.gap.kind, expected.oml.gap.kind]).toEqual(['amount', 'amount', 'amount']);
+  expect(expectedWaterfall.kind).toBe('decomposition');
+  // Story 3.8: the drill-downs show Aₓ × R. Two of them equal a line of peer 5 by the fixture's
+  // construction, not by a leak: peer 5's revenue is the subject's (1 500 000 000 kr), and its
+  // andre (20 %) and avskrivninger (3 %) shares are every peer's, so the pool's. The page may show them.
+  const peer5 = peers[4];
+  if (peer5 === undefined) throw new Error('the fixture has ten peers');
+  expect(peer5.current.sumDriftsinntekter).toBe(subject.current.sumDriftsinntekter);
+  expect(peer5.current.annenDriftskostnad).toBe(String(SYNTHETIC_WATERFALL.pooledKr.andre * 100n));
+  expect(peer5.current.avskrivninger).toBe(String(SYNTHETIC_WATERFALL.pooledKr.residual * 100n));
+  const pooledShown = [SYNTHETIC_WATERFALL.pooledKr.andre, SYNTHETIC_WATERFALL.pooledKr.residual].map((kroner) => String(kroner * 100n));
+  const sums = Object.values(SYNTHETIC_WATERFALL.groupSumsKr).map((kroner) => String(kroner * 100n));
+  const shares = Object.values(SYNTHETIC_WATERFALL.shares).map(([numerator, denominator]) =>
+    new Decimal(numerator.toString()).div(denominator.toString()).toString(),
+  );
   await expectNoDocumentFields(request, `${base}/nokkeltall`, {
     ore: documentOre(),
     marker: nb['keyFigures.regionLabel'],
-    fields: [...PROFIT_FIELDS, ...KFD_FIELDS, ...LGD_FIELDS, ...OML_FIELDS],
-    ...LINES,
+    fields: [...PROFIT_FIELDS, ...KFD_FIELDS, ...LGD_FIELDS, ...OML_FIELDS, ...WATERFALL_FIELDS],
+    peerOre: LINES.peerOre,
+    subjectOre: [...LINES.subjectOre, ...pooledShown],
+    groupSums: sums,
+    exactShares: shares,
   });
 });
 
@@ -645,6 +667,7 @@ test('the waterfall against the engine', async ({ page }) => {
     nb['waterfall.bar.lonnskostnad'],
     nb['waterfall.bar.annenDriftskostnad'],
     nb['waterfall.bar.residual'],
+    nb['waterfall.table.sum'],
     subject.navn,
     nb['waterfall.table.reference'],
   ]);
@@ -704,11 +727,14 @@ test('excluding one peer leaves no waterfall', async ({ page }) => {
   const tooFew = 'Ingen forklaring av marginen: bare 9 sammenlignbare har alle kostnadslinjene (av 10 som trengs).';
   await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['waterfall.notLoaded']);
   await expect(body.getByRole('img')).toHaveCount(0);
+  // Story 3.8: no waterfall, no drill-down of one.
+  await expect(page.locator('[data-provenance-trigger^="kf-d-wf-prov-"], [data-provenance-trigger^="kf-p-wf-prov-"]')).toHaveCount(0);
   // Those excluded too: 9 with all their lines, none outside the demo data, the too-few words with n.
   const ekskl = [peer.orgnr, ...outside].sort().join(',');
   await page.goto(`${base}/nokkeltall?ekskl=${ekskl}`);
   await waterfallButton(page, 'desktop').click();
   await expect((await waterfallBody(page, 'desktop')).getByTestId('waterfall-absent')).toHaveText(tooFew);
+  await expect(page.locator('[data-provenance-trigger^="kf-d-wf-prov-"], [data-provenance-trigger^="kf-p-wf-prov-"]')).toHaveCount(0);
 });
 
 for (const width of [375, 320]) {
@@ -743,3 +769,147 @@ for (const width of [375, 320]) {
     await noSidewaysScroll(page);
   });
 }
+
+// Story 3.8: every column of "Vis tallene" can be recomputed by hand from its drill-down.
+// The oracle is SYNTHETIC_WATERFALL (e2e/synthetic.ts), written out from the Design Notes.
+const W = SYNTHETIC_WATERFALL;
+const NBSP_CHAR = String.fromCharCode(0xa0);
+const plainText = (text: string) => text.replaceAll(NBSP_CHAR, ' ');
+const COLUMNS = ['start', 'vare', 'lonn', 'andre', 'residual', 'sum', 'end'] as const;
+const wfTrigger = (scope: Locator, layout: 'd' | 'p', key: string) => scope.locator(`[data-provenance-trigger="kf-${layout}-wf-prov-${key}"]`);
+const wfDrill = (scope: Locator, layout: 'd' | 'p', key: string) => scope.locator(`[data-provenance-body="kf-${layout}-wf-prov-${key}"]`);
+
+/** Opens the waterfall fold-out and its "Vis tallene" in one layout, and waits for the table. */
+async function openNumbers(page: Page, layout: 'desktop' | 'phone'): Promise<Locator> {
+  await waterfallButton(page, layout).click();
+  const body = await waterfallBody(page, layout);
+  await expect(body).toBeVisible();
+  await body.getByRole('button', { name: nb['chart.showNumbers'] }).click();
+  await expect(body.getByRole('table', { name: nb['waterfall.table.caption'] })).toBeVisible();
+  return body;
+}
+
+/** Opens one column's drill-down and waits for it. */
+async function openColumn(body: Locator, layout: 'd' | 'p', key: string): Promise<Locator> {
+  await wfTrigger(body, layout, key).click();
+  const drill = wfDrill(body, layout, key);
+  await expect(drill).toBeVisible();
+  return drill;
+}
+
+test('each bar recomputes from its drill-down', async ({ page }) => {
+  // The oracle recomputes by hand: Aₓ × R − the own line = the bar; the shown bars sum to the
+  // sum; end − sum = start. Written out, not taken from the engine.
+  expect(W.pooledKr.vare - W.ownKr.vare).toBe(W.barsKr.vare);
+  expect(W.pooledKr.lonn - W.ownKr.lonn).toBe(W.barsKr.lonn);
+  expect(W.pooledKr.andre - W.ownKr.andre).toBe(W.barsKr.andre);
+  expect(W.pooledKr.residual - W.ownKr.residual).toBe(W.barsKr.residual);
+  expect(W.barsKr.vare + W.barsKr.lonn + W.barsKr.andre + W.barsKr.residual).toBe(W.sumKr);
+  expect(W.endKr - W.sumKr).toBe(W.startKr);
+  // And the engine over the fixture agrees with the oracle (the fixture's state, asserted first).
+  if (expectedWaterfall.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+  expect(expectedWaterfall.n).toBe(W.n);
+  expect(expectedWaterfall.display.totalKroner).toBe(W.sumKr);
+  expect(expectedWaterfall.display.startKroner).toBe(W.startKr);
+  expect(expectedWaterfall.display.barKroner).toEqual([W.barsKr.vare, W.barsKr.lonn, W.barsKr.andre, W.barsKr.residual]);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await expect(rendered(page)).toBeVisible();
+  const outside = (await groupSize(page)) - peers.length;
+  expect(outside).toBeGreaterThan(0);
+  const body = await openNumbers(page, 'desktop');
+  for (const key of COLUMNS) {
+    const drill = await openColumn(body, 'd', key);
+    const chips = (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plainText);
+    for (const expectedLine of W.lines[key]) expect(chips, key).toContain(expectedLine);
+    // No exact share and no sum over P in what it shows.
+    expect(plainText(await drill.innerText()), key).not.toMatch(/\d,\d{3,} %/);
+  }
+  // The sentences about P: how samlet is pooled, who is outside, and samlet's one read date.
+  const vare = wfDrill(body, 'd', 'vare');
+  await expect(vare).toContainText(nb['waterfall.prov.pooled'].replace('{n}', '10').replace('{aar}', '2025'));
+  await expect(vare).toContainText(
+    `10 av ${peers.length + outside} sammenlignbare er med. Ikke med: ${outside} ikke i demodataene.`,
+  );
+  const date = vare.locator('[data-provenance-pooled] p', { hasText: 'Peer-gruppen samlet: Regnskapsår 2025' });
+  await expect(date).toHaveText(/^Peer-gruppen samlet: Regnskapsår 2025 · årsregnskapene hentet \d{1,2}\. \S+ \d{4}$/);
+  await expect(date).not.toContainText('–');
+  // Data quality: start, end and sum checked against the register; a bar never.
+  const checked = (felt: string) => nb['provenance.quality.checked'].replace('{felt}', felt);
+  const notCompared = (felt: string) => nb['provenance.quality.notCompared'].replace('{felt}', felt);
+  await expect(wfDrill(body, 'd', 'start').locator('[data-provenance-quality]')).toHaveText(checked('sumDriftsinntekter'));
+  for (const key of ['sum', 'end']) {
+    await expect(wfDrill(body, 'd', key).locator('[data-provenance-quality]'), key).toHaveText(checked('sumDriftsinntekter, driftsresultat'));
+  }
+  for (const [key, felt] of [
+    ['vare', 'varekostnad'],
+    ['lonn', 'lonnskostnad'],
+    ['andre', 'annenDriftskostnad'],
+    ['residual', 'varekostnad, lonnskostnad, annenDriftskostnad'],
+  ] as const) {
+    await expect(wfDrill(body, 'd', key).locator('[data-provenance-quality]'), key).toHaveText(notCompared(felt));
+  }
+  await expect(body.locator('[data-provenance-quality]', { hasText: nb['provenance.quality.reconciled'] })).toHaveCount(0);
+  // The subject's own lines with their register names, under "Fra årsregnskapet".
+  const residual = wfDrill(body, 'd', 'residual');
+  await expect(residual).toContainText(nb['provenance.fromDocument']);
+  for (const name of ['sumDriftsinntekter', 'driftsresultat', 'varekostnad', 'lonnskostnad', 'annenDriftskostnad']) {
+    await expect(residual.locator('code[data-provenance-field]', { hasText: new RegExp(`^${name}$`) }).first(), name).toBeVisible();
+  }
+});
+
+test('the sum row', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  const body = await openNumbers(page, 'desktop');
+  const row = body.locator('tr[data-wf-table-row="sum"]');
+  await expect(row.getByRole('rowheader')).toHaveText(nb['waterfall.table.sum']);
+  await expect(row.locator('td').last()).toHaveText(`${formatSignedKroner(kr(W.sumKr))}${nb['provenance.trigger']}`);
+  const drill = await openColumn(body, 'd', 'sum');
+  // Against samlet, not beste fjerdedel: not the Driftsmargin row's gap.
+  await expect(drill).toContainText(nb['waterfall.prov.sumNotGap']);
+  const chips = (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plainText);
+  expect(chips).toContain('15 241 935 kr + (−14 516 129 kr) + (−30 000 000 kr) + 15 000 000 kr = −14 274 194 kr');
+  // The Driftsmargin row's own gap is another amount.
+  await expect(cell(page, 'driftsmargin', 'gap')).not.toContainText(formatSignedKroner(kr(W.sumKr)));
+});
+
+test('waterfall drill-downs: focus, several open, phone', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  const body = await openNumbers(page, 'desktop');
+  const button = wfTrigger(body, 'd', 'vare');
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+  await expect(button).toHaveAttribute('aria-controls', 'kf-d-wf-prov-vare-body');
+  const vare = await openColumn(body, 'd', 'vare');
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  await expect(vare.getByRole('heading', { name: nb['provenance.trigger'] })).toBeFocused();
+  // Esc with focus inside closes it and returns focus to the trigger.
+  await page.keyboard.press('Escape');
+  await expect(vare).toBeHidden();
+  await expect(button).toBeFocused();
+  // Several open at once.
+  await openColumn(body, 'd', 'vare');
+  const sum = await openColumn(body, 'd', 'sum');
+  await expect(vare).toBeVisible();
+  await expect(sum).toBeVisible();
+  // Lukk closes one and returns focus to its trigger; the other stays open.
+  await vare.getByRole('button', { name: nb['provenance.close'] }).click();
+  await expect(vare).toBeHidden();
+  await expect(button).toBeFocused();
+  await expect(sum).toBeVisible();
+  // The chart has no trigger.
+  await expect(body.getByRole('img').locator('[data-provenance-trigger]')).toHaveCount(0);
+  for (const width of [375, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${base}/nokkeltall`);
+    const phone = await openNumbers(page, 'phone');
+    // The phone rows have no trigger; the table's rows do.
+    await expect(phone.locator('[data-testid="waterfall-rows"] [data-provenance-trigger]')).toHaveCount(0);
+    for (const key of ['residual', 'start']) {
+      const drill = await openColumn(phone, 'p', key);
+      await expect(drill.getByRole('heading', { name: nb['provenance.trigger'] }), `${width} ${key}`).toBeFocused();
+    }
+    await noSidewaysScroll(page);
+  }
+});

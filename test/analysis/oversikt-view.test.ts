@@ -44,6 +44,7 @@ function peer(i: number, revenueKr: bigint, margin: number | null) {
     periodeTil: '2025-12-31',
     keyFigures: row(revenue, margin === null ? null : (revenue * BigInt(margin)) / 100n),
     documentBasis: NOT_IN_DATASET,
+    documentReadAt: null,
   };
 }
 

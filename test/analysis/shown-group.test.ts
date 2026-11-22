@@ -24,6 +24,7 @@ const pool = Array.from({ length: 12 }, (_, i) => ({
   keyFigures: row('100000000', String((i + 1) * 1_000_000)),
   // The first ten have a read document; the last two are outside the dataset.
   documentBasis: TEN_PEERS[i] ?? NOT_IN_DATASET,
+  documentReadAt: i < 10 ? new Date('2026-10-21T08:00:00Z') : null,
 }));
 
 // No stage 4 removal: group equals pool.
@@ -163,6 +164,7 @@ describe('driftsmarginComparison', () => {
     orgnr: `9100000${String(i).padStart(2, '0')}`,
     keyFigures: row('100000000', String(result)),
     documentBasis: NOT_IN_DATASET,
+    documentReadAt: null,
   }));
   const elevenFunnel = { pool: eleven, group: eleven, flagged: [], counts, emptyReason: null };
   const subject = { ...filing('NOK'), keyFigures: row('100000000', '4800000') };

@@ -74,8 +74,13 @@ export type WaterfallTable = {
   readonly caption: string;
   /** "Post", then the company's name (the component adds it), "Samlet", "Kroner". */
   readonly heads: { readonly post: string; readonly all: string; readonly kroner: string };
-  /** The start and the four parts, each with its shares (none for the start's own) and its kroner with sign and word. */
+  /**
+   * The start, the four parts and (Story 3.8) "Sum av postene", each with its
+   * shares (none for the start's own or the sum) and its kroner with sign and
+   * word. `key` names the row's drill-down (`WaterfallProvenance`).
+   */
   readonly rows: readonly {
+    readonly key: 'start' | 'vare' | 'lonn' | 'andre' | 'residual' | 'sum';
     readonly head: string;
     readonly own: string;
     readonly all: string;
@@ -249,8 +254,9 @@ export function waterfallView({
       caption: t('waterfall.table.caption'),
       heads: { post: t('waterfall.table.post'), all: t('waterfall.table.all'), kroner: t('waterfall.table.kroner') },
       rows: [
-        { head: start.label, own: '', all: aggregateMargin, kroner: start.value, glyph: null, word: null },
+        { key: 'start' as const, head: start.label, own: '', all: aggregateMargin, kroner: start.value, glyph: null, word: null },
         ...steps.map((step, i) => ({
+          key: step.key,
           head: step.label,
           own: formatPercent(waterfall.steps[i]?.own.toString() ?? '0'),
           all: formatPercent(waterfall.steps[i]?.all.toString() ?? '0'),
@@ -258,6 +264,16 @@ export function waterfallView({
           glyph: step.glyph,
           word: step.word,
         })),
+        // Story 3.8, decision 3: the bars' sum, with its own drill-down.
+        {
+          key: 'sum' as const,
+          head: t('waterfall.table.sum'),
+          own: '',
+          all: '',
+          kroner: formatSignedKroner(ore(display.totalKroner)),
+          glyph: null,
+          word: null,
+        },
       ],
       end: { own: subjectMargin, kroner: end.value },
       reference: { head: t('waterfall.table.reference'), text: tag },

@@ -192,10 +192,20 @@ describe('the shown waterfall', () => {
       unfavourable: 'Senker marginen mot samlet',
       residual: 'Restpost, uten retning',
     });
-    // The table: start, four, end, reference.
+    // The table: start, four, the sum (Story 3.8), end, reference.
     expect(v.table.caption).toBe(nb['waterfall.table.caption']);
     expect(v.table.heads).toEqual({ post: 'Post', all: 'Samlet', kroner: 'Kroner' });
-    expect(v.table.rows.map((r) => r.head)).toEqual(['Peer-gruppen samlet', 'Varekostnad', 'Lønn', 'Andre driftskostnader', 'Avskrivninger og øvrige poster']);
+    expect(v.table.rows.map((r) => r.head)).toEqual([
+      'Peer-gruppen samlet',
+      'Varekostnad',
+      'Lønn',
+      'Andre driftskostnader',
+      'Avskrivninger og øvrige poster',
+      'Sum av postene',
+    ]);
+    // Each row names its drill-down; the sum is the shown total, signed, with no shares.
+    expect(v.table.rows.map((r) => r.key)).toEqual(['start', 'vare', 'lonn', 'andre', 'residual', 'sum']);
+    expect(v.table.rows[5]).toEqual({ key: 'sum', head: 'Sum av postene', own: '', all: '', kroner: v.summary.split('sum ')[1], glyph: null, word: null });
     expect(v.table.rows[1]).toMatchObject({ kroner: vare?.value, glyph: '▼', word: 'høyere enn samlet' });
     expect(v.table.rows[0]).toMatchObject({ glyph: null, word: null });
     expect(v.table.end).toEqual({ own: `20,0${NBSP}%`, kroner: v.end.value });
@@ -297,6 +307,7 @@ const POOL = PEERS.map((documentBasis, i) => ({
   orgnr: `9000000${String(i).padStart(2, '0')}`,
   keyFigures: keyFigures('1000000000', String((i + 1) * 10_000_000)),
   documentBasis,
+  documentReadAt: new Date('2026-10-21T08:00:00Z'),
 }));
 const COUNTS = { stage1: 10, stage2: 10, stage3: { legalForm: 10 }, stage4: { businessModel: 10 }, stage5: { classification: 10, flagged: 0 } };
 const FUNNEL = { pool: POOL, group: POOL, flagged: [], counts: COUNTS, emptyReason: null };

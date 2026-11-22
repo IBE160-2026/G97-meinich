@@ -11,8 +11,11 @@ import {
   profitProvenance,
   provenanceSubject,
   qualityLine,
+  roundingNote,
+  samletDateLine,
   tableProvenance,
   viewFields,
+  waterfallProvenance,
   workingCapitalProvenance,
   type ProvenanceSubject,
   type ProvenanceView,
@@ -30,11 +33,15 @@ import {
   dataQuality,
   type StoredDocumentFacts,
 } from '../../src/engine/provenance.ts';
+import { fraction } from '../../src/engine/fraction.ts';
 import { percentileInc } from '../../src/engine/statistics.ts';
+import { displayWaterfall, marginWaterfall } from '../../src/engine/waterfall.ts';
+import { waterfallFacts } from '../../src/analysis/shown-group.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { BASE_LINES, column, daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS, type Lines } from './document-fixture.ts';
+import { WF_PEERS, WF_SUBJECT_LINES } from './waterfall-fixture.ts';
 
 const NBSP = ' ';
 const N = (text: string) => text.replaceAll(' ', NBSP);
@@ -436,5 +443,170 @@ describe('the capital choice and working capital', () => {
     expect(lineText(view?.formula[0]?.lines[0] ?? [])).toBe(`${kr('17 500')} + ${kr('0')} = ${kr('17 500')} ${nb['keyFigures.oneOff']}`);
     const lgd = view?.formula.find((group) => group.label === nb['fig.lgd']);
     expect(lgd?.lines.map(lineText)).toEqual([t('provenance.strengthPart', { del: nb['fig.lgd'] })]);
+  });
+});
+
+// Story 3.8: the margin waterfall's drill-downs, over the fixture e2e/synthetic.ts's
+// SYNTHETIC_DOCUMENTS mirrors (test/analysis/waterfall-fixture.ts; the Design Notes' oracle).
+describe('the waterfall’s drill-downs (Story 3.8)', () => {
+  const WF_YEAR = 2025;
+  const WF_READ_AT = new Date('2026-11-22T10:00:00Z');
+  const WF_API: ApiInputs = {
+    sumDriftsinntekter: 150_000_000_000n,
+    driftsresultat: 33_000_000_000n,
+    sumDriftskostnad: 117_000_000_000n,
+    sumEiendeler: null,
+    sumEgenkapitalGjeld: null,
+    sumEgenkapital: null,
+    sumGjeld: null,
+  };
+  /** The group: the ten peers in P and one peer outside the demo data. */
+  const GROUP = [
+    ...WF_PEERS.map((documentBasis) => ({ documentBasis, documentReadAt: WF_READ_AT })),
+    { documentBasis: NOT_IN_DATASET, documentReadAt: null },
+  ];
+
+  function wfViews(lines: Lines = WF_SUBJECT_LINES) {
+    const basis = readBasis(lines);
+    const waterfall = marginWaterfall(basis, WF_PEERS, WF_YEAR, 'NOK');
+    const facts: StoredDocumentFacts = { readAt: WF_READ_AT, brregId: FILING_ID, current: reconciliation({}, lines) };
+    const views = waterfallProvenance(subjectOf(WF_API, basis, facts), waterfall, waterfallFacts(GROUP, WF_YEAR));
+    if (views === null) throw new Error('the fixture has a waterfall');
+    return { views, waterfall };
+  }
+  const formula = (view: ProvenanceView) => view.formula.flatMap((group) => group.lines).map((item) => plain(lineText(item)));
+  const stepLines = (view: ProvenanceView) => view.pooled.flatMap((step) => step.lines).map((item) => plain(lineText(item)));
+
+  it('each column is the Design Notes’ oracle', () => {
+    const { views, waterfall } = wfViews();
+    // The fixture's state: P = 10, R = 1 500 000 000 kr, the API comparison passed.
+    if (waterfall.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+    expect(waterfall.n).toBe(10);
+    expect(formula(views.vare)).toEqual([
+      '(A − c) × R',
+      '(8,02 % − 7,00 %) × 1 500 000 000 kr ≈ +15 241 935 kr',
+      'A × R − varekostnad = 120 241 935 kr − 105 000 000 kr = +15 241 935 kr',
+    ]);
+    expect(stepLines(views.vare)).toEqual([
+      'R = sumDriftsinntekter = 1 500 000 000 kr',
+      'c = varekostnad / R = 105 000 000 kr / 1 500 000 000 kr = 7,00 %',
+      'A = 8,02 %',
+    ]);
+    expect(formula(views.lonn).slice(1)).toEqual([
+      '(46,03 % − 47,00 %) × 1 500 000 000 kr ≈ −14 516 129 kr',
+      'A × R − lonnskostnad = 690 483 871 kr − 705 000 000 kr = −14 516 129 kr',
+    ]);
+    expect(formula(views.andre).slice(1)).toEqual([
+      '(20,00 % − 22,00 %) × 1 500 000 000 kr = −30 000 000 kr',
+      'A × R − annenDriftskostnad = 300 000 000 kr − 330 000 000 kr = −30 000 000 kr',
+    ]);
+    expect(formula(views.residual).slice(1)).toEqual([
+      '(3,00 % − 2,00 %) × 1 500 000 000 kr = +15 000 000 kr',
+      'A × R − c × R = 45 000 000 kr − 30 000 000 kr = +15 000 000 kr',
+    ]);
+    expect(formula(views.start)).toEqual([
+      'M × R',
+      '22,95 % × 1 500 000 000 kr ≈ 344 274 194 kr',
+      'Vist som 330 000 000 kr − (−14 274 194 kr) = 344 274 194 kr, slik at start og postene til sammen gir 330 000 000 kr.',
+    ]);
+    expect(formula(views.sum)).toEqual([
+      '(m − M) × R',
+      '(22,00 % − 22,95 %) × 1 500 000 000 kr ≈ −14 274 194 kr',
+      '15 241 935 kr + (−14 516 129 kr) + (−30 000 000 kr) + 15 000 000 kr = −14 274 194 kr',
+      nb['waterfall.prov.sumNotGap'],
+    ]);
+    expect(formula(views.end)).toEqual(['driftsresultat = 330 000 000 kr']);
+    // The sentences about P: pooled, who is outside, samlet's date; the end reads no samlet.
+    const notes = views.vare.pooled[0]?.notes ?? [];
+    expect(notes).toEqual([
+      t('waterfall.prov.pooled', { n: '10', aar: '2025' }),
+      t('waterfall.prov.outside', { n: '10', gruppe: '11', liste: t('waterfall.prov.reason.notInDataset', { k: '1' }) }),
+      t('waterfall.prov.dateOne', { aar: '2025', dato: formatReadDate(WF_READ_AT) }),
+    ]);
+    expect(views.end.pooled[0]?.notes).toEqual([]);
+    // Data quality: start, end and sum checked; a bar never.
+    expect(quality(views.start)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter' }));
+    expect(quality(views.sum)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter, driftsresultat' }));
+    expect(quality(views.end)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter, driftsresultat' }));
+    expect(quality(views.vare)).toBe(t('provenance.quality.notCompared', { felt: 'varekostnad' }));
+    for (const view of Object.values(views)) {
+      expect(quality(view)).not.toBe(nb['provenance.quality.reconciled']);
+      expect(view.figures).toEqual([]);
+      expect(view.sources).toEqual([nb['provenance.source.document']]);
+      expect(view.filed.documentDate).toBe(t('provenance.date.document', { aar: '2025', dato: formatReadDate(WF_READ_AT) }));
+    }
+  });
+
+  it('the residual’s two rules', () => {
+    const { views } = wfViews();
+    expect(stepLines(views.residual)).toEqual([
+      'R = sumDriftsinntekter = 1 500 000 000 kr',
+      'c = (R − driftsresultat − varekostnad − lonnskostnad − annenDriftskostnad) / R = (1 500 000 000 kr − 330 000 000 kr − 105 000 000 kr − 705 000 000 kr − 330 000 000 kr) / 1 500 000 000 kr = 2,00 %',
+      'M = 22,95 %',
+      'A = 1 − M − ΣA = 100,00 % − 22,95 % − (8,02 % + 46,03 % + 20,00 %) = 3,00 %',
+    ]);
+    expect(views.residual.filed.document.map((value) => value.name)).toEqual([
+      'sumDriftsinntekter',
+      'driftsresultat',
+      'varekostnad',
+      'lonnskostnad',
+      'annenDriftskostnad',
+    ]);
+  });
+
+  it('a bar moved by the largest remainder says so', () => {
+    // Hand-made bars of 100,4, 200,4, 300,4 and 0 kr: 601,2 shown as 601; the krone left goes to vare.
+    const display = displayWaterfall([fraction(10_040n, 1n), fraction(20_040n, 1n), fraction(30_040n, 1n), fraction(0n, 1n)], 0n);
+    expect(display.barKroner).toEqual([101n, 200n, 300n, 0n]);
+    expect(plain(roundingNote(display, 0) ?? '')).toBe('Vist som 101 kr, ikke 100 kr: postene er rundet slik at de til sammen blir 601 kr.');
+    for (const i of [1, 2, 3]) expect(roundingNote(display, i), String(i)).toBeNull();
+  });
+
+  it('no note where the bar is its own rounding', () => {
+    const { views, waterfall } = wfViews();
+    if (waterfall.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+    // The fixture's state: every bar is its own rounding.
+    expect(waterfall.display.barKroner).toEqual(waterfall.display.ownKroner);
+    for (const key of ['vare', 'lonn', 'andre', 'residual'] as const) {
+      expect(formula(views[key]).some((item) => item.startsWith('Vist som')), key).toBe(false);
+    }
+  });
+
+  it('R derived', () => {
+    const { views } = wfViews({ ...WF_SUBJECT_LINES, sumDriftsinntekter: null });
+    const rule = views.start.filed.document.find((value) => value.name === 'sumDriftsinntekter')?.rule;
+    expect(plain(lineText(rule ?? []))).toBe('avledet: driftsresultat + sumDriftskostnad = 330 000 000 kr + 1 170 000 000 kr');
+    for (const key of ['start', 'end', 'sum'] as const) {
+      expect(quality(views[key]), key).toBe(t('provenance.quality.notCompared', { felt: 'sumDriftsinntekter' }));
+    }
+    // The bars still: the cost line and the derived revenue.
+    expect(quality(views.vare)).toBe(t('provenance.quality.notCompared', { felt: 'sumDriftsinntekter, varekostnad' }));
+  });
+
+  it('samlet’s read date', () => {
+    const early = new Date('2026-10-01T08:00:00Z');
+    const late = new Date('2026-11-22T10:00:00Z');
+    // Dates equal: one date.
+    expect(samletDateLine(2025, { from: late, to: late })).toBe(t('waterfall.prov.dateOne', { aar: '2025', dato: formatReadDate(late) }));
+    // Two times on one Oslo date: one date, never "{d}–{d}".
+    expect(samletDateLine(2025, { from: new Date('2026-11-22T00:30:00Z'), to: late })).toBe(
+      t('waterfall.prov.dateOne', { aar: '2025', dato: formatReadDate(late) }),
+    );
+    // Dates differ: the range.
+    expect(samletDateLine(2025, { from: early, to: late })).toBe(
+      t('waterfall.prov.date', { aar: '2025', fra: formatReadDate(early), til: formatReadDate(late) }),
+    );
+    // waterfallFacts takes the range over P only: a peer outside P with another date does not move it.
+    const facts = waterfallFacts(
+      [
+        { documentBasis: WF_PEERS[0] ?? NOT_IN_DATASET, documentReadAt: late },
+        { documentBasis: WF_PEERS[1] ?? NOT_IN_DATASET, documentReadAt: early },
+        { documentBasis: FAILED, documentReadAt: new Date('2020-01-01T00:00:00Z') },
+      ],
+      2025,
+    );
+    expect(facts.readDates).toEqual({ from: early, to: late });
+    expect(facts.groupSize).toBe(3);
+    expect(facts.outside.failed_reconciliation).toBe(1);
   });
 });

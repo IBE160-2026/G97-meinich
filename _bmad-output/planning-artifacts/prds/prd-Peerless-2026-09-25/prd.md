@@ -959,12 +959,10 @@ When the register reports a company as gone, Peerless deletes its stored copy.
 **Consequences (testable):**
 - **Stage split:** removal from stored register data and from the seed data is v1; removal from saved analyses is stage 2, when they exist.
 - An entity returning `410 Gone` is removed from stored register data, not merely flagged, because the register states that the status should also be treated as a request that copies and caches remove it.
-- **Only `410` deletes** (Story 2.4, 2026-10-30). The ingestion run asks the register about each stored company missing from the bulk file. A **dissolved** company — answered with a `slettedato` — is not withdrawn: it is kept, its date is stored, and it is counted as dissolved. A `404`, or an answer without `slettedato`, deletes nothing and is recorded as a failure.
-- **A truncated bulk file deletes nothing.** If more than 1 % of the stored companies are missing from the bulk file without a stored `slettedato`, the file is taken to be truncated: nothing is asked or deleted, and the run fails (`ingest/config.toml`, `[withdrawal]`).
-- `[NOTE FOR PM]` Whether a dissolved company stays a peer candidate is open: nothing in the request path reads `slettedato` yet, so today it does (`deferred-work.md`, Story 2.4; §11, question 23).
-- A removed company disappears from every peer group and from every aggregate computed after the removal.
+- **Only `410` deletes.** The ingestion run asks the register about each stored company missing from the bulk file. A **dissolved** company — answered with a `slettedato` — is not withdrawn: it is kept, its date is stored, and it is counted as dissolved. A `404`, or an answer without `slettedato`, deletes nothing and is recorded as a failure. Whether a dissolved company stays a peer candidate is open (§11, question 23); today it does.
+- **A truncated bulk file deletes nothing.** If more than 1 % of the stored companies are missing from the bulk file without a stored `slettedato`, the file is taken to be truncated: nothing is asked or deleted, and the run fails.
+- A removed company disappears from every peer group and from every aggregate computed after the removal. The check belongs to the ingestion job, so removal never depends on a user visiting the company.
 - Removal reaches saved analyses too, because the register frames it as possibly made for legal reasons and asks every copy to delete the entity; this is the one exception to the record promise in FR-64. **As subject**, the company's figures are removed from every saved analysis; the workspace keeps the entry with the notice *"Selskapet er slettet fra Enhetsregisteret 12.03.2027, og tallene er fjernet"*. **As a peer** in other saved analyses, its row and name are removed, while aggregates already computed are kept with the note *"Én sammenlignbar er fjernet fra registeret"*. No data about the removed entity is stored anywhere afterwards, and it cannot be looked up or re-entered as a peer.
-- The check belongs to the ingestion job, so removal never depends on a user visiting the company.
 
 ### 4.11 Front page and navigation
 

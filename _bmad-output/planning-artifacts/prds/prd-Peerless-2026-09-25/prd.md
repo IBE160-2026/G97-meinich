@@ -374,14 +374,14 @@ Each peer carries a short statement of why it was included, and a match basis th
 
 **Consequences (testable):**
 - The inclusion reason is generated deterministically from the profile fields the peer shares with the subject. **The model classifies; it does not write the justification.**
-- **The match basis names the signals that took part in keeping the peer in the group.** A signal counts only when it gives a business type for both the subject and the peer, exactly when `signals()` in `src/engine/peers.ts` returns a value rather than null for it. It is exactly one of four, in this order:
+- **The match basis names the signals that took part in keeping the peer in the group.** A signal counts only when it gives a business type for both the subject and the peer. It is exactly one of four, in this order:
   - fingerprint and text → *description and accounts* ("Beskrivelse og regnskap");
   - fingerprint only → *accounts alone* ("Kun regnskap");
   - text only → *description alone* ("Kun beskrivelse");
   - neither → *industry and size alone* ("Kun bransje og størrelse").
-- A fingerprint with no business type (undetermined, FR-10), the model's abstention `uklart`, an unclassified company and a subject with no type of its own give no signal, and so no basis.
-- A flagged peer (FR-14) has both signals, so its basis is *description and accounts*, with the tag "Usikker klassifisering" beside it. In v1 no peer is flagged.
-- The two bases that rest on a classification, *description and accounts* and *description alone*, carry the AI marking in the interface. In v1 no basis rests on a classification, so the Peers tab carries no AI marking.
+
+  A fingerprint with no business type (undetermined, FR-10), the model's abstention `uklart`, an unclassified company and a subject with no type of its own give no signal, and so no basis.
+- A flagged peer (FR-14) has both signals, so its basis is *description and accounts*, with the tag "Usikker klassifisering" beside it. The two bases that rest on a classification, *description and accounts* and *description alone*, carry the AI marking in the interface. In v1 no peer is flagged and no basis rests on a classification, so the Peers tab carries no AI marking.
 - The basis depends on the subject, so it is computed in the request and never stored, like the flag.
 - Where the match rests on industry and size alone, the product says so rather than presenting a guess as a judgement; in v1 the funnel shows only stages 1–3 and its note says the other two are not used, for the whole group (FR-15).
 - Peers are shown by name.

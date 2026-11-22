@@ -397,3 +397,33 @@ describe('Story 3.7 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+describe('Story 3.8 copy', () => {
+  it.each([
+    // Approved (Meinich, 2026-11-22)
+    ['waterfall.table.sum', 'Sum av postene'],
+    [
+      'waterfall.prov.pooled',
+      'Peer-gruppen samlet er én sammenslått andel over de {n} selskapene som har alle linjene i årsregnskapet for {aar}: summen av linjen delt på summen av omsetningen. Det er ikke en median eller beste fjerdedel.',
+    ],
+    ['waterfall.prov.outside', '{n} av {gruppe} sammenlignbare er med. Ikke med: {liste}.'],
+    ['waterfall.prov.reason.notInDataset', '{k} ikke i demodataene'],
+    ['waterfall.prov.reason.documentMissing', '{k} uten innlest årsregnskap'],
+    ['waterfall.prov.reason.notReadInV1', '{k} ikke lest i denne versjonen'],
+    ['waterfall.prov.reason.notReadSafely', '{k} kunne ikke leses sikkert'],
+    ['waterfall.prov.reason.failed', '{k} som ikke besto avstemmingen'],
+    ['waterfall.prov.reason.shortOfTotal', '{k} der kostnadslinjene ikke summerer til sum driftskostnader'],
+    ['waterfall.prov.reason.componentMissing', '{k} med en linje som mangler'],
+    ['waterfall.prov.reason.revenueNotPositive', '{k} uten positiv omsetning'],
+    ['waterfall.prov.reason.otherYear', '{k} med regnskap for et annet år'],
+    ['waterfall.prov.rounded', 'Vist som {vist}, ikke {egen}: postene er rundet slik at de til sammen blir {total}.'],
+    ['waterfall.prov.startShown', 'Vist som {slutt} − ({sum}) = {start}, slik at start og postene til sammen gir {slutt}.'],
+    ['provenance.quality.checked', 'Kontrollert mot registerets nøkkeltall: {felt}'],
+    ['waterfall.prov.date', 'Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {fra}–{til}'],
+    ['waterfall.prov.dateOne', 'Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {dato}'],
+    // Decision 3's sentence, as proposed in the spec's Design Notes; put to Meinich (decision 6).
+    ['waterfall.prov.sumNotGap', 'Summen er mot peer-gruppen samlet, ikke beste fjerdedel, og er ikke gapet i Driftsmargin-raden.'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

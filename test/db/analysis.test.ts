@@ -95,7 +95,9 @@ describe('loadSubject', () => {
       if (JSON.stringify(got) !== JSON.stringify([row.filing_year, row.periode_fra, row.periode_til])) differing.push(row.orgnr);
     }
     expect(differing.length).toBe(0);
-  });
+    // One loadSubject per company, in turn: 47 s alone on 2026-11-22, past the
+    // suite's 60 s limit under the full `pnpm test:db`.
+  }, 300_000);
 
   // Two filings in one year, in a rolled-back transaction: a second filing
   // ending on the same day but starting later is chosen over the stored one.

@@ -44,6 +44,20 @@ const filing = (valuta: string) => ({
 });
 
 describe('shownGroup', () => {
+  it('the waterfall facts count the group less ekskl (Story 3.8)', () => {
+    const all = shownGroup(funnel, [], filing('NOK'));
+    // The fixture's state: P is the ten read peers, two peers are outside the demo data.
+    expect(all.waterfall).toMatchObject({ kind: 'decomposition', n: 10 });
+    expect(all.waterfallFacts.groupSize).toBe(12);
+    expect(all.waterfallFacts.outside.not_in_dataset).toBe(2);
+    // One peer outside P excluded: P stays at 10, the group and its outside count drop by one.
+    const outsider = pool[11]?.orgnr ?? '';
+    const less = shownGroup(funnel, [outsider], filing('NOK'));
+    expect(less.waterfall).toMatchObject({ kind: 'decomposition', n: 10 });
+    expect(less.waterfallFacts.groupSize).toBe(11);
+    expect(less.waterfallFacts.outside.not_in_dataset).toBe(1);
+  });
+
   it('gives a NOK subject worse than beste fjerdedel a kroner amount', () => {
     const group = shownGroup(funnel, [], filing('NOK'));
     expect(group.benchmark.driftsmargin.comparison.kind).toBe('compared');

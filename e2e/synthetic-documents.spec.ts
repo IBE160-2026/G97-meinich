@@ -837,7 +837,7 @@ test('each bar recomputes from its drill-down', async ({ page }) => {
   // Data quality: start, end and sum checked against the register; a bar never.
   const checked = (felt: string) => nb['provenance.quality.checked'].replace('{felt}', felt);
   const notCompared = (felt: string) => nb['provenance.quality.notCompared'].replace('{felt}', felt);
-  await expect(wfDrill(body, 'd', 'start').locator('[data-provenance-quality]')).toHaveText(checked('sumDriftsinntekter'));
+  await expect(wfDrill(body, 'd', 'start').locator('[data-provenance-quality]')).toHaveText(checked('sumDriftsinntekter, driftsresultat'));
   for (const key of ['sum', 'end']) {
     await expect(wfDrill(body, 'd', key).locator('[data-provenance-quality]'), key).toHaveText(checked('sumDriftsinntekter, driftsresultat'));
   }

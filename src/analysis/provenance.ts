@@ -910,7 +910,8 @@ export function waterfallProvenance(subject: ProvenanceSubject, waterfall: Margi
     ],
     [rLine, MLine],
     notes,
-    [R],
+    // The start is shown as end − sum, so it reads driftsresultat too.
+    [R, result],
     true,
   );
   const totalShown = new Decimal(display.totalKroner.toString());

@@ -165,7 +165,10 @@ export function groupSumsIn(body: string, sumsOre: readonly string[]): string[] 
 export function finePercentsIn(body: string, sharesExact: readonly string[]): string[] {
   const found = [...body.matchAll(/(?<![\d,])\d+,\d{3,}[\s ]?%/g)].map((match) => match[0]);
   for (const share of sharesExact) {
-    const percent = new Decimal(share).mul(100);
+    // The absolute digits: the page writes a negative share with U+2212, the codec with "-",
+    // so the sign is left out and the digits are matched wherever they stand.
+    const magnitude = new Decimal(share).abs();
+    const percent = magnitude.mul(100);
     if (percent.decimalPlaces() <= 2) continue;
     for (let places = 3; places <= 8; places += 1) {
       for (const rounding of [Decimal.ROUND_DOWN, Decimal.ROUND_HALF_UP]) {
@@ -173,11 +176,10 @@ export function finePercentsIn(body: string, sharesExact: readonly string[]): st
         for (const form of [fixed, fixed.replace('.', ',')]) if (digitRunWithin(body, form)) found.push(form);
       }
     }
-    const [, decimals = ''] = new Decimal(share).toString().split('.');
-    if (decimals.length >= 6) {
-      const prefix = `0.${decimals.slice(0, 6)}`;
-      if (body.includes(prefix)) found.push(prefix);
-    }
+    // toFixed, never toString: a very small share would be written with an exponent.
+    const [whole = '0', decimals = ''] = magnitude.toFixed(40).split('.');
+    const prefix = `${whole}.${decimals.slice(0, 6)}`;
+    if (whole === '0' && decimals.replace(/0+$/, '').length >= 6 && body.includes(prefix)) found.push(prefix);
   }
   return [...new Set(found)];
 }

@@ -85,5 +85,17 @@ describe('the waterfall drill-downs carry no sum over P and no exact share', () 
     expect(finePercentsIn('{"a":"0.08016129032"}', [share])).toContain('0.080161');
     // Any percent with three decimals, whatever its value.
     expect(finePercentsIn(`<p>22,952${NBSP}%</p>`, [])).toEqual([`22,952${NBSP}%`]);
+
+  });
+
+  it('probe: a negative exact M fails, written with U+2212 or with "-", and a very small one', () => {
+    const negative = '-0.2295161290322580645161290322580645161290';
+    // The fixture's state: two decimals pass.
+    expect(finePercentsIn(`<p>M = −22,95${NBSP}%</p>`, [negative])).toEqual([]);
+    expect(finePercentsIn('<p>M = −22,9516</p>', [negative]).length).toBeGreaterThan(0);
+    expect(finePercentsIn('{"m":"-22.95161"}', [negative]).length).toBeGreaterThan(0);
+    expect(finePercentsIn('{"m":"-0.2295161290"}', [negative])).toContain('0.229516');
+    // A very small share (written in exponent form by a Decimal configured otherwise): its digits are found.
+    expect(finePercentsIn('<p>−0,00001234</p>', ['-1.2345678e-7']).length).toBeGreaterThan(0);
   });
 });

@@ -41,7 +41,7 @@ import type { ApiInputs } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { BASE_LINES, column, daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS, type Lines } from './document-fixture.ts';
-import { WF_PEERS, WF_SUBJECT_LINES } from './waterfall-fixture.ts';
+import { WF_PEERS, WF_SUBJECT_LINES, waterfallLines } from './waterfall-fixture.ts';
 
 const NBSP = ' ';
 const N = (text: string) => text.replaceAll(' ', NBSP);
@@ -525,7 +525,7 @@ describe('the waterfall’s drill-downs (Story 3.8)', () => {
     ]);
     expect(views.end.pooled[0]?.notes).toEqual([]);
     // Data quality: start, end and sum checked; a bar never.
-    expect(quality(views.start)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter' }));
+    expect(quality(views.start)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter, driftsresultat' }));
     expect(quality(views.sum)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter, driftsresultat' }));
     expect(quality(views.end)).toBe(t('provenance.quality.checked', { felt: 'sumDriftsinntekter, driftsresultat' }));
     expect(quality(views.vare)).toBe(t('provenance.quality.notCompared', { felt: 'varekostnad' }));
@@ -560,6 +560,28 @@ describe('the waterfall’s drill-downs (Story 3.8)', () => {
     expect(display.barKroner).toEqual([101n, 200n, 300n, 0n]);
     expect(plain(roundingNote(display, 0) ?? '')).toBe('Vist som 101 kr, ikke 100 kr: postene er rundet slik at de til sammen blir 601 kr.');
     for (const i of [1, 2, 3]) expect(roundingNote(display, i), String(i)).toBeNull();
+  });
+
+  it('the waterfall puts the note on the moved bar only, beside negative bars', () => {
+    // 1 000 001 kr of revenue and odd lines: the largest remainder moves vare (159 kr shown, 158 kr its own).
+    const { views, waterfall } = wfViews(waterfallLines(1_000_001n, 0n, 0n, 0n, 0n, {
+      varekostnad: '8000300',
+      lonnskostnad: '47001100',
+      annenDriftskostnad: '22000700',
+      avskrivninger: '2000100',
+      sumDriftskostnad: '79002200',
+      driftsresultat: '20997900',
+    }));
+    if (waterfall.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+    const { barKroner, ownKroner } = waterfall.display;
+    // The fixture's state: only bar 0 (vare) is moved, and two bars are negative.
+    expect(barKroner.map((bar, i) => bar !== ownKroner[i])).toEqual([true, false, false, false]);
+    expect(barKroner).toEqual([159n, -9_688n, -20_007n, 9_999n]);
+    expect(ownKroner[0]).toBe(158n);
+    const note = t('waterfall.prov.rounded', { vist: formatKroner('15900'), egen: formatKroner('15800'), total: formatKroner(String(waterfall.display.totalKroner * 100n)) });
+    const hasNote = (view: ProvenanceView) => view.formula.flatMap((group) => group.lines).some((item) => lineText(item) === note);
+    expect(hasNote(views.vare)).toBe(true);
+    for (const key of ['lonn', 'andre', 'residual', 'start', 'sum', 'end'] as const) expect(hasNote(views[key]), key).toBe(false);
   });
 
   it('no note where the bar is its own rounding', () => {

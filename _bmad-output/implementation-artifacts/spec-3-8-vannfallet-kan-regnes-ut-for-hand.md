@@ -214,6 +214,12 @@ Review pass 1 (2026-11-22), over the diff from `baseline_commit` to the in-revie
 | B10 | Each drill-down is rendered twice (desktop and phone), the notes repeat, and +8 kB gzip goes unquestioned; the end's step 2 is labelled "Driftsmargin" | low | Rendered twice by 3.7's pattern, measured, and under 3.7's 30 kB. The end's step 2 shows m = `driftsresultat` / R, which is the driftsmargin. | rejected |
 | B11 | Several page states (two dates, several reasons, derived R, none outside P) are unit-tested only | low | They render through the same `ProvenanceSteps` path the e2e covers. Each would need another committed synthetic company. | rejected |
 
+**Verification after review pass 1 (2026-11-22, the BMAD session, after `5291526` and `adfbf04`):**
+- **Static and unit:** lint and typecheck are clean; `pnpm test --maxWorkers=2` passed 2 086.
+- **Build:** `pnpm build` exited 1 once, consistent with #71, and passed on the rerun. `check:routes` is unchanged.
+- **E2e** (one worker, one project at a time): chromium 197, db-down 7, synthetic `--no-deps` 31. The 3100 server was started separately and logged no `notFound.coverageFailed`, so the two lines come from the db-down server on 3101.
+- **Database:** 2 785 / 5 556 / 2 537 / 10 371; 0 `SYNTETISK%`; 20 manifest entries.
+
 ## Design Notes
 
 **Fixture oracle** (`SYNTHETIC_WATERFALL`, exact, in kr). P = 10, S = 15 500 000 000.

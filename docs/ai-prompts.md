@@ -4342,6 +4342,149 @@ Every row of the margin waterfall's "Vis tallene" (the start, the four bars, a n
 
 The review session recomputed the fixture by hand, checked the manifest invariant and its test, the `checked` rule, the `explanation` role of `pooledOnRevenue`, the payload scan's new probes and peer 5's two values, the copy, the restored row counts with no synthetic company left, the statuses and the PR text's credits. CI was green on `145527a`. At the human's request (`post review`), the review session posted the GitHub review with nine line comments; its two points had been passed to the BMAD session from the draft and were fixed before it was posted. The human merged the PR at 19:55 UTC on 2026-11-22 as `22257fe`.
 
+## The Epic 3 retrospective (on `main`: `0897781`…`4f1a18a`, `a0f3cc1`, `616ac77`)
+
+Planning work committed straight to `main` by the BMAD session, and two commits by the review session. Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt.
+
+### Prompts to the BMAD session
+
+**2026-11-22 20:01**: the prompt that opened the retrospective.
+```
+/bmad-retrospective Epic 3: See every gap in kroner and what closing it is worth (Story 3.1a, 3.1b og 3.2–3.8, alle done i sprint-status.yaml). Retrospektiven skrives til _bmad-output/implementation-artifacts/epic-3-retro-<dato>.md, med datoen den kjøres, som for Epic 1 og 2. Planleggingsdokumenter går rett på main i små commits, én per dokument eller tema. Ikke push før jeg sier fra.
+
+Den skal dekke dette:
+
+1. PRD-en mot det Epic 3 bygde (AGENTS.md, «Each epic retrospective checks the PRD …»). Gå gjennom FR-ene som dekningskartet i epics.md gir Epic 3, én etter én: FR-21, FR-23, FR-24, FR-26, FR-27, FR-29, FR-30, FR-31, FR-32, FR-60, FR-62, FR-64 og FR-71. For hver: stemmer PRD-en med koden? Oppgi filen eller testen du sjekket mot. Rett avvik i PRD-en med en (change)-linje i .memlog.md. Gjør det samme for den tekniske notatet (særlig AD-6, AD-15 og AD-16), epics.md, EXPERIENCE.md og docs/key-figures.md der de er berørt.
+
+2. Handlingspunkt 11 fra Epic 2-retroen: kuttet av de rundt 22 FR-ene med byggehistorikk, ned til regel og konsekvenser, hadde frist «før Epic 5». Neste steg er Story 5.4 (epics.md :439), så fristen er nå. Vis meg en liste over FR-ene som gjenstår, med omtrentlig størrelse, og foreslå om kuttet gjøres i denne retroen eller som egen jobb før 5.4. Ikke skriv om PRD-en før jeg har godkjent det.
+
+3. Oppfølging av handlingspunktene fra Epic 2-retroen (tabellen «Action items»): hvilke er gjort, med commit, og hvilke står åpne. Handlingspunkt 8 er review-sesjonens. Den rapporterer selv, så bare noter status.
+
+4. Utsatt arbeid: hver oppføring i deferred-work.md som nevner en Epic 3-story, og hver som eies av Story 5.4. Si for hver om den er gjort, flyttet med begrunnelse eller står åpen. Lag en liste over det Story 5.4 arver, også at vannfallet før 5.4 bare vises i den syntetiske fixturen.
+
+5. Funn som gjentar seg, med kilde (commit, PR-review eller session-fil):
+- Full verifisering stoppet på minne i 3.6, 3.7 og 3.8. Løsningen var --maxWorkers=2 og ett steg om gangen.
+- #71 (SecurityFatalError) stoppet pnpm build i 3.6 og 3.8. Issuet er fortsatt åpent.
+- Review-sesjonen fant ved sjekkpunktet ting som ville gitt en usann påstand på siden: B9 og B1 i 3.7 («Avstemt» der ingen sjekk dekket linjen), og det to URL-er avslører i 3.8.
+- Review-sesjonen tok selv feil tre ganger i 3.8: demo A (885583822 i stedet for 813235552), at loggen skulle være lokal, og at reviewen var postet før den var det. BMAD-sesjonen fanget de to første.
+- Underagenten la til ting spec-en ikke ba om: tmp-shot.mjs i 3.7, og telefonrettelsen i 3.8, som ikke var vist feilende og hadde 9–16 px avvik ved 375 px.
+- Tester med betingede forventninger (3.4, rettet i 3.7, 9e0f97e) og e2e som leste før elementet fantes (3.6, 571240e).
+- Payload-økning fordi drill-downene rendres to ganger (3.7, 3.8).
+- En frossen spec som stred mot en senere beslutning (3.8 B4), og godkjent tekst som var feil (3.7, beslutning 4, «Avvik ved avstemming»).
+Legg til andre mønstre du finner, men bare med kilde.
+
+6. Atferdsverifisering uten kodeendringer: lint, typecheck, pnpm test --maxWorkers=2, og etter restore tellingene (2 785 / 5 556 / 2 537 / 10 371), 0 SYNTETISK% og 20 oppføringer i manifestet. Kjør ikke e2e. Si fra hvis noe er annerledes enn i 3.8.
+
+7. Handlingspunkter for 5.4 og Epic 4, hver med eier og hvor det skal skrives inn (AGENTS.md, spec-malen, epics.md eller deferred-work.md).
+
+8. Forslag til akseptdom, og når epic-3 kan settes til done i sprint-status.yaml.
+
+Regler:
+- Ingen klassifisering eller fingeravtrykk per orgnr for de 845 selskapene i fasitsettet, bare totaler.
+- Ingen kode endres. pnpm classify kjøres ikke, og ingen dump slettes.
+- Stopp og vis meg PRD-gjennomgangen fra punkt 1 og forslaget fra punkt 2 før du retter planleggingsdokumentene.
+- Vis meg retrospektiven før den committes.
+```
+*Changed:* the behaviour checks run (every count as in Story 3.8) and the retro's skeleton, uncommitted; the PRD checked FR by FR against the code, with six drifts P1–P6 and findings in the technical note, `epics.md` and `docs/key-figures.md`; the table of the 20 FRs still holding build history; and two questions, FR-64 and the cut. The BMAD session also corrected six of the prompt's recurring findings against their sources: the review session had written them from memory, and among other things the memory stops hit seven of nine stories, not three, and the 3.8 phone fix was needed (its e2e failed without it) and fell short only after it was restored.
+
+**20:12**: FR-64 and the cut.
+```
+Fra meg:
+
+Rettelsene dine i punkt 5 stemmer. Review-sesjonen skrev premissene fra hukommelsen. Bruk kildene, som du gjør, og si i retroen at premissene ble rettet mot kildene.
+
+1. FR-64: (a). Rett PRD-en og epics.md (:391, :414) til det som er bygd:
+- selskapets innsendingsdato i headeren;
+- dokumentets lesedato i hver kronedrill-down;
+- P sitt datospenn i vannfallets drill-down.
+Gi Story 5.4 en AC: når det finnes ekte dokumentpeerer, viser drill-downen for et dokumentbasert peeraggregat (kvartillinjen fra 3.7) regnskapsåret og datospennet for lesingen, med samme regel som waterfallFacts. Ett fellesår holder. Sett en (change)-linje i memloggen som sier at dette er flyttet, ikke droppet.
+
+2. Kuttet: godkjent som foreslått.
+- I denne retroen: FR-23, FR-29, FR-30, FR-60, FR-64 og FR-71, sammen med rettelsene P1–P5, én diff per FR. Ta også FR-3s setning om «measured false».
+- Resten (13 FR-er, med FR-10, FR-11, FR-13 og FR-28 først) blir en egen PRD-jobb på main før 5.4-spec-en skrives. Målingene i FR-10, FR-11, FR-13 og FR-28 skal flyttes til §10 eller det tekniske notatet før de tas ut av FR-ene, slik FR-58 ble i 9b5954e. Aldri slett et måletall som ikke finnes et annet sted.
+- Handlingspunkt 11 settes til in-progress, med fristen «før 5.4-spec-en».
+
+3. Rett også P6, T1–T4 og E2–E3. E4 blir en AC i Story 5.4: vannfallet og drill-downene fra 3.8 vises på minst ett ekte demoselskap i demoseeden.
+
+Gjør det i små commits, én per dokument, rett på main, uten push. Vis meg retroen før den committes.
+```
+*Changed:* FR-64 corrected to what Epic 3 built, with the aggregate dates moved to a Story 5.4 AC; P1–P6 and the build history of FR-3, FR-23, FR-29, FR-30, FR-60, FR-64 and FR-71 in the PRD and its memlog (`0897781`); T1–T4 in the technical note (`adb6402`); FR-64's coverage and two new Story 5.4 ACs, the waterfall on a real demo company and the aggregate dates (`80b3ed2`); K1 in `docs/key-figures.md` (`fe6d812`); 3.8 in the delivery order and Epic 2 action 11 in progress (`6b57dc5`). The other 13 FRs are a separate PRD job before 5.4's spec. The draft retrospective then asked four questions.
+
+**20:23**: the verdict and the action items.
+```
+Fra meg:
+
+1. Dommen accepted-with-open-items er godkjent. Sett epic-3 til done i samme commit som retroen.
+
+2. Handlingspunktene er godkjent, med én rettelse. Det finnes ingen grense på 30 kB. Tallet kommer fra review-sesjonens prompt i 3.7 (docs/ai-prompts.md:4087): «Hvis gzip-veksten på verdi er over 30 kB, si fra». Det var en terskel for vekst i én story. Oversikt (53 571) og Nøkkeltall (31 265) ligger allerede over 30 kB som tak. Rett P7 og handlingspunkt 9: «Veksten per fane per story måles etter gzip mot main. En vekst over 30 kB legges fram for Meinich før storyen går videre (terskelen fra 3.7).»
+
+Nr. 4 (#71): jeg avgjør det før PR-en for 5.4, ikke før 5.7, fordi README ber sensor kjøre pnpm build. Endre fristen.
+
+Nr. 7 er review-sesjonens. Den skriver den inn i AGENTS.md sammen med handlingspunkt 8 fra Epic 2.
+
+3. X1: legg den inn i deferred-work.md under 5.4 nå, i samme commit som retroen.
+
+4. action_items i sprint-status: ikke dupliser. Legg inn én linje som peker på tabellen «Action items» i retroen. Det er den som gjelder.
+
+Commit retroen, deferred-work og sprint-status på main. Ikke push. Review-sesjonen pusher, fordi review-sesjonens lokale loggcommiter ligger under dine på main og ikke skal med. Si fra når du er ferdig.
+```
+*Changed:* the retrospective, accepted with open items, with X1 deferred to 5.4 and Epic 3 `done` (`774df04`): action 9 states a growth threshold per story, since the 30 kB of the draft came from the review session's 3.7 prompt as a threshold, not a limit (Oversikt is 53 571 bytes after gzip); #71 decided before 5.4's PR; actions 7 and Epic 2's 8 the review session's. Then the session file (`3dcf2e0`) and the session log (`4f1a18a`).
+
+**20:29**: the BMAD session's own report, pasted back to it.
+```
+● Epic 3-retrospektiven er ferdig. Dommen er accepted-with-open-items, og både epic-3 og retrospektiv-nøkkelen står nå som done
+  i sprint-status.
+
+  Commiter på main denne økten (ikke pushet):
+
+  ┌─────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │ Commit  │                                                    Innhold                                                    │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 0897781 │ PRD og memloggen: P1–P6, FR-64 rettet til det som er bygd, historikken kuttet i seks Epic 3-FR-er, og FR-3    │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ adb6402 │ Teknisk notat: T1–T4                                                                                          │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 80b3ed2 │ epics.md: FR-64 rettet, og to nye AC-er i Story 5.4                                                           │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ fe6d812 │ key-figures.md: K1                                                                                            │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 6b57dc5 │ sprint-status: 3.8 lagt inn i rekkefølgen, handlingspunkt 11 satt til in-progress                             │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 774df04 │ Retroen, X1 i deferred-work.md under 5.4, og sprint-status med epic-3 som done og én peker-linje i            │
+  │         │ action_items                                                                                                  │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 3dcf2e0 │ Session-filen docs/ai-sessions/2026-11-22-epic-3-retrospective.md                                             │
+  ├─────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ 4f1a18a │ Sesjonsloggen, committet alene                                                                                │
+  └─────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+  Rettelsene dine er tatt inn:
+  - 30 kB: P7 og handlingspunkt 9 beskriver nå en terskel for vekst per story, ikke et tak.
+  - #71: fristen er før PR-en for 5.4.
+  - Handlingspunkt 7: eieren er review-sesjonen, sammen med handlingspunkt 8 fra Epic 2.
+
+  Commit-meldingen til adb6402 skriver «nokkeltall» uten ø. Den kan rettes før review-sesjonen pusher, hvis du vil.
+
+  Main ligger nå 14 commits foran origin/main. Disse står under mine åtte og skal ikke med i pushen, som du sa:
+  - e339b33 (Logg: story-3-7-review);
+  - 9dd6244 (Logg: story-3-8-review).
+
+  Ingen kode er endret, ingen dump er slettet, og pnpm classify er ikke kjørt.
+```
+*Changed:* no file. The BMAD session listed the commits below its own on `main`, the review session's five logs and its own updated 3.6 log (`a9dcb52`), and said the review session should check that one before pushing.
+
+### Prompts to the review session
+
+- `klar for retroprompt til epic 3` (11-22): the review session read the Epic 2 retrospective's action items, the coverage map in `epics.md` and the Epic 2 retro prompt, found that Epic 2 action 11 (the PRD cut, due "before Epic 5") was due, since Story 5.4 comes next, and that its own action 8 was open, and drafted the 20:01 prompt. Its recurring findings were written from memory; the BMAD session corrected six against their sources.
+- The BMAD session's checkpoint (11-22): the review session checked FR-3's stale sentence against `seed/coverage.json`, FR-64 and FR-21 in the PRD and the delivery order in `sprint-status.yaml`, recommended (a) for FR-64, the cut as proposed with no measurement deleted, and E4 as a 5.4 AC, and drafted the 20:12 prompt.
+- The BMAD session's draft retrospective (11-22): the review session found that the "30 kB limit" was its own 3.7 threshold for growth and already exceeded as a limit, that the retro commits sat on top of the review session's unpushed log commits, and recommended no duplicated action items in `sprint-status.yaml`. It drafted the 20:23 prompt.
+- The BMAD session's final report (11-22): the review session found that the retrospective and its session file cite the new commits by hash, so pushing without the logs below them would break the references. The human chose to push everything, as after the Epic 2 retrospective, and the review session pushed `main`.
+- `gjør 1 og 2` (11-22): the review session wrote Epic 2 action 8 and Epic 3 action 7 into AGENTS.md (`a0f3cc1`), marked them done in both retrospectives and `sprint-status.yaml` (`616ac77`), extended its own prompt check to queued prompts and every line of a prompt, and wrote this section.
+
+### Result
+
+Epic 3 is accepted with open items and `done`. The PRD, the technical note, `epics.md` and `docs/key-figures.md` are corrected to what Epic 3 built; the build history of seven FRs is cut, and the other 13 FRs are a PRD job before Story 5.4's spec. Story 5.4 inherits five deferred entries, X1 and two new ACs: the waterfall on a real demo company and the dates of document-based peer aggregates. #71 is decided before 5.4's PR.
+
 ---
 
 ## Going forward

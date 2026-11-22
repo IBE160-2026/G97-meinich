@@ -77,11 +77,18 @@ function NumbersTable({
         <ProvenanceTrigger id={provId(key)} />
       </>
     );
-  /** The row's drill-down, as the next row, across the table. */
+  /**
+   * The row's drill-down, as the next row, across the table. On the phone the
+   * table is wider than the screen and scrolls in its region; the steps keep
+   * to the region's visible width and stay at its left edge (`sticky`), so a
+   * drill-down reads without scrolling sideways.
+   */
   const drillDown = (key: WaterfallColumnKey) =>
     provenance === null ? null : (
       <ProvenanceRow id={provId(key)} colSpan={4}>
-        <ProvenanceSteps id={provId(key)} view={provenance[key]} />
+        <div className={layout === 'p' ? 'sticky left-0 max-w-[calc(100vw-4.5rem)]' : undefined} data-wf-prov-steps="">
+          <ProvenanceSteps id={provId(key)} view={provenance[key]} />
+        </div>
       </ProvenanceRow>
     );
   return (

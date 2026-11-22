@@ -909,6 +909,11 @@ test('waterfall drill-downs: focus, several open, phone', async ({ page }) => {
     for (const key of ['residual', 'start']) {
       const drill = await openColumn(phone, 'p', key);
       await expect(drill.getByRole('heading', { name: nb['provenance.trigger'] }), `${width} ${key}`).toBeFocused();
+      // The table scrolls in its region; the steps stay inside the screen, so they read without scrolling.
+      const box = await drill.locator('[data-wf-prov-steps]').boundingBox();
+      if (box === null) throw new Error(`${width} ${key}: no steps`);
+      expect(box.x, `${width} ${key}`).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, `${width} ${key}`).toBeLessThanOrEqual(width);
     }
     await noSidewaysScroll(page);
   }

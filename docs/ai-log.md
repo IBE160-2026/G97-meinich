@@ -16,7 +16,7 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 38 |
+| auth | 39 |
 | money | 37 |
 | parsing | 19 |
 | llm-boundary | 8 |
@@ -1128,3 +1128,32 @@ Also in this pass: the D2 comparison over every company with several filings (`t
 5. **Samlet's read date.** The range of `register.document.read_at` over P: its two ends are peers' dates, without a name, and one date when they are one calendar date ("samlet’s read date", failing when the range is always written and when peers outside P move it).
 **Caught by:** The implementation run's guard removal, each removal undone afterwards. The analysis under 1 was asked for by the review session; its measurement is in the spec's Design Notes ("Exposure, decision 1").
 **Outcome:** Commits on `story/3.8-vannfallet-for-hand` from `d00183e`; issue #83. Review pending.
+
+### 2026-11-22 — Issue #71: Next.js 16.4.2 to 16.4.6
+**Tags:** auth
+**Tool:** Claude Code (Opus 5.5), the BMAD session
+**Asked:** Upgrade Next.js as its own PR before Story 5.4 (issue #71, Meinich 2026-11-22). Pin `next` and `eslint-config-next` exactly to 16.4.6, the latest 16.4.x patch. Take zod and minimatch along only if a normal upgrade of a direct dependency resolves them, with no `pnpm overrides`. Then verify one step at a time.
+**Got:** `next` and `eslint-config-next` 16.4.6 (`20f6ad8`). The lockfile changes only the Next.js family: `next`, `@next/env`, the ten `@next/swc-*` binaries, `@next/eslint-plugin-next` and `eslint-config-next`.
+- **The audit before the change:** seven moderate advisories in `next` 16.4.2, all for `<=16.4.4` and fixed in `>=16.4.5`: GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8, GHSA-7qx7-33qx-rqx2, GHSA-f3mh-rxg3-f5g2, GHSA-pc58-hwjq-p385, GHSA-rhh4-g77r-r9qj and GHSA-vvgp-ww4w-46vf.
+- **The audit after the change:** none in `next`.
+- **Not resolved:** zod (high, GHSA-mrhx-c7xc-m3w5, 4.6.5 installed, fixed in 4.6.6) and minimatch (moderate, GHSA-g3hv-75wg-m249, 10.2.6, fixed in 11.0.1). No direct dependency's upgrade resolves them:
+  - zod is a peer dependency of `@anthropic-ai/sdk` and a dependency of `eslint-plugin-react-hooks`, both `^3.25.0 || ^4.0.0`, a range the latest SDK (1.12.0) keeps;
+  - minimatch comes through `@typescript-eslint/typescript-estree` 8.71.1 under `eslint-config-next`.
+
+  Only a refresh of those transitive lockfile entries would move them, so they are left, as decided.
+**Problem:** What could go wrong with the upgrade:
+1. **The rate limit lives in the proxy.** `src/proxy.ts` counts every request before any page runs, so a patch that changed middleware matching or ordering would let requests past the budget. `e2e/rate-limit.spec.ts` and `e2e/no-ip-stored.spec.ts` passed in the chromium project (197/197), and `pnpm check:routes` is unchanged (7 app entries, no server action).
+2. **Response codes and streaming.** Story 1.6b found three behaviours of Next.js 16.4 that the design had to work around: the 404s, redirects before any Suspense boundary, and a streamed 200 once a fallback renders. A patch could change one of them. `e2e/db-down.spec.ts` (7/7) and `e2e/analysis-states.spec.ts` (the 404s and redirects, in the chromium project) passed.
+3. **The build asks the registry on every run.** The first build of each story from 3.2 to 3.8 stopped on `SecurityFatalError` and passed on a retry. On 16.4.6 three builds in a row passed at the first attempt. Nothing stops a new advisory against 16.4.6 from doing the same to a sensor's fresh-clone `pnpm build`, so Story 5.7 now runs `pnpm audit` just before delivery (`epics.md`).
+4. **What stays vulnerable.** zod and minimatch are reached only through development tools: the SDK, imported by `scripts/classify/model-client.ts` alone, and ESLint. Neither is in the request path nor in the built server output. A `pnpm classify` run parses the model's answers with that zod, outside the request path. It is recorded in the PR and on issue #71.
+**Caught by:** The verification run, one step at a time:
+- `check:pins` and `check:env`;
+- lint and typecheck;
+- `pnpm test --maxWorkers=2`: 2 086;
+- `pnpm seed`, then `test:db` (204) and `test:ingest` (392);
+- `restore:documents`: 2 785 / 5 556 / 2 537 / 10 371, no `SYNTETISK%`, 20 manifest entries;
+- three `pnpm build` and `check:routes`;
+- e2e with one worker, one project at a time: chromium 197, db-down 7, synthetic 31;
+- `pnpm audit`: 0 in `next`.
+
+**Outcome:** Branch `story/71-next-16-4-6` from `origin/main`: `20f6ad8`, `c2ce742` (Story 5.7's AC). The PR closes #71.

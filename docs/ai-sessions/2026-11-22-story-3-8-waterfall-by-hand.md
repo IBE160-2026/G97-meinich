@@ -3,7 +3,7 @@
 **Date:** 2026-11-22
 **Tool:** Claude Code (Opus 5.5), the `bmad-build` workflow, with two search subagents, an implementation subagent and three review subagents
 **Story / issue:** #83, Story 3.8 (FR-60)
-**Result:** commits on `story/3.8-vannfallet-for-hand` from `2896911`; no PR yet (not pushed)
+**Result:** PR #84 (https://github.com/IBE160-2026/G97-meinich/pull/84), commits on `story/3.8-vannfallet-for-hand` from `2896911`
 
 ## Goal
 Make every column of the margin waterfall recomputable from what the page shows. The columns are the start, the four bars, a new sum row and the end. Nothing that reaches a peer's document line may reach the page.
@@ -74,3 +74,9 @@ Make every column of the margin waterfall recomputable from what the page shows.
 - Spec: `_bmad-output/implementation-artifacts/spec-3-8-vannfallet-kan-regnes-ut-for-hand.md` (decisions, Spec Change Log, Review Triage Log)
 - AI log: the 2026-11-22 Story 3.8 entry in `docs/ai-log.md`
 - Planning documents: PRD FR-60 and its memlog, `epics.md` (UX-DR29, Story 3.8), EXPERIENCE.md and the UX memlog, `docs/key-figures.md`, `deferred-work.md` (the 3.8 entry closed), `sprint-status.yaml`, `AGENTS.md`
+
+## Pull request
+
+PR #84 (https://github.com/IBE160-2026/G97-meinich/pull/84) was opened on 2026-11-22 after Meinich confirmed the read-date boundary (B4 accepted, `1bf8e3f`).
+
+**A mistake of the BMAD session:** before pushing, it moved the session-log commit `8cb71d0` off the story branch, following Meinich's message that the log should stay local. That message came from the review session. AGENTS.md says a log commit on a story branch goes into the PR, as in PR #80 and PR #82. Meinich corrected it, and the commit was put back by cherry-pick as `e5f71a3`, with the same content.

@@ -34,8 +34,9 @@ Bygge Story 3.8 med `/bmad-build`: hver kolonne i marginvannfallet skal kunne re
   - e2e: chromium 197, db-down 7, synthetic 31;
   - `notFound.coverageFailed` kommer fra 3101, og 3100 logget den 0 ganger;
   - restore: 2 785 / 5 556 / 2 537 / 10 371, 0 SYNTETISK% og 20 i manifestet.
-- **Status:** spec `in-review`, story `review`. Ingenting er pushet.
+- **Status:** spec `in-review`, story `review`.
+- **Datogrensen:** Meinich bekreftet den (B4 akseptert, `1bf8e3f`).
+- **PR:** branchen er pushet, og PR #84 er opprettet: https://github.com/IBE160-2026/G97-meinich/pull/84
 
 ### Åpne punkter
-- Meinich bekrefter tolkningen av grensen «never any peer's read date» sammen med intervallet i beslutning 5 (Spec Change Log, 2026-11-22).
-- PR for Story 3.8, når Meinich sier fra om push. Spec-en settes til `done` etter merge, som i 3.7.
+- Spec-en settes til `done` etter at PR #84 er merget, som i 3.7.

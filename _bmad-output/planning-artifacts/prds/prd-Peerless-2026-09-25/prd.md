@@ -323,16 +323,14 @@ Candidates are grouped by what kind of business their own accounts say they are,
 
 #### FR-11: Stage 5 — classification (model) · v1
 
-Every AS in a covered industry is classified in the batch, never at request time, from four register fields only: name, secondary industry codes, `vedtektsfestet_formaal` and `aktivitet`. The model answers with exactly one of the business types `produkt`, `konsulent`, `forhandler` and `annet` (the same set as FR-10), or the abstention `uklart`. With the text signal on, stage 5 compares a candidate's stored type with the subject's, combined with the fingerprint by the rule in the technical note. **In v1 the classification is computed and stored but selects nothing** (`V1_TEXT_SIGNAL = false` in `src/engine/peers.ts`), because it did not meet SM-1's decision rule (below, §10).
+Every AS in a covered industry is classified in the batch, never at request time, from four register fields only: name, secondary industry codes, `vedtektsfestet_formaal` and `aktivitet`. The model answers with exactly one of the business types `produkt`, `konsulent`, `forhandler` and `annet` (the same set as FR-10), or the abstention `uklart`. With the text signal on, stage 5 compares a candidate's stored type with the subject's, combined with the fingerprint by the rule in the technical note. **In v1 the classification is computed and stored but selects nothing**, because it did not meet SM-1's decision rule (below, §10).
 
 **Consequences (testable):**
-- The answer set is the response schema's enum, generated from the business types plus `uklart`; the model returns no free text at this stage (`test/classify/request.test.ts` "schema is generated from BUSINESS_TYPES").
-- `uklart` is not a fifth type: it is stored as `classified` with no type, counted apart in `run.step2`, and removes no candidate (FR-12) (`test/classify/run.test.ts` "uklart is stored without a type and counted apart"; `test/db/classification.test.ts` "holds uklart as classified with no type").
-- An answer outside the set, or of any other shape, is stored as `failed` with no type, never coerced into a category, and is counted with its reason in `run.step2`, whose run exits 1 (`test/classify/request.test.ts` "refuses %s"; `test/classify/run.test.ts` "answer outside the set is failed, not coerced").
-- The database refuses a type outside the set, and a type on a row that is not `classified` (`test/db/classification.test.ts` "refuses a type outside the set, and a type on a row that is not classified").
-- The seed is not exported while a covered AS has a `failed` or `pending` row (`test/db/classification.test.ts` "refuses while a row is %s").
-- The model performs no arithmetic here or anywhere (FR-53).
-- **Stage 5 selects only under SM-1's decision rule (§9), and in v1 it does not.** Comparing *fingerprint alone* with *fingerprint and text* on all labelled pairs, `usikker` left out, the text must raise precision by at least 3 percentage points and lower recall by no more than 3. It raised precision by 2.967 pp, so the text signal is off in v1: stage 5's count equals stage 4's, no peer is flagged (FR-14), and no match basis rests on the description (FR-16). The stored classifications stay, so stage 2 can measure again (§11, question 26).
+- The answer set is the response schema's enum, generated from the business types plus `uklart`; the model returns no free text at this stage, and performs no arithmetic here or anywhere (FR-53).
+- `uklart` is not a fifth type: it is stored as classified with no type, counted apart in the run's record, and removes no candidate (FR-12).
+- An answer outside the set, or of any other shape, is stored as failed with no type, never coerced into a category, and is counted with its reason in the run's record, and the run fails. The database itself refuses a type outside the set, and a type on a row that is not classified.
+- The seed is not exported while a covered AS has a failed or pending classification.
+- **Stage 5 selects only under SM-1's decision rule (§9), and in v1 it does not.** Comparing *fingerprint alone* with *fingerprint and text* on all labelled pairs, `usikker` left out, the text must raise precision by at least 3 percentage points and lower recall by no more than 3. It did not (§10), so the text signal is off in v1: stage 5's count equals stage 4's, no peer is flagged (FR-14), and no match basis rests on the description (FR-16). The stored classifications stay, so stage 2 can measure again (§11, question 26).
 
 #### FR-12: Unclassified companies remain eligible · v1
 

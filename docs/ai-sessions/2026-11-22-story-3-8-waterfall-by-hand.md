@@ -59,7 +59,7 @@ Make every column of the margin waterfall recomputable from what the page shows.
   - the AI-log entry cited the 2-decimal row where the kroner lines expose Aₓ to about 1/R (B1), so it now cites the right measurement.
 
   Two findings went to Meinich: the sum's wording (B5, worded by Meinich) and peer 5's fixture coincidence (B6, accepted by Meinich, with checks that the exception is exactly two amounts and the nine other peers stay scanned). The rest were rejected with evidence.
-- **Recorded for Meinich to confirm:** the boundary "never any peer's read date" is read together with decision 5's range (Spec Change Log).
+- **Confirmed by Meinich (2026-11-22):** the boundary "never any peer's read date" means no read date per peer, and decision 5's range is allowed (Spec Change Log; B4 accepted).
 
 ## Verification (2026-11-22, after the review fixes)
 - **Static and unit:** lint and typecheck are clean, and `pnpm test --maxWorkers=2` passed 2 086 tests.

@@ -259,9 +259,9 @@ describe('stage 4 against stored fingerprints', () => {
   it('reads a classified row as its type, and an uklart or a failed row as none (Story 2.6)', async () => {
     const { funnel } = await groupForDemoA(0);
     const classificationIn = async (tx: postgres.TransactionSql) => {
-      const [row] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [funnel.orgnr]);
-      if (row === undefined) throw new Error('demo A is not stored');
-      return toSubject(row).filing?.classification;
+      const rows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [funnel.orgnr]);
+      if (rows.length === 0) throw new Error('demo A is not stored');
+      return toSubject(rows).filing?.classification;
     };
     const store = async (tx: postgres.TransactionSql, status: string, type: string | null) => {
       await tx`delete from register.classification where orgnr = ${funnel.orgnr}`;
@@ -285,9 +285,9 @@ describe('stage 4 against stored fingerprints', () => {
   it('reads the subject’s fingerprint for its benchmark year, and none stored only for another year', async () => {
     const { funnel } = await groupForDemoA(0);
     const subjectIn = async (tx: postgres.TransactionSql) => {
-      const [row] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [funnel.orgnr]);
-      if (row === undefined) throw new Error('demo A is not stored');
-      return toSubject(row);
+      const rows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [funnel.orgnr]);
+      if (rows.length === 0) throw new Error('demo A is not stored');
+      return toSubject(rows);
     };
     await expect(
       admin.begin(async (tx) => {
@@ -366,9 +366,9 @@ describe('a listed company with no document row', () => {
     await expect(
       admin.begin(async (tx) => {
         await tx`delete from register.document where orgnr = ${gone.orgnr} and filing_year = ${gone.filingYear}`;
-        const [subjectRow] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [gone.orgnr]);
-        if (subjectRow === undefined) throw new Error('the listed company is not stored');
-        expect(toSubject(subjectRow).filing?.documentBasis).toEqual({ kind: 'document_missing', filingYear: gone.filingYear });
+        const subjectRows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [gone.orgnr]);
+        if (subjectRows.length === 0) throw new Error('the listed company is not stored');
+        expect(toSubject(subjectRows).filing?.documentBasis).toEqual({ kind: 'document_missing', filingYear: gone.filingYear });
 
         const candidates = (
           await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, [viewer.orgnr, '62.100', viewer.filingYear])

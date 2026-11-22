@@ -33,7 +33,7 @@ import {
   type SyntheticDocumentCompany,
 } from './synthetic.ts';
 import { benchmarkApiFigures, benchmarkDocumentFigures, largestCapitalGap, workingCapitalReleased } from '../src/engine/benchmark.ts';
-import { medianStep } from '../src/engine/closable.ts';
+import { medianStep, shareLineIsApproximate } from '../src/engine/closable.ts';
 import { Decimal } from '../src/engine/decimal.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import {
@@ -146,7 +146,8 @@ test('every document row is compared against the engine', async ({ page }) => {
   for (const key of ['kfd', 'lgd', 'oml'] as const) {
     const gap = expected[key].gap;
     if (gap.kind !== 'amount') throw new Error(`the fixture's ${key} has no capital amount`);
-    await expect(cell(page, key, 'gap'), key).toHaveText(`${formatKronerExact(gap.ore.toString())}${nb['keyFigures.oneOff']}`);
+    // Story 3.7: followed by its "Hvordan er dette regnet?".
+    await expect(cell(page, key, 'gap'), key).toHaveText(`${formatKronerExact(gap.ore.toString())}${nb['keyFigures.oneOff']}${nb['provenance.trigger']}`);
   }
   for (const key of ['vare', 'lonn', 'andre']) {
     await expect(cell(page, key, 'gap'), key).toHaveText(nb['keyFigures.costShare.kroner']);
@@ -214,8 +215,68 @@ function documentOre(): string[] {
   ];
 }
 
+// Story 3.7, decision 6: the field names each drill-down shows, written out from
+// docs/key-figures.md's formulas (the subject's inputs; the fixture states every line,
+// so nothing is derived), and every company's document lines, which no peer's may
+// reach the page even as kroner.
+const PROFIT_FIELDS = ['driftsresultat', 'sumDriftsinntekter'];
+const KFD_FIELDS = ['kundefordringer', 'salgsinntekt'];
+const LGD_FIELDS = ['leverandorgjeld', 'varekostnad', 'annenDriftskostnad'];
+const OML_FIELDS = ['sumDriftsinntekter', 'sumEiendeler', 'bankinnskudd'];
+const linesOf = (company: SyntheticDocumentCompany) => [...Object.values(company.current), ...Object.values(company.prior)];
+const LINES = { peerOre: peers.flatMap(linesOf), subjectOre: linesOf(subject) };
+
 test('no document øre reaches the page', async ({ request }) => {
-  await expectNoDocumentFields(request, `${base}/nokkeltall`, { ore: documentOre(), marker: nb['keyFigures.regionLabel'] });
+  // The fixture's state: 9, 10 and 11 each have an amount, so each gap cell has its drill-down.
+  expect([expected.kfd.gap.kind, expected.lgd.gap.kind, expected.oml.gap.kind]).toEqual(['amount', 'amount', 'amount']);
+  await expectNoDocumentFields(request, `${base}/nokkeltall`, {
+    ore: documentOre(),
+    marker: nb['keyFigures.regionLabel'],
+    fields: [...PROFIT_FIELDS, ...KFD_FIELDS, ...LGD_FIELDS, ...OML_FIELDS],
+    ...LINES,
+  });
+});
+
+// Story 3.7 (decision 4): the fixture's current column reconciled and its API comparison passed
+// (e2e/synthetic.ts), so the profit, whose two inputs both sources hold, is "Avstemt"; a capital
+// amount reads lines no check covers, so it never is, and names them. Each amount is the engine's.
+test('the drill-downs: the profit Avstemt, each capital amount not checked, with its lines', async ({ page }) => {
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await expect(region(page)).toBeVisible();
+  const opened = async (key: string) => {
+    await region(page).locator(`[data-provenance-trigger="kf-d-prov-${key}"]`).click();
+    const body = region(page).locator(`[data-provenance-body="kf-d-prov-${key}"]`);
+    await expect(body).toBeVisible();
+    return body;
+  };
+  await expect((await opened('driftsmargin')).locator('[data-provenance-quality]')).toHaveText(nb['provenance.quality.reconciled']);
+  const notCompared = (felt: string) => nb['provenance.quality.notCompared'].replace('{felt}', felt);
+  for (const [key, gap, felt] of [
+    ['kfd', kfd.gap, 'kundefordringer, salgsinntekt'],
+    ['lgd', lgd.gap, 'leverandorgjeld, varekostnad, annenDriftskostnad'],
+    ['oml', oml.gap, 'bankinnskudd'],
+  ] as const) {
+    const body = await opened(key);
+    await expect(body.locator('[data-provenance-quality]'), key).toHaveText(notCompared(felt));
+    await expect(body, key).toContainText(`${formatKronerExact(gap.ore.toString())} ${nb['keyFigures.oneOff']}`);
+    await expect(body, key).toContainText(nb['provenance.fromDocument']);
+    await expect(body, key).toContainText(nb['provenance.source.document']);
+  }
+  // Verdi's working-capital card: one drill-down, both parts.
+  await page.goto(`${base}/verdi`);
+  const card = rendered(page).getByTestId('verdi-working-capital');
+  await card.locator('[data-provenance-trigger="verdi-prov-working-capital"]').click();
+  const wc = card.locator('[data-provenance-body="verdi-prov-working-capital"]');
+  await expect(wc).toBeVisible();
+  await expect(wc).toContainText(nb['fig.kfd']);
+  await expect(wc).toContainText(nb['fig.lgd']);
+  await expect(wc).toContainText(`${formatKronerExact(kfd.gap.ore.plus(lgd.gap.ore).toString())} ${nb['keyFigures.oneOff']}`);
+  await noSidewaysScroll(page);
 });
 
 // Story 3.4: Oversikt's "Største kapitalgap" over the fixture.
@@ -229,18 +290,18 @@ test('the capital card shows the engine’s largest amount', async ({ page }) =>
   if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
     throw new Error('the fixture has an amount on 9, 10 and 11');
   }
-  // The oracle, written out here rather than taken from the engine's choice: the working-capital
-  // total (9 + 10) against (11), the larger exact amount, the total on a tie.
+  // The fixture's state, written out here rather than taken from the engine's choice: (11) is
+  // larger than the working-capital total (9 + 10), and its amount shows as 864 967 742 kr.
   const total = kfd.gap.ore.plus(lgd.gap.ore);
-  const largest = oml.gap.ore.gt(total) ? { figure: 'oml' as const, ore: oml.gap.ore } : { figure: 'working_capital' as const, ore: total };
-  const choice = largestCapitalGap(kfd.gap, lgd.gap, oml.gap);
-  expect(choice).toMatchObject({ kind: 'amount', figure: largest.figure });
+  expect(oml.gap.ore.gt(total)).toBe(true);
+  expect(formatKronerExact(oml.gap.ore.toString())).toBe('864 967 742 kr'.replaceAll(' ', String.fromCharCode(0xa0)));
+  expect(largestCapitalGap(kfd.gap, lgd.gap, oml.gap)).toMatchObject({ kind: 'amount', figure: 'oml' });
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/oversikt`);
   const capital = rendered(page).getByTestId('card-capital');
-  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL[largest.figure]);
+  await expect(capital.locator('[data-card="name"]')).toHaveText(CAPITAL_LABEL.oml);
   await expect(capital.locator('[data-card="value"]')).toHaveText(
-    nb['oversikt.capital.amount'].replace('{belop}', formatKronerExact(largest.ore.toString())),
+    nb['oversikt.capital.amount'].replace('{belop}', '864 967 742 kr'.replaceAll(' ', String.fromCharCode(0xa0))),
   );
   // Story 3.5: the top note, with "· Endre i Verdi", then the separation line.
   const note = capital.getByTestId('top-note');
@@ -263,9 +324,14 @@ test('no document øre reaches Oversikt', async ({ request }) => {
     ore.floor().toString(),
     ore.toString().replace('.', ''),
   ]);
+  // The fixture's state: (11)'s amount is larger than working capital's, so the capital card shows (11).
+  expect(largestCapitalGap(kfd.gap, lgd.gap, oml.gap)).toMatchObject({ kind: 'amount', figure: 'oml' });
   await expectNoDocumentFields(request, `${base}/oversikt`, {
     ore: [...documentOre(), ...capital],
     marker: nb['oversikt.capital.kicker'],
+    // Story 3.7: the hero's drill-down and the capital card's, of (11).
+    fields: [...PROFIT_FIELDS, ...OML_FIELDS],
+    ...LINES,
   });
 });
 
@@ -425,13 +491,59 @@ test('Verdi: the three cards against the engine, the median step disabled with i
   await check(new Decimal('0.75'), '75');
 });
 
+// Review: the share line the browser writes into Verdi's (11) and working-capital drill-downs,
+// each its own card's, at 50 % and after a share change.
+test('Verdi: the capital drill-downs’ share lines are their own cards’, and follow the share', async ({ page }) => {
+  const { kfd, lgd, oml } = expected;
+  if (kfd.gap.kind !== 'amount' || lgd.gap.kind !== 'amount' || oml.gap.kind !== 'amount') {
+    throw new Error('the fixture has an amount on 9, 10 and 11');
+  }
+  const NBSP = String.fromCharCode(0xa0);
+  const plain = (text: string) => text.replaceAll(NBSP, ' ');
+  const line = (full: Decimal, percent: number) => {
+    const factor = new Decimal(percent).div(100);
+    const amount = full.mul(factor);
+    const sign = shareLineIsApproximate(full, factor, amount) ? '≈' : '=';
+    return { sign, text: plain(`${formatKronerExact(full.toString())} × ${percent} % ${sign} ${formatKronerExact(amount.toString())}`) };
+  };
+  const total = kfd.gap.ore.plus(lgd.gap.ore);
+  // The fixture's state: each line's sign by the displayed-operand rule, written out.
+  expect([line(oml.gap.ore, 50).sign, line(total, 50).sign, line(oml.gap.ore, 75).sign, line(total, 75).sign]).toEqual(['=', '≈', '≈', '≈']);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/verdi`);
+  const chips = async (id: string) => (await rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`).allInnerTexts()).map(plain);
+  for (const id of ['verdi-prov-oml', 'verdi-prov-working-capital']) {
+    await rendered(page).locator(`[data-provenance-trigger="${id}"]`).click();
+    await expect(rendered(page).locator(`[data-provenance-body="${id}"]`)).toBeVisible();
+  }
+  expect(await chips('verdi-prov-oml')).toContain(line(oml.gap.ore, 50).text);
+  expect(await chips('verdi-prov-oml')).not.toContain(line(total, 50).text);
+  expect(await chips('verdi-prov-working-capital')).toContain(line(total, 50).text);
+  expect(await chips('verdi-prov-working-capital')).not.toContain(line(oml.gap.ore, 50).text);
+  await rendered(page).locator('[data-share-step="75"]').click();
+  // Wait for the share to render before reading the drill-downs (PR #78).
+  await expect(rendered(page).locator('[data-share-step="75"]')).toHaveAttribute('aria-checked', 'true');
+  for (const id of ['verdi-prov-oml', 'verdi-prov-working-capital']) {
+    await expect(rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`, { hasText: ' × 75' })).toHaveCount(1);
+  }
+  expect(await chips('verdi-prov-oml')).toContain(line(oml.gap.ore, 75).text);
+  expect(await chips('verdi-prov-working-capital')).toContain(line(total, 75).text);
+  expect(await chips('verdi-prov-oml')).not.toContain(line(oml.gap.ore, 50).text);
+});
+
 test('Verdi carries exactly the wire set and no document øre', async ({ request }) => {
   const o = verdiOracle();
   // The fixture's state: no median step, so no s_med and no profit at the median cross.
   expect(o.step.kind).toBe('none');
   const wire = [o.profitFull, o.kfd, o.lgd, o.total, o.oml].map((value) => value.toString()).sort();
   await expectWireSet(request, `${base}/verdi`, subject.orgnr, wire);
-  await expectNoDocumentFields(request, `${base}/verdi`, { ore: documentOre(), marker: 'VerdiPanel' });
+  await expectNoDocumentFields(request, `${base}/verdi`, {
+    ore: documentOre(),
+    marker: 'VerdiPanel',
+    // Story 3.7: the three cards' drill-downs (no multiple, so no EV).
+    fields: [...PROFIT_FIELDS, ...KFD_FIELDS, ...LGD_FIELDS, ...OML_FIELDS],
+    ...LINES,
+  });
 });
 
 for (const width of [375, 320]) {

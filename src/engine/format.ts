@@ -119,6 +119,39 @@ export function wholeKroner(oreAmount: string): Decimal {
 }
 
 /**
+ * The value a displayed figure shows, as a value (Story 3.7): what
+ * `formatPercent`, `formatDays` and `formatTurnover` write, rounded here by
+ * the same rounding, so a rule decided on displayed numbers (whether a
+ * drill-down's line is approximate) reads what the page shows.
+ * A fraction (0.02149) → 0.021, one decimal of percent.
+ */
+export function shownPercent(fraction: string): Decimal {
+  return roundHalfAwayFromZero(decimal(fraction).mul(100), 1).div(100);
+}
+
+/** Days → the whole days `formatDays` shows, as a value. */
+export function shownDays(days: string): Decimal {
+  return roundHalfAwayFromZero(decimal(days), 0);
+}
+
+/** A turnover ratio → the two decimals `formatTurnover` shows, as a value. */
+export function shownTurnover(value: string): Decimal {
+  return roundHalfAwayFromZero(decimal(value), 2);
+}
+
+/**
+ * The interpolation factor of a quartile (Story 3.7, "Vis fordelingen"): a
+ * fraction with at most two decimals (0.25, 0.5, 0.75 for a quartile),
+ * written exactly: "0,25", "0,5". Anything it would have to round throws,
+ * so the line a reader recomputes by hand is never rounded silently.
+ */
+export function formatFactor(value: string): string {
+  const exact = decimal(value);
+  if (!roundHalfAwayFromZero(exact, 2).eq(exact)) throw new RangeError(`not a factor with at most two decimals: ${value}`);
+  return render(exact, 2, { trimTrailingZeros: true });
+}
+
+/**
  * Percent (0–100) → the whole percent, no unit: "12", for a template that
  * writes the unit itself ("Til medianen for driftsmargin ({n} %)", Story 3.5).
  */

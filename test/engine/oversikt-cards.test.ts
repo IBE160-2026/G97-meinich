@@ -37,14 +37,14 @@ const BELOW: CapitalGap = { kind: 'none', reason: 'no_comparison' };
 describe('largestCapitalGap', () => {
   it('the largest amount wins, compared exactly', () => {
     // Fixture: (9) 100 + (10) 200 = 300 øre of working capital; (11) 301 øre, larger.
-    expect(largestCapitalGap(amount('100'), amount('200'), amount('301'))).toEqual({
+    expect(largestCapitalGap(amount('100'), amount('200'), amount('301'))).toMatchObject({
       kind: 'amount',
       figure: 'oml',
       ore: new Decimal('301'),
       oneOff: true,
     });
     // (11) smaller: the working-capital total, the one sum shown.
-    expect(largestCapitalGap(amount('100'), amount('200'), amount('299'))).toEqual({
+    expect(largestCapitalGap(amount('100'), amount('200'), amount('299'))).toMatchObject({
       kind: 'amount',
       figure: 'working_capital',
       ore: new Decimal('300'),
@@ -54,23 +54,35 @@ describe('largestCapitalGap', () => {
 
   it('one of 9 and 10 alone is shown as that part; beside a strength it is the working-capital total', () => {
     // Fixture: (9) an amount, (10) below the floor, (11) none: (9) alone, no total.
-    expect(largestCapitalGap(amount('500'), BELOW, BELOW)).toEqual({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
-    expect(largestCapitalGap(BELOW, amount('700'), BELOW)).toEqual({ kind: 'amount', figure: 'lgd', ore: new Decimal('700'), oneOff: true });
+    expect(largestCapitalGap(amount('500'), BELOW, BELOW)).toMatchObject({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
+    expect(largestCapitalGap(BELOW, amount('700'), BELOW)).toMatchObject({ kind: 'amount', figure: 'lgd', ore: new Decimal('700'), oneOff: true });
     // Story 3.5, decision 1: beside a strength, which counts as 0, the same amount is the working-capital total.
-    expect(largestCapitalGap(amount('500'), STRENGTH, BELOW)).toEqual({
+    expect(largestCapitalGap(amount('500'), STRENGTH, BELOW)).toMatchObject({
       kind: 'amount',
       figure: 'working_capital',
       ore: new Decimal('500'),
       oneOff: true,
     });
-    expect(largestCapitalGap(STRENGTH, amount('700'), BELOW)).toEqual({
+    expect(largestCapitalGap(STRENGTH, amount('700'), BELOW)).toMatchObject({
       kind: 'amount',
       figure: 'working_capital',
       ore: new Decimal('700'),
       oneOff: true,
     });
     // (9) alone against a smaller (11): (9), never 9 + 11.
-    expect(largestCapitalGap(amount('500'), BELOW, amount('400'))).toEqual({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
+    expect(largestCapitalGap(amount('500'), BELOW, amount('400'))).toMatchObject({ kind: 'amount', figure: 'kfd', ore: new Decimal('500'), oneOff: true });
+  });
+
+  // Story 3.7: the drill-down names what was compared, in figure order, the chosen one among them.
+  it('names every candidate it compared', () => {
+    const choice = largestCapitalGap(amount('100'), amount('200'), amount('301'));
+    if (choice.kind !== 'amount') throw new Error('the fixture has amounts');
+    expect(choice.candidates.map((c) => [c.figure, c.ore.toString()])).toEqual([
+      ['working_capital', '300'],
+      ['oml', '301'],
+    ]);
+    const alone = largestCapitalGap(BELOW, amount('700'), BELOW);
+    expect(alone.kind === 'amount' ? alone.candidates.map((c) => c.figure) : null).toEqual(['lgd']);
   });
 
   it('a tie goes to the lower figure number', () => {
@@ -128,6 +140,8 @@ function compared(direction: Direction, subject: string, percentile = '50'): Com
     upperQuartile: d('0.6'),
     p5: d('0.1'),
     p95: d('0.9'),
+    // A hand-made comparison: no test here reads its distribution (Story 3.7's "Vis fordelingen").
+    sorted: [],
     best:
       direction === 'none'
         ? null

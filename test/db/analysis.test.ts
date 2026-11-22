@@ -76,6 +76,60 @@ describe('loadSubject', () => {
     expect((await loadSubject(DEMO_C))?.filing?.filingYear).toBe(row?.newest);
   });
 
+  // Story 3.7 (D2): SUBJECT_SQL returns every SELSKAP filing and the engine
+  // chooses. Against the order the query itself used before (filing_year,
+  // periode_til, periode_fra, brreg_id, each descending, LIMIT 1), for every
+  // stored company with more than one SELSKAP filing. Totals only.
+  it('chooses the same filing the old SQL chose, for every company with several filings', async () => {
+    const expected = await readerSql()<{ orgnr: string; filing_year: number; periode_fra: string; periode_til: string }[]>`
+      select distinct on (orgnr) orgnr, filing_year, periode_fra::text as periode_fra, periode_til::text as periode_til
+        from register.filing
+       where regnskapstype = 'SELSKAP'
+         and orgnr in (select orgnr from register.filing where regnskapstype = 'SELSKAP' group by orgnr having count(*) > 1)
+       order by orgnr, filing_year desc, periode_til desc, periode_fra desc, brreg_id desc`;
+    expect(expected.length).toBeGreaterThan(0);
+    const differing: string[] = [];
+    for (const row of expected) {
+      const filing = (await loadSubject(row.orgnr))?.filing;
+      const got = filing === null || filing === undefined ? null : [filing.filingYear, filing.periodeFra, filing.periodeTil];
+      if (JSON.stringify(got) !== JSON.stringify([row.filing_year, row.periode_fra, row.periode_til])) differing.push(row.orgnr);
+    }
+    expect(differing.length).toBe(0);
+    // One loadSubject per company, in turn: 47 s alone on 2026-11-22, past the
+    // suite's 60 s limit under the full `pnpm test:db`.
+  }, 300_000);
+
+  // Two filings in one year, in a rolled-back transaction: a second filing
+  // ending on the same day but starting later is chosen over the stored one.
+  it('chooses between two filings in one year by the later period start', async () => {
+    class Rollback extends Error {}
+    let chosen: readonly [number, string, string] | null = null;
+    let year = 0;
+    await expect(
+      owner.begin(async (tx) => {
+        const [base] = await tx<{ brreg_id: string; filing_year: number; periode_fra: string }[]>`
+          select brreg_id::text, filing_year, periode_fra::text from register.filing
+           where orgnr = ${DEMO_A.orgnr}::char(9) and regnskapstype = 'SELSKAP'
+           order by filing_year desc limit 1`;
+        if (base === undefined) throw new Error('demo A has no filing');
+        year = base.filing_year;
+        expect(base.periode_fra).toBe(`${year}-01-01`);
+        await tx`
+          insert into register.filing (orgnr, regnskapstype, periode_fra, periode_til, brreg_id, filing_year, valuta,
+                                       regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at)
+          select orgnr, regnskapstype, make_date(${year}, 7, 1), periode_til, 1, filing_year, valuta,
+                 regnskapsregler, smaa_foretak, avviklingsregnskap, reporting_unit, status, read_at
+            from register.filing where brreg_id = ${base.brreg_id}::bigint`;
+        const rows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [DEMO_A.orgnr]);
+        expect(rows.filter((row) => row.filing_year === year).length).toBe(2);
+        const filing = toSubject(rows).filing;
+        chosen = filing === null ? null : [filing.filingYear, filing.periodeFra, filing.periodeTil];
+        throw new Rollback();
+      }),
+    ).rejects.toBeInstanceOf(Rollback);
+    expect(chosen).toEqual([year, `${year}-07-01`, `${year}-12-31`]);
+  });
+
   it('is one parameterised query that reads only the register tables it needs', () => {
     expect(SUBJECT_SQL).toContain('$1::char(9)');
     const tables = [...SUBJECT_SQL.matchAll(/register\.(\w+)/g)].map((m) => m[1]);
@@ -111,6 +165,55 @@ describe('loadSubject', () => {
     // Demo A is not on the list: not in the dataset, whatever rows a local
     // document run left behind.
     expect((await loadSubject(DEMO_A.orgnr))?.filing?.documentBasis).toEqual({ kind: 'not_in_dataset' });
+  });
+});
+
+// Story 3.7: the drill-down's data date and data-quality line read the
+// stored document's read time and its current column's checks. Against the
+// stored rows of the listed companies whose benchmark-year document has a
+// current column. Totals only: no company is named.
+describe('the stored document facts', () => {
+  it('equal the stored read time, checks and API comparison of the current column', async () => {
+    const stored = await readerSql()<
+      {
+        orgnr: string;
+        filing_year: number;
+        read_at: Date;
+        brreg_id: string | null;
+        c1: string;
+        c2: string;
+        c3: string;
+        c4: string;
+        c5: string | null;
+        api_check: string | null;
+        api_fail_fields: string[] | null;
+      }[]
+    >`
+      select d.orgnr, d.filing_year, d.read_at, d.brreg_id::text as brreg_id, cur.c1, cur.c2, cur.c3, cur.c4, cur.c5, cur.api_check, cur.api_fail_fields
+        from register.document d
+        join register.document_column cur on cur.orgnr = d.orgnr and cur.filing_year = d.filing_year and cur.role = 'current'
+       where d.orgnr in (select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') from register.dataset)
+         and d.filing_year = (select max(f.filing_year) from register.filing f
+                               where f.orgnr = d.orgnr and f.regnskapstype = 'SELSKAP')`;
+    // The fixture's state: the listed companies' benchmark-year documents are stored.
+    expect(stored.length).toBeGreaterThan(0);
+    for (const row of stored) {
+      const filing = (await loadSubject(row.orgnr))?.filing;
+      expect(filing?.filingYear).toBe(row.filing_year);
+      if (filing === null || filing === undefined) throw new Error('a listed company has its filing');
+      expect(filing.documentFacts.readAt?.getTime()).toBe(row.read_at.getTime());
+      // Review B1: the filing the document was compared with, as stored.
+      expect(filing.documentFacts.brregId).toBe(row.brreg_id === null ? null : BigInt(row.brreg_id));
+      expect(filing.documentFacts.current).toMatchObject({
+        checks: { c1: row.c1, c2: row.c2, c3: row.c3, c4: row.c4, c5: row.c5 },
+        apiCheck: row.api_check,
+        apiFailFields: row.api_fail_fields,
+      });
+    }
+  });
+
+  it('are empty for a company with no stored document', async () => {
+    expect((await loadSubject(DEMO_C))?.filing?.documentFacts).toEqual({ readAt: null, brregId: null, current: null });
   });
 });
 
@@ -174,11 +277,11 @@ describe('the document basis of a year', () => {
              set manifest = jsonb_set(manifest, '{document_figure_orgnrs}',
                                       (manifest -> 'document_figure_orgnrs') || to_jsonb(${ORGNR}::text))`;
         expect(listed.count).toBe(1);
-        const [subjectRow] = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [ORGNR]);
+        const subjectRows = await tx.unsafe<SubjectRow[]>(SUBJECT_SQL, [ORGNR]);
         const candidateRows = await tx.unsafe<CandidateRow[]>(CANDIDATES_SQL, ['000000000', '62.100', 2024]);
         const candidateRow = candidateRows.find((row) => row.orgnr === ORGNR);
-        if (subjectRow === undefined || candidateRow === undefined) throw new Error('the synthetic company was not read');
-        read = { subject: toSubject(subjectRow).filing?.documentBasis, candidate: toCandidate(candidateRow).documentBasis };
+        if (subjectRows.length === 0 || candidateRow === undefined) throw new Error('the synthetic company was not read');
+        read = { subject: toSubject(subjectRows).filing?.documentBasis, candidate: toCandidate(candidateRow).documentBasis };
         throw new Rollback();
       });
     } catch (error) {

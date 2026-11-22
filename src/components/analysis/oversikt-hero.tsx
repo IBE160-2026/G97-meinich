@@ -15,6 +15,10 @@
 // the card when there is an amount to qualify, with "· Endre i Verdi"
 // (Story 3.5); the amount stays at full convergence whatever the share. The amount scales with the
 // card (`.hero-amount` in globals.css), so it never wraps or overflows.
+//
+// Story 3.7 (UX-DR12): "Hvordan er dette regnet?" under the amount, the link
+// Story 1.9 left out: the same drill-down the table's driftsmargin cell opens
+// (src/analysis/provenance.ts), at full convergence.
 import { heroContext, type FigureBenchmark } from '@/engine/benchmark';
 import { formatPercent, formatPercentagePoints, formatWholePercent } from '@/engine/format';
 import type { EmptyReason, StatedField } from '@/engine/peers';
@@ -26,6 +30,9 @@ import { FIGURES } from './api-figures';
 import { kronerAmountText } from '@/analysis/kroner-amount';
 import { AnalysisLink } from './analysis-link';
 import { emptyText, type EmptyContext } from './peer-list';
+import type { ProvenanceView } from '@/analysis/provenance';
+import { Provenance } from './provenance';
+import { ProvenanceSteps } from './provenance-steps';
 import { TopNote } from './top-note';
 
 const KICKER_ID = 'hero-kicker';
@@ -91,7 +98,10 @@ function heroModel(figure: FigureBenchmark, emptyReason: EmptyReason, empty: Emp
 
 const figurePair = 'figure m-0 text-[18px] font-semibold break-words';
 
-function Body({ model }: { readonly model: HeroModel }) {
+/** The hero's drill-down's id. */
+export const HERO_PROVENANCE_ID = 'hero-prov';
+
+function Body({ model, provenance }: { readonly model: HeroModel; readonly provenance: ProvenanceView | null }) {
   if (model.kind !== 'compared') {
     return (
       <>
@@ -112,6 +122,11 @@ function Body({ model }: { readonly model: HeroModel }) {
             {main.text}
           </p>
           <p className="m-0 mt-1 text-slate">{t('hero.perYear')}</p>
+          {provenance === null ? null : (
+            <Provenance id={HERO_PROVENANCE_ID}>
+              <ProvenanceSteps id={HERO_PROVENANCE_ID} view={provenance} />
+            </Provenance>
+          )}
         </>
       ) : null}
       {main.kind === 'strength' ? (
@@ -141,6 +156,7 @@ export function OversiktHero({
   filingYear,
   valuta,
   unstatedField,
+  provenance,
 }: {
   /** The shown group's driftsmargin benchmark, the same the table reads. */
   readonly figure: FigureBenchmark;
@@ -151,8 +167,12 @@ export function OversiktHero({
   readonly valuta: string | null;
   /** The subject's first unstated stage-2 field, named by `subject_field_not_stated`. */
   readonly unstatedField: StatedField | null;
+  /** The profit uplift's drill-down (Story 3.7); null where there is no amount. */
+  readonly provenance: ProvenanceView | null;
 }) {
   const model = heroModel(figure, emptyReason, { filingYear, valuta, unstatedField });
+  const amount = model.kind === 'compared' && model.main.kind === 'amount';
+  if (amount !== (provenance !== null)) throw new Error('the hero’s amount and its drill-down disagree');
   return (
     <section
       aria-labelledby={KICKER_ID}
@@ -169,7 +189,7 @@ export function OversiktHero({
           {t(DIRECTION_WORDS[figure.direction])}
         </span>
       </p>
-      <Body model={model} />
+      <Body model={model} provenance={provenance} />
       <p className="m-0 mt-4 text-[13px]">
         <AnalysisLink target={{ fane: 'nokkeltall' }} className="inline-flex min-h-6 items-center">
           {t('hero.link')}

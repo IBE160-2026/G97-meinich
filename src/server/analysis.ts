@@ -1,7 +1,8 @@
 import 'server-only';
 // The subject of one analysis (Story 1.6b), read as `reader`: the company,
-// whether its primary industry is covered, its newest SELSKAP filing and
-// that filing's key figures. One parameterised query ($1 is the orgnr the
+// whether its primary industry is covered, its SELSKAP filings with their
+// key figures, of which the engine picks the benchmark filing (Story 3.7,
+// D2: `subjectBenchmarkFiling`). One parameterised query ($1 is the orgnr the
 // URL module has already checked: nine digits, modulus 11). Peerless's own
 // database only, never the register.
 //
@@ -24,6 +25,7 @@ import {
   DOCUMENT_JOINS,
   DOCUMENT_SELECT,
   documentBasisOf,
+  documentFactsOf,
   logCandidatesRead,
   logSubjectRead,
   type DocumentBasisColumns,
@@ -32,7 +34,7 @@ import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
 import { API_KEY_FIGURE_COLUMNS, apiKeyFigures, parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
-import type { CandidateFiling } from '../engine/peers.ts';
+import { subjectBenchmarkFiling, type CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
 
@@ -49,6 +51,8 @@ interface SubjectRowFields extends SubjectKeyFigures, FingerprintColumns {
   naeringskode1_beskrivelse: string | null;
   forretningsadresse_kommune: string | null;
   covered: boolean;
+  /** The filing's register id (int8 as a string); null when the company has no SELSKAP filing. */
+  brreg_id: string | null;
   /** Null when the company has no SELSKAP filing. */
   filing_year: number | null;
   regnskapstype: string | null;
@@ -67,9 +71,11 @@ interface SubjectRowFields extends SubjectKeyFigures, FingerprintColumns {
 // join aliased `k`. `bigint` arrives as a string.
 const KEY_FIGURE_SELECT = API_KEY_FIGURE_COLUMNS.map((column) => `k.${column}`).join(',\n       ');
 
-// The newest SELSKAP filing by filing_year (then by period end, should two
-// periods end in one year, then by period start and the register's id, so
-// the choice is deterministic), with KEY_FIGURE_SELECT.
+// Every SELSKAP filing of the subject, one row each with its key figures
+// (KEY_FIGURE_SELECT), its year's fingerprint and its year's document; a
+// company with no SELSKAP filing gives one row whose filing columns are all
+// NULL. The query chooses no filing: the engine's `subjectBenchmarkFiling`
+// does (Story 3.7, D2), on the one order `benchmarkFiling` writes.
 export const SUBJECT_SQL = `
 select c.orgnr,
        c.navn,
@@ -79,6 +85,7 @@ select c.orgnr,
        c.forretningsadresse_kommune,
        exists (select 1 from register.covered_industry ci where ci.code = c.naeringskode1) as covered,
        exists (select 1 from register.dataset) as dataset_loaded,
+       f.brreg_id,
        f.filing_year,
        f.regnskapstype,
        f.periode_fra::text as periode_fra,
@@ -100,40 +107,68 @@ select c.orgnr,
        cl.business_type as classification,
        ${DOCUMENT_SELECT}
   from register.company c
-  left join lateral (
-        select fi.brreg_id, fi.filing_year, fi.regnskapstype, fi.periode_fra, fi.periode_til, fi.valuta,
-               fi.regnskapsregler, fi.smaa_foretak, fi.avviklingsregnskap, fi.read_at
-          from register.filing fi
-         where fi.orgnr = c.orgnr and fi.regnskapstype = 'SELSKAP'
-         order by fi.filing_year desc, fi.periode_til desc, fi.periode_fra desc, fi.brreg_id desc
-         limit 1
-       ) f on true
+  left join register.filing f on f.orgnr = c.orgnr and f.regnskapstype = 'SELSKAP'
   left join register.key_figures k on k.brreg_id = f.brreg_id
   left join register.fingerprint fp on fp.orgnr = c.orgnr and fp.filing_year = f.filing_year
   left join register.classification cl on cl.orgnr = c.orgnr${DOCUMENT_JOINS}
  where c.orgnr = $1::char(9)`;
 
-export function toSubject(row: SubjectRow): Subject {
+/** A SUBJECT_SQL row that holds a filing, with what `subjectBenchmarkFiling` orders it by. */
+type FilingRow = {
+  readonly row: SubjectRow & { readonly filing_year: number; readonly regnskapstype: string; readonly periode_fra: string; readonly periode_til: string; readonly filing_read_at: Date };
+  readonly filingYear: number;
+  readonly regnskapstype: string;
+  readonly periodeFra: string;
+  readonly periodeTil: string;
+  readonly brregId: bigint;
+};
+
+function filingRow(row: SubjectRow): FilingRow | null {
+  const { filing_year, regnskapstype, periode_fra, periode_til, filing_read_at } = row;
+  if (filing_year === null || regnskapstype === null || periode_fra === null || periode_til === null || filing_read_at === null) {
+    return null;
+  }
+  // brreg_id is int8: parseOre reads any int8 string exactly. A filing row always has one.
+  const brregId = parseOre(row.brreg_id);
+  if (brregId === null) throw new TypeError('filing without brreg_id');
+  return {
+    row: { ...row, filing_year, regnskapstype, periode_fra, periode_til, filing_read_at },
+    filingYear: filing_year,
+    regnskapstype,
+    periodeFra: periode_fra,
+    periodeTil: periode_til,
+    brregId,
+  };
+}
+
+/**
+ * The subject from SUBJECT_SQL's rows: the company (the same on every row)
+ * and its benchmark filing, chosen by the engine (`subjectBenchmarkFiling`,
+ * Story 3.7, D2). Throws on no rows: the caller decides "not found".
+ */
+export function toSubject(rows: readonly SubjectRow[]): Subject {
+  const first = rows[0];
+  if (first === undefined) throw new RangeError('toSubject needs the company row');
+  const chosen = subjectBenchmarkFiling(rows.map(filingRow).filter((filing) => filing !== null));
+  const row = chosen?.row ?? first;
   const filing =
-    row.filing_year === null ||
-    row.filing_read_at === null ||
-    row.regnskapstype === null ||
-    row.periode_fra === null ||
-    row.periode_til === null
+    chosen === null
       ? null
       : {
-          filingYear: row.filing_year,
-          regnskapstype: row.regnskapstype,
-          periodeFra: row.periode_fra,
-          periodeTil: row.periode_til,
+          filingYear: chosen.row.filing_year,
+          regnskapstype: chosen.row.regnskapstype,
+          periodeFra: chosen.row.periode_fra,
+          periodeTil: chosen.row.periode_til,
           valuta: row.valuta,
           regnskapsregler: row.regnskapsregler,
           smaaForetak: row.smaa_foretak,
           avviklingsregnskap: row.avviklingsregnskap,
-          readAt: row.filing_read_at,
+          readAt: chosen.row.filing_read_at,
+          brregId: chosen.brregId,
           fingerprint: fingerprintFromColumns(row),
           classification: businessTypeFromColumn(row.classification),
-          documentBasis: documentBasisOf(row, row.filing_year),
+          documentBasis: documentBasisOf(row, chosen.row.filing_year),
+          documentFacts: documentFactsOf(row),
           keyFigures: apiKeyFigures(row),
         };
   return {
@@ -153,7 +188,7 @@ export async function loadSubject(orgnr: string): Promise<Subject | null> {
   const rows = await readerSql().unsafe<SubjectRow[]>(SUBJECT_SQL, [orgnr]);
   const row = rows[0];
   if (row === undefined) return null;
-  const subject = toSubject(row);
+  const subject = toSubject(rows);
   logSubjectRead(row.dataset_loaded, subject.filing?.documentBasis ?? null);
   return subject;
 }

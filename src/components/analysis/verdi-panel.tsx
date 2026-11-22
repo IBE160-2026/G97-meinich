@@ -21,13 +21,23 @@
 // E3, computed here by `verdiCards` like the cards, so it rescales with the
 // share. The multiple is written by the same `replaceSettings`. The value is
 // its own amount, never added to a card.
-import { useEffect, useRef, useState } from 'react';
+//
+// Story 3.7: "Hvordan er dette regnet?" under each card's amount and under
+// EV's value. The server renders each drill-down (verdi-provenance.tsx); its
+// share line and EV's product line are this panel's `verdiCards` at the live
+// share, read through VerdiViewContext. A card without an amount has no
+// trigger.
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { verdiCards, type CardView, type EvView, type VerdiWire, type WorkingCapitalView } from '@/analysis/verdi-view';
 import type { ClosableShare, Multiple } from '@/engine/closable';
 import { t } from '@/messages';
 import { useAnalysisUrl } from './analysis-url';
 import { ClosableShareControl } from './closable-share';
 import { MultipleField } from './multiple-field';
+import { Provenance } from './provenance';
+import { VerdiViewContext } from './verdi-formula-slot';
+import { VERDI_PROVENANCE_IDS } from './verdi-provenance-ids';
+import type { VerdiProvenance } from './verdi-provenance';
 
 function MedianTickLine({ text }: { readonly text: string }) {
   return (
@@ -56,11 +66,14 @@ function Card({
   kicker,
   card,
   parts = null,
+  provenance = null,
 }: {
   readonly id: string;
   readonly kicker: string;
   readonly card: CardView;
   readonly parts?: WorkingCapitalView['parts'] | null;
+  /** The drill-down, where the card shows an amount (Story 3.7). */
+  readonly provenance?: { readonly id: string; readonly node: ReactNode } | null;
 }) {
   return (
     <section aria-labelledby={id} data-testid={id} className="min-w-0 rounded-lg border border-divider p-card-padding-phone md:p-card-padding">
@@ -78,6 +91,7 @@ function Card({
         </ul>
       )}
       <Value card={card} />
+      {provenance === null ? null : <Provenance id={provenance.id}>{provenance.node}</Provenance>}
       {card.detail === null ? null : <p className="m-0 mt-1.5 text-[13px] text-slate">{card.detail}</p>}
       {card.share === null ? null : (
         <p className="m-0 mt-1 text-[13px] text-slate" data-card="share">
@@ -94,11 +108,14 @@ function EvSection({
   current,
   onCommit,
   announcementFor,
+  provenance,
 }: {
   readonly ev: EvView;
   readonly current: Multiple | null;
   readonly onCommit: (multiple: Multiple | null) => void;
   readonly announcementFor: (multiple: Multiple) => string;
+  /** EV's drill-down: the profit's, with the product line (Story 3.7). */
+  readonly provenance: ReactNode | null;
 }) {
   return (
     <section
@@ -121,6 +138,7 @@ function EvSection({
           <p className="m-0 mt-1 text-[13px] text-slate" data-ev="explanation">
             {ev.explanation}
           </p>
+          {provenance === null ? null : <Provenance id={VERDI_PROVENANCE_IDS.ev}>{provenance}</Provenance>}
         </>
       ) : ev.kind === 'empty' ? (
         <p className="m-0 mt-3 text-slate" data-ev="empty">
@@ -131,7 +149,14 @@ function EvSection({
   );
 }
 
-export function VerdiPanel({ wire }: { readonly wire: VerdiWire }) {
+/** A card's drill-down where it shows an amount; an amount the server gave no drill-down is a bug. */
+function shown(amount: boolean, id: string, node: ReactNode | null): { readonly id: string; readonly node: ReactNode } | null {
+  if (!amount) return null;
+  if (node === null) throw new Error(`the Verdi card ${id} shows an amount with no drill-down`);
+  return { id, node };
+}
+
+export function VerdiPanel({ wire, provenance }: { readonly wire: VerdiWire; readonly provenance: VerdiProvenance }) {
   const url = useAnalysisUrl();
   const share = url.state.andel;
   const multiple = url.state.multippel;
@@ -156,12 +181,29 @@ export function VerdiPanel({ wire }: { readonly wire: VerdiWire }) {
   };
 
   return (
+    <VerdiViewContext.Provider value={{ view, share }}>
     <div className="mt-2" data-testid="verdi">
       <ClosableShareControl steps={view.steps} current={share} line={view.line} applies={view.applies} onChoose={choose} />
       <div className="mt-6 grid grid-cols-1 gap-grid-gap-phone md:grid-cols-3 md:gap-grid-gap" data-testid="verdi-cards">
-        <Card id="verdi-profit" kicker={t('verdi.profit.kicker')} card={view.profit} />
-        <Card id="verdi-working-capital" kicker={t('verdi.workingCapital.kicker')} card={view.workingCapital} parts={view.workingCapital.parts} />
-        <Card id="verdi-oml" kicker={t('verdi.oml.kicker')} card={view.oml} />
+        <Card
+          id="verdi-profit"
+          kicker={t('verdi.profit.kicker')}
+          card={view.profit}
+          provenance={shown(view.profit.value?.kind === 'amount', VERDI_PROVENANCE_IDS.profit, provenance.profit)}
+        />
+        <Card
+          id="verdi-working-capital"
+          kicker={t('verdi.workingCapital.kicker')}
+          card={view.workingCapital}
+          parts={view.workingCapital.parts}
+          provenance={shown(view.workingCapital.shareLines.length > 0, VERDI_PROVENANCE_IDS.workingCapital, provenance.workingCapital)}
+        />
+        <Card
+          id="verdi-oml"
+          kicker={t('verdi.oml.kicker')}
+          card={view.oml}
+          provenance={shown(view.oml.value?.kind === 'amount', VERDI_PROVENANCE_IDS.oml, provenance.oml)}
+        />
       </div>
       <EvSection
         ev={view.ev}
@@ -173,10 +215,12 @@ export function VerdiPanel({ wire }: { readonly wire: VerdiWire }) {
           if (ev.kind !== 'value') throw new Error('a multiple on a profit amount gives a value');
           return ev.announcement;
         }}
+        provenance={view.ev.kind === 'value' ? provenance.ev : null}
       />
       <div role="status" className="sr-only" data-testid="verdi-status">
         {message}
       </div>
     </div>
+    </VerdiViewContext.Provider>
   );
 }

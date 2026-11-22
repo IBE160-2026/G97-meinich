@@ -146,6 +146,12 @@ export type Comparison =
       readonly p5: Decimal;
       readonly p95: Decimal;
       /**
+       * The `count` peer values the statistics are taken from, ascending
+       * (Story 3.7): "Vis fordelingen" shows them, so beste fjerdedel can be
+       * computed again by hand. Values only, never a peer's name or orgnr.
+       */
+      readonly sorted: readonly Decimal[];
+      /**
        * Beste fjerdedel and Plassering, in the favourable direction; null for
        * a figure with no direction. `percentile` is in percent (0–100).
        */

@@ -266,7 +266,18 @@ export type CapitalChoice = 'working_capital' | CapitalFigure;
  *   below the floor, undefined, a strength or without a capital base).
  */
 export type LargestCapitalGap =
-  | { readonly kind: 'amount'; readonly figure: CapitalChoice; readonly ore: Decimal; readonly oneOff: true }
+  | {
+      readonly kind: 'amount';
+      readonly figure: CapitalChoice;
+      readonly ore: Decimal;
+      readonly oneOff: true;
+      /**
+       * Every candidate compared, in figure order, the chosen one among them
+       * (Story 3.7: the drill-down shows what was compared). Nothing here is
+       * summed: each is `workingCapitalReleased`'s total or one gap.
+       */
+      readonly candidates: readonly { readonly figure: CapitalChoice; readonly ore: Decimal }[];
+    }
   | { readonly kind: 'none'; readonly reason: 'not_nok' | 'all_strengths' | 'no_gap' };
 
 /**
@@ -289,7 +300,7 @@ export function largestCapitalGap(kfd: CapitalGap, lgd: CapitalGap, oml: Capital
   let chosen: (typeof candidates)[number] | null = null;
   // Strictly greater: an equal later candidate (a higher figure number) never replaces the earlier one.
   for (const candidate of candidates) if (chosen === null || candidate.ore.gt(chosen.ore)) chosen = candidate;
-  if (chosen !== null) return { kind: 'amount', figure: chosen.figure, ore: chosen.ore, oneOff: true };
+  if (chosen !== null) return { kind: 'amount', figure: chosen.figure, ore: chosen.ore, oneOff: true, candidates };
   const gaps = [kfd, lgd, oml];
   if (gaps.some((gap) => gap.kind === 'not_nok')) return { kind: 'none', reason: 'not_nok' };
   if (gaps.every((gap) => gap.kind === 'strength')) return { kind: 'none', reason: 'all_strengths' };

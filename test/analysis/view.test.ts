@@ -32,9 +32,11 @@ const filing = {
   smaaForetak: true,
   avviklingsregnskap: false,
   readAt: new Date('2026-10-11T13:36:34Z'),
+  brregId: 1n,
   fingerprint: null,
   classification: null,
   documentBasis: { kind: 'not_in_dataset' },
+  documentFacts: { readAt: null, brregId: null, current: null },
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',
@@ -256,6 +258,8 @@ describe('urlContext resolves the median step (Story 3.5)', () => {
     upperQuartile: new Decimal('0.05'),
     p5: new Decimal('-0.2'),
     p95: new Decimal('0.2'),
+    // A hand-made comparison: no test here reads its distribution (Story 3.7's "Vis fordelingen").
+    sorted: [],
     best: { quartile: new Decimal('0.05'), percentile: new Decimal('40') },
   });
   const asked: { band: Band; ekskl: readonly string[] }[] = [];

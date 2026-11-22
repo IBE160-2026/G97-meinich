@@ -26,6 +26,13 @@
 // own `<tbody>` right after that figure's row group, full width, never inside
 // a figure row.
 //
+// Story 3.7: "Hvordan er dette regnet?" under each gap cell that shows an
+// amount (driftsmargin, 9, 10, 11): the trigger in the cell, on the desktop
+// the drill-down in a full-width row right after the figure's row, on the
+// phone inside the row's expansion, under its gap. The drill-downs are built
+// on the server (src/analysis/provenance.ts) and reach the page as their
+// rendered steps only.
+//
 // Story 3.3: the margin waterfall fold-out, "Hva forklarer marginavviket?",
 // under Driftsmargin in the same way: the SVG chart on the desktop, the rows
 // on the phone. Each cost share's "Se forklaring av marginen" is a link that
@@ -35,6 +42,7 @@ import type { ApiBenchmark, DocumentBenchmark, TurnoverBenchmark } from '@/engin
 import type { MarginWaterfall } from '@/engine/waterfall';
 import { t } from '@/messages';
 import type { FactorPairView } from '@/analysis/decomposition-view';
+import type { ProvenanceView, TableProvenance } from '@/analysis/provenance';
 import {
   DECOMPOSITION_UNDER,
   keyFigureTableView,
@@ -49,6 +57,8 @@ import { FactorPair } from './factor-pair';
 import { FoldOut, FoldOutLink } from './fold-out';
 import { InfoPopover } from './info-popover';
 import { PhoneRowToggle } from './phone-row-toggle';
+import { ProvenanceBody, ProvenanceRow, ProvenanceTrigger } from './provenance';
+import { ProvenanceSteps } from './provenance-steps';
 import { StateBlock } from './state-block';
 import { TopNote } from './top-note';
 import { Waterfall } from './waterfall';
@@ -74,6 +84,21 @@ type Layout = 'd' | 'p';
 
 /** The waterfall fold-out's ids in one layout: its body, and its heading, the link's target. */
 const waterfallIds = (layout: Layout) => ({ body: `kf-${layout}-fold-waterfall`, heading: `kf-${layout}-fold-waterfall-heading` });
+
+/** The drill-down's id in one layout. */
+const provenanceId = (layout: Layout, key: KeyFigureRow['key']) => `kf-${layout}-prov-${key}`;
+
+/**
+ * The drill-down of a row's amount, or null where the cell shows none. An
+ * amount without one, or one without an amount, is a bug: it throws rather
+ * than show an amount no one can trace.
+ */
+function provenanceOf(row: KeyFigureRow, provenance: TableProvenance): ProvenanceView | null {
+  const view = (provenance as Readonly<Record<string, ProvenanceView | undefined>>)[row.key] ?? null;
+  const amount = row.gap?.amount === true;
+  if (amount !== (view !== null)) throw new Error(`the ${row.key} row's amount and its drill-down disagree`);
+  return view;
+}
 
 function Gap({ gap, layout }: { readonly gap: GapCell; readonly layout: Layout }) {
   if (gap.waterfall === true) {
@@ -129,7 +154,15 @@ const headCell = 'py-2 pr-4 text-left align-bottom font-semibold';
 // The rule between two groups (decision 1).
 const groupRule = 'border-t-2 border-divider';
 
-function DesktopRow({ row, groupHeadingId }: { readonly row: KeyFigureRow; readonly groupHeadingId: string | null }) {
+function DesktopRow({
+  row,
+  groupHeadingId,
+  hasProvenance,
+}: {
+  readonly row: KeyFigureRow;
+  readonly groupHeadingId: string | null;
+  readonly hasProvenance: boolean;
+}) {
   const rowId = `kf-d-row-${row.key}`;
   const c = row.comparison;
   return (
@@ -162,6 +195,7 @@ function DesktopRow({ row, groupHeadingId }: { readonly row: KeyFigureRow; reado
           </td>
           <td className={`figure ${cell}`} data-cell="gap">
             {row.gap !== null ? <Gap gap={row.gap} layout="d" /> : null}
+            {hasProvenance ? <ProvenanceTrigger id={provenanceId('d', row.key)} /> : null}
           </td>
         </>
       ) : (
@@ -187,7 +221,7 @@ function ExpansionItem({ label, children }: { readonly label: string; readonly c
   );
 }
 
-function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
+function PhoneRow({ row, provenance }: { readonly row: KeyFigureRow; readonly provenance: ProvenanceView | null }) {
   const c = row.comparison;
   let gap: ReactNode;
   if (c.kind === 'below_floor') gap = <span className="text-slate italic">{c.short}</span>;
@@ -230,9 +264,20 @@ function PhoneRow({ row }: { readonly row: KeyFigureRow }) {
             {row.gap !== null ? (
               <ExpansionItem label={t('keyFigures.col.gap')}>
                 <Gap gap={row.gap} layout="p" />
+                {provenance !== null ? (
+                  <>
+                    <br />
+                    <ProvenanceTrigger id={provenanceId('p', row.key)} />
+                  </>
+                ) : null}
               </ExpansionItem>
             ) : null}
           </dl>
+          {provenance !== null ? (
+            <ProvenanceBody id={provenanceId('p', row.key)} level={3}>
+              <ProvenanceSteps id={provenanceId('p', row.key)} view={provenance} />
+            </ProvenanceBody>
+          ) : null}
         </td>
       }
     />
@@ -344,6 +389,7 @@ export function KeyFigureTable({
   companyName,
   smaaForetak,
   filingYear,
+  provenance,
 }: {
   readonly benchmark: ApiBenchmark;
   /** Total asset turnover against the same peers: the margin decomposition's second factor (Story 3.2). */
@@ -357,6 +403,8 @@ export function KeyFigureTable({
   readonly smaaForetak: boolean | null;
   /** The benchmark filing's year, for an absence's words. */
   readonly filingYear: number;
+  /** The drill-down of each gap cell that shows an amount (Story 3.7). */
+  readonly provenance: TableProvenance;
 }) {
   const view = keyFigureTableView({
     api: benchmark,
@@ -424,12 +472,24 @@ export function KeyFigureTable({
               {group.heading !== null ? (
                 <GroupHeading id={`kf-d-group-${group.id}`} heading={group.heading} columns={DESKTOP_COLUMNS} />
               ) : null}
-              {group.rows.map((row) => (
-                <Fragment key={row.key}>
-                  <DesktopRow row={row} groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null} />
-                  <DesktopFoldOut figure={row.key} view={view} companyName={companyName} />
-                </Fragment>
-              ))}
+              {group.rows.map((row) => {
+                const drillDown = provenanceOf(row, provenance);
+                return (
+                  <Fragment key={row.key}>
+                    <DesktopRow
+                      row={row}
+                      groupHeadingId={group.heading !== null ? `kf-d-group-${group.id}` : null}
+                      hasProvenance={drillDown !== null}
+                    />
+                    {drillDown !== null ? (
+                      <ProvenanceRow id={provenanceId('d', row.key)} colSpan={DESKTOP_COLUMNS}>
+                        <ProvenanceSteps id={provenanceId('d', row.key)} view={drillDown} />
+                      </ProvenanceRow>
+                    ) : null}
+                    <DesktopFoldOut figure={row.key} view={view} companyName={companyName} />
+                  </Fragment>
+                );
+              })}
             </tbody>
           ))}
         </table>
@@ -458,7 +518,7 @@ export function KeyFigureTable({
                 <GroupHeading id={`kf-p-group-${group.id}`} heading={group.heading} columns={PHONE_COLUMNS} />
               ) : null}
               {group.rows.map((row) => (
-                <PhoneRow key={row.key} row={row} />
+                <PhoneRow key={row.key} row={row} provenance={provenanceOf(row, provenance)} />
               ))}
             </tbody>
             <PhoneFoldOuts figures={group.rows.map((row) => row.key)} view={view} companyName={companyName} />

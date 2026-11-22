@@ -20,6 +20,7 @@ import type { ApiInputs } from '../../src/engine/types.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { defaultState, type AnalysisState } from '../../src/url/analysis-state.ts';
 import { withUrl } from './url-provider.ts';
+import { profitProvenance, provenanceSubject, tableProvenance } from '../../src/analysis/provenance.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -65,9 +66,24 @@ const STATE: AnalysisState = {
   multippel: null,
 };
 
-function render(benchmark: ApiBenchmark, emptyReason: EmptyReason = null, state: AnalysisState = STATE): string {
+/** The subject's own facts for the drill-down (Story 3.7): `inputs`, outside the demo data. */
+function drillSubject(inputs: ApiInputs) {
+  return provenanceSubject(inputs, {
+    filingYear: 2025,
+    readAt: new Date('2026-10-03T08:00:00Z'),
+    brregId: 1n,
+    documentBasis: { kind: 'not_in_dataset' },
+    documentFacts: { readAt: null, brregId: null, current: null },
+  });
+}
+
+function render(benchmark: ApiBenchmark, emptyReason: EmptyReason = null, state: AnalysisState = STATE, inputs: ApiInputs = CLIMAX): string {
+  const provenance = emptyReason === null ? profitProvenance(drillSubject(inputs), benchmark.driftsmargin) : null;
   return renderToString(
-    withUrl(createElement(OversiktHero, { figure: benchmark.driftsmargin, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null }), state),
+    withUrl(
+      createElement(OversiktHero, { figure: benchmark.driftsmargin, emptyReason, filingYear: 2025, valuta: 'NOK', unstatedField: null, provenance }),
+      state,
+    ),
   );
 }
 
@@ -169,11 +185,12 @@ describe('the hero amount and the table', () => {
           companyName: 'X AS',
           smaaForetak: true,
           filingYear: 2025,
+          provenance: tableProvenance(drillSubject(inputs), benchmark, benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK')),
         }),
         STATE,
       ),
     );
-    const hero = byTestId(render(benchmark), 'hero-amount');
+    const hero = byTestId(render(benchmark, null, STATE, inputs), 'hero-amount');
     expect(hero).toBe(expected);
     expect(hero).toBe(cell(table));
   });
@@ -264,7 +281,10 @@ describe('an empty group with a reason, as on the Peers tab', () => {
   ] as const)('%s: the hero shows the Peers tab’s sentence', (emptyReason, valuta, unstatedField, sentence) => {
     const hero = text(
       renderToString(
-        withUrl(createElement(OversiktHero, { figure: amountOf(CLIMAX, []).driftsmargin, emptyReason, filingYear: 2025, valuta, unstatedField }), STATE),
+        withUrl(
+          createElement(OversiktHero, { figure: amountOf(CLIMAX, []).driftsmargin, emptyReason, filingYear: 2025, valuta, unstatedField, provenance: null }),
+          STATE,
+        ),
       ),
     );
     const peers = text(

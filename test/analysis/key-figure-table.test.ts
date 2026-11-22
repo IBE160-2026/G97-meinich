@@ -30,8 +30,9 @@ import { formatKronerExact, formatPercent, formatTurnover } from '../../src/engi
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { defaultState } from '../../src/url/analysis-state.ts';
-import { daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
+import { column, daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
 import { withUrl } from './url-provider.ts';
+import { provenanceSubject, tableProvenance } from '../../src/analysis/provenance.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -79,12 +80,30 @@ const OUTSIDE_WATERFALL: MarginWaterfall = marginWaterfall({ kind: 'not_in_datas
 /** Total asset turnover of SUBJECT against TEN: compared, the margin fold-out's second factor (Story 3.2). */
 const TURNOVER: TurnoverBenchmark = benchmarkTotalAssetTurnover(SUBJECT, TEN);
 
+/**
+ * The table's drill-downs (Story 3.7) for a subject with SUBJECT's API
+ * inputs and `basis`, the document basis `documentBenchmark` was computed
+ * from: the table refuses an amount without its drill-down.
+ */
+function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmark, basis: DocumentBasis) {
+  // A failed column names what failed (step 1 always stores its checks): here c1.
+  const failed = { checks: { c1: 'fail', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass' }, apiCheck: 'pass', apiFailFields: [], figures: column({}) } as const;
+  const facts = {
+    readAt: basis.kind === 'read' || basis.kind === 'failed_reconciliation' ? new Date('2026-10-21T08:00:00Z') : null,
+    brregId: 1n,
+    current: basis.kind === 'failed_reconciliation' ? failed : null,
+  };
+  const subject = provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts });
+  return tableProvenance(subject, benchmark, documentBenchmark);
+}
+
 function render(
   benchmark: ApiBenchmark,
   smaaForetak: boolean | null = true,
   documentBenchmark: DocumentBenchmark = OUTSIDE,
   turnoverBenchmark: TurnoverBenchmark = TURNOVER,
   waterfall: MarginWaterfall = OUTSIDE_WATERFALL,
+  basis: DocumentBasis = NOT_IN_DATASET,
 ): string {
   return renderToString(
     withUrl(
@@ -96,6 +115,7 @@ function render(
         companyName: 'FJORDKODE AS',
         smaaForetak,
         filingYear: 2025,
+        provenance: drillDowns(benchmark, documentBenchmark, basis),
       }),
       { ...defaultState('813235552'), fane: 'nokkeltall', band: 1 },
     ),
@@ -130,11 +150,11 @@ function row(html: string, figure: string): string {
   return match[0];
 }
 
-/** A desktop cell's text content, tags stripped. */
+/** A desktop cell's text content, tags stripped; a gap cell's "Hvordan er dette regnet?" (Story 3.7) is not its text. */
 function cellText(rowHtml: string, name: string): string {
   const match = new RegExp(`<td[^>]*data-cell="${name}"[^>]*>([\\s\\S]*?)</td>`).exec(rowHtml);
   if (match === null) throw new Error(`no ${name} cell`);
-  return text(match[1] ?? '');
+  return text((match[1] ?? '').replace(/<button[^>]*data-provenance-trigger[^>]*>[\s\S]*?<\/button>/g, ''));
 }
 
 const text = (html: string) =>
@@ -470,6 +490,7 @@ describe('the full key-figure table (Story 3.1b)', () => {
       documents(subject, peers, valuta),
       TURNOVER,
       marginWaterfall(subject, peers, 2025, valuta),
+      subject,
     );
   const ORDER = [
     'driftsmargin',
@@ -808,7 +829,7 @@ describe('the decomposition fold-outs (Story 3.2)', () => {
     new RegExp(`<tbody[^>]*data-foldout="${which}"[^>]*>[\\s\\S]*?</tbody>`).exec(table(html, 'phone'))?.[0] ?? '';
 
   it('fold-outs sit under their row, and on phone below their group', () => {
-    const html = render(standard(), true, benchmarkDocumentFigures(daysBasis(50n, 5n), TEN_PEERS, 'NOK'));
+    const html = render(standard(), true, benchmarkDocumentFigures(daysBasis(50n, 5n), TEN_PEERS, 'NOK'), TURNOVER, OUTSIDE_WATERFALL, daysBasis(50n, 5n));
     const desktop = table(html, 'desktop');
     // Desktop: each its own row, right after the figure it explains, spanning the table.
     const sequence = [...desktop.matchAll(/<tr[^>]*data-(figure|foldout)="([^"]+)"/g)].map((m) => `${m[1]}:${m[2]}`);
@@ -925,6 +946,7 @@ describe('the margin waterfall (Story 3.3)', () => {
       benchmarkDocumentFigures(DOC, PEERS, 'NOK'),
       TURNOVER,
       marginWaterfall(DOC, PEERS, 2025, 'NOK'),
+      DOC,
     );
   /** From the fold-out's opening tag to the next figure row or row group: it holds a table of its own. */
   const between = (html: string, start: RegExp, next: RegExp) => {

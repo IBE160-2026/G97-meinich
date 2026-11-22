@@ -24,6 +24,8 @@ import {
   notice,
   rendered,
   root,
+  PROFIT_DRILL_FIELDS,
+  expectProfitInputsStated,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
 
@@ -90,6 +92,14 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
       ].join(' · '),
     );
     await expect(hero(page).getByText(nb['keyFigures.topNote'])).toBeVisible();
+    // Story 3.7 (UX-DR12): the hero's "Hvordan er dette regnet?", the link Story 1.9 left out, opens the
+    // drill-down of the same amount.
+    const drillDown = hero(page).getByRole('button', { name: nb['provenance.trigger'] });
+    await expect(drillDown).toHaveAttribute('aria-expanded', 'false');
+    await drillDown.click();
+    const body = hero(page).locator('[data-provenance-body="hero-prov"]');
+    await expect(body).toBeVisible();
+    await expect(body).toContainText(amountFor(expected));
   });
 
   for (const query of ['', withSettings]) {
@@ -192,11 +202,14 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
       const pool = expectedPool(A.orgnr ?? '', band);
       const exact = exactMargins([...pool.map((peer) => String(peer.brregId)), newestFiling(A.orgnr ?? '').brreg_id ?? '']);
       expect(exact.length).toBeGreaterThan(pool.length / 2);
+      expectProfitInputsStated(A.orgnr ?? '');
       await expectNoPeerFields(request, `/analyse/${A.orgnr}/oversikt${query}`, {
         pool,
         marker: nb['oversikt.beeswarm.heading'],
         inUrl: query === '' ? [] : [firstPeer],
         exact,
+        // Story 3.7: the hero's drill-down; demo A is outside the demo data, so the capital card has none.
+        fields: PROFIT_DRILL_FIELDS,
       });
     });
   }

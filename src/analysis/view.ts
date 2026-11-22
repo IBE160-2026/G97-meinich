@@ -30,6 +30,7 @@ import { formatOrgnr } from '../engine/format.ts';
 import type { BusinessType, Fingerprint } from '../engine/fingerprint.ts';
 import { parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
 import { PEER_LEGAL_FORM, type FunnelSubject } from '../engine/peers.ts';
+import type { StoredDocumentFacts } from '../engine/provenance.ts';
 import type { Comparison } from '../engine/types.ts';
 import { t } from '../messages/index.ts';
 import {
@@ -100,6 +101,8 @@ export type SubjectFiling = {
   readonly avviklingsregnskap: boolean | null;
   /** When step 1 read the filing from the register (AD-18). */
   readonly readAt: Date;
+  /** The register's id of this filing (`register.filing.brreg_id`). */
+  readonly brregId: bigint;
   readonly keyFigures: SubjectKeyFigures;
   /** The stored fingerprint for `filingYear` (Story 2.5); null when there is none. */
   readonly fingerprint: Fingerprint | null;
@@ -112,6 +115,12 @@ export type SubjectFiling = {
    * (FR-71), so `analysisView` does not read it.
    */
   readonly documentBasis: DocumentBasis;
+  /**
+   * When the year's document was read and its current column's stored
+   * checks (Story 3.7): the provenance drill-down's data date and
+   * data-quality line. Server only.
+   */
+  readonly documentFacts: StoredDocumentFacts;
 };
 
 /** One company as the analysis reads it: register.company, its coverage and its newest filing. */

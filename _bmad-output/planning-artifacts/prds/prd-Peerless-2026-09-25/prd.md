@@ -904,6 +904,7 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 
 **Consequences (testable):**
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
+- The margin waterfall's bars explain the profit gap and are not gaps themselves; they get no drill-down in Story 3.7, and "Vis tallene" does not give enough to recompute a bar by hand. Making them recomputable is Story 3.8, "Vannfallet kan regnes ut for hånd" (Meinich, 2026-11-20).
 - Filings that cannot be read reliably are reported as unavailable rather than estimated. A paper filing is stored with status `paper` and never read; none was seen after 2013 in a 30-company sample (`docs/data-sources-brreg.md`), so in 2021–2025 they should be rare. A generated document is unavailable when it was refused at reading (`not_extracted`: an unknown layout, a scaled reporting unit, an unreadable or mismatched year header, or an OCR error) or when its column failed reconciliation (FR-57).
 
 #### FR-71: When the subject's own filing fails reconciliation · v1
@@ -914,6 +915,7 @@ Where the subject's own filed document fails reconciliation, the product shows t
 - The three API-sourced figures — operating margin, return on assets, equity ratio — are shown, because they do not depend on the document.
 - The twelve document-dependent figures are absent, and the product states that the subject's own filing could not be read reliably rather than showing a gap without a reason: "Regnskapet for {år} kunne ikke leses sikkert", in each absent figure and as a slate subline in the company header, with no badge (Story 2.9). The same words cover a document not yet reconciled and one refused at reading. A listed subject with no stored document for its filing year reads "Regnskapet for {år} er ikke lest inn", and one whose filing year is outside the years read, or whose filing is on paper, reads "Regnskapet for {år} er ikke lest i denne versjonen", each in the absent figures and as the header subline.
 - No figure is estimated, substituted from another year, or shown with a caveat (FR-58).
+- The drill-down of an API amount (FR-60, Story 3.7) says why the filing failed: "Avvik ved avstemming: {felt}" only where something differed, naming the fields that disagreed with the key figures and each failed check as its equation; where nothing differed but a check the status requires could not read a line, "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {år}", naming those lines. A column with both shows only what differed (Meinich, 2026-11-20).
 - The subject is not silently demoted to an uncovered company: its industry **is** covered, its peers are unaffected, and the API-sourced figures still carry a full comparison (FR-24).
 - This is distinct from FR-4, where the industry itself is uncovered and there is no peer group at all.
 

@@ -40,6 +40,8 @@ function compared(r: Decimal, m: Decimal, best: Decimal): Comparison {
     upperQuartile: best,
     p5: m.minus(2),
     p95: best.plus(1),
+    // A hand-made comparison: no test here reads its distribution (Story 3.7's "Vis fordelingen").
+    sorted: [],
     best: { quartile: best, percentile: d(50) },
   };
 }

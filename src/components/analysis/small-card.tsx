@@ -6,8 +6,12 @@
 //
 // A server component: the view arrives as strings only
 // (src/analysis/oversikt-cards.ts, AD-4). Story 3.5: the capital card's top
-// note links to Verdi, and "og {n} til" is an AnalysisLink.
+// note links to Verdi, and "og {n} til" is an AnalysisLink. Story 3.7: the
+// capital card's amount has its drill-down under it.
 import type { SmallCardView } from '@/analysis/oversikt-cards';
+import type { ProvenanceView } from '@/analysis/provenance';
+import { Provenance } from './provenance';
+import { ProvenanceSteps } from './provenance-steps';
 import type { AnalysisTarget } from '@/analysis/peer-change';
 import { AnalysisLink } from './analysis-link';
 import { TopNote } from './top-note';
@@ -18,6 +22,7 @@ export function SmallCard({
   view,
   valueSize = 'amount',
   more = null,
+  provenance = null,
 }: {
   /** The kicker's id, unique on the page: the section is labelled by it. */
   readonly id: string;
@@ -27,6 +32,8 @@ export function SmallCard({
   readonly valueSize?: 'amount' | 'figure';
   /** "og {n} til", linking to the table. */
   readonly more?: { readonly text: string; readonly target: AnalysisTarget } | null;
+  /** The amount's drill-down (Story 3.7): the capital card's, where it shows an amount. */
+  readonly provenance?: { readonly id: string; readonly view: ProvenanceView } | null;
 }) {
   return (
     <section
@@ -48,6 +55,11 @@ export function SmallCard({
           >
             {view.value}
           </p>
+          {provenance === null ? null : (
+            <Provenance id={provenance.id}>
+              <ProvenanceSteps id={provenance.id} view={provenance.view} />
+            </Provenance>
+          )}
           {view.topNote ? <TopNote className="m-0 mt-1.5 text-[13px] text-slate" /> : null}
           {view.lines.map((line) => (
             <p key={line} className="m-0 mt-1.5 text-[13px] text-slate" data-card="line">

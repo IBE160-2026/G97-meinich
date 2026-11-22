@@ -46,8 +46,9 @@ export const filings = csv('filing.csv').filter((f) => f.regnskapstype === 'SELS
 export const keyFigures = new Map(csv('key_figures.csv').map((k) => [k.brreg_id, k]));
 export const withFiling = new Set(filings.map((f) => f.orgnr));
 
-// The subject's filing as SUBJECT_SQL picks it: newest filing_year, then
-// periode_til, periode_fra and brreg_id, each descending.
+// The subject's filing as the engine's `subjectBenchmarkFiling` picks it
+// (Story 3.7, D2): newest filing_year, then periode_til, periode_fra and
+// brreg_id, each descending. Kept here as an independent oracle.
 export const filingOrder = (a: Record<string, string>, b: Record<string, string>): number =>
   Number(b.filing_year) - Number(a.filing_year) ||
   (b.periode_til ?? '').localeCompare(a.periode_til ?? '') ||
@@ -58,6 +59,21 @@ export function newestFiling(orgnr: string): Record<string, string> {
   const own = filings.filter((f) => f.orgnr === orgnr).sort(filingOrder);
   if (own[0] === undefined) throw new Error(`${orgnr} has no filing in the seed`);
   return own[0];
+}
+
+/**
+ * Story 3.7: the field names demo A's profit drill-down shows. Its own filing
+ * states both inputs and it is outside the demo data, so no derivation rule
+ * and no failure adds a name: a fixed list, valid only once the caller has
+ * asserted that state with `expectProfitInputsStated`.
+ */
+export const PROFIT_DRILL_FIELDS: readonly string[] = ['driftsresultat', 'sumDriftsinntekter'];
+
+/** The fixture's state for PROFIT_DRILL_FIELDS: the subject's filing states driftsresultat and sumDriftsinntekter. */
+export function expectProfitInputsStated(orgnr: string): void {
+  const k = keyFigureRow(newestFiling(orgnr).brreg_id ?? '');
+  expect(k.driftsresultat_ore, `${orgnr}: driftsresultat stated`).not.toBeNull();
+  expect(k.sum_driftsinntekter_ore, `${orgnr}: sumDriftsinntekter stated`).not.toBeNull();
 }
 
 export function company(orgnr: string): Record<string, string> {

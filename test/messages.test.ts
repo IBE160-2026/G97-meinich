@@ -335,3 +335,65 @@ describe('Story 3.6 copy', () => {
     expect(nb[id]).toBe(text);
   });
 });
+
+// Story 3.7: the story's copy and EXPERIENCE's, verbatim, and the copy
+// approved at the checkpoint (Meinich, 2026-11-20; the spec's Design Notes).
+describe('Story 3.7 copy', () => {
+  it.each([
+    ['provenance.trigger', 'Hvordan er dette regnet?'],
+    ['provenance.close', 'Lukk'],
+    ['provenance.showDistribution', 'Vis fordelingen'],
+    ['provenance.quality.reconciled', 'Avstemt mot innsendt årsregnskap'],
+    ['provenance.quality.notInDataset', 'Ikke avstemt – årsregnskapet er ikke i demodataene'],
+    ['provenance.quality.failed', 'Avvik ved avstemming: {felt}'],
+    // New copy approved (Meinich, 2026-11-20)
+    ['provenance.step.formula', 'Formel'],
+    ['provenance.step.figure', 'Nøkkeltall'],
+    ['provenance.step.filed', 'Innsendte verdier'],
+    ['provenance.step.source', 'Kilde'],
+    [
+      'provenance.best',
+      'Beste fjerdedel {T} = {kvartil} kvartil av {n} verdier (lineær interpolasjon, som PERCENTILE.INC i Excel)',
+    ],
+    ['provenance.quartile.upper', 'øvre'],
+    ['provenance.quartile.lower', 'nedre'],
+    ['provenance.fromDocument', 'Fra årsregnskapet'],
+    ['provenance.derived', 'avledet: {regel}'],
+    ['provenance.date.api', 'Registerets nøkkeltall: Regnskapsår {aar} · hentet {dato}'],
+    ['provenance.date.document', 'Innsendt årsregnskap: Regnskapsår {aar} · hentet {dato}'],
+    ['provenance.quality.notCompared', 'Ikke kontrollert mot andre tall: {felt}'],
+    ['provenance.quality.notReadInV1', 'Ikke avstemt – regnskapet for {aar} er ikke lest i denne versjonen'],
+    ['provenance.quality.documentMissing', 'Ikke avstemt – regnskapet for {aar} er ikke lest inn'],
+    ['provenance.quality.notReadSafely', 'Ikke avstemt – regnskapet for {aar} kunne ikke leses sikkert'],
+    ['provenance.strengthPart', '{del} er en styrke og teller som 0'],
+    ['provenance.largestOf', 'Det største av {liste}'],
+    [
+      'provenance.source.api',
+      'Kilde: Brønnøysundregistrene, nøkkeltallene i Regnskapsregisteret. Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene. Bearbeidet av Peerless.',
+    ],
+    [
+      'provenance.source.document',
+      'Kilde: Brønnøysundregistrene, årsregnskapet som er sendt inn til Regnskapsregisteret. Lest maskinelt (OCR) og bearbeidet av Peerless.',
+    ],
+    // Also approved (Meinich, 2026-11-20, second answer)
+    ['provenance.distribution.caption', 'De {n} verdiene, sortert fra lavest til høyest'],
+    [
+      'provenance.distribution.between',
+      'Beste fjerdedel ligger mellom verdi {k} og {k1}: {a} + {f} × ({b} − {a}) = {T}',
+    ],
+    [
+      'provenance.distribution.betweenApprox',
+      'Beste fjerdedel ligger mellom verdi {k} og {k1}: {a} + {f} × ({b} − {a}) ≈ {T}',
+    ],
+    ['provenance.distribution.at', 'Beste fjerdedel er verdi {k}: {T}'],
+    // Decision 4's split (Meinich, 2026-11-20; proposed by the review session): a failed column
+    // whose required check could not read a line, with nothing that differed.
+    ['provenance.quality.linesNotRead', 'Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}'],
+    ['provenance.derivedZero', 'avledet: {regel} = {rest}, innenfor ±5 kr, satt til 0'],
+    // Decision 7: Verdi's share line, a formula line of numbers and symbols.
+    ['provenance.share', '{full} × {andel} = {a}'],
+    ['provenance.shareApprox', '{full} × {andel} ≈ {a}'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+});

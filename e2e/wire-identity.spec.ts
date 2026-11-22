@@ -52,6 +52,12 @@ test('byte-identical Verdi texts in Node and Chromium for the same wire values',
   expect(node).toContain(`"field":"0,1"`);
   expect(node).toContain(`"field":"6,5"`);
   expect(node).toContain(`"field":"50"`);
+  // Story 3.7: the drill-downs' share lines, "=" where the displayed numbers give the amount and
+  // "≈" where they do not, at a fixed share and at the median step with capital amounts.
+  expect(node).toContain(`"shareLine":"1${NBSP}170${NBSP}000${NBSP}kr × 50${NBSP}% = 585${NBSP}000${NBSP}kr"`);
+  expect(node).toContain(`"shareLine":"3${NBSP}500${NBSP}kr × 25${NBSP}% = 875${NBSP}kr"`);
+  expect(node).toContain(`"shareLines":["4${NBSP}000${NBSP}kr × 25${NBSP}% = 1${NBSP}000${NBSP}kr"]`);
+  expect(node).toMatch(/"shareLine":"[^"]+ × 15 % ≈ [^"]+"/u);
   const code = await bundle();
   await page.setContent('<!doctype html><html lang="nb"><head><meta charset="utf-8"></head><body></body></html>');
   await page.addScriptTag({ content: code });

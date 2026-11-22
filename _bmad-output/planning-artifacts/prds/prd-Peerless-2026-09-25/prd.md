@@ -259,12 +259,10 @@ The no-account route is rate-limited, so that harvesting the register through it
 **Consequences (testable):**
 - **Stage split:** the per-IP limit is v1, and part of v1's security together with input validation, server-side secrets and storing no user data. The per-session limit and the CAPTCHA arrive in stage 2 with anonymous sign-in, since v1 has no sessions to limit and no sign-in to guard.
 - Requests are limited per IP (v1) and per session (stage 2). In v1 the per-IP counter is held in memory in the single local server process and no IP is stored; persistent rate limiting is a gate before any public deployment.
-- In v1 there are two budgets per client address, one for analysis pages and one for search (`src/rate-limit/budgets.ts`), keyed on a salted hash.
-- **v1's limit does not stop harvesting.** Locally the client address comes from `X-Forwarded-For`, which a client can rotate on every request, so the per-IP limit only slows an honest client. Accepted for local v1 (Epic 1 retrospective S11, Meinich 2026-10-16); a limit that cannot be bypassed this way is part of the deployment gate (technical note, AD-10).
+- In v1 there are two budgets per client address, one for analysis pages and one for search, keyed on a salted hash.
+- **v1's limit does not stop harvesting.** Locally the client address comes from `X-Forwarded-For`, which a client can rotate on every request, so the per-IP limit only slows an honest client. That is accepted for local v1; a limit that cannot be bypassed this way is part of the deployment gate (technical note, AD-10).
 - Anonymous sign-in is protected by CAPTCHA (stage 2).
 - Exceeding the limit returns a refusal, not a degraded or partial analysis.
-
-**Notes.** `[NOTE FOR PM]` The brief promises "under a minute" to first insight. That is a product promise no FR currently measures. Consider whether it belongs in §7 as a metric.
 
 ### 4.2 Peer group construction and adjustment
 
@@ -1292,6 +1290,8 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 23. **Does a dissolved company stay a peer?** Nothing in the request path reads `slettedato` yet, so a dissolved company remains a candidate and its filings count in aggregates (FR-66; `deferred-work.md`, Story 2.4).
 
 25. **Whether an index-only migration counts as a schema change for "adding an industry is data, not code" (FR-73).** `deferred-work.md` plans an index on `naeringskode1`, a migration, for when a second industry is covered. Owner: stage 3.
+
+27. **"Under a minute" to first insight.** The brief promises "under a minute" to first insight. That is a product promise no FR currently measures. Consider whether it belongs in §7 as a metric.
 
 **Pre-deployment gates** (not v1 requirements; blocking before anything is public)
 

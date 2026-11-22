@@ -17,11 +17,11 @@ Routine work that went as expected is not logged.
 | Tag | Entries |
 |---|---|
 | auth | 37 |
-| money | 35 |
+| money | 36 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
-| docs | 30 |
+| docs | 31 |
 
 ## Entry template
 
@@ -1104,3 +1104,13 @@ Rejected findings and their reasons are in the triage log.
 3. **What the review found false** (each with its evidence in the triage): a failed column with nothing that failed cannot be stored by step 1, so `failure` always has a cause; `api_check` `fail` always carries its fields; every column the engine orders a filing by is `NOT NULL`.
 **Caught by:** The review subagents named above; each claim verified by the BMAD session against the code, `supabase/migrations` and `ingest/src/peerless_ingest/reconcile.py`.
 **Outcome:** Commits on `story/3.7-provenance` from `20fd02f`; triage in `_bmad-output/implementation-artifacts/spec-3-7-hvordan-er-dette-regnet.md`. This closes "Review pending" in the two entries above.
+
+### 2026-11-22 — Story 3.7: "Avstemt" only against the filing the page shows
+**Tags:** money, docs
+**Tool:** Claude Code (Opus 5.5): the implementation subagent, re-engaged by the BMAD session
+**Asked:** Meinich overruled the review's rejection of B1 (the triage above): "Avstemt mot innsendt årsregnskap" only where the document was compared with the filing the page shows.
+**Got:** `dataQuality` in `src/engine/provenance.ts` counts an input as compared only when the document's `register.document.brreg_id` (now read by `DOCUMENT_SELECT` into `StoredDocumentFacts.brregId`) equals the `brreg_id` of the filing `subjectBenchmarkFiling` chose (`SubjectFiling.brregId`); otherwise, a null id included, the shown numbers were not the ones `api_check` saw, and the line follows "Ikke kontrollert mot andre tall: {felt}". No new stored id: step 1 sets `d.brreg_id` only when the year has exactly one SELSKAP filing, the one `api_check` ran against (`src/analysis/document-filing.ts`). `test/analysis/provenance.test.ts` "the document compared with another filing: nothing is compared" and "the document compared with no filing: nothing is compared" both fail ("Received: Avstemt mot innsendt årsregnskap") with the id check removed; `test/db/analysis.test.ts` "the stored document facts" checks the id against the stored row.
+**Problem:** A reconciliation claim that is not true. Before the fix, a second SELSKAP filing of the year added by a plain `pnpm ingest` after the document's last reconciliation left a stored `pass` from a comparison with the other filing, and the drill-down said "Avstemt" about figures no one compared. The review rejected it as unlikely; the review session argued that a false "Avstemt" is exactly the claim the story must not make, and that the stored id already settles it.
+Also in this pass: the D2 comparison over every company with several filings (`test/db/analysis.test.ts` "chooses the same filing the old SQL chose, …") took 47 s alone and timed out at the suite's 60 s under the full `pnpm test:db`; it has its own limit now. The payload growth stands, measured (demo A, HTML, main → branch, gzip): Oversikt +12 724 bytes, Nøkkeltall +14 846, Verdi +16 473.
+**Caught by:** The review session (the overrule and the argument); Meinich decided. The time-out by the BMAD session's verification run.
+**Outcome:** Commits `93bcd94`, `ae6fcd2`, `558f6df` and the time-limit fix on `story/3.7-provenance`.

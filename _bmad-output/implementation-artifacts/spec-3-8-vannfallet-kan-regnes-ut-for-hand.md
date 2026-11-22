@@ -2,7 +2,7 @@
 title: 'Story 3.8: Vannfallet kan regnes ut for hånd'
 type: 'feature'
 created: '2026-11-22'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '07b0560d7cf56e30743724c5330f7ff6e9db061c'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -151,14 +151,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/engine/waterfall.ts`, `amounts.ts`, `format.ts` and their tests: `outsideCommonSet`, `pooledOnRevenue`, `ownKroner`, `formatPercentFine`, and the manifest test.
-- [ ] `src/engine/provenance.ts` and its test: `checked` and its three guards, and Σ bars = (m − M) × R.
-- [ ] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE: the approved copy, before the views.
-- [ ] `src/server/analysis.ts`, `src/analysis/{provenance,waterfall-view,shown-group}.ts` and their tests: one view per column, the counts and the date.
-- [ ] `src/components/analysis/waterfall.tsx`: the triggers, the rows, the sum row.
-- [ ] `e2e/payload*.ts` and `test/payload-scan.test.ts`: the Σ-in-kroner and exact-Aₓ scans and their probes.
-- [ ] `e2e/synthetic.ts`, `e2e/synthetic-documents.spec.ts` and `e2e/key-figures.spec.ts`: the oracle and the matrix rows at 1280, 375 and 320 px.
-- [ ] The docs in the Code Map.
+- [x] `src/engine/waterfall.ts`, `amounts.ts`, `format.ts` and their tests: `outsideCommonSet`, `pooledOnRevenue`, `ownKroner`, `formatPercentFine`, and the manifest test.
+- [x] `src/engine/provenance.ts` and its test: `checked` and its three guards, and Σ bars = (m − M) × R.
+- [x] `src/messages/nb.json`, `test/messages.test.ts`, EXPERIENCE: the approved copy, before the views.
+- [x] `src/server/analysis.ts`, `src/analysis/{provenance,waterfall-view,shown-group}.ts` and their tests: one view per column, the counts and the date.
+- [x] `src/components/analysis/waterfall.tsx`: the triggers, the rows, the sum row.
+- [x] `e2e/payload*.ts` and `test/payload-scan.test.ts`: the Σ-in-kroner and exact-Aₓ scans and their probes.
+- [x] `e2e/synthetic.ts`, `e2e/synthetic-documents.spec.ts` and `e2e/key-figures.spec.ts`: the oracle and the matrix rows at 1280, 375 and 320 px.
+- [x] The docs in the Code Map.
 
 **Acceptance Criteria:**
 - **Fixture:** given Nøkkeltall with the waterfall open, when each row's drill-down is opened, then the column can be recomputed from what it shows, and every value equals `SYNTHETIC_WATERFALL`.

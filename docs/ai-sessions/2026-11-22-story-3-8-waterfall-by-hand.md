@@ -89,4 +89,8 @@ The review session posted its review. Meinich asked for two corrections before m
   - Only its e2e was run, and it failed at 375 px with `box.x` = −221 (output in the spec's Review Triage Log).
   - The fix was restored, and a comment says what 4.5rem is (`bd1f23e`).
 
-Measuring with a temporary probe, the BMAD session found a new detail: at 375 px the steps start 9 px left of the scrolling region's visible edge. The e2e compares them with the screen, not the region. This was put to Meinich and not fixed (`e36d3d7`).
+Measuring with a temporary probe, the BMAD session found a new detail: at 375 px the steps start 9 px left of the scrolling region's visible edge. The e2e compares them with the screen, not the region. It was put to Meinich (`e36d3d7`), who decided to fix it in this PR.
+- **The test** (`0f35e77`) now compares the steps with the region at 375 and 320 px, for the residual and the start, scrolled fully left and fully right. On the previous code all eight cases failed. Scrolled right the steps started 16 px outside the region, not 9: the first measurement was not at full scroll.
+- **The fix** (`43143d6`) sizes the steps by the region (`100cqw − 1.75rem`, the region a size container) instead of `100vw − 4.5rem`. The 12 px of slack is gone.
+- **The test's tolerance** is one Chromium layout unit (1/64 px), because the steps sit exactly on the region's edge.
+- **Verified:** the phone test and the whole synthetic project (31) passed with one worker.

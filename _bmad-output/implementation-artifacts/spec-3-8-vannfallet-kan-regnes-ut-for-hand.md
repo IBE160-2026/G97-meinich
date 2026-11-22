@@ -191,6 +191,7 @@ Implementation run, 2026-11-22 (subagent). Where the code differs from the Code 
 - **2026-11-22, decisions 1–7 replace the draft's Open Questions** (Meinich).
 - **2026-11-22, the read-date boundary is read with decision 5 (review B4; recorded by the BMAD session, confirmed by Meinich 2026-11-22).** Boundaries says the payload never holds "any peer's … read date". Decision 5 shows the range of P's read dates, whose two ends are peers' dates without a name. Excluding a peer in a second URL can move an end. The boundary means no read date per peer; the range of decision 5 is allowed. By decision 1's invariant, a member of P is on the manifest, and its own page shows its own read date. A read date is also a time of Peerless's own reading, not an accounting figure (Meinich).
 - **2026-11-22, decision 3's sentence is worded (Meinich).** `waterfall.prov.sumNotGap` reads "Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden." Decision 6 is updated to say so.
+- **2026-11-22, the phone drill-down fits its scrolling region (review on PR #84; Meinich decided to fix it in this PR, not defer it).** The phone check compares the steps with the region, not the screen, at both ends of the scroll. The steps' width follows the region (`100cqw − 1.75rem`), not the viewport (Review Triage Log).
 
 ## Review Triage Log
 
@@ -239,7 +240,29 @@ Measured by a temporary probe in the test, since removed (x in px from the scree
 
 At 375 px the steps start 9 px left of the region's visible edge. Sticky positioning is held back by the containing block, which ends at 326 px. So the first 9 px are likely clipped by `overflow-x: auto`. The e2e check compares the steps with the screen, not with the region, so it does not catch this.
 
-**New finding (the BMAD session): put to Meinich, not fixed.**
+**New finding (the BMAD session): fixed in this PR at Meinich's decision.**
+
+- **The test** (`0f35e77`) compares the steps with the scroll region's bounding box at 375 and 320 px, for the residual (bottom) and the start (top), with the region scrolled fully left and fully right. It first asserts that the table is wider than its region.
+- **On the previous code** (`100vw − 4.5rem`) every case failed (`expect.soft`, run without tolerance):
+
+```
+Error: 375 residual scrolled left   Expected: <= 347   Received: 351
+Error: 375 residual scrolled right  Expected: >= 32    Received: 15.984375
+Error: 375 start scrolled left      Expected: <= 347   Received: 351
+Error: 375 start scrolled right     Expected: >= 32    Received: 15.984375
+Error: 320 residual scrolled left   Expected: <= 292   Received: 296
+Error: 320 residual scrolled right  Expected: >= 32    Received: 15.984375
+Error: 320 start scrolled left      Expected: <= 292   Received: 296
+Error: 320 start scrolled right     Expected: >= 32    Received: 15.984375
+```
+
+- **Scrolled fully right, the steps started 16 px left of the region,** not 9 px: the earlier measurement had not been taken at full scroll.
+- **The fix** (`43143d6`): with the region's visible width W, scrolled left the steps start 16 px in (the drill-down's `pl-4`), so they need ≤ W − 16. Scrolled right, the sticky steps stop at the cell's content edge, 28 px inside the region (`pr-4` + `pr-3`), so they need ≤ W − 28.
+  - The region is now a size container on the phone (`@container`), and the steps are at most `100cqw − 1.75rem`.
+  - The 12 px of slack is gone.
+  - Scrolled fully right, the steps sit exactly on the region's left edge, which Chromium places to 1/64 px (31,984375 against 32). The test allows that one layout unit and nothing more.
+- **With the fix:** the phone test passes, and so does the whole synthetic project (31).
+
 
 **Verification after review pass 1 (2026-11-22, the BMAD session, after `5291526` and `adfbf04`):**
 - **Static and unit:** lint and typecheck are clean; `pnpm test --maxWorkers=2` passed 2 086.

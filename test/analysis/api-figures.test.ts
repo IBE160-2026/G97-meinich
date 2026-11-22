@@ -28,10 +28,11 @@ function figures(keyFigures: Partial<SubjectKeyFigures>): Record<string, string>
     smaaForetak: true,
     avviklingsregnskap: false,
     readAt: new Date('2026-10-11T12:00:00Z'),
+    brregId: 1n,
     fingerprint: null,
     classification: null,
     documentBasis: { kind: 'not_in_dataset' },
-    documentFacts: { readAt: null, current: null },
+    documentFacts: { readAt: null, brregId: null, current: null },
     keyFigures: { ...base, ...keyFigures },
   };
   const html = renderToString(createElement(ApiFigures, { filing }));

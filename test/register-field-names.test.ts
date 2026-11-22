@@ -75,8 +75,9 @@ describe('the names in the drill-down', () => {
     const subject = provenanceSubject(api, {
       filingYear: 2025,
       readAt: new Date('2026-10-03T08:00:00Z'),
+      brregId: 1n,
       documentBasis: basis,
-      documentFacts: { readAt: new Date('2026-10-21T08:00:00Z'), current: null },
+      documentFacts: { readAt: new Date('2026-10-21T08:00:00Z'), brregId: 1n, current: null },
     });
     const profit = profitProvenance(subject, benchmarkApiFigures(api, peers, 'NOK').driftsmargin);
     const kfd = capitalProvenance(subject, 'kfd', benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK').kfd);

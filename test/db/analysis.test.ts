@@ -177,6 +177,7 @@ describe('the stored document facts', () => {
         orgnr: string;
         filing_year: number;
         read_at: Date;
+        brreg_id: string | null;
         c1: string;
         c2: string;
         c3: string;
@@ -186,7 +187,7 @@ describe('the stored document facts', () => {
         api_fail_fields: string[] | null;
       }[]
     >`
-      select d.orgnr, d.filing_year, d.read_at, cur.c1, cur.c2, cur.c3, cur.c4, cur.c5, cur.api_check, cur.api_fail_fields
+      select d.orgnr, d.filing_year, d.read_at, d.brreg_id::text as brreg_id, cur.c1, cur.c2, cur.c3, cur.c4, cur.c5, cur.api_check, cur.api_fail_fields
         from register.document d
         join register.document_column cur on cur.orgnr = d.orgnr and cur.filing_year = d.filing_year and cur.role = 'current'
        where d.orgnr in (select jsonb_array_elements_text(manifest -> 'document_figure_orgnrs') from register.dataset)
@@ -199,6 +200,8 @@ describe('the stored document facts', () => {
       expect(filing?.filingYear).toBe(row.filing_year);
       if (filing === null || filing === undefined) throw new Error('a listed company has its filing');
       expect(filing.documentFacts.readAt?.getTime()).toBe(row.read_at.getTime());
+      // Review B1: the filing the document was compared with, as stored.
+      expect(filing.documentFacts.brregId).toBe(row.brreg_id === null ? null : BigInt(row.brreg_id));
       expect(filing.documentFacts.current).toMatchObject({
         checks: { c1: row.c1, c2: row.c2, c3: row.c3, c4: row.c4, c5: row.c5 },
         apiCheck: row.api_check,
@@ -208,7 +211,7 @@ describe('the stored document facts', () => {
   });
 
   it('are empty for a company with no stored document', async () => {
-    expect((await loadSubject(DEMO_C))?.filing?.documentFacts).toEqual({ readAt: null, current: null });
+    expect((await loadSubject(DEMO_C))?.filing?.documentFacts).toEqual({ readAt: null, brregId: null, current: null });
   });
 });
 

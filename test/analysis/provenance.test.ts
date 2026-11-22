@@ -62,11 +62,14 @@ function reconciliation(overrides: Partial<CurrentReconciliation> = {}, lines: L
   return { checks: pass, apiCheck: 'pass', apiFailFields: [], figures: column(lines), ...overrides };
 }
 
+/** The subject's benchmark filing's register id; a document compared with it carries the same id (review B1). */
+const FILING_ID = 4242n;
+
 function subjectOf(api: ApiInputs, basis: DocumentBasis, facts: StoredDocumentFacts): ProvenanceSubject {
-  return provenanceSubject(api, { filingYear: 2025, readAt: READ_AT, documentBasis: basis, documentFacts: facts });
+  return provenanceSubject(api, { filingYear: 2025, readAt: READ_AT, brregId: FILING_ID, documentBasis: basis, documentFacts: facts });
 }
 
-const READ_FACTS: StoredDocumentFacts = { readAt: DOCUMENT_READ_AT, current: reconciliation() };
+const READ_FACTS: StoredDocumentFacts = { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: reconciliation() };
 
 function benchmarks(api: ApiInputs = SUBJECT, basis: DocumentBasis = readBasis()): { api: ApiBenchmark; document: DocumentBenchmark } {
   return { api: benchmarkApiFigures(api, PEERS, 'NOK'), document: benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK') };
@@ -89,14 +92,37 @@ describe('the data-quality line (decision 4)', () => {
     expect(BASE_LINES.sumDriftsinntekter).not.toBeNull();
     expect(quality(profitView(subjectOf(SUBJECT, readBasis(), READ_FACTS)))).toBe(nb['provenance.quality.reconciled']);
     // api_check not_evaluable: nothing was compared.
-    const notEvaluable = { readAt: DOCUMENT_READ_AT, current: reconciliation({ apiCheck: 'not_evaluable' }) };
+    const notEvaluable = { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: reconciliation({ apiCheck: 'not_evaluable' }) };
     expect(quality(profitView(subjectOf(SUBJECT, readBasis(), notEvaluable)))).toBe(
       t('provenance.quality.notCompared', { felt: 'driftsresultat, sumDriftsinntekter' }),
     );
     // A line the document did not read is not compared.
-    const unread = { readAt: DOCUMENT_READ_AT, current: reconciliation({}, { driftsresultat: null }) };
+    const unread = { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: reconciliation({}, { driftsresultat: null }) };
     expect(quality(profitView(subjectOf(SUBJECT, readBasis(), unread)))).toBe(
       t('provenance.quality.notCompared', { felt: 'driftsresultat' }),
+    );
+  });
+
+  // Review B1 (Meinich): the document was compared with one filing; "Avstemt" only when that is the
+  // filing the page shows. Otherwise nothing shown was compared.
+  it('the document compared with another filing: nothing is compared', () => {
+    // The fixture's state: a reconciled column, api_check passed, both inputs stated in the API and read.
+    expect(READ_FACTS.current?.apiCheck).toBe('pass');
+    expect(BASE_LINES.driftsresultat).not.toBeNull();
+    expect(BASE_LINES.sumDriftsinntekter).not.toBeNull();
+    expect(quality(profitView(subjectOf(SUBJECT, readBasis(), READ_FACTS)))).toBe(nb['provenance.quality.reconciled']);
+    const other: StoredDocumentFacts = { ...READ_FACTS, brregId: FILING_ID + 1n };
+    expect(quality(profitView(subjectOf(SUBJECT, readBasis(), other)))).toBe(
+      t('provenance.quality.notCompared', { felt: 'driftsresultat, sumDriftsinntekter' }),
+    );
+  });
+
+  it('the document compared with no filing: nothing is compared', () => {
+    // The fixture's state: as above, with no filing id stored on the document.
+    expect(READ_FACTS.current?.apiCheck).toBe('pass');
+    const none: StoredDocumentFacts = { ...READ_FACTS, brregId: null };
+    expect(quality(profitView(subjectOf(SUBJECT, readBasis(), none)))).toBe(
+      t('provenance.quality.notCompared', { felt: 'driftsresultat, sumDriftsinntekter' }),
     );
   });
 
@@ -129,23 +155,24 @@ describe('the data-quality line (decision 4)', () => {
 
   const failedFacts: StoredDocumentFacts = {
     readAt: DOCUMENT_READ_AT,
+    brregId: FILING_ID,
     current: reconciliation({ apiCheck: 'fail', apiFailFields: ['sum_driftsinntekter', 'sum_eiendeler'] }),
   };
   const notReadInV1: DocumentBasis = { kind: 'not_read_in_v1', scope: 'filing_year', filingYear: 2019 };
   const paper: DocumentBasis = { kind: 'not_read_in_v1', scope: 'paper', filingYear: 2025 };
   const states: readonly [string, DocumentBasis, StoredDocumentFacts, string][] = [
-    ['not on the manifest', NOT_IN_DATASET, { readAt: null, current: null }, nb['provenance.quality.notInDataset']],
-    ['a year outside 2021–2025', notReadInV1, { readAt: null, current: null }, t('provenance.quality.notReadInV1', { aar: '2019' })],
-    ['paper', paper, { readAt: DOCUMENT_READ_AT, current: null }, t('provenance.quality.notReadInV1', { aar: '2025' })],
-    ['no document', { kind: 'document_missing', filingYear: 2025 }, { readAt: null, current: null }, t('provenance.quality.documentMissing', { aar: '2025' })],
-    ['not_extracted', { kind: 'refused', filingYear: 2025 }, { readAt: DOCUMENT_READ_AT, current: null }, t('provenance.quality.notReadSafely', { aar: '2025' })],
-    ['status NULL', { kind: 'not_reconciled', filingYear: 2025 }, { readAt: DOCUMENT_READ_AT, current: null }, t('provenance.quality.notReadSafely', { aar: '2025' })],
+    ['not on the manifest', NOT_IN_DATASET, { readAt: null, brregId: null, current: null }, nb['provenance.quality.notInDataset']],
+    ['a year outside 2021–2025', notReadInV1, { readAt: null, brregId: null, current: null }, t('provenance.quality.notReadInV1', { aar: '2019' })],
+    ['paper', paper, { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: null }, t('provenance.quality.notReadInV1', { aar: '2025' })],
+    ['no document', { kind: 'document_missing', filingYear: 2025 }, { readAt: null, brregId: null, current: null }, t('provenance.quality.documentMissing', { aar: '2025' })],
+    ['not_extracted', { kind: 'refused', filingYear: 2025 }, { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: null }, t('provenance.quality.notReadSafely', { aar: '2025' })],
+    ['status NULL', { kind: 'not_reconciled', filingYear: 2025 }, { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: null }, t('provenance.quality.notReadSafely', { aar: '2025' })],
     ['failed_reconciliation', FAILED, failedFacts, t('provenance.quality.failed', { felt: 'sumDriftsinntekter, sumEiendeler' })],
     ['reconciled, every input compared', readBasis(), READ_FACTS, nb['provenance.quality.reconciled']],
     [
       'reconciled, an input not compared',
       readBasis(),
-      { readAt: DOCUMENT_READ_AT, current: reconciliation({ apiCheck: 'not_evaluable' }) },
+      { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: reconciliation({ apiCheck: 'not_evaluable' }) },
       t('provenance.quality.notCompared', { felt: 'driftsresultat, sumDriftsinntekter' }),
     ],
   ];
@@ -160,7 +187,7 @@ describe('the data-quality line (decision 4)', () => {
     const subject = subjectOf(SUBJECT, basis, facts);
     const { api, document } = benchmarks(SUBJECT, basis);
     expect(document.kfd.gap.kind).not.toBe('amount');
-    expect(dataQuality({ basis, facts, api: SUBJECT, inputs: [], amount: 'document' })).toEqual({ kind: 'absent' });
+    expect(dataQuality({ basis, facts, api: SUBJECT, inputs: [], amount: 'document', filingBrregId: FILING_ID })).toEqual({ kind: 'absent' });
     for (const key of ['kfd', 'lgd', 'oml'] as const) expect(capitalProvenance(subject, key, document[key])).toBeNull();
     expect(workingCapitalProvenance(subject, document)).toBeNull();
     expect(largestCapitalProvenance(subject, document)).toBeNull();
@@ -169,7 +196,7 @@ describe('the data-quality line (decision 4)', () => {
 
   it('felt names the failing fields or equation', () => {
     const failed = (current: CurrentReconciliation) =>
-      lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, current }, api: SUBJECT, inputs: [], amount: 'api' })));
+      lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current }, api: SUBJECT, inputs: [], amount: 'api', filingBrregId: FILING_ID })));
     // An API failure: the fields in register names, in step 1's order.
     expect(failed(reconciliation({ apiCheck: 'fail', apiFailFields: ['sum_driftsinntekter', 'ordinaert_resultat_foer_skattekostnad'] }))).toBe(
       t('provenance.quality.failed', { felt: 'sumDriftsinntekter, ordinaertResultatFoerSkattekostnad' }),
@@ -202,7 +229,7 @@ describe('the data-quality line (decision 4)', () => {
     const unread = reconciliation({ checks: { ...reconciliation().checks, c1: 'not_evaluable' } }, { driftsresultat: null });
     expect(CHECKS.filter((check) => unread.checks[check] === 'fail')).toEqual([]);
     expect(unread.apiFailFields).toEqual([]);
-    const text = lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, current: unread }, api: SUBJECT, inputs: [], amount: 'api' })));
+    const text = lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: unread }, api: SUBJECT, inputs: [], amount: 'api', filingBrregId: FILING_ID })));
     expect(text).toBe('Ikke avstemt – driftsresultat kunne ikke leses i regnskapet for 2025');
     expect(text).not.toContain('Avvik');
     expect(text).not.toContain('≠');
@@ -214,7 +241,7 @@ describe('the data-quality line (decision 4)', () => {
       { checks: { ...reconciliation().checks, c1: 'not_evaluable', c2: 'fail' } },
       { driftsresultat: null },
     );
-    const text = lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, current: both }, api: SUBJECT, inputs: [], amount: 'api' })));
+    const text = lineText(qualityLine(dataQuality({ basis: FAILED, facts: { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: both }, api: SUBJECT, inputs: [], amount: 'api', filingBrregId: FILING_ID })));
     expect(text).toBe(t('provenance.quality.failed', { felt: 'driftsresultat + nettoFinans ≠ ordinaertResultatFoerSkattekostnad' }));
   });
 });
@@ -343,7 +370,7 @@ describe('the distribution’s T line', () => {
   function lineFor(margins: readonly string[]): string {
     const peers = margins.map((margin) => ({ ...SUBJECT, driftsresultat: BigInt(new Decimal(margin).mul(1_000_000_000).toFixed(0)) }));
     const subject: ApiInputs = { ...SUBJECT, driftsresultat: -200_000_000n };
-    const view = profitProvenance(subjectOf(subject, NOT_IN_DATASET, { readAt: null, current: null }), benchmarkApiFigures(subject, peers, 'NOK').driftsmargin);
+    const view = profitProvenance(subjectOf(subject, NOT_IN_DATASET, { readAt: null, brregId: null, current: null }), benchmarkApiFigures(subject, peers, 'NOK').driftsmargin);
     if (view === null) throw new Error('the fixture has a profit amount');
     return view.figures[0]?.distribution.line ?? '';
   }

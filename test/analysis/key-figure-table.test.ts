@@ -90,9 +90,10 @@ function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmar
   const failed = { checks: { c1: 'fail', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass' }, apiCheck: 'pass', apiFailFields: [], figures: column({}) } as const;
   const facts = {
     readAt: basis.kind === 'read' || basis.kind === 'failed_reconciliation' ? new Date('2026-10-21T08:00:00Z') : null,
+    brregId: 1n,
     current: basis.kind === 'failed_reconciliation' ? failed : null,
   };
-  const subject = provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), documentBasis: basis, documentFacts: facts });
+  const subject = provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts });
   return tableProvenance(subject, benchmark, documentBenchmark);
 }
 

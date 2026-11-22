@@ -67,6 +67,7 @@ const NO_FINGERPRINT = {
   sum_omloepsmidler_ore: null,
   // Story 3.7: the document's read time and the current column's checks, none without a document.
   document_read_at: null,
+  document_brreg_id: null,
   current_c1: null,
   current_c2: null,
   current_c3: null,

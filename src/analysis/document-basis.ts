@@ -48,6 +48,8 @@ export type DocumentBasisColumns = {
   readonly sum_omloepsmidler_ore: string | null;
   /** `register.document.read_at` (Story 3.7: the drill-down's data date); null without a document row. */
   readonly document_read_at: Date | null;
+  /** `register.document.brreg_id` (int8 as a string): the filing step 1 compared it with; null when none. */
+  readonly document_brreg_id: string | null;
   /** The current column's stored checks c1–c5 and its API comparison (Story 3.7: the data-quality line). */
   readonly current_c1: string | null;
   readonly current_c2: string | null;
@@ -74,6 +76,7 @@ export const DOCUMENT_SELECT = [
   'pri.api_fail_fields as prior_api_fail_fields',
   'dk.sum_omloepsmidler_ore',
   'd.read_at as document_read_at',
+  'd.brreg_id::text as document_brreg_id',
   ...CHECKS.map((check) => `cur.${check} as current_${check}`),
   'cur.api_check as current_api_check',
   'cur.api_fail_fields as current_api_fail_fields',
@@ -146,7 +149,7 @@ export function documentFactsOf(row: DocumentBasisColumns): StoredDocumentFacts 
         figures: column(row, 'cur_', row.current_status),
       }
     : null;
-  return { readAt: row.document_read_at, current };
+  return { readAt: row.document_read_at, brregId: parseOre(row.document_brreg_id), current };
 }
 
 /**

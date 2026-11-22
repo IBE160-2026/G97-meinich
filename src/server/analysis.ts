@@ -164,6 +164,7 @@ export function toSubject(rows: readonly SubjectRow[]): Subject {
           smaaForetak: row.smaa_foretak,
           avviklingsregnskap: row.avviklingsregnskap,
           readAt: chosen.row.filing_read_at,
+          brregId: chosen.brregId,
           fingerprint: fingerprintFromColumns(row),
           classification: businessTypeFromColumn(row.classification),
           documentBasis: documentBasisOf(row, chosen.row.filing_year),

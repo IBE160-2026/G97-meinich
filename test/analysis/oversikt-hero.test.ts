@@ -71,8 +71,9 @@ function drillSubject(inputs: ApiInputs) {
   return provenanceSubject(inputs, {
     filingYear: 2025,
     readAt: new Date('2026-10-03T08:00:00Z'),
+    brregId: 1n,
     documentBasis: { kind: 'not_in_dataset' },
-    documentFacts: { readAt: null, current: null },
+    documentFacts: { readAt: null, brregId: null, current: null },
   });
 }
 

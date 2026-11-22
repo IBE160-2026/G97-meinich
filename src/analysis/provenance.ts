@@ -109,6 +109,8 @@ export type ProvenanceSubject = {
   readonly filingYear: number;
   /** When step 1 read the filing (`register.filing.read_at`). */
   readonly readAt: Date;
+  /** The filing's register id: the document's comparison counts only against this filing (review B1). */
+  readonly filingBrregId: bigint;
 };
 
 // ---- Lines ------------------------------------------------------------------
@@ -331,7 +333,14 @@ function view(
   const inputs = parts.flatMap((part) => part.inputs);
   const api = inputs.filter((input) => input.source === 'api');
   const document = inputs.filter((input) => input.source === 'document');
-  const quality = dataQuality({ basis: subject.basis, facts: subject.facts, api: subject.api, inputs, amount });
+  const quality = dataQuality({
+    basis: subject.basis,
+    facts: subject.facts,
+    api: subject.api,
+    inputs,
+    amount,
+    filingBrregId: subject.filingBrregId,
+  });
   if (document.length > 0 && subject.facts.readAt === null) throw new Error('a document line without the document');
   const date = (id: MessageId, readAt: Date) => t(id, { aar: String(subject.filingYear), dato: formatReadDate(readAt) });
   return {
@@ -586,9 +595,22 @@ export function largestCapitalProvenance(subject: ProvenanceSubject, document: D
 /** The subject's own benchmark-year facts, as the drill-down reads them. */
 export function provenanceSubject(
   api: ApiInputs,
-  filing: { readonly filingYear: number; readonly readAt: Date; readonly documentBasis: DocumentBasis; readonly documentFacts: StoredDocumentFacts },
+  filing: {
+    readonly filingYear: number;
+    readonly readAt: Date;
+    readonly brregId: bigint;
+    readonly documentBasis: DocumentBasis;
+    readonly documentFacts: StoredDocumentFacts;
+  },
 ): ProvenanceSubject {
-  return { api, basis: filing.documentBasis, facts: filing.documentFacts, filingYear: filing.filingYear, readAt: filing.readAt };
+  return {
+    api,
+    basis: filing.documentBasis,
+    facts: filing.documentFacts,
+    filingYear: filing.filingYear,
+    readAt: filing.readAt,
+    filingBrregId: filing.brregId,
+  };
 }
 
 /** Every field name a view shows, in order, each once: what the page marks up. */

@@ -101,6 +101,8 @@ export type SubjectFiling = {
   readonly avviklingsregnskap: boolean | null;
   /** When step 1 read the filing from the register (AD-18). */
   readonly readAt: Date;
+  /** The register's id of this filing (`register.filing.brreg_id`). */
+  readonly brregId: bigint;
   readonly keyFigures: SubjectKeyFigures;
   /** The stored fingerprint for `filingYear` (Story 2.5); null when there is none. */
   readonly fingerprint: Fingerprint | null;

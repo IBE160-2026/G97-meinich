@@ -37,6 +37,7 @@ function row(overrides: Partial<DocumentBasisColumns>): DocumentBasisColumns {
     sum_omloepsmidler_ore: null,
     // Story 3.7: the document's read time and the current column's stored checks.
     document_read_at: new Date('2026-10-21T08:00:00Z'),
+    document_brreg_id: '1',
     current_c1: 'pass',
     current_c2: 'pass',
     current_c3: 'pass',

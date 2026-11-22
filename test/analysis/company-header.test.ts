@@ -19,10 +19,11 @@ const filing: SubjectFiling = {
   smaaForetak: true,
   avviklingsregnskap: false,
   readAt: new Date('2026-10-02T23:30:00Z'),
+  brregId: 1n,
   fingerprint: null,
   classification: null,
   documentBasis: { kind: 'not_in_dataset' },
-  documentFacts: { readAt: null, current: null },
+  documentFacts: { readAt: null, brregId: null, current: null },
   keyFigures: {
     sum_driftsinntekter_ore: '1670000000',
     driftsresultat_ore: '35070000',

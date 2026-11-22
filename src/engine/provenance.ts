@@ -289,6 +289,12 @@ export type CurrentReconciliation = {
 export type StoredDocumentFacts = {
   /** `register.document.read_at`; null when there is no document row. */
   readonly readAt: Date | null;
+  /**
+   * `register.document.brreg_id`: the key-figures filing step 1 compared the
+   * document with (set only when its year has exactly one SELSKAP filing);
+   * null when there is none, or no document row.
+   */
+  readonly brregId: bigint | null;
   /** The current column's reconciliation; null when there is no current column. */
   readonly current: CurrentReconciliation | null;
 };
@@ -401,9 +407,17 @@ export function dataQuality({
   api,
   inputs,
   amount,
+  filingBrregId,
 }: {
   readonly basis: DocumentBasis;
   readonly facts: StoredDocumentFacts;
+  /**
+   * The register id of the subject's benchmark filing, the one whose figures
+   * the page shows (`subjectBenchmarkFiling`). An input counts as compared
+   * only when the document was compared with this filing: otherwise the
+   * shown numbers were not the ones `api_check` saw (review B1, Meinich).
+   */
+  readonly filingBrregId: bigint;
   readonly api: ApiInputs;
   readonly inputs: readonly ProvenanceInput[];
   readonly amount: InputSource;
@@ -422,7 +436,9 @@ export function dataQuality({
     case 'failed_reconciliation':
       return document ? { kind: 'absent' } : failure(facts.current, basis.filingYear);
     case 'read': {
-      const notCompared = inputs.filter((input) => !inputCompared(input, api, facts.current)).map((input) => input.field);
+      const sameFiling = facts.brregId !== null && facts.brregId === filingBrregId;
+      const current = sameFiling ? facts.current : null;
+      const notCompared = inputs.filter((input) => !inputCompared(input, api, current)).map((input) => input.field);
       const fields = [...new Set(notCompared)];
       // A document amount is never "Avstemt": some line of it no check covers.
       if (document && fields.length === 0) throw new Error('a document amount whose every line was compared');

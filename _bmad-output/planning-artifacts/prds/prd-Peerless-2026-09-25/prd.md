@@ -1248,6 +1248,8 @@ This section exists because Peerless is coursework as well as a product, and the
 
 **Stage 4's undetermined share (Story 2.5c's re-read; `analysis/output/document-run-counts-after-2.5c.json`, 2026-11-07).** Of the 400 companies of the Story 2.1b document run with a fingerprint, after the cost lines were read, 165 (41 %) are undetermined at their newest year: an unknown category decides the rule, so they get no type and stage 4, when on, removes less than it could (FR-10). The counts are the same in `analysis/output/document-run-counts-after-2.5d.json`, the latest run.
 
+**Within-band spread (Story 2.5; `analysis/output/fingerprint-spread-62100.md`, 2026-11-07).** On the 420 `62.100` companies fingerprinted before the labelled set's document run, each at its newest fingerprinted year and not the whole industry, all six cost-of-goods and personnel-cost bands pass FR-13's test, the lowest interquartile range at 5.0 pp. It has not been rerun on the labelled set's fingerprints.
+
 **SM-2, measured (Story 2.3, re-run after Story 2.5c; `analysis/output/ocr-sm2.md`, 2026-11-07).** Against 20 hand-transcribed filings:
 - **Misread figures that reach the engine: 0** after the transcriptions were corrected (7 before: a blind check against the PDFs found 6 transcription errors, and 1 more was found later; every correction moved the transcription towards what OCR read). Phantom figures in reconciled columns: 0.
 - **Recovered exactly: 89.9 %** of 804 counted figures — 92.5 % in recent filings, 85.7 % in older ones. Almost all the rest are *not read* (79) rather than misread (2): a line the reader leaves empty, which the engine treats as absent, not zero.

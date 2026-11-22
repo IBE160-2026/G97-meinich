@@ -159,7 +159,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Unfiled figures** — owner-entered current-year figures, before official filing. Stage 2. Always labelled *Egne tall – ikke levert* ("own figures, not filed"), never merged with filed figures, never in an aggregate. Never labelled "unaudited": many small AS have no auditor, so their filed accounts are unaudited too, and the word would wrongly suggest that filed figures are audited.
 - **API-sourced** / **OCR-sourced** — a key figure is OCR-sourced if *any* component is. Three of the 14 are API-only: operating margin, return on assets, equity ratio.
 - **Peer group as a whole** (*peer-gruppen samlet*) — the revenue-weighted aggregate of a common peer set, the reference the margin decomposition is measured against. Defined in `docs/key-figures.md`; distinct from the median and the favourable quartile, and never a target.
-- **Median** — the peer median for a key figure. Shown for context and as a marker on the closable-share control; never the target of the kroner arithmetic.
+- **Median** — the peer median for a key figure. Shown for context and as a marker on the closable-share control, and it sets the share of one step of that control (FR-31); never the target of the kroner arithmetic.
 - **Favourable quartile** — the upper quartile where higher is better, the lower quartile where lower is better. Direction-aware by definition, so a figure with no declared direction has none.
 - **Percentile** — the share of peers the subject does better than, ties counted as half: `(peers worse + 0.5 × peers equal) / peers × 100`, in the favourable direction.
 - **Size band** — the range of company size a candidate must fall within to be eligible as a peer: `sumDriftsinntekter` **from the same filing as the figures being compared**, by default 0.5 to 2 times the subject's, loosenable one fixed step at a time to 0.33 to 3 times and then 0.25 to 4 times (FR-18). Revenue, not assets and not employees; and the filing's own figure, never today's register.
@@ -175,7 +175,7 @@ Downstream workflows and readers use these terms exactly. Introducing a synonym 
 - **Closable share** (*s*) — the user-set fraction, 0 to 1, of each gap assumed closable. 1 means full convergence with the favourable quartile.
 - **Target** (*T*) — the reference value a gap is measured to. **Always the favourable quartile**, at every setting of the closable share; the closable share scales the gap to it rather than moving it.
 - **Annual profit uplift** — the kroner value of the operating margin gap: `(T − r) × sumDriftsinntekter × s`.
-- **Working capital released** — the kroner value of the receivable-days and payable-days gaps, and **only those two**. They do not overlap: one is an asset, the other a liability.
+- **Working capital released** — the kroner value of the receivable-days and payable-days gaps, and **only those two**. They do not overlap: one is an asset, the other a liability. A part that is a strength counts as 0 (FR-30).
 - **Capital released from operating assets** — the kroner value of the operating-asset-turnover gap, reported as its own amount and **never added to working capital released**. Its capital base, `sumEiendeler − bankinnskudd`, already contains `kundefordringer`, so summing the two would count the same receivable reduction twice (FR-30).
 - **Margin decomposition** — the subject's operating margin difference against the peer group as a whole, in kroner, split into four bars: cost of goods, personnel, other operating, and depreciation and other items as the residual. The bars sum exactly to the difference. It is how the cost shares are expressed in kroner — they have no kroner amount of their own — and it is **never scaled by the closable share and never added to annual profit uplift** (FR-30). Defined in `docs/key-figures.md`.
 - **EV/EBIT multiple** — a user-set multiple applied to annual profit uplift to give implied enterprise value. **No default**: until the user enters one, no implied enterprise value is shown. EBIT, not EBITDA, because `driftsresultat` is API-sourced for every company and traces directly to the filing.
@@ -224,7 +224,7 @@ The subject must be in a covered industry to receive a peer analysis.
 - **In v1, `62.100` counts as covered for the companies whose document figures are in the seed** (`seed/allow-list.json`: the demo companies, their peers and the OCR reference set), with its peer selection measured against the labelled set (FR-70, SM-1). The labelled set's own documents and fingerprints are read and stored locally for that measurement and are not part of the committed seed.
 - **Every other `62.100` company** gets funnel stages 1–3 and classification, a peer group, and its API key figures compared as normal; its document-based figures read "Ikke i demodataene" (FR-73). It is never shown as uncovered.
 - Reading every document in the industry is not a condition of coverage. The run over the rest of `62.100` is not part of v1 and needs no new code: `pnpm ingest --documents <list>` performs it (FR-28, FR-59).
-- **"Measured" means a referenced report exists.** Coverage is declared in the committed file `seed/coverage.json`; an entry is marked measured only by referencing its measurement report in `analysis/output/` by path and checksum, and the seed loader refuses a measured entry whose report is missing or does not match. A flag alone never counts. During v1 development `62.100` is declared with measured false so the app can be built against it; v1 is not complete until it is measured.
+- **"Measured" means a referenced report exists.** Coverage is declared in the committed file `seed/coverage.json`; an entry is marked measured only by referencing its measurement report in `analysis/output/` by path and checksum, and the seed loader refuses a measured entry whose report is missing or does not match. A flag alone never counts. `62.100` is declared measured, referencing the layer measurement of SM-1 (§10).
 - A subject whose `naeringskode1.kode` is outside the covered set never receives a peer group.
 - Industry codes are SN2025. An SN2007 code returns nothing rather than a wrong match.
 
@@ -477,7 +477,7 @@ The product computes and displays the key figures defined in `docs/key-figures.m
 - Total cost share is a reconciliation check against the three cost shares, not a primary benchmarking figure.
 - **Key figures 7 and 8 are absent in v1.** Both divide by `aarsverk`, which comes from the notes, and v1 does not read the notes. Revenue per FTE and personnel cost per FTE are therefore shown as absent with that reason for every subject, never as undefined, failed reconciliation or below the floor, and no peer value of either enters an aggregate. The engine still implements both formulas, and the identity above is asserted on test inputs. Reading `aarsverk` is stage 2 (§6.2).
 - **Cash share is a diagnostic, not a numbered key figure.** It is shown as context with no declared direction, is never ranked, and produces no kroner amount — the same treatment revenue growth gets (FR-27).
-- Amounts are integers in øre. Ratios use a decimal library and are rounded only for display, ties away from zero: percentages to one decimal, the percentile to whole percent, days to whole days, kroner to whole kroner (`docs/key-figures.md`).
+- Amounts are integers in øre. Ratios use a decimal library and are rounded only for display, ties away from zero: percentages to one decimal, turnover ratios (key figure 11 and the asset-turnover factor of return on assets) to two decimals, the percentile to whole percent, days to whole days, kroner to whole kroner. The margin decomposition's bars are rounded by largest remainder (FR-30), and a drill-down written to be recomputed by hand shows its shares and margins to two decimals (FR-60). All of it is in `docs/key-figures.md`.
 
 #### FR-22: Minimum group size, per key figure · v1
 
@@ -497,10 +497,10 @@ No aggregate is shown for a key figure unless at least 10 peers have a defined v
 A key figure that cannot be computed for a company is undefined for that company, never defaulted to zero.
 
 **Consequences (testable):**
-- A zero or negative denominator, or a component that is missing and cannot be derived from a stated total, makes the figure undefined. A **derived** denominator of 5 kr or less counts as not positive, because it is within the register's rounding of zero (Story 1.4, human decision 2026-10-12; `docs/key-figures.md`).
+- A zero or negative denominator, or a component that is missing and cannot be derived from a stated total, makes the figure undefined. A **derived** denominator of 5 kr or less counts as not positive, because it is within the register's rounding of zero (`docs/key-figures.md`).
 - A missing component is first derived from its stated total — an empty document `sumDriftsinntekter` is recovered as `driftsresultat` + `sumDriftskostnad` — and with a part also empty the figure is undefined, never zero.
-- An empty document cost line is derived from the column's stated `sumDriftskostnad` (Story 3.1a, decision 1, Meinich 2026-11-15): when the stated lines are within ±5 kr of it, every empty line is 0; when exactly one line is empty and the remainder is above +5 kr, that line is the remainder; otherwise each empty line is undefined. Every derived line is marked derived (`docs/key-figures.md`).
-- A document line the engine does not use because it exceeds its API subtotal (R3, Story 2.5c) makes a figure that reads it undefined with its own reason, "en regnskapslinje kunne ikke leses sikkert", not "en regnskapslinje mangler" (Story 2.9).
+- An empty document cost line is derived from the column's stated `sumDriftskostnad`: when the stated lines are within ±5 kr of it, every empty line is 0; when exactly one line is empty and the remainder is above +5 kr, that line is the remainder; otherwise each empty line is undefined. Every derived line is marked derived (`docs/key-figures.md`).
+- A document line the engine does not use because it exceeds its API subtotal makes a figure that reads it undefined with its own reason, "en regnskapslinje kunne ikke leses sikkert", not "en regnskapslinje mangler".
 - An undefined figure excludes that company from that figure's distribution only, not from the peer group.
 - The number of companies left out of each figure's distribution is shown to the user.
 - No figure is ever estimated or imputed.
@@ -564,7 +564,7 @@ Each key figure with a kroner translation converts its gap to money exactly as `
 **Consequences (testable):**
 - Only gaps where the subject is worse than the target produce a kroner amount; where it is better, the figure is shown as a strength with no amount.
 - Figures with no kroner translation in that document produce none here.
-- **Kroner only for kroner accounts.** An amount is produced only when the subject's filing has `valuta` NOK; otherwise the cell reads *"Beløpet er ikke i kroner"* (Story 1.8, human decision 2026-10-16; `docs/key-figures.md`). The amount uses the subject's resolved revenue — stated, or derived — in exact øre, rounded once, at display.
+- **Kroner only for kroner accounts.** An amount is produced only when the subject's filing has `valuta` NOK; otherwise the cell reads *"Beløpet er ikke i kroner"* (`docs/key-figures.md`). The amount uses the subject's resolved revenue — stated, or derived — in exact øre, rounded once, at display.
 - **The cost shares (3–5) have no kroner amount of their own.** Their median, favourable quartile and percentile are shown as for any figure; what they mean in kroner is shown only by the margin decomposition (FR-30).
 
 #### FR-30: No double counting · v1
@@ -574,21 +574,23 @@ The cost shares are expressed in kroner only through the margin decomposition ag
 **Consequences (testable):**
 - **Profit cluster.** An automated test asserts that no cost share produces a kroner amount of its own, and that no total presented to the user, or contained in an export, adds a margin decomposition bar to annual profit uplift.
 - **The decomposition sums exactly.** Over the common peer set that `docs/key-figures.md` defines, the four bars — cost of goods, personnel, other operating, and depreciation and other items as the residual — sum exactly to the subject's margin difference against the peer group as a whole, times its `sumDriftsinntekter`; after rounding by largest remainder, the displayed bars sum to the displayed total. A test asserts both.
-- Where the common peer set has fewer than 10 peers, or the subject lacks a component, no decomposition is shown and the count is stated (FR-22). When the common set plus the peers outside the demo data would reach 10, it says instead that the peers' accounts are not in the demo data; a subject without a component gives that component's reason, a subject whose cost lines fall short of sum driftskostnader (R2) says so, and a subject whose filing is not in NOK has none (Story 3.3).
+- Where the common peer set has fewer than 10 peers, or the subject lacks a component, no decomposition is shown and the count is stated (FR-22). When the common set plus the peers outside the demo data would reach 10, it says instead that the peers' accounts are not in the demo data; a subject without a component gives that component's reason, a subject whose cost lines fall short of sum driftskostnader (R2) says so, and a subject whose filing is not in NOK has none.
 - **It explains; it is not a gap to close.** The decomposition is never scaled by the closable share, and it names its reference — *peer-gruppen samlet* — so it is not read against the favourable quartile or the median.
 - **Capital cluster.** A second assertion covers the capital amounts: no total sums the receivable-days amount together with the operating-asset-turnover amount. The operating asset base `sumEiendeler − bankinnskudd` already contains `kundefordringer`, so adding them counts the receivable reduction twice.
 - Working capital released is receivable days **plus payable days only**. Those two are safe to add — one is an asset, the other a liability — and the test asserts that nothing else enters that total.
+- A part of working capital released that is a strength counts as 0: with one part a strength the total is the other part's amount, with both a strength it is a strength, and with a part below the minimum group size or a filing not in NOK there is no total.
 - Capital released from operating assets is presented as its own amount beside working capital released, never inside it.
-- The two clusters are tested separately because they fail separately: an earlier version of this requirement guarded only the profit cluster, and the receivables double-count passed it. An earlier version still gave each cost share its own amount to its quartile, which the decomposition replaced (2026-10-10).
+- The two clusters are tested separately because they fail separately: a guard on the profit cluster alone lets the receivables double count through.
 
 #### FR-31: The closable-share control · v1
 
-A single control sets the closable share from nothing to full convergence with the favourable quartile, and the results update live. Realises UJ-1, UJ-2.
+A single control sets the closable share in fixed steps — 0, 25, 50, 75 and 100 %, 50 by default — and the results update live. Realises UJ-1, UJ-2.
 
 **Consequences (testable):**
 - Annual profit uplift, working capital released, capital released from operating assets and implied enterprise value all recompute from the same closable share, and are presented as four amounts rather than one total (FR-30).
-- **The target is the favourable quartile at every setting of the control**, and the control scales the gap to it: no kroner at zero, full convergence with the quartile at full closure.
-- The peer median is marked on the control so the user can see where the typical peer sits relative to the target, and is never itself the target. `docs/key-figures.md` states the same.
+- **The target is the favourable quartile at every setting of the control**, and the control scales the gap to it: no kroner at 0 %, full convergence with the quartile at 100 %.
+- The peer median is marked on the control so the user can see where the typical peer sits relative to the target, and is never itself the target.
+- **One step takes its share from the median:** "Til medianen for driftsmargin" is the exact share at which the subject's operating margin would reach the peer median. It exists only where the subject is below the median and the median below the favourable quartile, and otherwise says why not. At that step the profit uplift is the gap to the median × `sumDriftsinntekter`, and every amount still targets its favourable quartile at that share (`docs/key-figures.md`).
 - A figure with no favourable quartile (FR-27) has no target and produces no amount here.
 
 #### FR-32: Valuation at a user-set multiple · v1
@@ -597,6 +599,7 @@ Implied enterprise value is annual profit uplift × an EV/EBIT multiple set by t
 
 **Consequences (testable):**
 - The multiple is a user input with **no default**. The field starts empty and implied enterprise value is not shown at all until the user enters one.
+- A multiple is greater than 0 and at most 50, in steps of 0.1. Any other input is refused with a message saying so, and no enterprise value is shown for it.
 - The engine never looks a multiple up, infers one, or offers a range, so the product never implies a valuation it did not receive from the user. Annual profit uplift and working capital released are unaffected and show without it.
 - The calculation uses EBIT (`driftsresultat`), which is API-sourced for every company and traces directly to the filing, so the headline valuation figure carries no OCR dependency.
 
@@ -904,7 +907,8 @@ Every kroner amount traces to the ratio that produced it and on to the filed acc
 
 **Consequences (testable):**
 - From any displayed kroner figure the user can reach the key figure and the filed values it was computed from.
-- The margin waterfall's bars explain the profit gap and are not gaps themselves. Each row of its "Vis tallene" (the start, the four bars, "Sum av postene" and the end) has its own drill-down from which the column can be recomputed by hand: the subject's own lines with their names, its revenue R, the pooled and own shares and the margins to two decimals, the exact kroner line Aₓ × R − the own line = the bar, how the peer group as a whole is pooled, how many peers are in it and why the others are not, and its read date; never a sum over the peers, an exact pooled share or a peer's line. The start, end and sum read "Kontrollert mot registerets nøkkeltall" where every input was compared, never "Avstemt" (Story 3.8, Meinich 2026-11-22).
+- The margin waterfall's bars explain the profit gap and are not gaps themselves. Each row of its "Vis tallene" (the start, the four bars, the sum and the end) has its own drill-down from which that row can be recomputed by hand: the subject's own lines and revenue, the shares and margins to two decimals, the kroner line that gives the bar, how the peer group as a whole is pooled, how many peers it holds and why the others are not in it, and the range of their read dates. It never shows a sum over the peers, an exact pooled share or a single peer's line.
+- A document amount is never "Avstemt". The waterfall's start, end and sum read "Kontrollert mot registerets nøkkeltall" where every input was compared with the register's key figures.
 - Filings that cannot be read reliably are reported as unavailable rather than estimated. A paper filing is stored with status `paper` and never read; none was seen after 2013 in a 30-company sample (`docs/data-sources-brreg.md`), so in 2021–2025 they should be rare. A generated document is unavailable when it was refused at reading (`not_extracted`: an unknown layout, a scaled reporting unit, an unreadable or mismatched year header, or an OCR error) or when its column failed reconciliation (FR-57).
 
 #### FR-71: When the subject's own filing fails reconciliation · v1
@@ -913,23 +917,27 @@ Where the subject's own filed document fails reconciliation, the product shows t
 
 **Consequences (testable):**
 - The three API-sourced figures — operating margin, return on assets, equity ratio — are shown, because they do not depend on the document.
-- The twelve document-dependent figures are absent, and the product states that the subject's own filing could not be read reliably rather than showing a gap without a reason: "Regnskapet for {år} kunne ikke leses sikkert", in each absent figure and as a slate subline in the company header, with no badge (Story 2.9). The same words cover a document not yet reconciled and one refused at reading. A listed subject with no stored document for its filing year reads "Regnskapet for {år} er ikke lest inn", and one whose filing year is outside the years read, or whose filing is on paper, reads "Regnskapet for {år} er ikke lest i denne versjonen", each in the absent figures and as the header subline.
+- The twelve document-dependent figures are absent, and the product states that the subject's own filing could not be read reliably rather than showing a gap without a reason: "Regnskapet for {år} kunne ikke leses sikkert", in each absent figure and as a slate subline in the company header, with no badge. The same words cover a document not yet reconciled and one refused at reading. A listed subject with no stored document for its filing year reads "Regnskapet for {år} er ikke lest inn", and one whose filing year is outside the years read, or whose filing is on paper, reads "Regnskapet for {år} er ikke lest i denne versjonen", each in the absent figures and as the header subline.
 - No figure is estimated, substituted from another year, or shown with a caveat (FR-58).
-- The drill-down of an API amount (FR-60, Story 3.7) says why the filing failed: "Avvik ved avstemming: {felt}" only where something differed, naming the fields that disagreed with the key figures and each failed check as its equation; where nothing differed but a check the status requires could not read a line, "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {år}", naming those lines. A column with both shows only what differed (Meinich, 2026-11-20).
+- The drill-down of an API amount (FR-60) says why the filing failed: "Avvik ved avstemming: {felt}" only where something differed, naming the fields that disagreed with the key figures and each failed check as its equation; where nothing differed but a check the status requires could not read a line, "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {år}", naming those lines. A column with both shows only what differed.
 - The subject is not silently demoted to an uncovered company: its industry **is** covered, its peers are unaffected, and the API-sourced figures still carry a full comparison (FR-24).
 - This is distinct from FR-4, where the industry itself is uncovered and there is no peer group at all.
 
 #### FR-64: The age of the data is disclosed, not promised · v1
 
-Every figure, aggregate and industry overview states the filing year behind it and the date the underlying data was read from the register.
+The analysis states the filing year behind its figures and the date the underlying data was read from the register.
 
 **Consequences (testable):**
 - **Stage split:** disclosure on screen is v1; what follows about PDF export and saved analyses applies from stage 2, when they exist.
+- The company header states the subject's filing year and the date its filing was read from the register.
+- Every kroner amount's drill-down (FR-60) states the read date of the subject's document behind it.
+- The margin waterfall's drill-down states the range of read dates of the peers' accounts in the peer group as a whole, never a single peer's date.
+- The drill-down of a document-based peer aggregate (a median or quartile line) states the filing year and the range of read dates of the peers' documents, by the same rule as the waterfall; one filing year is shared, because peers are compared on the same year (FR-25).
 - The filing year and the read date survive into PDF export and into a saved analysis, so a saved analysis cannot be mistaken for a current one.
 - A saved analysis shows the read date it was computed from, never today's.
 - A saved analysis is a record of what was computed on that date, with one exception: a company the register later withdraws is removed from it, as subject or as peer (FR-66).
 - The product makes no freshness guarantee. The batch refresh is triggered manually in v1 (§8), so the disclosed read date — not a promised interval — is what tells the user how current the figures are.
-- **A stored document is not fetched again** (Story 2.1b), so a company that refiles a year keeps the first filing's figures until a re-read. The read date is the date of the read that produced the stored figures.
+- **A stored document is not fetched again**, so a company that refiles a year keeps the first filing's figures until a re-read. The read date is the date of the read that produced the stored figures.
 
 #### FR-65: Source credit under the register's licence · v1
 
@@ -1174,7 +1182,7 @@ Each metric names what it validates. v1 states no quality target for SM-1 or SM-
 **Secondary**
 
 - **SM-5 — Latency.** Peer group assembly under one second; complete analysis within a few seconds. Validates FR-20.
-- **SM-6 — Engine correctness.** All hand-calculated reference cases pass, including negative equity, zero revenue, missing components and non-calendar financial year; both algebraic identities hold exactly. Validates FR-21, FR-23.
+- **SM-6 — Engine correctness.** All hand-calculated reference cases pass, including negative equity, zero revenue, missing components and non-calendar financial year; both algebraic identities hold exactly; the two no-double-counting assertions pass. Validates FR-21, FR-23, FR-30.
 - **SM-7 — Responsiveness.** No horizontal page scrolling at any width from 320 px upwards. Validates FR-55, FR-56.
 - **SM-8 — A complete analysis needs nothing but an organisation number** — no account, no upload, no configuration. Validates FR-1, and from stage 2 FR-42.
 - **SM-9 — Runs from a fresh clone.** Following the README alone, on a clean machine with no keys, a fresh clone reaches a complete analysis of a seeded company, and the test suite passes, AI test mode included. Validates FR-73.
@@ -1260,7 +1268,7 @@ Numbers are stable: an answered question keeps its number so the decision trail 
 3. **Team size.** Solo.
 4. **Is `43.210` committed for v1?** No *(2026-09-26)*. Superseded 2026-10-10 by the teacher's feedback of 2026-10-06 and the user's decision: v1 covers `62.100` only, and `69.202` and `43.210` are stage 3 (§6.3), each measured before it is offered. Inventory days stay out of the key figure set until `43.210` arrives.
 5. **A default or range for the EV/EBIT multiple.** None. The field starts empty and implied enterprise value is not shown until the user enters a multiple, so the product never implies a valuation it did not receive (FR-32). *(2026-09-26)*
-6. **Median or favourable quartile as the reference point.** The favourable quartile is the target at every setting of the closable-share control, and the control scales the gap to it — no kroner at zero, full convergence at full closure. The median is shown in every distribution and marked on the control so the user can see where the typical peer sits, but never enters the arithmetic (FR-31). `docs/key-figures.md` was corrected in the same change; its previous wording admitted a reading in which zero closable share still produced the whole gap to the median. *(2026-09-26)*
+6. **Median or favourable quartile as the reference point.** The favourable quartile is the target at every setting of the closable-share control, and the control scales the gap to it — no kroner at zero, full convergence at full closure. The median is shown in every distribution and marked on the control so the user can see where the typical peer sits, and is never the target; one step of the control takes its share from it (FR-31). `docs/key-figures.md` was corrected in the same change; its previous wording admitted a reading in which zero closable share still produced the whole gap to the median. *(2026-09-26)*
 7. **Which figures a user may hand-enter as unfiled.** Four required components — revenue, operating profit, total assets, total equity — with the document-sourced components optional (FR-38). *(2026-09-26)*
 8. **User-facing behaviour below the minimum group size.** The row persists and still shows the company's own value; the aggregate cells state how many comparable values exist against the ten required, and no kroner amount is produced (FR-22). *(2026-09-26)*
 9. **Cash share** — a diagnostic, not a numbered key figure. Shown as context, never ranked, no kroner translation (FR-21). *(2026-09-26)*

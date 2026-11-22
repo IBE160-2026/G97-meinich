@@ -857,7 +857,8 @@ The interface works down to phone width, reflowing and stacking to one column wh
 Ratio tables, distribution plots and the peer list each scroll horizontally inside their own container when wider than the viewport.
 
 **Consequences (testable):**
-- On a phone the key-figure table does not scroll: below the `md` breakpoint it reflows into a three-column table whose rows expand to show the rest (Story 1.8). The desktop table, the distribution plots and the peer list scroll in their own containers.
+- On a phone the key-figure table does not scroll: below the `md` breakpoint it reflows into a three-column table whose rows expand to show the rest.
+- The desktop table, the distribution plots and the peer list scroll in their own containers.
 
 ### 4.10 Data quality visible to the user
 

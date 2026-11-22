@@ -92,6 +92,15 @@ export function formatPercent(fraction: string): string {
   return `${render(decimal(fraction).mul(100), 1)}${NBSP}%`;
 }
 
+/**
+ * A fraction (0.0801613) → percent, two decimals: "8,02 %". For the margin
+ * waterfall's drill-down (Story 3.8, decision 2), where Aₓ, cₓ and M are
+ * shown finer than the table's one decimal so a bar can be recomputed.
+ */
+export function formatPercentFine(fraction: string): string {
+  return `${render(decimal(fraction).mul(100), 2)}${NBSP}%`;
+}
+
 /** A fraction (0.184) → percent, one decimal, no unit: "18,4", "−6,3" (a range's bounds). */
 export function formatPercentNumber(fraction: string): string {
   return render(decimal(fraction).mul(100), 1);
@@ -127,6 +136,11 @@ export function wholeKroner(oreAmount: string): Decimal {
  */
 export function shownPercent(fraction: string): Decimal {
   return roundHalfAwayFromZero(decimal(fraction).mul(100), 1).div(100);
+}
+
+/** A fraction → the two decimals of percent `formatPercentFine` shows, as a value: 0.0801613 → 0.0802. */
+export function shownPercentFine(fraction: string): Decimal {
+  return roundHalfAwayFromZero(decimal(fraction).mul(100), 2).div(100);
 }
 
 /** Days → the whole days `formatDays` shows, as a value. */

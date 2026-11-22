@@ -6,7 +6,7 @@
 // synthetic.
 import { describe, expect, it } from 'vitest';
 import { Decimal } from '../../src/engine/decimal.ts';
-import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
+import { documentBasis, type DocumentBasis } from '../../src/engine/document-inputs.ts';
 import { documentKeyFigureFractions } from '../../src/engine/document-key-figures.ts';
 import { type Fraction, equals, fraction, toDecimal } from '../../src/engine/fraction.ts';
 import {
@@ -15,10 +15,14 @@ import {
   displayWaterfall,
   marginComponents,
   marginWaterfall,
+  OUTSIDE_REASONS,
+  outsideCommonSet,
+  pooledOnRevenue,
   WATERFALL_BARS,
   type MarginComponents,
+  type OutsideReason,
 } from '../../src/engine/waterfall.ts';
-import { FAILED, NOT_IN_DATASET, readBasis, type Lines } from '../analysis/document-fixture.ts';
+import { column, FAILED, NOT_IN_DATASET, readBasis, type Lines } from '../analysis/document-fixture.ts';
 
 const YEAR = 2025;
 
@@ -133,6 +137,46 @@ describe('the common peer set P and the floor', () => {
       sumDriftskostnad: ((9_300_000n + 5n) * 100n).toString(),
     });
     expect(commonPeerSet([rounding], YEAR)).toHaveLength(1);
+  });
+
+  it('a peer outside the manifest never enters P', () => {
+    // Story 3.8, decision 1: a reconciled current column with every line, the orgnr not on the manifest.
+    const lines = { status: 'reconciled', current: column({}), prior: null, priorApiFailFields: null } as const;
+    const listed = documentBasis({ inManifest: true, filingYear: YEAR, document: lines, sumOmloepsmidler: 360_000_000n });
+    const unlisted = documentBasis({ inManifest: false, filingYear: YEAR, document: lines, sumOmloepsmidler: 360_000_000n });
+    // The fixture's state: the same document enters P when listed.
+    expect(commonPeerSet([listed], YEAR)).toHaveLength(1);
+    expect(commonPeerSet([unlisted], YEAR)).toHaveLength(0);
+    expect(outsideCommonSet([unlisted], YEAR).not_in_dataset).toBe(1);
+  });
+
+  it('who is outside P, counted by reason', () => {
+    const outside: readonly (readonly [OutsideReason, DocumentBasis])[] = [
+      ['not_in_dataset', NOT_IN_DATASET],
+      ['document_missing', { kind: 'document_missing', filingYear: YEAR }],
+      ['not_read_in_v1', { kind: 'not_read_in_v1', scope: 'paper', filingYear: YEAR }],
+      ['not_read_in_v1', { kind: 'not_read_in_v1', scope: 'filing_year', filingYear: YEAR }],
+      ['not_read_safely', { kind: 'refused', filingYear: YEAR }],
+      ['not_read_safely', { kind: 'not_reconciled', filingYear: YEAR }],
+      ['failed_reconciliation', FAILED],
+      [
+        'cost_lines_short_of_total',
+        company(10_000_000n, 1_000_000n, 6_000_000n, 2_000_000n, 300_000n, { nedskrivninger: null, sumDriftskostnad: ((9_300_000n + 6n) * 100n).toString() }),
+      ],
+      ['component_missing', company(10_000_000n, 100n, 200n, 300n, 400n, { varekostnad: null, lonnskostnad: null })],
+      ['revenue_not_positive', company(0n, 1n, 2n, 3n, 4n)],
+      ['other_year', ofYear(company(10_000_000n, 1n, 2n, 3n, 4n), 2024)],
+    ];
+    const counts = outsideCommonSet([...TEN, ...outside.map(([, basis]) => basis)], YEAR);
+    const expected = Object.fromEntries(OUTSIDE_REASONS.map((reason) => [reason, outside.filter(([r]) => r === reason).length]));
+    expect(counts).toEqual(expected);
+    // Every reason occurs, and P plus the outside counts is the whole group.
+    for (const reason of OUTSIDE_REASONS) expect(counts[reason], reason).toBeGreaterThan(0);
+    const n = commonPeerSet([...TEN, ...outside.map(([, basis]) => basis)], YEAR).length;
+    expect(n).toBe(10);
+    expect(n + Object.values(counts).reduce((a, b) => a + b, 0)).toBe(TEN.length + outside.length);
+    // P = 10 of 10: nobody outside.
+    expect(Object.values(outsideCommonSet(TEN, YEAR)).every((count) => count === 0)).toBe(true);
   });
 
   it('counts the peers outside the demo data for decision 3', () => {
@@ -267,6 +311,22 @@ describe('the exact identities', () => {
     expect(residualSigns.positive).toBeGreaterThan(0);
     expect(residualSigns.negative).toBeGreaterThan(0);
   });
+
+  it('Aₓ × R − the own line is the bar, and M × R is the exact start (Story 3.8)', () => {
+    const result = marginWaterfall(SUBJECT, TEN, YEAR, 'NOK');
+    if (result.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+    const own = result.subject;
+    for (const step of result.steps) {
+      const pooled = pooledOnRevenue(step.pooledShare, own.revenue).ore;
+      // Aₓ × R − cₓ × R, where cₓ × R is the subject's own line.
+      const bar = fraction(pooled.numerator - own[step.bar] * pooled.denominator, pooled.denominator);
+      expect(equals(bar, step.ore), step.bar).toBe(true);
+      expect(toDecimal(step.pooledShare).eq(step.all), step.bar).toBe(true);
+    }
+    // driftsresultat − M × R is the exact total.
+    const start = pooledOnRevenue(result.pooledMargin, own.revenue).ore;
+    expect(equals(fraction(own.driftsresultat * start.denominator - start.numerator, start.denominator), result.totalOre)).toBe(true);
+  });
 });
 
 const kr = (numerator: bigint, denominator: bigint = 1n): Fraction => fraction(numerator * 100n, denominator);
@@ -279,6 +339,15 @@ describe('display rounding', () => {
     expect(d.barKroner).toEqual([-10n, 4n, 5n, 0n]);
     expect(d.endKroner).toBe(1_000n);
     expect(d.startKroner).toBe(1_001n);
+  });
+
+  it('display rounding: each bar rounded on its own, beside the largest remainder (Story 3.8)', () => {
+    // 100,4 + 200,4 + 300,4 + 0 = 601,2 → 601. Floors sum to 600; the one krone goes to vare (ties in bar order).
+    const d = displayWaterfall([kr(1004n, 10n), kr(2004n, 10n), kr(3004n, 10n), kr(0n)], 0n);
+    expect(d.barKroner).toEqual([101n, 200n, 300n, 0n]);
+    expect(d.ownKroner).toEqual([100n, 200n, 300n, 0n]);
+    // Half away from zero on its own: −2,5 → −3, 2,5 → 3.
+    expect(displayWaterfall([kr(-25n, 10n), kr(25n, 10n), kr(0n), kr(0n)], 0n).ownKroner).toEqual([-3n, 3n, 0n, 0n]);
   });
 
   it('display rounding: ties go in bar order', () => {

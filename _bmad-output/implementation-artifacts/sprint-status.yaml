@@ -229,7 +229,7 @@ action_items:
     action: "The prompt extraction checks itself: every prompt in the transcript,
       mid-turn ones included, is in docs/ai-prompts.md, with UTC times (P4)"
     owner: "review session"
-    status: open
+    status: done  # a0f3cc1, after the Epic 3 retro
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-11-14.md"
   - id: "epic-2-retro-item-15-cut-the-rest-of-the-prd-frs-with-build-h"
     epic: 2

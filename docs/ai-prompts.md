@@ -4145,6 +4145,203 @@ Every displayed kroner amount (Nøkkeltall's four gap cells, the Oversikt hero, 
 
 The review session checked B1 against the database (every document with a stored SELSKAP filing carries its `brreg_id`; the 776 without one are from 2021–2022, where no filing is stored), the unread-lines wording, `tmp-shot.mjs` absent from the history, D2, the payload scan and its probes, the payload growth after gzip, the planning documents, the statuses, the restored row counts with no synthetic company left, and the PR text's credits. CI was green on `2d31b4c`. At the human's request (`post review`), the review session posted the GitHub review with eight line comments; its two notes went to `deferred-work.md`, owned by Story 5.4. The human merged the PR at 10:45 UTC on 2026-11-22 as `959b0c2`.
 
+## Story 3.8: the waterfall by hand (#83, PR #84)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt.
+
+### Prompts to the BMAD session
+
+**2026-11-22 16:54**: the prompt that opened Story 3.8.
+```
+Fra meg:
+
+/bmad-build Story 3.8: «Vannfallet kan regnes ut for hånd» (epics.md, Story 3.8). Lag branchen story/3.8-vannfallet-for-hand fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+
+(a) Utsatt arbeid: oppføringen i deferred-work.md som Story 3.8 eier, og hver annen oppføring som nevner 3.8, vannfallet, waterfall, aggregateShares eller displayWaterfall. Ta også med den nye oppføringen fra reviewen av PR #82: failed_reconciliation er ikke koblet til brreg_id, og id-en leses med parseOre. Den eies av 5.4, men berører dataQuality, som 3.8 gjenbruker. For hver oppføring: tas den inn, eller blir den der den er, og hvorfor.
+
+(b) Beløpene: list hvert kronebeløp i vannfallet. Det gjelder startkolonnen «Peer-gruppen samlet», de fire søylene, sluttkolonnen, summen i oppsummeringen og radene i «Vis tallene». For hvert beløp:
+- hvilken funksjon i waterfall.ts det kommer fra, og rollen i amounts.ts (explanation);
+- hvilken formel drill-downen viser.
+Bekreft at ingen drill-down gjør en søyle til et gap eller legger den til et annet beløp (FR-30), og at test/engine/no-double-counting.test.ts fortsatt fanger det.
+
+(c) Hva siden kan vise uten å nå en peers dokumentlinje:
+- Analyser eksklusjon. Med ekskl (opptil MAX_EKSKL = 20) og båndbytte kan en bruker sammenligne to grupper som skiller seg med én peer i P. Vises Aₓ eksakt, eller Σ teller, gir forskjellen den peerens linje.
+- Foreslå hvor mange desimaler Aₓ og M vises med. Regn ut hvor stor usikkerhet en slik sammenligning da etterlater i kroner, for demo A sin P med den gjenopprettede dumpen. Bare totaler, ingen orgnr.
+- Gjør samme analyse for 3.7s «Vis fordelingen» for (9)–(11): ekskluder én peer, se hvilken verdi som forsvinner, og bruk peerens omsetning. Si hva det eksponerer. AI-loggen for 3.7 sier at ingen verdi kan knyttes til en peer. Si om det stemmer, og foreslå hva som eventuelt bør endres. Ingen kodeendring her før jeg har bestemt meg.
+
+(d) Formelen:
+- (Aₓ − cₓ) × R med de viste tallene, og «≈» etter lineIsApproximate når de viste tallene ikke gir det viste beløpet.
+- cₓ er subjektets egen linje / R. De egne linjene vises i kroner med registernavn, som i 3.7.
+- Hvordan R leses, med documentRevenue og et eventuelt avledet beløp.
+- Restposten: R − driftsresultat − de tre linjene for subjektet, og 1 − M − ΣA for gruppen.
+- Startkolonnen er M × R, og sluttkolonnen er subjektets driftsresultat.
+- Σ søyler = (m − M) × R eksakt.
+- Største rest: når avviker en vist søyle fra sin egen avrunding, og hvordan sier drill-downen det? Vis et regneeksempel der det skjer.
+
+(e) Hvordan «samlet» ble funnet:
+- n = |P|, og det er en sammenslått andel, ikke en median eller en beste fjerdedel.
+- Hvorfor P kan være mindre enn gruppen: antall per grunn, ingen navn.
+- Bekreft at vannfallet ikke får «Vis fordelingen». Peerenes kostnadsandeler én for én ville nådd dokumentlinjene deres.
+
+(f) Innsendte verdier og datakvalitet:
+- subjektets linjer med registernavn, regnskapsår og innlesingsdato;
+- en dokumentverdi er aldri «Avstemt», som i 3.7;
+- kildelinjen for OCR-verdier.
+Gjenbruk ProvenanceSteps, dataQuality og src/engine/provenance.ts, og lag ingen ny implementasjon av dem. Si hva som må utvides.
+
+(g) Payload-skannet: ingen Σ teller, ingen eksakt brøk og ingen peers linje på noen form. Legg til en probe for en gruppesum i kroner og en for en eksakt Aₓ. Mål payload-veksten, rå og med gzip, på branchen mot main.
+
+(h) Data og tester:
+- Vannfallet vises bare når peerenes dokumenter finnes: ikke i seeden på en fersk klon, men i den syntetiske fixturen og lokalt etter restore:documents.
+- Si hvilken e2e som dekker hva.
+- Regn ut fixturens søyler uavhengig av motoren. Orakelet skal ligge i e2e/synthetic.ts eller i spec-en, ikke i waterfall.ts.
+
+(i) UI og tilgjengelighet:
+- hvor utløseren sitter (søylen i grafen, raden i «Vis tallene», eller begge);
+- 375 og 320 px;
+- fokus til overskriften og tilbake;
+- flere drill-downs åpne samtidig, som i 3.7.
+
+(j) Ny tekst: all ny tekst ordrett, til min godkjenning.
+
+Regler, som i 3.7:
+- Hver rad i I/O-matrisen navngir testen som feiler når vernet fjernes. Rapporten viser hvert vern fjernet og testen som feilet.
+- Ingen forventet verdi velges ut fra data med en betingelse. Sjekk fixturens tilstand først, og sammenlign så med én fast verdi.
+- Hver lesing etter en endring venter på det den leser.
+- E2e kjøres med én worker og ett prosjekt om gangen, og synthetic sist.
+- Kjør pnpm test --maxWorkers=2, og kjør verifiseringen i deler hvis minnet er lavt.
+- Feiler pnpm build med SecurityFatalError, kjør det én gang til (#71). Ikke oppgrader noe.
+- Rapporter tallene etter restore, 0 SYNTETISK% og 20 oppføringer i manifestet.
+- Ikke push før jeg sier fra.
+```
+*Changed:* issue #83 and the branch, stopped at the checkpoint with (a)–(j): the deferred entry Story 3.8 owns, what the drill-downs would show, what comparing two URLs reveals (with a measurement on demo A, the gate opened in memory, totals only), the data-quality line for the start, end and sum, the read date, the copy, and seven questions. The prompt's premise that demo A would show a waterfall after a restore was wrong.
+
+**17:14**: the answers at the checkpoint.
+```
+Fra meg:
+
+Premisset: demo A (885583822) står på manifestets document_figure_orgnrs, både i seed/demo/manifest.json og i register.dataset. Review-sesjonen sjekket begge. Det er peerene som ikke står der, og derfor får demo A ikke vannfall lokalt. Rett det i spec-en.
+
+1. A. Skriv argumentet som en invariant i spec-en, ikke som en måling: bare en peer med grunnlag read er med i P, og det krever at den står i manifestet. En slik peers egen side viser linjene sine i kroner, så sammenligningen etter en eksklusjon avslører aldri mer enn peerens egen side. Legg til en test som feiler hvis en peer utenfor manifestet kommer inn i P. Rett påstanden fra 3.7 i en ny oppføring i AI-loggen, og si at review-sesjonen ba om analysen.
+
+2. C: 2 desimaler for Aₓ, cₓ og M i drill-downen, mens tabellen beholder 1. Legg til den eksakte kronelinjen «Aₓ × R − egen linje = søyle». Den avslører ingenting nytt, fordi Aₓ × R = søyle + egen linje, og begge vises allerede. Aₓ × R er et nytt kronebeløp: registrer det i amounts.ts som explanation, og vis at no-double-counting.test.ts fortsatt fanger det hvis det legges til en total.
+
+3. A: en ny rad «Sum av postene» med egen utløser. Drill-downen sier at summen er mot peer-gruppen samlet, ikke beste fjerdedel, slik at den ikke leses som gapet i Driftsmargin-raden.
+
+4. A: «Kontrollert mot registerets nøkkeltall: {felt}», aldri «Avstemt». Linjen vises bare under de samme betingelsene som «Avstemt» i 3.7: api_check bestått, dokumentets brreg_id lik den valgte filingen (B1), og hver input blant SHARED_FIELDS uten å være avledet. En avledet omsetning gir «Ikke kontrollert mot andre tall: {felt}». Testene:
+- id-ene er ulike;
+- omsetningen er avledet;
+- api_check er ikke bestått.
+Hver av dem skal feile når vernet fjernes.
+
+5. A: intervallet fra read_at for P. Når alle datoene er like, vises én dato, ikke «{d}–{d}». Legg den formen i (j).
+
+6. Teksten er godkjent med tre endringer:
+- «{k} med avvik ved avstemming» blir «{k} som ikke besto avstemmingen». I 3.7 hadde 141 av 164 mislykkede kolonner ingen avvik, bare linjer som ikke kunne leses.
+- «Vist som {vist}, ikke {egen}: postene er rundet slik at de til sammen blir {total}.»
+- «Vist som {slutt} − ({sum}) = {start}, slik at start og postene til sammen gir {slutt}.»
+
+7. Hold spec-en samlet, som i 3.7.
+
+Deretter: frys spec-en med beslutningene og Spec Change Log, sett den til ready-for-dev, commit, og start implementeringen. Reglene fra åpningsprompten gjelder fortsatt. Ikke push før jeg sier fra.
+```
+*Changed:* decisions 1–7 in the frozen spec: the comparison across two URLs accepted as an invariant (P lies within the manifest, with a test), two decimals and the exact kroner line "Aₓ × R − egen linje = søyle", "Sum av postene", "Kontrollert mot registerets nøkkeltall" under 3.7's conditions for "Avstemt", the read-date range, and the copy with three changes. The prompt's own premise, that demo A (it named 885583822) is on the manifest, was the review session's mistake: demo A is 813235552 and is not; the BMAD session found that against the code and the database and recorded it in the Spec Change Log. Then the spec ready for dev and the implementation (`2896911` to `5291526`): the outside-P counts, Aₓ × R and each bar's own rounding, `checked`, the copy, the views, the rows, the payload scan, e2e against the hand-written `SYNTHETIC_WATERFALL`, the phone layout, the docs, and review pass 1 with its triage and fixes. The verification then stopped on memory during e2e, and the BMAD session asked about the sum's sentence and peer 5's exception.
+
+**18:20**: e2e again, the sum's sentence and peer 5.
+```
+Fra meg:
+
+E2e: kjør den på nytt nå. Jeg lukker VS Code først. Kjør ett prosjekt om gangen (chromium, så db-down, så synthetic sist), med én worker. Vent på at elementer finnes før du leser dem, og bruk ingen betingede forventninger. Hvis #71 (SecurityFatalError) dukker opp, kjør det prosjektet én gang til og noter det. Stopper kjøringen på minne, skal du ikke starte den igjen. Si fra til meg i stedet.
+
+Logglinjen notFound.coverageFailed er normal. Review-sesjonen fant den 11 ganger i loggen fra siste CI-kjøring på main (45014310330), som var grønn. Den kommer trolig fra db-down-serveren på 3101, som peker på en database som ikke svarer. Sjekk at linjen ikke kommer fra serveren på 3100.
+
+1. waterfall.prov.sumNotGap endres til: «Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden.» Oppdater spec-en og alle tester som leser teksten.
+
+2. Peer 5: unntaket for de to beløpene står. Grunnen er at en generell lekkasje av peer-linjer fortsatt fanges av de ni andre peerene, og at en endring i fixturen flytter tall som 3.1b og 3.7 sjekker. Legg til to sjekker i testen: at pooledShown har nøyaktig to verdier, og at de ni andre peerenes linjer for annenDriftskostnad og avskrivninger fortsatt står i peerOre og ikke er unntatt. Sett B6 i triagen til «accepted, Meinich», med denne begrunnelsen.
+
+Etterpå: lint, typecheck og pnpm test --maxWorkers=2. Les så tellingene etter restore (2 785 / 5 556 / 2 537 / 10 371), sjekk at det er 0 SYNTETISK% og 20 oppføringer i manifestet, og oppdater triagen og session-fila. Ikke push før jeg sier fra.
+```
+*Changed:* the sentence "Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden." and peer 5's exception bounded to exactly two values, with the nine other peers' lines still scanned (`adfbf04`); every step green, the log line shown to come from the db-down server, and the session file (`1845fc6`). The BMAD session asked to confirm its reading of the read-date boundary.
+
+**18:51**: the read-date boundary, and push.
+```
+Fra meg:
+
+Datogrensen: tolkningen i Spec Change Log er bekreftet. Grensen betyr ingen dato per peer, og intervallet i beslutning 5 er tillatt. Grunnen er den samme som i beslutning 1: hver peer i P står i manifestet, og dens egen side viser allerede når dokumentet ble lest. Det er også et tidspunkt fra vår innlesning, ikke et regnskapstall. Endre oppføringen fra «for Meinich to confirm» til «confirmed by Meinich 2026-11-22», og sett B4 til «accepted, Meinich».
+
+Ingen walkthrough. Push branchen og opprett PR-en. Den skal ha:
+- Closes #83;
+- FR-ene;
+- hvordan det ble testet, med e2e-tallene per prosjekt;
+- at den første pnpm build feilet med exit 1 uten kjent årsak, og at den andre gikk igjennom;
+- linjen «Planning documents:» med det som ble oppdatert;
+- lenke til session-fila;
+- review-funnene, rettelsene og de avviste funnene, med hvem som fant hva.
+
+Oppdater session-fila med lenken til PR-en, og commit og push det. Sesjonsloggen forblir lokal.
+```
+*Changed:* the boundary confirmed as "no read date per peer" and B4 accepted (`1bf8e3f`); the branch pushed and PR #84 opened. The prompt's last line, that the session log stays local, was wrong: the BMAD session had already moved its log commit off the branch.
+
+**18:52** (queued): the log commit belongs in the PR.
+```
+Fra meg:
+
+Du har rett, og review-sesjonen tok feil. AGENTS.md gjelder: loggcommiten på story-branchen skal være med i PR-en, slik den var i PR #80 og PR #82. Ikke flytt den. La 8cb71d0 ligge på branchen, og push slik jeg beskrev i forrige melding. Oppdater sesjonsloggen med lenken til PR-en, og commit og push den sammen med session-fila.
+```
+*Changed:* the session-log commit put back on the story branch by cherry-pick as `e5f71a3` (it had been pushed without it), and the session file and log linked to the PR (`d35a9d8`).
+
+**19:14**: the two points of the review draft.
+```
+Fra meg:
+
+Review-sesjonen har postet reviewen på PR #84. Rett de to punktene der før merge:
+
+1. Spec-en, linje 187: overskriften i Spec Change Log krediterer review-sesjonen for å ha funnet at premisset var feil. Det var review-sesjonen som tok feil, fordi den forvekslet 885583822 med demo A. Premisset ditt om at demo A ikke står i manifestet var riktig. Review-sesjonen bidro med at peerene heller ikke står der. Skriv om overskriften slik, og sjekk at session-fila sier det samme.
+
+2. waterfall.tsx:89: fjern sticky left-0 max-w-[…], kjør e2e-testen som sjekker telefonvisningen (bare den, med én worker), og legg utskriften av feilen i triagen. Hvis testen ikke feiler, før det i triagen som ikke verifisert, og spør meg. Skriv en kort kommentar om hva 4.5rem tilsvarer.
+
+Commit rettelsene som egne commits og push. CI må være grønn igjen før jeg merger.
+```
+*Changed:* the premise credited correctly in the Spec Change Log (`f276da4`), what 4.5rem is (`bd1f23e`), and the phone fix shown failing without it (`e36d3d7`, `bb08c49`). The prompt said the review was posted; it was still a draft, posted later on `145527a`. The BMAD session measured that at 375 px the steps start 9 px outside the scrolling region, which the e2e did not see, and asked whether to fix it or defer it.
+
+**19:35**: the 9 px fixed in this PR.
+```
+Fra meg:
+
+Rett det i denne PR-en, ikke før det i deferred-work.
+
+1. Testen: sammenlign drill-down-stegene med den synlige regionen (scroll-regionens bounding box), ikke med skjermen. Krav: stegenes venstre kant ≥ regionens venstre kant, og stegenes høyre kant ≤ regionens høyre kant. Sjekk ved 375 px og 320 px, både når regionen står helt til venstre og når den er scrollet helt til høyre. Bruk en drill-down nederst (restposten) og en øverst (start). Vis at testen feiler på dagens kode (375-tilfellet med 9 px), og legg utskriften i triagen.
+
+2. Rettelsen: målingen viser at den klebrige posisjonen stopper ved cellens høyre kant (326 px). Bredden alene løser det altså ikke for alle scrollposisjoner. Velg den løsningen som gjør testen grønn i alle fire tilfellene. Det kan være at bredden følger regionens synlige bredde i stedet for 100vw, eller at drill-downen på telefon legges utenfor tabellens scroll-region. Fjern 12 px-slakken hvis den ikke lenger trengs, og oppdater kommentaren om 4.5rem.
+
+3. Kjør bare de berørte e2e-testene, med én worker, og deretter synthetic-prosjektet til slutt. Oppdater triagen, session-fila og Spec Change Log. Lag egne commits og push. CI må være grønn før jeg merger.
+```
+*Changed:* the e2e compares the steps with the region's visible box at 375 and 320 px, scrolled fully left and right, failing in all eight cases on the old code (`0f35e77`); the steps sized by the region, `100cqw − 1.75rem` in a size container, instead of the viewport (`43143d6`); the triage, the change log and the session file (`145527a`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.8` (11-22): the review session read Story 3.8, FR-60 and FR-64, the deferred entry, `waterfall.ts` and 3.7's provenance code, and drafted the 16:54 prompt. `kan du lage i kopiformat`: it gave the same prompt in a code block.
+- The BMAD session's checkpoint (11-22): the review session checked the manifest in the database, recommended an answer to each of the seven questions (A, C, A, A with tests that fail without their guard, A with a one-date form, the copy with three changes, one spec), and drafted the 17:14 prompt. Its correction of the premise was wrong: it took 885583822 for demo A.
+- The BMAD session's report that e2e stopped on memory (11-22): the review session measured 3,4 GB free, found the `notFound.coverageFailed` line 11 times in main's green CI log, recommended a wording for the sum's sentence and keeping peer 5's exception with two added checks, and drafted the 18:20 prompt.
+- The BMAD session's verification report (11-22): the review session checked the new commits, the copy and the bounded exception, recommended confirming the read-date reading by decision 1's argument and skipping the walkthrough, and drafted the 18:51 prompt.
+- `Én motsetning først: …` (11-22): the review session checked PR #80 and PR #82, found that the BMAD session's log commits went into them as AGENTS.md says, agreed it had been wrong, and drafted the 18:52 prompt.
+- The BMAD session's report that PR #84 was open (11-22): the review session checked the PR's commits and the log commit.
+- `CI er grønn, lag review-utkast` (11-22): the review session read the diff, recomputed `SYNTHETIC_WATERFALL` by hand, checked the shared fields against `reconcile.py`, found its own demo A mistake recorded in the spec, and drafted the review and the 19:14 prompt.
+- The BMAD session's question about the 9 px (11-22): the review session recommended fixing it in the PR, since 375 px is the course's target width, and drafted the 19:35 prompt.
+- The BMAD session's report on the phone fix (11-22): the review session checked that the size container is scoped to the waterfall's phone region and the tolerance of one layout unit, found that no review had been posted, and updated the draft to `145527a`.
+- `CI er grønn, post review` (11-22): the review session checked every line comment against the diff's hunks and posted the review.
+- `merget - fikser du treet og resten` (11-22): the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+Every row of the margin waterfall's "Vis tallene" (the start, the four bars, a new "Sum av postene" and the end) gets "Hvordan er dette regnet?": the subject's own lines with their register names, R, Aₓ, cₓ, M and m to two decimals, the kroner line "Aₓ × R − egen linje = søyle", how samlet is pooled, how many peers are outside P and why, the range of P's read dates, and the largest-remainder note where it moved a bar. The start, end and sum read "Kontrollert mot registerets nøkkeltall" under 3.7's conditions for "Avstemt". No sum over P, share beyond two decimals or peer line reaches the page. Comparing two URLs can reveal a peer's line, which is accepted because only a peer on the manifest enters P.
+
+### Checks before merging
+
+The review session recomputed the fixture by hand, checked the manifest invariant and its test, the `checked` rule, the `explanation` role of `pooledOnRevenue`, the payload scan's new probes and peer 5's two values, the copy, the restored row counts with no synthetic company left, the statuses and the PR text's credits. CI was green on `145527a`. At the human's request (`post review`), the review session posted the GitHub review with nine line comments; its two points had been passed to the BMAD session from the draft and were fixed before it was posted. The human merged the PR at 19:55 UTC on 2026-11-22 as `22257fe`.
+
 ---
 
 ## Going forward

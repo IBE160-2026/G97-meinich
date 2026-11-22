@@ -169,6 +169,19 @@ context:
 
 ## Implementation Notes
 
+Implementation run, 2026-11-22 (subagent). Where the code differs from the Code Map's hints, or a row needed reading:
+
+- **`waterfall.prov.sumNotGap` is the spec's proposed wording, committed as proposed.** Decision 6 puts it to Meinich before the copy commit; the subagent could not ask, so the key is in `nb.json`, EXPERIENCE.md and `test/messages.test.ts` with a comment that it awaits confirmation. A change of wording is one line in each.
+- **No "Ikke med" line when no one is outside P.** `waterfall.prov.outside` has no form for an empty list, so `outsideLine` returns null then; n is still in the pooled sentence. Only a hand-made group reaches it (`test/engine/waterfall.test.ts` "who is outside P, counted by reason", the P = 10 of 10 case).
+- **Step 2 of a column is a new `pooled` field of `ProvenanceView`** (label, lines, sentences about P), not a `FigureStepView` with an optional beste fjerdedel, so 3.7's views and tests are unchanged; `ProvenanceSteps` renders it under "Nøkkeltall". `provenance.tsx` is unchanged.
+- **The end's inputs include R** (its m line reads it), so a derived R leaves the end "Ikke kontrollert …" as the matrix's "R derived" row asks, not only the start and the sum.
+- **Written forms.** The residual's own line in the exact line is "c × R" (no register name holds it). The sum's second line adds the displayed bars unsigned, a negative one in parentheses, with the result signed. "Vist som {vist}, ikke {egen}" writes unsigned kroner, as the approved example does. The residual's A line writes 1 as "100,00 %".
+- **Phone.** The "Vis tallene" table is wider than the screen at 375 and 320 px and scrolls in its region, so a drill-down row spanning it ran off the screen. On the phone the steps keep to the visible width and stay at the region's left edge (`sticky left-0`, `max-w-[calc(100vw-4.5rem)]` in `waterfall.tsx`); `e2e/synthetic-documents.spec.ts` "waterfall drill-downs: focus, several open, phone" checks the steps' box lies inside the screen. The drill-down's heading is `ProvenanceRow`'s h3, under the fold-out's own h3.
+- **The read date and "no peer's read date".** Decision 5's range has two ends that are peers' dates, without a name; nothing per peer reaches the page. In the fixture every document is read in one transaction, so it shows one date.
+- **Two Aₓ × R values equal a peer's line in the fixture.** Peer 5's revenue is the subject's, and its andre (20 %) and avskrivninger (3 %) shares are every peer's, so Aₓ × R for those two bars (300 000 000 and 45 000 000 kr) is peer 5's line by construction. The Nøkkeltall payload test asserts that state and admits the two shown values beside the subject's own lines.
+- **Payload growth** (HTML bytes, raw / gzip -9, main `1c8063e` → branch, each tab built and served the same way). Demo A, which has no waterfall: Oversikt 347 500 / 53 552 → 347 505 / 53 554; Peers 492 065 / 43 602 → 492 065 / 43 610; Nøkkeltall 248 619 / 31 242 → 248 644 / 31 264; Verdi 135 477 / 22 208 → 135 487 / 22 206. The synthetic fixture: Oversikt 84 781 / 14 746 → 84 778 / 14 736; Peers 67 612 / 10 221, unchanged; Nøkkeltall 334 168 / 33 983 → 465 460 / 41 978 (+7 995 gzip: seven drill-downs in each of the two layouts' tables); Verdi 74 846 / 11 060 → 74 866 / 11 066.
+- **The outside count in e2e.** The fixture's band holds seed companies off the manifest (`insertSyntheticDocuments` refuses another listed company there), so the e2e reads k = the group's size − 10, all "ikke i demodataene".
+
 ## Spec Change Log
 
 - **2026-11-22, the checkpoint's premise is corrected (the review session found it wrong; checked against the code and the database; Meinich decided the rest).** The draft said demo A gets no waterfall locally because it is not on the manifest.

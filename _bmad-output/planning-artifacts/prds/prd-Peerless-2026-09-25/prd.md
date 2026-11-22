@@ -870,8 +870,8 @@ Each filing carries a data quality flag derived from the reconciliation rules (F
 
 **Consequences (testable):**
 - The flag is derived from arithmetic checks only, never from recognition confidence. Confidence is not a signal: a generic engine reported mean confidence 0.974 while misreading several figures.
-- **Status is set per column, and the filing's flag is its current-year column's** (Story 2.2, Meinich 2026-10-21). A column is `reconciled` when c1 (income statement) passes, c3 or c5 (balance) passes, no check among c1–c5 fails, and — for the current-year column — the comparison with the register does not fail. Otherwise it is `failed_reconciliation`.
-- A failed prior-year column does not fail the filing. The prior column is checked within the document only; its difference from the register is stored as information. Revenue growth uses the prior column only when it reconciled, and not when its `sum_driftsinntekter` differs from the register; the growth is then undefined, "en regnskapslinje kunne ikke leses sikkert" (Story 3.1a, decision 2).
+- **Status is set per column, and the filing's flag is its current-year column's.** A column is `reconciled` when c1 (income statement) passes, c3 or c5 (balance) passes, no check among c1–c5 fails, and — for the current-year column — the comparison with the register does not fail. Otherwise it is `failed_reconciliation`.
+- A failed prior-year column does not fail the filing. The prior column is checked within the document only; its difference from the register is stored as information. Revenue growth uses the prior column only when it reconciled, and not when its `sum_driftsinntekter` differs from the register; the growth is then undefined, "en regnskapslinje kunne ikke leses sikkert".
 - **2021 and 2022 have no register check.** The key-figures API holds filings from 2023 on, so for those years the comparison is `not_evaluable` and the flag rests on the within-document checks alone.
 - A document that cannot be read at all is `not_extracted`, with its refusal reason (FR-60).
 

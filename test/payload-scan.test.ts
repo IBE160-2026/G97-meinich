@@ -5,7 +5,7 @@
 // kroner, and on each stored reconciliation column. Each probe is a body the
 // scan must refuse; each admitted form, one it must accept.
 import { describe, expect, it } from 'vitest';
-import { SERVER_FIELDS, documentFieldsIn, formattedPeerLinesIn, provenanceFields } from '../e2e/payload-scan.ts';
+import { SERVER_FIELDS, documentFieldsIn, finePercentsIn, formattedPeerLinesIn, groupSumsIn, provenanceFields } from '../e2e/payload-scan.ts';
 
 const NBSP = String.fromCharCode(0xa0);
 
@@ -54,5 +54,36 @@ describe('the marked field names are admitted, and only they', () => {
     expect(findings(`{\\"${check}\\":\\"pass\\"}`).length).toBeGreaterThan(0);
     // Its name in text is not a key.
     expect(findings(`<p>${check}</p>`)).toEqual([]);
+  });
+});
+
+// Story 3.8: the margin waterfall's drill-downs show shares to two decimals and the subject's
+// own lines; a sum over P, in any form, and a share beyond two decimals fail the scan.
+describe('the waterfall drill-downs carry no sum over P and no exact share', () => {
+  // Σvare over the fixture's P: 1 242 500 000 kr, in øre.
+  const sum = '124250000000';
+  // Aₓ for vare: 1 242,5 / 15 500, exactly.
+  const share = '0.08016129032258064516129032258064516129032';
+
+  it('probe: a group sum in kroner fails', () => {
+    // The fixture's state: the page's own two-decimal share and a subject line pass.
+    expect(groupSumsIn(`<p>8,02${NBSP}% · 105${NBSP}000${NBSP}000${NBSP}kr</p>`, [sum])).toEqual([]);
+    expect(groupSumsIn(`<p>1${NBSP}242${NBSP}500${NBSP}000${NBSP}kr</p>`, [sum])).toEqual([`1${NBSP}242${NBSP}500${NBSP}000${NBSP}kr`]);
+    expect(groupSumsIn(`<p>1${NBSP}242,5${NBSP}mill.${NBSP}kr</p>`, [sum])).toEqual([`1${NBSP}242,5${NBSP}mill.${NBSP}kr`]);
+    expect(groupSumsIn('{"v":"1242500000"}', [sum])).toEqual(['1242500000']);
+    expect(groupSumsIn('{"v":"124250000000"}', [sum])).toEqual(['124250000000']);
+    // Not inside a longer number.
+    expect(groupSumsIn(`<p>11${NBSP}242${NBSP}500${NBSP}000${NBSP}kr</p>`, [sum])).toEqual([]);
+  });
+
+  it('probe: an exact Aₓ fails', () => {
+    // The fixture's state: two decimals pass.
+    expect(finePercentsIn(`<p>A = 8,02${NBSP}%</p>`, [share])).toEqual([]);
+    expect(finePercentsIn(`<p>A = 8,016${NBSP}%</p>`, [share]).length).toBeGreaterThan(0);
+    expect(finePercentsIn('<p>8,0161</p>', [share]).length).toBeGreaterThan(0);
+    expect(finePercentsIn('{"a":"8.016129"}', [share]).length).toBeGreaterThan(0);
+    expect(finePercentsIn('{"a":"0.08016129032"}', [share])).toContain('0.080161');
+    // Any percent with three decimals, whatever its value.
+    expect(finePercentsIn(`<p>22,952${NBSP}%</p>`, [])).toEqual([`22,952${NBSP}%`]);
   });
 });

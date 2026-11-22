@@ -37,9 +37,13 @@
 // line written in kroner, and both refuse the stored reconciliation
 // (`api_check`, `api_fail_fields`, `c1`–`c5`): e2e/payload-scan.ts, whose
 // probes are test/payload-scan.test.ts.
+//
+// Story 3.8: `expectNoDocumentFields` also refuses a sum over the waterfall's
+// common peer set P in any form (`groupSums`) and a share of P beyond two
+// decimals of percent (`exactShares`), and any percent with three decimals.
 import type { APIRequestContext } from '@playwright/test';
 import { expect } from './fixtures.ts';
-import { SERVER_FIELDS, documentFieldsIn, formattedPeerLinesIn, provenanceFields } from './payload-scan.ts';
+import { SERVER_FIELDS, documentFieldsIn, finePercentsIn, formattedPeerLinesIn, groupSumsIn, provenanceFields } from './payload-scan.ts';
 import { keyFigureRow, type SeedCandidate } from './seed.ts';
 
 export { SERVER_FIELDS } from './payload-scan.ts';
@@ -87,6 +91,8 @@ export async function expectNoPeerFields(
     expect(SERVER_FIELDS.filter((field) => body.includes(field)), label).toEqual([]);
     expect(documentFieldsIn(body), label).toEqual([]);
     expect(exact.filter((value) => body.includes(value)), label).toEqual([]);
+    // Story 3.8: no percent beyond two decimals on any tab.
+    expect(finePercentsIn(full, []), label).toEqual([]);
   }
 }
 
@@ -104,6 +110,8 @@ export async function expectNoDocumentFields(
     fields,
     peerOre,
     subjectOre,
+    groupSums = [],
+    exactShares = [],
   }: {
     readonly ore: readonly string[];
     readonly marker: string;
@@ -112,6 +120,10 @@ export async function expectNoDocumentFields(
     /** The peers' document lines in øre, never on the page even as kroner, and the subject's own (Story 3.7). */
     readonly peerOre: readonly string[];
     readonly subjectOre: readonly string[];
+    /** Story 3.8: the sums over P in øre, never on the page in any form. */
+    readonly groupSums?: readonly string[];
+    /** Story 3.8: P's exact shares (Aₓ, M), never beyond two decimals of percent. */
+    readonly exactShares?: readonly string[];
   },
 ): Promise<void> {
   const html = await (await request.get(url)).text();
@@ -128,6 +140,8 @@ export async function expectNoDocumentFields(
     const { rest: body, fields: shown } = provenanceFields(full);
     expect(shown, label).toEqual([...new Set(fields)].sort());
     expect(formattedPeerLinesIn(full, peerOre, subjectOre), label).toEqual([]);
+    expect(groupSumsIn(full, groupSums), label).toEqual([]);
+    expect(finePercentsIn(full, exactShares), label).toEqual([]);
     expect(body, label).toContain(marker);
     expect(amounts.filter((digits) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body)), label).toEqual([]);
     expect(SERVER_FIELDS.filter((field) => body.includes(field)), label).toEqual([]);

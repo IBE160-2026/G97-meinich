@@ -3963,6 +3963,188 @@ Verdi gets the field "EV/EBIT-multippel", empty by default and with no suggestio
 
 The review session checked the rounding example, the "≈" rule, the one `as Multiple`, the two scans, the `value` role, the disabled field, the invalid-settings flag for an invalid `multippel`, the restored row counts with no synthetic company left, the statuses and the PR text's credits. CI was green on `10b024d`. At the human's request (`post review`), the review session posted the GitHub review with eight line comments. The PR was merged at 07:52 UTC on 2026-11-20 as `a5aa92c`.
 
+## Story 3.7: "Hvordan er dette regnet?" (#81, PR #82)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt; its context was summarised once (2026-11-20 09:14), which is not a prompt.
+
+### Prompts to the BMAD session
+
+**2026-11-20 07:58**: the prompt that opened Story 3.7.
+```
+Fra meg:
+/bmad-build Story 3.7: "Hvordan er dette regnet?" (epics.md, Story 3.7). Lag branchen story/3.7-provenance fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode, og vis meg:
+(a) Utsatt arbeid: D2 og B9, som storyen eier, og hver annen oppføring i deferred-work.md som nevner 3.7, provenance, drill-down, read_at eller avstemming. For hver: tas den inn, eller flyttes den til en navngitt story, og hvorfor. Bekreft at FigureInput.derived fra 3.1a er det drill-downen leser for avledede tall.
+(b) Beløpene: list alle kronebeløp på alle faner: tabellcellene, heroen, Oversikt-kortene med «Største kapitalgap», de tre Verdi-kortene og EV. Si om vannfallets søyler er med og hvorfor. For hvert beløp: hvilken funksjon i amounts.ts det kommer fra, og hvilken formel drill-downen viser. Formelen skal være den motoren bruker: (M − r) × omsetning ved median-steget, (9) + (10) med styrke som 0, og × m med «≈» for EV.
+(c) Beste fjerdedel: si hvordan kvartilteksten følger retningen (øvre eller nedre kvartil), at n er gruppen minus ekskl, at metoden er percentileInc i statistics.ts, og hvor «Vis fordelingen» lenker. Lenken skal være en AnalysisLink som beholder innstillingene.
+(d) Innsendte verdier: hvilket navn vises for API-felter, og hvilket for dokumentlinjer, som ikke har noe registerfeltnavn? Hvordan vises et avledet tall? Hvilken lesedato vises når et beløp bygger på både API-filingen og dokumentet?
+(e) Avstemmingslinjen: lag en sannhetstabell for hvert beløp og hver tilstand, avgjort fra lagret status og manifestet, aldri utledet. API-sjekken dekker bare SHARED_FIELDS i reconcile.py, ikke kundefordringer, varer, leverandørgjeld eller de andre linjene (B9). «Avstemt» må derfor bare stå der hvert tall beløpet bygger på faktisk er sjekket. Foreslå hva som står ellers. Ta med alle tilstandene i AD-15: avvist, papir, dokument mangler, år utenfor 2021–2025 og ikke avstemt. Si hva {felt} blir når det er c1–c5 og ikke API-sjekken som feiler.
+(f) Kilden: Brønnøysundregistrene med NLOD-kreditten bare for API-data (FR-65). Foreslå ordlyden for dokumentverdier.
+(g) Payload: drill-downen viser feltnavn og innsendte verdier, mens skannene fra 3.1b og 3.4 feiler på dokumentfeltnavn på alle faner. Foreslå hvordan skannet endres uten å bli svakere: aldri øre, aldri en peers dokumentlinjer, og bare formaterte verdier for subjektet. Si hvor mye payloaden vokser.
+(h) Verdi og wire: hvordan formellinjen skaleres med andel og multippel i nettleseren, om det trengs nye wire-verdier, og hvordan identitetstesten utvides.
+(i) D2: hvor rekkefølgen for benchmark-filing havner i motoren, hva som blir igjen i SUBJECT_SQL, og at e2e-orakelet beholder sin egen kopi.
+(j) UI og tilgjengelighet: trigger på hvert beløp, også tabellceller og telefonkort; aria-expanded og aria-controls; om flere kan være åpne samtidig; fokus til overskriften, og «Lukk» eller Esc tilbake til triggeren. Si hva et beløp som ikke er tilgjengelig viser (AC 3). Sjekk 375 og 320 px.
+(k) Norsk tekst: all ny tekst som ikke står ordrett i Story 3.7 eller EXPERIENCE. Vis meg den før den står i nb.json og EXPERIENCE.
+
+Regler:
+- Ingen klassifisering, fingeravtrykk eller nøkkeltall per orgnr for fasitsettet, og ingen tester som navngir selskaper derfra.
+- Hver rad i I/O-matrisen nevner testen som feiler hvis koden fjernes. Rapporten viser hva som ble fjernet og hvilken test som feilet.
+- Ingen test velger forventet verdi ut fra dataene med en betingelse. Fixturens tilstand slås fast først.
+- Drill-downen henter ingenting fra klienten: ingen ny rute, intet endepunkt, og check:routes er uendret.
+- Hvis en test leser siden etter en endring som skrives med replaceState eller etter at en drill-down åpnes, venter den først på at endringen er tegnet. Søk gjennom alle slike lesinger, ikke bare den som feiler.
+- Spec-en går til in-review sammen med storyen og settes til done først etter merge.
+- PR-en sier hva som kan gå galt: hva drill-downen viser fra de innsendte verdiene, og en avstemmingspåstand som ikke stemmer. Begrunnelsen står i ai-log, og PR-en sier hva review-sesjonen bidro med.
+- Commit i små steg, og sjekk 375 og 320 px underveis.
+- Kjør pnpm restore:documents etter siste seed, og bekreft de fire tallene.
+- E2e kjøres med én worker, ett prosjekt om gangen og synthetic sist med --no-deps. Stopper noe på grunn av minne, si fra i stedet for å starte på nytt.
+- Stopper pnpm build med SecurityFatalError, kjør på nytt og noter det (#71). Ingen oppgradering.
+- Ingen push før jeg sier fra. PR-en har linjen «Planning documents:».
+- pnpm classify kjøres ikke, ingen dump slettes, og technology.md røres ikke.
+```
+*Changed:* issue #81 and the branch, stopped at the checkpoint with (a)–(k): D2 and B9 taken in, every kroner amount with its function in `amounts.ts` and its formula, the quartile line, the filed values by register name, the data-quality truth table, the source line, the payload scan's conflict with field names in the drill-down, Verdi without a new wire value, D2 in the engine, the trigger and its accessibility, and the new copy; with ten questions.
+
+**08:14**: the answers at the checkpoint.
+```
+Fra meg:
+1. Beløpslisten er godkjent. Vannfallet holdes utenfor, men spec-en skal vise at «Vis tallene» gir nok tall til å regne ut hver søyle. Gjør den ikke det, skal det inn en oppføring i deferred-work.md med en navngitt eier, og en linje i PRD-en under FR-60.
+2. n = Comparison.count. «Vis fordelingen» blir en fold-ut inne i drill-downen. Den viser de n verdiene sortert, uten navn og orgnr, og med T markert, så T kan regnes ut for hånd. Rett «linking» i epics.md (UX-DR29 og AC-en) og i EXPERIENCE, og legg inn en (change)-linje.
+3. Navnene og formen «avledet: {regel}» er godkjent. Datolinjene blir «Registerets nøkkeltall: Regnskapsår {aar} · hentet {dato}» og «Innsendt årsregnskap: Regnskapsår {aar} · hentet {dato}».
+4. Sannhetstabellen er godkjent, og likningsformen for c1–c5 også. L-ukontrollert blir «Ikke kontrollert mot andre tall: {felt}».
+5. Kilde for dokumentverdier: «Kilde: Brønnøysundregistrene, årsregnskapet som er sendt inn til Regnskapsregisteret. Lest maskinelt (OCR) og bearbeidet av Peerless.»
+6. Skannet er godkjent. Probene skal vise at det feiler på et feltnavn utenfor <code data-provenance-field>, på en peers formaterte dokumentlinje og på de nye kolonnene. Mål veksten før og etter.
+7. (h) og (i) er godkjent. Formene for (9)–(11) i drill-downen skal også stå i docs/key-figures.md, som samme beløp, i samme PR.
+8. A: beløp som ikke er tilgjengelige, får ingen trigger. Flere drill-downer kan være åpne samtidig.
+9. Teksten er godkjent, men L-tekstene bruker FR-71s ord: «Ikke avstemt – regnskapet for {aar} er ikke lest i denne versjonen» for år og papir, «… er ikke lest inn» når dokumentet mangler, og «… kunne ikke leses sikkert» for avvist og ikke avstemt.
+10. Spec-en holdes samlet.
+Skriv svarene inn i den frosne delen, commit Epic 3-konteksten på branchen, og sett spec og story til ready-for-dev. Ingen push.
+```
+*Changed:* decisions 1–10 in the spec: the waterfall left out, n = `Comparison.count`, "Vis fordelingen" as a fold-out with T marked, the truth table, failures as equations, FR-71's words, the source line, the field-name marker in the payload scan; the Epic 3 context and the spec ready for dev (`cd50547`, `39e3ee7`). The BMAD session found that "Vis tallene" cannot make a waterfall bar recomputable, and asked four questions.
+
+**08:18**: the four answers, and start of implementation.
+```
+Fra meg:
+1. A: ny Story 3.8 «Vannfallet kan regnes ut for hånd» i epics.md. Legg den inn i sprint-status.yaml som backlog og i dekningskartet for FR-60. Deferred-oppføringen og linjen under FR-60 i PRD-en peker til 3.8.
+2. Godkjent: «De {n} verdiene, sortert fra lavest til høyest».
+3. Godkjent med to endringer:
+   - f står som et tall, uten ordet «andel»: «Beste fjerdedel ligger mellom verdi {k} og {k1}: {a} + {f} × ({b} − {a}) = {T}».
+   - «=» byttes med «≈» når regnestykket med de viste tallene ikke gir den viste T. Bruk samme prinsipp som productIsApproximate, avgjort i motoren.
+   - Når f = 0: «Beste fjerdedel er verdi {k}: {T}».
+   - Testene: én fixture med «=», én med «≈» og én med f = 0, og testen skal feile hvis regelen snus. Ta med både øvre og nedre kvartil.
+4. Den nye teksten følger regelen i document-inputs.ts, ±5 kr med begge grenser: «avledet: {regel} = {rest}, innenfor ±5 kr, satt til 0». Testen skal ha en rest på nøyaktig +5 kr og en på −5 kr.
+Skriv dette inn i den frosne delen, og start implementeringen i denne sesjonen med D2 i motoren. Ingen push.
+Implementeringsrapporten skal vise:
+- at hver rad i I/O-matrisen feiler med vernet fjernet, med testnavn og utdata;
+- at «Avstemt mot innsendt årsregnskap» aldri står på et beløp som bygger på en input som ikke er sammenlignet, og at testen feiler hvis regelen 8b fjernes;
+- at linjen for et 62.100-selskap utenfor demodataene ikke påstår avstemming;
+- at skannet feiler på probene fra punkt 6, og hvor mye payloaden vokste;
+- at identitetstesten dekker formellinjene i Verdi, også ved median-steget;
+- at hver e2e-lesing etter at en drill-down åpnes eller en replaceState-endring venter først (søk, ikke bare feilende tester);
+- de fire tallene etter restore:documents, null syntetiske rester og 20 oppføringer i manifestet.
+E2e kjøres med én worker, ett prosjekt om gangen og synthetic sist med --no-deps. Stopper noe på grunn av minne, si fra.
+```
+*Changed:* Story 3.8 "Vannfallet kan regnes ut for hånd" as the waterfall's owner, the fold-out heading, the T line's "=", "≈" and f = 0 forms and the ±5 kr zero form in the spec (`eb4103e`, `36bff2c`); D2 (`2a4ca5c`), the engine's provenance facts (`9dd7e96`), the reads (`5f17b44`), the copy (`8d60d65`), Verdi's share lines (`2d06545`), the view (`15486b3`), the drill-down on every amount (`2aba07d`), the payload scan (`43dd1dc`), e2e (`9131016`, `1db132a`), the compared rule (`75eda8d`), the planning documents (`6a165d7`); the BMAD session's own step-3 fixes (`f9ecd69`, `e6b7287`, `8a7faa9`); and two questions: the wording for a failed column where nothing differed, and the stray `tmp-shot.mjs`.
+
+**11:18**: decision 4's wording, the stray file and the Story 3.4 ternary.
+```
+Fra meg:
+
+Formuleringen i beslutning 4: nei til «Avvik ved avstemming» når ingenting ble sammenlignet. «Avvik» sier at noe var forskjellig, og det er den samme påstanden som «≠». Review-sesjonen sjekket databasen: 141 kolonner har ingen kontroll med fail og tom api_fail_fields, og alle mangler minst én linje som en påkrevd kontroll trenger.
+Behold «Avvik ved avstemming: {felt}» bare når noe faktisk var forskjellig, altså for feltene i api_fail_fields og for likningene til c1–c5 med fail.
+Når bare unread er satt, skal linjen være en ny nøkkel i FR-71s ordlyd: «Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}». Her er {felt} linjenavnene som <code data-provenance-field>, som i dag. Årstallet må inn i failed-varianten, eller i en egen variant hvis det er ryddigere.
+Hvis en kolonne både har en kontroll med fail og linjer som ikke ble lest, vises bare avviket, som nå.
+Skriv beslutningen i Spec Change Log med dato. Skriv at review-sesjonen foreslo den og at jeg avgjorde den. Oppdater også dokumentene som lister datakvalitetstekstene ordrett (PRD FR-71, EXPERIENCE, epics.md), med en (change)-linje i memloggen der det trengs.
+Testene:
+en enhetstest for tilfellet der bare unread er satt, med full forventet tekst;
+en enhetstest som viser at en kolonne med både fail og ulest linje får avvikslinjen;
+for hver av de to testene: fjern vernet, vis at testen feiler, og legg vernet tilbake.
+tmp-shot.mjs: fjern den fra historikken, men ikke slå sammen commit-ene. PR-ene merges med merge-commits, så fila blir ellers liggende på main.
+Skriv om 87f0796 så den ikke legger til fila. 2fe466e skal da ikke lenger slette den.
+git rebase -i er ikke tilgjengelig her. Bruk for eksempel GIT_SEQUENCE_EDITOR til å markere 87f0796 som edit, eller en annen ikke-interaktiv metode.
+Vis tre ting etterpå:
+git log story/3.7-provenance -- tmp-shot.mjs er tom;
+git diff 7020441 HEAD er tom før de nye commit-ene;
+alle commit-meldinger er uendret.
+Testen fra Story 3.4, «the capital card shows the engine’s largest amount»: ja, rett den. Samme mønster: sjekk tilstanden i fixturen først, og sammenlign så med én fast verdi. Legg den i en egen review-fiks-commit, og skriv at underagentens søk fant den.
+
+Deretter, som du foreslo: oppdater Implementation Notes og AI-loggen, kjør reviewen og legg triagen i spec-en. Kjør lint, typecheck, pnpm test og de berørte e2e-spec-ene på nytt. Rapporter også tallene etter restore, null SYNTETISK-selskaper og 20 oppføringer i manifestet. Ikke push før jeg sier fra
+```
+*Changed:* "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}" for a failed column with only unread lines (`6fd35c6`, `a66d6d6`, `6e004f9`), the Story 3.4 test with one fixed value (`9e0f97e`), `tmp-shot.mjs` taken out of the commit that added it, without squashing, the AI log (`4028bf5`), spec and story in review (`fc21355`); review pass 1 with six fixes and the triage (`20fd02f`, `b4d701a`, `c52393f`, `f5471c1`, `9affadc`, `4ccc4dc`, `94c9217`). The full verification then stopped for lack of memory, and the BMAD session asked about two rejections and how to rerun.
+
+**2026-11-22 09:42**: B1 overruled, the payload measured, the verification in parts.
+```
+Fra meg:
+
+Overstyr avvisningen om at «Avstemt» kan bli foreldet. Rett den i en egen review-fiks-commit. Det trengs ingen ny lagret id. register.document.brreg_id settes av steg 1 bare når året har nøyaktig én SELSKAP-filing, og det er filingen api_check ble kjørt mot (se src/analysis/document-filing.ts).
+Vernet: «Avstemt mot innsendt årsregnskap» vises bare når dokumentets brreg_id er lik brreg_id til filingen subjectBenchmarkFiling valgte.
+Ellers, også når brreg_id er null eller filingen ikke finnes lenger, gjelder regelen for «Ikke kontrollert mot andre tall: {felt}». Tallene som vises, er da ikke sammenlignet med dokumentet.
+Testene:
+en enhetstest der id-ene er ulike;
+en enhetstest der dokumentets brreg_id er null;
+fjern vernet, vis at testene feiler, og legg vernet tilbake.
+Hvis brreg_id ikke allerede leses i DOCUMENT_SELECT, legg den til der.
+Flytt funnet i Review Triage Log fra «rejected» til «patched». Skriv at review-sesjonen overstyrte avvisningen, og at jeg avgjorde det.
+Payload-veksten: avvisningen står, men med målte tall. Mål HTML-størrelsen før (main) og etter (branchen) for oversikt, nøkkeltall og verdi for demo A. Ta med både rå størrelse og gzip-størrelse, og skriv tallene i triagen. Hvis gzip-veksten på verdi er over 30 kB, si fra før du går videre.
+Verifiseringen: kjør den i deler, ett steg om gangen.
+Sjekk først om dine egne node-prosesser fra den avbrutte kjøringen fortsatt går, for eksempel en next start eller en vitest-worker. Stopp bare de du selv startet, aldri containere.
+Rekkefølgen:
+lint;
+typecheck;
+pnpm test --maxWorkers=2;
+seed to ganger og seed:export uendret;
+test:db;
+test:ingest;
+pnpm build;
+e2e chromium, db-down og synthetic, hver for seg;
+pnpm restore:documents.
+Etterpå vil jeg se:
+tellingene 2 785 / 5 556 / 2 537 / 10 371;
+0 SYNTETISK%;
+20 oppføringer i manifestets document_figure_orgnrs.
+Hvis pnpm build feiler med SecurityFatalError, kjør det én gang til (#71). Ikke oppgrader noe.
+Deretter: oppdater session-fila, AI-loggen og sesjonsloggen. Spec-en står på in-review. Ikke push før jeg sier fra.
+```
+*Changed:* "Avstemt" only when the document's `brreg_id` is the chosen filing's (`93bcd94`, `ae6fcd2`); raw and gzip sizes in the triage (`558f6df`); every verification step green, with the D2 database test given its own time limit (`0a3ae5f`); the AI log, the session file and the session log (`3023093`, `0ec577e`, `c041cda`). The prompt was drafted on 2026-11-20 and pasted on 2026-11-22.
+
+**10:15**: push and PR.
+```
+Fra meg:
+
+Push branchen og åpne PR-en mot main. PR-teksten skal ha:
+
+Closes #81 og FR-ene;
+hvordan det er testet, med verifiseringstabellen og tallene etter restore;
+lenke til docs/ai-sessions/2026-11-20-story-3-7-provenance.md;
+linjen «Planning documents:» med alt som er oppdatert: PRD FR-60 og FR-71, epics.md med Story 3.8, sprint-status, EXPERIENCE, docs/key-figures.md, AGENTS.md og memloggene;
+hva som kan gå galt;
+hva review-sesjonen bidro med, kreditert for hvert funn. Ta med B1-overstyringen, formuleringen for uleste linjer, at tmp-shot.mjs ble fjernet fra historikken, ternærtesten fra Story 3.4 og payload-målingen.
+
+Avslutt PR-teksten med attribusjonslinjen. Bind PR-en og si fra når CI er ferdig. Ingen merge.
+```
+*Changed:* the branch pushed, PR #82 opened with the Planning documents line and the review session's credits, and the session file linked to it (`2d31b4c`).
+
+### Prompts to the review session
+
+- `klar for åpningsprompt til 3.7` (11-20): the review session read Story 3.7, FR-60, FR-64 and FR-71, the deferred entries D2 and B9, `amounts.ts`, `statistics.ts` and the cost-line rule, and found that a reconciliation claim could be untrue for lines no check covers (B9), that field names in the drill-down conflict with the payload scan, that the quartile line must follow the figure's direction, and that the displayed numbers need "≈". It drafted the 07:58 prompt.
+- The BMAD session's checkpoint (11-20): the review session checked (a)–(k) against the code and `reconcile.py`'s `SHARED_FIELDS`, and recommended an answer to each of the ten questions, among them FR-71's wording and the source line for document values. It drafted the 08:14 prompt.
+- The BMAD session's ready-for-dev report (11-20): the review session recommended a new Story 3.8 for the waterfall, the fold-out heading, the T line with "≈" when the displayed arithmetic does not give the displayed T, and the derived line with tests at exactly +5 and −5 kr. It drafted the 08:18 prompt.
+- `hvor mange stories mangler vi?` (11-20): the review session counted from `sprint-status.yaml`: ten v1 stories, eleven with Story 3.8, and Epic 6 without stories.
+- The BMAD session's report after step 3 (11-20): the review session counted the failed current columns in the local database (141 of 164 with no failed check and empty `api_fail_fields`, every one lacking a line a required check needs), recommended FR-71's wording over "Avvik ved avstemming", found that PRs merge with merge commits so `tmp-shot.mjs` would stay on main, and recommended fixing the Story 3.4 ternary too. It drafted the 11:18 prompt.
+- The BMAD session's report after review pass 1 (11-20, pasted again 11-22): the review session found that step 1 already stores the compared filing in `register.document.brreg_id`, so B1 needs no new id, recommended measuring the payload after gzip, measured 1,2 GB free of 15,7, and drafted the 09:42 prompt. `kan du komme med prompt?` (11-22): it gave the same prompt again.
+- The BMAD session's final report (11-22): the review session checked the B1 diff, the restored row counts, the synthetic companies, the manifest and the statuses. `hva skal jeg skrive til bmad`: it drafted the 10:15 prompt.
+- `kan du gi meg lenken til github` (11-22): the review session gave the PR's link.
+- `CI er grønn, lag review-utkast` (11-22): the review session read the PR text and the diff, checked in the database that B1 changes nothing locally, and drafted the review.
+- `post review` (11-22): the review session checked every line comment against the diff's hunks and posted the review.
+- `fikser du treet og resten og merged` (11-22): the review session asked whether to merge; the human stopped its merge and merged the PR themselves. `merget - fikser du treet og resten`: the review session moved the main folder to `main`, deleted the branch, and did the housekeeping.
+
+### Result
+
+Every displayed kroner amount (Nøkkeltall's four gap cells, the Oversikt hero, "Største kapitalgap", Verdi's three cards and EV) gets "Hvordan er dette regnet?": a drill-down with the formula in the displayed numbers, the key figure and how beste fjerdedel was found with "Vis fordelingen", the filed values by register name with filing year and read date, and the source with a data-quality line decided from the stored status. "Avstemt" appears only when every input was compared with the filing the page shows. The subject's benchmark filing is chosen in the engine (D2). The waterfall's bars go to Story 3.8.
+
+### Checks before merging
+
+The review session checked B1 against the database (every document with a stored SELSKAP filing carries its `brreg_id`; the 776 without one are from 2021–2022, where no filing is stored), the unread-lines wording, `tmp-shot.mjs` absent from the history, D2, the payload scan and its probes, the payload growth after gzip, the planning documents, the statuses, the restored row counts with no synthetic company left, and the PR text's credits. CI was green on `2d31b4c`. At the human's request (`post review`), the review session posted the GitHub review with eight line comments; its two notes went to `deferred-work.md`, owned by Story 5.4. The human merged the PR at 10:45 UTC on 2026-11-22 as `959b0c2`.
+
 ---
 
 ## Going forward

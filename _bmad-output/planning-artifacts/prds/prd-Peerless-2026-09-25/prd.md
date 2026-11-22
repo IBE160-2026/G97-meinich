@@ -940,13 +940,11 @@ The product credits Brønnøysundregistrene as the source, states that the figur
 
 **Consequences (testable):**
 - The NLOD 2.0 credit applies to what the register licences under NLOD: the data from the open APIs. Its prescribed form is used where it applies — *"Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene"*.
-- **Figures derived from the filed documents are credited to Brønnøysundregistrene as their source without asserting a licence**, because the register states none for those documents (§8). The product never claims NLOD coverage for data NLOD does not cover — an earlier version of this requirement did exactly that, and it was wrong.
-- The credit distinguishes the two, so a reader can tell which figures rest on a licence and which rest on a right of access.
+- **Figures derived from the filed documents are credited to Brønnøysundregistrene as their source without asserting a licence**, because the register states none for those documents (§8). The product never claims NLOD coverage for data NLOD does not cover, and the credit distinguishes the two, so a reader can tell which figures rest on a licence and which rest on a right of access.
 - It states that Peerless has processed the data, because every displayed figure is recomputed rather than reproduced. The licence requires modification to be declared where it applies, and saying so for everything costs nothing.
 - It reaches every route out of the product, PDF export included from stage 2, not only the web interface.
 - It may live on an *Om*-style page rather than beside each figure — "Slik fungerer Peerless" (FR-72) — but it is reachable from every page and is not hidden.
-- The register's name and marks appear as the source of the data only — never in a way that implies the register stands behind, recommends or markets the analysis.
-- Nothing in the presentation distorts or misrepresents the register's figures. This is the licence restating what FR-58 and FR-60 already enforce.
+- The register's name and marks appear as the source of the data only — never in a way that implies the register stands behind, recommends or markets the analysis — and nothing in the presentation distorts or misrepresents the register's figures, as FR-58 and FR-60 already enforce.
 
 `docs/data-sources-brreg.md` holds the licence text, the clause references and the URLs.
 

@@ -81,7 +81,10 @@ function NumbersTable({
    * The row's drill-down, as the next row, across the table. On the phone the
    * table is wider than the screen and scrolls in its region; the steps keep
    * to the region's visible width and stay at its left edge (`sticky`), so a
-   * drill-down reads without scrolling sideways.
+   * drill-down reads without scrolling sideways. 4.5rem is 72 px: the page's
+   * two 16 px gutters and the Nøkkeltall fold-out's 16 + 12 px padding are
+   * 60 px, and the other 12 px is slack, set by measurement rather than
+   * derived from the layout.
    */
   const drillDown = (key: WaterfallColumnKey) =>
     provenance === null ? null : (

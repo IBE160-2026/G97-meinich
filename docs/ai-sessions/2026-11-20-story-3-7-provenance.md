@@ -32,3 +32,18 @@ lint and typecheck clean; `pnpm test --maxWorkers=2` 2 035 passed; `pnpm seed` t
 - Spec: `_bmad-output/implementation-artifacts/spec-3-7-hvordan-er-dette-regnet.md` (decisions, Spec Change Log, Review Triage Log)
 - AI log: the four 2026-11-20 and 2026-11-22 Story 3.7 entries in `docs/ai-log.md`
 - Planning documents: `epics.md` (Story 3.8, UX-DR29, Story 3.7's AC), PRD FR-60 and FR-71, EXPERIENCE.md, `docs/key-figures.md`, the technical note (AD-15, AD-18), `deferred-work.md` (D2 and B9 closed, the waterfall entry for Story 3.8), `AGENTS.md`
+
+## Merge
+
+CI ran twice on the PR. The run on `c041cda` was cancelled by the next push, and the run on `2d31b4c` was green (run 45011678732, 10 min). The first full verification after review pass 1 stopped on low memory. On the review session's recommendation, it was rerun step by step with `pnpm test --maxWorkers=2`. Before merging, the review session checked the following:
+- B1 (`93bcd94`): "Avstemt" requires the document's `brreg_id` to be the filing `subjectBenchmarkFiling` chose, and both tests assert the fixture's state before one fixed text. In the local database the fix changes nothing today: every document with a stored SELSKAP filing carries that filing's `brreg_id`, the 776 without one are from 2021–2022, where no filing is stored, and no year has more than one SELSKAP filing;
+- the unread-lines wording: 141 of the 164 current `failed_reconciliation` columns have no `fail` check and empty `api_fail_fields`, every one lacks a line a required check needs, and none reaches the throw in `failure`;
+- `tmp-shot.mjs` absent from the branch's history;
+- D2, the payload scan's field-name marker and its probes;
+- the payload growth after gzip (Verdi +16,5 kB, Nøkkeltall +14,8 kB, Oversikt +12,7 kB), under the 30 kB limit it set for Verdi;
+- the planning documents against the diff: Story 3.8 in `epics.md`, sprint status and FR-60's coverage-map row, PRD FR-60 and FR-71, the memlogs, and `deferred-work.md` with D2 and B9 closed;
+- the statuses;
+- the restored row counts (2 785, 5 556, 2 537, 10 371), with no synthetic company left and 20 manifest entries, and the seed unchanged against main;
+- the PR text's credits.
+
+At Meinich's request (`post review`), the review session posted the GitHub review with eight line comments and nothing blocking the merge ([review 6011741432](https://github.com/IBE160-2026/G97-meinich/pull/82#pullrequestreview-6011741432)). It noted two things for later. A `failed_reconciliation` column is not tied to `brreg_id`, so "Avvik ved avstemming" could name a deviation from another filing than the one shown; that errs on the side of warning, and no local company is in that state. And `d.brreg_id` is read with `parseOre`, which gives the right bigint under a misleading name. Both are in `deferred-work.md`, owned by Story 5.4. Meinich merged the PR at 10:45 UTC on 2026-11-22 as `959b0c2`, closing issue #81.

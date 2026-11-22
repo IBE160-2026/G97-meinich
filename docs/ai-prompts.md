@@ -4485,6 +4485,97 @@ Commit retroen, deferred-work og sprint-status på main. Ikke push. Review-sesjo
 
 Epic 3 is accepted with open items and `done`. The PRD, the technical note, `epics.md` and `docs/key-figures.md` are corrected to what Epic 3 built; the build history of seven FRs is cut, and the other 13 FRs are a PRD job before Story 5.4's spec. Story 5.4 inherits five deferred entries, X1 and two new ACs: the waterfall on a real demo company and the dates of document-based peer aggregates. #71 is decided before 5.4's PR.
 
+## The PRD's FRs without build history (on `main`: `95bccc4`…`62b4e4f`, `570d7f6`)
+
+Planning work committed straight to `main` by the BMAD session: Epic 2 retro action 11 and Epic 3 retro action 3, the lecturer's point 4.1 (`tilbakemelding-prd.md`). Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it.
+
+### Prompts to the BMAD session
+
+**2026-11-22 20:39**: the prompt that opened the cut.
+```
+Fra meg:
+
+PRD-kuttet, del to (handlingspunkt 11 fra Epic 2, handlingspunkt 3 fra Epic 3): resten av FR-ene med byggehistorikk kuttes ned til regel og konsekvenser, før spec-en for 5.4 skrives. Det er dokumentarbeid rett på main i små commits. Ingen kode endres, og ingenting pushes før jeg sier fra.
+
+Omfang: de 13 FR-ene fra tabellen din i retroen. Det er FR-10, FR-11, FR-13 og FR-28 først, deretter FR-66, FR-4, FR-6, FR-8, FR-16, FR-56, FR-57, FR-65 og FR-70. FR-3, FR-23, FR-29, FR-30, FR-60, FR-64 og FR-71 er allerede gjort (0897781).
+
+Mønster: FR-24 slik faglæreren foreslo (tilbakemelding-prd.md 4.1, ea68a7c). Hvert FR består av regelen og 3–6 konsekvenser som kan testes. Story-henvisninger, datoer, «an earlier version», hvem som bestemte hva og filstier går ut.
+
+Regler:
+1. Måletall slettes aldri. Før et tall tas ut av en FR, skal det stå et annet sted: i §10 i PRD-en, i det tekniske notatet eller i en rapport under analysis/output/. Flyttingen gjøres i en egen commit før kuttet, slik FR-58 ble flyttet til AD-15 i 9b5954e. Lag en tabell med tallet, der det sto, og der det står nå.
+2. Sjekk det maskinelt: hvert tall med minst tre sifre eller med desimal som forsvinner fra prd.md i kuttet, skal finnes i målstedet. Vis utskriften.
+3. Beslutningshistorikken går til .memlog.md som én (change)-linje per FR eller gruppe, med hvem og når, slik ea68a7c gjorde.
+4. Regelen skal ikke endres. Hvis et kutt ville endret hva FR-en krever, for eksempel fordi historikken inneholder et vilkår som fortsatt gjelder, skal du stoppe og spørre meg. Gjør det samme hvis en FR viser seg å være utdatert, slik FR-3 var.
+5. Sjekk hvem som viser til teksten som går ut: SM-ene i §9, §10, §11, epics.md, det tekniske notatet, AGENTS.md og spec-ene som er i gang. En henvisning til tekst som forsvinner, rettes i samme commit.
+6. Ingen klassifisering eller fingeravtrykk per orgnr for de 845 selskapene i fasitsettet, bare totaler. pnpm classify kjøres ikke, og ingen dump slettes.
+
+Rekkefølge og stopp:
+- Først: flyttingen av måletallene og kuttet av FR-10, den tyngste. Vis meg tabellen fra regel 1, utskriften fra regel 2 og diffen for FR-10 før du committer.
+- Når jeg har godkjent: de andre FR-ene, én commit per FR eller per liten gruppe.
+- Til slutt: sett handlingspunkt 11 fra Epic 2 (item-15 i sprint-status) og handlingspunkt 3 fra Epic 3 til done med commitene, og skriv session-fila under docs/ai-sessions/.
+```
+*Changed:* FR-10's measurements moved to §10 and the cut of FR-10 drafted, with the table of every number, where it stood and where it stands now, and a check (`numcheck.py`) that every number leaving the PRD is stated elsewhere; stopped before committing.
+
+**20:50**: FR-10 approved, with two adjustments.
+```
+Fra meg:
+
+Godkjent. Commit flyttingen og deretter kuttet med memloggen.
+
+To justeringer før du går videre:
+1. I det nye avsnittet i §10: legg til at tallet er det samme i analysis/output/document-run-counts-after-2.5d.json, den siste kjøringen. Review-sesjonen sjekket at 400 og 165 står i både after-2.5b, after-2.5c og after-2.5d.
+2. numcheck.py: utvid sjekken til alle tall med minst to sifre og alle tall som står foran %, pp eller «of». «41 %» slapp gjennom nå, og FR-11, FR-13 og FR-28 har slike tall. Kjør den utvidede sjekken også på kuttet av FR-10, og vis utskriften.
+
+Fortsett så med FR-11, FR-13 og FR-28 på samme måte: én flytte-commit og én kutt-commit per FR, med tabellen og sjekk-utskriften. Vis meg det samlet når de tre er klare, før du committer.
+```
+*Changed:* the move (`95bccc4`, which also states that the counts are the same in the latest run, `after-2.5d.json`) and the cut (`259c2b8`); the check extended to two-digit numbers and percentages; FR-11, FR-13 and FR-28 drafted with their tables.
+
+**20:57**: FR-11, FR-13 and FR-28 approved, with the 2.3b measurement kept.
+```
+Fra meg:
+
+FR-11, FR-13 og FR-28 er godkjent, med én rettelse. Lag de fem commitene etter at den og de to punktene om FR-10 er gjort.
+
+Rettelsen i §10, kulepunktet om avstemmingsraten: behold målingen fra 2.3b og legg den nyere ved siden av. Ikke bytt ut den ene med den andre. Review-sesjonen leste analysis/output/document-run-counts-after-2.3b.json, som har 1 834 reconciled av 1 946, og after-2.5c.json, som har 1 837 av 1 946. Begge kan stå i én setning, for eksempel: «1 834 of 1 946 (about 94 %) after Story 2.3b, 1 837 after Story 2.5c». Regel 1 gjelder også for §10: et måletidspunkt forsvinner ikke.
+
+To ting fra forrige melding som mangler for FR-10 (95bccc4, 259c2b8):
+1. Avsnittet i §10 om udefinerte (prd.md:1249) skal si at 400 og 165 er de samme i analysis/output/document-run-counts-after-2.5d.json.
+2. Kjør den utvidede numcheck-sjekken på kuttet av FR-10 og vis utskriften.
+Begge kan ligge i én liten commit.
+
+Fortsett deretter med de ni små FR-ene: FR-66, FR-4, FR-6, FR-8, FR-16, FR-56, FR-57, FR-65 og FR-70. Bruk samme regler og én commit per FR eller liten gruppe. Vis meg tabellen og sjekk-utskriften samlet før du committer.
+```
+*Changed:* FR-11 (`84ae67a`); FR-13's spread moved to §10 and cut (`e266990`, `6618b6f`); FR-28's measurements moved to §10 and the technical note, with §10's reconciliation rate stating 1 834 of 1 946 after Story 2.3b beside 1 837 after Story 2.5c (`90b2ab3`), and cut (`f62aa4f`, `2b6eaec`); the nine small FRs drafted, with four questions.
+
+**21:13**: the four answers.
+```
+Fra meg:
+
+Godkjent. Svar på de fire spørsmålene:
+
+1. FR-6: flytt [NOTE FOR PM] til §11 som et åpent spørsmål. Ordlyden skal være den samme og spørsmålet ubesvart. Merknaden er ikke et nytt krav, men en merknad som får riktig plass. Lag en (change)-linje i memloggen om at den er flyttet.
+2. FR-56: to konsekvenser holder. 3–6 er veiledning. Behold delingen bare hvis begge halvdelene kan testes hver for seg. Ellers tilbakestiller du den.
+3. FR-65: la pekeren til docs/data-sources-brreg.md stå. Den viser til et autoritativt dokument og er ikke historikk.
+4. epics.md:41: ta ut «(signals() not null)», slik at FR-oversikten følger FR-16-teksten. Gjør det i en egen commit.
+
+Lag så de ni commitene, én per FR med sin memlog-linje. Sett deretter handlingspunkt 11 fra Epic 2 (item-15 i sprint-status) og handlingspunkt 3 i Epic 3-retroen til done med commitene, og skriv session-fila. Ikke push. Si fra når du er ferdig, så pusher review-sesjonen og skriver promptloggen.
+```
+*Changed:* FR-66, FR-4, FR-6 (its note to the PM moved to §11 as question 27, unanswered), FR-8, FR-16, FR-56 (two halves kept, each testable on its own), FR-57, FR-65 (the pointer to `docs/data-sources-brreg.md` kept) and FR-70 (`7c4b7c6`…`b27d8c4`); FR-16's summary in `epics.md` (`225f998`); both action items done (`388d374`); the session file and the session log (`f21a7f3`, `62b4e4f`).
+
+### Prompts to the review session
+
+- `hvorfor skal vi kutte prd?` (11-22): the review session read the lecturer's point 4.1 and explained where the cut came from, what it does and does not delete, and that it could be dropped as a recorded decision.
+- `okei da kjører jeg på med det som anbefales` (11-22): the review session drafted the 20:39 prompt, with its rules: no measurement deleted, a machine check of every number, the rule unchanged, the references checked.
+- `og hva skal vi gjøre etter det da` (11-22): the review session listed v1's remaining order from `epics.md`: #71, Story 5.4, Epic 4, Stories 5.5, 5.6, 5.3 and 5.7.
+- The BMAD session's FR-10 draft (11-22): the review session checked the 400 and 165 in the `after-2.5b`, `after-2.5c` and `after-2.5d` counts, found that the check missed two-digit numbers such as "41 %", and drafted the 20:50 prompt.
+- The BMAD session's FR-11, FR-13 and FR-28 draft (11-22): the review session checked 1 834, 1 837, 1 602 and 1 403 in the count files, found that §10 would lose the 2.3b measurement, and drafted the 20:57 prompt.
+- The BMAD session's nine small FRs (11-22): the review session recommended an answer to each of the four questions and drafted the 21:13 prompt.
+- The BMAD session's final report (11-22): the review session found one story reference left in FR-6 ("in Story 5.2") and removed it with a memlog line (`570d7f6`), pushed `main` with its own log below the BMAD session's commits, as the human had chosen after the retrospective, and wrote this section.
+
+### Result
+
+The 20 FRs that held build history are rule and consequences: FR-1, FR-24, FR-58 and FR-73 after the Epic 2 retrospective, seven in the Epic 3 retrospective, and the last 13 here. Every number that left an FR is stated in §10, the technical note, the memlog or `analysis/output/`; the decision history is in the memlog. Epic 2 action 11 and Epic 3 action 3 are done.
+
 ---
 
 ## Going forward

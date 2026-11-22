@@ -421,8 +421,8 @@ describe('Story 3.8 copy', () => {
     ['provenance.quality.checked', 'Kontrollert mot registerets nøkkeltall: {felt}'],
     ['waterfall.prov.date', 'Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {fra}–{til}'],
     ['waterfall.prov.dateOne', 'Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {dato}'],
-    // Decision 3's sentence, as proposed in the spec's Design Notes; put to Meinich (decision 6).
-    ['waterfall.prov.sumNotGap', 'Summen er mot peer-gruppen samlet, ikke beste fjerdedel, og er ikke gapet i Driftsmargin-raden.'],
+    // Decision 3's sentence, worded by Meinich (2026-11-22).
+    ['waterfall.prov.sumNotGap', 'Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden.'],
   ] as const)('%s', (id, text) => {
     expect(nb[id]).toBe(text);
   });

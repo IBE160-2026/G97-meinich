@@ -234,7 +234,7 @@
   "waterfall.prov.startShown": "Vist som {slutt} − ({sum}) = {start}, slik at start og postene til sammen gir {slutt}.",
   "waterfall.prov.date": "Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {fra}–{til}",
   "waterfall.prov.dateOne": "Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {dato}",
-  "waterfall.prov.sumNotGap": "Summen er mot peer-gruppen samlet, ikke beste fjerdedel, og er ikke gapet i Driftsmargin-raden.",
+  "waterfall.prov.sumNotGap": "Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden.",
   "chart.showNumbers": "Vis tallene",
   "chart.hideNumbers": "Skjul tallene",
   "hero.kicker": "Største gap i kroner",

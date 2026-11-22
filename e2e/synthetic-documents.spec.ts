@@ -244,6 +244,20 @@ test('no document øre reaches the page', async ({ request }) => {
   expect(peer5.current.annenDriftskostnad).toBe(String(SYNTHETIC_WATERFALL.pooledKr.andre * 100n));
   expect(peer5.current.avskrivninger).toBe(String(SYNTHETIC_WATERFALL.pooledKr.residual * 100n));
   const pooledShown = [SYNTHETIC_WATERFALL.pooledKr.andre, SYNTHETIC_WATERFALL.pooledKr.residual].map((kroner) => String(kroner * 100n));
+  // The exception is exactly those two amounts (Meinich, 2026-11-22, review B6): the other nine
+  // peers' annenDriftskostnad and avskrivninger stay in peerOre and are not excepted, so a leak
+  // of peer lines is still caught by them.
+  expect(pooledShown).toHaveLength(2);
+  const others = peers.filter((peer) => peer !== peer5);
+  expect(others).toHaveLength(9);
+  for (const peer of others) {
+    for (const line of [peer.current.annenDriftskostnad, peer.current.avskrivninger]) {
+      if (line === undefined) throw new Error('every fixture peer states annenDriftskostnad and avskrivninger');
+      expect(LINES.peerOre).toContain(line);
+      expect(pooledShown).not.toContain(line);
+      expect(LINES.subjectOre).not.toContain(line);
+    }
+  }
   const sums = Object.values(SYNTHETIC_WATERFALL.groupSumsKr).map((kroner) => String(kroner * 100n));
   const shares = Object.values(SYNTHETIC_WATERFALL.shares).map(([numerator, denominator]) =>
     new Decimal(numerator.toString()).div(denominator.toString()).toString(),

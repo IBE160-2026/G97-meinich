@@ -61,7 +61,7 @@ context:
      - "checked: api_check not passed".
    - The bars keep 3.7's rule: the three cost lines are never compared, so they read "Ikke kontrollert …".
 5. **Samlet's read date (FR-64).** The range of `register.document.read_at` over P, on the server only. When every date is the same, one date is shown, never "{d}–{d}".
-6. **Copy.** Approved as listed in Design Notes, with Meinich's three changes. The one sentence decision 3 asks for (`waterfall.prov.sumNotGap`) is put to Meinich before the copy commit.
+6. **Copy.** Approved as listed in Design Notes, with Meinich's three changes. Decision 3's sentence (`waterfall.prov.sumNotGap`) is worded by Meinich (2026-11-22, Spec Change Log).
 7. **One spec,** kept whole (above 1600 tokens; Meinich).
 
 ## Boundaries & Constraints
@@ -190,6 +190,7 @@ Implementation run, 2026-11-22 (subagent). Where the code differs from the Code 
   - **Before Story 5.4,** only the synthetic fixture reaches a shown waterfall in e2e.
 - **2026-11-22, decisions 1–7 replace the draft's Open Questions** (Meinich).
 - **2026-11-22, the read-date boundary is read with decision 5 (review B4; recorded by the BMAD session, for Meinich to confirm).** Boundaries says the payload never holds "any peer's … read date". Decision 5 shows the range of P's read dates, whose two ends are peers' dates without a name. Excluding a peer in a second URL can move an end. The boundary means no read date per peer; the range of decision 5 is allowed. By decision 1's invariant, a member of P is on the manifest, and its own page shows its own read date.
+- **2026-11-22, decision 3's sentence is worded (Meinich).** `waterfall.prov.sumNotGap` reads "Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden." Decision 6 is updated to say so.
 
 ## Review Triage Log
 
@@ -206,8 +207,8 @@ Review pass 1 (2026-11-22), over the diff from `baseline_commit` to the in-revie
 | V1, B8 | No test puts the rounding note through `waterfallProvenance`, only `roundingNote` directly, and none has a negative bar | medium | Filed with evidence: dropping the note's spread, or a wrong index, passes every test. | patch: a case through `waterfallProvenance` with a moved bar, a negative bar among them, asserting the note on that bar only |
 | V2 | No test reads `shownGroup(...).waterfallFacts` with `ekskl` while a waterfall is shown | medium | Filed with evidence: passing `funnel.group` instead of `peers` passes every test. | patch: `test/analysis/shown-group.test.ts`, `ekskl` holding a peer outside P |
 | B4 | The read-date range contradicts the frozen boundary "never any peer's read date", with no Spec Change Log entry | low | True: the boundary's wording is the BMAD session's, and decision 5 (Meinich) asks for the range. The fix edits this spec, so it is rejected as a code finding. AGENTS.md nevertheless asks for the correction, so it is recorded in the Spec Change Log for Meinich to confirm. | rejected (code); Spec Change Log entry |
-| B5 | `waterfall.prov.sumNotGap` is committed and tested without approval, and nothing tracks it | low | True: it was put to Meinich in the session (decision 6) and is unanswered. No code fix: Meinich confirms or changes one line. | rejected (code); asked again before merge |
-| B6 | Peer 5's andre and avskrivninger lines equal two Aₓ × R values, so the scan allows those two øre values anywhere on Nøkkeltall | low | True, by the fixture's construction (peer 5's revenue is the subject's). A leak of exactly those two lines elsewhere would pass. Changing the fixture moves numbers that 3.1b and 3.7 assert; narrowing the allowance adds structure to the scan. Unlikely to be met. | rejected; put to Meinich |
+| B5 | `waterfall.prov.sumNotGap` is committed and tested without approval, and nothing tracks it | low | True: it was put to Meinich in the session (decision 6). Meinich worded it (2026-11-22): "Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden." | patched: `nb.json`, `test/messages.test.ts`, EXPERIENCE.md and the UX memlog carry Meinich's wording |
+| B6 | Peer 5's andre and avskrivninger lines equal two Aₓ × R values, so the scan allows those two øre values anywhere on Nøkkeltall | low | True, by the fixture's construction (peer 5's revenue is the subject's). A general leak of peer lines is still caught by the nine other peers, and changing the fixture would move numbers that 3.1b and 3.7 assert. The test now asserts that `pooledShown` holds exactly two values, and that the nine other peers' `annenDriftskostnad` and `avskrivninger` are in `peerOre` and not excepted. | accepted, Meinich (2026-11-22) |
 | B7 | `waterfallFacts` throws on a P member without a read date, and `outsideLine` on an inconsistent count, failing the whole page | false | `register.document.read_at` is `NOT NULL`, and a member of P has a document row. `outsideLine`'s invariant holds by construction: the same peers give n and the counts. Loud failure on unreachable states is intended. | rejected |
 | B9 | The seven triggers have the same accessible name | low | They sit in the kroner cell of a row with `th scope="row"`, so table navigation announces the row, as for 3.7's gap cells. | rejected |
 | B10 | Each drill-down is rendered twice (desktop and phone), the notes repeat, and +8 kB gzip goes unquestioned; the end's step 2 is labelled "Driftsmargin" | low | Rendered twice by 3.7's pattern, measured, and under 3.7's 30 kB. The end's step 2 shows m = `driftsresultat` / R, which is the driftsmargin. | rejected |
@@ -271,7 +272,7 @@ Excluding one peer and reconstructing its line from that peer's revenue (`format
 - `waterfall.prov.date`: "Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {fra}–{til}"
 - `waterfall.prov.dateOne`: "Peer-gruppen samlet: Regnskapsår {aar} · årsregnskapene hentet {dato}"
 
-**Proposed under decision 3, the one line it asks for:** `waterfall.prov.sumNotGap`: "Summen er mot peer-gruppen samlet, ikke beste fjerdedel, og er ikke gapet i Driftsmargin-raden." Decision 3 requires the sentence but leaves its wording open; it is put to Meinich before the copy commit.
+**Decision 3's sentence, worded by Meinich (2026-11-22):** `waterfall.prov.sumNotGap`: "Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden."
 
 Formula lines use only numbers, register field names and the symbols A, c, M, m, R and Σ.
 

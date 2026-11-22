@@ -388,7 +388,7 @@ FR-59: Epic 1, 2 — No OCR or fetch at query time (Stories 1.3a, 1.7; documents
 FR-60: Epic 3 — Traceability to filed values (Story 3.7; the margin waterfall's bars by hand in Story 3.8)
 FR-61: Epic 1 — Front page (industry overviews in Epic 6)
 FR-62: Epic 1, 3 — Tabs: Oversikt, Peers and Nøkkeltall og gap in Epic 1 (three tabs during Epics 1–2); Verdi added in Epic 3, so four open tabs once Epic 3 is done (Utvikling in Epic 6)
-FR-64: Epic 1, 2, 3 — Filing year and read date: stored by Story 1.3a (and per document by Story 2.1b), and shown for the subject in the company header by Story 1.6b; for peer aggregates and in every provenance drill-down in Epic 3 (PDF and saved parts in Epic 6)
+FR-64: Epic 1, 2, 3, 5 — Filing year and read date: stored by Story 1.3a (and per document by Story 2.1b), and shown for the subject in the company header by Story 1.6b; the subject's document read date in every kroner drill-down (Story 3.7) and the range of the peer group's read dates in the waterfall's drill-down (Story 3.8); the filing year and read dates of a document-based peer aggregate in Story 5.4, moved there from Epic 3 by its retrospective (PDF and saved parts in Epic 6)
 FR-65: Epic 1, 5 — Source credit in Story 1.6b; the document-figure paragraph published in Story 5.4, with the licence assessment
 FR-66: Epic 2 — Withdrawn company removed from stored data (saved-analysis part in Epic 6)
 FR-68: Epic 5 — Embeddings for the ablation, cut first
@@ -410,8 +410,8 @@ The user sees why each company was chosen: funnel counts per stage, "Hvorfor med
 **FRs covered:** FR-10, FR-11, FR-12, FR-13, FR-14, FR-15, FR-16, FR-17, FR-18, FR-19, FR-21 (key figures 7 and 8), FR-23, FR-57, FR-58, FR-66, FR-71, FR-28 (batch part); in part FR-7, FR-8, FR-9, FR-55, FR-56, FR-59, FR-64, FR-70, FR-73
 
 ### Epic 3: See every gap in kroner and what closing it is worth
-The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), and the no-double-counting tests.
-**FRs covered:** FR-21, FR-23 (document rows), FR-24 (document rows), FR-26, FR-27 (remaining rows), FR-29 (document figures), FR-30, FR-31, FR-32, FR-60, FR-62 (Verdi tab), FR-64 (peer aggregates and provenance), FR-71 (document rows)
+The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), a drill-down for every row of the waterfall's "Vis tallene" from which it can be recomputed by hand (Story 3.8), and the no-double-counting tests.
+**FRs covered:** FR-21, FR-23 (document rows), FR-24 (document rows), FR-26, FR-27 (remaining rows), FR-29 (document figures), FR-30, FR-31, FR-32, FR-60, FR-62 (Verdi tab), FR-64 (the read dates in the provenance drill-downs), FR-71 (document rows)
 
 ### Epic 4: Understand the gaps — the explanation
 Every 62.100 company has a stored explanation marked ✦, generated in batch step 2 and guarded by the FR-53 figure test, the FR-54 phrase list and the input digest; hidden when the peer group is adjusted ("Forklaringen gjelder standard peer-gruppe. Tilbakestill for å se den."), an acceptance criterion moved here from Story 2.8 because the explanation card first exists in this epic.
@@ -419,7 +419,7 @@ Every 62.100 company has a stored explanation marked ✦, generated in batch ste
 
 ### Epic 5: Prove it and make it runnable — measurement, demo seed and About page
 The labelled set (30 × 30 in 62.100, started in week 1 as calendar work, in parallel with Epics 1–4) and the layer-by-layer ablation, with embeddings last and cut first; the demo seed with companies A, B and C, the licence gate, the allow-list test and the 30-explanation review recorded in `docs/ai-sessions/`; "Slik fungerer Peerless" completed around the "Kilder og lisens" section Story 1.6b created, with the document-figure paragraph published with the licence assessment (Story 5.4) and results once they exist; the 62.100 entry in `seed/coverage.json` set to measured: true with a reference to its measurement report (FR-3); the README proven from a fresh clone.
-**FRs covered:** FR-3 (62.100 measured), FR-10 and FR-11 (both signals switched off in v1 by the measurement), FR-13 (the bands measured; Meinich decides), FR-14 to FR-16 (no flag, no shown basis, three funnel stages in v1), FR-54 (the 30-explanation review), FR-65 (document-figure paragraph), FR-68, FR-70, FR-72 (remaining sections), FR-73 (complete)
+**FRs covered:** FR-3 (62.100 measured), FR-10 and FR-11 (both signals switched off in v1 by the measurement), FR-13 (the bands measured; Meinich decides), FR-14 to FR-16 (no flag, no shown basis, three funnel stages in v1), FR-54 (the 30-explanation review), FR-64 (the read dates of a document-based peer aggregate), FR-65 (document-figure paragraph), FR-68, FR-70, FR-72 (remaining sections), FR-73 (complete)
 
 ### Epic 6 (backlog, no stories): Stage 2 and stage 3
 Every stage-2 and stage-3 FR, and the stage-2/3 parts of split FRs, as listed under "Stage 2 / Stage 3" above. Not broken into stories; AGENTS.md: no stage 2 or 3 work until v1 runs from a fresh clone.
@@ -1913,7 +1913,7 @@ So that an empty group always says why, an exclusion button never blames the lin
 
 ## Epic 3: See every gap in kroner and what closing it is worth
 
-The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), and the no-double-counting tests.
+The full Nøkkeltall og gap table with document figures and their kroner, both decompositions and the margin waterfall, the remaining Oversikt cards (beeswarm, Største kapitalgap, Største styrke, Mangler grunnlag), the Verdi tab (the fourth tab, added here with no placeholder before it) with the closable-share steps, "Til medianen" and EV/EBIT, the provenance drill-down "Hvordan er dette regnet?" including the hero card's link to it (left out of Story 1.9), a drill-down for every row of the waterfall's "Vis tallene" from which it can be recomputed by hand (Story 3.8), and the no-double-counting tests.
 
 ### Story 3.1a: The engine computes every key figure
 
@@ -2606,7 +2606,7 @@ As a sensor or developer running Peerless from a fresh clone,
 I want a committed demo seed with three demo companies that show everything v1 does,
 So that the full analysis runs locally without any key, within what the licence allows.
 
-**Implements:** FR-73, FR-65 (document-figure credit paragraph), FR-72 (the document-figure paragraph in "Kilder og lisens") · **Invariants:** AD-9, AD-16 · **UX:** UX-DR35, UX-DR40, UX-DR42, UX-DR43, UX-DR63 · **Issue / branch / PR:** one issue, branch `story/5.4-demo-seed`, one PR (AGENTS.md Git workflow)
+**Implements:** FR-73, FR-65 (document-figure credit paragraph), FR-72 (the document-figure paragraph in "Kilder og lisens"), FR-64 (the read dates of a document-based peer aggregate) · **Invariants:** AD-9, AD-16 · **UX:** UX-DR35, UX-DR40, UX-DR42, UX-DR43, UX-DR63 · **Issue / branch / PR:** one issue, branch `story/5.4-demo-seed`, one PR (AGENTS.md Git workflow)
 
 **Acceptance Criteria:**
 
@@ -2643,6 +2643,11 @@ So that the full analysis runs locally without any key, within what the licence 
 **When** `pnpm seed` loads it
 **Then** it holds register data and API figures for every 62.100 company, stored classifications for every AS among them, full document figures for A, B and the allow-listed peers, API figures for C, and stored explanations for every 62.100 default group once Epic 4 and Story 5.5 are done (until then the seed carries none, and the explanation card shows its no-stored-explanation state)
 **And** loading twice leaves the same state, and the CI seed job passes
+
+**Given** the committed demo seed
+**When** a demo company's Oversikt and Nøkkeltall tabs are opened
+**Then** at least one real demo company shows the margin waterfall with at least 10 peers in its common peer set, and every row of its "Vis tallene" has the drill-down of Story 3.8; an e2e test asserts it on the committed seed, because until this story only the synthetic fixture (`e2e/synthetic-documents.spec.ts`) reaches a shown waterfall (Epic 3 retrospective, E4)
+**And** the drill-down of a document-based peer aggregate (the quartile line of Story 3.7) states the filing year and the range of read dates of the peers' documents, by the same rule as `waterfallFacts` and never a single peer's date; one shared filing year suffices (FR-64, moved here from Epic 3 by its retrospective)
 
 **Given** the README
 **When** it is read

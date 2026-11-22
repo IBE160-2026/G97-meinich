@@ -22,7 +22,7 @@ Make every column of the margin waterfall recomputable from what the page shows.
   - the new copy, verbatim.
 
   It also set 3.7's rules for tests, e2e and builds, and no push.
-- **Meinich's answer (decisions 1–7).** The review session pointed out that the checkpoint's premise about demo A and the manifest was wrong.
+- **Meinich's answer (decisions 1–7).** The review session said the checkpoint's premise about demo A and the manifest was wrong. That was its own mistake: it took 885583822 for demo A. It contributed that the peers are not on the manifest either.
   1. The comparison across URLs is accepted and written as an invariant: only a manifest peer enters P. A test covers it, and a new AI-log entry corrects 3.7's claim, with the analysis credited to the review session.
   2. Two decimals in the drill-down, plus the exact kroner line Aₓ × R − own line = bar. Aₓ × R is registered as `explanation`.
   3. A new row, "Sum av postene".
@@ -43,10 +43,10 @@ Make every column of the margin waterfall recomputable from what the page shows.
   - All 274 members of P have their own waterfall with the gate open.
   - Across 871 subjects, no two have P differing by exactly one peer.
   - With the gate closed today, none of the 20 manifest subjects has a waterfall.
-- **Corrected by the review session (via Meinich):** the BMAD session's first premise. That premise was "demo A gets no waterfall because it is not on the manifest".
-  - Checked against the code: demo A (813235552) is indeed not on the manifest.
-  - The orgnr the review session named, 885583822, is VISIONTECH AS, an OCR reference company that is on it.
-  - The reason no subject has a waterfall locally is that the peers are not on the manifest. The spec's Spec Change Log records this.
+- **Completed by the review session (via Meinich); its own correction was wrong.** The BMAD session's premise was "demo A gets no waterfall because it is not on the manifest".
+  - The premise was right. Checked against the code and the database, demo A (813235552) is not on the manifest.
+  - The review session said demo A is on it, but it had taken 885583822 for demo A. That orgnr is VISIONTECH AS, an OCR reference company that is on the manifest.
+  - Its contribution: the peers are not on the manifest either, which is why no subject has a waterfall locally. The spec's Spec Change Log records this.
 - **Corrected by the BMAD session:** decision 1's "a peer's own page shows its lines" is structural only for the manifest part. It was written as an invariant with that caveat, and measured as 274 of 274.
 - **Accepted:** the implementation in small commits: the engine, the data-quality kind, the copy, the views, the triggers, the payload scans with probes, the e2e oracle, and the docs.
   - The subagent removed each guard and showed its named test failing.

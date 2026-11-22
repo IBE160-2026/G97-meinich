@@ -184,7 +184,7 @@ Implementation run, 2026-11-22 (subagent). Where the code differs from the Code 
 
 ## Spec Change Log
 
-- **2026-11-22, the checkpoint's premise is corrected (the review session found it wrong; checked against the code and the database; Meinich decided the rest).** The draft said demo A gets no waterfall locally because it is not on the manifest.
+- **2026-11-22, the checkpoint's premise is completed (the review session added that the peers are not on the manifest either; it took 885583822 for demo A, which was its own mistake; checked against the code and the database; Meinich decided the rest).** The draft said demo A gets no waterfall locally because it is not on the manifest. That holds. The review session's correction said demo A is on the manifest; it is not.
   - **Verified:** demo A (`DEMO_COMPANIES[0]`, 813235552 ADMMIT AS) is not on `document_figure_orgnrs`, either in `seed/demo/manifest.json` or in `register.dataset`. 885583822 (VISIONTECH AS, "OCR-referansesett" in the allow-list), which the review session took for demo A, is on it.
   - **The reason no subject has a waterfall locally:** the peers are not on the manifest. Each of the 20 manifest companies has P < 10, so 0 of them show a waterfall or a (9)/(11) distribution after `restore:documents`. Demo A has no waterfall for that reason too, and also because it is itself not on the manifest.
   - **Before Story 5.4,** only the synthetic fixture reaches a shown waterfall in e2e.

@@ -3,7 +3,7 @@
 **Date:** 2026-11-20 to 2026-11-22
 **Tool:** Claude Code (Opus 5.5), the `bmad-build` workflow, with an implementation subagent and three review subagents
 **Story / issue:** #81, Story 3.7 (FR-57, FR-60, FR-64)
-**Result:** commits on `story/3.7-provenance` from `cd50547` to `3023093`; PR to come (not pushed)
+**Result:** PR #82 (https://github.com/IBE160-2026/G97-meinich/pull/82), commits on `story/3.7-provenance` from `cd50547`
 
 ## Goal
 Give every displayed kroner amount a drill-down that a sensor can recompute by hand (formula, key figure and beste fjerdedel, filed values with their names, dates and source, and a data-quality line decided from stored states), and choose the subject's benchmark filing in the engine (D2).

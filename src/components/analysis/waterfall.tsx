@@ -79,23 +79,24 @@ function NumbersTable({
     );
   /**
    * The row's drill-down, as the next row, across the table. On the phone the
-   * table is wider than the screen and scrolls in its region; the steps keep
-   * to the region's visible width and stay at its left edge (`sticky`), so a
-   * drill-down reads without scrolling sideways. 4.5rem is 72 px: the page's
-   * two 16 px gutters and the Nøkkeltall fold-out's 16 + 12 px padding are
-   * 60 px, and the other 12 px is slack, set by measurement rather than
-   * derived from the layout.
+   * table is wider than the screen and scrolls in its region, a size
+   * container (`@container`); the steps stay at the region's left edge
+   * (`sticky`) and inside its visible width at either end of the scroll, so a
+   * drill-down reads without scrolling sideways. 100cqw is the region's
+   * visible width. The 1.75rem is the cell's `pr-4` (16 px) and the
+   * drill-down's `pr-3` (12 px): scrolled fully right, the sticky steps stop
+   * at the cell's content edge, 28 px inside the region's right edge.
    */
   const drillDown = (key: WaterfallColumnKey) =>
     provenance === null ? null : (
       <ProvenanceRow id={provId(key)} colSpan={4}>
-        <div className={layout === 'p' ? 'sticky left-0 max-w-[calc(100vw-4.5rem)]' : undefined} data-wf-prov-steps="">
+        <div className={layout === 'p' ? 'sticky left-0 max-w-[calc(100cqw-1.75rem)]' : undefined} data-wf-prov-steps="">
           <ProvenanceSteps id={provId(key)} view={provenance[key]} />
         </div>
       </ProvenanceRow>
     );
   return (
-    <div role="region" tabIndex={0} aria-labelledby={captionId} className="scroll-region">
+    <div role="region" tabIndex={0} aria-labelledby={captionId} className={layout === 'p' ? 'scroll-region @container' : 'scroll-region'}>
       <table className="min-w-full border-collapse text-left text-[13px]" data-testid="waterfall-table">
         <caption id={captionId} className="pb-1 text-left text-slate">
           {view.table.caption}

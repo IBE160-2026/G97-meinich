@@ -186,6 +186,7 @@ describe('the hero amount and the table', () => {
           smaaForetak: true,
           filingYear: 2025,
           provenance: tableProvenance(drillSubject(inputs), benchmark, benchmarkDocumentFigures({ kind: 'not_in_dataset' }, [], 'NOK')),
+          waterfallProvenance: null,
         }),
         STATE,
       ),

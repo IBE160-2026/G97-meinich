@@ -109,6 +109,22 @@ export function ProvenanceSteps({
             </Disclosure>
           </div>
         ))}
+        {/* Story 3.8: a waterfall column's step 2, its lines and its sentences about P; no beste fjerdedel. */}
+        {view.pooled.map((step) => (
+          <div key={step.label} className="mt-1" data-provenance-pooled="">
+            <p className="m-0 mt-2 text-slate">{step.label}</p>
+            {step.lines.map((line, j) => (
+              <Chip key={j}>
+                <LineText line={line} />
+              </Chip>
+            ))}
+            {step.notes.map((note) => (
+              <p key={note} className="m-0 mt-1">
+                {note}
+              </p>
+            ))}
+          </div>
+        ))}
       </Step>
       <Step title={t('provenance.step.filed')}>
         {view.filed.api.length > 0 ? (

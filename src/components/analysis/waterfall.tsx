@@ -8,7 +8,19 @@
 // A server component: the view arrives as strings and geometry only
 // (src/analysis/waterfall-view.ts, AD-4); the one client module it renders,
 // the "Vis tallene" toggle, receives the server-rendered table.
+//
+// Story 3.8: every row of "Vis tallene" (start, the four bars, "Sum av
+// postene" and the end) has "Hvordan er dette regnet?" in its kroner cell and
+// its drill-down in a full-width row right under it, ids
+// `kf-{d|p}-wf-prov-{column}`. The chart (`role="img"`) and the phone rows
+// get none. The drill-downs are built on the server
+// (src/analysis/provenance.ts `waterfallProvenance`) and reach the page as
+// their rendered steps only.
+import { Fragment } from 'react';
+import type { WaterfallColumnKey, WaterfallProvenance } from '@/analysis/provenance';
 import type { WaterfallView } from '@/analysis/waterfall-view';
+import { ProvenanceRow, ProvenanceTrigger } from './provenance';
+import { ProvenanceSteps } from './provenance-steps';
 import { ShowNumbers } from './show-numbers';
 import { WaterfallChart } from './waterfall-chart';
 import { WaterfallRows } from './waterfall-rows';
@@ -40,10 +52,38 @@ function Legend({ view }: { readonly view: Shown }) {
  * can be wider than the screen, and the body never scrolls sideways. Figures
  * never break inside a number; names wrap at spaces.
  */
-function NumbersTable({ view, companyName, id }: { readonly view: Shown; readonly companyName: string; readonly id: string }) {
+function NumbersTable({
+  view,
+  companyName,
+  id,
+  layout,
+  provenance,
+}: {
+  readonly view: Shown;
+  readonly companyName: string;
+  readonly id: string;
+  readonly layout: 'd' | 'p';
+  readonly provenance: WaterfallProvenance | null;
+}) {
   const cell = 'py-1.5 pr-3 align-top';
   const figure = `figure ${cell} whitespace-nowrap`;
   const captionId = `${id}-caption`;
+  const provId = (key: WaterfallColumnKey) => `kf-${layout}-wf-prov-${key}`;
+  /** The trigger under a row's kroner (Story 3.8). */
+  const trigger = (key: WaterfallColumnKey) =>
+    provenance === null ? null : (
+      <>
+        <br />
+        <ProvenanceTrigger id={provId(key)} />
+      </>
+    );
+  /** The row's drill-down, as the next row, across the table. */
+  const drillDown = (key: WaterfallColumnKey) =>
+    provenance === null ? null : (
+      <ProvenanceRow id={provId(key)} colSpan={4}>
+        <ProvenanceSteps id={provId(key)} view={provenance[key]} />
+      </ProvenanceRow>
+    );
   return (
     <div role="region" tabIndex={0} aria-labelledby={captionId} className="scroll-region">
       <table className="min-w-full border-collapse text-left text-[13px]" data-testid="waterfall-table">
@@ -68,27 +108,35 @@ function NumbersTable({ view, companyName, id }: { readonly view: Shown; readonl
         </thead>
         <tbody>
           {view.table.rows.map((row) => (
-            <tr key={row.head} className="border-b border-divider">
-              <th scope="row" className={`${cell} font-normal`}>
-                {row.head}
-              </th>
-              <td className={figure}>{row.own}</td>
-              <td className={figure}>{row.all}</td>
-              <td className={figure}>
-                {row.kroner}
-                {row.glyph !== null ? <span aria-hidden="true">{` ${row.glyph}`}</span> : null}
-                {row.word !== null ? ` ${row.word}` : null}
-              </td>
-            </tr>
+            <Fragment key={row.key}>
+              <tr className="border-b border-divider" data-wf-table-row={row.key}>
+                <th scope="row" className={`${cell} font-normal`}>
+                  {row.head}
+                </th>
+                <td className={figure}>{row.own}</td>
+                <td className={figure}>{row.all}</td>
+                <td className={figure}>
+                  {row.kroner}
+                  {row.glyph !== null ? <span aria-hidden="true">{` ${row.glyph}`}</span> : null}
+                  {row.word !== null ? ` ${row.word}` : null}
+                  {trigger(row.key)}
+                </td>
+              </tr>
+              {drillDown(row.key)}
+            </Fragment>
           ))}
-          <tr className="border-b border-divider">
+          <tr className="border-b border-divider" data-wf-table-row="end">
             <th scope="row" className={`${cell} font-normal`}>
               {companyName}
             </th>
             <td className={figure}>{view.table.end.own}</td>
             <td className={figure} />
-            <td className={figure}>{view.table.end.kroner}</td>
+            <td className={figure}>
+              {view.table.end.kroner}
+              {trigger('end')}
+            </td>
           </tr>
+          {drillDown('end')}
           <tr>
             <th scope="row" className={`${cell} font-normal`}>
               {view.table.reference.head}
@@ -107,11 +155,14 @@ export function Waterfall({
   view,
   companyName,
   layout,
+  provenance,
 }: {
   readonly view: WaterfallView;
   readonly companyName: string;
   /** The desktop chart in the table's scroll region, or the phone rows. */
   readonly layout: 'desktop' | 'phone';
+  /** Each column's drill-down (Story 3.8); null when there is no waterfall. */
+  readonly provenance: WaterfallProvenance | null;
 }) {
   if (view.kind === 'absent') {
     return (
@@ -136,7 +187,7 @@ export function Waterfall({
       </div>
       <Legend view={view} />
       <ShowNumbers show={view.showNumbers} hide={view.hideNumbers} tableId={numbersId}>
-        <NumbersTable view={view} companyName={companyName} id={numbersId} />
+        <NumbersTable view={view} companyName={companyName} id={numbersId} layout={layout === 'desktop' ? 'd' : 'p'} provenance={provenance} />
       </ShowNumbers>
     </div>
   );

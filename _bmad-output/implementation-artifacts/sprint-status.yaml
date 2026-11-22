@@ -79,7 +79,7 @@ development_status:
   3-5-verdi-how-much-is-closable: done  # issue #77
   3-6-ev-ebit-what-the-uplift-is-worth: done  # issue #79
   3-7-hvordan-er-dette-regnet: done  # issue #81
-  3-8-vannfallet-kan-regnes-ut-for-hand: review  # issue #83
+  3-8-vannfallet-kan-regnes-ut-for-hand: done  # issue #83
   epic-3-retrospective: optional
 
   epic-4: backlog

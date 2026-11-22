@@ -94,3 +94,10 @@ Measuring with a temporary probe, the BMAD session found a new detail: at 375 px
 - **The fix** (`43143d6`) sizes the steps by the region (`100cqw − 1.75rem`, the region a size container) instead of `100vw − 4.5rem`. The 12 px of slack is gone.
 - **The test's tolerance** is one Chromium layout unit (1/64 px), because the steps sit exactly on the region's edge.
 - **Verified:** the phone test and the whole synthetic project (31) passed with one worker.
+
+## Merge
+
+- **The review's timing.** The section above says the review session posted its review before the two corrections; it had drafted it. Meinich passed the draft's two points to the BMAD session first. The review session updated the draft to `145527a`, with the corrections confirmed, and posted it at Meinich's request ("post review") once CI was green: https://github.com/IBE160-2026/G97-meinich/pull/84#pullrequestreview-6014156666 (nine line comments, no changes requested).
+- **The review session's own mistake,** recorded in the spec's change log and in the review: at the checkpoint it took 885583822 (VISIONTECH AS) for demo A. Demo A is 813235552 and is not on the manifest. The BMAD session found the mistake.
+- **CI** was green on `145527a`. Meinich merged PR #84 at 19:55 UTC on 2026-11-22 as `22257fe`.
+- **After the merge** the review session set the spec to `done` and the story to `done` in `sprint-status.yaml`, and deleted the story branch.

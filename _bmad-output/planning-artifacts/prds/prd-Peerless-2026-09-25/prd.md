@@ -544,10 +544,10 @@ Where filings allow, the product shows how the subject has moved against its pee
 
 **Consequences (testable):**
 - **Stage split:** the view, its tab and the sparklines are stage 2. Extracting and reconciling the earlier years is batch work that SM-2 measures, and is not held back with the view.
-- Development over time covers the last five years, 2021–2025. The spike measured about 88 % of columns reconciling (2026-09-26); the Story 2.1b run, re-read after Story 2.5c, reconciles 1 837 of 1 946 current columns, about 94 % (`analysis/output/document-run-counts-after-2.5c.json`). Paper filings are never read; older generated years are used only where they reconcile.
-- **A reconciled column is not a complete one.** Lines no check needs can be empty in a reconciled column: in the same run `lonnskostnad` is present in 1 602 of 1 946 current columns and `avskrivninger` in 1 403. Whether a figure is available is therefore per field, not per filing.
-- Every filed document of 2021–2025 is fetched and read, not every other year, although each document carries a prior-year column (Meinich, 2026-10-20, Story 2.1b); both columns of each document are stored.
-- **What v1 reads.** Every 2021–2025 document of the companies whose document figures are in the seed (demo A and B and their candidate pools, the 20 OCR reference companies), and the 2025 document of each labelled-set company (FR-3). The run over the rest of `62.100` (about 8 400 companies, about 33 000 documents, about 190 hours) is not part of v1; `pnpm ingest --documents <list>` performs it with no new code, and it resumes where it stopped. A plain `pnpm ingest` reads no document. See FR-59.
+- Development over time covers the last five years, 2021–2025. Paper filings are never read; older generated years are used only where they reconcile. How many columns reconcile is reported in §10.
+- **A reconciled column is not a complete one.** Lines no check needs can be empty in a reconciled column, so whether a figure is available is per field, not per filing (§10).
+- Every filed document of 2021–2025 is fetched and read, not every other year, although each document carries a prior-year column; both columns of each document are stored.
+- **What v1 reads.** Every 2021–2025 document of the companies whose document figures are in the seed (demo A and B and their candidate pools, the 20 OCR reference companies), and the 2025 document of each labelled-set company (FR-3). The run over the rest of `62.100` is not part of v1; `pnpm ingest --documents <list>` performs it with no new code, resumes where it stopped, and a plain `pnpm ingest` reads no document (FR-59).
 - The full development-over-time view needs an account; a sparkline preview with the peer median is open to anyone (FR-42).
 
 ### 4.4 Gap quantification in kroner and the closable-share control

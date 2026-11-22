@@ -24,6 +24,7 @@ const pool = Array.from({ length: 12 }, (_, i) => ({
   keyFigures: row('100000000', String((i + 1) * 1_000_000)),
   // The first ten have a read document; the last two are outside the dataset.
   documentBasis: TEN_PEERS[i] ?? NOT_IN_DATASET,
+  documentReadAt: i < 10 ? new Date('2026-10-21T08:00:00Z') : null,
 }));
 
 // No stage 4 removal: group equals pool.
@@ -43,6 +44,20 @@ const filing = (valuta: string) => ({
 });
 
 describe('shownGroup', () => {
+  it('the waterfall facts count the group less ekskl (Story 3.8)', () => {
+    const all = shownGroup(funnel, [], filing('NOK'));
+    // The fixture's state: P is the ten read peers, two peers are outside the demo data.
+    expect(all.waterfall).toMatchObject({ kind: 'decomposition', n: 10 });
+    expect(all.waterfallFacts.groupSize).toBe(12);
+    expect(all.waterfallFacts.outside.not_in_dataset).toBe(2);
+    // One peer outside P excluded: P stays at 10, the group and its outside count drop by one.
+    const outsider = pool[11]?.orgnr ?? '';
+    const less = shownGroup(funnel, [outsider], filing('NOK'));
+    expect(less.waterfall).toMatchObject({ kind: 'decomposition', n: 10 });
+    expect(less.waterfallFacts.groupSize).toBe(11);
+    expect(less.waterfallFacts.outside.not_in_dataset).toBe(1);
+  });
+
   it('gives a NOK subject worse than beste fjerdedel a kroner amount', () => {
     const group = shownGroup(funnel, [], filing('NOK'));
     expect(group.benchmark.driftsmargin.comparison.kind).toBe('compared');
@@ -163,6 +178,7 @@ describe('driftsmarginComparison', () => {
     orgnr: `9100000${String(i).padStart(2, '0')}`,
     keyFigures: row('100000000', String(result)),
     documentBasis: NOT_IN_DATASET,
+    documentReadAt: null,
   }));
   const elevenFunnel = { pool: eleven, group: eleven, flagged: [], counts, emptyReason: null };
   const subject = { ...filing('NOK'), keyFigures: row('100000000', '4800000') };

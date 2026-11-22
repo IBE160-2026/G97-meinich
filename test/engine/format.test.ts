@@ -13,6 +13,7 @@ import {
   formatMultiple,
   formatOrgnr,
   formatPercent,
+  formatPercentFine,
   formatPercentagePoints,
   formatPercentagePointsFine,
   formatPercentNumber,
@@ -24,6 +25,7 @@ import {
   formatFactor,
   shownDays,
   shownPercent,
+  shownPercentFine,
   shownTurnover,
   wholeKroner,
 } from '../../src/engine/format.ts';
@@ -253,5 +255,22 @@ describe('formatFactor (Story 3.7): an interpolation factor, exactly', () => {
   });
   it('refuses a factor it would have to round', () => {
     expect(() => formatFactor('0.125')).toThrow(RangeError);
+  });
+});
+
+describe('formatPercentFine, shownPercentFine (Story 3.8): two decimals for the waterfall drill-down', () => {
+  it.each([
+    ['0.0801612903', `8,02${NBSP}%`],
+    ['0.46032258', `46,03${NBSP}%`],
+    ['0.2', `20,00${NBSP}%`],
+    ['0.00005', `0,01${NBSP}%`],
+    ['-0.00005', `${MINUS}0,01${NBSP}%`],
+    ['-0.0095', `${MINUS}0,95${NBSP}%`],
+    ['1', `100,00${NBSP}%`],
+  ])('formatPercentFine %s', (fraction, expected) => {
+    expectBytes(formatPercentFine(fraction), expected);
+  });
+  it.each(['0.0801612903', '0.00005', '-0.00005', '0.22951613', '0'])('percent %s formats as itself', (value) => {
+    expectBytes(formatPercentFine(shownPercentFine(value).toString()), formatPercentFine(value));
   });
 });

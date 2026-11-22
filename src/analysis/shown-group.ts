@@ -23,6 +23,11 @@
 //
 // Story 3.3: the margin waterfall against the same peers' document bases,
 // for the benchmark year, in the subject's currency.
+//
+// Story 3.8: what the waterfall's drill-downs say about P beyond the engine's
+// result: the group's size, how many peers are outside P by reason, and the
+// range of P's document read dates. Counts and two dates only; no peer's
+// date, line or name leaves here.
 import {
   benchmarkApiFigures,
   benchmarkDocumentFigures,
@@ -33,10 +38,20 @@ import {
 } from '../engine/benchmark.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import type { Comparison } from '../engine/types.ts';
-import { marginWaterfall, type MarginWaterfall } from '../engine/waterfall.ts';
+import { commonSetEntry, marginWaterfall, outsideCommonSet, type MarginWaterfall, type OutsideCounts } from '../engine/waterfall.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { firstUnstatedField, withoutExcluded, type EmptyReason, type FunnelCounts, type StatedField } from '../engine/peers.ts';
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
+
+/** What the waterfall's drill-downs say about P (Story 3.8): counts and a date range, never a peer's own. */
+export type WaterfallFacts = {
+  /** The peers in the analysis (the group minus `ekskl`): "{n} av {gruppe}". */
+  readonly groupSize: number;
+  /** The peers outside P, by reason. */
+  readonly outside: OutsideCounts;
+  /** The earliest and latest `register.document.read_at` over P; null when P is empty (decision 5). */
+  readonly readDates: { readonly from: Date; readonly to: Date } | null;
+};
 
 export type ShownGroup<P> = {
   /** The group minus `ekskl`: the peers in the analysis, which every figure uses. */
@@ -63,6 +78,8 @@ export type ShownGroup<P> = {
   readonly documentBenchmark: DocumentBenchmark;
   /** The margin waterfall against the peer group as a whole, over `peers` (Story 3.3). */
   readonly waterfall: MarginWaterfall;
+  /** What its drill-downs say about P (Story 3.8). */
+  readonly waterfallFacts: WaterfallFacts;
   /** The subject's filing's smaaForetak, for the non-small notice. */
   readonly smaaForetak: boolean | null;
   /** The group's currency, the subject's: stage 2 makes every peer's equal. */
@@ -103,8 +120,41 @@ export function driftsmarginComparison<P extends { readonly orgnr: string; reado
   ).driftsmargin.comparison;
 }
 
+/**
+ * The waterfall's facts about P (Story 3.8): the group's size, the counts
+ * outside P by reason, and the range of P's document read dates. A member
+ * of P always has a document row, so one without a date is a bug and throws.
+ */
+export function waterfallFacts(
+  peers: readonly { readonly documentBasis: DocumentBasis; readonly documentReadAt: Date | null }[],
+  year: number,
+): WaterfallFacts {
+  let from: Date | null = null;
+  let to: Date | null = null;
+  for (const peer of peers) {
+    if (commonSetEntry(peer.documentBasis, year).kind !== 'in') continue;
+    const at = peer.documentReadAt;
+    if (at === null) throw new Error('a peer in P without its document read date');
+    if (from === null || at.getTime() < from.getTime()) from = at;
+    if (to === null || at.getTime() > to.getTime()) to = at;
+  }
+  return {
+    groupSize: peers.length,
+    outside: outsideCommonSet(
+      peers.map((peer) => peer.documentBasis),
+      year,
+    ),
+    readDates: from === null || to === null ? null : { from, to },
+  };
+}
+
 export function shownGroup<
-  P extends { readonly orgnr: string; readonly keyFigures: SubjectKeyFigures; readonly documentBasis: DocumentBasis },
+  P extends {
+    readonly orgnr: string;
+    readonly keyFigures: SubjectKeyFigures;
+    readonly documentBasis: DocumentBasis;
+    readonly documentReadAt: Date | null;
+  },
 >(
   funnel: FunnelResult<P>,
   ekskl: readonly string[],
@@ -145,6 +195,7 @@ export function shownGroup<
       filing.filingYear,
       filing.valuta,
     ),
+    waterfallFacts: waterfallFacts(peers, filing.filingYear),
     smaaForetak: filing.smaaForetak,
     valuta: filing.valuta,
     emptyReason,

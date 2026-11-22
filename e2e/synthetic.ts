@@ -494,3 +494,82 @@ export async function insertSyntheticDocuments(): Promise<void> {
     await sql.end();
   }
 }
+
+/**
+ * Story 3.8: the margin waterfall of SYNTHETIC_DOCUMENTS by hand (the spec's
+ * Design Notes), the oracle its drill-downs are read against. Exact, in
+ * kroner, from the shapes above: P is the ten peers, Σ revenue over P
+ * 15 500 000 000 kr; the subject's R 1 500 000 000 kr. Not computed by the
+ * engine: each number is written out, and the lines are the page's text
+ * with plain spaces.
+ */
+export const SYNTHETIC_WATERFALL = {
+  n: 10,
+  /** The sums over P, in kroner: never on the page in any form. */
+  groupSumsKr: {
+    sumDriftsinntekter: 15_500_000_000n,
+    varekostnad: 1_242_500_000n,
+    lonnskostnad: 7_135_000_000n,
+    annenDriftskostnad: 3_100_000_000n,
+    residual: 465_000_000n,
+    driftsresultat: 3_557_500_000n,
+  },
+  /** Aₓ and M exactly, as numerator / denominator of kroner: never on the page beyond two decimals. */
+  shares: {
+    varekostnad: [1_242_500_000n, 15_500_000_000n],
+    lonnskostnad: [7_135_000_000n, 15_500_000_000n],
+    margin: [3_557_500_000n, 15_500_000_000n],
+  },
+  /** Aₓ × R as shown, in kroner: 120 241 935,48, 690 483 870,97, 300 000 000 and 45 000 000. */
+  pooledKr: { vare: 120_241_935n, lonn: 690_483_871n, andre: 300_000_000n, residual: 45_000_000n },
+  /** The subject's own lines, in kroner. */
+  ownKr: { vare: 105_000_000n, lonn: 705_000_000n, andre: 330_000_000n, residual: 30_000_000n, driftsresultat: 330_000_000n },
+  /** The bars as shown; each is its own rounding. */
+  barsKr: { vare: 15_241_935n, lonn: -14_516_129n, andre: -30_000_000n, residual: 15_000_000n },
+  startKr: 344_274_194n,
+  sumKr: -14_274_194n,
+  endKr: 330_000_000n,
+  /** The lines each drill-down shows, in its formula and its step 2. */
+  lines: {
+    start: [
+      'M × R',
+      '22,95 % × 1 500 000 000 kr ≈ 344 274 194 kr',
+      'Vist som 330 000 000 kr − (−14 274 194 kr) = 344 274 194 kr, slik at start og postene til sammen gir 330 000 000 kr.',
+      'R = sumDriftsinntekter = 1 500 000 000 kr',
+      'M = 22,95 %',
+    ],
+    vare: [
+      '(A − c) × R',
+      '(8,02 % − 7,00 %) × 1 500 000 000 kr ≈ +15 241 935 kr',
+      'A × R − varekostnad = 120 241 935 kr − 105 000 000 kr = +15 241 935 kr',
+      'c = varekostnad / R = 105 000 000 kr / 1 500 000 000 kr = 7,00 %',
+      'A = 8,02 %',
+    ],
+    lonn: [
+      '(46,03 % − 47,00 %) × 1 500 000 000 kr ≈ −14 516 129 kr',
+      'A × R − lonnskostnad = 690 483 871 kr − 705 000 000 kr = −14 516 129 kr',
+      'c = lonnskostnad / R = 705 000 000 kr / 1 500 000 000 kr = 47,00 %',
+      'A = 46,03 %',
+    ],
+    andre: [
+      '(20,00 % − 22,00 %) × 1 500 000 000 kr = −30 000 000 kr',
+      'A × R − annenDriftskostnad = 300 000 000 kr − 330 000 000 kr = −30 000 000 kr',
+      'c = annenDriftskostnad / R = 330 000 000 kr / 1 500 000 000 kr = 22,00 %',
+      'A = 20,00 %',
+    ],
+    residual: [
+      '(3,00 % − 2,00 %) × 1 500 000 000 kr = +15 000 000 kr',
+      'A × R − c × R = 45 000 000 kr − 30 000 000 kr = +15 000 000 kr',
+      'c = (R − driftsresultat − varekostnad − lonnskostnad − annenDriftskostnad) / R = (1 500 000 000 kr − 330 000 000 kr − 105 000 000 kr − 705 000 000 kr − 330 000 000 kr) / 1 500 000 000 kr = 2,00 %',
+      'M = 22,95 %',
+      'A = 1 − M − ΣA = 100,00 % − 22,95 % − (8,02 % + 46,03 % + 20,00 %) = 3,00 %',
+    ],
+    sum: [
+      '(m − M) × R',
+      '(22,00 % − 22,95 %) × 1 500 000 000 kr ≈ −14 274 194 kr',
+      '15 241 935 kr + (−14 516 129 kr) + (−30 000 000 kr) + 15 000 000 kr = −14 274 194 kr',
+      'm = driftsresultat / R = 330 000 000 kr / 1 500 000 000 kr = 22,00 %',
+    ],
+    end: ['driftsresultat = 330 000 000 kr', 'm = driftsresultat / R = 330 000 000 kr / 1 500 000 000 kr = 22,00 %'],
+  },
+} as const;

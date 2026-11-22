@@ -42,7 +42,7 @@ import type { ApiBenchmark, DocumentBenchmark, TurnoverBenchmark } from '@/engin
 import type { MarginWaterfall } from '@/engine/waterfall';
 import { t } from '@/messages';
 import type { FactorPairView } from '@/analysis/decomposition-view';
-import type { ProvenanceView, TableProvenance } from '@/analysis/provenance';
+import type { ProvenanceView, TableProvenance, WaterfallProvenance } from '@/analysis/provenance';
 import {
   DECOMPOSITION_UNDER,
   keyFigureTableView,
@@ -318,17 +318,24 @@ function FoldOutUnder({
   view,
   companyName,
   layout,
+  waterfallProvenance,
 }: {
   readonly which: FoldOutKind;
   readonly view: KeyFigureTableView;
   readonly companyName: string;
   readonly layout: Layout;
+  readonly waterfallProvenance: WaterfallProvenance | null;
 }) {
   if (which === 'waterfall') {
     const ids = waterfallIds(layout);
     return (
       <FoldOut bodyId={ids.body} headingId={ids.heading} heading={t('keyFigures.foldout.waterfall')}>
-        <Waterfall view={view.waterfall} companyName={companyName} layout={layout === 'd' ? 'desktop' : 'phone'} />
+        <Waterfall
+          view={view.waterfall}
+          companyName={companyName}
+          layout={layout === 'd' ? 'desktop' : 'phone'}
+          provenance={waterfallProvenance}
+        />
       </FoldOut>
     );
   }
@@ -340,17 +347,19 @@ function DesktopFoldOut({
   figure,
   view,
   companyName,
+  waterfallProvenance,
 }: {
   readonly figure: KeyFigureRow['key'];
   readonly view: KeyFigureTableView;
   readonly companyName: string;
+  readonly waterfallProvenance: WaterfallProvenance | null;
 }) {
   const which = DECOMPOSITION_UNDER[figure];
   if (which === undefined) return null;
   return (
     <tr className="border-b border-divider" data-foldout={which}>
       <td colSpan={DESKTOP_COLUMNS} className="py-2 pr-4">
-        <FoldOutUnder which={which} view={view} companyName={companyName} layout="d" />
+        <FoldOutUnder which={which} view={view} companyName={companyName} layout="d" waterfallProvenance={waterfallProvenance} />
       </td>
     </tr>
   );
@@ -361,10 +370,12 @@ function PhoneFoldOuts({
   figures,
   view,
   companyName,
+  waterfallProvenance,
 }: {
   readonly figures: readonly KeyFigureRow['key'][];
   readonly view: KeyFigureTableView;
   readonly companyName: string;
+  readonly waterfallProvenance: WaterfallProvenance | null;
 }) {
   return figures.map((figure) => {
     const which = DECOMPOSITION_UNDER[figure];
@@ -373,7 +384,7 @@ function PhoneFoldOuts({
       <tbody key={`fold-${which}`} data-foldout={which} className={groupRule}>
         <tr>
           <td colSpan={PHONE_COLUMNS} className="py-2">
-            <FoldOutUnder which={which} view={view} companyName={companyName} layout="p" />
+            <FoldOutUnder which={which} view={view} companyName={companyName} layout="p" waterfallProvenance={waterfallProvenance} />
           </td>
         </tr>
       </tbody>
@@ -390,6 +401,7 @@ export function KeyFigureTable({
   smaaForetak,
   filingYear,
   provenance,
+  waterfallProvenance,
 }: {
   readonly benchmark: ApiBenchmark;
   /** Total asset turnover against the same peers: the margin decomposition's second factor (Story 3.2). */
@@ -405,6 +417,8 @@ export function KeyFigureTable({
   readonly filingYear: number;
   /** The drill-down of each gap cell that shows an amount (Story 3.7). */
   readonly provenance: TableProvenance;
+  /** The waterfall's drill-downs, one per column of "Vis tallene" (Story 3.8); null without a waterfall. */
+  readonly waterfallProvenance: WaterfallProvenance | null;
 }) {
   const view = keyFigureTableView({
     api: benchmark,
@@ -486,7 +500,7 @@ export function KeyFigureTable({
                         <ProvenanceSteps id={provenanceId('d', row.key)} view={drillDown} />
                       </ProvenanceRow>
                     ) : null}
-                    <DesktopFoldOut figure={row.key} view={view} companyName={companyName} />
+                    <DesktopFoldOut figure={row.key} view={view} companyName={companyName} waterfallProvenance={waterfallProvenance} />
                   </Fragment>
                 );
               })}
@@ -521,7 +535,12 @@ export function KeyFigureTable({
                 <PhoneRow key={row.key} row={row} provenance={provenanceOf(row, provenance)} />
               ))}
             </tbody>
-            <PhoneFoldOuts figures={group.rows.map((row) => row.key)} view={view} companyName={companyName} />
+            <PhoneFoldOuts
+              figures={group.rows.map((row) => row.key)}
+              view={view}
+              companyName={companyName}
+              waterfallProvenance={waterfallProvenance}
+            />
           </Fragment>
         ))}
       </table>

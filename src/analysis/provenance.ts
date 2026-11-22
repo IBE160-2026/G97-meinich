@@ -29,7 +29,7 @@ import {
   workingCapitalReleased,
 } from '../engine/benchmark.ts';
 import { Decimal } from '../engine/decimal.ts';
-import type { DocumentBasis } from '../engine/document-inputs.ts';
+import type { DocumentBasis, DocumentField } from '../engine/document-inputs.ts';
 import { DAYS_PER_YEAR, documentKeyFigureFractions } from '../engine/document-key-figures.ts';
 import {
   formatDays,
@@ -37,13 +37,17 @@ import {
   formatKroner,
   formatKronerExact,
   formatPercent,
+  formatPercentFine,
   formatReadDate,
+  formatSignedKroner,
   formatTurnover,
   shownDays,
   shownPercent,
+  shownPercentFine,
   shownTurnover,
   wholeKroner,
 } from '../engine/format.ts';
+import { type Fraction, toDecimal } from '../engine/fraction.ts';
 import { apiKeyFigureFractions } from '../engine/key-figures.ts';
 import {
   CHECK_EQUATIONS,
@@ -52,12 +56,23 @@ import {
   type StoredDocumentFacts,
   bestQuartile,
   dataQuality,
+  documentInput,
   figureInputs,
   lineIsApproximate,
   quartileLine,
 } from '../engine/provenance.ts';
 import type { ApiInputs, Comparison, Direction } from '../engine/types.ts';
+import {
+  type MarginWaterfall,
+  OUTSIDE_REASONS,
+  type OutsideReason,
+  pooledOnRevenue,
+  type WaterfallBar,
+  type WaterfallDisplay,
+} from '../engine/waterfall.ts';
+import { joinList } from '../messages/industry.ts';
 import { type MessageId, t, tSegments } from '../messages/index.ts';
+import type { WaterfallFacts } from './shown-group.ts';
 
 /** A piece of a line: text (numbers, symbols, copy) or a register field name, which the page marks up. */
 export type Token = { readonly kind: 'text'; readonly text: string } | { readonly kind: 'field'; readonly name: string };
@@ -84,11 +99,21 @@ export type FigureStepView = {
 /** One filed value: its name, its value and, for a derived one, the rule it was derived by. */
 export type FiledValue = { readonly name: string; readonly value: string; readonly rule: Line | null };
 
+/**
+ * Step 2 of a margin waterfall column (Story 3.8): its symbols bound to
+ * numbers (R, c, A, M, m), and the sentences about P (how samlet is pooled,
+ * who is outside P, samlet's read date). No beste fjerdedel and no
+ * distribution: the waterfall's reference is samlet.
+ */
+export type PooledStepView = { readonly label: string; readonly lines: readonly Line[]; readonly notes: readonly string[] };
+
 export type ProvenanceView = {
   /** Step 1. */
   readonly formula: readonly FormulaGroup[];
   /** Step 2: one per figure the amount reads. */
   readonly figures: readonly FigureStepView[];
+  /** Step 2 of a waterfall column (Story 3.8); empty for every other amount. */
+  readonly pooled: readonly PooledStepView[];
   /** Step 3: the API values, then the document's lines ("Fra årsregnskapet"), each source with its data date. */
   readonly filed: {
     readonly api: readonly FiledValue[];
@@ -310,6 +335,8 @@ export function qualityLine(quality: DataQuality): Line {
       return line(t('provenance.quality.reconciled'));
     case 'not_compared':
       return copyLine('provenance.quality.notCompared', { felt: names(quality.fields) });
+    case 'checked':
+      return copyLine('provenance.quality.checked', { felt: names(quality.fields) });
   }
 }
 
@@ -324,13 +351,21 @@ function byField(inputs: readonly ProvenanceInput[], name: string): ProvenanceIn
   return found;
 }
 
+/** What a waterfall column adds to `view` (Story 3.8): its step 2, its inputs, and whether it may read `checked`. */
+type ColumnOptions = {
+  readonly pooled: readonly PooledStepView[];
+  readonly inputs: readonly ProvenanceInput[];
+  readonly checkable: boolean;
+};
+
 function view(
   subject: ProvenanceSubject,
   formula: readonly FormulaGroup[],
   parts: readonly FigurePart[],
   amount: 'api' | 'document',
+  column: ColumnOptions = { pooled: [], inputs: [], checkable: false },
 ): ProvenanceView {
-  const inputs = parts.flatMap((part) => part.inputs);
+  const inputs = [...parts.flatMap((part) => part.inputs), ...column.inputs];
   const api = inputs.filter((input) => input.source === 'api');
   const document = inputs.filter((input) => input.source === 'document');
   const quality = dataQuality({
@@ -340,12 +375,14 @@ function view(
     inputs,
     amount,
     filingBrregId: subject.filingBrregId,
+    checkable: column.checkable,
   });
   if (document.length > 0 && subject.facts.readAt === null) throw new Error('a document line without the document');
   const date = (id: MessageId, readAt: Date) => t(id, { aar: String(subject.filingYear), dato: formatReadDate(readAt) });
   return {
     formula,
     figures: parts.map((part) => part.step),
+    pooled: column.pooled,
     filed: {
       api: filedValues(api),
       apiDate: api.length > 0 ? date('provenance.date.api', subject.readAt) : null,
@@ -618,6 +655,7 @@ export function viewFields(provenance: ProvenanceView): string[] {
   const lines: Line[] = [
     ...provenance.formula.flatMap((group) => group.lines),
     ...provenance.figures.flatMap((figure) => figure.lines),
+    ...provenance.pooled.flatMap((step) => step.lines),
     ...[...provenance.filed.api, ...provenance.filed.document].flatMap((value) => [
       line(field(value.name)),
       ...(value.rule === null ? [] : [value.rule]),
@@ -640,4 +678,263 @@ export function tableProvenance(subject: ProvenanceSubject, api: ApiBenchmark, d
     if (capital !== null) out[key] = capital;
   }
   return out;
+}
+
+// ---- The margin waterfall (Story 3.8) ----------------------------------------
+//
+// One drill-down per column of "Vis tallene": the start, the four bars, the
+// sum and the end (decisions 1–5). Each shows the subject's own lines in
+// kroner with their names, R as `documentRevenue` reads it, Aₓ, cₓ, M and m
+// with two decimals, and the column's lines of displayed numbers with "=" or
+// "≈" by `lineIsApproximate`; a bar also the exact kroner line Aₓ × R − its
+// own line = the bar. About P only counts, words and a date range: never a
+// Σ over P, an exact Aₓ or M, or any peer's line.
+
+/** The columns of "Vis tallene", by the id the page gives each row. */
+export const WATERFALL_COLUMNS = ['start', 'vare', 'lonn', 'andre', 'residual', 'sum', 'end'] as const;
+export type WaterfallColumnKey = (typeof WATERFALL_COLUMNS)[number];
+
+/** One drill-down per column. */
+export type WaterfallProvenance = Readonly<Record<WaterfallColumnKey, ProvenanceView>>;
+
+const BAR_KEY: Readonly<Record<WaterfallBar, 'vare' | 'lonn' | 'andre' | 'residual'>> = {
+  varekostnad: 'vare',
+  lonnskostnad: 'lonn',
+  annenDriftskostnad: 'andre',
+  residual: 'residual',
+};
+
+const BAR_LABEL: Readonly<Record<WaterfallBar, MessageId>> = {
+  varekostnad: 'waterfall.bar.varekostnad',
+  lonnskostnad: 'waterfall.bar.lonnskostnad',
+  annenDriftskostnad: 'waterfall.bar.annenDriftskostnad',
+  residual: 'waterfall.bar.residual',
+};
+
+const OUTSIDE_COPY: Readonly<Record<OutsideReason, MessageId>> = {
+  not_in_dataset: 'waterfall.prov.reason.notInDataset',
+  document_missing: 'waterfall.prov.reason.documentMissing',
+  not_read_in_v1: 'waterfall.prov.reason.notReadInV1',
+  not_read_safely: 'waterfall.prov.reason.notReadSafely',
+  failed_reconciliation: 'waterfall.prov.reason.failed',
+  cost_lines_short_of_total: 'waterfall.prov.reason.shortOfTotal',
+  component_missing: 'waterfall.prov.reason.componentMissing',
+  revenue_not_positive: 'waterfall.prov.reason.revenueNotPositive',
+  other_year: 'waterfall.prov.reason.otherYear',
+};
+
+/** A share as the drill-down writes it, two decimals, and the value it shows. */
+function fine(value: Decimal): { readonly text: string; readonly value: Decimal } {
+  return { text: formatPercentFine(value.toString()), value: shownPercentFine(value.toString()) };
+}
+
+/** Whole kroner, signed ("+15 241 935 kr") or as they are ("−14 274 194 kr"). */
+const signedKroner = (kroner: bigint): string => formatSignedKroner((kroner * 100n).toString());
+const wholeKr = (kroner: bigint): string => formatKroner((kroner * 100n).toString());
+const exactOre = (value: Fraction): string => toDecimal(value).toString();
+
+/**
+ * Samlet's read date (decision 5): "Regnskapsår {aar} · årsregnskapene
+ * hentet {fra}–{til}", or one date when the range is one calendar date.
+ * Null when P has no dates.
+ */
+export function samletDateLine(filingYear: number, readDates: WaterfallFacts['readDates']): string | null {
+  if (readDates === null) return null;
+  const fra = formatReadDate(readDates.from);
+  const til = formatReadDate(readDates.to);
+  const aar = String(filingYear);
+  return fra === til ? t('waterfall.prov.dateOne', { aar, dato: fra }) : t('waterfall.prov.date', { aar, fra, til });
+}
+
+/** "{n} av {gruppe} sammenlignbare er med. Ikke med: …", one item per reason with a count; null when no one is outside P. */
+export function outsideLine(n: number, facts: WaterfallFacts): string | null {
+  const outside = OUTSIDE_REASONS.filter((reason) => facts.outside[reason] > 0);
+  const total = OUTSIDE_REASONS.reduce((sum, reason) => sum + facts.outside[reason], 0);
+  if (n + total !== facts.groupSize) throw new Error('P and the peers outside it are not the group');
+  if (outside.length === 0) return null;
+  const liste = joinList(outside.map((reason) => t(OUTSIDE_COPY[reason], { k: String(facts.outside[reason]) })));
+  return t('waterfall.prov.outside', { n: String(n), gruppe: String(facts.groupSize), liste });
+}
+
+/**
+ * Where the largest remainder moved bar `index` off its own rounding: "Vist
+ * som {vist}, ikke {egen}: …"; null where the bar is its own rounding.
+ */
+export function roundingNote(display: WaterfallDisplay, index: number): string | null {
+  const shownBar = display.barKroner[index];
+  const own = display.ownKroner[index];
+  if (shownBar === undefined || own === undefined) throw new RangeError(`no bar ${index}`);
+  if (shownBar === own) return null;
+  return t('waterfall.prov.rounded', { vist: wholeKr(shownBar), egen: wholeKr(own), total: wholeKr(display.totalKroner) });
+}
+
+/**
+ * The waterfall's drill-downs (Story 3.8), one per column; null when there
+ * is no waterfall. `facts` are the group's size, the peers outside P by
+ * reason and P's read dates (src/analysis/shown-group.ts).
+ */
+export function waterfallProvenance(subject: ProvenanceSubject, waterfall: MarginWaterfall, facts: WaterfallFacts): WaterfallProvenance | null {
+  if (waterfall.kind !== 'decomposition') return null;
+  if (subject.basis.kind !== 'read') throw new Error('a waterfall without the read document of its subject');
+  const current = subject.basis.current;
+  const own = waterfall.subject;
+  const input = (name: DocumentField, ore: bigint): ProvenanceInput => {
+    const found = documentInput(current, name);
+    if (found === null) throw new Error(`the subject of the waterfall has no ${name}`);
+    // The value shown is the one the waterfall was computed from.
+    if (found.ore !== ore) throw new Error(`${name} is not the one the waterfall read`);
+    return found;
+  };
+  const R = input('sumDriftsinntekter', own.revenue);
+  const result = input('driftsresultat', own.driftsresultat);
+  const lines = {
+    varekostnad: input('varekostnad', own.varekostnad),
+    lonnskostnad: input('lonnskostnad', own.lonnskostnad),
+    annenDriftskostnad: input('annenDriftskostnad', own.annenDriftskostnad),
+  };
+  const { display } = waterfall;
+  const Rtext = kr(R.ore);
+  const Rk = krShown(R.ore);
+  const M = fine(waterfall.aggregateMargin);
+  const m = fine(waterfall.subjectMargin);
+  const notes = [
+    t('waterfall.prov.pooled', { n: String(waterfall.n), aar: String(subject.filingYear) }),
+    outsideLine(waterfall.n, facts),
+    samletDateLine(subject.filingYear, facts.readDates),
+  ].filter((note): note is string => note !== null);
+  const rLine = line('R = ', field('sumDriftsinntekter'), ` = ${Rtext}`);
+  const mLine = line(
+    'm = ',
+    field('driftsresultat'),
+    ` / R = ${kr(result.ore)} / ${operand(Rtext)}${equals(lineIsApproximate(krShown(result.ore).div(Rk), m.value))}${m.text}`,
+  );
+  const MLine = line(`M = ${M.text}`);
+  const column = (
+    label: MessageId,
+    formula: readonly Line[],
+    stepLines: readonly Line[],
+    stepNotes: readonly string[],
+    inputs: readonly ProvenanceInput[],
+    checkable: boolean,
+  ): ProvenanceView =>
+    view(subject, [{ label: null, lines: formula }], [], 'document', {
+      pooled: [{ label: t(label), lines: stepLines, notes: stepNotes }],
+      inputs,
+      checkable,
+    });
+
+  const shares = waterfall.steps.map((step) => fine(step.all));
+  const bars = waterfall.steps.map((step, i) => {
+    const A = fine(step.all);
+    const c = fine(step.own);
+    const ownKroner = display.ownKroner[i];
+    if (ownKroner === undefined) throw new RangeError(`no bar ${i}`);
+    const ownShown = new Decimal(ownKroner.toString());
+    const lineOre = own[step.bar];
+    const pooled = pooledOnRevenue(step.pooledShare, R.ore).ore;
+    const first = line(
+      `(${A.text} − ${operand(c.text)}) × ${Rtext}${equals(lineIsApproximate(A.value.minus(c.value).mul(Rk), ownShown))}${signedKroner(ownKroner)}`,
+    );
+    const ownToken: Token | string = step.bar === 'residual' ? 'c × R' : field(step.bar);
+    const exactLine = lineIsApproximate(wholeKroner(exactOre(pooled)).minus(krShown(lineOre)), ownShown);
+    const second = line(
+      'A × R − ',
+      ownToken,
+      ` = ${formatKronerExact(exactOre(pooled))} − ${operand(kr(lineOre))}${equals(exactLine)}${signedKroner(ownKroner)}`,
+    );
+    const note = roundingNote(display, i);
+    const formula = [line('(A − c) × R'), first, second, ...(note === null ? [] : [line(note)])];
+    let stepLines: Line[];
+    let inputs: ProvenanceInput[];
+    if (step.bar === 'residual') {
+      const [Av, Al, Aa] = [shares[0], shares[1], shares[2]];
+      if (Av === undefined || Al === undefined || Aa === undefined) throw new Error('the four bars');
+      const one = fine(new Decimal(1));
+      const residualShare = Rk.minus(krShown(result.ore))
+        .minus(krShown(own.varekostnad))
+        .minus(krShown(own.lonnskostnad))
+        .minus(krShown(own.annenDriftskostnad))
+        .div(Rk);
+      const numbers = [result.ore, own.varekostnad, own.lonnskostnad, own.annenDriftskostnad].map((ore) => ` − ${operand(kr(ore))}`).join('');
+      stepLines = [
+        rLine,
+        line(
+          'c = (R − ',
+          field('driftsresultat'),
+          ' − ',
+          field('varekostnad'),
+          ' − ',
+          field('lonnskostnad'),
+          ' − ',
+          field('annenDriftskostnad'),
+          `) / R = (${Rtext}${numbers}) / ${operand(Rtext)}${equals(lineIsApproximate(residualShare, c.value))}${c.text}`,
+        ),
+        MLine,
+        line(
+          `A = 1 − M − ΣA = ${one.text} − ${operand(M.text)} − (${Av.text} + ${operand(Al.text)} + ${operand(Aa.text)})${equals(
+            lineIsApproximate(one.value.minus(M.value).minus(Av.value.plus(Al.value).plus(Aa.value)), A.value),
+          )}${A.text}`,
+        ),
+      ];
+      inputs = [R, result, lines.varekostnad, lines.lonnskostnad, lines.annenDriftskostnad];
+    } else {
+      stepLines = [
+        rLine,
+        line(
+          'c = ',
+          field(step.bar),
+          ` / R = ${kr(lineOre)} / ${operand(Rtext)}${equals(lineIsApproximate(krShown(lineOre).div(Rk), c.value))}${c.text}`,
+        ),
+        line(`A = ${A.text}`),
+      ];
+      inputs = [R, lines[step.bar]];
+    }
+    // A bar reads a cost line no check covers: never `checked` (decision 4).
+    return { key: BAR_KEY[step.bar], view: column(BAR_LABEL[step.bar], formula, stepLines, notes, inputs, false) };
+  });
+
+  const pooledStart = pooledOnRevenue(waterfall.pooledMargin, R.ore).ore;
+  const startApproximate = lineIsApproximate(M.value.mul(Rk), wholeKroner(exactOre(pooledStart)));
+  const start = column(
+    'waterfall.start',
+    [
+      line('M × R'),
+      line(`${M.text} × ${Rtext}${equals(startApproximate)}${formatKronerExact(exactOre(pooledStart))}`),
+      line(
+        t('waterfall.prov.startShown', {
+          slutt: wholeKr(display.endKroner),
+          sum: signedKroner(display.totalKroner),
+          start: wholeKr(display.startKroner),
+        }),
+      ),
+    ],
+    [rLine, MLine],
+    notes,
+    // The start is shown as end − sum, so it reads driftsresultat too.
+    [R, result],
+    true,
+  );
+  const totalShown = new Decimal(display.totalKroner.toString());
+  const shownSum = display.barKroner.reduce((total, bar) => total + bar, 0n);
+  const barTerms = display.barKroner.map((bar, i) => (i === 0 ? wholeKr(bar) : operand(wholeKr(bar)))).join(' + ');
+  const sum = column(
+    'waterfall.table.sum',
+    [
+      line('(m − M) × R'),
+      line(
+        `(${m.text} − ${operand(M.text)}) × ${Rtext}${equals(lineIsApproximate(m.value.minus(M.value).mul(Rk), totalShown))}${signedKroner(
+          display.totalKroner,
+        )}`,
+      ),
+      line(`${barTerms}${equals(lineIsApproximate(new Decimal(shownSum.toString()), totalShown))}${signedKroner(display.totalKroner)}`),
+      line(t('waterfall.prov.sumNotGap')),
+    ],
+    [rLine, mLine, MLine],
+    notes,
+    [R, result],
+    true,
+  );
+  const end = column('fig.driftsmargin', [line(field('driftsresultat'), ` = ${kr(result.ore)}`)], [rLine, mLine], [], [R, result], true);
+  const byBar = Object.fromEntries(bars.map((bar) => [bar.key, bar.view])) as Record<'vare' | 'lonn' | 'andre' | 'residual', ProvenanceView>;
+  return { start, ...byBar, sum, end };
 }

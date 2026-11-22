@@ -9,7 +9,8 @@
 // occurrences are removed first and returned; every existing substring scan
 // then runs over what is left, unchanged.
 import { DOCUMENT_FIGURE_COLUMNS, type DocumentField } from '../src/engine/document-inputs.ts';
-import { formatKroner } from '../src/engine/format.ts';
+import { Decimal } from '../src/engine/decimal.ts';
+import { formatKroner, formatMillions } from '../src/engine/format.ts';
 
 /** Field names of the server's subject and candidate reads that must never reach the browser. */
 export const SERVER_FIELDS = [
@@ -128,6 +129,59 @@ export function formattedPeerLinesIn(body: string, peerOre: readonly string[], s
   const lines = [...new Set(peerOre.filter((ore) => ore.replace(/^-/, '').length >= 7).map((ore) => formatKroner(ore)))];
   // Not inside a longer number: "1 234 567 kr" is not found in "11 234 567 kr".
   return lines.filter((line) => !own.has(line) && standsAlone(body, line));
+}
+
+/** `digits` in `body` as a digit run of its own. */
+const digitRun = (body: string, digits: string) => new RegExp(`(?<!\\d)${digits}(?!\\d)`).test(body);
+
+/** `value` ("8.016", "8,016") in `body`, not inside a longer number. */
+const digitRunWithin = (body: string, value: string) => new RegExp(`(?<![\\d.,])${value.replace('.', '\\.')}`).test(body);
+
+/**
+ * Story 3.8: a sum over the common peer set P, which no page may carry in
+ * any form (the margin waterfall's drill-downs show only shares and the
+ * subject's own lines): in øre or kroner as digits, in kroner and in
+ * millions as the page writes them. `sumsOre` are the sums in øre; each
+ * form found is returned.
+ */
+export function groupSumsIn(body: string, sumsOre: readonly string[]): string[] {
+  const found: string[] = [];
+  for (const ore of sumsOre) {
+    const digits = ore.replace(/^-/, '');
+    const kroner = digits.endsWith('00') ? digits.slice(0, -2) : null;
+    for (const form of [formatKroner(ore), formatMillions(ore)]) if (standsAlone(body, form)) found.push(form);
+    for (const run of [digits, ...(kroner === null ? [] : [kroner])]) if (run.length >= 6 && digitRun(body, run)) found.push(run);
+  }
+  return found;
+}
+
+/**
+ * Story 3.8: a share of P (Aₓ, M) beyond the two decimals the drill-down
+ * shows: any percent written with three or more decimals, and each exact
+ * share's own digits, as a percent with 3–8 decimals (comma or point) or as
+ * the fraction's first six decimals. A share with no digit beyond two
+ * decimals of percent has nothing more to leak and is skipped.
+ */
+export function finePercentsIn(body: string, sharesExact: readonly string[]): string[] {
+  const found = [...body.matchAll(/(?<![\d,])\d+,\d{3,}[\s ]?%/g)].map((match) => match[0]);
+  for (const share of sharesExact) {
+    // The absolute digits: the page writes a negative share with U+2212, the codec with "-",
+    // so the sign is left out and the digits are matched wherever they stand.
+    const magnitude = new Decimal(share).abs();
+    const percent = magnitude.mul(100);
+    if (percent.decimalPlaces() <= 2) continue;
+    for (let places = 3; places <= 8; places += 1) {
+      for (const rounding of [Decimal.ROUND_DOWN, Decimal.ROUND_HALF_UP]) {
+        const fixed = percent.toDecimalPlaces(places, rounding).toFixed(places);
+        for (const form of [fixed, fixed.replace('.', ',')]) if (digitRunWithin(body, form)) found.push(form);
+      }
+    }
+    // toFixed, never toString: a very small share would be written with an exponent.
+    const [whole = '0', decimals = ''] = magnitude.toFixed(40).split('.');
+    const prefix = `${whole}.${decimals.slice(0, 6)}`;
+    if (whole === '0' && decimals.replace(/0+$/, '').length >= 6 && body.includes(prefix)) found.push(prefix);
+  }
+  return [...new Set(found)];
 }
 
 /** `needle` in `body`, not as the tail of a longer number ("1 234 567 kr" in "11 234 567 kr"). */

@@ -407,6 +407,8 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
       await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['analysis.figures.notInDataset']);
       await expect(body.locator('svg')).toHaveCount(0);
       await expect(body).not.toContainText(/\d\skr/);
+      // Story 3.8: no waterfall, so no drill-down of one, anywhere on the page.
+      await expect(page.locator('[data-provenance-trigger*="-wf-prov-"]')).toHaveCount(0);
       await noSidewaysScroll(page);
     }
   });

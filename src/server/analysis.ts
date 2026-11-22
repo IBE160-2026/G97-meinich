@@ -228,6 +228,12 @@ export type Candidate = CandidateFiling & {
   readonly keyFigures: SubjectKeyFigures;
   /** Where its document figures come from for the benchmark year, or why none do (Story 2.9). */
   readonly documentBasis: DocumentBasis;
+  /**
+   * When step 1 read its document (`register.document.read_at`); null without
+   * a document row. Server only: the waterfall's drill-down shows the range
+   * over P, never one peer's date (Story 3.8, decision 5).
+   */
+  readonly documentReadAt: Date | null;
 };
 
 export type CandidateRow = CandidateRowFields & DocumentBasisColumns;
@@ -310,6 +316,7 @@ export function toCandidate(row: CandidateRow): Candidate {
     fingerprint: fingerprintFromColumns(row),
     classification: businessTypeFromColumn(row.classification),
     documentBasis: documentBasisOf(row, row.filing_year),
+    documentReadAt: row.document_read_at,
     keyFigures: apiKeyFigures(row),
   };
 }

@@ -25,14 +25,14 @@ import { Decimal } from '../../src/engine/decimal.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
-import { marginWaterfall, type MarginWaterfall } from '../../src/engine/waterfall.ts';
+import { marginWaterfall, outsideCommonSet, type MarginWaterfall } from '../../src/engine/waterfall.ts';
 import { formatKronerExact, formatPercent, formatTurnover } from '../../src/engine/format.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { defaultState } from '../../src/url/analysis-state.ts';
 import { column, daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS } from './document-fixture.ts';
 import { withUrl } from './url-provider.ts';
-import { provenanceSubject, tableProvenance } from '../../src/analysis/provenance.ts';
+import { provenanceSubject, tableProvenance, waterfallProvenance } from '../../src/analysis/provenance.ts';
 
 const NBSP = ' ';
 const MINUS = '−';
@@ -85,7 +85,7 @@ const TURNOVER: TurnoverBenchmark = benchmarkTotalAssetTurnover(SUBJECT, TEN);
  * inputs and `basis`, the document basis `documentBenchmark` was computed
  * from: the table refuses an amount without its drill-down.
  */
-function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmark, basis: DocumentBasis) {
+function drillSubject(basis: DocumentBasis) {
   // A failed column names what failed (step 1 always stores its checks): here c1.
   const failed = { checks: { c1: 'fail', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass' }, apiCheck: 'pass', apiFailFields: [], figures: column({}) } as const;
   const facts = {
@@ -93,8 +93,21 @@ function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmar
     brregId: 1n,
     current: basis.kind === 'failed_reconciliation' ? failed : null,
   };
-  const subject = provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts });
-  return tableProvenance(subject, benchmark, documentBenchmark);
+  return provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts });
+}
+
+function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmark, basis: DocumentBasis) {
+  return tableProvenance(drillSubject(basis), benchmark, documentBenchmark);
+}
+
+/**
+ * The waterfall's drill-downs (Story 3.8) for `basis`: P is the whole group
+ * here, every document read on one date.
+ */
+function waterfallDrillDowns(waterfall: MarginWaterfall, basis: DocumentBasis) {
+  if (waterfall.kind !== 'decomposition') return null;
+  const at = new Date('2026-10-21T08:00:00Z');
+  return waterfallProvenance(drillSubject(basis), waterfall, { groupSize: waterfall.n, outside: outsideCommonSet([], 2025), readDates: { from: at, to: at } });
 }
 
 function render(
@@ -116,6 +129,7 @@ function render(
         smaaForetak,
         filingYear: 2025,
         provenance: drillDowns(benchmark, documentBenchmark, basis),
+        waterfallProvenance: waterfallDrillDowns(waterfall, basis),
       }),
       { ...defaultState('813235552'), fane: 'nokkeltall', band: 1 },
     ),
@@ -1036,13 +1050,14 @@ describe('the margin waterfall (Story 3.3)', () => {
       const numbers = /<table[^>]*data-testid="waterfall-table"[^>]*>[\s\S]*?<\/table>/.exec(fold)?.[0] ?? '';
       expect(text(/<caption[^>]*>[\s\S]*?<\/caption>/.exec(numbers)?.[0] ?? '')).toBe(nb['waterfall.table.caption']);
       expect([...numbers.matchAll(/<th scope="col"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual(['Post', 'FJORDKODE AS', 'Samlet', 'Kroner']);
-      // Start, the four parts with sign and word, the end, and the reference.
+      // Start, the four parts with sign and word, the sum (Story 3.8), the end, and the reference.
       expect([...numbers.matchAll(/<th scope="row"[^>]*>([^<]*)<\/th>/g)].map((m) => m[1])).toEqual([
         'Peer-gruppen samlet',
         'Varekostnad',
         'Lønn',
         'Andre driftskostnader',
         'Avskrivninger og øvrige poster',
+        nb['waterfall.table.sum'],
         'FJORDKODE AS',
         'Referanse',
       ]);
@@ -1051,6 +1066,28 @@ describe('the margin waterfall (Story 3.3)', () => {
       expect(numbers).toContain('<span aria-hidden="true"> ▼</span>');
       expect(numbers.replace(/<span aria-hidden="true">[^<]*<\/span>/g, '')).not.toMatch(/[▲▼]/);
     }
+  });
+
+  it('each row of "Vis tallene" has its drill-down; the chart and the phone rows none (Story 3.8)', () => {
+    const h = html();
+    const columns = ['start', 'vare', 'lonn', 'andre', 'residual', 'sum', 'end'];
+    for (const [fold, layout] of [
+      [desktopFold(h), 'd'],
+      [phoneFold(h), 'p'],
+    ] as const) {
+      const numbers = /<table[^>]*data-testid="waterfall-table"[^>]*>[\s\S]*?<\/table>/.exec(fold)?.[0] ?? '';
+      // One trigger per row, in the row's kroner cell, each controlling its own full-width row.
+      expect([...numbers.matchAll(/data-provenance-trigger="([^"]+)"/g)].map((m) => m[1])).toEqual(columns.map((key) => `kf-${layout}-wf-prov-${key}`));
+      for (const key of columns) {
+        const id = `kf-${layout}-wf-prov-${key}`;
+        expect(numbers).toMatch(new RegExp(`<tr hidden=""[^>]*data-provenance-row="${id}"><td colSpan="4"`, 'i'));
+        expect(numbers).toContain(`data-provenance-body="${id}"`);
+      }
+      // Nothing outside the table: not the chart, not the phone rows.
+      expect(fold.replace(numbers, '')).not.toContain('data-provenance-trigger');
+    }
+    // The sum row's drill-down says it is not the Driftsmargin row's gap.
+    expect(text(desktopFold(h))).toContain(nb['waterfall.prov.sumNotGap']);
   });
 
   it('shows one sentence when there is no waterfall: outside the demo data', () => {

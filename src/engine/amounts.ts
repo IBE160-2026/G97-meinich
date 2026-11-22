@@ -56,6 +56,8 @@ export const AMOUNT_FUNCTIONS = {
   valueAtShare: { module: 'closable.ts', role: 'value' },
   marginWaterfall: { module: 'waterfall.ts', role: 'explanation' },
   displayWaterfall: { module: 'waterfall.ts', role: 'explanation' },
+  // Story 3.8, decision 2: Aₓ × R and M × R for the waterfall's drill-downs.
+  pooledOnRevenue: { module: 'waterfall.ts', role: 'explanation' },
 } as const satisfies Readonly<Record<string, AmountEntry>>;
 
 export type AmountFunction = keyof typeof AMOUNT_FUNCTIONS;

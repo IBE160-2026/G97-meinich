@@ -170,6 +170,67 @@ export function marginComponents(basis: DocumentBasis): ComponentsResult {
 }
 
 /**
+ * Why a peer is outside P (Story 3.8, the drill-down's "Ikke med" list), in
+ * the order the copy lists them: its basis passes no column (outside the
+ * demo data, no document, a year or a paper filing v1 does not read, refused
+ * or not yet reconciled at reading, failed reconciliation), R2, a component
+ * missing, revenue not positive, or a document of another year. Each
+ * absence maps to one reason; `refused` and `not_reconciled` are one,
+ * "kunne ikke leses sikkert", as on the data-quality line.
+ */
+export const OUTSIDE_REASONS = [
+  'not_in_dataset',
+  'document_missing',
+  'not_read_in_v1',
+  'not_read_safely',
+  'failed_reconciliation',
+  'cost_lines_short_of_total',
+  'component_missing',
+  'revenue_not_positive',
+  'other_year',
+] as const;
+export type OutsideReason = (typeof OUTSIDE_REASONS)[number];
+
+/** How many peers are outside P, per reason: counts, never names or amounts. */
+export type OutsideCounts = Readonly<Record<OutsideReason, number>>;
+
+function outsideReason(absence: ComponentsAbsence): OutsideReason {
+  switch (absence.reason) {
+    case 'not_in_dataset':
+      return 'not_in_dataset';
+    case 'document_missing':
+      return 'document_missing';
+    case 'not_read_in_v1':
+      return 'not_read_in_v1';
+    case 'refused':
+    case 'not_reconciled':
+      return 'not_read_safely';
+    case 'failed_reconciliation':
+      return 'failed_reconciliation';
+    case 'cost_lines_short_of_total':
+      return 'cost_lines_short_of_total';
+    case 'undefined':
+      return absence.cause === 'denominator_not_positive' ? 'revenue_not_positive' : 'component_missing';
+  }
+}
+
+/**
+ * Whether one peer enters P for `year`, with its components, or why not:
+ * the one rule `commonPeerSet` and `outsideCommonSet` read, and the server
+ * reads to take P's document read dates (src/analysis/shown-group.ts). Only
+ * a `read` basis enters, and `documentBasis` gives `read` only to an orgnr
+ * on the manifest (Story 3.8, decision 1).
+ */
+export function commonSetEntry(
+  peer: DocumentBasis,
+  year: number,
+): { readonly kind: 'in'; readonly components: MarginComponents } | { readonly kind: 'out'; readonly reason: OutsideReason } {
+  if (peer.kind === 'read' && peer.filingYear !== year) return { kind: 'out', reason: 'other_year' };
+  const result = marginComponents(peer);
+  return result.kind === 'value' ? { kind: 'in', components: result.components } : { kind: 'out', reason: outsideReason(result.absence) };
+}
+
+/**
  * The common peer set P (decision 1): each peer with a `read` basis for
  * `year` whose components are all there. A peer outside the demo data, with
  * a failed, unreconciled or missing document, a line missing, R2, revenue not
@@ -178,11 +239,20 @@ export function marginComponents(basis: DocumentBasis): ComponentsResult {
 export function commonPeerSet(peers: readonly DocumentBasis[], year: number): readonly MarginComponents[] {
   const out: MarginComponents[] = [];
   for (const peer of peers) {
-    if (peer.kind !== 'read' || peer.filingYear !== year) continue;
-    const result = marginComponents(peer);
-    if (result.kind === 'value') out.push(result.components);
+    const entry = commonSetEntry(peer, year);
+    if (entry.kind === 'in') out.push(entry.components);
   }
   return out;
+}
+
+/** Who is outside P, counted by reason (Story 3.8): one count per `OutsideReason`. Not an amount. */
+export function outsideCommonSet(peers: readonly DocumentBasis[], year: number): OutsideCounts {
+  const counts = Object.fromEntries(OUTSIDE_REASONS.map((reason) => [reason, 0])) as Record<OutsideReason, number>;
+  for (const peer of peers) {
+    const entry = commonSetEntry(peer, year);
+    if (entry.kind === 'out') counts[entry.reason] += 1;
+  }
+  return counts;
 }
 
 /** The numerator of a bar's share for one company. */
@@ -220,6 +290,8 @@ export type WaterfallStep = {
   readonly own: Decimal;
   /** The peer group as a whole's share Aₓ. */
   readonly all: Decimal;
+  /** Aₓ as an exact fraction, for `pooledOnRevenue`. Server only: the page shows it to two decimals. */
+  readonly pooledShare: Fraction;
   /** (Aₓ − cₓ) × the subject's revenue, exactly, in øre. Positive raises the margin against samlet. */
   readonly ore: Fraction;
   /** The bar as displayed, in whole kroner (`displayWaterfall`). */
@@ -236,6 +308,12 @@ export type WaterfallDisplay = {
   readonly startKroner: bigint;
   /** Each bar, in bar order, by signed largest remainder; they sum to `totalKroner`. */
   readonly barKroner: readonly bigint[];
+  /**
+   * Each bar rounded on its own, half away from zero (Story 3.8): where it
+   * differs from `barKroner`, the largest remainder moved that bar, and the
+   * drill-down says so.
+   */
+  readonly ownKroner: readonly bigint[];
 };
 
 export type MarginWaterfall =
@@ -253,6 +331,10 @@ export type MarginWaterfall =
       readonly subjectMargin: Decimal;
       /** M, the peer group as a whole's margin. */
       readonly aggregateMargin: Decimal;
+      /** M as an exact fraction, for `pooledOnRevenue`. Server only. */
+      readonly pooledMargin: Fraction;
+      /** The subject's own components from its document, in øre: what its drill-downs show (Story 3.8). */
+      readonly subject: MarginComponents;
       /** The four bars, in bar order. */
       readonly steps: readonly WaterfallStep[];
       /** The exact total, driftsresultat − M × revenue, in øre: Σ bars. */
@@ -266,6 +348,17 @@ function subtract(a: Fraction, b: Fraction): Fraction {
 
 function scale(a: Fraction, by: bigint): Fraction {
   return fraction(a.numerator * by, a.denominator);
+}
+
+/**
+ * A pooled share applied to the subject's revenue, Aₓ × R or M × R, exactly,
+ * in øre (Story 3.8, decision 2): what the drill-down's kroner line starts
+ * from (Aₓ × R − the subject's own line = the bar) and the start column's
+ * M × R. An explanation: never a gap, never scaled by the closable share,
+ * never added to any total (`src/engine/amounts.ts`).
+ */
+export function pooledOnRevenue(share: Fraction, revenueOre: bigint): { readonly ore: Fraction } {
+  return { ore: scale(share, revenueOre) };
 }
 
 /** ⌊n / d⌋ towards negative infinity; d > 0. */
@@ -319,7 +412,8 @@ export function displayWaterfall(bars: readonly Fraction[], driftsresultatOre: b
     remainder -= 1n;
   }
   const endKroner = roundHalfAway(driftsresultatOre, ORE_PER_KRONE);
-  return { totalKroner, endKroner, startKroner: endKroner - totalKroner, barKroner };
+  const ownKroner = bars.map((bar) => roundHalfAway(bar.numerator, bar.denominator * ORE_PER_KRONE));
+  return { totalKroner, endKroner, startKroner: endKroner - totalKroner, barKroner, ownKroner };
 }
 
 /**
@@ -359,10 +453,13 @@ export function marginWaterfall(
     n: set.length,
     subjectMargin: toDecimal(subjectMargin),
     aggregateMargin: toDecimal(aggregate.margin),
+    pooledMargin: aggregate.margin,
+    subject: company,
     steps: steps.map((step, i) => ({
       bar: step.bar,
       own: toDecimal(step.ownShare),
       all: toDecimal(step.all),
+      pooledShare: step.all,
       ore: step.ore,
       kroner: display.barKroner[i] ?? 0n,
     })),

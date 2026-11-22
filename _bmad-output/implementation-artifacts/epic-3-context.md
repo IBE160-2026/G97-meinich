@@ -4,7 +4,7 @@
 
 ## Goal
 
-Turn the three-figure slice from Epic 1 into the full analysis. Every key figure in `docs/key-figures.md`, document figures included, is computed exactly and shown with its gap in kroner. Both decompositions and the margin waterfall explain where a gap sits. Oversikt has all its cards. A fourth tab, Verdi, lets the user choose how much of a gap is closable and, if they choose, apply their own EV/EBIT multiple. Every kroner amount traces back to its formula, its filed values and its source. Without this epic the product cannot say what the peer gaps are worth, which is its central promise. Tests, not convention, keep amounts from being counted twice.
+Turn the three-figure slice from Epic 1 into the full analysis. Every key figure, document figures included, is computed exactly and shown with its gap in kroner. Both decompositions and the margin waterfall explain where a gap sits. Oversikt has all its cards. The Verdi tab lets the user choose how much of a gap is closable and apply their own EV/EBIT multiple. Every kroner amount, and finally every waterfall bar, can be traced back and recomputed by hand from what the page shows. Without this epic the product cannot say what the peer gaps are worth, which is its central promise. Tests, not convention, keep amounts from being counted twice. Stories 3.1a to 3.7 are done. Story 3.8 closes the gap that Story 3.7 left: the waterfall bars have no provenance.
 
 ## Stories
 
@@ -13,58 +13,57 @@ Turn the three-figure slice from Epic 1 into the full analysis. Every key figure
 - Story 3.2: The two decompositions (done)
 - Story 3.3: The margin waterfall (done)
 - Story 3.4: The rest of Oversikt (done)
-- Story 3.5: Verdi — how much is closable (done, PR #78)
-- Story 3.6: EV/EBIT — what the uplift is worth (done, PR #80)
-- Story 3.7: "Hvordan er dette regnet?" (next)
+- Story 3.5: Verdi — how much is closable (done)
+- Story 3.6: EV/EBIT — what the uplift is worth (done)
+- Story 3.7: "Hvordan er dette regnet?" (done, PR #82)
+- Story 3.8: Vannfallet kan regnes ut for hånd (next)
 
 ## Requirements & Constraints
 
-- **Formulas are exactly as `docs/key-figures.md` defines them.** A formula changes in the document and the code in the same commit. Undefined is never zero. Every absence has one reason from Story 2.9's closed set. The 10-peer floor applies per figure and per source.
-- **The target is beste fjerdedel (T) at every share s**, and s scales the gap to it. The median is context only. Profit (1) is annual ("per år"). Capital (9), (10) and (11) are one-off amounts ("engangsbeløp"). Amounts exist only in NOK. At or beyond T a figure is a strength and has no amount.
-- **Valuation with a user-set multiple.** Implied enterprise value ("Økt selskapsverdi") = round(exact annual profit uplift at the current share × m). It uses EBIT (`driftsresultat`, which comes from the API) and has no OCR dependency.
-  - There is no default multiple, no placeholder value, no range and no suggestion. No code path looks up, infers or produces a multiple (test).
-  - Until a multiple is entered, no value is shown. Annual profit uplift and working capital show without one.
-- **Multiple bounds:** (0, 50] in steps of 0.1, entered with a decimal comma or a point. Anything else shows an inline error and no value.
-- **No double counting.** Cost shares never yield kroner. No total includes a waterfall bar. Working capital released is (9)+(10) only; a part that is a strength counts as 0, and a part below the floor or not in NOK gives no total. (11) is never added to (9), (10) or their total. The Verdi cards and EV are separate amounts, never summed. Every new amount function is registered in `src/engine/amounts.ts`; the registry test finds unregistered ones via the TypeScript compiler.
-- **Provenance (3.7).** Every kroner amount reaches its key figure, the filed values behind it and its source. The data-quality line is decided from the stored per-filing status and the manifest, never inferred. A degraded filing is reported as unavailable with its reason, never estimated or substituted. Every figure shows its filing year and read date.
-- **Phone width:** 375 px and 320 px with no horizontal body scroll. Tables and charts sit in their own scroll container. Targets are at least 24 × 24 px.
-- **Every PR** states what could go wrong, records it in `docs/ai-log.md`, and carries a "Planning documents:" line. For 3.6 that is a user-entered multiple applied to money; for 3.7, what the drill-down exposes and a reconciliation claim that is not true.
+- **Traceability.** Every kroner amount traces to its key figure and on to the filed values. A degraded filing is reported as unavailable with its reason, never estimated. Every figure and aggregate states its filing year and read date.
+- **Waterfall bars must be recomputable by hand.** Each bar is (Aₓ − cₓ) × the subject's `sumDriftsinntekter`, where Aₓ is pooled over the common peer set P (Σ numerator / Σ revenue). The displayed bars are distributed by signed largest remainder.
+  - Today "Vis tallene" shows per bar only the rounded own and pooled shares and the bar's kroner. It does not show the subject's revenue, the unrounded shares, P or the peers' numerators, so no bar can be recomputed from the page.
+  - Story 3.8's spec decides what the page shows.
+- **Peer document lines must never reach the page in any form.** This holds even for the waterfall. The payload scan fails on any peer document line in øre or kroner, on a document field name outside the provenance `<code data-provenance-field>` elements, and on a `cur_`/`pri_` column.
+- **The waterfall is explanation, never an amount.** It is never scaled by the closable share, it is never added to profit uplift or any total, and a cost share has no kroner of its own.
+  - The four exact bars sum exactly to (subject margin − M) × revenue, tested with `Decimal` equality.
+  - The displayed bars sum to the displayed total, and start plus bars equals end.
+  - With fewer than 10 peers in P, or a subject component missing, there is no waterfall and the reason is stated.
+- **No double counting stays enforced.** Every new amount function is registered in `src/engine/amounts.ts`, and the registry test fails on a total that references a waterfall bar.
+- **Phone width.** At 375 and 320 px the body never scrolls horizontally, and tables and charts sit in their own scroll container.
+- **Every PR** says what could go wrong, records it in `docs/ai-log.md` and has a "Planning documents:" line.
 
 ## Technical Decisions
 
-- **One engine.** All arithmetic lives in `src/engine` as pure functions. The browser does only share and EV scaling, through the same engine function the server uses.
-- **Money.** Filed amounts are `bigint` øre. Derived amounts are decimal.js values from `src/engine/decimal.ts`. Never use `Number()` for money. Rounding happens only at display, in `src/engine/format.ts`: kroner to whole kroner, ties away from zero; the multiple to at most one decimal, shown with a comma.
-- **The URL is the only request state.** Only `src/url/analysis-state.ts` parses and serializes it.
-  - `multippel` is written with a point and read with a point or a comma. The client field's validator imports the same bounds from the URL module.
-  - An invalid value falls back to its default and raises the one invalid-settings notice.
-- **Where recalculation runs.** The server computes the group, the distributions, the full-convergence amounts and the exact s_med. Share and EV are scaled in the browser.
-  - The one URL hook is `useAnalysisUrl()` in `src/components/analysis/analysis-url.tsx`. Its writes are the only `history.replaceState` in `src/`, and `router.replace` is never used.
-  - Every analysis link and every peer change (`peerChangeHref`) takes `andel` and `multippel` from the live URL, so both survive tab changes and peer changes.
-- **Wire codec.** Exact values cross to client components only as `WireDecimal` strings from `src/engine/wire.ts`, and a `number` for money is a type error. Every other value crosses as a finished string, built by `verdiWire`/`verdiCards` in `src/analysis/verdi-view.ts`. `e2e/wire-identity.spec.ts` asserts byte-identical texts in Node and Chromium; extend it for EV.
-- **Read path.** Client modules receive only strings, booleans and display structures. ESLint bans `src/server`, `postgres` and `digest.ts` in client modules, and `toFixed`, `toLocaleString` and `Intl.NumberFormat` in `src/app` and `src/components`.
-- **Data time.** Filing year comes from `regnskapsperiode`, and the read date is the stored `read_at`. Dates are formatted on the server only, in `Europe/Oslo`. The engine has no clock.
-- **Copy** lives in `src/messages/nb.json`. Approved copy goes in verbatim, is asserted in `test/messages.test.ts`, and any new key is added to EXPERIENCE.md in the same commit.
+- **One engine.** All arithmetic is pure functions in `src/engine`. The waterfall lives in `src/engine/waterfall.ts` (`aggregateShares`, `displayWaterfall`), and its view in `src/analysis/waterfall-view.ts`.
+- **Money and rounding.** Filed amounts are `bigint` øre and derived values are decimal.js values from `src/engine/decimal.ts`; `Number()` is never used for money. Rounding happens only at display, through `src/engine/format.ts`.
+  - The waterfall total is rounded once, half away from zero.
+  - The start bar is `driftsresultat` − the displayed total.
+  - The bars are floored, then the remaining kroner go to the largest fractional parts.
+- **The provenance pattern from 3.7.** The drill-down's view is built on `src/engine/provenance.ts` and `src/analysis/provenance.ts` and rendered on the server by `ProvenanceSteps`.
+  - A formula line reads "≈" instead of "=" when its displayed numbers do not give its displayed result (`lineIsApproximate`).
+  - Register field names reach the page only as `<code data-provenance-field>`.
+  - The data-quality line is decided from stored status and the manifest, never inferred. A document amount is never "Avstemt".
+- **Client boundary.** Exact values cross to the client only as `WireDecimal` strings, and everything else as finished strings. ESLint bans number formatting in `src/app` and `src/components`.
+- **Copy.** All copy lives in `src/messages/nb.json`. New keys are added to EXPERIENCE.md in the same commit, and approved copy is asserted in `test/messages.test.ts`.
 
 ## UX & Interaction Patterns
 
-- **Multiple field (3.6).** Labelled "EV/EBIT-multippel", a 90 px numeric input, empty by default. It is validated on Enter or blur, not per keystroke.
-  - Error: "Skriv inn et tall større enn 0 og høyst 50, med høyst én desimal", tied to the field with `aria-invalid` and `aria-describedby`. The error state looks like the search field's.
-  - Empty card: "Verdi beregnes når du legger inn en multippel. Peerless foreslår ingen multippel."
-  - "Økt selskapsverdi" card: a visible product line built from the displayed uplift, prefixed "≈" when that product differs from the result. It rescales with the current share.
-  - Announcement: "Økt selskapsverdi: {v}." once, on Enter or blur. Focus stays in the field.
-  - When driftsmargin is at or beyond beste fjerdedel, the field is disabled with the profit card's strength reason.
-- **Verdi (built in 3.5).** The closable share is a segmented radiogroup with the steps 0, 25, 50, 75 and 100 % and "Til medianen". There are three amount cards, never summed. Only the Verdi cards move with the share; the table, the hero and the Oversikt cards stay at full convergence.
-- **Provenance drill-down (3.7).** "Hvordan er dette regnet?" sits on every kroner amount, including the hero. It opens inline under the amount, with numbered steps:
-  1. The formula. The share factor appears only when the drill-down is opened from Verdi.
-  2. The key figure and how beste fjerdedel was derived: quartile, n, and the PERCENTILE.INC-style linear interpolation, with a "Vis fordelingen" link.
-  3. The filed values, with register field names in monospace slate, their filing year and their read date.
-  4. The source and the data-quality line: "Avstemt mot innsendt årsregnskap", "Ikke avstemt – årsregnskapet er ikke i demodataene" or "Avvik ved avstemming: {felt}". A failed filing with nothing that differed, only a line a required check could not read, reads "Ikke avstemt – {felt} kunne ikke leses i regnskapet for {aar}" (Story 3.7, Meinich 2026-11-20).
-
-  Each calculation sits in a `surface` chip. Opening moves focus to the drill-down's heading, and "Lukk" or Esc returns focus to the trigger. The link colour is `link`.
+- **Margin waterfall.** It runs from "Peer-gruppen samlet" (median fill) through the four bars to the company (navy-700).
+  - The four bars are Varekostnad, Lønn, Andre driftskostnader and "Avskrivninger og øvrige poster". The last one is the residual, slate whatever its sign.
+  - A favourable bar is petrol and an unfavourable one is amber, each with signed kroner, ▲/▼, a word and "own mot samlet" shares.
+  - It leads with the tag "Mot peer-gruppen samlet: x %, ikke beste fjerdedel" and has the mandatory sentence "Dette forklarer avviket…" directly above the bars.
+  - The chart is an SVG `role="img"` with a summary label, followed by a "Vis tallene" table: caption, `th scope="row"`, start, the four parts, end and the reference.
+  - On phone it becomes vertical rows on a shared kroner scale.
+- **Provenance drill-down.** "Hvordan er dette regnet?" is a `button` in `link` colour with `aria-expanded`/`aria-controls`, opening inline (in tables, as a full-width row).
+  - It has numbered steps: Formel, Nøkkeltall, Innsendte verdier, Kilde.
+  - Calculation chips sit on `surface`.
+  - Opening moves focus to its heading, and "Lukk" or Esc returns focus to the trigger. Nothing is announced, and several drill-downs can be open at once.
+  - Story 3.7 deliberately put no trigger on any waterfall bar. Whether 3.8 adds one, or extends "Vis tallene" instead, is the spec's decision.
 
 ## Cross-Story Dependencies
 
-- **3.5 → 3.6:** EV builds on 3.5's share, `useAnalysisUrl()`, the wire set and `verdi-view.ts`. `multippel` is already parsed and kept across links; 3.6 adds its write via `replaceState`, the field and the card.
-- **3.5/3.6 → 3.7:** the drill-down covers every kroner amount in the table, the hero, the Oversikt cards, the Verdi cards and EV, and shows the share factor from Verdi. Every value it shows must equal the engine's output for that URL, through the one formatter.
-- **3.7 owns two deferred-work entries:** the benchmark-filing order, written in three places, and the document lines that no check covers.
-- **From Epics 1 and 2:** Story 2.9's absence model and Story 2.8's peer-change provider. Document rows need the restored document dump after `pnpm seed` (`pnpm restore:documents`); until Story 5.4 they read "Ikke i demodataene" otherwise.
+- **3.3 → 3.8.** 3.8 builds on the waterfall's engine, view, "Vis tallene" table and empty states, and must keep 3.3's exact-sum and rounding tests green.
+- **3.7 → 3.8.** 3.8 reuses 3.7's provenance components, its "≈" rule and the payload scan's field allowlist. Its deferred-work entry, owned by Story 3.8, is in `deferred-work.md`.
+- **Data.** Document rows need the restored document dump after `pnpm seed` (`pnpm restore:documents`); otherwise the waterfall reads "Ikke i demodataene". The e2e fixture `e2e/synthetic-documents.spec.ts` (a subject and ten peers with reconciled documents) is the committed way to reach a full waterfall.
+- **Downstream.** Story 5.4 (demo seed) follows directly and owns the n = 0/1 wording of `waterfall.tooFew`.

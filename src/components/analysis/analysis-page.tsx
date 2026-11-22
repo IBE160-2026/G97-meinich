@@ -55,6 +55,7 @@ import {
   profitProvenance,
   provenanceSubject,
   tableProvenance,
+  waterfallProvenance,
   type ProvenanceSubject,
 } from '@/analysis/provenance';
 import { driftsmarginComparison, shownGroup, type ShownGroup as ShownGroupOf } from '@/analysis/shown-group';
@@ -312,6 +313,7 @@ function Covered({
               smaaForetak={group.smaaForetak}
               filingYear={group.filingYear}
               provenance={tableProvenance(drillDown, group.benchmark, group.documentBenchmark)}
+              waterfallProvenance={waterfallProvenance(drillDown, group.waterfall, group.waterfallFacts)}
             />
           ) : null}
           {view.fane === 'verdi' ? (

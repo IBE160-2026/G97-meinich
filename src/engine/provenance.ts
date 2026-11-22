@@ -308,7 +308,8 @@ export type StoredDocumentFacts = {
  *   `failed` (with what differed), `lines_not_read` (failed with nothing
  *   that differed: a required check could not read a line), `reconciled`
  *   (every input compared) or `not_compared`;
- * - for a document amount with a read document: always `not_compared`.
+ * - for a document amount with a read document: `not_compared`, or (Story
+ *   3.8, `checkable`) `checked` when every input was compared.
  */
 export type DataQuality =
   | { readonly kind: 'absent' }
@@ -335,7 +336,15 @@ export type DataQuality =
       readonly filingYear: number;
     }
   | { readonly kind: 'reconciled' }
-  | { readonly kind: 'not_compared'; readonly fields: readonly string[] };
+  | { readonly kind: 'not_compared'; readonly fields: readonly string[] }
+  /**
+   * Story 3.8, decision 4: a document amount whose every input was compared
+   * with the register's key figures, under the rule "Avstemt" would need
+   * (the waterfall's start, end and sum, read from `sumDriftsinntekter` and
+   * `driftsresultat`). Never "Avstemt": the amount is the document's. Only a
+   * caller that allows it gets it (`checkable`); `fields` are the inputs.
+   */
+  | { readonly kind: 'checked'; readonly fields: readonly string[] };
 
 /** A column's stored figure by its register name; null when empty. */
 function columnFigure(figures: DocumentColumnRow, field: string): bigint | null {
@@ -408,6 +417,7 @@ export function dataQuality({
   inputs,
   amount,
   filingBrregId,
+  checkable = false,
 }: {
   readonly basis: DocumentBasis;
   readonly facts: StoredDocumentFacts;
@@ -421,6 +431,13 @@ export function dataQuality({
   readonly api: ApiInputs;
   readonly inputs: readonly ProvenanceInput[];
   readonly amount: InputSource;
+  /**
+   * Story 3.8, decision 4: a document amount whose inputs may all be
+   * compared (the waterfall's start, end and sum) reads `checked` when they
+   * all were. Every other document amount keeps 3.7's rule: some line of it
+   * no check covers, and one that was all compared is a bug that throws.
+   */
+  readonly checkable?: boolean;
 }): DataQuality {
   const document = amount === 'document';
   switch (basis.kind) {
@@ -440,8 +457,12 @@ export function dataQuality({
       const current = sameFiling ? facts.current : null;
       const notCompared = inputs.filter((input) => !inputCompared(input, api, current)).map((input) => input.field);
       const fields = [...new Set(notCompared)];
-      // A document amount is never "Avstemt": some line of it no check covers.
-      if (document && fields.length === 0) throw new Error('a document amount whose every line was compared');
+      // A document amount is never "Avstemt": "Kontrollert mot registerets nøkkeltall" where
+      // the caller allows it (Story 3.8), otherwise some line of it no check covers.
+      if (document && fields.length === 0) {
+        if (!checkable) throw new Error('a document amount whose every line was compared');
+        return { kind: 'checked', fields: [...new Set(inputs.map((input) => input.field))] };
+      }
       return fields.length === 0 ? { kind: 'reconciled' } : { kind: 'not_compared', fields };
     }
   }

@@ -14,20 +14,29 @@ import {
 } from '../../src/engine/document-inputs.ts';
 import { shownPercent } from '../../src/engine/format.ts';
 import { resolveApiInputs } from '../../src/engine/key-figures.ts';
+import { type Fraction, equals, fraction } from '../../src/engine/fraction.ts';
+import { marginWaterfall, pooledOnRevenue } from '../../src/engine/waterfall.ts';
 import {
   API_DERIVATIONS,
   type ApiInputField,
   apiInput,
   bestQuartile,
+  CHECKS,
+  type CheckId,
+  type CheckResult,
+  type CurrentReconciliation,
+  dataQuality,
   documentInput,
   lineIsApproximate,
   operandSum,
   quartileLine,
   type ProvenanceInput,
+  type StoredDocumentFacts,
 } from '../../src/engine/provenance.ts';
 import { percentileInc } from '../../src/engine/statistics.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
-import { column, type Lines } from '../analysis/document-fixture.ts';
+import { column, readBasis, type Lines } from '../analysis/document-fixture.ts';
+import { WF_PEERS, WF_SUBJECT } from '../analysis/waterfall-fixture.ts';
 
 const d = (value: string | number) => new Decimal(value);
 
@@ -174,5 +183,92 @@ describe('the T line: =, ≈ and f = 0, both quartiles', () => {
   it('lineIsApproximate is "not equal", never the reverse', () => {
     expect(lineIsApproximate(d('1.3'), d('1.3'))).toBe(false);
     expect(lineIsApproximate(d('1.075'), d('1.1'))).toBe(true);
+  });
+});
+
+// Story 3.8, decision 4: the waterfall's start, end and sum are document amounts whose every
+// input (sumDriftsinntekter, driftsresultat) both sources hold. They read `checked`, never
+// "Avstemt", and only under 3.7's conditions for "Avstemt": api_check passed, the document
+// compared with the chosen filing, and every input read in the column.
+describe('checked: the waterfall’s start, end and sum (Story 3.8, decision 4)', () => {
+  const FILING = 4242n;
+  const API: ApiInputs = {
+    sumDriftsinntekter: 1_000_000_000n,
+    driftsresultat: 343_500_000n,
+    sumDriftskostnad: 656_500_000n,
+    sumEiendeler: 300_000_000n,
+    sumEgenkapitalGjeld: 300_000_000n,
+    sumEgenkapital: null,
+    sumGjeld: null,
+  };
+  const PASS = Object.fromEntries(CHECKS.map((check) => [check, 'pass'])) as Record<CheckId, CheckResult>;
+
+  function quality(lines: Lines, facts: Partial<StoredDocumentFacts> = {}, current: Partial<CurrentReconciliation> = {}) {
+    const basis = readBasis(lines);
+    if (basis.kind !== 'read') throw new Error('the fixture is read');
+    const inputs = (['sumDriftsinntekter', 'driftsresultat'] as const).map((field) => {
+      const input = documentInput(basis.current, field);
+      if (input === null) throw new Error(`the fixture has ${field}`);
+      return input;
+    });
+    const stored: StoredDocumentFacts = {
+      readAt: new Date('2026-10-21T08:00:00Z'),
+      brregId: FILING,
+      current: { checks: PASS, apiCheck: 'pass', apiFailFields: [], figures: column(lines), ...current },
+      ...facts,
+    };
+    return { basis, stored, inputs, check: () => dataQuality({ basis, facts: stored, api: API, inputs, amount: 'document', filingBrregId: FILING, checkable: true }) };
+  }
+
+  it('checked: every input compared, the fields named; never without `checkable`', () => {
+    const { basis, stored, inputs, check } = quality({});
+    expect(stored.current?.apiCheck).toBe('pass');
+    expect(check()).toEqual({ kind: 'checked', fields: ['sumDriftsinntekter', 'driftsresultat'] });
+    // A document amount that may not be checked keeps 3.7's throw.
+    expect(() => dataQuality({ basis, facts: stored, api: API, inputs, amount: 'document', filingBrregId: FILING })).toThrow();
+  });
+
+  it('checked: the ids differ', () => {
+    const { stored, check } = quality({}, { brregId: 4243n });
+    expect(stored.brregId).not.toBe(FILING);
+    expect(check()).toEqual({ kind: 'not_compared', fields: ['sumDriftsinntekter', 'driftsresultat'] });
+  });
+
+  it('checked: revenue derived', () => {
+    const { inputs, check } = quality({ sumDriftsinntekter: null });
+    // The fixture's state: revenue derived as driftsresultat + sumDriftskostnad, stated in the API.
+    expect(inputs[0]?.derivation?.kind).toBe('sum');
+    expect(API.sumDriftsinntekter).not.toBeNull();
+    expect(check()).toEqual({ kind: 'not_compared', fields: ['sumDriftsinntekter'] });
+  });
+
+  it('checked: api_check not passed', () => {
+    for (const apiCheck of ['not_evaluable', 'fail', null] as const) {
+      const { check } = quality({}, {}, { apiCheck });
+      expect(check(), String(apiCheck)).toEqual({ kind: 'not_compared', fields: ['sumDriftsinntekter', 'driftsresultat'] });
+    }
+  });
+});
+
+describe('Σ bars is (m − M) × R exactly (Story 3.8)', () => {
+  it('Σ bars is (m − M) × R exactly', () => {
+    const result = marginWaterfall(WF_SUBJECT, WF_PEERS, 2025, 'NOK');
+    if (result.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
+    const R = result.subject.revenue;
+    // The fixture's state (Design Notes): R = 1 500 000 000 kr, P = 10.
+    expect(R).toBe(150_000_000_000n);
+    expect(result.n).toBe(10);
+    const m = fraction(result.subject.driftsresultat, R);
+    const gap = fraction(m.numerator * result.pooledMargin.denominator - result.pooledMargin.numerator * m.denominator, m.denominator * result.pooledMargin.denominator);
+    const expected = pooledOnRevenue(gap, R).ore;
+    const bars = result.steps.reduce<Fraction>(
+      (a, step) => fraction(a.numerator * step.ore.denominator + step.ore.numerator * a.denominator, a.denominator * step.ore.denominator),
+      fraction(0n, 1n),
+    );
+    expect(equals(bars, expected)).toBe(true);
+    expect(equals(result.totalOre, expected)).toBe(true);
+    // And the shown bars sum to the shown total, −14 274 194 kr.
+    expect(result.display.barKroner.reduce((a, b) => a + b, 0n)).toBe(result.display.totalKroner);
+    expect(result.display.totalKroner).toBe(-14_274_194n);
   });
 });

@@ -310,6 +310,8 @@ export function qualityLine(quality: DataQuality): Line {
       return line(t('provenance.quality.reconciled'));
     case 'not_compared':
       return copyLine('provenance.quality.notCompared', { felt: names(quality.fields) });
+    case 'checked':
+      return copyLine('provenance.quality.checked', { felt: names(quality.fields) });
   }
 }
 

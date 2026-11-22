@@ -352,6 +352,7 @@
   "provenance.quality.notInDataset": "Ikke avstemt – årsregnskapet er ikke i demodataene",
   "provenance.quality.failed": "Avvik ved avstemming: {felt}",
   "provenance.quality.notCompared": "Ikke kontrollert mot andre tall: {felt}",
+  "provenance.quality.checked": "Kontrollert mot registerets nøkkeltall: {felt}",
   "provenance.quality.notReadInV1": "Ikke avstemt – regnskapet for {aar} er ikke lest i denne versjonen",
   "provenance.quality.documentMissing": "Ikke avstemt – regnskapet for {aar} er ikke lest inn",
   "provenance.quality.notReadSafely": "Ikke avstemt – regnskapet for {aar} kunne ikke leses sikkert",

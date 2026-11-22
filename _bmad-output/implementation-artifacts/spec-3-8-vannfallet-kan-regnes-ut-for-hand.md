@@ -2,7 +2,7 @@
 title: 'Story 3.8: Vannfallet kan regnes ut for hånd'
 type: 'feature'
 created: '2026-11-22'
-status: 'ready-for-dev'
+status: 'in-progress'
 baseline_commit: '07b0560d7cf56e30743724c5330f7ff6e9db061c'
 route: 'dispatch'
 review_loop_iteration: 0

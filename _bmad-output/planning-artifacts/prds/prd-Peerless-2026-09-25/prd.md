@@ -268,7 +268,7 @@ The no-account route is rate-limited, so that harvesting the register through it
 
 **Description.** A five-stage funnel narrows hundreds of thousands of companies to a peer group, four stages by rules and the fifth by model. The user sees how many companies survive each stage, why each peer is in the group, and what its match rests on — and can exclude a peer or loosen a criterion, with everything recomputing immediately. Realises UJ-1, UJ-2.
 
-**In v1 the group is chosen by stages 1–3.** Stages 4 and 5 are computed in the batch and stored, but they select nothing: measured against the labelled set in Story 5.2, neither the fingerprint nor the classification gave clearly better peers than industry and size (§10). The Peers tab shows the three stages that select and says why the other two do not (FR-15). The rules for stages 4 and 5 below are kept, built and tested, so stage 2 can measure them again (§11, question 26).
+**In v1 the group is chosen by stages 1–3.** Stages 4 and 5 are computed in the batch and stored, but they select nothing: measured against the labelled set, neither the fingerprint nor the classification gave clearly better peers than industry and size (§10). The Peers tab shows the three stages that select and says why the other two do not (FR-15). The rules for stages 4 and 5 below are kept, built and tested, so stage 2 can measure them again (§11, question 26).
 
 This is the feature the product lives or dies on. A benchmark the user cannot interrogate is a benchmark they will not trust, so the group is visible rather than hidden, and its quality is measured rather than asserted (§8).
 

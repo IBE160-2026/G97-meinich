@@ -80,3 +80,13 @@ Make every column of the margin waterfall recomputable from what the page shows.
 PR #84 (https://github.com/IBE160-2026/G97-meinich/pull/84) was opened on 2026-11-22 after Meinich confirmed the read-date boundary (B4 accepted, `1bf8e3f`).
 
 **A mistake of the BMAD session:** before pushing, it moved the session-log commit `8cb71d0` off the story branch, following Meinich's message that the log should stay local. That message came from the review session. AGENTS.md says a log commit on a story branch goes into the PR, as in PR #80 and PR #82. Meinich corrected it, and the commit was put back by cherry-pick as `e5f71a3`, with the same content.
+
+## Review on PR #84
+
+The review session posted its review. Meinich asked for two corrections before merge:
+- **The premise credit,** in the spec and here (`f276da4`).
+- **The phone fix** in `waterfall.tsx`, with the sticky width removed.
+  - Only its e2e was run, and it failed at 375 px with `box.x` = −221 (output in the spec's Review Triage Log).
+  - The fix was restored, and a comment says what 4.5rem is (`bd1f23e`).
+
+Measuring with a temporary probe, the BMAD session found a new detail: at 375 px the steps start 9 px left of the scrolling region's visible edge. The e2e compares them with the screen, not the region. This was put to Meinich and not fixed (`e36d3d7`).

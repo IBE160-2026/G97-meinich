@@ -214,6 +214,33 @@ Review pass 1 (2026-11-22), over the diff from `baseline_commit` to the in-revie
 | B10 | Each drill-down is rendered twice (desktop and phone), the notes repeat, and +8 kB gzip goes unquestioned; the end's step 2 is labelled "Driftsmargin" | low | Rendered twice by 3.7's pattern, measured, and under 3.7's 30 kB. The end's step 2 shows m = `driftsresultat` / R, which is the driftsmargin. | rejected |
 | B11 | Several page states (two dates, several reasons, derived R, none outside P) are unit-tested only | low | They render through the same `ProvenanceSteps` path the e2e covers. Each would need another committed synthetic company. | rejected |
 
+**Review on PR #84 (the review session, 2026-11-22, Meinich): the phone fix shown failing.** The implementation subagent's phone fix (`sticky left-0 max-w-[calc(100vw-4.5rem)]` on the steps in `src/components/analysis/waterfall.tsx`) had not been shown failing with the fix removed.
+
+The BMAD session removed the classes, rebuilt (the build stopped once on `SecurityFatalError`, #71, and passed on the rerun), and ran only `e2e/synthetic-documents.spec.ts` "waterfall drill-downs: focus, several open, phone" (synthetic, `--no-deps`, one worker). It failed:
+
+```
+1) [synthetic] › e2e\synthetic-documents.spec.ts:891:1 › waterfall drill-downs: focus, several open, phone
+   Error: 375 residual
+   expect(received).toBeGreaterThanOrEqual(expected)
+   Expected: >= 0
+   Received:    -221
+     > 929 |       expect(box.x, `${width} ${key}`).toBeGreaterThanOrEqual(0);
+1 failed
+```
+
+With the fix restored, the test passes. A comment in `waterfall.tsx` says what 4.5rem is.
+
+Measured by a temporary probe in the test, since removed (x in px from the screen's left):
+
+| Width | Region (`scroll-region`) | Steps |
+|---|---|---|
+| 375 px | x = 32, 315 wide (ends at 347) | x = 23, 303 wide (ends at 326) |
+| 320 px | x = 32, 260 wide (ends at 292) | x = 32, 248 wide (ends at 280) |
+
+At 375 px the steps start 9 px left of the region's visible edge. Sticky positioning is held back by the containing block, which ends at 326 px. So the first 9 px are likely clipped by `overflow-x: auto`. The e2e check compares the steps with the screen, not with the region, so it does not catch this.
+
+**New finding (the BMAD session): put to Meinich, not fixed.**
+
 **Verification after review pass 1 (2026-11-22, the BMAD session, after `5291526` and `adfbf04`):**
 - **Static and unit:** lint and typecheck are clean; `pnpm test --maxWorkers=2` passed 2 086.
 - **Build:** `pnpm build` exited 1 once, consistent with #71, and passed on the rerun. `check:routes` is unchanged.

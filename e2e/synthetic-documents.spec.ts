@@ -888,6 +888,9 @@ test('the sum row', async ({ page }) => {
   await expect(cell(page, 'driftsmargin', 'gap')).not.toContainText(formatSignedKroner(kr(W.sumKr)));
 });
 
+/** Chromium's layout unit: boxes are placed in 1/64 px. */
+const LAYOUT_UNIT_PX = 1 / 64;
+
 test('waterfall drill-downs: focus, several open, phone', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/nokkeltall`);
@@ -923,11 +926,30 @@ test('waterfall drill-downs: focus, several open, phone', async ({ page }) => {
     for (const key of ['residual', 'start']) {
       const drill = await openColumn(phone, 'p', key);
       await expect(drill.getByRole('heading', { name: nb['provenance.trigger'] }), `${width} ${key}`).toBeFocused();
-      // The table scrolls in its region; the steps stay inside the screen, so they read without scrolling.
-      const box = await drill.locator('[data-wf-prov-steps]').boundingBox();
-      if (box === null) throw new Error(`${width} ${key}: no steps`);
-      expect(box.x, `${width} ${key}`).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width, `${width} ${key}`).toBeLessThanOrEqual(width);
+      // The table scrolls in its region; the steps stay inside the region's visible box at either
+      // end of the scroll, so they read without scrolling (review on PR #84).
+      const steps = drill.locator('[data-wf-prov-steps]');
+      const region = drill.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " scroll-region ")][1]');
+      const size = await region.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+      // The state the check is about: the table is wider than its region at this width.
+      expect(size.scrollWidth, `${width} ${key}`).toBeGreaterThan(size.clientWidth);
+      for (const [edge, target] of [
+        ['left', 0],
+        ['right', size.scrollWidth - size.clientWidth],
+      ] as const) {
+        const label = `${width} ${key} scrolled ${edge}`;
+        await region.evaluate((el, left) => {
+          el.scrollLeft = left;
+        }, target);
+        await expect.poll(() => region.evaluate((el) => Math.round(el.scrollLeft)), { message: label }).toBe(target);
+        const r = await region.boundingBox();
+        const box = await steps.boundingBox();
+        if (r === null || box === null) throw new Error(`${label}: no region or no steps`);
+        // Scrolled fully right the steps sit exactly on the region's left edge, which Chromium
+        // places in layout units of 1/64 px: one unit is the only tolerance.
+        expect.soft(box.x, label).toBeGreaterThanOrEqual(r.x - LAYOUT_UNIT_PX);
+        expect.soft(box.x + box.width, label).toBeLessThanOrEqual(r.x + r.width + LAYOUT_UNIT_PX);
+      }
     }
     await noSidewaysScroll(page);
   }

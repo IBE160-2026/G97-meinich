@@ -108,7 +108,7 @@ describe('loader login', () => {
 });
 
 describe('the committed seed', () => {
-  it('loads 17 883 companies, 22 522 filings, the reference documents and their fingerprints, the coverage rows and one dataset row', async () => {
+  it('loads 17 883 companies, 22 522 filings, the allow-listed documents and their fingerprints, the coverage rows and one dataset row', async () => {
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
       const [counts] = await tx<
@@ -128,19 +128,19 @@ describe('the committed seed', () => {
                (select count(*)::int from register.document_column) as document_column,
                (select count(*)::int from register.fingerprint) as fingerprint
       `;
-      // The committed seed holds the OCR reference set's documents only
-      // (Story 2.3): 97 documents of the 20 reference orgnrs, two columns
-      // each. The acceptance run's rows wait for Story 5.4's allow-list.
-      // Story 2.5: step 2 fingerprints their current columns, computed by the
-      // engine from the committed figures before the re-export. After Story
-      // 2.5b's re-read, 86 of 97 (10 not reconciled, 1 without revenue).
+      // Story 5.4: the read documents of the allow-listed companies (demo A
+      // and B, their peers at bands 0-2, the 20 OCR reference companies),
+      // less the labelled set's (decision 2) except the reference ones: 1 595
+      // documents of 331 orgnrs, two columns each. Step 2 fingerprints their
+      // current columns; the export leaves out every labelled-set company's
+      // fingerprint, so 1 419 of 1 454.
       expect(counts).toEqual({
         company: 17883,
         filing: 22522,
         key_figures: 22522,
-        document: 97,
-        document_column: 194,
-        fingerprint: 86,
+        document: 1595,
+        document_column: 3188,
+        fingerprint: 1419,
       });
 
       const coverage = await tx`select code, measured, report, sha256 from register.covered_industry order by code collate "C"`;

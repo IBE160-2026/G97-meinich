@@ -738,7 +738,7 @@ test('excluding one peer leaves no waterfall', async ({ page }) => {
   await page.goto(`${base}/nokkeltall?ekskl=${peer.orgnr}`);
   await waterfallButton(page, 'desktop').click();
   const body = await waterfallBody(page, 'desktop');
-  const tooFew = 'Ingen forklaring av marginen: bare 9 sammenlignbare har alle kostnadslinjene (av 10 som trengs).';
+  const tooFew = 'Ingen forklaring av marginen: bare 9 sammenlignbare har et avstemt årsregnskap for 2025 med alle kostnadslinjene (av 10 som trengs).';
   await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['waterfall.notLoaded']);
   await expect(body.getByRole('img')).toHaveCount(0);
   // Story 3.8: no waterfall, no drill-down of one.

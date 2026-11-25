@@ -206,11 +206,14 @@ test.describe('Verdi (Story 3.5)', () => {
     expect(before.replaced).toBe(0);
     expect(after.replaced).toEqual([`/analyse/${orgnr}/verdi?andel=25`]);
     expect(after.length).toBe(before.length);
-    // The arrow keys move to the next step and choose it, focus with it.
+    // The arrow keys move to the next step and choose it, focus with it. The
+    // fixture's state: the subject's median step lies between 25 and 50, so
+    // it is the next step after 25.
+    expect(oracle.sMed.gt('0.25') && oracle.sMed.lt('0.5')).toBe(true);
     await page.keyboard.press('ArrowRight');
-    await expect(step(page, 50)).toBeFocused();
-    await expect(page).toHaveURL(new RegExp(`/analyse/${orgnr}/verdi$`));
-    await expect(status).toHaveText(fill('verdi.announce.profit', { a: oracle.at(50), full: oracle.full }));
+    await expect(step(page, 'median')).toBeFocused();
+    await expect(page).toHaveURL(new RegExp(`/analyse/${orgnr}/verdi\\?andel=median$`));
+    await expect(status).toHaveText(fill('verdi.announce.profit', { a: oracle.at('median'), full: oracle.full }));
     // No entry was added by the second change either.
     expect(await page.evaluate(() => window.history.length)).toBe(before.length);
   });
@@ -219,8 +222,16 @@ test.describe('Verdi (Story 3.5)', () => {
     const { orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
-    // The fixture's state: the subject's steps, the median step second, all enabled.
+    // The fixture's state: the subject's six steps, the median step between 25 and 50, all enabled.
     await expect(control(page).getByRole('radio')).toHaveCount(6);
+    expect(await control(page).getByRole('radio').evaluateAll((radios) => radios.map((r) => r.getAttribute('data-share-step')))).toEqual([
+      '0',
+      '25',
+      'median',
+      '50',
+      '75',
+      '100',
+    ]);
     await expect(control(page).locator('[aria-disabled="true"]')).toHaveCount(0);
     await step(page, 0).click();
     await expect.poll(() => new URL(page.url()).search).toBe('?andel=0');

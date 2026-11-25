@@ -788,7 +788,10 @@ describe('the full key-figure table (Story 3.1b)', () => {
         { kind: 'not_read_in_v1', scope: 'filing_year', filingYear: 2019 },
         `${nb['analysis.figures.notReadInV1']} ${t('analysis.figures.notReadInV1.filingYear', { fra: '2021', til: '2025', aar: '2025' })}`,
       ],
-      [{ kind: 'not_in_dataset' }, `${nb['analysis.figures.notInDataset']} ⓘ ${nb['keyFigures.moreAbout']} ${nb['keyFigures.notInDataset.popover']}`],
+      [
+        { kind: 'not_in_dataset' },
+        `${nb['analysis.figures.notInDataset']} ⓘ ${nb['keyFigures.moreAbout']} ${nb['keyFigures.notInDataset.popover']} ${nb['keyFigures.notInDataset.popoverLink']}`,
+      ],
     ];
     for (const [basis, words] of bases) {
       const html = full(basis);
@@ -833,7 +836,12 @@ describe('the full key-figure table (Story 3.1b)', () => {
           `<button type="button" aria-expanded="false" aria-controls="kf-d-pop-${key}"[^>]*><span aria-hidden="true">ⓘ</span><span class="sr-only">${nb['keyFigures.moreAbout']}</span></button>`,
         ),
       );
-      expect(content, key).toMatch(new RegExp(`<span id="kf-d-pop-${key}" hidden=""[^>]*>${nb['keyFigures.notInDataset.popover']}</span>`));
+      // Story 5.4: the text, then the link to "Kilder og lisens"'s paragraph on the documents.
+      expect(content, key).toMatch(
+        new RegExp(
+          `<span id="kf-d-pop-${key}" hidden=""[^>]*><span data-popover-text="">${nb['keyFigures.notInDataset.popover']}</span> <a class="text-link" href="/slik-fungerer-peerless#arsregnskap">${nb['keyFigures.notInDataset.popoverLink']}</a></span>`,
+        ),
+      );
       const phoneOwn = /<td[^>]*data-cell="own"[^>]*>[\s\S]*?<\/td>/.exec(phoneRows(html, key).row)?.[0] ?? '';
       expect(phoneOwn, key).toContain(`aria-describedby="${id}"`);
       expect(phoneOwn, key).toContain(`aria-controls="kf-p-pop-${key}"`);

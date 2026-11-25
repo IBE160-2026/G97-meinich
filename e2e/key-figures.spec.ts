@@ -260,8 +260,13 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await expect(text).toBeHidden();
     await button.click();
     await expect(button).toHaveAttribute('aria-expanded', 'true');
-    await expect(text).toHaveText(nb['keyFigures.notInDataset.popover']);
+    await expect(text.locator('[data-popover-text]')).toHaveText(nb['keyFigures.notInDataset.popover']);
     await expect(text).toBeVisible();
+    // Story 5.4: it links to "Kilder og lisens"'s paragraph on the documents.
+    await expect(text.getByRole('link', { name: nb['keyFigures.notInDataset.popoverLink'] })).toHaveAttribute(
+      'href',
+      '/slik-fungerer-peerless#arsregnskap',
+    );
     // It stays open while hovered, and when the pointer moves over the text.
     await text.hover();
     await expect(text).toBeVisible();

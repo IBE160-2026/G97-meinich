@@ -549,6 +549,17 @@ describe('the licence gate', () => {
     expect(fingerprintWhere({ open: false }, [], ['912197905'])).toBe('WHERE false');
   });
 
+  // Story 5.4, decision 4: the committed gate is closed, exactly {open, assessment, date}, and its
+  // assessment is committed.
+  it('the committed docs/licence-gate.json is closed, well-formed and names a committed assessment', () => {
+    const notices: string[] = [];
+    expect(readLicenceGate(path.join(root, LICENCE_GATE_FILE), (line) => notices.push(line))).toEqual({ open: false });
+    expect(notices).toEqual([]);
+    const gate = JSON.parse(readFileSync(path.join(root, LICENCE_GATE_FILE), 'utf8')) as { assessment: string };
+    expect(gate).toEqual({ open: false, assessment: 'docs/licence-gate.md', date: '2026-11-25' });
+    expect(readFileSync(path.join(root, gate.assessment), 'utf8')).toMatch(/the gate is closed/);
+  });
+
   it('refuses an allow-list or labelled-set entry that is not an orgnr rather than inlining it', () => {
     expect(refusal(() => fingerprintWhere({ open: false }, ["1'); drop table x; --"], []))).toMatch(/is not an orgnr/);
     expect(refusal(() => fingerprintWhere({ open: true }, [], ["1'); drop table x; --"]))).toMatch(

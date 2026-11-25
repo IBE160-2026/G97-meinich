@@ -26,6 +26,12 @@ pnpm start            # http://localhost:3000
 
 The front page searches the companies in the local database by name or organisation number; it never calls the register. Choosing a company opens `/analyse/{orgnr}`, the analysis; `/slik-fungerer-peerless` explains the method and the sources.
 
+**Demo companies.** The committed seed holds every 62.100 company's register data and key figures; figures read from the filed documents are committed only for these three demo companies, their peers and the OCR reference set (`seed/allow-list.json`):
+
+- **A — 922425620 TRETOEN AS:** a typical IT consultancy. Its margin is close to its peers' median, every tab is filled from API and document figures, and it shows the margin waterfall.
+- **B — 912159329 HUMA AS:** a loss-making software product company with a large gap to its peers. It shows the kroner gap, Verdi and EV/EBIT at full size.
+- **C — 967534579 KANTALL AS:** in 69.202, an industry Peerless does not cover. It shows the uncovered state from API figures alone.
+
 Run the production build with `pnpm start`, as above, not `next dev`: the rate limit below and every test assume the built app.
 
 **Rate limit.** Every request the server answers (pages, their RSC payloads and prefetches, 404s and `GET /api/sok`) is counted per client address in `src/proxy.ts`: 60 analysis and 60 search requests a minute (`src/rate-limit/budgets.ts`). Over budget, a page answers 429 with "Det er gjort mange oppslag fra denne adressen på kort tid. Vent litt, og prøv igjen." and no figures, and the search field shows the same text. No address is stored: the counters hold salted hashes in memory only, and the logs (one JSON line per event, `src/logger.ts`) carry no address, header or path. Known v1 limitations:

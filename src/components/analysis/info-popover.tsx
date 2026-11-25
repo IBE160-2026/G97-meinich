@@ -11,6 +11,7 @@
 // table's scroll container cannot clip it and the body never scrolls
 // sideways. Everything it shows arrives as strings from the server; the open
 // state lives only here, never in the URL or browser storage.
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 /** What can happen to an open or closed popover. */
@@ -31,6 +32,7 @@ export function InfoPopover({
   id,
   label,
   text,
+  link,
 }: {
   /** The text's id, unique on the page. */
   readonly id: string;
@@ -38,6 +40,8 @@ export function InfoPopover({
   readonly label: string;
   /** The long text. */
   readonly text: string;
+  /** A link after the text, to where it is explained at length (Story 5.4). */
+  readonly link?: { readonly href: string; readonly label: string };
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLSpanElement>(null);
@@ -81,7 +85,15 @@ export function InfoPopover({
         hidden={!open}
         className="mt-1 block rounded-md border border-divider bg-surface p-3 text-[13px] font-normal whitespace-normal text-navy-900"
       >
-        {text}
+        <span data-popover-text="">{text}</span>
+        {link === undefined ? null : (
+          <>
+            {' '}
+            <Link href={link.href} className="text-link">
+              {link.label}
+            </Link>
+          </>
+        )}
       </span>
     </span>
   );

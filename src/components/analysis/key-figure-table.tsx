@@ -41,6 +41,7 @@ import { Fragment, type ReactNode } from 'react';
 import type { ApiBenchmark, DocumentBenchmark, TurnoverBenchmark } from '@/engine/benchmark';
 import type { MarginWaterfall } from '@/engine/waterfall';
 import { t } from '@/messages';
+import { DOCUMENTS_PARAGRAPH_HREF } from '@/components/about-anchors';
 import type { FactorPairView } from '@/analysis/decomposition-view';
 import type { ProvenanceView, TableProvenance, WaterfallProvenance } from '@/analysis/provenance';
 import {
@@ -123,7 +124,12 @@ function Own({ row, popoverId, detail }: { readonly row: KeyFigureRow; readonly 
     <>
       {row.own.text}
       {row.own.notInDataset ? (
-        <InfoPopover id={popoverId} label={t('keyFigures.moreAbout')} text={t('keyFigures.notInDataset.popover')} />
+        <InfoPopover
+          id={popoverId}
+          label={t('keyFigures.moreAbout')}
+          text={t('keyFigures.notInDataset.popover')}
+          link={{ href: DOCUMENTS_PARAGRAPH_HREF, label: t('keyFigures.notInDataset.popoverLink') }}
+        />
       ) : null}
       {detail && row.own.detail !== null ? (
         <span className="mt-1 block text-[13px] text-slate">{row.own.detail}</span>

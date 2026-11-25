@@ -233,7 +233,11 @@ describe('stage 4 against stored fingerprints', () => {
         expect(after.pool.map((p) => p.orgnr)).toEqual(group.pool.map((p) => p.orgnr));
         expect(after.group.map((p) => p.orgnr)).toContain(kept.orgnr);
         expect(after.group.map((p) => p.orgnr)).not.toContain(removed.orgnr);
-        expect(after.counts.stage4.businessModel).toBe(after.group.length);
+        // Story 5.4: stage 5 may remove more after stage 4 (demo A's pool holds classified peers of
+        // other types), so the group is stage 5's count, at most stage 4's.
+        expect(after.counts.stage5.classification).toBe(after.group.length);
+        expect(after.counts.stage4.businessModel).toBeGreaterThanOrEqual(after.group.length);
+        expect(after.counts.stage4.businessModel).toBeLessThan(after.pool.length);
         expect(after.counts.stage3.legalForm).toBe(after.pool.length);
         // v1 (Story 5.2): the fingerprint signal is off, so the stored fingerprints remove no one.
         const v1 = assemblePeerGroup(subject, candidates, 0);

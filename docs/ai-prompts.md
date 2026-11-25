@@ -4576,6 +4576,74 @@ Lag så de ni commitene, én per FR med sin memlog-linje. Sett deretter handling
 
 The 20 FRs that held build history are rule and consequences: FR-1, FR-24, FR-58 and FR-73 after the Epic 2 retrospective, seven in the Epic 3 retrospective, and the last 13 here. Every number that left an FR is stated in §10, the technical note, the memlog or `analysis/output/`; the decision history is in the memlog. Epic 2 action 11 and Epic 3 action 3 are done.
 
+## Issue #71: Next.js 16.4.6 (PR #85)
+
+Not a story: issue #71, the build's intermittent `SecurityFatalError`, fixed as its own PR before Story 5.4, as the Epic 3 retrospective decided. Both `Fra meg:` prompts below were drafted by the review session and pasted by the human, who made the decisions in them.
+
+### Prompts to the BMAD session
+
+**2026-11-22 21:26**: the prompt that opened the work.
+```
+Fra meg:
+
+Issue #71: oppgrader Next.js som egen PR før Story 5.4. Lag branchen story/71-next-16-4-6 fra origin/main, og lukk #71 med PR-en (Closes #71).
+
+Review-sesjonen kjørte pnpm audit på main. Det ga sju sårbarheter av moderat grad i next 16.4.2: GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8, GHSA-7qx7-33qx-rqx2, GHSA-f3mh-rxg3-f5g2, GHSA-pc58-hwjq-p385, GHSA-rhh4-g77r-r9qj og GHSA-vvgp-ww4w-46vf. Alle gjelder versjonene til og med 16.4.4 og er rettet i 16.4.5. Kjør pnpm audit selv og sjekk tallene før du endrer noe.
+
+1. Lås next og eslint-config-next til nøyaktig 16.4.6, som er siste patch på 16.4.x. Skriv versjonen og grunnen i PR-en.
+2. zod (høy grad, GHSA-mrhx-c7xc-m3w5) og minimatch (moderat grad) kommer bare inn via utviklingsverktøy: @anthropic-ai/sdk, eslint-config-next og eslint-plugin-react-hooks. Ta dem med bare hvis en vanlig oppgradering av en direkte avhengighet løser dem. Bruk ingen pnpm overrides uten å spørre meg. Ellers noterer du dem i PR-en og i issuet.
+3. Full verifisering, ett steg om gangen:
+   - check:pins og check:env;
+   - lint, typecheck og pnpm test --maxWorkers=2;
+   - pnpm seed, test:db og test:ingest;
+   - restore:documents med de fire tellingene, 0 SYNTETISK% og 20 oppføringer i manifestet;
+   - pnpm build tre ganger på rad, og alle tre skal gå igjennom på første forsøk;
+   - check:routes;
+   - e2e med én worker, ett prosjekt om gangen, synthetic sist;
+   - pnpm audit til slutt: ingen sårbarhet i next.
+4. Oppdater docs/ai-log.md med en ny oppføring om hva som kan gå galt med oppgraderingen. Skriv også i AGENTS.md eller det tekniske notatet hvis versjonen står der.
+5. Legg et punkt i epics.md under Story 5.7: kjør pnpm audit rett før levering, fordi byggesjekken spør registeret om sårbarheter hver gang den kjører.
+
+Planning documents: epics.md (5.7). Commit i logiske steg. Ikke push før jeg sier fra.
+```
+*Changed:* `next` and `eslint-config-next` pinned to 16.4.6 (`20f6ad8`), with a lockfile that moves only the Next.js family; Story 5.7's AC to run `pnpm audit` just before delivery (`c2ce742`); the AI-log entry on what could go wrong (`28b5740`); the session file and the session log (`4dab52a`, `3a8680a`). The audit before the change confirmed the review session's seven advisories; zod and minimatch were left, since no direct upgrade moves them, and three builds in a row passed at the first attempt. Not pushed.
+
+**2026-11-24 18:32**: zod moved, minimatch left, and the push.
+```
+Fra meg:
+
+Branchen stemmer med rapporten din. Review-sesjonen har sjekket diffen i package.json og lockfila (bare Next-pakkene) og påstanden om at byggesjekken stoppet i hver story fra 3.2 til 3.8 (session-filene for 3.2–3.7 og spec-en for 3.8).
+
+1. zod: oppdater bare zod-oppføringen i lockfila til 4.6.7. Den ligger innenfor ^3.25.0 || ^4.0.0, så det er ingen override og ingen endring i package.json. Krav:
+   - Diffen i lockfila endrer bare zod. Endres andre pakker, stopper du og spør meg.
+   - Lag en egen commit.
+   - Kjør på nytt: check:pins, lint, typecheck, pnpm test --maxWorkers=2, pnpm build og pnpm audit. Audit skal ikke vise noen sårbarhet i zod eller next.
+   - Begrunnelse: zod har den eneste sårbarheten med høy grad, og pnpm classify i Epic 4 tolker modellsvarene med den.
+2. minimatch blir stående. Oppdater PR-teksten, AI-loggen og session-fila: zod er rettet, minimatch står igjen, og grunnen er at den bare brukes av ESLint og ville krevd at hele @typescript-eslint-familien oppdateres.
+3. Session-fila: skriv at prompten ble skrevet av review-sesjonen og limt inn av meg.
+
+Push så branchen og åpne PR-en med pr71.md som tekst. Ikke poster noe på #71 ennå.
+```
+*Changed:* zod 4.6.5 to 4.6.7 in the lockfile alone (`af5999d`), with `package.json` unchanged and no override; the AI log, the session file and the session log updated (`ce1da58`, `4bd5bc0`, `8cbb1a9`, `17ec68a`); the branch pushed and PR #85 opened. `pnpm audit` then showed one moderate advisory, minimatch, and none in zod or `next`.
+
+### Prompts to the review session
+
+- `hva anbefaler du for #71?` (2026-11-22 21:25): the review session ran `pnpm audit` on `main` (seven moderate advisories in `next` 16.4.2, all fixed in 16.4.5; zod high and minimatch moderate through development tools), found that the advisories concern features Peerless does not use (`use cache`, `next/image`, the Edge runtime), recommended a patch upgrade to 16.4.6 over documenting a retried build, because a grader's `pnpm build` could stop on it, and drafted the 21:26 prompt.
+- The BMAD session's report (2026-11-24 18:31): the review session checked the `package.json` and lockfile diff (only the Next.js family) and the claim that the build check stopped in every story from 3.2 to 3.8 against the session files and the 3.8 spec. The claim was right; the review session's own summary had named five stories. It recommended refreshing zod's lockfile entry alone, since it is the only high advisory, lies within the SDK's range, and parses the model's answers in Epic 4's `pnpm classify`, and leaving minimatch, used only by ESLint. It drafted the 18:32 prompt.
+- The BMAD session's report (2026-11-24 18:44): the review session checked the zod commit, which moves only zod, and its integrity against `npm view zod@4.6.7 dist.integrity`.
+- `CI er grønn, lag review-utkast` (2026-11-25 16:22): the review session drafted the review with six line comments, each inside a diff hunk.
+- `post review` (2026-11-25 16:26): the review session posted it on `17ec68a`.
+- `merget` (2026-11-25 16:26): the review session reset `main`, deleted the branch, added the Merge section to the session file and credited the review session for the 21:26 prompt, the one correction the review named (`1c2cf04`), and wrote this section.
+
+### Result
+
+`next` and `eslint-config-next` are at 16.4.6 and zod at 4.6.7; `pnpm audit` shows minimatch alone, a moderate advisory reached only through ESLint. PR #85 was merged on 2026-11-25 as `159026c` and closed #71. Because the build's check reads advisories live, Story 5.7 runs `pnpm audit` on the delivered commit.
+
+### Checks before merging
+
+- CI green on `17ec68a`.
+- The review session's review with six line comments, no change asked for before merge: https://github.com/IBE160-2026/G97-meinich/pull/85#pullrequestreview-6061131218
+
 ---
 
 ## Going forward

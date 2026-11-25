@@ -12,7 +12,8 @@
 //   words; otherwise the words of its Varekostnadsandel row, "Ikke i
 //   demodataene" outside the demo data), "Beløpet er ikke i kroner", N1 when
 //   P plus the peers outside the demo data would reach 10, otherwise the
-//   too-few sentence with n = |P|.
+//   too-few sentence with n = |P| and the filing year (its own forms for
+//   n = 0 and n = 1, Story 5.4).
 //
 // The margins shown are the document's, the one the bars sum to (decision
 // 10): within the tolerance between sources it can read 0,1 pp from the
@@ -172,9 +173,17 @@ function absentText(waterfall: Exclude<MarginWaterfall, { readonly kind: 'decomp
       return absenceText(waterfall.absence, { denominator: 'analysis.figures.reason.revenueNotPositive', filingYear });
     case 'not_nok':
       return t('keyFigures.notInKroner');
-    case 'too_few':
+    case 'too_few': {
       if (waterfall.n + waterfall.notInDataset >= MIN_PEERS) return t('waterfall.notLoaded');
-      return t('waterfall.tooFew', { n: String(waterfall.n) });
+      // Story 5.4: the sentence names what P requires (a reconciled
+      // document for the year with every cost line), not only the cost
+      // lines, since a peer is outside P for any of those reasons (X1); n = 0
+      // and n = 1 have their own forms.
+      const aar = String(filingYear);
+      if (waterfall.n === 0) return t('waterfall.tooFewNone', { aar });
+      if (waterfall.n === 1) return t('waterfall.tooFewOne', { aar });
+      return t('waterfall.tooFew', { n: String(waterfall.n), aar });
+    }
   }
 }
 

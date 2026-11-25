@@ -202,7 +202,6 @@ describe('Story 3.3 copy', () => {
     ['waterfall.tag', 'Mot peer-gruppen samlet: {x}, ikke beste fjerdedel'],
     ['waterfall.neverAdded', 'Dette forklarer avviket. Det er ikke et gap som skal lukkes, og det legges aldri til økt driftsresultat.'],
     ['waterfall.notMedian', 'Mot peer-gruppen samlet, ikke medianen'],
-    ['waterfall.tooFew', 'Ingen forklaring av marginen: bare {n} sammenlignbare har alle kostnadslinjene (av 10 som trengs).'],
     ['waterfall.notLoaded', 'Ingen forklaring av marginen: regnskapstallene til de sammenlignbare er ikke i demodataene.'],
     [
       'waterfall.shortOfTotal',
@@ -425,5 +424,41 @@ describe('Story 3.8 copy', () => {
     ['waterfall.prov.sumNotGap', 'Summen er avstanden til peer-gruppen samlet, ikke til beste fjerdedel. Den er derfor ikke gapet i Driftsmargin-raden.'],
   ] as const)('%s', (id, text) => {
     expect(nb[id]).toBe(text);
+  });
+});
+
+// Story 5.4: the copy approved at checkpoint 1 (Meinich, 2026-11-25,
+// decision 5), verbatim. waterfall.tooFew replaces Story 3.3's wording, which
+// named only the cost lines (X1).
+describe('Story 5.4 copy', () => {
+  it.each([
+    [
+      'about.sources.documents',
+      'Tall fra innsendte årsregnskap er lest av Peerless fra dokumentene i Regnskapsregisteret hos Brønnøysundregistrene. Registeret oppgir ingen lisens for disse dokumentene. Demoversjonen inneholder derfor bare et avgrenset utvalg av slike tall.',
+    ],
+    ['keyFigures.notInDataset.popoverLink', 'Om tallene fra årsregnskapene'],
+    [
+      'waterfall.tooFew',
+      'Ingen forklaring av marginen: bare {n} sammenlignbare har et avstemt årsregnskap for {aar} med alle kostnadslinjene (av 10 som trengs).',
+    ],
+    [
+      'waterfall.tooFewOne',
+      'Ingen forklaring av marginen: bare ett sammenlignbart selskap har et avstemt årsregnskap for {aar} med alle kostnadslinjene (av 10 som trengs).',
+    ],
+    [
+      'waterfall.tooFewNone',
+      'Ingen forklaring av marginen: ingen sammenlignbare har et avstemt årsregnskap for {aar} med alle kostnadslinjene (av 10 som trengs).',
+    ],
+    ['analysis.notice.median', '«Til medianen for driftsmargin» gjelder ikke for denne peer-gruppen, så andelen er satt til 50 %.'],
+    ['provenance.date.peers', 'Peer-gruppen: Regnskapsår {aar} · årsregnskapene hentet {fra}–{til}'],
+    ['provenance.date.peersOne', 'Peer-gruppen: Regnskapsår {aar} · årsregnskapene hentet {dato}'],
+  ] as const)('%s', (id, text) => {
+    expect(nb[id]).toBe(text);
+  });
+
+  // The gate is closed (decision 4): the derived-categories phrase, which
+  // belongs to an open gate only, is in no message.
+  it('the source paragraph has no derived-categories phrase while the gate is closed', () => {
+    expect(Object.values(nb).some((text) => text.includes('avledede kategorier'))).toBe(false);
   });
 });

@@ -121,15 +121,37 @@ describe('the waterfall’s states', () => {
   it('peers not in the demo data: N1', () => {
     const four = PEERS.slice(0, 4);
     expect(view(SUBJECT, [...four, ...Array.from({ length: 6 }, () => NOT_IN_DATASET)])).toEqual({ kind: 'absent', text: nb['waterfall.notLoaded'] });
-    // Below 10 even with them: the too-few sentence, with n = |P|.
+    // Below 10 even with them: the too-few sentence, with n = |P| and the year.
     expect(view(SUBJECT, [...four, ...Array.from({ length: 5 }, () => NOT_IN_DATASET)])).toEqual({
       kind: 'absent',
-      text: 'Ingen forklaring av marginen: bare 4 sammenlignbare har alle kostnadslinjene (av 10 som trengs).',
+      text: 'Ingen forklaring av marginen: bare 4 sammenlignbare har et avstemt årsregnskap for 2025 med alle kostnadslinjene (av 10 som trengs).',
     });
     expect(view(SUBJECT, PEERS.slice(0, 9))).toEqual({
       kind: 'absent',
-      text: 'Ingen forklaring av marginen: bare 9 sammenlignbare har alle kostnadslinjene (av 10 som trengs).',
+      text: 'Ingen forklaring av marginen: bare 9 sammenlignbare har et avstemt årsregnskap for 2025 med alle kostnadslinjene (av 10 som trengs).',
     });
+  });
+
+  // Story 5.4 (deferred from Story 3.3): n = 0 and n = 1 have their own forms.
+  it('too few: tooFewNone at n = 0, tooFewOne at n = 1, tooFew at n = 5', () => {
+    expect(view(SUBJECT, [])).toEqual({ kind: 'absent', text: t('waterfall.tooFewNone', { aar: '2025' }) });
+    expect(view(SUBJECT, PEERS.slice(0, 1))).toEqual({ kind: 'absent', text: t('waterfall.tooFewOne', { aar: '2025' }) });
+    expect(view(SUBJECT, PEERS.slice(0, 5))).toEqual({ kind: 'absent', text: t('waterfall.tooFew', { n: '5', aar: '2025' }) });
+    expect(t('waterfall.tooFewNone', { aar: '2025' })).toBe(
+      'Ingen forklaring av marginen: ingen sammenlignbare har et avstemt årsregnskap for 2025 med alle kostnadslinjene (av 10 som trengs).',
+    );
+    expect(t('waterfall.tooFewOne', { aar: '2025' })).toBe(
+      'Ingen forklaring av marginen: bare ett sammenlignbart selskap har et avstemt årsregnskap for 2025 med alle kostnadslinjene (av 10 som trengs).',
+    );
+  });
+
+  // Story 5.4, X1 (Epic 3 retro): when the peers outside P lack a document
+  // (here a failed reconciliation each), the sentence names the reconciled
+  // document and the year, not only the cost lines.
+  it('too few for reasons other than cost lines', () => {
+    const v = view(SUBJECT, [...PEERS.slice(0, 3), ...Array.from({ length: 7 }, () => FAILED)]);
+    expect(v).toEqual({ kind: 'absent', text: t('waterfall.tooFew', { n: '3', aar: '2025' }) });
+    if (v.kind === 'absent') expect(v.text).toContain('et avstemt årsregnskap for 2025');
   });
 
   it('not in kroner: no waterfall', () => {

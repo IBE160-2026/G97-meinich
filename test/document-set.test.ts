@@ -7,10 +7,13 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 import {
+  ALLOW_LIST_BANDS,
   DOCUMENT_RUN_FILE,
   LABELLED_DRAW_FILE,
   LABELLED_RUN_FILE,
   REFERENCE_RUN_FILE,
+  allowListEntries,
+  demoCompanyC,
   documentRunJson,
   documentRunSet,
   labelledRunJson,
@@ -18,21 +21,28 @@ import {
   main,
   referenceRunSet,
 } from '../scripts/document-set.ts';
-import { REFERENCE_DRAW_FILE, compareBytes, parseDrawn } from '../scripts/seed-format.ts';
+import {
+  REFERENCE_DRAW_FILE,
+  REFERENCE_REASON,
+  compareBytes,
+  parseAllowListEntries,
+  parseDrawn,
+  withReferenceOrgnrs,
+} from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 
 describe('documentRunSet', () => {
   it('holds each subject and its pool once, in byte order', () => {
     const set = documentRunSet([
-      { subject: '813235552', pool: [{ orgnr: '999999999' }, { orgnr: '100000008' }] },
-      { subject: '814739082', pool: [{ orgnr: '100000008' }, { orgnr: '813235552' }] },
+      { subject: '813235552', band: 0, pool: [{ orgnr: '999999999' }, { orgnr: '100000008' }] },
+      { subject: '814739082', band: 0, pool: [{ orgnr: '100000008' }, { orgnr: '813235552' }] },
     ]);
     expect(set).toEqual(['100000008', '813235552', '814739082', '999999999']);
   });
 
   it('keeps a subject whose pool is empty', () => {
-    expect(documentRunSet([{ subject: '813235552', pool: [] }])).toEqual(['813235552']);
+    expect(documentRunSet([{ subject: '813235552', band: 0, pool: [] }])).toEqual(['813235552']);
   });
 });
 
@@ -65,6 +75,62 @@ describe(DOCUMENT_RUN_FILE, () => {
     const demoC = /\[demo_company_c\][^[]*?orgnr\s*=\s*"(\d{9})"/.exec(config)?.[1];
     expect(demoC).toBe('967534579');
     expect(list).not.toContain(demoC);
+  });
+});
+
+// Story 5.4: `--allow-list` writes demo A, B and C, every company in A's and
+// B's pools at bands 0, 1 and 2, and the reference draw. Synthetic orgnrs
+// throughout.
+describe('the allow-list entries (--allow-list, Story 5.4)', () => {
+  const A = '100000001';
+  const B = '100000002';
+  const C = '100000003';
+  const drawn = [
+    { orgnr: '300000002', year: 2022 },
+    { orgnr: '300000001', year: 2021 },
+    { orgnr: '300000002', year: 2021 },
+  ];
+
+  it('writes the allow-list entries for A, B, C and their peers at bands 0–2', () => {
+    expect(ALLOW_LIST_BANDS).toEqual([0, 1, 2]);
+    const entries = allowListEntries([{ orgnr: A }, { orgnr: B }], C, [
+      { subject: A, band: 0, pool: [{ orgnr: '200000003' }] },
+      { subject: A, band: 1, pool: [{ orgnr: '200000003' }, { orgnr: '200000002' }, { orgnr: B }] },
+      // Band 2 alone holds 200000001, and a reference orgnr.
+      { subject: A, band: 2, pool: [{ orgnr: '200000003' }, { orgnr: '200000002' }, { orgnr: '200000001' }, { orgnr: '300000001' }] },
+      { subject: B, band: 0, pool: [] },
+      { subject: B, band: 1, pool: [{ orgnr: '200000002' }] },
+      { subject: B, band: 2, pool: [{ orgnr: '200000002' }, { orgnr: A }, { orgnr: '200000004' }] },
+    ], drawn);
+    expect(entries).toEqual([
+      { orgnr: A, reason: 'Demoselskap A' },
+      { orgnr: B, reason: 'Demoselskap B' },
+      { orgnr: C, reason: 'Demoselskap C' },
+      { orgnr: '200000001', reason: 'Peer for demoselskap A (bånd 2)' },
+      { orgnr: '200000002', reason: 'Peer for demoselskap A (bånd 1) og B (bånd 1)' },
+      { orgnr: '200000003', reason: 'Peer for demoselskap A (bånd 0)' },
+      { orgnr: '200000004', reason: 'Peer for demoselskap B (bånd 2)' },
+      { orgnr: '300000001', reason: REFERENCE_REASON },
+      { orgnr: '300000002', reason: REFERENCE_REASON },
+    ]);
+    // The export writes the list back unchanged (withReferenceOrgnrs adds
+    // nothing and accepts every reference entry), and it parses as an
+    // allow-list.
+    expect(withReferenceOrgnrs(entries, drawn)).toEqual(entries);
+    expect(parseAllowListEntries(JSON.parse(JSON.stringify(entries)))).toEqual(entries);
+  });
+
+  it('refuses a demo company in the reference draw, a pool of another subject, and a missing demo', () => {
+    expect(() => allowListEntries([{ orgnr: A }, { orgnr: B }], '300000001', [], drawn)).toThrow(/is in analysis\/ocr-reference/);
+    expect(() =>
+      allowListEntries([{ orgnr: A }, { orgnr: B }], C, [{ subject: '999999999', band: 0, pool: [] }], drawn),
+    ).toThrow(/not demo company A or B/);
+    expect(() => allowListEntries([{ orgnr: A }], C, [], drawn)).toThrow(/expected 2 demo companies/);
+    expect(() => allowListEntries([{ orgnr: A }, { orgnr: A }], C, [], drawn)).toThrow(/named twice/);
+  });
+
+  it("reads demo company C from step 1's configuration", () => {
+    expect(demoCompanyC(root)).toBe('967534579');
   });
 });
 

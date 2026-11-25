@@ -33,13 +33,34 @@
 // only the reference year's document. It reads only the draw, never the
 // database, and refuses a draw whose subjects are not all of that year.
 //
-// Run: node scripts/document-set.ts [--reference | --labelled]   (from the repository root)
+// `--allow-list` (Story 5.4) writes seed/allow-list.json's entries: demo
+// companies A, B and C, every company in A's and B's pools at size bands 0,
+// 1 and 2 (AD-9: "A's and B's peers at all three band steps"), and the OCR
+// reference draw's orgnrs with the reason "OCR-referansesett", which
+// `pnpm seed:export` requires and then writes back unchanged. Each peer's
+// reason names the demo companies whose groups hold it and the narrowest
+// band at which each does. It reads the database as the plain run does, and
+// replaces every other entry the file held. A reviewer approves the list in
+// the PR.
+//
+// Run: node scripts/document-set.ts [--reference | --labelled | --allow-list]   (from the repository root)
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { setting } from './run-ingest.ts';
 import type { SubjectPool } from './document-set-compute.ts';
-import { type DrawnFiling, REFERENCE_DRAW_FILE, compareBytes, parseDrawn } from './seed-format.ts';
+import type { SizeBand } from '../src/engine/peers.ts';
+import { DEMO_COMPANIES } from '../src/demo-companies.ts';
+import {
+  ALLOW_LIST_FILE,
+  type AllowListEntry,
+  type DrawnFiling,
+  REFERENCE_DRAW_FILE,
+  REFERENCE_REASON,
+  compareBytes,
+  parseDrawn,
+  stableJson,
+} from './seed-format.ts';
 
 export const DOCUMENT_RUN_FILE = 'seed/document-run.json';
 export const REFERENCE_RUN_FILE = 'analysis/ocr-reference/document-run.json';
@@ -50,6 +71,10 @@ export const LABELLED_RUN_FILE = 'analysis/labelled-set/document-run.json';
 export const LABELLED_YEAR = 2025;
 const REFERENCE = '--reference';
 const LABELLED = '--labelled';
+const ALLOW_LIST = '--allow-list';
+// The band steps whose groups the allow-list covers (AD-9).
+export const ALLOW_LIST_BANDS: readonly SizeBand[] = [0, 1, 2];
+const DEMO_LABELS = ['A', 'B'] as const;
 const ORGNR = /^[0-9]{9}$/;
 
 // Every drawn orgnr once, in byte order. Step 1 reads every year in the
@@ -66,6 +91,70 @@ export function documentRunSet(groups: readonly SubjectPool[]): string[] {
     for (const peer of group.pool) orgnrs.add(peer.orgnr);
   }
   return [...orgnrs].sort(compareBytes);
+}
+
+/** Demo company C's orgnr, as step 1's configuration states it (ingest/config.toml). */
+export function demoCompanyC(root: string): string {
+  const config = readFileSync(path.join(root, 'ingest', 'config.toml'), 'utf8');
+  const orgnr = /\[demo_company_c\][^[]*?orgnr\s*=\s*"(\d{9})"/.exec(config)?.[1];
+  if (orgnr === undefined) throw new Error('ingest/config.toml: no [demo_company_c] orgnr');
+  return orgnr;
+}
+
+/**
+ * seed/allow-list.json's entries (Story 5.4): demo A, B and C first, each
+ * with its own reason, then, in byte order, every other company in a demo
+ * pool and every drawn OCR reference orgnr. A reference orgnr keeps the
+ * reason "OCR-referansesett" even when it is also a peer, since the export
+ * refuses any other reason for it. A peer's reason names, for each demo
+ * company whose pool holds it, the narrowest band at which it does:
+ * "Peer for demoselskap A (bånd 0) og B (bånd 1)". Refuses a demo company
+ * that is in the reference draw or named twice, and a pool of a subject
+ * that is not demo A or B.
+ */
+export function allowListEntries(
+  demos: readonly { readonly orgnr: string }[],
+  demoC: string,
+  pools: readonly SubjectPool[],
+  drawn: readonly DrawnFiling[],
+): AllowListEntry[] {
+  if (demos.length !== DEMO_LABELS.length) {
+    throw new Error(`expected ${DEMO_LABELS.length} demo companies with groups, got ${demos.length}`);
+  }
+  const labelled = demos.map((demo, index) => ({ orgnr: demo.orgnr, label: DEMO_LABELS[index] ?? '' }));
+  const labelOf = new Map(labelled.map((demo) => [demo.orgnr, demo.label] as const));
+  const demoEntries: AllowListEntry[] = [
+    ...labelled.map((demo) => ({ orgnr: demo.orgnr, reason: `Demoselskap ${demo.label}` })),
+    { orgnr: demoC, reason: 'Demoselskap C' },
+  ];
+  const demoOrgnrs = new Set(demoEntries.map((entry) => entry.orgnr));
+  if (demoOrgnrs.size !== demoEntries.length) throw new Error('a demo company is named twice');
+  const referenceOrgnrs = new Set(drawn.map((filing) => filing.orgnr));
+  for (const orgnr of demoOrgnrs) {
+    if (referenceOrgnrs.has(orgnr)) throw new Error(`demo company ${orgnr} is in ${REFERENCE_DRAW_FILE}`);
+  }
+  // Per peer: demo label → narrowest band.
+  const narrowest = new Map<string, Map<string, SizeBand>>();
+  for (const group of pools) {
+    const label = labelOf.get(group.subject);
+    if (label === undefined) throw new Error(`a pool of ${group.subject}, which is not demo company A or B`);
+    for (const peer of group.pool) {
+      if (demoOrgnrs.has(peer.orgnr)) continue;
+      const bands = narrowest.get(peer.orgnr) ?? new Map<string, SizeBand>();
+      const known = bands.get(label);
+      if (known === undefined || group.band < known) bands.set(label, group.band);
+      narrowest.set(peer.orgnr, bands);
+    }
+  }
+  const rest = [...new Set([...narrowest.keys(), ...referenceOrgnrs])].sort(compareBytes).map((orgnr): AllowListEntry => {
+    if (referenceOrgnrs.has(orgnr)) return { orgnr, reason: REFERENCE_REASON };
+    const parts = DEMO_LABELS.flatMap((label) => {
+      const band = narrowest.get(orgnr)?.get(label);
+      return band === undefined ? [] : [`${label} (bånd ${band})`];
+    });
+    return { orgnr, reason: `Peer for demoselskap ${parts.join(' og ')}` };
+  });
+  return [...demoEntries, ...rest];
 }
 
 // One orgnr per line, so a diff of the committed file reads line by line.
@@ -135,8 +224,11 @@ function writeReferenceRun(root: string): number {
 export async function main(root: string, argv: readonly string[] = []): Promise<number> {
   if (argv.length === 1 && argv[0] === REFERENCE) return writeReferenceRun(root);
   if (argv.length === 1 && argv[0] === LABELLED) return writeLabelledRun(root);
-  if (argv.length > 0) {
-    process.stderr.write(`ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing, ${REFERENCE} or ${LABELLED}\n`);
+  const allowList = argv.length === 1 && argv[0] === ALLOW_LIST;
+  if (argv.length > 0 && !allowList) {
+    process.stderr.write(
+      `ingest:document-set: unknown argument ${argv.join(' ')}; allowed: nothing, ${REFERENCE}, ${LABELLED} or ${ALLOW_LIST}\n`,
+    );
     return 1;
   }
   const url = setting(root, 'READER_DATABASE_URL');
@@ -156,6 +248,13 @@ export async function main(root: string, argv: readonly string[] = []): Promise<
     },
   );
   try {
+    if (allowList) {
+      const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, ...REFERENCE_DRAW_FILE.split('/')), 'utf8')));
+      const entries = allowListEntries(DEMO_COMPANIES, demoCompanyC(root), await module.demoPools(ALLOW_LIST_BANDS), drawn);
+      writeFileSync(path.join(root, ...ALLOW_LIST_FILE.split('/')), stableJson(entries));
+      process.stdout.write(`ingest:document-set: wrote ${ALLOW_LIST_FILE} (${entries.length} entries)\n`);
+      return 0;
+    }
     const orgnrs = documentRunSet(await module.demoPools());
     writeFileSync(path.join(root, ...DOCUMENT_RUN_FILE.split('/')), documentRunJson(orgnrs));
     process.stdout.write(`ingest:document-set: wrote ${DOCUMENT_RUN_FILE} (${orgnrs.length} orgnrs)\n`);

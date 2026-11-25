@@ -11,8 +11,9 @@
 // in playwright.config.ts, whose READER_DATABASE_URL points at a closed port.
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
+import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 
-const ORGNR = '813235552'; // demo company A; any valid orgnr is read
+const ORGNR = DEMO_COMPANIES[0].orgnr; // demo company A; any valid orgnr is read
 // What an error could leak: the driver's message, the address, the role,
 // the query, Next.js's own error page.
 const DETAILS = [

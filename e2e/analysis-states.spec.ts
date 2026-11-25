@@ -310,8 +310,8 @@ test.describe('the header search', () => {
 
   test('can be used twice: the loading state is cleared after each navigation', async ({ page }) => {
     await page.goto(`/analyse/${C.orgnr}`);
-    await headerSearch(page).fill('admmit');
-    await page.getByRole('banner').getByRole('option', { name: /ADMMIT AS/ }).click();
+    await headerSearch(page).fill(A.navn ?? '');
+    await page.getByRole('banner').getByRole('option', { name: A.navn ?? '' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/oversikt$`));
     await companyShown(page, A.navn ?? '');
     await expect(headerSearch(page)).not.toHaveAttribute('readonly', /.*/);

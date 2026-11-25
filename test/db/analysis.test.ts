@@ -39,7 +39,7 @@ describe('loadSubject', () => {
       navn: DEMO_A.navn,
       naeringskode1: '62.100',
       naeringskode1Beskrivelse: 'Dataprogrammeringstjenester',
-      kommune: 'VINDAFJORD',
+      kommune: 'HAMAR',
       covered: true,
     });
     expect(subject?.filing?.filingYear).toBe(2025);
@@ -162,9 +162,28 @@ describe('loadSubject', () => {
     }
     expect(kinds.get('not_in_dataset')).toBeUndefined();
     expect(kinds.get('read') ?? 0).toBeGreaterThan(0);
-    // Demo A is not on the list: not in the dataset, whatever rows a local
-    // document run left behind.
-    expect((await loadSubject(DEMO_A.orgnr))?.filing?.documentBasis).toEqual({ kind: 'not_in_dataset' });
+    // Story 5.4: a company not on the list is not in the dataset, whatever
+    // rows a local document run left behind. Every unlisted company with a
+    // stored document (a restored dump's), and the first unlisted companies
+    // with a filing, in byte order: a rule that holds for every unlisted
+    // company, checked on those. Totals only.
+    const unlisted = await readerSql()<{ orgnr: string }[]>`
+      (select distinct d.orgnr from register.document d
+        where not exists (select 1 from register.dataset ds
+                           where ds.manifest -> 'document_figure_orgnrs' @> to_jsonb(d.orgnr::text)))
+      union
+      (select f.orgnr from register.filing f
+        where f.regnskapstype = 'SELSKAP'
+          and not exists (select 1 from register.dataset ds
+                           where ds.manifest -> 'document_figure_orgnrs' @> to_jsonb(f.orgnr::text))
+        group by f.orgnr order by f.orgnr collate "C" limit 20)`;
+    expect(unlisted.length).toBeGreaterThan(0);
+    const outside = new Map<string, number>();
+    for (const { orgnr } of unlisted) {
+      const kind = (await loadSubject(orgnr))?.filing?.documentBasis.kind ?? 'no filing';
+      outside.set(kind, (outside.get(kind) ?? 0) + 1);
+    }
+    expect([...outside.keys()]).toEqual(['not_in_dataset']);
   });
 });
 

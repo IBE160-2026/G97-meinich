@@ -10,8 +10,10 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { BUDGETS } from '../src/rate-limit/budgets.ts';
 import { expect, test, uniqueAddress } from './fixtures.ts';
+import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 
-const ORGNR = '813235552'; // demo company A, covered in the seed
+const [DEMO_A] = DEMO_COMPANIES;
+const ORGNR = DEMO_A.orgnr; // demo company A, covered in the seed
 const OVERSIKT = `/analyse/${ORGNR}/oversikt`;
 const CHEAP_PAGE = '/slik-fungerer-peerless';
 
@@ -92,7 +94,7 @@ test('an exhausted search budget leaves the analysis served', async ({ page, req
   await exhaustSearch(request);
   const shown = await page.goto(OVERSIKT);
   expect(shown?.status()).toBe(200);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('ADMMIT');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(DEMO_A.navn);
 });
 
 test('an exhausted analysis budget leaves the search served', async ({ request }) => {

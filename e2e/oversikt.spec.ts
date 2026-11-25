@@ -24,6 +24,8 @@ import {
   notice,
   rendered,
   root,
+  OUTSIDE,
+  documentFigureOrgnrs,
   PROFIT_DRILL_FIELDS,
   expectProfitInputsStated,
 } from './seed.ts';
@@ -192,23 +194,30 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     await expect(hero(page).getByText(nb['keyFigures.topNote'])).toHaveCount(0);
   });
 
+  // Story 5.4: against the company outside the demo data (e2e/seed.ts), whose
+  // only drill-down field names are the hero's: demo A's capital card now has
+  // a drill-down of document lines (a subject with document figures is
+  // scanned in e2e/synthetic-documents.spec.ts).
+  const outsidePeer = expectedGroup(OUTSIDE.orgnr ?? '', 0)[0]?.orgnr ?? '';
   for (const [query, band] of [
     ['', 0],
-    [withSettings, 1],
+    [`?ekskl=${outsidePeer}&band=1`, 1],
   ] as const) {
-    test(`the HTML and the RSC payload of Oversikt carry no peer orgnr, peer key-figure amount or server field (${query === '' ? 'default' : query})`, async ({ request }) => {
+    test(`the HTML and the RSC payload of Oversikt carry no peer orgnr, peer key-figure amount or server field (${query === '' ? 'default' : 'ekskl and band 1'})`, async ({ request }) => {
       // The excluded peer is in the URL, and the tab links keep it. Story 3.4:
       // and no exact driftsmargin, the beeswarm's server-side input.
-      const pool = expectedPool(A.orgnr ?? '', band);
-      const exact = exactMargins([...pool.map((peer) => String(peer.brregId)), newestFiling(A.orgnr ?? '').brreg_id ?? '']);
+      const orgnr = OUTSIDE.orgnr ?? '';
+      expect(documentFigureOrgnrs.has(orgnr)).toBe(false);
+      const pool = expectedPool(orgnr, band);
+      const exact = exactMargins([...pool.map((peer) => String(peer.brregId)), newestFiling(orgnr).brreg_id ?? '']);
       expect(exact.length).toBeGreaterThan(pool.length / 2);
-      expectProfitInputsStated(A.orgnr ?? '');
-      await expectNoPeerFields(request, `/analyse/${A.orgnr}/oversikt${query}`, {
+      expectProfitInputsStated(orgnr);
+      await expectNoPeerFields(request, `/analyse/${orgnr}/oversikt${query}`, {
         pool,
         marker: nb['oversikt.beeswarm.heading'],
-        inUrl: query === '' ? [] : [firstPeer],
+        inUrl: query === '' ? [] : [outsidePeer],
         exact,
-        // Story 3.7: the hero's drill-down; demo A is outside the demo data, so the capital card has none.
+        // Story 3.7: the hero's drill-down; outside the demo data the capital card has none.
         fields: PROFIT_DRILL_FIELDS,
       });
     });
@@ -216,41 +225,44 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
 });
 
 // Story 3.4: the rest of Oversikt, against the production build and the
-// loaded demo seed. Demo A is outside the demo data (not on the manifest's
-// list of orgnrs with document figures), which every test below checks
-// first; its group at the default band is the seed's.
+// loaded demo seed, for a company outside the demo data (not on the
+// manifest's list of orgnrs with document figures), which every test below
+// checks first; its group at the default band is the seed's. Story 5.4:
+// demo A is in the demo data now, so the subject is OUTSIDE (e2e/seed.ts),
+// chosen by a fixed rule.
 test.describe('the rest of Oversikt (Story 3.4)', () => {
+  const S = OUTSIDE;
   const manifest = JSON.parse(readFileSync(path.join(root, 'seed/demo/manifest.json'), 'utf8')) as {
     readonly document_figure_orgnrs: readonly string[];
   };
-  const outsideDemoData = () => expect(manifest.document_figure_orgnrs).not.toContain(A.orgnr);
+  const outsideDemoData = () => expect(manifest.document_figure_orgnrs).not.toContain(S.orgnr);
   const card = (page: Page, id: string) => rendered(page).getByTestId(id);
   const beeswarm = (page: Page) => card(page, 'beeswarm');
   const pct = (value: { toString(): string }) => formatPercent(value.toString());
 
   /** The summary the chart's image is named by, from the engine's comparison on the seed. */
   function expectedSummary(): string {
-    const c = expectedBenchmark(A.orgnr ?? '', 0).driftsmargin.comparison;
-    if (c.kind !== 'compared' || c.best === null) throw new Error('demo A’s driftsmargin is not compared');
+    const c = expectedBenchmark(S.orgnr ?? '', 0).driftsmargin.comparison;
+    if (c.kind !== 'compared' || c.best === null) throw new Error('the subject’s driftsmargin is not compared');
     return (
-      `Driftsmargin for ${c.count} sammenlignbare. ${A.navn ?? ''} ${pct(c.subject)}, median ${pct(c.median)}, ` +
+      `Driftsmargin for ${c.count} sammenlignbare. ${S.navn ?? ''} ${pct(c.subject)}, median ${pct(c.median)}, ` +
       `beste fjerdedel ${pct(c.best.quartile)}, bedre enn ${formatWholePercent(c.best.percentile.toString())}.`
     );
   }
 
-  test('demo A: the cards outside the demo data', async ({ page }) => {
+  test('outside the demo data: the cards', async ({ page }) => {
     outsideDemoData();
     // Fixture: outside the demo data every document figure is absent, so only the three API figures
     // can be a strength; on the seed, driftsmargin and totalkapitalrentabilitet are compared and below
     // beste fjerdedel, and egenkapitalandel has no direction.
-    const api = expectedBenchmark(A.orgnr ?? '', 0);
+    const api = expectedBenchmark(S.orgnr ?? '', 0);
     for (const key of ['driftsmargin', 'totalkapitalrentabilitet'] as const) {
       expect(api[key].comparison.kind, key).toBe('compared');
       expect(atOrBeyondBest(api[key].comparison, api[key].direction), key).toBe(false);
     }
     expect(api.egenkapitalandel.direction).toBe('none');
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await page.goto(`/analyse/${S.orgnr}/oversikt`);
     // The hero and the beeswarm as normal: driftsmargin is an API figure.
     await expect(page.getByTestId('hero-amount')).toHaveText(/\d\skr$/);
     await expect(beeswarm(page).getByRole('img', { name: expectedSummary() })).toBeVisible();
@@ -264,7 +276,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await expect(card(page, 'card-missing').locator('[data-card="value"]')).toHaveText(nb['analysis.figures.notInDataset']);
     // "og 11 til" opens the table, keeping the settings.
     await card(page, 'card-missing').getByRole('link', { name: 'og 11 til' }).click();
-    await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/nokkeltall$`));
+    await expect(page).toHaveURL(new RegExp(`/analyse/${S.orgnr}/nokkeltall$`));
   });
 
   test('the grid at three widths', async ({ page }) => {
@@ -279,7 +291,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
         }),
       );
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await page.goto(`/analyse/${S.orgnr}/oversikt`);
     await expect(card(page, 'card-missing')).toBeVisible();
     const [hero, plot, capital, strength, missing] = await boxes();
     if (hero === undefined || plot === undefined || capital === undefined || strength === undefined || missing === undefined) {
@@ -295,7 +307,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await noSidewaysScroll(page);
     // 800 px: still 12 columns, the phone plot in the 7-column card, three narrow cards side by side.
     await page.setViewportSize({ width: 800, height: 900 });
-    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await page.goto(`/analyse/${S.orgnr}/oversikt`);
     await expect(card(page, 'card-missing')).toBeVisible();
     const narrow = await boxes();
     const [, narrowPlot, ...smalls] = narrow;
@@ -310,7 +322,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await noSidewaysScroll(page);
     for (const width of [375, 320]) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      await page.goto(`/analyse/${S.orgnr}/oversikt`);
       await expect(card(page, 'card-missing')).toBeVisible();
       const stacked = await boxes();
       // One column, in the order hero, plot and list, the three cards; every card inside the screen.
@@ -326,7 +338,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     outsideDemoData();
     for (const width of [1280, 375, 320]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      await page.goto(`/analyse/${S.orgnr}/oversikt`);
       await expect(beeswarm(page)).toBeVisible();
       // Two layouts are rendered; the one not shown has display: none, so exactly one image is accessible.
       await expect(beeswarm(page).locator('svg[role="img"]')).toHaveCount(2);
@@ -338,17 +350,17 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
   test('the beeswarm is an image with a table', async ({ page }) => {
     outsideDemoData();
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await page.goto(`/analyse/${S.orgnr}/oversikt`);
     const image = beeswarm(page).getByRole('img');
     await expect(image).toHaveAttribute('focusable', 'false');
     await expect(image).not.toHaveAttribute('tabindex');
     // Every child hidden: the image's one child is an aria-hidden group.
     expect(await image.evaluate((svg) => [...svg.children].map((child) => child.getAttribute('aria-hidden')))).toEqual(['true']);
     // The legend names each marker with its value.
-    const c = expectedBenchmark(A.orgnr ?? '', 0).driftsmargin.comparison;
-    if (c.kind !== 'compared' || c.best === null) throw new Error('demo A’s driftsmargin is not compared');
+    const c = expectedBenchmark(S.orgnr ?? '', 0).driftsmargin.comparison;
+    if (c.kind !== 'compared' || c.best === null) throw new Error('the subject’s driftsmargin is not compared');
     await expect(beeswarm(page).getByTestId('beeswarm-legend').locator('li')).toHaveText([
-      `${A.navn ?? ''} ${pct(c.subject)}`,
+      `${S.navn ?? ''} ${pct(c.subject)}`,
       `Median ${pct(c.median)}`,
       `Beste fjerdedel ${pct(c.best.quartile)}`,
     ]);
@@ -358,8 +370,8 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await expect(region).toBeVisible();
     await expect(region).toHaveAttribute('tabindex', '0');
     const table = region.getByRole('table', { name: nb['oversikt.beeswarm.caption'] });
-    await expect(table.locator('tbody tr')).toHaveCount(expectedGroup(A.orgnr ?? '', 0).length + 1);
-    await expect(table.locator('tr[data-selected="true"] th')).toHaveText(`${A.navn ?? ''} ${nb['oversikt.beeswarm.selected']}`);
+    await expect(table.locator('tbody tr')).toHaveCount(expectedGroup(S.orgnr ?? '', 0).length + 1);
+    await expect(table.locator('tr[data-selected="true"] th')).toHaveText(`${S.navn ?? ''} ${nb['oversikt.beeswarm.selected']}`);
     await beeswarm(page).getByRole('button', { name: nb['chart.hideNumbers'] }).click();
     await expect(region).toBeHidden();
     // Forced colours: the company, the peers, the median and beste fjerdedel each drawn their own way.
@@ -382,7 +394,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
   test('Driftsmargin reads the same in the list, the table and Peers', async ({ page }) => {
     outsideDemoData();
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await page.goto(`/analyse/${S.orgnr}/oversikt`);
     const rows = async (locator: Locator) =>
       locator.evaluateAll((trs) =>
         trs.map((tr) => ({
@@ -397,7 +409,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     expect(nearest).toHaveLength(5);
     // "Se alle {n}" goes to Peers, keeping the settings.
     await beeswarm(page).getByTestId('beeswarm-see-all').click();
-    await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/peers$`));
+    await expect(page).toHaveURL(new RegExp(`/analyse/${S.orgnr}/peers$`));
     const peerRows = rendered(page).getByRole('region', { name: nb['peers.regionLabel'] }).locator('tbody tr');
     // The Peers list lists the group, as "Vis tallene" does (no peer is excluded here).
     await expect(peerRows).toHaveCount(numbers.length);
@@ -409,7 +421,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
   test('tooltip on hover', async ({ page }) => {
     outsideDemoData();
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto(`/analyse/${A.orgnr}/oversikt`);
+    await page.goto(`/analyse/${S.orgnr}/oversikt`);
     const desktop = beeswarm(page).locator('[data-layout="desktop"]');
     await expect(desktop.getByRole('img')).toBeVisible();
     // A dot on the axis, away from the edge columns: the middle of the swarm's dots by x.
@@ -446,7 +458,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     test('tooltip on touch', async ({ page }) => {
       outsideDemoData();
       await page.setViewportSize({ width: 375, height: 900 });
-      await page.goto(`/analyse/${A.orgnr}/oversikt`);
+      await page.goto(`/analyse/${S.orgnr}/oversikt`);
       const phone = beeswarm(page).locator('[data-layout="phone"]');
       const svg = phone.getByRole('img');
       await expect(svg).toBeVisible();

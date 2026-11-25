@@ -3,7 +3,10 @@
 // scroll region, below the floor, `ekskl`, another currency, the phone
 // table and the payload; since Story 3.1b, the document rows of a subject
 // outside the demo data, the info popover, and every row on the phone; since
-// Story 3.2, the two decomposition fold-outs.
+// Story 3.2, the two decomposition fold-outs. Story 5.4: the subject is
+// OUTSIDE (e2e/seed.ts), a company outside the demo data chosen by a fixed
+// rule, as the placeholder demo A was; demo A is in the demo data now, and
+// its table is tested in e2e/demo-waterfall.spec.ts.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
@@ -16,8 +19,9 @@ import {
 } from '../src/engine/format.ts';
 import type { Comparison } from '../src/engine/types.ts';
 import {
-  A,
+  OUTSIDE as A,
   companies,
+  documentFigureOrgnrs,
   covered,
   expectedBenchmark,
   expectedGroup,
@@ -40,7 +44,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
   const cell = (page: Page, figure: string, name: string) => desktopRow(page, figure).locator(`td[data-cell="${name}"]`);
   const pct = (value: { toString(): string }) => formatPercent(value.toString());
 
-  test('demo A: every cell matches the engine run on the seed', async ({ page }) => {
+  test('every cell matches the engine run on the seed', async ({ page }) => {
     const expected = expectedBenchmark(A.orgnr ?? '', 0);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
@@ -48,7 +52,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await expect(page.getByText(nb['keyFigures.topNote'])).toBeVisible();
     for (const figure of ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel'] as const) {
       const c = expected[figure].comparison;
-      if (c.kind !== 'compared') throw new Error(`demo A's ${figure} is not compared`);
+      if (c.kind !== 'compared') throw new Error(`the subject's ${figure} is not compared`);
       await expect(cell(page, figure, 'own')).toHaveText(pct(c.subject));
       await expect(cell(page, figure, 'median')).toHaveText(pct(c.median));
       await expect(desktopRow(page, figure).locator('th')).toContainText(
@@ -65,10 +69,10 @@ test.describe('the key-figure table (Story 1.8)', () => {
         );
       }
     }
-    // The fixture's state: demo A's driftsmargin is below beste fjerdedel, a profit amount, followed by
+    // The fixture's state: the subject's driftsmargin is below beste fjerdedel, a profit amount, followed by
     // its "Hvordan er dette regnet?" (Story 3.7).
     const gap = expected.driftsmargin.gap;
-    if (gap.kind !== 'amount') throw new Error(`demo A's driftsmargin gap is ${gap.kind}, not an amount`);
+    if (gap.kind !== 'amount') throw new Error(`the subject's driftsmargin gap is ${gap.kind}, not an amount`);
     await expect(cell(page, 'driftsmargin', 'gap')).toHaveText(
       `${formatKronerExact(gap.ore.toString())}${nb['keyFigures.perYear']}${nb['provenance.trigger']}`,
     );
@@ -126,7 +130,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await expect(cell(page, 'driftsmargin', 'median')).toBeVisible();
   });
 
-  test('ekskl takes peers out of every figure: excluded until below the floor, and one out of demo A', async ({ page }) => {
+  test('ekskl takes peers out of every figure: excluded until below the floor, and one out of the subject', async ({ page }) => {
     if (belowFloor === undefined) throw new Error('no covered non-small AS below the floor at band 0 in the seed');
     // The same shown group as the Peers tab: excluded peers leave every aggregate.
     // At most MAX_EKSKL (20) can be excluded, so the subject's widest pool is small.
@@ -142,7 +146,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
 
     const one = expectedGroup(A.orgnr ?? '', 0)[0]?.orgnr ?? '';
     const withoutOne = expectedBenchmark(A.orgnr ?? '', 0, [one]).driftsmargin.comparison;
-    if (withoutOne.kind !== 'compared') throw new Error('demo A is not compared without one peer');
+    if (withoutOne.kind !== 'compared') throw new Error('the subject is not compared without one peer');
     await page.goto(`/analyse/${A.orgnr}/nokkeltall?ekskl=${one}`);
     await expect(desktopRow(page, 'driftsmargin').locator('th')).toContainText(`${withoutOne.count} sammenlignbare brukt`);
     await expect(cell(page, 'driftsmargin', 'median')).toHaveText(pct(withoutOne.median));
@@ -199,13 +203,13 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await expectNoPeerFields(request, `/analyse/${A.orgnr}/nokkeltall`, {
       pool: expectedPool(A.orgnr ?? '', 0),
       marker: nb['keyFigures.regionLabel'],
-      // Story 3.7: demo A's one amount is driftsmargin's, outside the demo data.
+      // Story 3.7: the subject's one amount is driftsmargin's, outside the demo data.
       fields: PROFIT_DRILL_FIELDS,
     });
   });
 
   // Story 3.1b: every document row, in key-figures order, and how they read
-  // for a subject outside the demo data (demo A is not on the manifest's list).
+  // for a subject outside the demo data (not on the manifest's list).
   const ORDER = [
     'driftsmargin',
     'ebitda',
@@ -227,6 +231,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
   const OUTSIDE_ROWS = ['ebitda', 'vare', 'lonn', 'andre', 'total', 'kfd', 'lgd', 'oml', 'kontant', 'vekst'];
 
   test('outside the demo data: document rows withheld', async ({ page }) => {
+    expect(documentFigureOrgnrs.has(A.orgnr ?? '')).toBe(false);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
     await expect(region(page).locator('tr[data-figure]')).toHaveCount(ORDER.length);
@@ -322,8 +327,8 @@ test.describe('the key-figure table (Story 1.8)', () => {
   }
 });
 
-// Story 3.2: the two decomposition fold-outs (FR-26). Demo A is not on the
-// manifest's list, so it is also the subject outside the demo data: the
+// Story 3.2: the two decomposition fold-outs (FR-26). The subject is not on
+// the manifest's list, so it is outside the demo data: the
 // margin fold-out is compared (both factors are API), the pay fold-out is
 // not read in v1.
 test.describe('the decomposition fold-outs (Story 3.2)', () => {
@@ -335,7 +340,7 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
   async function expectFactor(factor: Locator, label: string, c: Comparison, format: (value: string) => string): Promise<void> {
     await expect(factor).toContainText(label);
     await expect(factor).toContainText(companyName);
-    if (c.kind === 'subject_absent') throw new Error(`${label}: demo A has its own value`);
+    if (c.kind === 'subject_absent') throw new Error(`${label}: the subject has its own value`);
     await expect(factor).toContainText(format(c.subject.toString()));
     await expect(factor).toContainText(`${c.count} sammenlignbare brukt · ${c.leftOut} utelatt`);
     if (c.kind === 'compared') {
@@ -353,7 +358,7 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     const margin = api.driftsmargin.comparison;
     const turnover = expectedTurnover(A.orgnr ?? '', 0).comparison;
     if (margin.kind !== 'compared' || turnover.kind !== 'compared') {
-      throw new Error('demo A: both factors are compared at the default band');
+      throw new Error('the subject: both factors are compared at the default band');
     }
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
@@ -396,7 +401,7 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     await expect(payBody.getByTestId('distribution-strip')).toHaveCount(0);
   });
 
-  // Story 3.3: demo A is outside the demo data, so "Hva forklarer marginavviket?" reads "Ikke i demodataene".
+  // Story 3.3: the subject is outside the demo data, so "Hva forklarer marginavviket?" reads "Ikke i demodataene".
   test('the waterfall is not in the demo data', async ({ page }) => {
     for (const [width, scope] of [
       [1280, region],

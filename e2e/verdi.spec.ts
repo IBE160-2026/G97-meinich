@@ -1,6 +1,6 @@
 // The Verdi tab (Story 3.5; FR-30, FR-31, FR-62) against the production
 // build and the loaded demo seed: the closable-share control and the three
-// cards for demo A and B, the share written with one `history.replaceState`,
+// cards, the share written with one `history.replaceState`,
 // the share kept by every later link, "· Endre i Verdi" wherever the top
 // note is, the payload, and the phone. Every expected amount is the
 // engine's, computed here from the seed (e2e/seed.ts), with the median
@@ -14,10 +14,14 @@
 // change and a reload, the payload unchanged with a multiple, and the
 // phone. Every read after a `replaceState` change first waits for the
 // change to render (PR #78).
+//
+// Story 5.4: the subject is OUTSIDE (e2e/seed.ts), a company outside the
+// demo data with a median step, chosen by a fixed rule: the placeholder demo
+// A these tests were written for was both, and the chosen demo A is neither
+// (it is in the demo data, and its driftsmargin lies above the median).
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
-import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 import { medianStep } from '../src/engine/closable.ts';
 import { Decimal } from '../src/engine/decimal.ts';
 import { formatKronerExact, formatMultiple, formatWholePercentNumber, wholeKroner } from '../src/engine/format.ts';
@@ -25,8 +29,9 @@ import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { computeApiKeyFigures, resolveApiInputs } from '../src/engine/key-figures.ts';
 import { expectNoPeerFields, expectWireSet } from './payload.ts';
 import {
-  A,
+  OUTSIDE,
   companyShown,
+  documentFigureOrgnrs,
   expectedBenchmark,
   expectedGroup,
   expectedPool,
@@ -83,6 +88,11 @@ function evOracle(oracle: ReturnType<typeof profitOracle>, share: number | 'medi
   };
 }
 
+/** The product line for an EV oracle: "≈" or "=" as the displayed operands give (Story 3.6, decision 3). */
+function productLine(expected: ReturnType<typeof evOracle>): string {
+  return fill(expected.approximate ? 'verdi.ev.productApprox' : 'verdi.ev.product', { a: expected.a, m: expected.m, v: expected.v });
+}
+
 /** Records every call the page's own code makes to window.history.replaceState (see "a share change …"). */
 async function countReplaceState(page: Page): Promise<void> {
   await page.evaluate(() => {
@@ -125,17 +135,13 @@ const evSection = (page: Page) => rendered(page).getByTestId('verdi-ev');
 const evField = (page: Page) => evSection(page).getByRole('textbox', { name: nb['verdi.ev.label'] });
 const ev = (page: Page, part: 'value' | 'product' | 'explanation' | 'empty' | 'reason') => evSection(page).locator(`[data-ev="${part}"]`);
 
-const DEMOS = DEMO_COMPANIES.map((demo) => ({ ...demo, oracle: profitOracle(demo.orgnr) }));
-const DEMO_A = ((): (typeof DEMOS)[number] => {
-  const demo = DEMOS[0];
-  if (demo === undefined) throw new Error('no demo A');
-  return demo;
-})();
+const SUBJECT = { orgnr: OUTSIDE.orgnr ?? '', navn: OUTSIDE.navn ?? '', oracle: profitOracle(OUTSIDE.orgnr ?? '') };
 
 test.describe('Verdi (Story 3.5)', () => {
-  for (const demo of DEMOS) {
-    test(`${demo.navn}: the median step, the profit card at 50 % and both capital cards outside the demo data`, async ({ page }) => {
-      // Fixture: the demo company is outside the demo data (no document figures) and has a median step.
+  for (const demo of [SUBJECT]) {
+    test('outside the demo data: the median step, the profit card at 50 % and both capital cards', async ({ page }) => {
+      // Fixture: the company is outside the demo data (no document figures) and has a median step.
+      expect(documentFigureOrgnrs.has(demo.orgnr)).toBe(false);
       expect(demo.oracle.sMed.gt(0) && demo.oracle.sMed.lt(1)).toBe(true);
       await page.goto(`/analyse/${demo.orgnr}/verdi`);
       await companyShown(page, demo.navn);
@@ -156,7 +162,7 @@ test.describe('Verdi (Story 3.5)', () => {
   }
 
   test('the median step uses the exact s: andel=median is kept with no notice', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi?andel=median`);
     await companyShown(page, navn);
     await expect(notice(page)).toHaveText('');
@@ -167,7 +173,7 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('a share change replaces the URL and keeps focus', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     // Every call the page's own code makes to window.history.replaceState. Next.js wraps the method
@@ -210,10 +216,10 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('the arrow keys wrap and choose; Tab leaves the group and Shift+Tab returns to the checked step', async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
-    // The fixture's state: demo A's steps, the median step second, all enabled.
+    // The fixture's state: the subject's steps, the median step second, all enabled.
     await expect(control(page).getByRole('radio')).toHaveCount(6);
     await expect(control(page).locator('[aria-disabled="true"]')).toHaveCount(0);
     await step(page, 0).click();
@@ -235,7 +241,7 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('a reload after a share change renders the same step and cards, with no hydration error', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     const errors: string[] = [];
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text());
@@ -259,7 +265,7 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('a tab change after a share change keeps both', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/oversikt`);
     await companyShown(page, navn);
     const hero = await page.getByTestId('hero-amount').innerText();
@@ -287,9 +293,9 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('Endre i Verdi everywhere the top note is', async ({ page }) => {
-    // Demo A: the hero and the table carry the top note; its capital card has no amount, so no note
+    // The subject: the hero and the table carry the top note; its capital card has no amount, so no note
     // (the synthetic subject's capital card is checked in e2e/synthetic-documents.spec.ts).
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     for (const fane of ['oversikt', 'nokkeltall'] as const) {
       await page.goto(`/analyse/${orgnr}/${fane}?band=1`);
       await companyShown(page, navn);
@@ -304,7 +310,7 @@ test.describe('Verdi (Story 3.5)', () => {
   });
 
   test('the HTML and the RSC payload of Verdi carry exactly the wire set', async ({ request }) => {
-    const { orgnr } = DEMO_A;
+    const { orgnr } = SUBJECT;
     const pool = expectedPool(orgnr, 0);
     const exact = pool.flatMap((peer) => {
       const margin = computeApiKeyFigures(apiInputsFromRow(keyFigureRow(String(peer.brregId)))).driftsmargin;
@@ -315,20 +321,20 @@ test.describe('Verdi (Story 3.5)', () => {
     expect(exact.length).toBeGreaterThan(pool.length / 2);
     const url = `/analyse/${orgnr}/verdi`;
     // The client component's name: in the RSC payload, and in the HTML's inline copy of it.
-    // Story 3.7: the profit card's drill-down, demo A's only amount here.
+    // Story 3.7: the profit card's drill-down, the subject's only amount here.
     expectProfitInputsStated(orgnr);
     await expectNoPeerFields(request, url, { pool, marker: 'VerdiPanel', exact, fields: PROFIT_DRILL_FIELDS });
-    await expectWireSet(request, url, orgnr, wireSetOf(DEMO_A.oracle));
+    await expectWireSet(request, url, orgnr, wireSetOf(SUBJECT.oracle));
   });
 });
 
 test.describe('EV/EBIT (Story 3.6)', () => {
   test('EV: empty by default', async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
-    // The fixture's state: demo A's profit card has an amount, so the field is enabled.
-    await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: DEMO_A.oracle.at(50), full: DEMO_A.oracle.full }));
+    // The fixture's state: the subject's profit card has an amount, so the field is enabled.
+    await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: SUBJECT.oracle.at(50), full: SUBJECT.oracle.full }));
     await expect(evSection(page).getByRole('heading', { level: 3 })).toHaveText(nb['verdi.ev.kicker']);
     await expect(evField(page)).toHaveValue('');
     await expect(evField(page)).not.toHaveAttribute('placeholder', /.*/);
@@ -341,10 +347,10 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: a multiple replaces the URL, announces once', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     const expected = evOracle(oracle, 50, '6.5');
-    // The fixture's state: at 50 % × 6,5 demo A's shown uplift × 6,5 is not the shown value, so "≈".
-    expect(expected.approximate).toBe(true);
+    // Story 5.4: the line is "≈" or "=" by the displayed operands; the "≈" case is asserted at 25 % below,
+    // the "=" case at × 1.
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     await countReplaceState(page);
@@ -357,7 +363,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await expect.poll(() => new URL(page.url()).search).toBe('?multippel=6.5');
     // Wait for the change to render before any one-shot read (PR #78).
     await expect(ev(page, 'value')).toHaveText(expected.v);
-    await expect(ev(page, 'product')).toHaveText(fill('verdi.ev.productApprox', { a: expected.a, m: expected.m, v: expected.v }));
+    await expect(ev(page, 'product')).toHaveText(productLine(expected));
     await expect(ev(page, 'explanation')).toHaveText(nb['verdi.ev.explanation']);
     await expect(ev(page, 'empty')).toHaveCount(0);
     await expect(evField(page)).toBeFocused();
@@ -412,7 +418,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: invalid input', async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     for (const typed of ['0', '50,1', '6,55', 'abc', '6 ,5', '-1']) {
       // From a URL holding a valid multiple, so the removal shows.
       await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
@@ -434,7 +440,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: a share change keeps the multiple', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
     await companyShown(page, navn);
     await expect(ev(page, 'value')).toHaveText(evOracle(oracle, 50, '6.5').v);
@@ -461,7 +467,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: a reload renders the same, with no hydration error', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     const errors: string[] = [];
     page.on('console', (message) => {
       if (message.type() === 'error') errors.push(message.text());
@@ -485,7 +491,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
         return copy.textContent;
       });
     const before = await shown();
-    expect(before).toContain(fill('verdi.ev.productApprox', { a: expected.a, m: expected.m, v: expected.v }));
+    expect(before).toContain(productLine(expected));
     expect(before).not.toContain(fill('verdi.ev.announce', { v: expected.v }));
     await page.reload();
     await companyShown(page, navn);
@@ -498,7 +504,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
 
   test('EV: band and share are kept by every multiple entry', async ({ page }) => {
     // Band 1 is another group than the oracles' band 0, so the value is checked as shown, not computed.
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi?band=1&andel=25`);
     await companyShown(page, navn);
     // The fixture's state: the URL's band and share are valid, so nothing falls back.
@@ -521,7 +527,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: from an error to a value, and from an error to an empty field', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     await countReplaceState(page);
@@ -562,7 +568,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: two different invalid entries announce twice, the same one twice announces once', async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     await recordAnnouncements(page);
@@ -581,7 +587,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: Enter and an immediate blur are one entry', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     await countReplaceState(page);
@@ -599,7 +605,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: a multiple of 1 writes the "=" line', async ({ page }) => {
-    const { oracle, orgnr, navn } = DEMO_A;
+    const { oracle, orgnr, navn } = SUBJECT;
     const expected = evOracle(oracle, 50, '1');
     // The fixture's state: × 1 the shown uplift is the shown value, so the line is exact.
     expect(expected.approximate).toBe(false);
@@ -610,9 +616,9 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: a peer change keeps the multiple, and Verdi shows it after', async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     const peer = expectedGroup(orgnr, 0)[0]?.orgnr ?? '';
-    // The fixture's state: demo A has a peer to exclude.
+    // The fixture's state: the subject has a peer to exclude.
     expect(peer).toMatch(/^\d{9}$/);
     await page.goto(`/analyse/${orgnr}/peers?multippel=6.5`);
     await companyShown(page, navn);
@@ -628,26 +634,26 @@ test.describe('EV/EBIT (Story 3.6)', () => {
   });
 
   test('EV: the payload with a multiple carries exactly the wire set', async ({ request }) => {
-    const { orgnr } = DEMO_A;
+    const { orgnr } = SUBJECT;
     // The multiple adds no wire value: the browser computes EV from the profit's own.
-    await expectWireSet(request, `/analyse/${orgnr}/verdi?multippel=6.5`, orgnr, wireSetOf(DEMO_A.oracle));
+    await expectWireSet(request, `/analyse/${orgnr}/verdi?multippel=6.5`, orgnr, wireSetOf(SUBJECT.oracle));
   });
 });
 
-/** Demo A's wire values: the profit at full convergence and at the median step, and s_med. */
-function wireSetOf(oracle: (typeof DEMOS)[number]['oracle']): string[] {
-  const { orgnr } = DEMO_A;
+/** The subject's wire values: the profit at full convergence and at the median step, and s_med. */
+function wireSetOf(oracle: ReturnType<typeof profitOracle>): string[] {
+  const { orgnr } = SUBJECT;
   const c = expectedBenchmark(orgnr, 0).driftsmargin.comparison;
-  if (c.kind !== 'compared') throw new Error('demo A is compared');
+  if (c.kind !== 'compared') throw new Error('the subject is compared');
   const revenue = resolveApiInputs(apiInputsFromRow(keyFigureRow(newestFiling(orgnr).brreg_id ?? ''))).sumDriftsinntekter;
-  if (revenue === null) throw new Error('demo A has a revenue');
+  if (revenue === null) throw new Error('the subject has a revenue');
   const atMedian = c.median.minus(c.subject).mul(new Decimal(revenue.ore.toString()));
   return [oracle.fullExact.toString(), atMedian.toString(), oracle.sMed.toString()].sort();
 }
 
 for (const width of [375, 320]) {
   test(`at ${width} px: the control 3 × 2, the cards stacked, targets at least 24 × 24, no sideways scroll`, async ({ page }) => {
-    const { orgnr, navn } = DEMO_A;
+    const { orgnr, navn } = SUBJECT;
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
@@ -682,7 +688,7 @@ for (const width of [375, 320]) {
     expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(24);
     await field.fill('6,5');
     await field.press('Enter');
-    await expect(ev(page, 'value')).toHaveText(evOracle(DEMO_A.oracle, 50, '6.5').v);
+    await expect(ev(page, 'value')).toHaveText(evOracle(SUBJECT.oracle, 50, '6.5').v);
     await expect(ev(page, 'product')).toBeVisible();
     await noSidewaysScroll(page);
     await field.fill('abc');
@@ -692,7 +698,7 @@ for (const width of [375, 320]) {
   });
 }
 
-// Demo A is the subject the tests above name.
-test('demo A is the seed’s first demo company', () => {
-  expect(A.orgnr).toBe(DEMO_A.orgnr);
+// The subject the tests above name is outside the demo data (Story 5.4).
+test('the subject is outside the demo data', () => {
+  expect(documentFigureOrgnrs.has(SUBJECT.orgnr)).toBe(false);
 });

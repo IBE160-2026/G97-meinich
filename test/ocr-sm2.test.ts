@@ -60,7 +60,7 @@ import {
   renderReport,
   storedGateCounts,
 } from '../scripts/ocr-sm2.ts';
-import { parseCsv } from '../scripts/seed-format.ts';
+import { LABELLED_SET_FILE, parseCsv, parseLabelledSet } from '../scripts/seed-format.ts';
 import { DOCUMENT_FIGURE_COLUMNS } from '../src/engine/document-inputs.ts';
 import { businessType, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
 
@@ -606,11 +606,21 @@ describe('before and after Story 2.5b', () => {
   });
 
   it('gives the seed the same fingerprints as pnpm derive stored in it', () => {
-    // Every committed fingerprint is the derivation of a seed column: the
-    // totals from the engine here equal the stored rows' totals.
+    // Every committed fingerprint of a reference company is the derivation
+    // of a seed column: the totals from the engine here equal the stored
+    // rows' totals. The export writes no labelled-set company's fingerprint
+    // (Story 5.4, decision 2), so those companies are left out on both sides.
     const inputs = readInputs(root);
-    const totals = typeTotals(inputs.stored, inputs.documents, inputs.subtotals);
-    const [head, ...rows] = parseCsv(readFileSync(path.join(root, 'seed/demo/fingerprint.csv'), 'utf8'));
+    const labelled = new Set(parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8'))));
+    const reference = new Set(inputs.drawn.map((filing) => filing.orgnr).filter((orgnr) => !labelled.has(orgnr)));
+    const totals = typeTotals(
+      inputs.stored.filter((column) => reference.has(column.orgnr)),
+      inputs.documents.filter((document) => reference.has(document.orgnr)),
+      inputs.subtotals,
+    );
+    const [header, ...all] = parseCsv(readFileSync(path.join(root, 'seed/demo/fingerprint.csv'), 'utf8'));
+    const head = header;
+    const rows = all.filter((row) => reference.has(row[header?.indexOf('orgnr') ?? -1] ?? ''));
     const at = (name: string) => head?.indexOf(name) ?? -1;
     const cell = (row: string[], name: string) => {
       const value = row[at(name)];

@@ -2630,18 +2630,18 @@ So that the full analysis runs locally without any key, within what the licence 
 
 **Given** the gate stays closed (deferred reconcile item 1)
 **When** the demo seed is exported
-**Then** it contains fingerprint categories for allow-listed companies only — A, B, their peers and the OCR reference filings keep theirs, stored though they select nothing in v1 — and every 62.100 company, on the allow-list or not, gets a group from funnel stages 1–3 with match basis "Kun bransje og størrelse" and a stored classification
+**Then** it contains fingerprint categories for allow-listed companies only — A, B, their peers and the OCR reference filings keep theirs, stored though they select nothing in v1, except any company in the labelled set, whose fingerprint is never committed (Story 5.4, decision 2) — and every 62.100 company, on the allow-list or not, gets a group from funnel stages 1–3 with match basis "Kun bransje og størrelse" and a stored classification
 **And** the Peers tab shows stages 4 and 5 as switched off for every company, on the allow-list or not — the three-stage funnel and its note (Story 5.2) — so no separate outside-the-demo-seed funnel state is needed, and the about page's document-figure paragraph drops "for resten av bransjen bare avledede kategorier"
 **And** v1 reads no other 62.100 company's documents for the seed (FR-3; the labelled set's documents and fingerprints stay local, for Story 5.2), so the demo seed is this fallback whether the gate opens or not; an open gate allows fingerprint categories to be committed for companies outside the allow-list once a later document run (`pnpm ingest --documents <list>`) has read them
 
 **Given** `seed/allow-list.json`
-**When** it is written by `pnpm seed:export`
+**When** its entries are written by `pnpm ingest:document-set --allow-list` and written back by `pnpm seed:export`
 **Then** it lists A, B, C, A's and B's peers at all three band steps, and the OCR reference filings from Story 2.3 (reason "OCR-referansesett"), each entry with its reason, and a reviewer approves it in the PR
 **And** the allow-list test reads every committed seed file regardless of its tag and fails on document figures for any unlisted orgnr, and the peer-group test asserts A's and B's groups at every step are subsets of the list
 
 **Given** the committed demo seed
 **When** `pnpm seed` loads it
-**Then** it holds register data and API figures for every 62.100 company, stored classifications for every AS among them, full document figures for A, B and the allow-listed peers, API figures for C, and stored explanations for every 62.100 default group once Epic 4 and Story 5.5 are done (until then the seed carries none, and the explanation card shows its no-stored-explanation state)
+**Then** it holds register data and API figures for every 62.100 company, stored classifications for every AS among them, full document figures for A, B and the allow-listed peers whose documents are read, API figures for C, and stored explanations for every 62.100 default group once Epic 4 and Story 5.5 are done (until then the seed carries none, and the explanation card shows its no-stored-explanation state)
 **And** loading twice leaves the same state, and the CI seed job passes
 
 **Given** the committed demo seed

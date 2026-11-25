@@ -16,6 +16,7 @@ import {
   SEED_DIR,
   parseAllowList,
   parseAllowListEntries,
+  labelledDocumentOrgnrCount,
   parseCsv,
   parseDrawn,
   parseLabelledSet,
@@ -64,6 +65,14 @@ describe('seed/allow-list.json', () => {
     expect(at).toBeGreaterThanOrEqual(0);
     const count = rows.filter((row) => labelled.has(row[at] ?? '')).length;
     expect(count, 'fingerprint.csv rows of labelled-set companies').toBe(0);
+  });
+
+  // Story 5.4, decision 2: the labelled set's document rows are not committed, except the OCR
+  // reference companies'. The failure gives a count only, never an orgnr.
+  it('holds no document row of a labelled-set company outside the reference draw', () => {
+    const labelled = parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8')));
+    const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, REFERENCE_DRAW_FILE), 'utf8')));
+    expect(labelledDocumentOrgnrCount(files, labelled, drawn), 'labelled-set companies with document rows').toBe(0);
   });
 
   it('lists every reference orgnr with the reason OCR-referansesett', () => {

@@ -2751,6 +2751,11 @@ So that the project is demonstrably runnable without the authors' keys or accoun
 **When** it is checked at 320 px
 **Then** the body does not scroll horizontally
 
+**Given** the commit that is delivered
+**When** it is checked just before delivery
+**Then** `pnpm audit` is run on it and shows no advisory in `next`, because the build's security check asks the registry about vulnerabilities each time it runs, so an advisory published after the last check stops a sensor's `pnpm build` on a fresh clone (issue #71)
+**And** an advisory found is fixed by a patch upgrade before delivery, and the audit's result is recorded in the PR
+
 **Given** the PR
 **When** it is written
 **Then** it notes that CI has migrated a fresh database and loaded the committed seed on every pull request since Story 1.3b, so this is the final confirmation on a clean machine, not the first run

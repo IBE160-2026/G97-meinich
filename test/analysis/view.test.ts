@@ -91,6 +91,7 @@ describe('covered company with a filing', () => {
       redirect: `/analyse/${COVERED}/oversikt`,
       fane: null,
       notice: false,
+      medianNotice: false,
       title: 'Peerless',
     });
   });
@@ -113,6 +114,7 @@ describe('covered company with a filing', () => {
       redirect: null,
       fane,
       notice: false,
+      medianNotice: false,
       title: `ADMMIT AS – ${label} – Peerless`,
     });
   });
@@ -131,6 +133,7 @@ describe('covered company with a filing', () => {
       redirect: null,
       fane: 'verdi',
       notice: false,
+      medianNotice: false,
       title: 'ADMMIT AS – Verdi – Peerless',
     });
   });
@@ -141,6 +144,7 @@ describe('covered company with a filing', () => {
       redirect: null,
       fane: 'oversikt',
       notice: true,
+      medianNotice: false,
       title: 'ADMMIT AS – Oversikt – Peerless',
     });
   });
@@ -165,6 +169,7 @@ describe.each([
       redirect: null,
       fane: null,
       notice: false,
+      medianNotice: false,
       title: `${navn} – Peerless`,
     });
   });
@@ -209,6 +214,7 @@ it('a valid orgnr not in the database is not found, titled "Peerless"', () => {
     redirect: null,
     fane: null,
     notice: false,
+    medianNotice: false,
     title: 'Peerless',
   });
 });
@@ -219,6 +225,7 @@ it.each(['12345678', '123456789', '1234567890', 'abc'])('%s is an invalid orgnr,
     redirect: null,
     fane: null,
     notice: false,
+    medianNotice: false,
     title: 'Peerless',
   });
 });
@@ -279,15 +286,41 @@ describe('urlContext resolves the median step (Story 3.5)', () => {
     // The predicate is asked about the group the URL names: its band and its exclusions.
     const search = `?ekskl=${PEER}&band=1&andel=median`;
     const dropped = parseSegments({ orgnr: COVERED, fane: 'verdi' }, search, context);
-    expect(dropped).toMatchObject({ kind: 'analysis', state: { andel: 50, ekskl: [PEER], band: 1 }, invalidSettings: true });
+    expect(dropped).toMatchObject({
+      kind: 'analysis',
+      state: { andel: 50, ekskl: [PEER], band: 1 },
+      invalidSettings: false,
+      medianFallback: true,
+    });
     expect(asked).toEqual([
       { band: 0, ekskl: [] },
       { band: 1, ekskl: [PEER] },
     ]);
-    expect(analysisView(covered, dropped, search).notice).toBe(true);
+    // Story 5.4: the median notice, not the invalid-settings notice.
+    expect(analysisView(covered, dropped, search)).toMatchObject({ notice: false, medianNotice: true });
     // No group: no median step.
     const none = urlContext(() => new Set(), () => null);
-    expect(parseSegments({ orgnr: COVERED, fane: 'verdi' }, '?andel=median', none)).toMatchObject({ state: { andel: 50 }, invalidSettings: true });
+    expect(parseSegments({ orgnr: COVERED, fane: 'verdi' }, '?andel=median', none)).toMatchObject({
+      state: { andel: 50 },
+      invalidSettings: false,
+      medianFallback: true,
+    });
+  });
+
+  // Story 5.4 (deferred from Story 3.5): a peer change that leaves no median
+  // step shows analysis.notice.median, on the tab and on the bare path's
+  // redirect target, and a kept median shows neither notice.
+  it('andel=median with no median step shows the median notice, not analysis.notice', () => {
+    const none = urlContext(() => new Set(), () => null);
+    const onTab = parseSegments({ orgnr: COVERED, fane: 'verdi' }, '?andel=median', none);
+    expect(analysisView(covered, onTab, '?andel=median')).toMatchObject({ redirect: null, notice: false, medianNotice: true });
+    const bare = parseSegments({ orgnr: COVERED }, '?andel=median', none);
+    const target = analysisView(covered, bare, '?andel=median').redirect;
+    expect(target).toBe(`/analyse/${COVERED}/oversikt?andel=median`);
+    const landed = parseSegments({ orgnr: COVERED, fane: 'oversikt' }, '?andel=median', none);
+    expect(analysisView(covered, landed, '?andel=median')).toMatchObject({ notice: false, medianNotice: true });
+    const kept = parseSegments({ orgnr: COVERED, fane: 'verdi' }, '?andel=median', context);
+    expect(analysisView(covered, kept, '?andel=median')).toMatchObject({ notice: false, medianNotice: false });
   });
 });
 

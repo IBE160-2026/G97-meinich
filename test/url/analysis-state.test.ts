@@ -45,10 +45,13 @@ function run(href: string, context: ParseContext = ACCEPT_ALL): ParseResult {
   return parse(href, context);
 }
 
-function analysis(href: string, context: ParseContext = ACCEPT_ALL): { state: AnalysisState; invalidSettings: boolean } {
+function analysis(
+  href: string,
+  context: ParseContext = ACCEPT_ALL,
+): { state: AnalysisState; invalidSettings: boolean; medianFallback: boolean } {
   const result = run(href, context);
   if (result.kind !== 'analysis') throw new Error(`${href}: expected an analysis, got ${result.kind}`);
-  return { state: result.state, invalidSettings: result.invalidSettings };
+  return { state: result.state, invalidSettings: result.invalidSettings, medianFallback: result.medianFallback };
 }
 
 function canonical(href: string, context: ParseContext = ACCEPT_ALL): string {
@@ -264,10 +267,25 @@ describe('andel', () => {
     expect(invalidSettings).toBe(true);
   });
 
-  it('falls back to 50 for andel=median when no median step exists, with the flag', () => {
-    const { state, invalidSettings } = analysis(`/analyse/${SUBJECT}?andel=median`, ACCEPT_ALL);
+  // Story 5.4: the median fallback has its own flag and notice, not the
+  // invalid-settings one (a peer change can lead there from a valid link).
+  it('falls back to 50 for andel=median when no median step exists, with the median flag, not invalidSettings', () => {
+    const { state, invalidSettings, medianFallback } = analysis(`/analyse/${SUBJECT}?andel=median`, ACCEPT_ALL);
     expect(state.andel).toBe(50);
-    expect(invalidSettings).toBe(true);
+    expect(medianFallback).toBe(true);
+    expect(invalidSettings).toBe(false);
+  });
+
+  it('sets both flags when another value fell back too, and neither for a kept median', () => {
+    expect(analysis(`/analyse/${SUBJECT}?andel=median&band=x`, ACCEPT_ALL)).toMatchObject({
+      invalidSettings: true,
+      medianFallback: true,
+    });
+    expect(analysis(`/analyse/${SUBJECT}?andel=median`, WITH_MEDIAN)).toMatchObject({
+      invalidSettings: false,
+      medianFallback: false,
+    });
+    expect(analysis(`/analyse/${SUBJECT}?andel=33`, ACCEPT_ALL)).toMatchObject({ invalidSettings: true, medianFallback: false });
   });
 
   it('keeps andel=median when a median step exists', () => {
@@ -445,6 +463,7 @@ describe('parseSegments', () => {
       kind: 'analysis',
       state: { ...defaultState(SUBJECT), fane: 'oversikt' },
       invalidSettings: true,
+      medianFallback: false,
     });
     expect(parseSegments({ orgnr: '12345678' }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'length' });
     expect(parseSegments({ orgnr: '123456789' }, '', ACCEPT_ALL)).toMatchObject({ kind: 'invalid-orgnr', reason: 'checksum' });
@@ -469,11 +488,13 @@ describe('parseSegments', () => {
       kind: 'analysis',
       state: { ...defaultState(SUBJECT), fane: 'oversikt' },
       invalidSettings: true,
+      medianFallback: false,
     });
     expect(parseSegments({ orgnr: SUBJECT, fane: 'peers%2Fx' }, '', ACCEPT_ALL)).toEqual({
       kind: 'analysis',
       state: { ...defaultState(SUBJECT), fane: 'oversikt' },
       invalidSettings: true,
+      medianFallback: false,
     });
   });
 });
@@ -488,7 +509,12 @@ describe('fixed point', () => {
       if (first.kind !== 'analysis') throw new Error(href);
       const written = serialize(first.state);
       const second = parse(written, context);
-      expect(second, `${href} → ${written}`).toEqual({ kind: 'analysis', state: first.state, invalidSettings: false });
+      expect(second, `${href} → ${written}`).toEqual({
+        kind: 'analysis',
+        state: first.state,
+        invalidSettings: false,
+        medianFallback: false,
+      });
       expect(serialize((second as Extract<ParseResult, { kind: 'analysis' }>).state), href).toBe(written);
     }
   });

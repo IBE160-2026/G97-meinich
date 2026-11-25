@@ -393,7 +393,7 @@ function AnalysisBody({
         peerCount={coveredGroup?.analysisCount}
         widened={coveredGroup !== null && state.band !== DEFAULT_BAND}
       />
-      <SettingsNotice show={view.notice} />
+      <SettingsNotice show={view.notice} median={view.medianNotice} />
       {coveredGroup !== null ? <Covered subject={subject} state={state} view={view} group={coveredGroup} /> : null}
       {view.state === 'uncovered' ? (
         <OwnFigures

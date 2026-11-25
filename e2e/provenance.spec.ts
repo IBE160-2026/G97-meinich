@@ -199,8 +199,11 @@ test.describe('the drill-down (Story 3.7)', () => {
     const texts = await list.locator('li').allInnerTexts();
     expect(texts).toHaveLength(o.c.count);
     // Values only: a percent each, never a name or an orgnr.
-    for (const value of texts) expect(plain(value)).toMatch(/^−?\d+,\d %$/);
-    const values = texts.map((value) => new Decimal(plain(value).replace(' %', '').replace(',', '.').replace('−', '-')).div(100));
+    // A value of 1 000 % or more has a thousands space, as format.ts writes it.
+    for (const value of texts) expect(plain(value)).toMatch(/^−?\d{1,3}(?: \d{3})*,\d %$/);
+    const values = texts.map((value) =>
+      new Decimal(plain(value).replace(' %', '').replaceAll(' ', '').replace(',', '.').replace('−', '-')).div(100),
+    );
     for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
     // PERCENTILE.INC at 0,75 on the shown values, written as the page writes T.
     expect(formatPercent(percentileInc(values, '0.75').toString())).toBe(formatPercent(o.best.quartile.toString()));

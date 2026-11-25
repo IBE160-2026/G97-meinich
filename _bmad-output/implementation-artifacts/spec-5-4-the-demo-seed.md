@@ -2,7 +2,7 @@
 title: 'Story 5.4: The demo seed'
 type: 'feature'
 created: '2026-11-25'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '06fd41f983116e4bd69e2cbea6a386d03c85c9b3'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -170,6 +170,22 @@ context:
 - Given the PR, then it has "Planning documents:" and the section on what could go wrong, and the allow-list is approved in review.
 
 ## Implementation Notes
+
+- **Code, tests and docs** (tasks 1–3 and 5–8): an implementation subagent, commits `5916598`..`9acdeb4`. Beyond the spec, `epics.md` also records decision 2's fingerprint exception and that `--allow-list` writes the allow-list's entries.
+- **Task 4, local data** (the BMAD session, 2026-11-25):
+  - `pnpm ingest:document-set --allow-list` wrote 960 entries.
+  - The rows of the 744-orgnr exported set's complement went to `.local/document-run-5.4/`: 1 190 documents and 2 368 columns, `document.csv`, `document_column.csv` and `exported-orgnrs.txt`. They were then deleted in one transaction, whose counts matched the dump.
+  - `pnpm derive` wrote 1 454 fingerprints.
+  - `pnpm seed:export` (`6ebc86e`) wrote 1 595 documents and 3 188 columns of 331 orgnrs, and 1 419 fingerprints. The output holds no unlisted orgnr and no labelled-set fingerprint. Its only labelled-set documents are the 38 of the 8 reference companies.
+  - `seed/` grew from 14 655 944 to 15 983 186 bytes.
+  - `pnpm seed` twice, then `pnpm restore:documents`: 2 785 / 5 556 / 2 537 / 10 371, as before.
+  - Only document tables are dumped. `restore:documents` reads those two, and its derive rebuilds the fingerprints.
+- **Tests fixed by the BMAD session after the export**, where the seed now holds more than the reference set:
+  - the SM-2 report reads the reference set's rows only, and is byte-identical again (`dea74aa`);
+  - the fingerprint-completeness and rebuild checks leave out the labelled set (`dea74aa`, `cfe7d2e`);
+  - the scratch exports list the committed allow-list (`cfe7d2e`);
+  - the e2e fixes: a thousands space, the search term, OUTSIDE's step order, and the synthetic oracle's too-few text (`174308c` and after).
+- **Seed manifest:** `document_figure_orgnrs` is 331, up from 20.
 
 ## Spec Change Log
 

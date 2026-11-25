@@ -654,6 +654,8 @@ export const LABELLED_SET_FILE = 'analysis/labelled-set/document-run.json';
 // list of {orgnr, years} with nine-digit orgnrs.
 export function parseLabelledSet(json: unknown): string[] {
   if (!Array.isArray(json)) throw new SeedRefusal(`${LABELLED_SET_FILE}: must be an array`);
+  // An empty set would exclude nobody (Story 5.4 review).
+  if (json.length === 0) throw new SeedRefusal(`${LABELLED_SET_FILE}: is empty`);
   return json.map((raw: unknown, index) => {
     if (!isRecord(raw) || typeof raw.orgnr !== 'string' || !/^\d{9}$/.test(raw.orgnr) || !Array.isArray(raw.years)) {
       throw new SeedRefusal(`${LABELLED_SET_FILE} entry ${index}: must be {orgnr, years}`);

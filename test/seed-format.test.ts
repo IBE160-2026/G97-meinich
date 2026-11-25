@@ -592,6 +592,7 @@ describe('the labelled set in the export', () => {
       '100000002',
     ]);
     expect(refusal(() => parseLabelledSet({}))).toMatch(/must be an array/);
+    expect(refusal(() => parseLabelledSet([]))).toBe('analysis/labelled-set/document-run.json: is empty');
     expect(refusal(() => parseLabelledSet(['100000001']))).toMatch(/entry 0: must be \{orgnr, years\}/);
     expect(refusal(() => parseLabelledSet([{ orgnr: '1', years: [] }]))).toMatch(/entry 0/);
   });

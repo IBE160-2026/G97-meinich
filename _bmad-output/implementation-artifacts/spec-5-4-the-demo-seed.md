@@ -193,6 +193,30 @@ context:
 
 ## Review Triage Log
 
+Review pass 1, 2026-11-25. Layers: Blind Hunter (BH), Edge Case Hunter (ECH) and Verification Gap (VG). The diff `06fd41f..174308c+` excludes the seed CSVs, `seed/allow-list.json` and the manifest.
+
+| # | Finding | Verdict | Evidence | Route |
+|---|---|---|---|---|
+| 1 | VG, BH10: no test renders `analysis.notice.median` in `SettingsNotice`. Deleting the line or miswiring `median=` passes every test. | medium | No test in `test/` or `e2e/` names `settings-notice` together with the median key. `view.test.ts` checks only the boolean. | patch |
+| 2 | VG, BH8 (in part): the FR-64 peer-date line is never checked on a rendered page, and a swapped key in `capitalPeerDates` passes when the counts are equal. | medium | No e2e test matches `Peer-gruppen: Regnskapsår`. Only view-model tests cover it. | patch |
+| 3 | ECH, VG other: `?andel=median` on an uncovered, no-filing or non-AS company shows «… for denne peer-gruppen» on a page without a group. | low | `src/analysis/view.ts`, no-group branch: `medianNotice: medianFallback`. Before 5.4 this was the generic notice. A direct correction. | patch |
+| 4 | ECH: `dataQuality` `failed_reconciliation` against another filing, with no inputs, gives `not_compared` with an empty field list. | false | The only caller, `view()` in `src/analysis/provenance.ts:401`, always passes the formula's parts' inputs, so `inputs` is never empty. | reject |
+| 5 | ECH (and claim): the unlisted check reads `document_column.csv` only, so a document row without columns (refused or not read) of an unlisted company would be exported. | medium | `unlistedDocumentFigures` (`scripts/seed-format.ts:574`) reads only `document_column.csv`. Refused documents have no columns, and they exist after any document run. | patch |
+| 6 | ECH: an empty `analysis/labelled-set/document-run.json` excludes no one, so its fingerprints would be exported with the gate open. | low | `parseLabelledSet` accepts `[]`. A direct guard; the file's emptying is an everyday edit mistake. | patch |
+| 7 | BH: on a fresh clone, demo A's and B's document aggregates (P, the capital figures) leave out the 216 labelled-set peers. That is not disclosed. | low | Decision 2's consequence; for TRETOEN at band 0, P is 203 against 274 with the dump restored. A disclosure in the docs, not a code change. | patch (docs) |
+| 8 | BH: no committed-seed test checks for document rows of a labelled-set company outside the reference draw. Only the export refuses them. | medium | `test/allow-list.test.ts` checks fingerprints only. A hand-edited or old seed would pass. | patch |
+| 9 | BH: `docs/licence-gate.md` says the only fingerprints outside the list are the labelled set's. | false | Checked: the dump `.local/document-run-5.4/` holds 837 orgnrs, all in the labelled set. Corollary (low, patch): README, AGENTS.md and the technical note's "(the 2.1b run read the placeholder demo companies' pools)" describe an empty set, because all 412 are on the list. | reject; corollary patched |
+| 10 | BH: the planning docs say the labelled set's documents stay local, but 38 documents of the 8 reference companies in the set are committed. | low | `epics.md:2635`; the technical note. Needs the reference-set exception. | patch (docs) |
+| 11 | BH: the recompiled epic context dropped "no committed file … gives a per-orgnr classification, fingerprint or label for the labelled set", and classifications for 352 companies are published. | low | Publishing classifications is a recorded decision, not a reinterpretation: `docs/ai-log.md:825` (Story 2.6) records that `classification.csv` holds every AS, the 845 included. The context should keep the rule with that exception. | patch (context, Design Notes cite) |
+| 12 | BH: the Spec Change Log's reason ("the 2.1b run read band 0 only") is imprecise. `seed/document-run.json` now lists 92 orgnrs with no read document. | low | Counted: 92 of 535 have no document in the seed or the dump. The change-log wording is this spec's (rejected: the fix edits the spec). The README note about the 92 is patched. | partial patch |
+| 13 | BH: P ≥ 10 at bands 1–2 and demo B's analysis are untested, though the docs claim them. | medium | `e2e/demo-waterfall.spec.ts` covers demo A at band 0 only. | patch |
+| 14 | BH: the payload leak scans moved to OUTSIDE, so none runs on a real demo company whose peers have committed document figures. `capitalPeersDateLine` throws on a count mismatch. | high | The story's main risk is document figures reaching a page. Its scans now run only on a subject whose peers have none. | patch |
+| 15 | BH: e2e "≈" in `provenance.spec.ts` is computed with the app's own `shareLineIsApproximate`, which is tautological. | medium | `e2e/provenance.spec.ts:145`. The check passes with the rule broken. | patch |
+| 16 | BH: OUTSIDE is chosen with a data condition (a median step). | low | A fixed, deterministic rule for choosing the subject, with its state asserted as fixture checks that fail loudly. No expected value is chosen by it. Left for Meinich to see. | reject (flagged) |
+| 17 | BH: X1 closed although the `revenue_not_positive` case is not named. | low | Approved as proposed at checkpoint 1 with that case stated. The deferred entry's resolution should say so. | patch (docs) |
+| 18 | BH: docs not final: the ai-log Outcome line, the README restore counts. | low | Both still describe the state before the export. | patch (docs) |
+| 19 | BH: AGENTS.md's int8 rule names `parseOre`/`parseDecimal` but not `parseId`. | low | AGENTS.md "must match the code". | patch |
+
 ## Design Notes
 
 **Measured 2026-11-25 on the local database, with `.local/document-run-2.5d/` restored, read-only as `reader`.** The manifest test was replaced by `true` in a scratch script (`.local/analysis-5.4/`).

@@ -232,3 +232,18 @@ Review pass 1, 2026-11-25. Layers: Blind Hunter (BH), Edge Case Hunter (ECH) and
 - The seed is estimated at about +1.28 MB, to 15.9 MB.
 
 **Classifications are published, fingerprints are not.** The committed `seed/demo/classification.csv` holds a type for 352 of the labelled set's 845 companies (a total, read by the review session and checked here). It is published because the AGENTS.md rule covers fingerprint results only, and decision 2 follows that rule. Both the classifications (Story 2.6's full run, "with the 845 like any other company") and the fingerprints were produced after the set was labelled. The export of classifications is unchanged. `docs/ai-log.md`'s entry on decision 2 says the same.
+
+**Pass 1 outcome:** the patches landed in `8f697e1`..`04eaad4` and `d630f20`, one commit per fix group. The implementation subagent wrote them, re-engaged. The BMAD session then ran the full verification in order:
+
+| Step | Result |
+|---|---|
+| `check:pins`, `check:env`, `lint`, `typecheck` | clean |
+| `pnpm test --maxWorkers=2` | 2 127 passed |
+| `pnpm seed` twice, `pnpm seed:export` | `seed/` unchanged |
+| `test:db` | 208 passed |
+| `test:ingest` | 392 passed |
+| `build`, `check:routes` | clean |
+| e2e `chromium` | 209 passed |
+| e2e `db-down` | 7 passed |
+| e2e `synthetic --no-deps` | 31 passed; 0 `SYNTETISK%` before and after; manifest 331 before and after |
+| `restore:documents` | 2 785 / 5 556 / 2 537 / 10 371 |

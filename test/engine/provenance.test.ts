@@ -250,6 +250,45 @@ describe('checked: the waterfall’s start, end and sum (Story 3.8, decision 4)'
   });
 });
 
+// Story 5.4 (deferred from Story 3.7, review of PR #82): a failed column is
+// tied to the shown filing as a read one is. Compared with another filing,
+// it names no deviation; compared with the shown one, it names what failed.
+describe('a failed column and the shown filing (Story 5.4)', () => {
+  const FILING = 4242n;
+  const API: ApiInputs = {
+    sumDriftsinntekter: 1_000_000_000n,
+    driftsresultat: 343_500_000n,
+    sumDriftskostnad: 656_500_000n,
+    sumEiendeler: 300_000_000n,
+    sumEgenkapitalGjeld: 300_000_000n,
+    sumEgenkapital: null,
+    sumGjeld: null,
+  };
+  const PASS = Object.fromEntries(CHECKS.map((check) => [check, 'pass'])) as Record<CheckId, CheckResult>;
+  const basis = { kind: 'failed_reconciliation', filingYear: 2025 } as const;
+  const inputs = (['driftsresultat', 'sumDriftsinntekter'] as const).map((field) => {
+    const input = apiInput(API, field);
+    if (input === null) throw new Error(`the fixture states ${field}`);
+    return input;
+  });
+  const facts = (brregId: bigint | null): StoredDocumentFacts => ({
+    readAt: new Date('2026-10-21T08:00:00Z'),
+    brregId,
+    current: { checks: PASS, apiCheck: 'fail', apiFailFields: ['driftsresultat'], figures: column({}) },
+  });
+  const quality = (brregId: bigint | null) =>
+    dataQuality({ basis, facts: facts(brregId), api: API, inputs, amount: 'api', filingBrregId: FILING });
+
+  it('failed against another filing is not compared', () => {
+    expect(quality(4243n)).toEqual({ kind: 'not_compared', fields: ['driftsresultat', 'sumDriftsinntekter'] });
+    expect(quality(null)).toEqual({ kind: 'not_compared', fields: ['driftsresultat', 'sumDriftsinntekter'] });
+  });
+
+  it('failed against the shown filing names what differed', () => {
+    expect(quality(FILING)).toEqual({ kind: 'failed', apiFields: ['driftsresultat'], checks: [] });
+  });
+});
+
 describe('Σ bars is (m − M) × R exactly (Story 3.8)', () => {
   it('Σ bars is (m − M) × R exactly', () => {
     const result = marginWaterfall(WF_SUBJECT, WF_PEERS, 2025, 'NOK');

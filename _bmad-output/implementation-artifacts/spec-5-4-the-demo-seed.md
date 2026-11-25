@@ -2,7 +2,7 @@
 title: 'Story 5.4: The demo seed'
 type: 'feature'
 created: '2026-11-25'
-status: 'in-review'
+status: 'done'
 baseline_commit: '06fd41f983116e4bd69e2cbea6a386d03c85c9b3'
 route: 'dispatch'
 review_loop_iteration: 0

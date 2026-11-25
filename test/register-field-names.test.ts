@@ -59,7 +59,7 @@ describe('the names in the drill-down', () => {
     const { ProvenanceSteps } = await import('../src/components/analysis/provenance-steps.tsx');
     const { capitalProvenance, profitProvenance, provenanceSubject } = await import('../src/analysis/provenance.ts');
     const { benchmarkApiFigures, benchmarkDocumentFigures } = await import('../src/engine/benchmark.ts');
-    const { readBasis, TEN_PEERS } = await import('./analysis/document-fixture.ts');
+    const { readBasis, TEN_PEER_DATES, TEN_PEERS } = await import('./analysis/document-fixture.ts');
     const nb = (await import('../src/messages/nb.json', { with: { type: 'json' } })).default;
     const api = {
       sumDriftsinntekter: 1_000_000_000n,
@@ -78,7 +78,7 @@ describe('the names in the drill-down', () => {
       brregId: 1n,
       documentBasis: basis,
       documentFacts: { readAt: new Date('2026-10-21T08:00:00Z'), brregId: 1n, current: null },
-    });
+    }, TEN_PEER_DATES);
     const profit = profitProvenance(subject, benchmarkApiFigures(api, peers, 'NOK').driftsmargin);
     const kfd = capitalProvenance(subject, 'kfd', benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK').kfd);
     if (profit === null || kfd === null) throw new Error('the fixture has both amounts');

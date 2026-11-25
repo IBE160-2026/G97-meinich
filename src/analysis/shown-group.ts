@@ -28,6 +28,10 @@
 // result: the group's size, how many peers are outside P by reason, and the
 // range of P's document read dates. Counts and two dates only; no peer's
 // date, line or name leaves here.
+//
+// Story 5.4 (FR-64): the same for each capital figure's comparison, (9),
+// (10) and (11): how many peers it counts and the range of their document
+// read dates, for the drill-down's "Peer-gruppen: Regnskapsår …" line.
 import {
   benchmarkApiFigures,
   benchmarkDocumentFigures,
@@ -36,12 +40,24 @@ import {
   type DocumentBenchmark,
   type TurnoverBenchmark,
 } from '../engine/benchmark.ts';
+import type { CapitalFigure } from '../engine/benchmark.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
+import { documentKeyFigureFractions } from '../engine/document-key-figures.ts';
 import type { Comparison } from '../engine/types.ts';
 import { commonSetEntry, marginWaterfall, outsideCommonSet, type MarginWaterfall, type OutsideCounts } from '../engine/waterfall.ts';
 import { apiInputsFromRow } from '../engine/inputs.ts';
 import { firstUnstatedField, withoutExcluded, type EmptyReason, type FunnelCounts, type StatedField } from '../engine/peers.ts';
 import type { SubjectFiling, SubjectKeyFigures } from './view.ts';
+
+/** The earliest and latest of a set of document read dates. */
+export type ReadDates = { readonly from: Date; readonly to: Date };
+
+/**
+ * What a capital figure's drill-down says about the peers its comparison
+ * counts (Story 5.4, FR-64): how many, and the range of their document read
+ * dates (null when it counts none). Never a peer's own date.
+ */
+export type ComparedPeerDates = { readonly count: number; readonly readDates: ReadDates | null };
 
 /** What the waterfall's drill-downs say about P (Story 3.8): counts and a date range, never a peer's own. */
 export type WaterfallFacts = {
@@ -50,7 +66,7 @@ export type WaterfallFacts = {
   /** The peers outside P, by reason. */
   readonly outside: OutsideCounts;
   /** The earliest and latest `register.document.read_at` over P; null when P is empty (decision 5). */
-  readonly readDates: { readonly from: Date; readonly to: Date } | null;
+  readonly readDates: ReadDates | null;
 };
 
 export type ShownGroup<P> = {
@@ -80,6 +96,8 @@ export type ShownGroup<P> = {
   readonly waterfall: MarginWaterfall;
   /** What its drill-downs say about P (Story 3.8). */
   readonly waterfallFacts: WaterfallFacts;
+  /** Per capital figure, the peers its comparison counts and their read-date range (Story 5.4, FR-64). */
+  readonly capitalPeerDates: Readonly<Record<CapitalFigure, ComparedPeerDates>>;
   /** The subject's filing's smaaForetak, for the non-small notice. */
   readonly smaaForetak: boolean | null;
   /** The group's currency, the subject's: stage 2 makes every peer's equal. */
@@ -120,32 +138,53 @@ export function driftsmarginComparison<P extends { readonly orgnr: string; reado
   ).driftsmargin.comparison;
 }
 
+type DatedPeer = { readonly documentBasis: DocumentBasis; readonly documentReadAt: Date | null };
+
+/**
+ * The earliest and latest read date of `peers`, null when there are none. A
+ * peer counted here always has a document row, so one without a date is a
+ * bug and throws, naming `what`.
+ */
+function readDateRange(peers: readonly DatedPeer[], what: string): ReadDates | null {
+  let from: Date | null = null;
+  let to: Date | null = null;
+  for (const peer of peers) {
+    const at = peer.documentReadAt;
+    if (at === null) throw new Error(`${what} without its document read date`);
+    if (from === null || at.getTime() < from.getTime()) from = at;
+    if (to === null || at.getTime() > to.getTime()) to = at;
+  }
+  return from === null || to === null ? null : { from, to };
+}
+
 /**
  * The waterfall's facts about P (Story 3.8): the group's size, the counts
  * outside P by reason, and the range of P's document read dates. A member
  * of P always has a document row, so one without a date is a bug and throws.
  */
-export function waterfallFacts(
-  peers: readonly { readonly documentBasis: DocumentBasis; readonly documentReadAt: Date | null }[],
-  year: number,
-): WaterfallFacts {
-  let from: Date | null = null;
-  let to: Date | null = null;
-  for (const peer of peers) {
-    if (commonSetEntry(peer.documentBasis, year).kind !== 'in') continue;
-    const at = peer.documentReadAt;
-    if (at === null) throw new Error('a peer in P without its document read date');
-    if (from === null || at.getTime() < from.getTime()) from = at;
-    if (to === null || at.getTime() > to.getTime()) to = at;
-  }
+export function waterfallFacts(peers: readonly DatedPeer[], year: number): WaterfallFacts {
   return {
     groupSize: peers.length,
     outside: outsideCommonSet(
       peers.map((peer) => peer.documentBasis),
       year,
     ),
-    readDates: from === null || to === null ? null : { from, to },
+    readDates: readDateRange(
+      peers.filter((peer) => commonSetEntry(peer.documentBasis, year).kind === 'in'),
+      'a peer in P',
+    ),
   };
+}
+
+/**
+ * The peers a capital figure's comparison counts (Story 5.4, FR-64): those
+ * whose document gives the figure a value, as `benchmarkDocumentFigures`
+ * counts them, with the range of their read dates. A peer with a document
+ * figure always has a document row, so one without a date throws.
+ */
+export function comparedPeerDates(peers: readonly DatedPeer[], figure: CapitalFigure): ComparedPeerDates {
+  const counted = peers.filter((peer) => documentKeyFigureFractions(peer.documentBasis)[figure].kind === 'value');
+  return { count: counted.length, readDates: readDateRange(counted, `a peer with ${figure}`) };
 }
 
 export function shownGroup<
@@ -196,6 +235,11 @@ export function shownGroup<
       filing.valuta,
     ),
     waterfallFacts: waterfallFacts(peers, filing.filingYear),
+    capitalPeerDates: {
+      kfd: comparedPeerDates(peers, 'kfd'),
+      lgd: comparedPeerDates(peers, 'lgd'),
+      oml: comparedPeerDates(peers, 'oml'),
+    },
     smaaForetak: filing.smaaForetak,
     valuta: filing.valuta,
     emptyReason,

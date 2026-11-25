@@ -9,6 +9,8 @@ import {
   type DocumentField,
   documentBasis,
 } from '../../src/engine/document-inputs.ts';
+import type { CapitalFigure } from '../../src/engine/benchmark.ts';
+import { comparedPeerDates, type ComparedPeerDates } from '../../src/analysis/shown-group.ts';
 
 export type Lines = Partial<Record<DocumentField, string | null>>;
 
@@ -89,3 +91,19 @@ export const FAILED: DocumentBasis = { kind: 'failed_reconciliation', filingYear
 // T = P75 = 77.5. Turnover (higher): T = P75 = 19.
 const TURNOVERS = [1n, 2n, 4n, 5n, 8n, 10n, 16n, 20n, 25n, 40n];
 export const TEN_PEERS: readonly DocumentBasis[] = TURNOVERS.map((turnover, i) => daysBasis(BigInt(i + 1) * 10n, turnover));
+
+// Story 5.4 (FR-64): TEN_PEERS' document read dates, one a day from
+// 12 October 2026, so a capital figure's compared peers span 12.10.2026–
+// 21.10.2026, and the dates the drill-down reads for them, computed by the
+// app's own `comparedPeerDates`.
+export const TEN_PEERS_READ_AT: readonly Date[] = TEN_PEERS.map((_, i) => new Date(Date.UTC(2026, 9, 12 + i, 8)));
+
+export function capitalPeerDatesOf(
+  peers: readonly DocumentBasis[],
+  readAt: readonly (Date | null)[],
+): Record<CapitalFigure, ComparedPeerDates> {
+  const dated = peers.map((documentBasis, i) => ({ documentBasis, documentReadAt: readAt[i] ?? null }));
+  return { kfd: comparedPeerDates(dated, 'kfd'), lgd: comparedPeerDates(dated, 'lgd'), oml: comparedPeerDates(dated, 'oml') };
+}
+
+export const TEN_PEER_DATES = capitalPeerDatesOf(TEN_PEERS, TEN_PEERS_READ_AT);

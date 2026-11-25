@@ -85,7 +85,7 @@ const TURNOVER: TurnoverBenchmark = benchmarkTotalAssetTurnover(SUBJECT, TEN);
  * inputs and `basis`, the document basis `documentBenchmark` was computed
  * from: the table refuses an amount without its drill-down.
  */
-function drillSubject(basis: DocumentBasis) {
+function drillSubject(basis: DocumentBasis, documentBenchmark: DocumentBenchmark = OUTSIDE) {
   // A failed column names what failed (step 1 always stores its checks): here c1.
   const failed = { checks: { c1: 'fail', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass' }, apiCheck: 'pass', apiFailFields: [], figures: column({}) } as const;
   const facts = {
@@ -93,11 +93,22 @@ function drillSubject(basis: DocumentBasis) {
     brregId: 1n,
     current: basis.kind === 'failed_reconciliation' ? failed : null,
   };
-  return provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts });
+  // Story 5.4 (FR-64): each capital figure's compared peers, all read on one date.
+  const at = new Date('2026-10-21T08:00:00Z');
+  const dates = (figure: 'kfd' | 'lgd' | 'oml') => {
+    const { comparison } = documentBenchmark[figure];
+    const count = comparison.kind === 'compared' ? comparison.count : 0;
+    return { count, readDates: count === 0 ? null : { from: at, to: at } };
+  };
+  return provenanceSubject(
+    SUBJECT,
+    { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts },
+    { kfd: dates('kfd'), lgd: dates('lgd'), oml: dates('oml') },
+  );
 }
 
 function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmark, basis: DocumentBasis) {
-  return tableProvenance(drillSubject(basis), benchmark, documentBenchmark);
+  return tableProvenance(drillSubject(basis, documentBenchmark), benchmark, documentBenchmark);
 }
 
 /**

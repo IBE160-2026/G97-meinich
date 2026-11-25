@@ -72,7 +72,7 @@ import {
 } from '../engine/waterfall.ts';
 import { joinList } from '../messages/industry.ts';
 import { type MessageId, t, tSegments } from '../messages/index.ts';
-import type { WaterfallFacts } from './shown-group.ts';
+import type { ComparedPeerDates, ReadDates, WaterfallFacts } from './shown-group.ts';
 
 /** A piece of a line: text (numbers, symbols, copy) or a register field name, which the page marks up. */
 export type Token = { readonly kind: 'text'; readonly text: string } | { readonly kind: 'field'; readonly name: string };
@@ -93,6 +93,12 @@ export type FigureStepView = {
   readonly label: string;
   readonly lines: readonly Line[];
   readonly best: string;
+  /**
+   * For a document figure, the compared peers' filing year and read-date
+   * range: "Peer-gruppen: Regnskapsår {aar} · årsregnskapene hentet
+   * {fra}–{til}" (Story 5.4, FR-64); null for an API figure.
+   */
+  readonly peerDates: string | null;
   readonly distribution: DistributionView;
 };
 
@@ -136,6 +142,8 @@ export type ProvenanceSubject = {
   readonly readAt: Date;
   /** The filing's register id: the document's comparison counts only against this filing (review B1). */
   readonly filingBrregId: bigint;
+  /** Per capital figure, the peers its comparison counts and their read dates (Story 5.4, FR-64). */
+  readonly capitalPeerDates: Readonly<Record<CapitalFigure, ComparedPeerDates>>;
 };
 
 // ---- Lines ------------------------------------------------------------------
@@ -257,6 +265,7 @@ function figureStep(
   unit: Unit,
   own: Line,
   withMedian: boolean,
+  peerDates: string | null,
 ): FigureStepView {
   const { best, view } = distribution(c, direction, unit);
   const T = shown(unit, c.best.quartile).text;
@@ -264,8 +273,29 @@ function figureStep(
     label: t(label),
     lines: [own, ...(withMedian ? [line(`M = ${shown(unit, c.median).text}`)] : []), line(`T = ${T}`)],
     best,
+    peerDates,
     distribution: view,
   };
+}
+
+/**
+ * A document aggregate's date line (Story 5.4, FR-64), the shape of
+ * `samletDateLine`: "Peer-gruppen: Regnskapsår {aar} · årsregnskapene
+ * hentet {fra}–{til}", or one date when the range is one calendar date.
+ * Never one peer's date unless every compared peer was read that day.
+ */
+export function peersDateLine(filingYear: number, readDates: ReadDates): string {
+  const fra = formatReadDate(readDates.from);
+  const til = formatReadDate(readDates.to);
+  const aar = String(filingYear);
+  return fra === til ? t('provenance.date.peersOne', { aar, dato: fra }) : t('provenance.date.peers', { aar, fra, til });
+}
+
+/** The compared peers' date line of capital figure `key`; their count must be the comparison's. */
+function capitalPeersDateLine(subject: ProvenanceSubject, key: CapitalFigure, c: WithBest): string {
+  const { count, readDates } = subject.capitalPeerDates[key];
+  if (count !== c.count || readDates === null) throw new Error(`the read dates of ${key} are not the compared peers'`);
+  return peersDateLine(subject.filingYear, readDates);
 }
 
 // ---- Step 3: the filed values -----------------------------------------------
@@ -427,7 +457,7 @@ function profitPart(subject: ProvenanceSubject, figure: FigureBenchmark): { read
           `(${T.text} − ${operand(r.text)}) × ${kr(revenue.ore)}${equals(approximate)}${formatKronerExact(amount.toString())} ${t('keyFigures.perYear')}`,
         ),
       ],
-      step: figureStep('fig.driftsmargin', c, 'higher_is_better', 'percent', own, true),
+      step: figureStep('fig.driftsmargin', c, 'higher_is_better', 'percent', own, true, null),
       inputs,
     },
   };
@@ -550,7 +580,7 @@ function capitalPart(subject: ProvenanceSubject, key: CapitalFigure, figure: Doc
       : [line(t('provenance.strengthPart', { del: t(CAPITAL_LABELS[key]) }))];
   return {
     formula,
-    step: figureStep(CAPITAL_LABELS[key], c, figure.direction, unit, own, false),
+    step: figureStep(CAPITAL_LABELS[key], c, figure.direction, unit, own, false, capitalPeersDateLine(subject, key, c)),
     inputs,
   };
 }
@@ -639,6 +669,7 @@ export function provenanceSubject(
     readonly documentBasis: DocumentBasis;
     readonly documentFacts: StoredDocumentFacts;
   },
+  capitalPeerDates: Readonly<Record<CapitalFigure, ComparedPeerDates>>,
 ): ProvenanceSubject {
   return {
     api,
@@ -647,6 +678,7 @@ export function provenanceSubject(
     filingYear: filing.filingYear,
     readAt: filing.readAt,
     filingBrregId: filing.brregId,
+    capitalPeerDates,
   };
 }
 

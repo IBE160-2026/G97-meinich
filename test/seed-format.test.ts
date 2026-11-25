@@ -40,6 +40,7 @@ import {
   splitStoredAllowList,
   stableJson,
   unlistedDocumentFigures,
+  unlistedDocuments,
   validateCoverage,
   withReferenceOrgnrs,
 } from '../scripts/seed-format.ts';
@@ -350,12 +351,26 @@ describe('the allow-list check', () => {
     expect(unlistedDocumentFigures(new Map([['document_column.csv', 'orgnr,role\n']]), [])).toEqual([]);
   });
 
+  // Story 5.4 review: document.csv too, so a document stored without columns cannot slip through.
+  const withDocument = (orgnr: string): Map<string, string> =>
+    new Map([...withFigure(), ['document.csv', `orgnr,filing_year
+${orgnr},2025
+`]]);
+
   it('refuses document figures not on the allow-list', () => {
-    expect(refusal(() => refuseUnlistedDocumentFigures(withFigure(), ['919951834']))).toBe(
+    expect(refusal(() => refuseUnlistedDocumentFigures(withDocument('979607008'), ['919951834']))).toBe(
       'document_column.csv: document figures for orgnrs not on seed/allow-list.json: 979607008',
     );
-    expect(() => refuseUnlistedDocumentFigures(withFigure(), ['979607008'])).not.toThrow();
+    expect(() => refuseUnlistedDocumentFigures(withDocument('979607008'), ['979607008'])).not.toThrow();
     expect(refusal(() => refuseUnlistedDocumentFigures(new Map(), []))).toBe('document_column.csv: missing');
+  });
+
+  it('refuses a document row without columns for an orgnr not on the allow-list', () => {
+    expect(unlistedDocuments(withDocument('919951834'), ['979607008'])).toEqual(['919951834']);
+    expect(refusal(() => refuseUnlistedDocumentFigures(withDocument('919951834'), ['979607008']))).toBe(
+      'document.csv: documents for orgnrs not on seed/allow-list.json: 919951834',
+    );
+    expect(refusal(() => refuseUnlistedDocumentFigures(withFigure(), ['979607008']))).toBe('document.csv: missing');
   });
 
   it('reads the allow-list as {orgnr, reason} entries', () => {

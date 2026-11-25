@@ -20,6 +20,7 @@ import {
   parseDrawn,
   parseLabelledSet,
   unlistedDocumentFigures,
+  unlistedDocuments,
 } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -47,6 +48,11 @@ describe('seed/allow-list.json', () => {
 
   it('covers every orgnr with document figures in the committed seed', () => {
     expect(unlistedDocumentFigures(files, allowList)).toEqual([]);
+  });
+
+  // Story 5.4 review: a document row without columns is a filed document of its company too.
+  it('covers every orgnr with a document row in the committed seed', () => {
+    expect(unlistedDocuments(files, allowList)).toEqual([]);
   });
 
   // AGENTS.md: no committed file ties a fingerprint result to a labelled-set

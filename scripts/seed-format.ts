@@ -572,7 +572,17 @@ export function refuseUnstoredDrawn(drawn: readonly DrawnFiling[], stored: Reado
 // have one and are not on the allow-list. files maps seed file name →
 // content.
 export function unlistedDocumentFigures(files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
-  const file = 'document_column.csv';
+  return unlistedIn('document_column.csv', files, allowList);
+}
+
+// Story 5.4 review: the orgnrs, sorted, with a row of document.csv and not on
+// the allow-list. A document stored without columns (refused, not read)
+// still names a company's filed document, so it is checked like a column.
+export function unlistedDocuments(files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
+  return unlistedIn('document.csv', files, allowList);
+}
+
+function unlistedIn(file: string, files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
   const columns = files.get(file);
   if (columns === undefined) throw new SeedRefusal(`${file}: missing`);
   const [header, ...rows] = parseCsv(columns);
@@ -733,5 +743,9 @@ export function refuseUnlistedDocumentFigures(files: ReadonlyMap<string, string>
     throw new SeedRefusal(
       `document_column.csv: document figures for orgnrs not on ${ALLOW_LIST_FILE}: ${unlisted.join(', ')}`,
     );
+  }
+  const documents = unlistedDocuments(files, allowList);
+  if (documents.length > 0) {
+    throw new SeedRefusal(`document.csv: documents for orgnrs not on ${ALLOW_LIST_FILE}: ${documents.join(', ')}`);
   }
 }

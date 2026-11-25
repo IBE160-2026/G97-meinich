@@ -89,6 +89,13 @@ function fake(options: {
   return { deps, calls, restored, out, err };
 }
 
+describe('the default dump', () => {
+  // Story 5.4, decision 7: the rows the seed does not export.
+  it('is .local/document-run-5.4', () => {
+    expect(DEFAULT_DUMP).toBe('.local/document-run-5.4');
+  });
+});
+
 describe('restore, dump present', () => {
   it('copies both files in one restore as loader, with each header as the column list, then derives and prints the four counts', async () => {
     const f = fake();

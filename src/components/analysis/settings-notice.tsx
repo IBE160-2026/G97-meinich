@@ -19,8 +19,17 @@ export function SettingsNotice({ show, median }: { readonly show: boolean; reado
   }, [any]);
   return (
     <div role="status" data-testid="settings-notice" className="px-gutter-phone text-[13px] text-slate md:px-gutter-desktop">
-      {show && filled ? <p className="m-0 mt-2">{t('analysis.notice')}</p> : null}
-      {median && filled ? <p className="m-0 mt-2">{t('analysis.notice.median')}</p> : null}
+      {filled ? <NoticeLines show={show} median={median} /> : null}
     </div>
+  );
+}
+
+/** The filled region's lines: the invalid-settings notice, the median notice, or both. */
+export function NoticeLines({ show, median }: { readonly show: boolean; readonly median: boolean }) {
+  return (
+    <>
+      {show ? <p className="m-0 mt-2">{t('analysis.notice')}</p> : null}
+      {median ? <p className="m-0 mt-2">{t('analysis.notice.median')}</p> : null}
+    </>
   );
 }

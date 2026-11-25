@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 40 |
+| auth | 41 |
 | money | 37 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
-| docs | 33 |
+| docs | 34 |
 
 ## Entry template
 
@@ -1170,3 +1170,12 @@ After the zod refresh: `check:pins`, lint, typecheck, `pnpm test --maxWorkers=2`
 5. **A test subject chosen to pass.** Many e2e tests assumed the placeholder demo A was outside the demo data and had a median step. They now use `OUTSIDE` (`e2e/seed.ts`): the first covered AS in byte order that is on no list, in neither demo pool at the widest band, and has a median step. The rule is fixed and its orgnr is never committed; where a test asserted "≈" for the placeholder's figures at one share, the sign now follows the displayed-operand rule, and the "≈" and "=" cases stay asserted elsewhere in the same spec.
 **Caught by:** The guard removals in the implementation run (items 1, 2 and 4), each undone afterwards; item 2's history was found by the new test on the committed seed.
 **Outcome:** Commits on `story/5.4-demo-seed` from `5916598`. The e2e changes, the seed counts and the round trip wait for the BMAD session's export.
+
+### 2026-11-25 — Story 5.4: after the export, and what a fresh clone leaves out
+**Tags:** auth, docs
+**Tool:** Claude Code (Opus 5.5): the implementation subagent, on the BMAD session's review findings
+**Asked:** Update the Story 5.4 entry above after the export (entries are not edited, so this one follows it), and record a consequence of decision 2 the entry did not name.
+**Got:** The export ran (the BMAD session, task 4): the committed seed holds 1 595 documents and 3 188 columns of 331 orgnrs and 1 419 fingerprints; e2e passed with chromium 198, db-down 7 and synthetic 31.
+**Problem:** What could go wrong: on a fresh clone, demo A's and B's document aggregates (P of the waterfall, the capital figures' comparisons) leave out the 216 labelled-set peers, whose rows stay in the local dump (decision 2). They are smaller than in a database with the dump restored: TRETOEN at band 0 has P = 203 against 274 with the dump. Every figure is the engine's over what is loaded, and P stays far above 10, so the page is right for the seed it shows, but a number read on a developer's database with the dump differs from the fresh clone's. Also from the review: the export now checks `document.csv` against the allow-list as well as `document_column.csv` (`test/seed-format.test.ts` "refuses a document row without columns for an orgnr not on the allow-list"), refuses an empty labelled set (`test/seed-format.test.ts` "reads the orgnrs of [{orgnr, years}] and refuses another shape"), and the committed seed is checked for labelled-set document rows (`test/allow-list.test.ts` "holds no document row of a labelled-set company outside the reference draw").
+**Caught by:** The BMAD session's review of the implementation.
+**Outcome:** Review-fix commits on `story/5.4-demo-seed` after `1c2d984`.

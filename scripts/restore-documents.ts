@@ -3,7 +3,7 @@
 //
 // The rows of register.document and register.document_column that the
 // committed seed does not hold (Story 5.4, decision 7: the labelled set's,
-// and those of read companies not on the allow-list) are local data
+// except the eight OCR reference companies in it) are local data
 // (README, "Seed"): `pnpm seed` truncates them, and this puts them back from
 // the CSV dump the README describes, `.local/document-run-5.4/` unless a
 // directory is named. The earlier dumps, `.local/document-run-2.5d/` among

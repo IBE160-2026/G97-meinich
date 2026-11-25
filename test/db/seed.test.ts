@@ -38,6 +38,12 @@ import { root, setting, supabaseDbUrl } from './db-env.ts';
 type Tx = postgres.TransactionSql;
 const fixtures = path.join(root, 'test/fixtures/seed');
 const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, REFERENCE_DRAW_FILE), 'utf8')));
+// The committed allow-list. Since Story 5.4 the seed holds the documents of
+// every listed company, so a scratch export lists them too and adds its own
+// entry, an orgnr the committed list does not hold.
+const committedList = JSON.parse(readFileSync(path.join(root, ALLOW_LIST_FILE), 'utf8')) as { orgnr: string; reason: string }[];
+const committedOrgnrs = committedList.map((entry) => entry.orgnr);
+const committedManifest = JSON.parse(readFileSync(path.join(root, SEED_DIR, MANIFEST_FILE), 'utf8')) as { document_figure_orgnrs: string[] };
 const ALL_TABLES = [...SEED_TABLES.map((t) => t.name), ...LOADER_TABLES];
 
 const loaderUrl = setting('LOADER_DATABASE_URL');
@@ -411,8 +417,8 @@ describe('the export and document figures', () => {
 
   it('exports a listed orgnr, keeps its entry, adds the reference draw, and names it in the manifest', async () => {
     // A scratch root holding the migrations, coverage.json, the committed
-    // OCR reference draw and an allow-list that names one orgnr with a
-    // reason.
+    // OCR reference draw and the committed allow-list with one more orgnr
+    // and its reason.
     const scratchRoot = path.join(scratch, 'listed-root');
     cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
     cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
@@ -423,10 +429,12 @@ describe('the export and document figures', () => {
     let allowList = '';
     await rolledBack(loader, async (tx) => {
       await loadSeed(tx, committed);
-      const [company] = await tx<{ orgnr: string }[]>`select orgnr from register.company order by orgnr limit 1`;
+      const [company] = await tx<{ orgnr: string }[]>`
+        select orgnr from register.company where orgnr <> all(${committedOrgnrs}::text[]) order by orgnr limit 1`;
       const orgnr = company?.orgnr ?? '';
-      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr, reason: 'Testoppføring' }]));
-      allowList = stableJson(withReferenceOrgnrs([{ orgnr, reason: 'Testoppføring' }], drawn));
+      const entries = [...committedList, { orgnr, reason: 'Testoppføring' }];
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson(entries));
+      allowList = stableJson(withReferenceOrgnrs(entries, drawn));
       await tx`
         insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
         values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
@@ -434,12 +442,12 @@ describe('the export and document figures', () => {
         insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
         values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
       manifest = await exportSeed(tx, scratchRoot, out);
-      // The committed seed already holds the 20 reference orgnrs' documents.
+      // The committed seed already holds the listed companies' documents.
       expect(manifest.document_figure_orgnrs).toContain(orgnr);
     });
-    expect(manifest?.document_figure_orgnrs).toHaveLength(21);
+    expect(manifest?.document_figure_orgnrs).toHaveLength(committedManifest.document_figure_orgnrs.length + 1);
     expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(allowList);
-    expect(JSON.parse(allowList)).toHaveLength(21);
+    expect(JSON.parse(allowList)).toHaveLength(committedList.length + 1);
   });
 
   // Story 2.4. These run as the migration role (admin), which may delete,
@@ -481,10 +489,10 @@ describe('the export and document figures', () => {
       const [company] = await tx<{ orgnr: string }[]>`
         select c.orgnr from register.company c
          where exists (select 1 from register.filing f join register.key_figures k using (brreg_id) where f.orgnr = c.orgnr)
-           and c.orgnr <> all(${drawn.map((filing) => filing.orgnr)}::text[])
+           and c.orgnr <> all(${committedOrgnrs}::text[])
          order by c.orgnr limit 1`;
       withdrawn = company?.orgnr ?? '';
-      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr: withdrawn, reason: 'Testoppføring' }]));
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([...committedList, { orgnr: withdrawn, reason: 'Testoppføring' }]));
       await tx`
         insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
         values (${withdrawn}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
@@ -500,7 +508,7 @@ describe('the export and document figures', () => {
       `seed:export: ${LICENCE_GATE_FILE} is absent; the licence gate is closed: fingerprints of allow-listed companies only`,
     ]);
     expect(manifest?.document_figure_orgnrs).not.toContain(withdrawn);
-    expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(stableJson(withReferenceOrgnrs([], drawn)));
+    expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(stableJson(withReferenceOrgnrs(committedList, drawn)));
     for (const file of readdirSync(path.join(out, SEED_DIR)).filter((name) => name.endsWith('.csv'))) {
       const [header = [], ...rows] = parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8'));
       const at = header.indexOf('orgnr');
@@ -524,10 +532,10 @@ describe('the export and document figures', () => {
       await loadSeed(tx, committed);
       const [company] = await tx<{ orgnr: string }[]>`
         select orgnr from register.company
-         where orgnr <> all(${drawn.map((filing) => filing.orgnr)}::text[])
+         where orgnr <> all(${committedOrgnrs}::text[])
          order by orgnr limit 1`;
       orgnr = company?.orgnr ?? '';
-      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr, reason: 'Testoppføring' }]));
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([...committedList, { orgnr, reason: 'Testoppføring' }]));
       writeFileSync(path.join(scratchRoot, LABELLED_SET_FILE), JSON.stringify([{ orgnr, years: [2025] }]));
       await tx`
         insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)

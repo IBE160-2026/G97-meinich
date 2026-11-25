@@ -215,8 +215,10 @@ export function analysisView(subject: Subject | null, parsed: ParseResult, searc
       state: kind,
       redirect: null,
       fane: null,
-      notice: invalidSettings,
-      medianNotice: medianFallback,
+      // No peer group here, so the median notice's "for denne peer-gruppen" would not be true:
+      // the median fallback shows the generic notice (Story 5.4 review).
+      notice: invalidSettings || medianFallback,
+      medianNotice: false,
       title: t('analysis.title.company', { selskap: displayName(subject) }),
     };
   }

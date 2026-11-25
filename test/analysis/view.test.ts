@@ -178,6 +178,11 @@ describe.each([
     expect(view(subject, { orgnr }, '?andel=33').notice).toBe(true);
   });
 
+  // Story 5.4 review: no peer group, so andel=median gives the generic notice, not the median one.
+  it('andel=median on the bare path shows the generic notice, not the median notice', () => {
+    expect(view(subject, { orgnr }, '?andel=median')).toMatchObject({ notice: true, medianNotice: false });
+  });
+
   it.each(['oversikt', 'peers', 'nokkeltall', 'verdi', 'foo'])('redirects /%s to the bare path', (fane) => {
     expect(view(subject, { orgnr, fane }).redirect).toBe(`/analyse/${orgnr}`);
   });

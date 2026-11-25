@@ -104,7 +104,7 @@ describe('the seed export', () => {
       await company(tx, ENK, 'AS');
       await tx`insert into register.classification ${tx(row(AS, 'classified'))}`;
       await tx`insert into register.classification ${tx(row(ENK, 'classified', { sample: true }))}`;
-      const [header, ...rows] = parseCsv((await copyTable(tx, classificationTable, { open: false }, [])).toString('utf8'));
+      const [header, ...rows] = parseCsv((await copyTable(tx, classificationTable, { open: false }, [], [])).toString('utf8'));
       const at = header?.indexOf('orgnr') ?? -1;
       const orgnrs = rows.map((r) => r[at]);
       expect(orgnrs).toContain(AS);

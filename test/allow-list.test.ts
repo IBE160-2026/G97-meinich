@@ -2,18 +2,23 @@
 // (Story 1.3b; technical note "Seed data", allow-list test). Reads every
 // committed seed file, whatever its dataset tag; a document figure is a row
 // of document_column.csv (Story 2.1b). Reads the committed OCR reference
-// draw too: every reference orgnr is on the list (Story 2.3, NFR15).
+// draw too: every reference orgnr is on the list (Story 2.3, NFR15). And the
+// labelled set: no committed fingerprint belongs to one of its companies
+// (Story 5.4, decision 2).
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ALLOW_LIST_FILE,
+  LABELLED_SET_FILE,
   REFERENCE_DRAW_FILE,
   REFERENCE_REASON,
   SEED_DIR,
   parseAllowList,
   parseAllowListEntries,
+  parseCsv,
   parseDrawn,
+  parseLabelledSet,
   unlistedDocumentFigures,
 } from '../scripts/seed-format.ts';
 
@@ -42,6 +47,17 @@ describe('seed/allow-list.json', () => {
 
   it('covers every orgnr with document figures in the committed seed', () => {
     expect(unlistedDocumentFigures(files, allowList)).toEqual([]);
+  });
+
+  // AGENTS.md: no committed file ties a fingerprint result to a labelled-set
+  // company. The failure gives a count only, never an orgnr.
+  it('holds no fingerprint of a labelled-set company', () => {
+    const labelled = new Set(parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8'))));
+    const [header, ...rows] = parseCsv(files.get('fingerprint.csv') ?? '');
+    const at = header?.indexOf('orgnr') ?? -1;
+    expect(at).toBeGreaterThanOrEqual(0);
+    const count = rows.filter((row) => labelled.has(row[at] ?? '')).length;
+    expect(count, 'fingerprint.csv rows of labelled-set companies').toBe(0);
   });
 
   it('lists every reference orgnr with the reason OCR-referansesett', () => {

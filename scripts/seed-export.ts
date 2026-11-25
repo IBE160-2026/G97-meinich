@@ -26,6 +26,12 @@
 //   (docs/licence-gate.json): only the allow-listed companies' rows unless
 //   the file records the gate as open. Absent or unreadable is closed, and
 //   stderr says so.
+// - Story 5.4, decision 2: never writes a fingerprint row of a company in
+//   the labelled set (analysis/labelled-set/document-run.json), whatever the
+//   gate and the allow-list, and refuses, naming a count only, document rows
+//   of a labelled-set company outside the OCR reference draw. The labelled
+//   set's file is required, so a missing file refuses rather than letting
+//   its fingerprints through.
 // - Running it twice on the same database gives byte-identical files.
 //
 // A later migration invalidates the seed: the PR that adds a migration runs
@@ -54,13 +60,16 @@ import {
   exportPaths,
   latestMigrationId,
   orderByClause,
+  LABELLED_SET_FILE,
   LICENCE_GATE_FILE,
   REFERENCE_DRAW_FILE,
   fingerprintWhere,
   parseAllowListEntries,
   parseDrawn,
+  parseLabelledSet,
   readCoverage,
   readLicenceGate,
+  refuseLabelledDocuments,
   refuseUnlistedDocumentFigures,
   refuseUnstoredDrawn,
   seedFileName,
@@ -126,16 +135,18 @@ async function copyOut(sql: Sql, table: SeedTable, where = ''): Promise<Buffer> 
 }
 
 // One seed table's file: register.fingerprint only the rows the licence gate
-// lets through (Story 2.5), register.classification never a sample run's
-// (Story 2.6), every other table whole.
+// lets through (Story 2.5) and never a labelled-set company's (Story 5.4),
+// register.classification never a sample run's (Story 2.6), every other
+// table whole.
 export async function copyTable(
   sql: Sql,
   table: SeedTable,
   gate: { open: boolean },
   allowList: readonly string[],
+  labelled: readonly string[],
 ): Promise<Buffer> {
   if (table.name === 'classification') return copyOut(sql, table, 'WHERE NOT sample');
-  return copyOut(sql, table, table.name === 'fingerprint' ? fingerprintWhere(gate, allowList) : '');
+  return copyOut(sql, table, table.name === 'fingerprint' ? fingerprintWhere(gate, allowList, labelled) : '');
 }
 
 // Story 2.6: a covered-industry AS must be settled before a seed holds it.
@@ -208,6 +219,10 @@ export async function exportSeed(
     notice(`seed:export: dropped from ${ALLOW_LIST_FILE}, not a stored company (withdrawn?): ${entry.orgnr} (${entry.reason})`);
   }
   const allowList = withReferenceOrgnrs(kept, drawn);
+  // Story 5.4, decision 2: the labelled set, required.
+  const labelledFile = path.join(root, ...LABELLED_SET_FILE.split('/'));
+  if (!existsSync(labelledFile)) throw new SeedRefusal(`${LABELLED_SET_FILE}: missing`);
+  const labelled = parseLabelledSet(JSON.parse(readFileSync(labelledFile, 'utf8')));
 
   // Story 2.5: fingerprints are filtered by the licence gate.
   const gate = readLicenceGate(gateFile, notice);
@@ -221,13 +236,16 @@ export async function exportSeed(
         table,
         gate,
         allowList.map((entry) => entry.orgnr),
+        labelled,
       ),
     );
   }
+  const texts = new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')]));
   refuseUnlistedDocumentFigures(
-    new Map([...outputs].map(([file, bytes]) => [file, bytes.toString('utf8')])),
+    texts,
     allowList.map((entry) => entry.orgnr),
   );
+  refuseLabelledDocuments(texts, labelled, drawn);
   const documentFigures = await sql<{ orgnr: string }[]>`
     select distinct orgnr from register.document_column
   `;

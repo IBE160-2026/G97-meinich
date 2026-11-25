@@ -14,6 +14,7 @@ import {
   LICENCE_GATE_FILE,
   LOADER_TABLES,
   MANIFEST_FILE,
+  LABELLED_SET_FILE,
   REFERENCE_DRAW_FILE,
   SEED_DIR,
   SEED_TABLES,
@@ -24,6 +25,7 @@ import {
   defaultSeedPaths,
   parseCsv,
   parseDrawn,
+  parseLabelledSet,
   prepareSeed,
   readCoverage,
   readLicenceGate,
@@ -415,6 +417,7 @@ describe('the export and document figures', () => {
     cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
     cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
     cpSync(path.join(root, REFERENCE_DRAW_FILE), path.join(scratchRoot, REFERENCE_DRAW_FILE));
+    cpSync(path.join(root, LABELLED_SET_FILE), path.join(scratchRoot, LABELLED_SET_FILE));
     const out = path.join(scratch, 'listed-out');
     let manifest: { document_figure_orgnrs: string[] } | undefined;
     let allowList = '';
@@ -447,6 +450,7 @@ describe('the export and document figures', () => {
     cpSync(path.join(root, 'supabase/migrations'), path.join(scratchRoot, 'supabase/migrations'), { recursive: true });
     cpSync(path.join(root, COVERAGE_FILE), path.join(scratchRoot, COVERAGE_FILE));
     cpSync(path.join(root, REFERENCE_DRAW_FILE), path.join(scratchRoot, REFERENCE_DRAW_FILE));
+    cpSync(path.join(root, LABELLED_SET_FILE), path.join(scratchRoot, LABELLED_SET_FILE));
     return scratchRoot;
   }
 
@@ -506,6 +510,52 @@ describe('the export and document figures', () => {
         file,
       ).toEqual([]);
     }
+  });
+
+  // Story 5.4, decision 2. The scratch root's labelled set names one stored
+  // company outside the reference draw, which the allow-list lists and
+  // which gets a document column: the export refuses with a count, not the
+  // orgnr, and writes nothing.
+  it('refuses document rows of a labelled-set company outside the reference draw', async () => {
+    const scratchRoot = scratchExportRoot('labelled-document-root');
+    const out = path.join(scratch, 'labelled-document-out');
+    let orgnr = '';
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      const [company] = await tx<{ orgnr: string }[]>`
+        select orgnr from register.company
+         where orgnr <> all(${drawn.map((filing) => filing.orgnr)}::text[])
+         order by orgnr limit 1`;
+      orgnr = company?.orgnr ?? '';
+      writeFileSync(path.join(scratchRoot, ALLOW_LIST_FILE), stableJson([{ orgnr, reason: 'Testoppføring' }]));
+      writeFileSync(path.join(scratchRoot, LABELLED_SET_FILE), JSON.stringify([{ orgnr, years: [2025] }]));
+      await tx`
+        insert into register.document (orgnr, filing_year, layout, status, valuta, unit_text, read_at, dataset, reader_commit)
+        values (${orgnr}, 2025, 'generated', 'extracted', 'NOK', 'NOK', now(), 'full', ${'a'.repeat(40)})`;
+      await tx`
+        insert into register.document_column (orgnr, filing_year, role, stated_year, c1, c2, c3, c4, digits_pass_fields, dataset)
+        values (${orgnr}, 2025, 'current', 2025, 'pass', 'pass', 'pass', 'pass', '{}', 'full')`;
+      const error = await exportSeed(tx, scratchRoot, out, () => {}).then(
+        () => null,
+        (reason: unknown) => reason as Error,
+      );
+      expect(error).toBeInstanceOf(SeedRefusal);
+      expect(error?.message).toMatch(/document rows of 1 labelled-set company outside analysis\/ocr-reference\/drawn\.json/);
+      expect(error?.message).not.toContain(orgnr);
+    });
+    expect(orgnr).toMatch(/^\d{9}$/);
+    expect(existsSync(out)).toBe(false);
+  });
+
+  it('refuses to export without the labelled set, writing nothing', async () => {
+    const scratchRoot = scratchExportRoot('no-labelled-root');
+    rmSync(path.join(scratchRoot, LABELLED_SET_FILE));
+    const out = path.join(scratch, 'no-labelled-out');
+    await rolledBack(loader, async (tx) => {
+      await loadSeed(tx, committed);
+      await expect(exportSeed(tx, scratchRoot, out, () => {})).rejects.toThrow(`${LABELLED_SET_FILE}: missing`);
+    });
+    expect(existsSync(out)).toBe(false);
   });
 
   it('refuses to export without the committed reference draw, writing nothing', async () => {
@@ -582,7 +632,7 @@ describe('the licence gate', () => {
     let orgnrs: string[] = [];
     await rolledBack(admin, async (tx) => {
       await withTwoFingerprints(tx);
-      const [header, ...rows] = parseCsv((await copyTable(tx, fingerprintTable, gate, [LISTED])).toString('utf8'));
+      const [header, ...rows] = parseCsv((await copyTable(tx, fingerprintTable, gate, [LISTED], [])).toString('utf8'));
       const at = header?.indexOf('orgnr') ?? -1;
       orgnrs = rows.map((row) => row[at] ?? '').filter((orgnr) => orgnr === LISTED || orgnr === UNLISTED);
     });
@@ -617,8 +667,14 @@ describe('the licence gate', () => {
     const out = path.join(scratch, 'open-gate-export');
     const listed = JSON.parse(readFileSync(path.join(root, ALLOW_LIST_FILE), 'utf8')) as { orgnr: string }[];
     const allowListed = [...listed.map((e) => e.orgnr), ...drawn.map((d) => d.orgnr)];
+    // Story 5.4: a labelled-set company's documents outside the reference
+    // draw are refused too, so a local restore's are removed the same way.
+    const reference = new Set(drawn.map((d) => d.orgnr));
+    const labelled = parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8'))).filter(
+      (orgnr) => !reference.has(orgnr),
+    );
     await rolledBack(admin, async (tx) => {
-      await tx`delete from register.document where not (orgnr = any(${allowListed}::text[]))`;
+      await tx`delete from register.document where not (orgnr = any(${allowListed}::text[])) or orgnr = any(${labelled}::text[])`;
       await tx`insert into register.company (orgnr, read_at) values (${UNLISTED}, now())`;
       await tx`
         insert into register.fingerprint (orgnr, filing_year, cost_of_goods_lo, cost_of_goods_hi, personnel_cost_lo,
@@ -636,12 +692,29 @@ describe('the licence gate', () => {
     expect(orgnrsIn('document.csv')).not.toContain(UNLISTED);
   });
 
+  // Story 5.4, decision 2: a labelled-set company's fingerprint is never
+  // exported, though it is listed, with the gate closed or open.
+  it('never exports a fingerprint of a labelled-set company', async () => {
+    if (fingerprintTable === undefined) throw new Error('fingerprint is not a seed table');
+    for (const gate of [{ open: false }, { open: true }]) {
+      await rolledBack(admin, async (tx) => {
+        await withTwoFingerprints(tx);
+        const [header, ...rows] = parseCsv(
+          (await copyTable(tx, fingerprintTable, gate, [LISTED, UNLISTED], [LISTED])).toString('utf8'),
+        );
+        const at = header?.indexOf('orgnr') ?? -1;
+        const orgnrs = rows.map((row) => row[at] ?? '').filter((orgnr) => orgnr === LISTED || orgnr === UNLISTED);
+        expect(orgnrs, JSON.stringify(gate)).toEqual([UNLISTED]);
+      });
+    }
+  });
+
   it('filters no other table', async () => {
     const company = SEED_TABLES.find((table) => table.name === 'company');
     if (company === undefined) throw new Error('company is not a seed table');
     await rolledBack(admin, async (tx) => {
       await withTwoFingerprints(tx);
-      const text = (await copyTable(tx, company, { open: false }, [LISTED])).toString('utf8');
+      const text = (await copyTable(tx, company, { open: false }, [LISTED], [])).toString('utf8');
       expect(text).toContain(`\n${UNLISTED},`);
     });
   });

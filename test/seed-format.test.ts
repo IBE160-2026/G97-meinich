@@ -19,6 +19,10 @@ import {
   defaultSeedPaths,
   exportPaths,
   fingerprintWhere,
+  LABELLED_SET_FILE,
+  labelledDocumentOrgnrCount,
+  parseLabelledSet,
+  refuseLabelledDocuments,
   LICENCE_GATE_FILE,
   readLicenceGate,
   latestMigrationId,
@@ -526,14 +530,75 @@ describe('the licence gate', () => {
   });
 
   it('filters fingerprints to the allow-list unless open', () => {
-    expect(fingerprintWhere({ open: true }, ['912197905'])).toBe('');
-    expect(fingerprintWhere({ open: false }, ['912197905', '885583822'])).toBe(
+    expect(fingerprintWhere({ open: true }, ['912197905'], [])).toBe('');
+    expect(fingerprintWhere({ open: false }, ['912197905', '885583822'], [])).toBe(
       `WHERE "orgnr" IN ('885583822', '912197905')`,
     );
-    expect(fingerprintWhere({ open: false }, [])).toBe('WHERE false');
+    expect(fingerprintWhere({ open: false }, [], [])).toBe('WHERE false');
   });
 
-  it('refuses an allow-list entry that is not an orgnr rather than inlining it', () => {
-    expect(refusal(() => fingerprintWhere({ open: false }, ["1'); drop table x; --"]))).toMatch(/is not an orgnr/);
+  // Story 5.4, decision 2: a labelled-set company's fingerprint is never
+  // exported, listed or not, gate open or closed.
+  it('leaves out every labelled-set company, gate open or closed', () => {
+    expect(fingerprintWhere({ open: true }, ['912197905'], ['912197905', '100000001'])).toBe(
+      `WHERE "orgnr" NOT IN ('100000001', '912197905')`,
+    );
+    expect(fingerprintWhere({ open: false }, ['912197905', '885583822'], ['912197905'])).toBe(
+      `WHERE "orgnr" IN ('885583822', '912197905') AND "orgnr" NOT IN ('912197905')`,
+    );
+    expect(fingerprintWhere({ open: false }, [], ['912197905'])).toBe('WHERE false');
+  });
+
+  it('refuses an allow-list or labelled-set entry that is not an orgnr rather than inlining it', () => {
+    expect(refusal(() => fingerprintWhere({ open: false }, ["1'); drop table x; --"], []))).toMatch(/is not an orgnr/);
+    expect(refusal(() => fingerprintWhere({ open: true }, [], ["1'); drop table x; --"]))).toMatch(
+      /labelled-set\/document-run\.json: .* is not an orgnr/,
+    );
+  });
+});
+
+// Story 5.4, decision 2: the labelled set's file, and the refusal of its
+// document rows outside the OCR reference draw. Synthetic orgnrs.
+describe('the labelled set in the export', () => {
+  it('reads the orgnrs of [{orgnr, years}] and refuses another shape', () => {
+    expect(parseLabelledSet([{ orgnr: '100000001', years: [2025] }, { orgnr: '100000002', years: [2025] }])).toEqual([
+      '100000001',
+      '100000002',
+    ]);
+    expect(refusal(() => parseLabelledSet({}))).toMatch(/must be an array/);
+    expect(refusal(() => parseLabelledSet(['100000001']))).toMatch(/entry 0: must be \{orgnr, years\}/);
+    expect(refusal(() => parseLabelledSet([{ orgnr: '1', years: [] }]))).toMatch(/entry 0/);
+  });
+
+  it('reads the committed labelled set: 845 orgnrs', () => {
+    const labelled = parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8')));
+    expect(new Set(labelled).size).toBe(845);
+  });
+
+  const docs = (document: string[], column: string[]): Map<string, string> =>
+    new Map([
+      ['document.csv', `orgnr,filing_year
+${document.map((orgnr) => `${orgnr},2025
+`).join('')}`],
+      ['document_column.csv', `orgnr,filing_year,role
+${column.map((orgnr) => `${orgnr},2025,current
+`).join('')}`],
+    ]);
+  const drawn = [{ orgnr: '300000001', year: 2022 }];
+
+  it('counts labelled-set orgnrs outside the draw with a document or a column row, each once', () => {
+    const labelled = ['100000001', '100000002', '100000003', '300000001'];
+    // 100000001 in both files, 100000002 only as a document, the reference
+    // orgnr not counted, 100000009 not labelled.
+    const files = docs(['100000001', '100000002', '300000001', '100000009'], ['100000001', '300000001']);
+    expect(labelledDocumentOrgnrCount(files, labelled, drawn)).toBe(2);
+    expect(labelledDocumentOrgnrCount(docs(['300000001'], ['300000001']), labelled, drawn)).toBe(0);
+  });
+
+  it('refuses with a count and no orgnr', () => {
+    const message = refusal(() => refuseLabelledDocuments(docs([], ['100000001']), ['100000001'], drawn));
+    expect(message).toMatch(/document rows of 1 labelled-set company outside/);
+    expect(message).not.toContain('100000001');
+    expect(() => refuseLabelledDocuments(docs(['300000001'], []), ['300000001'], drawn)).not.toThrow();
   });
 });

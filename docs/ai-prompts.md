@@ -4644,6 +4644,183 @@ Push så branchen og åpne PR-en med pr71.md som tekst. Ikke poster noe på #71 
 - CI green on `17ec68a`.
 - The review session's review with six line comments, no change asked for before merge: https://github.com/IBE160-2026/G97-meinich/pull/85#pullrequestreview-6061131218
 
+## Story 5.4: the demo seed (#86, PR #87)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt.
+
+### Prompts to the BMAD session
+
+**2026-11-25 16:32**: the prompt that opened the story.
+```
+Fra meg:
+
+/bmad-build Story 5.4: «The demo seed» (epics.md, Story 5.4, linje 2603–2658). Lag branchen story/5.4-demo-seed fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode eller data. Les tallene nedenfor selv og si fra hvis noe ikke stemmer. Jeg har dem fra filene som er nevnt.
+
+(a) Utsatt arbeid. Ta inn alt Epic 3-retroen sier at 5.4 arver (epic-3-retro-2026-11-22.md, handlingspunkt 2):
+- deferred-work.md 86–89: dokumentradene commites, og README-steget for restore fjernes. Oppføringen sier 407 orgnr, men seed/document-run.json har 412.
+- 153–155: fingeravtrykktypen kontrolleres lokalt.
+- 242–244: tooFew for n = 0 og n = 1.
+- X1: det riktige navnet på grunnen til at peers faller utenfor P.
+- 246–248: median-notisen.
+- 256–259: dataQuality og brreg_id.
+- De to nye AC-ene: vannfallet på et ekte demoselskap, og FR-64s datoer for aggregater.
+For hver oppføring: tas den inn, eller flyttes den til en navngitt story, og hvorfor. Søk også i deferred-work.md etter andre oppføringer som nevner 5.4, demo-seeden eller tillatelseslista.
+
+(b) Demoselskapene:
+- A og B er plassholdere i src/demo-companies.ts (813235552 og 814739082).
+- Foreslå A, som er et typisk konsulentselskap med full analyse, og B, et produktselskap med underskudd og et stort gap. Gi grunnen for hvert valg.
+- For hvert forslag: størrelsen på gruppen per båndsteg, og P per båndsteg med den gjenopprettede dumpen. Minst ett selskap må få P ≥ 10, slik at vannfallet vises.
+- Kontroller fingeravtrykktypen lokalt mot hva selskapet faktisk gjør (153–155). Typen til et selskap som ikke står på tillatelseslista, skal ikke stå i noe som publiseres.
+- Bekreft at C (69.202, [demo_company_c] i ingest/config.toml) fortsatt viser tilstanden for bransje som ikke er dekket.
+
+(c) Tillatelseslista og seeden:
+- Hvilke orgnr som kommer på lista: A, B, C, peers for alle tre båndstegene og de 20 i OCR-referansesettet. Gi antallet.
+- Hvor mye seed/ vokser, rått og per fil. I dag er den 15 MB.
+- Overlapp med fasitsettet (analysis/labelled-set/document-run.json, 845 orgnr): hvor mange av de nye orgnrene på lista som også er der. Bare totalen, aldri et orgnr eller en type per selskap. Hvis det er overlapp, legg frem alternativene for meg før noe eksporteres.
+
+(d) Lisensporten. Skriv et utkast til vurderingen av om det er lav risiko å committe avledede kategorier, med kilder. Lisensen til registeret og NLOD leses fra kilden, ikke fra hukommelsen.
+- Vis docs/licence-gate.json for begge utfall, og teksten under «Kilder og lisens» for begge.
+- Jeg bestemmer. Ingenting om porten committes før det.
+
+(e) Ny tekst: all ny brukertekst ordrett, til min godkjenning: avsnittet om dokumenttall, tooFew for n = 0 og n = 1, median-notisen, X1, og README-teksten om de tre demoselskapene.
+
+(f) Handlingspunkt 5 i retroen: full verifisering i én dokumentert rekkefølge i AGENTS.md under «Testing», og eventuelt som et skript, i denne PR-en.
+
+(g) Hva kan gå galt: dokumenttall utover det deklarerte utvalget i det offentlige repoet, og en lisenspåstand registeret ikke gjør. Det skal i docs/ai-log.md.
+
+Regler:
+- Ingen modellkall. pnpm classify kjøres ikke.
+- Ingen dump slettes. .local/document-run-2.5d/ er kilden for restore.
+- Hver rad i I/O-matrisen navngir testen som feiler når vernet fjernes, og rapporten viser hvert vern fjernet og testen som feilet.
+- Ingen forventet verdi velges ut fra data med en betingelse.
+- E2e kjøres med én worker og ett prosjekt om gangen, og synthetic sist.
+- pnpm test --maxWorkers=2.
+- Commit i logiske steg. Ikke push før jeg sier fra.
+```
+*Changed:* issue #86, the branch and the draft spec, then checkpoint 1 with no code or data changed: the inherited entries, TRETOEN AS and HUMA AS proposed as A and B with group and P per band step, the allow-list (960) and the seed's growth, the overlap with the labelled set as totals (216 of the new entries), a licence assessment in `docs/licence-gate.md`, all new copy, the verification order and the risks. The BMAD session also found that 8 of the 20 reference companies are in the labelled set and that their fingerprints had been committed since Story 5.1, against AGENTS.md.
+
+**17:18**: the answers to checkpoint 1.
+```
+Fra meg:
+
+Review-sesjonen har sjekket det sentrale:
+- Marginene for 2025 og omsetningen til TRETOEN og HUMA (register.filing og key_figures).
+- At A, B og C ikke er i analysis/labelled-set/document-run.json.
+- At 8 av de 20 i seed/allow-list.json er i fasitsettet og har fingeravtrykk i seed/demo/fingerprint.csv.
+Alle tallene dine stemmer.
+
+Svar:
+
+1. A = 922425620 TRETOEN AS, og B = 912159329 HUMA AS.
+
+2. Velg (ii):
+- De 216 føres opp på lista, men dokumentene og fingeravtrykkene deres eksporteres ikke.
+- De 8 i referansesettet som også er i fasitsettet: fingeravtrykkene deres tas ut av seeden. Dokumentene deres blir stående, fordi OCR-referansesjekken trenger dem. Gjør det til en regel i eksporten: ingen fingeravtrykksrad for et orgnr i fasitsettet. Lag en test som feiler hvis en slik rad finnes. Testen skal bare vise antallet, aldri et orgnr.
+- AI-loggen sier at regelen har vært brutt siden Story 5.1, og at git-historikken fortsatt har de gamle radene.
+
+3. Velg (a): godta at peers uten dokument står på lista. Snevre inn AC-en til «full document figures for A, B and the allow-listed peers whose documents are read». Rett epics.md i samme PR, og skriv det i Spec Change Log.
+
+4. Porten forblir lukket: docs/licence-gate.json med open: false, og vurderingen docs/licence-gate.md committes. Begrunnelse: en åpen port endrer ingenting i v1-seeden, og AC-en sier at porten åpnes bare hvis vurderingen konkluderer slik, ikke at den skal åpnes. «Kilder og lisens» får teksten for lukket port, uten frasen om avledede kategorier.
+
+5. Tekstene er godkjent, med to rettelser:
+- waterfall.tooFewOne: «Ingen forklaring av marginen: bare ett sammenlignbart selskap har et avstemt årsregnskap for {aar} med alle kostnadslinjene (av 10 som trengs).»
+- analysis.notice.median: bruk «» i stedet for "".
+X1 er godkjent som foreslått. README-teksten er godkjent.
+
+6. Bare AGENTS.md under «Testing», ingen pnpm verify.
+
+Restore: det er greit med en ny mappe, .local/document-run-5.4/, som standard. Oppdater AGENTS.md der den nevner .local/document-run-2.5d/. Mappen .local/document-run-2.5d/ slettes ikke.
+
+Det er greit at specen er samlet. Skriv svarene inn i specen og legg frem det endelige sjekkpunktet. Ikke push før jeg sier fra.
+```
+*Changed:* decisions 1–7 frozen in the spec; the BMAD session added a guard of its own, a refusal of labelled-set document rows outside the reference draw, and asked whether to keep it.
+
+**17:24**: approved, with three additions.
+```
+Fra meg:
+
+Godkjenn og fortsett. Behold vernet ditt mot dokumentrader fra fasitsettet. Det er et reelt hull.
+
+Tre tillegg før du setter specen til ready-for-dev:
+
+1. Design Notes. Review-sesjonen har sett at seed/demo/classification.csv allerede har klassifiseringer med type for 352 av de 845 i fasitsettet (bare totalen, lest fra den committede fila). Det følger av specen for Story 2.6: «The full run comes after labelling, with the 845 like any other company.» Skriv én setning om hvorfor klassifiseringene publiseres og fingeravtrykkene ikke:
+- regelen i AGENTS.md gjelder fingeravtrykk;
+- beslutning 2 følger den regelen;
+- begge deler kommer etter at fasitsettet ble merket.
+Ingen endring i eksporten av klassifiseringer. Det samme skal stå i AI-loggens oppføring om beslutning 2.
+
+2. Oppgave 8, det tekniske notatet. AD-16 sier at restore:documents gjelder «until Story 5.4 commits those rows». Rett teksten til det som gjelder etter beslutning 7: rader som ikke eksporteres, altså fasitsettet og peers som ikke er lest, gjenopprettes fra .local/document-run-5.4/.
+
+3. Oppgave 8, AGENTS.md. Ta med at pnpm ingest:document-set --allow-list skriver seed/allow-list.json, ved siden av seed/document-run.json. Det skal stå hvem som skriver hva i seed/.
+
+Implementer så. Commit i logiske steg. Ikke push før jeg sier fra.
+```
+*Changed:* the implementation, from `0a1881d`: demo A and B and the allow-list (`5916598`), the export's labelled-set rules (`dce29e6`), the restore default, the copy, the median notice, `dataQuality` and `parseId`, FR-64's peer dates, the about page and the gate (`cebc54a`), the e2e waterfall on demo A (`df5ef56`), the docs and the export itself (`6ebc86e`), and the fixes the export made necessary (`dea74aa`…`5b51ae1`). Two e2e runs were stopped by Claude Code on low memory.
+
+**19:08**: the e2e run after the memory stop.
+```
+Fra meg:
+
+Jeg har lukket tunge programmer. Review-sesjonen sjekket at ingen Node- eller Playwright-prosesser henger igjen, at port 3000 og 3001 er ledige, og at omtrent 3 GB var ledig før jeg lukket noe.
+
+1. Si først hvordan chromium-kjøringen stoppet: feiltypen og den siste testen som kjørte. Var det minnet, eller en test som feilet?
+2. Kjør så de nye og endrede testene først, med én worker og i chromium-prosjektet:
+   pnpm test:e2e --project=chromium e2e/demo-waterfall.spec.ts e2e/oversikt.spec.ts e2e/provenance.spec.ts e2e/analysis-states.spec.ts e2e/search.spec.ts e2e/no-ip-stored.spec.ts e2e/rate-limit.spec.ts
+3. Kjør så hele chromium. Hvis minnet tar slutt igjen, del kjøringen i to etter filnavn og si hvilke deler som har gått igjennom.
+4. Deretter db-down, og synthetic --no-deps til slutt. Etter synthetic: 0 SYNTETISK%, og antallet i manifestet er det samme som før kjøringen.
+
+Si fra hvis manifestet nå har et annet antall enn 20 etter eksporten, og les tallet fra seed/demo/manifest.json.
+Så kan du gå videre til review-steget. Ikke push før jeg sier fra.
+```
+*Changed:* the changed specs first (58 passed), then review pass 1 by three review subagents: 19 findings, 16 patched (`8f697e1`…`04eaad4`, `d630f20`), 3 rejected, the triage in the spec (`e10a88b`); the full verification order on `e10a88b` (chromium 209, db-down 7, synthetic 31); the spec set to `done` with the session file (`835a8d4`) and the session log (`f056744`).
+
+**2026-11-26 18:37**: before the push.
+```
+Fra meg:
+
+Review-sesjonen har sjekket den committede seeden: 960 på lista; 331 orgnr med dokumenter, ingen utenfor lista og ingen fra fasitsettet utenfor referansetrekningen; 317 med fingeravtrykk, ingen i fasitsettet; 331 i manifestet; seed/ er 15 983 186 byte. Den har også sjekket at porten er lukket, og den er enig i de tre avviste funnene.
+
+Før push:
+1. Specen står som status: 'done' (835a8d4), mens storyen står som review. Sett specen til 'in-review', slik AGENTS.md krever. Den settes til done etter merge. Lag en egen commit.
+2. Si hvilken commit hele verifiseringsrekkefølgen gikk på (chromium 209, db-down 7, synthetic 31). Hvis det er før review-rettelsene, kjør det som må kjøres på nytt. Skriv commiten i PR-en.
+
+Push så og åpne PR-en med Closes #86. PR-teksten skal ha:
+- FR-ene;
+- hvordan det er testet, med commiten;
+- review-rettelsene og de avviste funnene, med kreditering;
+- «Planning documents:» med det som er endret;
+- hva som kan gå galt;
+- en egen linje om at tillatelseslista må godkjennes i reviewen (AC-en), med tallene 960 / 224 / 331.
+
+Ikke poster noe annet.
+```
+*Changed:* the spec back to `in-review` (`2d1aba7`); the branch pushed and PR #87 opened with the verified commit and the allow-list's 960 / 224 / 331; the session file linking the PR (`3d90c99`) and the session log (`da0f496`).
+
+### Prompts to the review session
+
+- `noe jeg skal skrive inn til terminal?` (2026-11-25 16:29), after issue #71: the review session said nothing was needed and offered `pnpm install --frozen-lockfile` as a check.
+- `gjør det du anbefaler her` (2026-11-25 16:30): the review session ran it (the lockfile up to date, `next` 16.4.6 installed) and did not post the minimatch note, since that needs an explicit yes.
+- `post notat` (2026-11-25 16:30): the review session posted the minimatch note on #71 (https://github.com/IBE160-2026/G97-meinich/issues/71#issuecomment-7168099734).
+- `gi prompt` (2026-11-25 16:31): the review session marked the Epic 3 retrospective's action 4 done (`06fd41f`), read Story 5.4 in `epics.md` and the retro's actions 2 and 5, checked that `seed/document-run.json` holds 412 orgnrs against the deferred entry's 407, that `seed/allow-list.json` holds 20, that `docs/licence-gate.json` is absent and that `src/demo-companies.ts` holds placeholders, and drafted the 16:32 prompt with a point on the labelled set's overlap.
+- The BMAD session's checkpoint 1 (2026-11-25 17:17): the review session checked TRETOEN's and HUMA's 2025 margins and revenues in `register.filing` and `register.key_figures`, that A, B and C are outside `analysis/labelled-set/document-run.json`, and that the 8 overlapping reference companies have fingerprints in `seed/demo/fingerprint.csv`, recommended an answer to each of the six questions (option (ii) with those fingerprints removed, the gate closed because opening it changes nothing in v1, "bare ett sammenlignbart selskap", no `pnpm verify`), and drafted the 17:18 prompt.
+- The BMAD session's final checkpoint (2026-11-25 17:20): the review session read the spec, found that the committed `classification.csv` already gives a type for 352 of the 845 labelled-set companies, as Story 2.6 decided, that AD-16 in the technical note still said restore lasts "until Story 5.4", and that `--allow-list` is a new writer under `seed/`, recommended keeping the BMAD session's guard and approving, and drafted the 17:24 prompt.
+- The BMAD session's report on the e2e memory stop (2026-11-25 19:07): the review session checked that no Node or Playwright process was left, that ports 3000 and 3001 were free and that about 3 GB of 16 were free, named the programs using the most, and drafted the 19:08 prompt.
+- `Neste steg når du sier fra: push og PR med Closes #86. Du kan også få en gjennomgang med bmad-walkthrough først.` (2026-11-26 18:29), the end of the BMAD session's report: the review session counted the committed seed against the allow-list, the labelled set and the reference draw, checked the closed gate, agreed with the three rejected findings, found that `835a8d4` had set the spec to `done` while the story stood at `review`, recommended pushing before a walkthrough, and drafted the 18:37 prompt.
+- The BMAD session's report on PR #87 (2026-11-26 18:53): the review session checked that only the spec, the session file and the log changed after `e10a88b`, read the PR text and the export's code, counted the allow-list's 937 peers, and drafted the review with nine line comments, approving the allow-list as the AC requires.
+- `post review` (2026-11-26 18:55): the review session posted it on `da0f496`.
+- `merget - fikser du treet og resten` (2026-11-26 19:05): the review session reset `main`, deleted the branch, set the spec and the story to `done`, recorded Meinich's decision on finding 16 in the spec's triage log, added the Merge section to the session file with the review session's credit for the prompts (`b00cd53`), and wrote this section.
+
+### Result
+
+Demo A is TRETOEN AS and demo B HUMA AS; C is unchanged. The committed seed holds the documents of 331 allow-listed orgnrs and the fingerprints of 317, none of a labelled-set company outside the reference draw, and the margin waterfall shows on A and B at every band step from a fresh clone. The licence gate is closed, with its assessment committed. PR #87 was merged on 2026-11-26 as `e7cb24f` and closed #86.
+
+### Checks before merging
+
+- CI green on `da0f496`.
+- The review session's review with nine line comments, approving the allow-list, no change asked for before merge: https://github.com/IBE160-2026/G97-meinich/pull/87#pullrequestreview-6079224014
+
 ---
 
 ## Going forward

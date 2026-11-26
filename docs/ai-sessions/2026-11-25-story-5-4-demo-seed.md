@@ -3,7 +3,7 @@
 **Date:** 2026-11-25
 **Tool:** Claude Code (Opus 5.5): the BMAD session (`bmad-build`), one implementation subagent, three review subagents
 **Story / issue:** #86, Story 5.4
-**Result:** branch `story/5.4-demo-seed`, from `0a1881d` (spec) to `45167b3` and the closing commit. The PR is not opened yet: no push until Meinich says so.
+**Result:** branch `story/5.4-demo-seed`, from `0a1881d` (spec) to `45167b3` and the closing commits; PR #87 (https://github.com/IBE160-2026/G97-meinich/pull/87). The full verification order ran on `e10a88b`, the code after every review fix.
 
 ## Goal
 
@@ -28,6 +28,7 @@ Meinich's prompts are in `docs/ai-prompts.md` once the review session extracts t
 
    With them came an instruction to keep the BMAD session's guard against labelled-set document rows ("et reelt hull").
 4. **The e2e run.** The order of the e2e run after a memory stop, and the manifest count.
+5. **Before push** (2026-11-26). Set the spec back to `in-review` (`2d1aba7`); name the commit the verification ran on; push and open the PR with the allow-list line 960 / 224 / 331. The review session had checked the committed seed's counts and the closed gate, and agreed with the three rejected findings.
 
 ## What came back, and what was done with it
 

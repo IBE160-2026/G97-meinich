@@ -11,7 +11,7 @@ Commit a demo seed in which real demo companies show the whole v1 analysis, the 
 
 ## Prompts that mattered
 
-Meinich's prompts are in `docs/ai-prompts.md` once the review session extracts them. In short:
+Meinich's prompts are in `docs/ai-prompts.md`. Each was drafted by the review session and pasted by Meinich, who made the decisions in it; the recommendations behind decisions 1–7 and the three additions were the review session's (added on `main` after the merge). In short:
 1. **Planning to checkpoint 1.** Stop before any code or data change. Report the inherited entries, candidates for A and B with group and P per band step, the allow-list and seed growth, the overlap with the labelled set as a total, and a licence assessment read from the sources. Give all new copy verbatim, the verification order, and the risks.
 2. **The answers.**
    - A = TRETOEN AS, B = HUMA AS.
@@ -63,6 +63,15 @@ Meinich's prompts are in `docs/ai-prompts.md` once the review session extracts t
   - `OUTSIDE`'s selection rule. It is fixed and its state is asserted; flagged to Meinich.
 
 **Memory.** Claude Code stopped two e2e runs on low memory: one of the BMAD session's, one of the subagent's. Neither was a test failure. Meinich closed other programs, and the full order then ran: chromium 209, db-down 7, synthetic 31.
+
+## Merge
+
+- **Review:** posted by the review session on `da0f496`, nine line comments, no change asked for before merge: https://github.com/IBE160-2026/G97-meinich/pull/87#pullrequestreview-6079224014
+  - It approved `seed/allow-list.json` as the AC requires: 960 entries with no duplicates (A, B, C, 937 peers at bands 0–2, the 20 reference companies), 224 of them in the labelled set.
+  - It checked the committed seed on `da0f496`: 331 orgnrs with documents, none outside the list and none from the labelled set outside the reference draw; 317 with fingerprints, none in the labelled set; 331 in the manifest; `seed/` 15 983 186 bytes; the gate closed; and that only the spec, this file and the log changed after `e10a88b`.
+  - Finding 16 (`OUTSIDE`) stays rejected, Meinich's decision on the review session's reasoning (spec, Review Triage Log).
+  - Not re-checked by the review session: data.norge.no's "Lisens: Ikke oppgitt", read by the BMAD session on 2026-11-25.
+- **Merged:** PR #87 by Meinich, 2026-11-26 19:05 UTC, as `e7cb24f`. Issue #86 is closed. The spec and the story are `done` (on `main` after the merge).
 
 ## Links
 

@@ -2,7 +2,7 @@
 title: 'Story 5.4: The demo seed'
 type: 'feature'
 created: '2026-11-25'
-status: 'in-review'
+status: 'done'
 baseline_commit: '06fd41f983116e4bd69e2cbea6a386d03c85c9b3'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -212,7 +212,7 @@ Review pass 1, 2026-11-25. Layers: Blind Hunter (BH), Edge Case Hunter (ECH) and
 | 13 | BH: P ≥ 10 at bands 1–2 and demo B's analysis are untested, though the docs claim them. | medium | `e2e/demo-waterfall.spec.ts` covers demo A at band 0 only. | patch |
 | 14 | BH: the payload leak scans moved to OUTSIDE, so none runs on a real demo company whose peers have committed document figures. `capitalPeersDateLine` throws on a count mismatch. | high | The story's main risk is document figures reaching a page. Its scans now run only on a subject whose peers have none. | patch |
 | 15 | BH: e2e "≈" in `provenance.spec.ts` is computed with the app's own `shareLineIsApproximate`, which is tautological. | medium | `e2e/provenance.spec.ts:145`. The check passes with the rule broken. | patch |
-| 16 | BH: OUTSIDE is chosen with a data condition (a median step). | low | A fixed, deterministic rule for choosing the subject, with its state asserted as fixture checks that fail loudly. No expected value is chosen by it. Left for Meinich to see. | reject (flagged) |
+| 16 | BH: OUTSIDE is chosen with a data condition (a median step). | low | A fixed, deterministic rule for choosing the subject, with its state asserted as fixture checks that fail loudly. No expected value is chosen by it. Left for Meinich to see. | reject (flagged); Meinich kept the rejection in the PR #87 review, 2026-11-26, on the review session's reasoning: the rule picks the subject, not an expected value, from the e2e oracle's own seed reading, and `present(...)` fails loudly if none qualifies |
 | 17 | BH: X1 closed although the `revenue_not_positive` case is not named. | low | Approved as proposed at checkpoint 1 with that case stated. The deferred entry's resolution should say so. | patch (docs) |
 | 18 | BH: docs not final: the ai-log Outcome line, the README restore counts. | low | Both still describe the state before the export. | patch (docs) |
 | 19 | BH: AGENTS.md's int8 rule names `parseOre`/`parseDecimal` but not `parseId`. | low | AGENTS.md "must match the code". | patch |

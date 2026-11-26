@@ -2,10 +2,13 @@
 // rebuild, run as `derive` through DERIVE_DATABASE_URL inside a transaction
 // that is always rolled back, so the table is left as it was. Counts only:
 // no company's fingerprint is printed or asserted.
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import postgres from 'postgres';
 import { afterAll, describe, expect, it } from 'vitest';
 import { type DeriveCounts, rebuildFingerprints } from '../../scripts/derive.ts';
-import { setting } from './db-env.ts';
+import { LABELLED_SET_FILE, parseLabelledSet } from '../../scripts/seed-format.ts';
+import { root, setting } from './db-env.ts';
 
 const url = setting('DERIVE_DATABASE_URL');
 if (url === undefined) throw new Error('DERIVE_DATABASE_URL is not set; run `pnpm db:roles`');
@@ -82,7 +85,11 @@ describe('pnpm derive', () => {
       const before = await snapshot();
       expect(before.length).toBeGreaterThan(0);
       await rebuildFingerprints(tx);
-      const after = await snapshot();
+      // Derive writes every column's fingerprint; the export leaves out a
+      // labelled-set company's (Story 5.4, decision 2), so the seed's table
+      // lacks those rows and they are left out of the comparison.
+      const labelled = new Set(parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8'))));
+      const after = (await snapshot()).filter((line) => !labelled.has(line.slice(0, 9)));
       const differing = before.filter((line, i) => after[i] !== line).length;
       expect({ rows: after.length, differing }).toEqual({ rows: before.length, differing: 0 });
     });

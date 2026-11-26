@@ -36,11 +36,23 @@ import {
 import { fraction } from '../../src/engine/fraction.ts';
 import { percentileInc } from '../../src/engine/statistics.ts';
 import { displayWaterfall, marginWaterfall } from '../../src/engine/waterfall.ts';
-import { waterfallFacts } from '../../src/analysis/shown-group.ts';
+import { comparedPeerDates, waterfallFacts } from '../../src/analysis/shown-group.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
-import { BASE_LINES, column, daysBasis, FAILED, NOT_IN_DATASET, readBasis, TEN_PEERS, type Lines } from './document-fixture.ts';
+import {
+  BASE_LINES,
+  capitalPeerDatesOf,
+  column,
+  daysBasis,
+  FAILED,
+  NOT_IN_DATASET,
+  readBasis,
+  TEN_PEER_DATES,
+  TEN_PEERS,
+  TEN_PEERS_READ_AT,
+  type Lines,
+} from './document-fixture.ts';
 import { WF_PEERS, WF_SUBJECT_LINES, waterfallLines } from './waterfall-fixture.ts';
 
 const NBSP = ' ';
@@ -73,7 +85,11 @@ function reconciliation(overrides: Partial<CurrentReconciliation> = {}, lines: L
 const FILING_ID = 4242n;
 
 function subjectOf(api: ApiInputs, basis: DocumentBasis, facts: StoredDocumentFacts): ProvenanceSubject {
-  return provenanceSubject(api, { filingYear: 2025, readAt: READ_AT, brregId: FILING_ID, documentBasis: basis, documentFacts: facts });
+  return provenanceSubject(
+    api,
+    { filingYear: 2025, readAt: READ_AT, brregId: FILING_ID, documentBasis: basis, documentFacts: facts },
+    TEN_PEER_DATES,
+  );
 }
 
 const READ_FACTS: StoredDocumentFacts = { readAt: DOCUMENT_READ_AT, brregId: FILING_ID, current: reconciliation() };
@@ -630,5 +646,64 @@ describe('the waterfall’s drill-downs (Story 3.8)', () => {
     expect(facts.readDates).toEqual({ from: early, to: late });
     expect(facts.groupSize).toBe(3);
     expect(facts.outside.failed_reconciliation).toBe(1);
+  });
+});
+
+// Story 5.4 (FR-64): a document-based aggregate's drill-down states the
+// filing year and the range of the read dates of the peers its comparison
+// counts, by the waterfall facts' rule (one date when min = max), never one
+// peer's date.
+describe('the compared peers’ read dates (Story 5.4, FR-64)', () => {
+  const basis = daysBasis(50n, 5n);
+  const document = benchmarkDocumentFigures(basis, TEN_PEERS, 'NOK');
+
+  it('a document-based aggregate states its filing year and read-date range', () => {
+    // The fixture's state: ten compared peers read 12–21 October 2026.
+    expect(document.kfd.comparison).toMatchObject({ kind: 'compared', count: 10 });
+    const first = TEN_PEERS_READ_AT[0];
+    const last = TEN_PEERS_READ_AT[9];
+    if (first === undefined || last === undefined) throw new Error('ten dates');
+    const range = t('provenance.date.peers', { aar: '2025', fra: formatReadDate(first), til: formatReadDate(last) });
+    for (const key of ['kfd', 'lgd', 'oml'] as const) {
+      const view = capitalProvenance(subjectOf(SUBJECT, basis, READ_FACTS), key, document[key]);
+      expect(view?.figures.map((figure) => figure.peerDates), key).toEqual([range]);
+    }
+    // The profit amount is the API's: no peers' document dates.
+    expect(profitView(subjectOf(SUBJECT, readBasis(), READ_FACTS)).figures.map((figure) => figure.peerDates)).toEqual([null]);
+    // One date when every compared peer was read on the same day.
+    const sameDay = new Date('2026-10-21T08:00:00Z');
+    const subject = provenanceSubject(
+      SUBJECT,
+      { filingYear: 2025, readAt: READ_AT, brregId: FILING_ID, documentBasis: basis, documentFacts: READ_FACTS },
+      capitalPeerDatesOf(TEN_PEERS, TEN_PEERS.map(() => sameDay)),
+    );
+    expect(capitalProvenance(subject, 'kfd', document.kfd)?.figures[0]?.peerDates).toBe(
+      t('provenance.date.peersOne', { aar: '2025', dato: formatReadDate(sameDay) }),
+    );
+  });
+
+  it('counts only the peers whose document gives the figure, and throws on one without a date', () => {
+    const dated = [...TEN_PEERS, NOT_IN_DATASET, FAILED].map((documentBasis, i) => ({
+      documentBasis,
+      documentReadAt: i < 10 ? (TEN_PEERS_READ_AT[i] ?? null) : null,
+    }));
+    expect(comparedPeerDates(dated, 'kfd')).toEqual({
+      count: 10,
+      readDates: { from: TEN_PEERS_READ_AT[0], to: TEN_PEERS_READ_AT[9] },
+    });
+    expect(comparedPeerDates([], 'kfd')).toEqual({ count: 0, readDates: null });
+    expect(() => comparedPeerDates([{ documentBasis: TEN_PEERS[0] ?? NOT_IN_DATASET, documentReadAt: null }], 'kfd')).toThrow(
+      /without its document read date/,
+    );
+  });
+
+  it('refuses dates that are not the compared peers’', () => {
+    const nine = capitalPeerDatesOf(TEN_PEERS.slice(0, 9), TEN_PEERS_READ_AT);
+    const subject = provenanceSubject(
+      SUBJECT,
+      { filingYear: 2025, readAt: READ_AT, brregId: FILING_ID, documentBasis: basis, documentFacts: READ_FACTS },
+      nine,
+    );
+    expect(() => capitalProvenance(subject, 'kfd', document.kfd)).toThrow(/not the compared peers/);
   });
 });

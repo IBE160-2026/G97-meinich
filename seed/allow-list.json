@@ -1,82 +1,3842 @@
 [
   {
+    "orgnr": "922425620",
+    "reason": "Demoselskap A"
+  },
+  {
+    "orgnr": "912159329",
+    "reason": "Demoselskap B"
+  },
+  {
+    "orgnr": "967534579",
+    "reason": "Demoselskap C"
+  },
+  {
+    "orgnr": "811585092",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "811900052",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "812295322",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "812413902",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "812664522",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "812702742",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "813168812",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "813235552",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "813630192",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "813705222",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "814054462",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "814307352",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "814739082",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "814777812",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "814881512",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "815244672",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "815653882",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "815716272",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "816202612",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "816269032",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "816812402",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "817330622",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "817404502",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "817472842",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "817617492",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "818140932",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "818464142",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "818624212",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "818872372",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "818874812",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "819529272",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "819544182",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "820478452",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "821289572",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "821446422",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "821477522",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "821881072",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "822236162",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "822292852",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "822349412",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "822634192",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "823158882",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "823239882",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "823364652",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "823633882",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "823652062",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "823980892",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "824201412",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "824527962",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "824790132",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "824948232",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "825181482",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "825469702",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "825475222",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "825622152",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "825781552",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "825918302",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "826389702",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "826455152",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "826571802",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "826838582",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "827095222",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "827378372",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "827968072",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "828514962",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "829250772",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "829508192",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "829884372",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "830092072",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "830502432",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "830517502",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "830832262",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "830858482",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "831368942",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "832138592",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "833725912",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "835914992",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "841239172",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "867595392",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "874350672",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "880823582",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "881559692",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "882067122",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "882947572",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "883759702",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "884946212",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
     "orgnr": "885583822",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "887217912",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "888777032",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "889448172",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "889539062",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "890619312",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "892644152",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "893829342",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "893938192",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "894409622",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "894928662",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "895210862",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "896764772",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "897744902",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "898125092",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "898426122",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "898785262",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "899537092",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "911197146",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
   },
   {
     "orgnr": "911561972",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "911683776",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "911701251",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "911737671",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "911747324",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "911801663",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "911900432",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "911989417",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "912020991",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "912112616",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912157237",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912164489",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912171752",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912181960",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "912192334",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
     "orgnr": "912197905",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "912218538",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912220036",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912237702",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912244113",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "912272389",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912309975",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912355233",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912391906",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "912452395",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912504735",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "912540863",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912580857",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "912590763",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "912624382",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "912663272",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "912669114",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912719103",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912721825",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "912774007",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "912787281",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912849430",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "912976041",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "913054474",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "913077369",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "913143051",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "913270193",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "913376811",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "913425251",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "913460197",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "913704665",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "913738004",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "913820622",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "913821289",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "913866185",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "913919467",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "913968026",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "913983955",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "914000076",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914085837",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914094925",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914141206",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "914185742",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "914228794",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "914307465",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "914310687",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914358973",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "914397111",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914458412",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "914616255",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "914721091",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "914755212",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914785766",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914840368",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "914869757",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914910951",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "914951852",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "915006620",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "915017096",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "915071422",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "915087027",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "915128920",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "915153704",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "915161804",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "915177719",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "915210600",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "915224628",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
   },
   {
     "orgnr": "915338534",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "915379230",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "915379486",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "915487203",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "915487467",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "915491766",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "915560008",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "915599567",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "915639275",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
     "orgnr": "915648479",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "915667503",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "915695396",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "915704190",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "915717888",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "915780008",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "915847854",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "915979025",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916004702",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916036043",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "916075847",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "916118503",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916162839",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 1)"
+  },
+  {
+    "orgnr": "916210264",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "916235747",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916246269",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916293739",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "916326696",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "916382774",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916492642",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "916510705",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "916517203",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "916520190",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "916530889",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "916559399",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "916561768",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "916569807",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916636660",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916706766",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "916735472",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "916747330",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "916900201",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "916977565",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "917044805",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "917081859",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "917137137",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "917139369",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "917213496",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "917307237",
+    "reason": "Peer for demoselskap A (bånd 2)"
   },
   {
     "orgnr": "917397198",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "917448043",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
     "orgnr": "917526729",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "917540640",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "917567204",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "917577293",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "917649278",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "917725454",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "917732655",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "917757046",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "917759049",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "917790477",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "917865205",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "917895317",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "917994579",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918004246",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "918026827",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918111573",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918158073",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "918166769",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918269649",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918330100",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918351701",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918399038",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918441476",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918443525",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "918460101",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918494480",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918496688",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "918527419",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "918543198",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918544860",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918547258",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918579117",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918594965",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "918603336",
+    "reason": "Peer for demoselskap A (bånd 1)"
   },
   {
     "orgnr": "918618716",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "918714510",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "918744150",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "918772693",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918781293",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918817166",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918843493",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918843957",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "918874224",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "918887520",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "918938877",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919024887",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "919027304",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919041021",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "919062223",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919062517",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "919073764",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919075112",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "919084804",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "919098856",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "919134216",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "919145382",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919177489",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919253088",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "919276495",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919276835",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "919300388",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919339470",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919371625",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919420197",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "919424508",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919444509",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
     "orgnr": "919470992",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "919478497",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "919483067",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "919512350",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "919513586",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "919564369",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "919573619",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919627816",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919638095",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "919653477",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919661763",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "919664886",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "919697199",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919721804",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919808632",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919825723",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "919844523",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "919941189",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "919951834",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920018734",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920024742",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "920028268",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920147763",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "920148867",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920188141",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "920257607",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920285333",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "920346847",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "920369030",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "920411029",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 1)"
+  },
+  {
+    "orgnr": "920419372",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "920472338",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920517846",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "920674461",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "920714978",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920755984",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "920766838",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "920774911",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "920848230",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "920855970",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "920868797",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "920900992",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "920958664",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "920970931",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "920990029",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "920998704",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "921071418",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921074352",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921147325",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921184476",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921186622",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921186738",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921192622",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921244746",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921251084",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921336195",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921337817",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921360428",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921404077",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "921437609",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921463146",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921475063",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921510365",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921548982",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921550049",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921572085",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921583869",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921600070",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921673310",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "921704224",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
   },
   {
     "orgnr": "921716257",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "921725566",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921743432",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921756763",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "921882327",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921891601",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "921891806",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "921892160",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "921897847",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "921995296",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922089841",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922133905",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922173605",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922177775",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
     "orgnr": "922184534",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "922201080",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922255709",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922359989",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "922409765",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922432554",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "922546592",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "922590265",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922607923",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922686416",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "922699348",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922720061",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "922737770",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "922759502",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922772053",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922774692",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "922797358",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922808848",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "922821127",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "922835071",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "922844879",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "922907110",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "922935815",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "922937877",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922971188",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "922998337",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "923027378",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "923050000",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "923072403",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "923147497",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "923158812",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "923210423",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "923232001",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "923242201",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "923255818",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "923362819",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "923471405",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "923490914",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "923525475",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "923532110",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "923641645",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "923658564",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "923661832",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "923780890",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "923816925",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "923943234",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924030046",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924293438",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924404817",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "924427159",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "924455926",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924468505",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924486015",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924505478",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924509627",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "924527676",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924570938",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "924597984",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "924599138",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "924690496",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924714395",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "924777060",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924812184",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924812699",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924830972",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924895772",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924898127",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924922583",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "924963840",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "924964367",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "925010847",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "925033448",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 1)"
+  },
+  {
+    "orgnr": "925151777",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "925171387",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "925173452",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "925208531",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "925239070",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "925286575",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925288225",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "925314943",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "925336726",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "925354090",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925395366",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "925502359",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "925514721",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925531537",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "925532444",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "925536725",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925602108",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "925624896",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "925772364",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "925814385",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "925879819",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925906093",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925929336",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925947873",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "925971855",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "925976105",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925978507",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "925985031",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926009966",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926038583",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "926045873",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926046349",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926056492",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926086758",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926090011",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926103520",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "926188305",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "926196103",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "926277340",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "926312537",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "926318624",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "926389556",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926403699",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926408739",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926461826",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926476327",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "926492527",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "926559745",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "926585665",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "926623680",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "926626264",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926677780",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926707345",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926717235",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926742221",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "926798219",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "926809571",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "926858963",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "926970127",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "927018829",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "927033526",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "927043726",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "927074915",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927075881",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927101432",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "927153041",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "927158442",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927167778",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927171538",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927192322",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927238616",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927340550",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "927347288",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "927405938",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927411644",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927527545",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
   },
   {
     "orgnr": "927533235",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "927600676",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927611074",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "927613298",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "927654334",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "927678594",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927721031",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927834235",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927857898",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "927866536",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "927901013",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927981572",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927984601",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "927994410",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928013405",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "928019012",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928032280",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928040046",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928051366",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "928118029",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "928166430",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "928167364",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928219275",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928414116",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "928431037",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "928469824",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928521184",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "928563898",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "928625060",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "928657043",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "928748774",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "928771555",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "928781593",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "928788709",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "928856518",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "928910881",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "928957195",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "929010884",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "929031156",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929081560",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "929081838",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "929098609",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929136144",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
     "orgnr": "929151178",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "929152417",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929200276",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "929201426",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "929265963",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929286022",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "929322649",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929362926",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "929395824",
+    "reason": "Peer for demoselskap A (bånd 2)"
   },
   {
     "orgnr": "929481151",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "929484673",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929540697",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "929575717",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "929595556",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "929608275",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "929616367",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "929669436",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929756118",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "929782216",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "929804538",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
     "orgnr": "929821092",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "929910109",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "929917316",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "930070556",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "930099996",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "930167878",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "930185817",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "930363898",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "930380008",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "930456462",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "930520101",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "930539260",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "930649236",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "930676721",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "930743453",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "930747785",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "930779849",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "930798258",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "930816620",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "930816639",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "930906654",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "930908185",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "930964859",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "931050478",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "931103849",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "931107933",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "931124293",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "931248022",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "931264079",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "931325647",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "931456237",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "931468774",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "931471147",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "931549383",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "931586270",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "931614916",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "931635409",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "931645544",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "931695630",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "931851926",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "931855654",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "931858092",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "931895583",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "931971786",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "932052237",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "932054787",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "932061287",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932090953",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "932157985",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932166356",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932213478",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932257645",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "932320061",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932393263",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932440695",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932478102",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "932482770",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932557231",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932614286",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932728613",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "932754843",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "932788985",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932918935",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932973618",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "932977028",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "932985934",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "933031861",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "933071650",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "933205002",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "933322645",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "933326233",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "933406288",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "933427978",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "933458393",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "933477711",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "933582159",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "933698173",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "933959163",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "934018249",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "934039459",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "934039785",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "934053540",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "934236025",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "934279220",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "934359119",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "934563719",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "934929314",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "935325609",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "935454255",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "935493072",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "936073433",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "936106129",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
   },
   {
     "orgnr": "936252710",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "936301053",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "937199090",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "937396783",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "940474639",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "943865833",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "946944483",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "947080687",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "947642081",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "947812815",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "948395355",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "948979357",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "951133191",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "952940406",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "953151553",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "954976807",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "957383327",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "960988191",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "964675279",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "965309926",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "968489127",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "970956654",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "971050756",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "974899671",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "975384225",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "975991768",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "976006631",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "976071166",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "976567897",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "976570626",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "976786270",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "976865251",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "976876768",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "976964403",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "977186889",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "978661211",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "978670709",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "978681395",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "979155034",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "979198965",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "979267118",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "979462883",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "979498047",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "979524013",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "979555792",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "979679416",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "979775377",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "979808224",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "979934416",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "979949707",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "979955138",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "980712567",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "980736970",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "981106431",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "981164660",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "981369432",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "981389212",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "981479076",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
     "orgnr": "981564782",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "981601564",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "981603702",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "981687558",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "981693302",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "982057892",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "982099595",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "982326028",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "982349192",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "982375681",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "982396999",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "982433223",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "982439965",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "982461715",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "982528054",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "982927722",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983453767",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983501605",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983509487",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983594123",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983607780",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983746802",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "983977413",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "983996361",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "984337639",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "984406509",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "984574819",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "984587406",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "984661657",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "984794452",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "984902638",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "984952953",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "985041954",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "985094888",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "985284350",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "985331219",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "985442630",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "985471029",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "985535558",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "985567336",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "985745064",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "985802572",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "985857008",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "985874581",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "986051155",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "986827374",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "986977740",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "987067357",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "987183632",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "987255684",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "987348593",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "987356731",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "987493453",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "987777885",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "987917342",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "988187585",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "988353612",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "988669695",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "988676098",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
   },
   {
     "orgnr": "989081799",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "989175386",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "989231405",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "989260715",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "989364413",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "989474278",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "989508598",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "989527460",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "989549081",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "989636790",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "989711393",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "989882554",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "989974300",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "990452458",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "990538816",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "990648085",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "990808414",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 1)"
+  },
+  {
+    "orgnr": "991016791",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "991025022",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991051228",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991083413",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991095535",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991118225",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991304371",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "991308342",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "991326804",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "991482741",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "991543732",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991831436",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991870717",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991939490",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "991997075",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
     "orgnr": "992036079",
     "reason": "OCR-referansesett"
   },
   {
+    "orgnr": "992036230",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992097000",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "992302283",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992318724",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992329831",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992546379",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "992596996",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992684127",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992762594",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "992838728",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "992853905",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "993014796",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "993023116",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "993061875",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "993177407",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "993389986",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "993425575",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "993452890",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "993492353",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "993555002",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "993950335",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "994035053",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "994176021",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "994194585",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "994250698",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 1)"
+  },
+  {
+    "orgnr": "994272209",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "994576240",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "994581384",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "994588982",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "994925687",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "994934910",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "995053861",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "995073064",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "995145073",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "995173794",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "995221608",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
     "orgnr": "995318733",
     "reason": "OCR-referansesett"
+  },
+  {
+    "orgnr": "995359448",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "995404168",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "995475154",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "995572400",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "995590441",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "995601540",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "995683822",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "995772957",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "995944383",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "995992566",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996132994",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "996229009",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996233308",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996261875",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "996271242",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "996296490",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996395723",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "996408841",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "996474143",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "996481867",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996528324",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "996533174",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996574474",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996633918",
+    "reason": "Peer for demoselskap B (bånd 1)"
+  },
+  {
+    "orgnr": "996662144",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996678601",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996738574",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "996752879",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "996802493",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "996825396",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "996840506",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "996878546",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "996941566",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "996957195",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "997001877",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "997090462",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "997103610",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "997312368",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "997444345",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "997465733",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "997466586",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "997536681",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "997586697",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "997650913",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "997780930",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "997780973",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "997811860",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 2)"
+  },
+  {
+    "orgnr": "997817273",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "997819594",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "997950879",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998002788",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "998003334",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "998053765",
+    "reason": "Peer for demoselskap A (bånd 2) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998054419",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998082625",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998129435",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "998166845",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998204267",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998209218",
+    "reason": "Peer for demoselskap B (bånd 2)"
+  },
+  {
+    "orgnr": "998327490",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 2)"
+  },
+  {
+    "orgnr": "998359767",
+    "reason": "Peer for demoselskap A (bånd 1) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998392497",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "998488729",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "998580706",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "998675472",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "998710502",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "998718287",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "998850371",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "998859247",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "998885124",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "999039529",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "999074219",
+    "reason": "Peer for demoselskap A (bånd 1)"
+  },
+  {
+    "orgnr": "999093302",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "999104134",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "999159958",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "999183719",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "999189571",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
+  },
+  {
+    "orgnr": "999307523",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 1)"
+  },
+  {
+    "orgnr": "999660398",
+    "reason": "Peer for demoselskap A (bånd 2)"
+  },
+  {
+    "orgnr": "999665675",
+    "reason": "Peer for demoselskap A (bånd 0) og B (bånd 0)"
   }
 ]

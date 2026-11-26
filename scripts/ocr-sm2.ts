@@ -1164,7 +1164,11 @@ export function readInputs(root: string): ReportInputs {
   const read = (relative: string) => readFileSync(path.join(root, ...relative.split('/')), 'utf8');
   const drawn = parseDrawn(JSON.parse(read(REFERENCE_DRAW_FILE)));
   const storedText = read(`${SEED_DIR}/document_column.csv`);
-  const stored = parseStoredColumns(storedText);
+  // The report is about the reference set. Since Story 5.4 the seed also
+  // holds the documents of demo A's and B's groups; only the reference
+  // companies' rows are read here.
+  const referenceOrgnrs = new Set(drawn.map((filing) => filing.orgnr));
+  const stored = parseStoredColumns(storedText).filter((column) => referenceOrgnrs.has(column.orgnr));
   const before25bText = read(`${BEFORE_2_5B_DIR}/document_column.csv`);
   const before25bStored = parseStoredColumns(before25bText);
   const after25bFile = path.join(root, ...RUN_COUNTS_AFTER_2_5B_FILE.split('/'));
@@ -1189,7 +1193,7 @@ export function readInputs(root: string): ReportInputs {
     before: compareReference(drawn, transcribedBefore, stored),
     corrections,
     laterCorrections: corrections.filter((c) => !suspected.has(`${c.orgnr}/${c.filingYear}/${c.role}/${c.field}`)),
-    documents: parseStoredDocuments(read(`${SEED_DIR}/document.csv`)),
+    documents: parseStoredDocuments(read(`${SEED_DIR}/document.csv`)).filter((document) => referenceOrgnrs.has(document.orgnr)),
     stored,
     consistency: parseConsistency(JSON.parse(read(CONSISTENCY_FILE))),
     before23b: {

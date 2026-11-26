@@ -2,19 +2,26 @@
 // (Story 1.3b; technical note "Seed data", allow-list test). Reads every
 // committed seed file, whatever its dataset tag; a document figure is a row
 // of document_column.csv (Story 2.1b). Reads the committed OCR reference
-// draw too: every reference orgnr is on the list (Story 2.3, NFR15).
+// draw too: every reference orgnr is on the list (Story 2.3, NFR15). And the
+// labelled set: no committed fingerprint belongs to one of its companies
+// (Story 5.4, decision 2).
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ALLOW_LIST_FILE,
+  LABELLED_SET_FILE,
   REFERENCE_DRAW_FILE,
   REFERENCE_REASON,
   SEED_DIR,
   parseAllowList,
   parseAllowListEntries,
+  labelledDocumentOrgnrCount,
+  parseCsv,
   parseDrawn,
+  parseLabelledSet,
   unlistedDocumentFigures,
+  unlistedDocuments,
 } from '../scripts/seed-format.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -42,6 +49,30 @@ describe('seed/allow-list.json', () => {
 
   it('covers every orgnr with document figures in the committed seed', () => {
     expect(unlistedDocumentFigures(files, allowList)).toEqual([]);
+  });
+
+  // Story 5.4 review: a document row without columns is a filed document of its company too.
+  it('covers every orgnr with a document row in the committed seed', () => {
+    expect(unlistedDocuments(files, allowList)).toEqual([]);
+  });
+
+  // AGENTS.md: no committed file ties a fingerprint result to a labelled-set
+  // company. The failure gives a count only, never an orgnr.
+  it('holds no fingerprint of a labelled-set company', () => {
+    const labelled = new Set(parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8'))));
+    const [header, ...rows] = parseCsv(files.get('fingerprint.csv') ?? '');
+    const at = header?.indexOf('orgnr') ?? -1;
+    expect(at).toBeGreaterThanOrEqual(0);
+    const count = rows.filter((row) => labelled.has(row[at] ?? '')).length;
+    expect(count, 'fingerprint.csv rows of labelled-set companies').toBe(0);
+  });
+
+  // Story 5.4, decision 2: the labelled set's document rows are not committed, except the OCR
+  // reference companies'. The failure gives a count only, never an orgnr.
+  it('holds no document row of a labelled-set company outside the reference draw', () => {
+    const labelled = parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8')));
+    const drawn = parseDrawn(JSON.parse(readFileSync(path.join(root, REFERENCE_DRAW_FILE), 'utf8')));
+    expect(labelledDocumentOrgnrCount(files, labelled, drawn), 'labelled-set companies with document rows').toBe(0);
   });
 
   it('lists every reference orgnr with the reason OCR-referansesett', () => {

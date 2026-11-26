@@ -85,7 +85,7 @@ const TURNOVER: TurnoverBenchmark = benchmarkTotalAssetTurnover(SUBJECT, TEN);
  * inputs and `basis`, the document basis `documentBenchmark` was computed
  * from: the table refuses an amount without its drill-down.
  */
-function drillSubject(basis: DocumentBasis) {
+function drillSubject(basis: DocumentBasis, documentBenchmark: DocumentBenchmark = OUTSIDE) {
   // A failed column names what failed (step 1 always stores its checks): here c1.
   const failed = { checks: { c1: 'fail', c2: 'pass', c3: 'pass', c4: 'pass', c5: 'pass' }, apiCheck: 'pass', apiFailFields: [], figures: column({}) } as const;
   const facts = {
@@ -93,11 +93,22 @@ function drillSubject(basis: DocumentBasis) {
     brregId: 1n,
     current: basis.kind === 'failed_reconciliation' ? failed : null,
   };
-  return provenanceSubject(SUBJECT, { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts });
+  // Story 5.4 (FR-64): each capital figure's compared peers, all read on one date.
+  const at = new Date('2026-10-21T08:00:00Z');
+  const dates = (figure: 'kfd' | 'lgd' | 'oml') => {
+    const { comparison } = documentBenchmark[figure];
+    const count = comparison.kind === 'compared' ? comparison.count : 0;
+    return { count, readDates: count === 0 ? null : { from: at, to: at } };
+  };
+  return provenanceSubject(
+    SUBJECT,
+    { filingYear: 2025, readAt: new Date('2026-10-03T08:00:00Z'), brregId: 1n, documentBasis: basis, documentFacts: facts },
+    { kfd: dates('kfd'), lgd: dates('lgd'), oml: dates('oml') },
+  );
 }
 
 function drillDowns(benchmark: ApiBenchmark, documentBenchmark: DocumentBenchmark, basis: DocumentBasis) {
-  return tableProvenance(drillSubject(basis), benchmark, documentBenchmark);
+  return tableProvenance(drillSubject(basis, documentBenchmark), benchmark, documentBenchmark);
 }
 
 /**
@@ -777,7 +788,10 @@ describe('the full key-figure table (Story 3.1b)', () => {
         { kind: 'not_read_in_v1', scope: 'filing_year', filingYear: 2019 },
         `${nb['analysis.figures.notReadInV1']} ${t('analysis.figures.notReadInV1.filingYear', { fra: '2021', til: '2025', aar: '2025' })}`,
       ],
-      [{ kind: 'not_in_dataset' }, `${nb['analysis.figures.notInDataset']} ⓘ ${nb['keyFigures.moreAbout']} ${nb['keyFigures.notInDataset.popover']}`],
+      [
+        { kind: 'not_in_dataset' },
+        `${nb['analysis.figures.notInDataset']} ⓘ ${nb['keyFigures.moreAbout']} ${nb['keyFigures.notInDataset.popover']} ${nb['keyFigures.notInDataset.popoverLink']}`,
+      ],
     ];
     for (const [basis, words] of bases) {
       const html = full(basis);
@@ -822,7 +836,12 @@ describe('the full key-figure table (Story 3.1b)', () => {
           `<button type="button" aria-expanded="false" aria-controls="kf-d-pop-${key}"[^>]*><span aria-hidden="true">ⓘ</span><span class="sr-only">${nb['keyFigures.moreAbout']}</span></button>`,
         ),
       );
-      expect(content, key).toMatch(new RegExp(`<span id="kf-d-pop-${key}" hidden=""[^>]*>${nb['keyFigures.notInDataset.popover']}</span>`));
+      // Story 5.4: the text, then the link to "Kilder og lisens"'s paragraph on the documents.
+      expect(content, key).toMatch(
+        new RegExp(
+          `<span id="kf-d-pop-${key}" hidden=""[^>]*><span data-popover-text="">${nb['keyFigures.notInDataset.popover']}</span> <a class="text-link" href="/slik-fungerer-peerless#arsregnskap">${nb['keyFigures.notInDataset.popoverLink']}</a></span>`,
+        ),
+      );
       const phoneOwn = /<td[^>]*data-cell="own"[^>]*>[\s\S]*?<\/td>/.exec(phoneRows(html, key).row)?.[0] ?? '';
       expect(phoneOwn, key).toContain(`aria-describedby="${id}"`);
       expect(phoneOwn, key).toContain(`aria-controls="kf-p-pop-${key}"`);

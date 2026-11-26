@@ -92,6 +92,7 @@ export function ProvenanceSteps({
               </Chip>
             ))}
             <p className="m-0 mt-1">{figure.best}</p>
+            {figure.peerDates === null ? null : <p className="m-0 mt-1 text-slate">{figure.peerDates}</p>}
             <Disclosure id={`${id}-fordeling-${i}`} label={t('provenance.showDistribution')}>
               <p className="m-0 text-slate">{figure.distribution.caption}</p>
               <ol className="figure m-0 mt-1 grid list-decimal grid-cols-2 gap-x-6 pl-8 sm:grid-cols-3 md:grid-cols-4">

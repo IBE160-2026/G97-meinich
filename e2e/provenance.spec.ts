@@ -1,12 +1,12 @@
 // "Hvordan er dette regnet?" (Story 3.7; FR-57, FR-60, FR-64) against the
-// production build and the loaded demo seed: demo A's drill-downs, whose
+// production build and the loaded demo seed: the drill-downs of OUTSIDE
+// (e2e/seed.ts; Story 5.4: a company outside the demo data with a median
+// step, chosen by a fixed rule, as the placeholder demo A was), whose
 // values are the engine's, computed here from the seed (e2e/seed.ts); the
 // quartile, recomputed from what "Vis fordelingen" shows; the focus moves;
 // a company outside the demo data claiming no reconciliation; and every
 // surface at 375 and 320 px. Every read after opening a drill-down or "Vis
 // fordelingen" first waits for it to be visible.
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
@@ -14,28 +14,41 @@ import { Decimal } from '../src/engine/decimal.ts';
 import { formatKroner, formatKronerExact, formatPercent, shownPercent, wholeKroner } from '../src/engine/format.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { resolveApiInputs } from '../src/engine/key-figures.ts';
-import { shareLineIsApproximate } from '../src/engine/closable.ts';
 import { lineIsApproximate, REGISTER_FIELD_NAMES } from '../src/engine/provenance.ts';
 import { percentileInc } from '../src/engine/statistics.ts';
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
-import { A, companyShown, dataDate, expectedBenchmark, headerSearch, keyFigureRow, newestFiling, noSidewaysScroll, rendered, root } from './seed.ts';
+import {
+  OUTSIDE,
+  companyShown,
+  dataDate,
+  documentFigureOrgnrs,
+  expectedBenchmark,
+  headerSearch,
+  keyFigureRow,
+  newestFiling,
+  noSidewaysScroll,
+  rendered,
+} from './seed.ts';
 
 const fill = (id: keyof typeof nb, vars: Record<string, string>) =>
   Object.entries(vars).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), nb[id]);
 const NBSP = String.fromCharCode(0xa0);
 const plain = (text: string) => text.replaceAll(NBSP, ' ');
 
-const orgnr = A.orgnr ?? '';
+const orgnr = OUTSIDE.orgnr ?? '';
+const navn = OUTSIDE.navn ?? '';
+/** A displayed number after an operator, as the drill-down writes it: a negative one in parentheses. */
+const operand = (value: string) => (value.startsWith('−') ? `(${value})` : value);
 
-/** Demo A's driftsmargin and its profit, as the engine gives them at the default URL. */
+/** The subject's driftsmargin and its profit, as the engine gives them at the default URL. */
 function oracle() {
   const benchmark = expectedBenchmark(orgnr, 0);
   const figure = benchmark.driftsmargin;
   const c = figure.comparison;
-  if (c.kind !== 'compared' || c.best === null || figure.gap.kind !== 'amount') throw new Error('demo A has a profit amount');
+  if (c.kind !== 'compared' || c.best === null || figure.gap.kind !== 'amount') throw new Error('the subject has a profit amount');
   const row = keyFigureRow(newestFiling(orgnr).brreg_id ?? '');
   const revenue = resolveApiInputs(apiInputsFromRow(row)).sumDriftsinntekter;
-  if (revenue === null) throw new Error('demo A has a revenue');
+  if (revenue === null) throw new Error('the subject has a revenue');
   return {
     c,
     best: c.best,
@@ -62,11 +75,11 @@ async function open(page: Page, id: string): Promise<Locator> {
 const chips = async (drill: Locator) => (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plain);
 
 test.describe('the drill-down (Story 3.7)', () => {
-  test('values equal the engine: demo A’s driftsmargin cell, at the default URL', async ({ page }) => {
+  test('values equal the engine: the driftsmargin cell, at the default URL', async ({ page }) => {
     const o = oracle();
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/nokkeltall`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     const drill = await open(page, 'kf-d-prov-driftsmargin');
     // Focus on the heading (decision 9).
     await expect(drill.getByRole('heading', { name: nb['provenance.trigger'] })).toBeFocused();
@@ -74,22 +87,20 @@ test.describe('the drill-down (Story 3.7)', () => {
     for (const step of ['formula', 'figure', 'filed', 'source'] as const) await expect(drill).toContainText(nb[`provenance.step.${step}`]);
     const lines = await chips(drill);
     expect(lines[0]).toBe('(T − r) × sumDriftsinntekter');
-    // The fixture's state, by the displayed-operand rule: demo A's own margin is positive (no
-    // parentheses), and (T − r) × revenue from the displayed T, r and revenue is not the displayed
-    // amount, so the line reads "≈".
+    // The fixture's state, by the displayed-operand rule: (T − r) × revenue from the displayed T, r
+    // and revenue is not the displayed amount, so the line reads "≈"; a negative r is in parentheses.
     const T = formatPercent(o.best.quartile.toString());
     const r = formatPercent(o.c.subject.toString());
-    expect(o.c.subject.isPositive()).toBe(true);
     const shown = shownPercent(o.best.quartile.toString()).minus(shownPercent(o.c.subject.toString())).mul(wholeKroner(o.revenueOre.toString()));
     expect(lineIsApproximate(shown, wholeKroner(o.gapOre.toString()))).toBe(true);
-    expect(lines[1]).toBe(plain(`(${T} − ${r}) × ${formatKroner(o.revenueOre.toString())} ≈ ${o.amount} ${nb['keyFigures.perYear']}`));
+    expect(lines[1]).toBe(plain(`(${T} − ${operand(r)}) × ${formatKroner(o.revenueOre.toString())} ≈ ${o.amount} ${nb['keyFigures.perYear']}`));
     expect(lines).toContain(`T = ${plain(formatPercent(o.best.quartile.toString()))}`);
     expect(lines).toContain(`M = ${plain(formatPercent(o.c.median.toString()))}`);
     expect(lines.some((line) => line.startsWith('r = driftsresultat / sumDriftsinntekter') && line.endsWith(plain(formatPercent(o.c.subject.toString()))))).toBe(true);
     await expect(drill).toContainText(
       fill('provenance.best', { T: formatPercent(o.best.quartile.toString()), kvartil: nb['provenance.quartile.upper'], n: String(o.c.count) }),
     );
-    // The filed values, their data date, the source and the data-quality line: demo A is outside the demo data.
+    // The filed values, their data date, the source and the data-quality line: the subject is outside the demo data.
     const text = plain(await drill.innerText());
     expect(text).toContain(plain(`driftsresultat ${formatKroner(o.driftsresultat ?? '')}`));
     expect(text).toContain(plain(`sumDriftsinntekter ${formatKroner(o.sumDriftsinntekter ?? '')}`));
@@ -104,7 +115,7 @@ test.describe('the drill-down (Story 3.7)', () => {
     const o = oracle();
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/verdi?andel=median&multippel=6.5`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     const profit = await open(page, 'verdi-prov-profit');
     const lines = await chips(profit);
     // The median step's profit is (M − r) × sumDriftsinntekter, and its amount the card's.
@@ -125,45 +136,43 @@ test.describe('the drill-down (Story 3.7)', () => {
   // Review: the share line the browser writes into Verdi's drill-down, at 50 % and after a share change.
   test('Verdi: the profit drill-down’s share line is its own card’s, and follows the share', async ({ page }) => {
     const o = oracle();
+    // Øre to the whole kroner the page shows, rounded half away from zero (decimal.js's ROUND_HALF_UP).
+    const wholeKr = (oreValue: Decimal) => oreValue.div(100).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
     const line = (percent: number) => {
       const factor = new Decimal(percent).div(100);
       const amount = o.gapOre.mul(factor);
       return {
-        // The fixture's state for the sign: "=" where the shown full × the share is the shown amount.
-        approximate: shareLineIsApproximate(o.gapOre, factor, amount),
+        // The sign, computed here and not by the app (review): "=" where the shown full, in whole
+        // kroner, × the share is the shown amount in whole kroner; "≈" otherwise.
+        approximate: !wholeKr(o.gapOre).mul(factor).eq(wholeKr(amount)),
         text: (sign: '=' | '≈') =>
           plain(`${formatKronerExact(o.gapOre.toString())} × ${percent} % ${sign} ${formatKronerExact(amount.toString())}`),
       };
     };
-    // Demo A: 3 128 453 kr exact to the øre is odd in whole kroner, so 50 % is "≈" and 25 % too.
     const at50 = line(50);
     const at25 = line(25);
-    expect(at50.approximate).toBe(true);
-    expect(at25.approximate).toBe(true);
+    const sign = (at: ReturnType<typeof line>) => (at.approximate ? '≈' : '=');
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/verdi`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     const drill = await open(page, 'verdi-prov-profit');
-    expect(await chips(drill)).toContain(at50.text('≈'));
+    expect(await chips(drill)).toContain(at50.text(sign(at50)));
     await rendered(page).locator('[data-share-step="25"]').click();
     // Wait for the share to render before reading the drill-down (PR #78).
     await expect(rendered(page).locator('[data-share-step="25"]')).toHaveAttribute('aria-checked', 'true');
     await expect(drill.locator('[data-provenance-chip]', { hasText: ' × 25' })).toHaveCount(1);
     const lines = await chips(drill);
-    expect(lines).toContain(at25.text('≈'));
-    expect(lines).not.toContain(at50.text('≈'));
+    expect(lines).toContain(at25.text(sign(at25)));
+    expect(lines).not.toContain(at50.text(sign(at50)));
   });
 
   test('outside the demo data: no reconciliation claim', async ({ page }) => {
-    // The fixture's state: demo A is not on the committed manifest's list of orgnrs with document figures.
-    const manifest = JSON.parse(readFileSync(path.join(root, 'seed/demo/manifest.json'), 'utf8')) as {
-      readonly document_figure_orgnrs: readonly string[];
-    };
-    expect(manifest.document_figure_orgnrs.length).toBeGreaterThan(0);
-    expect(manifest.document_figure_orgnrs).not.toContain(orgnr);
+    // The fixture's state: the subject is not on the committed manifest's list of orgnrs with document figures.
+    expect(documentFigureOrgnrs.size).toBeGreaterThan(0);
+    expect(documentFigureOrgnrs.has(orgnr)).toBe(false);
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/nokkeltall`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     // One trigger in the desktop table: driftsmargin's; no capital cell has an amount.
     await expect(rendered(page).locator('table[data-layout="desktop"] [data-provenance-trigger]')).toHaveCount(1);
     for (const key of ['kfd', 'lgd', 'oml']) await expect(trigger(rendered(page), `kf-d-prov-${key}`)).toHaveCount(0);
@@ -172,7 +181,7 @@ test.describe('the drill-down (Story 3.7)', () => {
     await expect(drill).not.toContainText(nb['provenance.quality.reconciled']);
     // Oversikt: the hero has its drill-down, the capital card none.
     await page.goto(`/analyse/${orgnr}/oversikt`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     await expect(trigger(rendered(page), 'hero-prov')).toBeVisible();
     await expect(trigger(rendered(page), 'card-capital-prov')).toHaveCount(0);
   });
@@ -181,7 +190,7 @@ test.describe('the drill-down (Story 3.7)', () => {
     const o = oracle();
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/nokkeltall`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     const drill = await open(page, 'kf-d-prov-driftsmargin');
     await drill.getByRole('button', { name: nb['provenance.showDistribution'] }).click();
     const list = drill.locator('[data-provenance-distribution] ol');
@@ -190,12 +199,15 @@ test.describe('the drill-down (Story 3.7)', () => {
     const texts = await list.locator('li').allInnerTexts();
     expect(texts).toHaveLength(o.c.count);
     // Values only: a percent each, never a name or an orgnr.
-    for (const value of texts) expect(plain(value)).toMatch(/^−?\d+,\d %$/);
-    const values = texts.map((value) => new Decimal(plain(value).replace(' %', '').replace(',', '.').replace('−', '-')).div(100));
+    // A value of 1 000 % or more has a thousands space, as format.ts writes it.
+    for (const value of texts) expect(plain(value)).toMatch(/^−?\d{1,3}(?: \d{3})*,\d %$/);
+    const values = texts.map((value) =>
+      new Decimal(plain(value).replace(' %', '').replaceAll(' ', '').replace(',', '.').replace('−', '-')).div(100),
+    );
     for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
     // PERCENTILE.INC at 0,75 on the shown values, written as the page writes T.
     expect(formatPercent(percentileInc(values, '0.75').toString())).toBe(formatPercent(o.best.quartile.toString()));
-    // The fixture's state: h = (n − 1) × 0,75 has the fraction f = 0,25 for demo A's n, so T lies
+    // The fixture's state: h = (n − 1) × 0,75 has the fraction f = 0,25 for the subject's n, so T lies
     // between two values and both are marked.
     expect(new Decimal(o.c.count - 1).mul('0.75').mod(1).toString()).toBe('0.25');
     await expect(list.locator('li[data-marked]')).toHaveCount(2);
@@ -204,7 +216,7 @@ test.describe('the drill-down (Story 3.7)', () => {
   test('focus: opening moves it to the heading; Lukk and Esc return it to the trigger', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/oversikt`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     const button = trigger(rendered(page), 'hero-prov');
     await expect(button).toHaveAttribute('aria-expanded', 'false');
     await expect(button).toHaveAttribute('aria-controls', 'hero-prov-body');
@@ -229,7 +241,7 @@ test.describe('the drill-down (Story 3.7)', () => {
     const [, demoB] = DEMO_COMPANIES;
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${orgnr}/oversikt`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     await open(page, 'hero-prov');
     await headerSearch(page).fill(demoB.navn);
     await page.getByRole('option', { name: demoB.navn }).first().click();
@@ -242,12 +254,12 @@ test.describe('the drill-down (Story 3.7)', () => {
   });
 
   // DESIGN.md: a register field name may break anywhere, so the longest one never widens the page.
-  // Demo A's own names are short, so the longest register name is put into a chip of the most
+  // The subject's own names are short, so the longest register name is put into a chip of the most
   // deeply indented drill-down, Verdi's EV, at 320 px, as a field name is written.
   test('phone: the longest register field name wraps inside its chip at 320 px', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
     await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
-    await companyShown(page, A.navn ?? '');
+    await companyShown(page, navn);
     const drill = await open(page, 'verdi-prov-ev');
     const longest = Object.values(REGISTER_FIELD_NAMES).reduce((a, b) => (b.length > a.length ? b : a));
     expect(longest).toBe('ordinaertResultatFoerSkattekostnad');
@@ -270,7 +282,7 @@ test.describe('the drill-down (Story 3.7)', () => {
       const targets: Locator[] = [];
       // Nøkkeltall: the driftsmargin row's expansion, its drill-down and its distribution.
       await page.goto(`/analyse/${orgnr}/nokkeltall`);
-      await companyShown(page, A.navn ?? '');
+      await companyShown(page, navn);
       const phone = rendered(page).locator('table[data-layout="phone"]');
       await phone.locator('th button').first().click();
       const table = await open(page, 'kf-p-prov-driftsmargin');
@@ -290,7 +302,7 @@ test.describe('the drill-down (Story 3.7)', () => {
       ];
       for (const [url, ids] of surfaces) {
         await page.goto(url);
-        await companyShown(page, A.navn ?? '');
+        await companyShown(page, navn);
         for (const id of ids) {
           const drill = await open(page, id);
           await drill.getByRole('button', { name: nb['provenance.showDistribution'] }).click();

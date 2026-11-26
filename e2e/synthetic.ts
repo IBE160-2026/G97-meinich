@@ -12,7 +12,8 @@
 //   each a 62.100 AS with a reconciled current and prior document column
 //   for 2025, all on the manifest's list while their spec runs, so every
 //   document row of the subject's key-figure table is compared, which no
-//   company in the committed seed is (Story 5.4 commits the demo pools).
+//   company in the committed seed was before Story 5.4 committed the demo
+//   pools' document rows.
 //
 // They are the e2e fixtures that commit rows: the production server reads
 // only committed data, so a rolled-back transaction would show it nothing.
@@ -24,7 +25,7 @@
 // orgnr on the manifest's list of orgnrs with document figures.
 //
 // SYNTHETIC's revenue, 2 500 000 kr, and SYNTHETIC_USD's, 500 000, lie
-// outside demo A's (26,2 mill. kr) and demo B's (24,9 mill. kr) size bands
+// outside demo A's (about 21,5 mill. kr) and demo B's (about 40,5 mill. kr) size bands
 // at every step, the widest 0,25–4×, so neither enters a demo pool while it
 // exists. SYNTHETIC has a pool of its own among the seed's small 62.100
 // companies; SYNTHETIC_USD's widest band, 125 000 – 2 000 000, holds seeded
@@ -32,11 +33,12 @@
 // 62.100 for 2025 is about 4,2 million).
 //
 // SYNTHETIC_DOCUMENTS' revenues, 1,1–2,0 milliards for the peers and 1,5 for
-// the subject, lie above demo A's and B's widest bands (at most 104,8 mill.
-// kr), so none enters a demo pool. The subject's widest band (the widest
-// step of SIZE_BANDS, 0,25–4× today: from 375 mill. kr) lies above every
-// other company on the manifest's list (the largest has 269 mill. kr in
-// 2025), so its document figures are compared
+// the subject, lie above demo A's and B's widest bands (at most about 162
+// mill. kr, B's), so none enters a demo pool. The subject's widest band (the
+// widest step of SIZE_BANDS, 0,25–4× today: from 375 mill. kr) lies above
+// every other company on the manifest's list (the demo pools reach about
+// 162 mill. kr, the OCR reference set 269 mill. kr in 2025), so its
+// document figures are compared
 // against exactly the ten synthetic peers; `insertSyntheticDocuments`
 // refuses to run otherwise. The seed's companies in its band have no
 // document figures, so they are left out of the document rows.

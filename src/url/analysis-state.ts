@@ -18,7 +18,10 @@
 // `invalidSettings` flag, so nothing is dropped silently. Canonicalising —
 // sorting and de-duplicating `ekskl`, stripping spaces, "6,5" → "6.5",
 // "6.50" → "6.5" — is not a fallback. Unknown parameters (fbclid, utm_…)
-// are ignored without the flag and are not written back.
+// are ignored without the flag and are not written back. One fallback has
+// a flag of its own (Story 5.4): `andel=median` for a group with no median
+// step falls back to 50 with `medianFallback`, not `invalidSettings`, since
+// a peer change can lead there from a link that was valid when written.
 
 import type { Multiple } from '../engine/closable.ts';
 import { Decimal } from '../engine/decimal.ts';
@@ -60,7 +63,13 @@ export type AnalysisState = {
 };
 
 export type ParseResult =
-  | { readonly kind: 'analysis'; readonly state: AnalysisState; readonly invalidSettings: boolean }
+  | {
+      readonly kind: 'analysis';
+      readonly state: AnalysisState;
+      readonly invalidSettings: boolean;
+      /** `andel=median` fell back to 50: the group the URL names has no median step (Story 5.4). */
+      readonly medianFallback: boolean;
+    }
   /**
    * `length`: not nine digits after removing spaces; `checksum`: nine digits
    * failing modulus 11. `input` is the orgnr segment as typed, decoded, for
@@ -167,6 +176,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
   if (!isValidOrgnr(orgnr)) return { kind: 'invalid-orgnr', reason: 'checksum', input };
 
   let invalidSettings = false;
+  let medianFallback = false;
 
   let fane: Fane | null = null;
   const faneSegment = segments[1];
@@ -229,7 +239,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
     if (parsed === null) {
       invalidSettings = true;
     } else if (parsed === 'median' && !context.medianStepExists({ orgnr, band, ekskl })) {
-      invalidSettings = true;
+      medianFallback = true;
     } else {
       andel = parsed;
     }
@@ -242,7 +252,7 @@ export function parse(href: string, context: ParseContext): ParseResult {
     if (multippel === null) invalidSettings = true;
   }
 
-  return { kind: 'analysis', state: { orgnr, fane, ekskl, band, andel, multippel }, invalidSettings };
+  return { kind: 'analysis', state: { orgnr, fane, ekskl, band, andel, multippel }, invalidSettings, medianFallback };
 }
 
 /**

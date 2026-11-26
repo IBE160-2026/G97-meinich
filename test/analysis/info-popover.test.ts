@@ -25,8 +25,17 @@ describe('the info popover', () => {
     expect(html).toMatch(
       /<button type="button" aria-expanded="false" aria-controls="pop-1"[^>]*><span aria-hidden="true">ⓘ<\/span><span class="sr-only">Mer om dette<\/span><\/button>/,
     );
-    expect(html).toMatch(/<span id="pop-1" hidden=""[^>]*>Den lange teksten\.<\/span>/);
+    expect(html).toMatch(/<span id="pop-1" hidden=""[^>]*><span data-popover-text="">Den lange teksten\.<\/span><\/span>/);
     // At least 24 × 24 px (min-h-6 min-w-6).
     expect(html).toMatch(/<button[^>]*class="[^"]*min-h-6 min-w-6/);
+  });
+
+  // Story 5.4: an optional link after the text, inside the hidden part.
+  it('renders the link after the text when given one, and none without', () => {
+    const html = renderToString(
+      createElement(InfoPopover, { id: 'pop-2', label: 'Mer om dette', text: 'Teksten.', link: { href: '/om#avsnitt', label: 'Les mer' } }),
+    );
+    expect(html).toMatch(/<span id="pop-2" hidden=""[^>]*><span data-popover-text="">Teksten\.<\/span> <a [^>]*href="\/om#avsnitt"[^>]*>Les mer<\/a><\/span>/);
+    expect(renderToString(createElement(InfoPopover, { id: 'pop-3', label: 'x', text: 'y' }))).not.toContain('<a ');
   });
 });

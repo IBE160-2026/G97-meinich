@@ -10,6 +10,7 @@
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
+import { medianStep } from '../src/engine/closable.ts';
 import { formatKommune, formatOrgnr } from '../src/engine/format.ts';
 import {
   A,
@@ -22,6 +23,7 @@ import {
   companyShown,
   coverageSentence,
   dataDate,
+  expectedBenchmark,
   h1,
   headerSearch,
   noSidewaysScroll,
@@ -99,6 +101,17 @@ test.describe('covered company', () => {
     await expect(page.locator('[data-testid="settings-notice"] p')).toHaveCount(1);
     await expect(tabs(page).getByRole('link', { name: nb['tabs.peers'] })).toHaveAttribute('aria-current', 'page');
     await expect(page).toHaveURL(new RegExp(`/peers\\?band=x$`));
+  });
+
+  // Story 5.4: demo A has no median step at band 0 (its driftsmargin lies above the median), so
+  // andel=median falls back to 50 with the median notice, not the invalid-settings notice.
+  test('andel=median with no median step shows the median notice only', async ({ page }) => {
+    expect(medianStep(expectedBenchmark(A.orgnr ?? '', 0).driftsmargin.comparison).kind).toBe('none');
+    await page.goto(`/analyse/${A.orgnr}/verdi?andel=median`);
+    await companyShown(page, A.navn ?? '');
+    await expect(notice(page)).toHaveText(nb['analysis.notice.median']);
+    await expect(notice(page)).not.toContainText(nb['analysis.notice']);
+    await expect(page.locator('[data-testid="settings-notice"] p')).toHaveCount(1);
   });
 
   test('/verdi renders Verdi, with no notice and no redirect (Story 3.5)', async ({ page, request }) => {
@@ -310,8 +323,8 @@ test.describe('the header search', () => {
 
   test('can be used twice: the loading state is cleared after each navigation', async ({ page }) => {
     await page.goto(`/analyse/${C.orgnr}`);
-    await headerSearch(page).fill('admmit');
-    await page.getByRole('banner').getByRole('option', { name: /ADMMIT AS/ }).click();
+    await headerSearch(page).fill(A.navn ?? '');
+    await page.getByRole('banner').getByRole('option', { name: A.navn ?? '' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/analyse/${A.orgnr}/oversikt$`));
     await companyShown(page, A.navn ?? '');
     await expect(headerSearch(page)).not.toHaveAttribute('readonly', /.*/);
@@ -358,6 +371,18 @@ test.describe('Slik fungerer Peerless', () => {
     );
     await expect(section).toContainText(nb['about.sources.processed']);
     await expect(section).toContainText(nb['about.sources.endorsement']);
+    // Story 5.4: the document-figure paragraph, apart from the NLOD credit, with the gate closed
+    // (no derived-categories phrase).
+    const documents = page.getByTestId('documents-credit');
+    await expect(documents).toHaveText(nb['about.sources.documents']);
+    await expect(documents).toHaveAttribute('id', 'arsregnskap');
+    await expect(section).not.toContainText('avledede kategorier');
+  });
+
+  test('the "Ikke i demodataene" link lands on the document-figure paragraph', async ({ page }) => {
+    await page.goto('/slik-fungerer-peerless#arsregnskap');
+    await expect(page.locator('#arsregnskap')).toBeInViewport();
+    await expect(page.locator('#arsregnskap')).toBeFocused();
   });
 
   test('the header and footer links resolve on every page, the footer link to the section', async ({ page, request }) => {

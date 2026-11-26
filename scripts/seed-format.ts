@@ -572,7 +572,17 @@ export function refuseUnstoredDrawn(drawn: readonly DrawnFiling[], stored: Reado
 // have one and are not on the allow-list. files maps seed file name →
 // content.
 export function unlistedDocumentFigures(files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
-  const file = 'document_column.csv';
+  return unlistedIn('document_column.csv', files, allowList);
+}
+
+// Story 5.4 review: the orgnrs, sorted, with a row of document.csv and not on
+// the allow-list. A document stored without columns (refused, not read)
+// still names a company's filed document, so it is checked like a column.
+export function unlistedDocuments(files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
+  return unlistedIn('document.csv', files, allowList);
+}
+
+function unlistedIn(file: string, files: ReadonlyMap<string, string>, allowList: readonly string[]): string[] {
   const columns = files.get(file);
   if (columns === undefined) throw new SeedRefusal(`${file}: missing`);
   const [header, ...rows] = parseCsv(columns);
@@ -590,8 +600,9 @@ export function unlistedDocumentFigures(files: ReadonlyMap<string, string>, allo
 
 // --- The licence gate (Story 2.5) ----------------------------------------------
 
-// Written by Story 5.4 once the licence for committing derived categories
-// of companies outside the allow-list is assessed; absent until then.
+// Written by Story 5.4 from the assessment in docs/licence-gate.md: whether
+// committing derived categories of companies outside the allow-list is low
+// risk. Recorded closed (Meinich, 2026-11-25).
 export const LICENCE_GATE_FILE = 'docs/licence-gate.json';
 
 /** docs/licence-gate.json: whether the gate is open, the assessment it rests on, and its date. */
@@ -630,21 +641,99 @@ export function readLicenceGate(file: string, notice: (line: string) => void): {
   return { open: json.open };
 }
 
-// The rows of register.fingerprint the export writes: every row when the
-// gate is open, otherwise only the allow-listed companies' (Story 2.5).
-// Allow-listed companies always keep theirs. Today those are the OCR
-// reference set's companies only: demo A and B are not on the allow-list
-// and have no document in the seed, so with the gate closed the seed holds
-// no fingerprint for them (until Story 5.4's allow-list). Returns a WHERE
-// clause for the COPY
-// query; the orgnrs are checked to be nine digits, so they are safe to inline.
-export function fingerprintWhere(gate: { open: boolean }, allowList: readonly string[]): string {
-  if (gate.open) return '';
-  for (const orgnr of allowList) {
-    if (!/^\d{9}$/.test(orgnr)) throw new SeedRefusal(`${ALLOW_LIST_FILE}: ${JSON.stringify(orgnr)} is not an orgnr`);
+// --- The labelled set (Story 5.4, decision 2) ---------------------------------
+
+// Story 5.1's labelled set as step 1's document list (Story 2.5d):
+// [{orgnr, years}]. AGENTS.md: no committed file ties a fingerprint result
+// to one of these orgnrs, so the export writes no fingerprint row for any
+// of them, whatever the gate and the allow-list say, and refuses their
+// document rows unless the orgnr is in the OCR reference draw.
+export const LABELLED_SET_FILE = 'analysis/labelled-set/document-run.json';
+
+// The labelled set's orgnrs, in file order. Refuses anything that is not a
+// list of {orgnr, years} with nine-digit orgnrs.
+export function parseLabelledSet(json: unknown): string[] {
+  if (!Array.isArray(json)) throw new SeedRefusal(`${LABELLED_SET_FILE}: must be an array`);
+  // An empty set would exclude nobody (Story 5.4 review).
+  if (json.length === 0) throw new SeedRefusal(`${LABELLED_SET_FILE}: is empty`);
+  return json.map((raw: unknown, index) => {
+    if (!isRecord(raw) || typeof raw.orgnr !== 'string' || !/^\d{9}$/.test(raw.orgnr) || !Array.isArray(raw.years)) {
+      throw new SeedRefusal(`${LABELLED_SET_FILE} entry ${index}: must be {orgnr, years}`);
+    }
+    return raw.orgnr;
+  });
+}
+
+const checkedOrgnrs = (orgnrs: readonly string[], source: string): string[] => {
+  for (const orgnr of orgnrs) {
+    if (!/^\d{9}$/.test(orgnr)) throw new SeedRefusal(`${source}: ${JSON.stringify(orgnr)} is not an orgnr`);
   }
-  if (allowList.length === 0) return 'WHERE false';
-  return `WHERE "orgnr" IN (${[...allowList].sort(compareBytes).map((orgnr) => `'${orgnr}'`).join(', ')})`;
+  return [...new Set(orgnrs)].sort(compareBytes);
+};
+
+const inList = (orgnrs: readonly string[]): string => `(${orgnrs.map((orgnr) => `'${orgnr}'`).join(', ')})`;
+
+// The rows of register.fingerprint the export writes: every row when the
+// gate is open, otherwise only the allow-listed companies' (Story 2.5); in
+// both cases never a labelled-set company's (Story 5.4, decision 2), even
+// when it is allow-listed. Returns a WHERE clause for the COPY query; the
+// orgnrs are checked to be nine digits, so they are safe to inline.
+export function fingerprintWhere(
+  gate: { open: boolean },
+  allowList: readonly string[],
+  labelled: readonly string[],
+): string {
+  const listed = checkedOrgnrs(allowList, ALLOW_LIST_FILE);
+  const excluded = checkedOrgnrs(labelled, LABELLED_SET_FILE);
+  const conditions: string[] = [];
+  if (!gate.open) {
+    if (listed.length === 0) return 'WHERE false';
+    conditions.push(`"orgnr" IN ${inList(listed)}`);
+  }
+  if (excluded.length > 0) conditions.push(`"orgnr" NOT IN ${inList(excluded)}`);
+  return conditions.length === 0 ? '' : `WHERE ${conditions.join(' AND ')}`;
+}
+
+// Story 5.4, decision 2: the number of labelled-set orgnrs outside the OCR
+// reference draw that have a row in document.csv or document_column.csv.
+// Document tables are exported whole, so such a row would reach the seed.
+// files maps seed file name → content. Returns a count, never an orgnr.
+export function labelledDocumentOrgnrCount(
+  files: ReadonlyMap<string, string>,
+  labelled: readonly string[],
+  drawn: readonly DrawnFiling[],
+): number {
+  const reference = new Set(drawn.map((filing) => filing.orgnr));
+  const watched = new Set(labelled.filter((orgnr) => !reference.has(orgnr)));
+  const found = new Set<string>();
+  for (const file of ['document.csv', 'document_column.csv']) {
+    const content = files.get(file);
+    if (content === undefined) throw new SeedRefusal(`${file}: missing`);
+    const [header, ...rows] = parseCsv(content);
+    const orgnrAt = header?.indexOf('orgnr') ?? -1;
+    if (orgnrAt === -1) throw new SeedRefusal(`${file}: header lacks orgnr`);
+    for (const row of rows) {
+      const orgnr = row[orgnrAt];
+      if (orgnr === undefined) throw new SeedRefusal(`${file}: short row`);
+      if (watched.has(orgnr)) found.add(orgnr);
+    }
+  }
+  return found.size;
+}
+
+// The export's refusal for decision 2, naming a count only: the labelled
+// set's companies are published as totals, never by orgnr.
+export function refuseLabelledDocuments(
+  files: ReadonlyMap<string, string>,
+  labelled: readonly string[],
+  drawn: readonly DrawnFiling[],
+): void {
+  const count = labelledDocumentOrgnrCount(files, labelled, drawn);
+  if (count > 0) {
+    throw new SeedRefusal(
+      `document.csv, document_column.csv: document rows of ${count} labelled-set compan${count === 1 ? 'y' : 'ies'} outside ${REFERENCE_DRAW_FILE} (${LABELLED_SET_FILE}); dump and delete them before exporting (Story 5.4)`,
+    );
+  }
 }
 
 // The export's refusal: no document figure for an orgnr that is not on
@@ -656,5 +745,9 @@ export function refuseUnlistedDocumentFigures(files: ReadonlyMap<string, string>
     throw new SeedRefusal(
       `document_column.csv: document figures for orgnrs not on ${ALLOW_LIST_FILE}: ${unlisted.join(', ')}`,
     );
+  }
+  const documents = unlistedDocuments(files, allowList);
+  if (documents.length > 0) {
+    throw new SeedRefusal(`document.csv: documents for orgnrs not on ${ALLOW_LIST_FILE}: ${documents.join(', ')}`);
   }
 }

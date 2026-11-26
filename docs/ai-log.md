@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 39 |
+| auth | 41 |
 | money | 37 |
 | parsing | 19 |
 | llm-boundary | 8 |
 | scope | 18 |
-| docs | 32 |
+| docs | 34 |
 
 ## Entry template
 
@@ -1156,3 +1156,26 @@ Also in this pass: the D2 comparison over every company with several filings (`t
 After the zod refresh: `check:pins`, lint, typecheck, `pnpm test --maxWorkers=2` (2 086) and `pnpm build` (first attempt) passed again, and `pnpm audit` shows one moderate advisory, minimatch, and none in zod or `next`.
 
 **Outcome:** Branch `story/71-next-16-4-6` from `origin/main`: `20f6ad8`, `c2ce742` (Story 5.7's AC), `af5999d` (zod). The PR closes #71.
+
+### 2026-11-25 — Story 5.4: the demo seed, what reaches the public repository, and a rule broken since Story 5.1
+**Tags:** auth, docs
+**Tool:** Claude Code (Opus 5.5): an implementation subagent dispatched by the BMAD session
+**Asked:** Implement Story 5.4's code and tests (spec decisions 1–7, Meinich 2026-11-25, checkpoint 1) up to the local data step, which the BMAD session runs: the new demo A and B, the allow-list of A, B, C and their groups at bands 0–2, the export's labelled-set rules, the closed licence gate, the source paragraph and the deferred entries that name the story.
+**Got:** `pnpm ingest:document-set --allow-list` (`allowListEntries` in `scripts/document-set.ts`); the labelled-set exclusion in `fingerprintWhere` and `refuseLabelledDocuments` in `scripts/seed-format.ts`; `docs/licence-gate.{md,json}` (closed); `about.sources.documents` with the popover's link; `medianFallback`; `dataQuality` tied to the shown filing for a failed column, and `parseId`; `comparedPeerDates` for FR-64; `.local/document-run-5.4/` as the restore default; `OUTSIDE` in `e2e/seed.ts` and `e2e/demo-waterfall.spec.ts`.
+**Problem:** What could go wrong:
+1. **Document figures beyond the declared sample in the public repository.** Document tables are exported whole, so any document row in the local database reaches `seed/demo/` unless something refuses it. Two refusals stand before any file is written: a `document_column` row of an orgnr not on the allow-list (`test/db/seed.test.ts` "refuses to export a document column for an orgnr not on the allow-list, writing nothing", existing), and, new, a document or column row of a labelled-set company outside the OCR reference draw, named by count only (`test/db/seed.test.ts` "refuses document rows of a labelled-set company outside the reference draw", which fails with the refusal removed: the export then succeeds). The 216 labelled-set orgnrs among the allow-listed peers are why the second is needed: the allow-list alone would let their 2.1b and 2.5d rows through. The committed seed is checked tag-blind by `test/allow-list.test.ts` "covers every orgnr with document figures in the committed seed".
+2. **A fingerprint tied to a labelled-set company.** AGENTS.md says no committed file ties a fingerprint result to one of them, but since Story 5.1 drew the labelled set, eight of the OCR reference companies have been in it, and the committed `seed/demo/fingerprint.csv` has held their fingerprints (35 rows, a count read from the committed seed by `test/allow-list.test.ts` "holds no fingerprint of a labelled-set company" before the re-export). Git history still holds those rows; the re-export removes them from the current seed, and nothing removes them from history. The export now leaves out every labelled-set orgnr, gate open or closed, listed or not (`test/db/seed.test.ts` "never exports a fingerprint of a labelled-set company", failing with the `NOT IN` clause removed; `test/seed-format.test.ts` "leaves out every labelled-set company, gate open or closed"). The labelled set's file is required: without it the export refuses rather than letting the fingerprints through (`test/db/seed.test.ts` "refuses to export without the labelled set, writing nothing"). The committed classifications are unchanged. `seed/demo/classification.csv` holds a type for 352 of the labelled set's 845 companies (a total, read by the review session from the committed file and checked by the BMAD session). They are published, and the fingerprints are not, because the AGENTS.md rule covers fingerprint results only and decision 2 follows that rule. Both were produced after the set was labelled: Story 2.6's full run classified the 845 "like any other company" (spec Design Notes).
+3. **A licence claim the register does not make.** The paragraph `about.sources.documents` says the register states no licence for the documents and asserts none; it stands apart from the NLOD credit for the API figures, and the derived-categories phrase, which belongs to an open gate, is in no message (`test/messages.test.ts` "the source paragraph has no derived-categories phrase while the gate is closed"; `e2e/analysis-states.spec.ts` checks the page). The gate file is exactly `{open, assessment, date}` and closed (`test/seed-format.test.ts` "the committed docs/licence-gate.json is closed, well-formed and names a committed assessment").
+4. **A demo group outside the allow-list.** If the list missed a member of A's or B's group at any band, that member's document figures could never be committed and the analysis would differ by band. `test/db/demo-companies.test.ts` "A’s and B’s groups at every band step are subsets of the allow-list" computes the groups through the request path's own reads and the v1 funnel, and fails with a count per company and band, never an orgnr.
+5. **A test subject chosen to pass.** Many e2e tests assumed the placeholder demo A was outside the demo data and had a median step. They now use `OUTSIDE` (`e2e/seed.ts`): the first covered AS in byte order that is on no list, in neither demo pool at the widest band, and has a median step. The rule is fixed and its orgnr is never committed; where a test asserted "≈" for the placeholder's figures at one share, the sign now follows the displayed-operand rule, and the "≈" and "=" cases stay asserted elsewhere in the same spec.
+**Caught by:** The guard removals in the implementation run (items 1, 2 and 4), each undone afterwards; item 2's history was found by the new test on the committed seed.
+**Outcome:** Commits on `story/5.4-demo-seed` from `5916598`. The e2e changes, the seed counts and the round trip wait for the BMAD session's export.
+
+### 2026-11-25 — Story 5.4: after the export, and what a fresh clone leaves out
+**Tags:** auth, docs
+**Tool:** Claude Code (Opus 5.5): the implementation subagent, on the BMAD session's review findings
+**Asked:** Update the Story 5.4 entry above after the export (entries are not edited, so this one follows it), and record a consequence of decision 2 the entry did not name.
+**Got:** The export ran (the BMAD session, task 4): the committed seed holds 1 595 documents and 3 188 columns of 331 orgnrs and 1 419 fingerprints; e2e passed with chromium 198, db-down 7 and synthetic 31.
+**Problem:** What could go wrong: on a fresh clone, demo A's and B's document aggregates (P of the waterfall, the capital figures' comparisons) leave out the 216 labelled-set peers, whose rows stay in the local dump (decision 2). They are smaller than in a database with the dump restored: TRETOEN at band 0 has P = 203 against 274 with the dump. Every figure is the engine's over what is loaded, and P stays far above 10, so the page is right for the seed it shows, but a number read on a developer's database with the dump differs from the fresh clone's. Also from the review: the export now checks `document.csv` against the allow-list as well as `document_column.csv` (`test/seed-format.test.ts` "refuses a document row without columns for an orgnr not on the allow-list"), refuses an empty labelled set (`test/seed-format.test.ts` "reads the orgnrs of [{orgnr, years}] and refuses another shape"), and the committed seed is checked for labelled-set document rows (`test/allow-list.test.ts` "holds no document row of a labelled-set company outside the reference draw").
+**Caught by:** The BMAD session's review of the implementation.
+**Outcome:** Review-fix commits on `story/5.4-demo-seed` after `1c2d984`.

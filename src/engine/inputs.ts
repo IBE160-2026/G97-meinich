@@ -6,6 +6,7 @@ import type { ApiInputs } from './types.ts';
 
 const WHOLE = /^-?\d+$/;
 const DECIMAL = /^-?\d+(\.\d+)?$/;
+const ID = /^[1-9]\d*$/;
 
 function shown(value: unknown): string {
   return typeof value === 'string' ? JSON.stringify(value) : typeof value;
@@ -16,6 +17,19 @@ export function parseOre(value: string | null): bigint | null {
   if (value === null) return null;
   if (typeof value !== 'string' || !WHOLE.test(value)) {
     throw new TypeError(`not a whole-number string: ${shown(value)}`);
+  }
+  return BigInt(value);
+}
+
+/**
+ * A register id held as `int8` (`brreg_id`): a positive whole-number string,
+ * or null. Anything else throws. An id is not an amount, so it is never read
+ * with `parseOre` (Story 5.4, review of PR #82).
+ */
+export function parseId(value: string | null): bigint | null {
+  if (value === null) return null;
+  if (typeof value !== 'string' || !ID.test(value)) {
+    throw new TypeError(`not a register id: ${shown(value)}`);
   }
   return BigInt(value);
 }

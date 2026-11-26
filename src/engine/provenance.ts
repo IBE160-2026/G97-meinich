@@ -450,8 +450,16 @@ export function dataQuality({
     case 'refused':
     case 'not_reconciled':
       return document ? { kind: 'absent' } : { kind: 'not_read_safely', filingYear: basis.filingYear };
-    case 'failed_reconciliation':
-      return document ? { kind: 'absent' } : failure(facts.current, basis.filingYear);
+    case 'failed_reconciliation': {
+      if (document) return { kind: 'absent' };
+      // Story 5.4: tied to the shown filing as `read` is. A column step 1
+      // compared with another filing (or with none) deviated from numbers
+      // the page does not show, so the inputs read as not compared.
+      if (facts.brregId === null || facts.brregId !== filingBrregId) {
+        return { kind: 'not_compared', fields: [...new Set(inputs.map((input) => input.field))] };
+      }
+      return failure(facts.current, basis.filingYear);
+    }
     case 'read': {
       const sameFiling = facts.brregId !== null && facts.brregId === filingBrregId;
       const current = sameFiling ? facts.current : null;

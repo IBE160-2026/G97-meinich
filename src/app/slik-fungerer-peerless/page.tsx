@@ -2,10 +2,15 @@
 // only the section "Kilder og lisens", which the footer links to (#kilder):
 // the source, the NLOD credit for the API figures verbatim with links to the
 // licence and the source, that Peerless has processed the data, and that
-// Brønnøysundregistrene does not endorse Peerless. Every other section, and
-// the document-figure paragraph (Story 5.4), is added by Epic 5, with no
-// placeholder before then.
+// Brønnøysundregistrene does not endorse Peerless. Story 5.4 adds the
+// document-figure paragraph (#arsregnskap), which the "Ikke i demodataene"
+// popover links to: it credits Brønnøysundregistrene as the source of the
+// figures Peerless reads from the filed documents, asserts no licence, and
+// stands apart from the NLOD credit for the API figures. The licence gate is
+// closed (docs/licence-gate.json), so it has no derived-categories phrase.
+// Every other section is added by Story 5.6, with no placeholder before then.
 import type { Metadata } from 'next';
+import { DOCUMENTS_PARAGRAPH_ID } from '@/components/about-anchors';
 import { t, tParts } from '@/messages';
 
 export const metadata: Metadata = {
@@ -42,7 +47,10 @@ export default function AboutPage() {
             })}
           </p>
           <p className="m-0 mb-3">{t('about.sources.processed')}</p>
-          <p className="m-0">{t('about.sources.endorsement')}</p>
+          <p className="m-0 mb-3">{t('about.sources.endorsement')}</p>
+          <p id={DOCUMENTS_PARAGRAPH_ID} tabIndex={-1} className="m-0" data-testid="documents-credit">
+            {t('about.sources.documents')}
+          </p>
         </section>
       </div>
     </main>

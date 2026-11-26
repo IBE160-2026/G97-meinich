@@ -1,10 +1,13 @@
 // `pnpm restore:documents [dir]` (Story 2.10): restore a local dump of the
 // document rows the seed does not hold, then derive their fingerprints.
 //
-// The acceptance and labelled-set runs' rows of register.document and
-// register.document_column are local data until Story 5.4 (README, "Seed"):
-// `pnpm seed` truncates them, and this puts them back from the CSV dump the
-// README describes, `.local/document-run-2.5d/` unless a directory is named.
+// The rows of register.document and register.document_column that the
+// committed seed does not hold (Story 5.4, decision 7: the labelled set's,
+// except the eight OCR reference companies in it) are local data
+// (README, "Seed"): `pnpm seed` truncates them, and this puts them back from
+// the CSV dump the README describes, `.local/document-run-5.4/` unless a
+// directory is named. The earlier dumps, `.local/document-run-2.5d/` among
+// them, are kept and can be named.
 //
 //   1. A missing default directory (a fresh clone has none) is said first,
 //      whatever the environment: nothing is restored, derive does not run,
@@ -35,8 +38,8 @@ import postgres from 'postgres';
 import { setting } from './run-ingest.ts';
 import { copyIn } from './seed-load.ts';
 
-/** The dump restored when no directory is named: Story 2.5d's labelled-set run (README, "Seed"). */
-export const DEFAULT_DUMP = '.local/document-run-2.5d';
+/** The dump restored when no directory is named: the rows Story 5.4 did not export (README, "Seed"). */
+export const DEFAULT_DUMP = '.local/document-run-5.4';
 
 /** The tables a dump holds, in the order they are restored: a column references its document. */
 export const DUMP_TABLES = ['document', 'document_column'] as const;

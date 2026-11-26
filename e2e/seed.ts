@@ -17,6 +17,7 @@ import {
 } from '../src/engine/benchmark.ts';
 import { formatMillions, formatOrgnr, formatReadDate } from '../src/engine/format.ts';
 import { businessTypeFromColumn, fingerprintFromColumns } from '../src/engine/fingerprint.ts';
+import { medianStep } from '../src/engine/closable.ts';
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { assemblePeerGroup, V1_FUNNEL, type CandidateFiling, type FunnelOptions, type SizeBand, type FunnelSubject } from '../src/engine/peers.ts';
 import { peerRows, type PeerDisplayRow } from '../src/analysis/peer-rows.ts';
@@ -211,6 +212,43 @@ export function expectedPeerGroup(orgnr: string, band: SizeBand, options: Funnel
 export const expectedGroup = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).group;
 /** The candidate pool, stages 1–3: what `ekskl` is checked against. */
 export const expectedPool = (orgnr: string, band: SizeBand) => expectedPeerGroup(orgnr, band).pool;
+
+/** The committed manifest's orgnrs with document figures: the companies in the demo data. */
+export const documentFigureOrgnrs: ReadonlySet<string> = new Set(
+  (JSON.parse(readFileSync(path.join(root, 'seed/demo/manifest.json'), 'utf8')) as { document_figure_orgnrs: string[] })
+    .document_figure_orgnrs,
+);
+
+/**
+ * Story 5.4: a covered company outside the demo data, for the tests of the
+ * "Ikke i demodataene" state, now that demo A and B and every company in
+ * their groups are allow-listed. Chosen by a fixed rule, never by its
+ * figures: the first AS in a covered industry, in byte order of orgnr, with
+ * a SELSKAP filing, that is on neither the manifest's list nor
+ * seed/allow-list.json, is not demo A or B or in either one's pool at the
+ * widest band (so the rule picks the same company before and after the
+ * allow-list is written), and that has a median step on driftsmargin at
+ * the default band (r < M < T, `medianStep`), so the profit amount, the
+ * median step and the drill-downs the tests open exist, as they did for the
+ * placeholder demo A these tests were written for. Its orgnr is computed here
+ * and written in no committed file (AGENTS.md: outside the allow-list,
+ * totals only).
+ */
+export const OUTSIDE: Record<string, string> = (() => {
+  const listed = new Set(
+    (JSON.parse(readFileSync(path.join(root, 'seed/allow-list.json'), 'utf8')) as { orgnr: string }[]).map((e) => e.orgnr),
+  );
+  const demoGroups = new Set<string>(DEMO_COMPANIES.map((demo) => demo.orgnr));
+  for (const demo of DEMO_COMPANIES) for (const peer of expectedPool(demo.orgnr, 2)) demoGroups.add(peer.orgnr);
+  const candidates = companies
+    .filter((c) => covered.has(c.naeringskode1 ?? '') && c.organisasjonsform === 'AS' && withFiling.has(c.orgnr ?? ''))
+    .filter((c) => !documentFigureOrgnrs.has(c.orgnr ?? '') && !listed.has(c.orgnr ?? '') && !demoGroups.has(c.orgnr ?? ''))
+    .sort((a, b) => ((a.orgnr ?? '') < (b.orgnr ?? '') ? -1 : (a.orgnr ?? '') > (b.orgnr ?? '') ? 1 : 0));
+  return present(
+    candidates.find((c) => medianStep(expectedBenchmark(c.orgnr ?? '', 0).driftsmargin.comparison).kind === 'exists'),
+    'no covered AS outside the demo data with a median step in the seed',
+  );
+})();
 
 export const coverageSentence = 'dataprogrammeringstjenester (62.100)';
 export const dataDate = (orgnr: string) => {

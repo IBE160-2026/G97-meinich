@@ -18,7 +18,7 @@ import {
   type DocumentField,
   documentBasis,
 } from '../engine/document-inputs.ts';
-import { parseOre } from '../engine/inputs.ts';
+import { parseId, parseOre } from '../engine/inputs.ts';
 import { CHECKS, type CheckResult, type CurrentReconciliation, type StoredDocumentFacts } from '../engine/provenance.ts';
 import { log } from '../logger.ts';
 import { DOCUMENT_FILING_JOIN } from './document-filing.ts';
@@ -149,7 +149,7 @@ export function documentFactsOf(row: DocumentBasisColumns): StoredDocumentFacts 
         figures: column(row, 'cur_', row.current_status),
       }
     : null;
-  return { readAt: row.document_read_at, brregId: parseOre(row.document_brreg_id), current };
+  return { readAt: row.document_read_at, brregId: parseId(row.document_brreg_id), current };
 }
 
 /**

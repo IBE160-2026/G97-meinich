@@ -23,7 +23,10 @@
 //
 // Story 3.5: `urlContext` resolves `andel=median` with the engine's median
 // step on driftsmargin for the peer group the URL names (its band and
-// exclusions), so the token is kept exactly where the step exists.
+// exclusions), so the token is kept exactly where the step exists. Story
+// 5.4: where it is not, the median notice is shown instead of the
+// invalid-settings notice (a peer change can lead there), and a redirect
+// keeps the query as it came, as for any fallback.
 import { medianStep } from '../engine/closable.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { formatOrgnr } from '../engine/format.ts';
@@ -148,6 +151,8 @@ export type AnalysisView = {
   readonly fane: OpenFane | null;
   /** Show "Noen innstillinger i lenken var ugyldige …" under the company header. */
   readonly notice: boolean;
+  /** Show "«Til medianen for driftsmargin» gjelder ikke …" there (Story 5.4). */
+  readonly medianNotice: boolean;
   readonly title: string;
 };
 
@@ -189,27 +194,31 @@ export function displayName(subject: Pick<Subject, 'orgnr' | 'navn'>): string {
 export function analysisView(subject: Subject | null, parsed: ParseResult, search: string): AnalysisView {
   const brand = t('shell.brand');
   if (parsed.kind !== 'analysis') {
-    return { state: 'invalid-orgnr', redirect: null, fane: null, notice: false, title: brand };
+    return { state: 'invalid-orgnr', redirect: null, fane: null, notice: false, medianNotice: false, title: brand };
   }
   if (subject === null) {
-    return { state: 'not-found', redirect: null, fane: null, notice: false, title: brand };
+    return { state: 'not-found', redirect: null, fane: null, notice: false, medianNotice: false, title: brand };
   }
-  const { state, invalidSettings } = parsed;
+  const { state, invalidSettings, medianFallback } = parsed;
   const query = search === '' || search.startsWith('?') ? search : `?${search}`;
+  const fellBack = invalidSettings || medianFallback;
   const redirectTo = (fane: Fane | null): string =>
-    invalidSettings ? serialize({ ...defaultState(state.orgnr), fane }) + query : serialize({ ...state, fane });
+    fellBack ? serialize({ ...defaultState(state.orgnr), fane }) + query : serialize({ ...state, fane });
 
   // Precedence: no filing, then uncovered, then not an AS.
   if (!hasPeerGroup(subject)) {
     const kind = subject.filing === null ? 'no-filing' : !subject.covered ? 'uncovered' : 'non-as';
     if (state.fane !== null) {
-      return { state: kind, redirect: redirectTo(null), fane: null, notice: false, title: brand };
+      return { state: kind, redirect: redirectTo(null), fane: null, notice: false, medianNotice: false, title: brand };
     }
     return {
       state: kind,
       redirect: null,
       fane: null,
-      notice: invalidSettings,
+      // No peer group here, so the median notice's "for denne peer-gruppen" would not be true:
+      // the median fallback shows the generic notice (Story 5.4 review).
+      notice: invalidSettings || medianFallback,
+      medianNotice: false,
       title: t('analysis.title.company', { selskap: displayName(subject) }),
     };
   }
@@ -220,6 +229,7 @@ export function analysisView(subject: Subject | null, parsed: ParseResult, searc
       redirect: redirectTo('oversikt'),
       fane: null,
       notice: false,
+      medianNotice: false,
       title: brand,
     };
   }
@@ -229,6 +239,7 @@ export function analysisView(subject: Subject | null, parsed: ParseResult, searc
     redirect: null,
     fane,
     notice: invalidSettings,
+    medianNotice: medianFallback,
     title: t('analysis.title.tab', { selskap: displayName(subject), fane: t(`tabs.${fane}`) }),
   };
 }

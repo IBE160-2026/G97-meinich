@@ -18,7 +18,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ALLOW_LIST_FILE, REFERENCE_DRAW_FILE, parseAllowList, parseCsv, parseDrawn } from '../scripts/seed-format.ts';
+import {
+  ALLOW_LIST_FILE,
+  LABELLED_SET_FILE,
+  REFERENCE_DRAW_FILE,
+  parseAllowList,
+  parseCsv,
+  parseDrawn,
+  parseLabelledSet,
+} from '../scripts/seed-format.ts';
 import { digest } from '../src/engine/digest.ts';
 import {
   DOCUMENT_FIGURE_COLUMNS,
@@ -138,10 +146,15 @@ describe('the committed seed’s fingerprints', () => {
     expect(reconciled.filter((c) => (c.sum_driftsinntekter_ore ?? '') === '').length).toBe(0);
   });
 
-  it('has a row for every current column the engine fingerprints', () => {
+  // The export never writes a labelled-set company's fingerprint (Story 5.4,
+  // decision 2), so the reference companies in the labelled set keep their
+  // documents here without a fingerprint row.
+  const labelled = new Set(parseLabelledSet(JSON.parse(readFileSync(path.join(root, LABELLED_SET_FILE), 'utf8'))));
+
+  it('has a row for every current column the engine fingerprints, except a labelled-set company’s', () => {
     const stored = new Set(fingerprints.map(key));
     const missing = [...columns.values()]
-      .filter((column) => recompute(column).kind === 'fingerprint' && !stored.has(key(column)))
+      .filter((column) => !labelled.has(column.orgnr ?? '') && recompute(column).kind === 'fingerprint' && !stored.has(key(column)))
       .map(key);
     expect(missing).toEqual([]);
   });

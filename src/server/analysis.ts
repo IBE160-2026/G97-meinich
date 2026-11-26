@@ -33,7 +33,7 @@ import {
 import type { Subject, SubjectKeyFigures } from '../analysis/view.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
 import { businessTypeFromColumn, fingerprintFromColumns, type FingerprintColumns } from '../engine/fingerprint.ts';
-import { API_KEY_FIGURE_COLUMNS, apiKeyFigures, parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
+import { API_KEY_FIGURE_COLUMNS, apiKeyFigures, parseId, parseOre, type ApiKeyFiguresRow } from '../engine/inputs.ts';
 import { subjectBenchmarkFiling, type CandidateFiling } from '../engine/peers.ts';
 import { failureKind, log } from '../logger.ts';
 import { readerSql } from './db.ts';
@@ -128,8 +128,8 @@ function filingRow(row: SubjectRow): FilingRow | null {
   if (filing_year === null || regnskapstype === null || periode_fra === null || periode_til === null || filing_read_at === null) {
     return null;
   }
-  // brreg_id is int8: parseOre reads any int8 string exactly. A filing row always has one.
-  const brregId = parseOre(row.brreg_id);
+  // brreg_id is an int8 id, read exactly by parseId (not an amount). A filing row always has one.
+  const brregId = parseId(row.brreg_id);
   if (brregId === null) throw new TypeError('filing without brreg_id');
   return {
     row: { ...row, filing_year, regnskapstype, periode_fra, periode_til, filing_read_at },

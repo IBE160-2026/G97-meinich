@@ -4,12 +4,12 @@
 
 ## Goal
 
-Epic 5 turns Peerless from a working funnel into a measured, demonstrable and runnable product. Its core is the layer-by-layer measurement against the labelled set: it shows how much each funnel layer adds, whether the model is worth keeping beyond the accounts-based fingerprint, and whether each cost-share band stays. Around that it delivers a committed demo seed (companies A, B and C) within what the document licence allows, a human review of 30 stored explanations, the full "Slik fungerer Peerless" page that reports the results, and proof that a fresh clone runs from the README with no keys. The measurement is the project's headline result. The labelled set (5.1) is done. The build order is: 5.2 right after Epic 2, 5.4 after Epic 3, then 5.5, 5.6, 5.3 (embeddings, cut first) and 5.7 last.
+Epic 5 turns v1 into something a sensor can trust and run. It measures the peer funnel layer by layer against an independent labelled set, and that result switched stages 4 and 5 off in v1. It commits a demo seed with three demo companies that shows every v1 feature within what the register's licence allows, behind a licence gate. It has 30 stored explanations read by a person, completes the "Slik fungerer Peerless" page, and proves from a fresh clone that the README alone reaches a complete analysis with no keys. Stories 5.1 and 5.2 are done. The rest remains: 5.4 directly after Epic 3, then Epic 4, 5.5, 5.6, 5.3 (cut first) and 5.7 last.
 
 ## Stories
 
 - Story 5.1: The labelled set (done)
-- Story 5.2: Layer-by-layer measurement
+- Story 5.2: Layer-by-layer measurement (done)
 - Story 5.3: Embeddings — last, and cut first
 - Story 5.4: The demo seed
 - Story 5.5: 30 explanations read by a person
@@ -18,40 +18,64 @@ Epic 5 turns Peerless from a working funnel into a measured, demonstrable and ru
 
 ## Requirements & Constraints
 
-- **The measurement (SM-1).** Precision and recall against the labelled set, for each layer alone and cumulatively: industry code and size; adding the fingerprint; adding classification; and embeddings as a fourth layer only if built. The report has three layers without embeddings and four with. Each result is split by informative and uninformative descriptions, with each cohort's share disclosed. If a stratum falls short, the cohorts are pooled, and the report says so. Flagged candidates ("Usikker klassifisering") are reported apart from the rest. SM-1b compares the full funnel with an industry-code-only baseline; it is a sanity check, not a claim.
-- **The stage-5 decision rule, fixed in advance and never re-tuned.** Compare *fingerprint alone* with *fingerprint and text* on all labelled pairs, with `usikker` left out. Stage 5 is kept only if the text raises precision by at least 3 percentage points and lowers recall by no more than 3. Blind pairs are reported on their own, but the rule is decided on all pairs. If stage 5 fails, the same PR switches the text signal off in the v1 funnel: the fingerprint alone decides the group, no peer is flagged, and no match basis rests on the description. Each of those has a test, and the report and the PRD's limitations section say the model was not needed.
-- **The bands (FR-13).** Report precision and recall with and without the cost-of-goods band and the personnel-cost band, and record kept or dropped for each, with the reason. **The planning documents disagree here.** The epic says a dropped band means updating the fingerprint type, its migration check, the type rule and the technical note's fixed rules, and rebuilding the fingerprints (their digests change). The PRD and the technical note say a failing band goes to Meinich and nothing is dropped automatically. Resolve this with the human before acting.
-- **No numeric targets.** No precision, recall or OCR target is set; v1 measures and reports. Counter-metrics are never pushed upward: group size, share classified, figures shown and industries covered.
-- **Honest framing of the labels.** The rubric was dated before the fingerprint features were fixed, and a blind subsample was labelled by a person from description and website only. The other 720 pairs come from a ChatGPT model's revenue-model labels, accepted by a person, so for those pairs the text layer is one AI measured against another's. There is no second labeller and no κ in v1; that is stage 2, and the gap is stated. Report achieved counts, not planned ones.
-- **Reports** go in `analysis/output/` with the generation date and the script that produced them. Only totals are reported; no committed file or PR text gives a per-orgnr classification, fingerprint or label for the labelled set.
-- **Coverage flip.** Once the report exists, the 62.100 entry in `seed/coverage.json` becomes `{"code": "62.100", "measured": true, "report": "analysis/output/<file>.md", "sha256": "…"}`. The loader refuses a `measured: true` entry whose path is missing or whose checksum does not match.
-- **Demo seed (FR-73).** It holds register data and API figures for all of 62.100 and a stored classification for every AS. Document figures are included only for the allow-list: A, B, C, A's and B's peers at all three band steps, and the OCR reference set. Stored explanations follow once Epic 4 and Story 5.5 are done. Loading twice gives the same state. Committing fingerprint categories outside the allow-list waits on the licence gate, `docs/licence-gate.json` (`{open, assessment, date}`); a closed gate is the expected outcome. v1 reads no other 62.100 company's documents for the seed. The labelled set's documents and fingerprints stay local.
-- **Explanation review.** 30 stored explanations are drawn at random with a recorded seed, read by a person and recorded in `docs/ai-sessions/`. Missed recommending phrasing goes into the phrase list, and the affected texts are regenerated or withheld.
-- **About page.** It covers the five funnel stages in plain language, where AI is used (with the FR-53 test sentence), measurement results read from committed reports, limitations and data age. Before results exist it shows "Målingen pågår. Resultatene publiseres her når de foreligger." and no placeholder figures. A test fails if the page shows a figure with no report behind it.
-- **Fresh clone (SM-9).** The README's fixed command sequence reaches a complete analysis for A, B and C with no keys, and the whole suite passes, AI test mode included. A no-network test proves that no request goes to the register or a model host. `pnpm seed:full` runs both batch steps without a model and exports to a gitignored path.
+- **Measurement results that bind the rest of the epic:** stage 5 (classification) was not kept (+2.967 pp precision, +1.422 pp recall, below the fixed 3 pp rule). Meinich kept both banded measures (cost-of-goods share and personnel-cost share) but switched the fingerprint signal off as well. In v1, stages 4 and 5 are computed and stored but select nothing. No peer is flagged, every match basis is "Kun bransje og størrelse", and the Peers tab shows stages 1–3 with a note. The 62.100 entry in `seed/coverage.json` is `measured: true` and cites its report by path and SHA-256.
+- **Reports** go to `analysis/output/` with their generation date and the script that produced them. They state no numeric target. Only totals are reported; no committed file or PR text gives a per-orgnr fingerprint or label for the labelled set. The committed seed's classifications cover every AS, the 845 included, as recorded in `docs/ai-log.md` (Story 2.6). Layers are reported alone and cumulatively and split by description quality. SM-1 shows three layers, or four with embeddings.
+- **Embeddings (5.3)** are batch-only and stored with pgvector. Only `derive` writes them, and they reference the company `ON DELETE CASCADE`. No request path reads them, and no peer is ever chosen by them. pgvector moves from "Deferred" to the stack in the technical note in the same PR.
+- **Demo seed (5.4):**
+  - **A** is a typical consultancy with a full analysis. **B** is a loss-making product company with a large gap against its stages 1–3 group. Each is recorded with the reason it was chosen.
+  - **C** is the 69.202 company already chosen, which must still show the uncovered state.
+  - No demo company is chosen to show an AI layer.
+  - At least one demo company must show the margin waterfall with ≥10 peers in its common set, and every "Vis tallene" row must have its drill-down. An e2e test on the committed seed asserts this.
+  - A document-based peer aggregate's drill-down shows the filing year and the range of the peers' read dates (same rule as the waterfall facts), never one peer's date.
+  - The README lists the three demo orgnrs and what each demonstrates.
+- **Licence gate:** a short committed assessment decides whether committing derived fingerprint categories is low risk. Its result goes in `docs/licence-gate.json` (`{open, assessment, date}`), which `pnpm seed:export` reads. If the gate is closed, fingerprint categories are exported only for allow-listed companies. Every 62.100 company still gets a stages 1–3 group and a stored classification.
+- **Source credit:** the "Kilder og lisens" section gets the document-figure paragraph whether the gate opens or not. It credits Brønnøysundregistrene as the source of document figures read by Peerless, asserts no licence, and is kept separate from the NLOD credit for API figures. The wording "og for resten av bransjen bare avledede kategorier" appears only if the gate is open. The "Ikke i demodataene" popover links to this paragraph.
+- **Explanation review (5.5):** 30 stored explanations are drawn at random, with the draw seed recorded, and read by a person before they are committed. Missed recommending phrasing goes into the phrase list, and affected texts are regenerated or withheld. The result is recorded in `docs/ai-sessions/`. Every 62.100 default group then has an explanation, or a failure recorded in step 2's run record. Seed load passes the figure test, the phrase check and the digest check.
+- **About page (5.6):**
+  - **Funnel:** the five stages in plain language, without formulas. It says stages 4 and 5 were measured and switched off, so the group is chosen by industry, size, comparable accounts and legal form.
+  - **AI:** classification is stored only and chooses no peer. The page also covers the explanation and includes the exact test sentence about the automatic figure test.
+  - **Measurement:** SM-1 and SM-2 results are read from the committed reports. A test fails on any measurement figure with no report behind it. Without results, show "Målingen pågår. Resultatene publiseres her når de foreligger." with no placeholder figures.
+  - **Limitations:** VAT in receivable days, cost-line classification, FTEs from the notes, the `smaaForetak` limit, and that only 62.100 is covered.
+  - **Also:** data age, and "Kilder og lisens" kept as 5.4 left it.
+- **Fresh clone (5.7):**
+  - On a clean machine with no keys, the README's five commands reach a complete analysis for A, B and C. The full test suite passes, AI test mode included.
+  - A no-network test proves that no request leaves for the register or a model host.
+  - Loading the seed twice leaves the same state.
+  - `pnpm audit` shows no advisory in `next` just before delivery. Fix any advisory with a patch upgrade and record the result in the PR.
+- **`pnpm seed:full`** runs step 1 (and `--documents <list>` only when the user gives a list) and then `pnpm derive`. It never calls a model and needs no key. It exports to a gitignored path and loads through the same loader with dataset `full`. Classifications come from the committed seed. Explanations are shown only where their digest matches, otherwise a notice. The README states the cost (about 21 s per document) and that new classifications need `pnpm classify` with a key.
+- **Phone width:** every page reflows to 320 px with no horizontal body scroll.
 
 ## Technical Decisions
 
-- **One engine.** All measurement arithmetic and funnel logic lives in `src/engine`. Python never computes a ratio. The measurement script is a Node analysis script that reads the stored rows and runs the same funnel the app uses.
-- **Funnel semantics being measured.** `pool` is stages 1–3, which is what the labelled-set frame drew from. `group` is the pool after stages 4 and 5. Fingerprint and text are combined by rule: if both agree, that decides; if they disagree, the candidate is kept and flagged; if only one is present, that one decides; if neither is, the candidate stays on stages 1–3. A missing subject signal counts as missing for every candidate. An undetermined fingerprint gives no type and does not exclude.
-- **Fingerprint rules are fixed** (bands, type rule, empty-line intervals, R2 and R3) and are not adjusted after data. The one exception is a band decision made under the stage-5 or FR-13 outcome above. A product company that expenses its development comes out as `konsulent`, and Story 5.2 measures this.
-- **One writer per table.** Step 2 (`derive`) writes fingerprints, classifications and run records. Any new derived table (5.3 embeddings, in pgvector) is written only by `derive`, cascades on company delete, and is read by no request path. The loader alone writes `register.covered_industry`. Seed files are written only by `pnpm seed:export` and read only by `pnpm seed`, with a manifest. A PR that adds a migration re-exports the seed.
-- **Digests (AD-13).** Fingerprints, classifications and explanations carry digests of their inputs. A changed rule changes the digests and forces a rebuild. An explanation is shown only when its digest matches the engine output.
-- **No model in a request (AD-7).** Classification and explanation calls happen only in batch step 2, with the model id pinned. Test mode runs on stored output.
-- **Embeddings (5.3)** move pgvector from "Deferred" to the stack in the technical note. They are for measurement only, and no peer ever reaches a group by similarity.
+- **One seed path (AD-16):**
+  - Seed files are written only by `pnpm seed:export`, deterministically, as CSV with collation-free ordering, and are read only by the loader.
+  - The manifest records the format version, migration id, dataset (`demo`/`full`), fetched codes, document-figure orgnrs, read-date range and per-file checksums.
+  - `seed/coverage.json` is the only hand-edited seed file. The loader fails loudly if a `measured: true` entry lacks a valid report reference.
+- **Datasets and the allow-list (AD-9):**
+  - A database holds one dataset at a time. Loading truncates and replaces.
+  - Document figures, fingerprint categories and explanations carry a dataset tag, as provenance only.
+  - A tag-blind allow-list test fails on document figures for any orgnr not in `seed/allow-list.json`. That list holds A, B, C, A's and B's peers at all three band steps, and the OCR reference set. A reviewer approves it in the PR.
+  - A second test asserts that A's and B's groups at every step are subsets of the list.
+- **Digests (AD-13):** stored derived rows carry a digest of their inputs, and explanations are shown only when their digest matches the engine output for the loaded dataset.
+- **No model in a request (AD-7):** classifications and explanations are produced in batch step 2 with the model id and prompt hash. The request path only reads stored rows.
+- **Batch steps (AD-2):** Python step 1 (OCR, register) and Node step 2 (`derive`, `classify`). Postgres is the only hand-off between them. Neither is a service.
+- **Signals off:** with both signals off, the v1 funnel's `group` equals `pool`. `src/engine/fingerprint.ts`, the bands, the stored fingerprints, the classifications and `pnpm derive` stay unchanged so stage 2 can measure again.
+- **Risk statements:** PRs for 5.3 and 5.4 must state what could go wrong (embeddings reaching a group or the request path; document figures leaking beyond the sample, or a licence claim the register does not make) and record that reasoning in `docs/ai-log.md`.
 
 ## UX & Interaction Patterns
 
-- **About page** `/slik-fungerer-peerless`: builds on the existing "Kilder og lisens" section. Sticky table of contents on desktop, a bordered box on phone. Focus moves to the h1 on route change. No horizontal body scroll at 320 px and 375 px.
-- **Document-figure credit paragraph (5.4)**: published whether the gate opens or not. It credits Brønnøysundregistrene as the source, asserts no licence, and is kept apart from the NLOD credit for API figures. With the gate closed, the phrase "og for resten av bransjen bare avledede kategorier" is dropped. The "Ikke i demodataene" popover links to this paragraph.
-- **Outside the demo seed**: stage 4 reads "Ikke kjørt – regnskapstall ikke i demodataene", with the same count as stage 3. The popover text is EXPERIENCE's exact wording, names no command and promises no full dataset. All copy comes from `src/messages/nb.json`.
-- **Demo links**: the A and B placeholders in the not-in-database and no-match states are replaced with real links. The README lists the three demo orgnrs and what each one shows.
+- **About page layout:** a table of contents, sticky on desktop and a bordered box on phone. Header and footer links resolve.
+- **Footer:** every page carries the source line linking to "Kilder og lisens".
+- **Demo links:** the "not in database" and "search no match" states link to demo A and B, replacing their placeholders. Industry names come from the register, never a literal.
+- **"Ikke i demodataene" popover:** uses EXPERIENCE's exact text, which names no command and promises no full dataset. A test on the message file checks it.
+- **AI marking:** the ✦ marking appears only on the explanation, never on the Peers tab in v1.
+- **Focus management:** follows the established rules (route change → h1, provenance → its heading and back to the trigger).
 
 ## Cross-Story Dependencies
 
-- 5.2 needs 5.1 (done) and the Epic 2 funnel, and runs on the labelled set's locally stored 2025 documents, fingerprints and classifications. Those rows are not in the seed, so 5.2 must restore them from the local dump.
-- A failed stage-5 or band decision in 5.2 changes `src/engine/peers.ts` and/or `src/engine/fingerprint.ts`, and so changes what Epic 3, 5.4 and the about page show.
-- 5.4 waits for Epic 3, so that document figures and kroner exist. It chooses A and B, preferring a company whose text classification has a business type, since the current A and B are both `uklart`. It writes the licence gate file and the allow-list.
-- 5.5 needs Epic 4's stored explanations and runs before they are exported into the seed.
-- 5.6 needs 5.4's credit paragraph and reads SM-1 (5.2) and SM-2 (Story 2.3) from committed reports. 5.3 later updates the measurement section to four layers.
-- 5.7 is last. It confirms the whole sequence on a clean machine; CI has loaded the seed on every PR since Story 1.3b.
+- 5.4 needs Epic 3 complete (waterfall, provenance) and the 5.2 decision (signals off). It replaces the local document dump with committed rows for the allow-listed companies.
+- 5.5 needs Epic 4 (stored explanations, figure test, phrase test) and the 5.4 seed. Until then the seed carries no explanations, and the card shows its no-stored-explanation state.
+- 5.6 builds on 5.4's "Kilder og lisens" paragraph and the committed SM-1 and SM-2 reports. 5.3 later updates its measurement section to four layers.
+- 5.3 is optional and is the first thing cut. It re-runs SM-1, and the withdrawal-deletion test must cover the embedding table.
+- 5.7 comes last and confirms on a clean machine what CI has checked on every PR since the seed path was introduced.
+- Epic 6 (stage 2/3) does not start until 5.7 passes.

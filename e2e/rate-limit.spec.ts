@@ -10,9 +10,13 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { BUDGETS } from '../src/rate-limit/budgets.ts';
 import { expect, test, uniqueAddress } from './fixtures.ts';
+import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 
-const ORGNR = '813235552'; // demo company A, covered in the seed
+const [DEMO_A] = DEMO_COMPANIES;
+const ORGNR = DEMO_A.orgnr; // demo company A, covered in the seed
 const OVERSIKT = `/analyse/${ORGNR}/oversikt`;
+// A search term that finds demo A: the first word of its name.
+const QUERY = (DEMO_A.navn.split(' ')[0] ?? '').toLowerCase();
 const CHEAP_PAGE = '/slik-fungerer-peerless';
 
 // Each test sends a budget's worth of requests, alongside the rest of the suite.
@@ -92,12 +96,12 @@ test('an exhausted search budget leaves the analysis served', async ({ page, req
   await exhaustSearch(request);
   const shown = await page.goto(OVERSIKT);
   expect(shown?.status()).toBe(200);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('ADMMIT');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(DEMO_A.navn);
 });
 
 test('an exhausted analysis budget leaves the search served', async ({ request }) => {
   await exhaustAnalysis(request);
-  const search = await request.get('/api/sok?q=admmit');
+  const search = await request.get(`/api/sok?q=${encodeURIComponent(QUERY)}`);
   expect(search.status()).toBe(200);
   expect(((await search.json()) as { orgnr: string }[]).map((row) => row.orgnr)).toContain(ORGNR);
 });
@@ -125,7 +129,7 @@ test('a tab clicked after the budget ran out ends on the refusal page', async ({
 test('the search field shows the refusal in its alert, and no results', async ({ page, request }) => {
   await page.goto('/');
   await exhaustSearch(request);
-  await page.getByRole('combobox', { name: nb['search.label'] }).fill('admmit');
+  await page.getByRole('combobox', { name: nb['search.label'] }).fill(QUERY);
   await expect(page.locator('main [role="alert"]')).toHaveText(nb['rateLimit.refused']);
   await expect(page.getByRole('option')).toHaveCount(0);
   await page.getByRole('button', { name: nb['search.submit'] }).click();

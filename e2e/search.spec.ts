@@ -5,8 +5,13 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
+import { DEMO_COMPANIES } from '../src/demo-companies.ts';
+import { formatOrgnr } from '../src/engine/format.ts';
 
-const ADMMIT = '813235552'; // demo company A; a covered company in the seed
+// A covered company in the seed, found by name in the typing tests (the
+// placeholder demo A until Story 5.4; now a peer of demo A or B).
+const ADMMIT = '813235552';
+const [DEMO_A, DEMO_B] = DEMO_COMPANIES;
 const UNKNOWN = '910000004'; // valid modulus 11, not in the seed
 const MISTYPED = '813235553';
 
@@ -153,9 +158,9 @@ test.describe('typing', () => {
 test.describe('submit', () => {
   test('a nine-digit orgnr that matches exactly goes straight to the analysis', async ({ page }) => {
     await page.goto('/');
-    await combobox(page).fill('813 235 552');
+    await combobox(page).fill(formatOrgnr(DEMO_A.orgnr));
     await submit(page).click();
-    await page.waitForURL(`**/analyse/${ADMMIT}/oversikt`);
+    await page.waitForURL(`**/analyse/${DEMO_A.orgnr}/oversikt`);
   });
 
   test('a valid orgnr not in the database shows the not-in-database copy and the demo links', async ({ page }) => {
@@ -165,8 +170,8 @@ test.describe('submit', () => {
     await expect(status(page)).toHaveText(
       'Peerless har ikke data for dette organisasjonsnummeret ennå. Foreløpig dekker vi dataprogrammeringstjenester (62.100).',
     );
-    await expect(page.getByRole('link', { name: 'ADMMIT AS' })).toHaveAttribute('href', '/analyse/813235552');
-    await expect(page.getByRole('link', { name: 'EXEBENUS AS' })).toHaveAttribute('href', '/analyse/814739082');
+    await expect(page.getByRole('link', { name: DEMO_A.navn })).toHaveAttribute('href', `/analyse/${DEMO_A.orgnr}`);
+    await expect(page.getByRole('link', { name: DEMO_B.navn })).toHaveAttribute('href', `/analyse/${DEMO_B.orgnr}`);
     await expect(page).toHaveURL('/');
   });
 
@@ -177,7 +182,7 @@ test.describe('submit', () => {
     await expect(status(page)).toHaveText(
       'Ingen treff på «zzqxjvw». Peerless har foreløpig bare selskaper i dataprogrammeringstjenester (62.100).',
     );
-    await expect(page.getByRole('link', { name: 'ADMMIT AS' })).toBeVisible();
+    await expect(page.getByRole('link', { name: DEMO_A.navn })).toBeVisible();
     await expect(page.getByRole('option')).toHaveCount(0);
   });
 
@@ -264,7 +269,7 @@ test.describe('failure', () => {
   test('a network error on submit shows the alert', async ({ page }) => {
     await page.route('**/api/sok**', (route) => route.abort());
     await page.goto('/');
-    await combobox(page).fill(ADMMIT);
+    await combobox(page).fill(DEMO_A.orgnr);
     await submit(page).click();
     await expect(alert(page)).toHaveText(nb['search.failed']);
     await expect(page).toHaveURL('/');
@@ -334,7 +339,7 @@ for (const width of [375, 320]) {
 
       await combobox(page).fill('zzqxjvw');
       await submit(page).click();
-      await expect(page.getByRole('link', { name: 'EXEBENUS AS' })).toBeVisible();
+      await expect(page.getByRole('link', { name: DEMO_B.navn })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
   });

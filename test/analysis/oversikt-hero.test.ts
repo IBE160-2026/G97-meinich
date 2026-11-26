@@ -66,6 +66,13 @@ const STATE: AnalysisState = {
   multippel: null,
 };
 
+// Outside the demo data no capital figure is compared (Story 5.4, FR-64).
+const NO_PEER_DATES = {
+  kfd: { count: 0, readDates: null },
+  lgd: { count: 0, readDates: null },
+  oml: { count: 0, readDates: null },
+};
+
 /** The subject's own facts for the drill-down (Story 3.7): `inputs`, outside the demo data. */
 function drillSubject(inputs: ApiInputs) {
   return provenanceSubject(inputs, {
@@ -74,7 +81,7 @@ function drillSubject(inputs: ApiInputs) {
     brregId: 1n,
     documentBasis: { kind: 'not_in_dataset' },
     documentFacts: { readAt: null, brregId: null, current: null },
-  });
+  }, NO_PEER_DATES);
 }
 
 function render(benchmark: ApiBenchmark, emptyReason: EmptyReason = null, state: AnalysisState = STATE, inputs: ApiInputs = CLIMAX): string {

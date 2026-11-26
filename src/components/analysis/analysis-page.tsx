@@ -225,12 +225,13 @@ function oversiktSubject(subject: Subject) {
 /**
  * What the drill-downs read of the subject: its filing's API inputs, read
  * date and document (a covered subject always has a filing, as for
- * oversiktSubject).
+ * oversiktSubject), and the read dates of the peers each capital figure's
+ * comparison counts (Story 5.4, FR-64).
  */
-function drillDownSubject(subject: Subject): ProvenanceSubject {
+function drillDownSubject(subject: Subject, group: ShownGroup): ProvenanceSubject {
   const filing = subject.filing;
   if (filing === null) throw new TypeError('drillDownSubject: a covered subject without a filing');
-  return provenanceSubject(apiInputsFromRow(filing.keyFigures), filing);
+  return provenanceSubject(apiInputsFromRow(filing.keyFigures), filing, group.capitalPeerDates);
 }
 
 /** What Verdi reads of the subject: its filing (a covered subject always has one, as for oversiktSubject). */
@@ -262,7 +263,7 @@ function Covered({
   const peers = view.fane === 'peers' ? peersShown(subject, group, state) : null;
   const href = serialize(state);
   const hasMedianStep = medianStep(group.benchmark.driftsmargin.comparison).kind === 'exists';
-  const drillDown = drillDownSubject(subject);
+  const drillDown = drillDownSubject(subject, group);
   return (
     <AnalysisUrlProvider href={href} medianStep={hasMedianStep}>
       <PeerChangeCommit
@@ -393,7 +394,7 @@ function AnalysisBody({
         peerCount={coveredGroup?.analysisCount}
         widened={coveredGroup !== null && state.band !== DEFAULT_BAND}
       />
-      <SettingsNotice show={view.notice} />
+      <SettingsNotice show={view.notice} median={view.medianNotice} />
       {coveredGroup !== null ? <Covered subject={subject} state={state} view={view} group={coveredGroup} /> : null}
       {view.state === 'uncovered' ? (
         <OwnFigures

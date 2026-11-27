@@ -763,7 +763,8 @@ describe('the explanation export', () => {
           values (${sample ? '000000025' : '000000033'}, 'explained', 'Marginen er {{driftsmargin.egen}}.', ${['driftsmargin.egen']},
                   2025, ${'0'.repeat(64)}, ${'0'.repeat(64)}, 'claude-haiku-5-5', 'demo', ${sample}, now())`;
       }
-      expect(await tx`select 1 from register.explanation`).toHaveLength(2);
+      // Its own two rows: a local database also holds the sample rows of a `pnpm explain --sample` run.
+      expect(await tx`select 1 from register.explanation where orgnr in ('000000025', '000000033')`).toHaveLength(2);
       const [, ...rows] = parseCsv((await copyTable(tx, explanationTable, { open: true }, [], [])).toString('utf8'));
       exported = rows;
     });

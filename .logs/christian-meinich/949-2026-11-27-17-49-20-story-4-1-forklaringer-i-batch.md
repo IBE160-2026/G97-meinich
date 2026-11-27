@@ -49,7 +49,8 @@ Rebase Story 4.1 på main etter PR #90, få specen godkjent og bygge `pnpm expla
 - **Meinichs beslutninger:**
   - R13 og R15 er utsatt til 4.3;
   - R25: Story 5.5 committer forklaringene i seeden (`3da5973`);
-  - specen er satt til `done`.
+  - specen ble satt til `done` i `272e3e3` etter prompt 8 fra review-sesjonen, og så tilbake til `in-review` i `d0e5463`. Den settes til `done` ved merge;
+  - krediteringen av review-sesjonen står i sesjonsfilen (`2935f35`).
 - **Tester etter rettingen:** lint, typecheck, unit (2 190), pins og env er grønne. I `test:db` ble seed-testen rettet. `derive.test.ts` feiler bare mens 5.4-dumpen er lagt tilbake, slik rekkefølgen i AGENTS.md forventer.
 - **Rapporten** står i `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. PR-utkastet ligger i scratchpad.
 

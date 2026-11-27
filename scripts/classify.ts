@@ -16,7 +16,7 @@ import postgres from 'postgres';
 import { Decimal } from '../src/engine/decimal.ts';
 import { createModelClient, NoModelKey } from './classify/model-client.ts';
 import { type ClassificationRow, type Failure, type Options, Refusal, type Selection, type Store, planLines, runClassify } from './classify/run.ts';
-import type { Target } from './classify/request.ts';
+import { type Target, requestParams } from './classify/request.ts';
 import { setting } from './run-ingest.ts';
 
 const LABELLED_FILE = 'analysis/labelled-set/document-run.json';
@@ -121,7 +121,7 @@ export async function main(root: string, argv: readonly string[]): Promise<numbe
       process.stdout.write(`${(await planLines(store, options)).join('\n')}\n`);
       return 0;
     }
-    const model = createModelClient(root);
+    const model = createModelClient(root, requestParams);
     return await runClassify(
       {
         store,

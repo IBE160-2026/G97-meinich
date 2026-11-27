@@ -11,7 +11,7 @@ Epic 3 retro action 8: an e2e test reads a page value only through an auto-waiti
 
 ## Prompts that mattered
 
-Meinich's answer to the Story 4.1 checkpoint (2026-11-27), point 3:
+Meinich's answer to the Story 4.1 checkpoint (2026-11-27), point 3. The prompt was drafted by the review session and sent by Meinich (see "From the review session" below):
 
 > Handlingspunkt 8 tas i en egen PR før 4.1-koden, ikke i denne. Det gjelder omtrent 100 omskrivninger i 26 testfiler, og de skal vurderes for seg. Lag et eget issue og en egen branch fra origin/main, som #71 og PR #85. Før du skriver om, list kategoriene av betingede expect og hva hver blir skrevet om til. Eventuelle eslint-disable må ha en grunn. List dem. Rapporten viser for et utvalg av de omskrevne testene at de fortsatt feiler når vernet fjernes.
 
@@ -136,6 +136,60 @@ Run in the order of AGENTS.md "Testing" on `bf79ea9`:
 | e2e, one worker, chromium in three runs of five spec files (ports 3100 and 3101 checked free before each) | 66, 77 and 66 passed (209) |
 | e2e `db-down`, then `synthetic --no-deps` | 7 and 31 passed |
 | `pnpm restore:documents` | documents 2 785, columns 5 556, fingerprints 2 537, classification rows 10 371 |
+
+## From the review session
+
+The review session is a separate Claude Code session. Meinich reads what it drafts and posts it. Each item below came from there, not from this session:
+
+- **A PR of its own.** The review session recommended moving action 8 out of Story 4.1 into its own PR. Meinich decided it.
+- **The checkpoint prompt.** The prompt quoted under "Prompts that mattered" was drafted by the review session.
+- **The final count in the inventory.** It required updating the inventory from 188 to the final count, which gave `bf79ea9`.
+- **The missing documentation.** It found that the PR changed neither AGENTS.md nor the retro before push, which gave `80b0523`.
+- **CI.** It re-ran the failed CI job: `test/db/peer-assembly-time.test.ts` took 1 084 ms on attempt 1 and was green on attempt 2.
+- **The review of PR #90** (https://github.com/IBE160-2026/G97-meinich/pull/90#pullrequestreview-6087515087). This session checked each finding before acting on it:
+  - three forms the read rule let through, each confirmed here with `eslint --stdin` (0 errors each, against 1 for a stored awaited read as the control);
+  - loops over an empty list;
+  - the CI timing.
+
+## Review fixes
+
+| # | Finding (by) | Fix | Shown failing without the fix |
+|---|---|---|---|
+| R1 | Three forms the read rule let through: a read kept unawaited and awaited later, `.then` on a read, reads listed for `Promise.all` outside `toPass` (review session) | `d30a7b0`: `VariableDeclarator`, `MemberExpression[property.name='then']` and `ArrayExpression` join the parents of a read. The three `Promise.all` in `e2e/oversikt.spec.ts` (310, 328, 345) sit inside `toPass` and still lint clean. | Three new cases in `test/lint.test.ts` "rejects a snapshot read in e2e", run against the rule before the fix: `× kept unawaited and awaited later`, `× followed by .then`, `× listed for Promise.all` (3 failed, 9 passed). With the fix: 59 passed. |
+| R2 | "Filter first and assert the filtered list" leaves the filtered list possibly empty; a loop or `it.each` over an empty list tests nothing (review session) | `e097ae6`: AGENTS.md "Testing" and the lint message now say filter first, assert the length, then each item. A loop with an `expect` asserts its list's length unless the list is a literal or a constant in the test. | None possible: lint cannot see whether a list is empty, so this is a rule for review. The audit below lists the loops that can run empty today. |
+| R3 | `test/db/peer-assembly-time.test.ts` holds 1 s with little margin on CI (review session) | `32a01dd`: a `deferred-work.md` entry owned by Story 5.7, beside the `copyIn` entry | Not a code change. |
+
+### Loops that can run over an empty list today
+
+An audit of the 298 loops with an `expect` over a non-literal list in `test/` and `e2e/` was done by a subagent of this session and checked here on two lines. It found:
+- 201 over a literal or a constant;
+- 70 over data, with a length guard before or a check after that fails when the list is empty;
+- 27 with nothing pinning their length.
+
+The 27, as of `32a01dd`:
+
+- **Certainly empty for one case:** `test/engine/reference-cases.test.ts:660` loops over `c.notRead`, and the case at line 326 has `notRead: []`. Its test "…the lines printed but not read" asserts nothing for that case.
+- **Can be empty:**
+  - e2e: `e2e/search.spec.ts:304` (it checks only `rows.length < 8`) and `e2e/synthetic-documents.spec.ts:689`.
+  - Vitest analysis tests: `test/analysis/waterfall-view.test.ts:182` and `:413`, `test/analysis/key-figure-table.test.ts:1060`, `test/analysis/oversikt-view.test.ts:166` and `:167`, `test/analysis/peer-list.test.ts:144`, `test/analysis/peer-rows.test.ts:125`.
+  - Vitest engine tests: `test/engine/reference-cases.test.ts:643`, `test/engine/waterfall.test.ts:319` and `:404`, `test/engine/peers.test.ts:854`, `test/engine/provenance.test.ts:71`.
+  - Database tests: `test/db/search.test.ts:65`, `test/db/peers.test.ts:252`, `test/db/run-grants.test.ts:77`, `:88`, `:99` and `:109` (only sibling tests make the list non-empty), `test/db/seed.test.ts:512`, `test/db/set-role-passwords.test.ts:78` and `:164`.
+  - Other tests: `test/classify/key-boundary.test.ts:31`.
+- **Fixed-shape records with no size asserted:** `test/engine/document-absence.test.ts:280` and `test/rate-limit.test.ts:142`. These are probably never empty.
+
+None of the 27 is changed in this PR. AGENTS.md now states the rule, and whether to fix them here or in a follow-up is Meinich's decision.
+
+## Review Triage Log
+
+| # | Source | Finding | Verdict | Action |
+|---|---|---|---|---|
+| 1 | Review of PR #90, `eslint.config.mjs:124` | An unawaited read stored and awaited later, `.then` on a read, and `Promise.all` lists pass lint | Confirmed here with `eslint --stdin` | Fixed, `d30a7b0` |
+| 2 | Review of PR #90, `eslint.config.mjs:129` and `AGENTS.md:104` | A loop or a filtered list can be empty | Confirmed: 27 loops can run empty, one certainly does for one case | Rule in AGENTS.md, `e097ae6`; the 27 listed above, not changed |
+| 3 | Review of PR #90, review body | `peer-assembly-time` flaked once on CI at 1 084 ms | Confirmed in the run's log (attempt 1 failed, attempt 2 green, no code change) | Deferred to Story 5.7, `32a01dd` |
+| 4 | Review of PR #90, `test/db/peers.test.ts:260`, `test/engine/waterfall.test.ts:396` | The rewrites are correct | Agreed | None |
+| 5 | Review of PR #90, `docs/ai-sessions/2026-11-27-issue-89-test-assertions.md:10` | The session file does not say what came from the review session | Confirmed | This section and the one above |
+
+No finding was rejected.
 
 ## Links
 

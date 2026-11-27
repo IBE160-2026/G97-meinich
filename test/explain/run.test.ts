@@ -288,6 +288,34 @@ describe('a run', () => {
     expect(runs[0]?.counts).toMatchObject({ sent: 0, pending: 1 });
   });
 
+  it('resumes a pending batch', async () => {
+    const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
+    rows.set(GOOD, storedRow(GOOD, 'pending'));
+    const model = resuming([GOOD]);
+    expect(await runExplain(deps(store, () => model), ALL, CAP)).toBe(0);
+    expect(model.submitted).toEqual([]);
+    expect(rows.get(GOOD)).toMatchObject({ status: 'explained', batch_id: null, analysis_digest: demoA.digest });
+    expect(runs[0]?.counts).toMatchObject({ explained: 1, failed: 0 });
+  });
+
+  it('a pending row whose analysis changed is failed as analysis_changed', async () => {
+    const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
+    rows.set(GOOD, storedRow(GOOD, 'pending', { analysis_digest: '0'.repeat(64) }));
+    const model = resuming([GOOD]);
+    expect(await runExplain(deps(store, () => model), ALL, CAP)).toBe(1);
+    expect(rows.get(GOOD)).toMatchObject({ status: 'failed', template: null, batch_id: null });
+    expect(runs[0]?.failures).toEqual([{ orgnr: GOOD, reason: 'analysis_changed' }]);
+  });
+
+  it('a pending row with no result in its batch is failed as no_result_in_batch', async () => {
+    const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
+    rows.set(GOOD, storedRow(GOOD, 'pending'));
+    const model = resuming([]);
+    expect(await runExplain(deps(store, () => model), ALL, CAP)).toBe(1);
+    expect(rows.get(GOOD)).toMatchObject({ status: 'failed', batch_id: null });
+    expect(runs[0]?.failures).toEqual([{ orgnr: GOOD, reason: 'no_result_in_batch' }]);
+  });
+
   it('writes a sent row pending before it waits for the batch', async () => {
     const { store, rows } = fakeStore({ [GOOD]: explaining() });
     const model = storedResponses(RESPONSES);

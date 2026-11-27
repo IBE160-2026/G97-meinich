@@ -4821,6 +4821,264 @@ Demo A is TRETOEN AS and demo B HUMA AS; C is unchanged. The committed seed hold
 - CI green on `da0f496`.
 - The review session's review with nine line comments, approving the allow-list, no change asked for before merge: https://github.com/IBE160-2026/G97-meinich/pull/87#pullrequestreview-6079224014
 
+## Issue #89: tests assert unconditionally (Epic 3 retro action 8, PR #90), and the opening of Story 4.1 (#88)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt. Story 4.1's checkpoint moved retro action 8 into its own issue and PR, built and merged before 4.1's code; Story 4.1's own work continues in the next section.
+
+### Prompts to the BMAD session
+
+**2026-11-26 19:33**: the prompt that opened Story 4.1.
+```
+Fra meg:
+
+/bmad-build Story 4.1: «Explanations generated in batch» (epics.md, Story 4.1, linje 2345–2378). Lag branchen story/4.1-explanations-batch fra origin/main, og opprett issuet.
+
+Stopp ved sjekkpunktet før du endrer kode eller data. Les tallene og påstandene nedenfor selv, og si fra hvis noe ikke stemmer. Jeg har dem fra filene som er nevnt.
+
+(a) Utsatt arbeid og handlingspunkter:
+- Søk i deferred-work.md etter alt som nevner 4.1, Epic 4, forklaring eller explanation. Review-sesjonen fant bare linje 232 (AiMark og ✦), og den tilhører 4.4. For hver oppføring: tas den inn, eller blir den der den er, og hvorfor.
+- Epic 3-retroen (epic-3-retro-2026-11-22.md):
+  - Handlingspunkt 8 tilhører «first story of Epic 4», altså denne storyen: e2e leser verdier bare med assertions som venter selv, og ingen expect inne i en betingelse, håndhevet med lint der pluginen tillater det. Foreslå hvordan.
+  - Handlingspunkt 6, 9 og 10 gjelder hver story. Si hvordan specen dekker dem.
+  - Handlingspunkt 11 sier «Epic 4's figure test (FR-54) … Story 4.3». Figurtesten er FR-53 i Story 4.2, og ingen av AC-ene for 4.2 eller 4.3 har punktet om formateringen. Foreslå rettelsen i epics.md.
+  - Handlingspunkt 9 sier at veksten måles i «epics.md Story 4.4 AC», men 4.4 har ingen slik AC. Foreslå rettelsen.
+
+(b) Rekkefølgen for modellkallene. AC-en krever at hvert selskap i 62.100 har en lagret forklaring etter en kjøring i steg 2. Figurtesten (4.2) og frasetesten (4.3) finnes ikke ennå. Legg frem alternativene, med det du anbefaler:
+- (i) 4.1 kjører modellen og lagrer forklaringene nå;
+- (ii) 4.1 bygger kjøringen med testmodus og lagrede svar og kjører bare --plan. Den ekte kjøringen kommer etter 4.3, når begge vernene finnes. AC-en endres da i epics.md og Spec Change Log.
+Ingen forklaring som ikke er kontrollert av en test, skal havne i seeden.
+
+(c) Input til modellen:
+- Hvilke felt payloaden får fra standardanalysen: kronegapene, styrkene, rekkefølgen og retningsordene. Alt velges av motoren, ikke modellen.
+- Hvordan slot-referansene ser ut, og hvordan de lagres.
+- Vis payloaden for demo A (922425620) og for ett selskap i 62.100 utenfor tillatelseslista, valgt etter en fast regel. Det siste skal bare ha API-tall.
+- Bekreft at payloaden ikke har fingeravtrykk, klassifiseringstype eller noe fra trinn 4 og 5, som er av i v1.
+- Fasitsettet: bare totaler. Ingen klassifisering, fingeravtrykk eller forklaringstekst per orgnr for de 845 i analysis/labelled-set/document-run.json skal stå i terminalen, specen, PR-en eller AI-loggen.
+
+(d) Modell og kostnad:
+- Hvilken modell, med begrunnelse. Klassifiseringen bruker claude-haiku-5-5 (AGENTS.md).
+- Batch API eller ikke.
+- Hvor mange selskaper (tell i databasen og si hvor tallet er lest).
+- Anslått input og output per kall, og et kostnadsoverslag med tak, som --max-usd i pnpm classify.
+- Prisene leses fra dokumentasjonen, ikke fra hukommelsen.
+- Ingen modellkall før jeg har godkjent overslaget.
+
+(e) Tabellen og seeden:
+- migrasjonen, med ON DELETE CASCADE og grants;
+- SEED_TABLES eller LOADER_TABLES;
+- digesten (AD-13) og dataset-taggen (AD-9);
+- hvor modell-id-en låses;
+- testen for sletting fra Story 2.4;
+- hvordan seeden eksporteres på nytt i samme PR, fordi PR-en legger til en migrasjon.
+Bekreft at nøkkelen bare leses av scripts/classify/model-client.ts eller en tilsvarende enkeltmodul, og at testen for nøkkelgrensen dekker den.
+
+(f) Forespørselsstien: ingen generering ved forespørsel, nøkkelen leses bare i steg 2 (AD-19), og testen for ingen nettverk holder. Si hvilken test som feiler hvis det brytes.
+
+(g) Hva kan gå galt med input og output til modellen. Det skal i docs/ai-log.md.
+
+Regler:
+- Ingen modellkall uten mitt ja. API-nøkkelen står bare i .env og skal aldri skrives ut, committes eller logges.
+- Ingen dump slettes.
+- Hver rad i I/O-matrisen navngir testen som feiler når vernet fjernes, og rapporten viser hvert vern fjernet og testen som feilet.
+- Rapporten lister hver endring specen ikke ba om, med utskriften som viser at den trengtes (handlingspunkt 6).
+- Mål veksten i payloaden per fane, med gzip, mot main (handlingspunkt 9).
+- Ingen forventet verdi velges ut fra data med en betingelse.
+- Full verifisering i rekkefølgen under «Testing» i AGENTS.md.
+- Commit i logiske steg. Ikke push før jeg sier fra.
+```
+*Changed:* issue #88, the branch `story/4.1-explanations-batch` and the draft spec, then checkpoint 1 with no code, data or model call: the deferred entries (line 205 taken in), retro actions 6 and 8–11 with corrections to actions 9 and 11, the run order with option (ii+) recommended, the payload of demo A and of a company outside the allow-list, the model and the cost estimate (8 356 companies, Haiku 5.5 on the Batch API), the table and the seed, the request path and the risks, and six questions.
+
+**2026-11-27 08:19**: the answers to Story 4.1's checkpoint.
+```
+Fra meg:
+
+Svar på sjekkpunktet for Story 4.1. Det review-sesjonen har sjekket står i parentes.
+
+Oppføringer i deferred-work.md:
+- Linje 205 tas inn, som du foreslår.
+- Oppføringen rett under (prøveklassifiseringer leses i request-stien uten `not cl.sample`) gjelder også register.explanation, som får en sample-kolonne. Skriv i specen at Story 4.4 bare leser `not sample`, og legg en utsatt oppføring som nevner 4.4.
+
+1. Rekkefølge: ii+.
+   - 20 prøveselskaper, trukket utenfor analysis/labelled-set/document-run.json, kjørt med --max-usd 0.05. Overslaget ditt er $0.014 (prisene er de samme som PRICE_PER_MTOK i scripts/classify/plan.ts:10).
+   - Kjør --plan først og vis meg taket. Ingen kall før jeg sier ja.
+   - Etterpå:
+     - vis tokentallene, og hvor mange tekster som holdt slot-formatet og hvor mange som ble nektet, med grunn;
+     - vis tre tekster med slottene fylt inn, slik at jeg kan vurdere norsken.
+   - WHERE false i eksporten må fjernes i 4.3. Legg en utsatt oppføring som nevner 4.3, og si hvilken test som da må endres.
+   - Rett AC-en og AD-7 sin dekning i epics.md, og skriv endringen i Spec Change Log med dato og at jeg bestemte det.
+
+2. Modell: claude-haiku-5-5. Vi vurderer på nytt etter prøvekjøringen.
+
+3. Handlingspunkt 8 tas i en egen PR før 4.1-koden, ikke i denne. Det gjelder omtrent 100 omskrivninger i 26 testfiler, og de skal vurderes for seg.
+   - Lag et eget issue og en egen branch fra origin/main, som #71 og PR #85.
+   - Før du skriver om, list kategoriene av betingede expect og hva hver blir skrevet om til.
+   - Eventuelle eslint-disable må ha en grunn. List dem.
+   - Rapporten viser for et utvalg av de omskrevne testene at de fortsatt feiler når vernet fjernes.
+   - I 4.1-specen flyttes punktet med begrunnelse. Det tar også specen nærmere lengdegrensen.
+   - Fullfør spec-arbeidet for 4.1 nå, men bygg PR-en for punkt 8 først, og stopp der for review.
+
+4. Fasitsettets selskaper forklares og eksporteres i den ekte kjøringen, så lenge payload-testen viser at ingen fingeravtrykk eller klassifisering kommer med. Ingen forklaringstekst for de 845 skrives ut per orgnr noe sted, bare totaler.
+
+5. Tom peer-gruppe telles per EmptyReason i run.step2 og er ingen feil. Rett AC-ens «every company gets an explanation or a run-record failure» i Spec Change Log, slik at også tellingen per tom-grunn oppfyller den.
+
+6. Ordene «over/under/lik medianen» og «det største / nest største / tredje største kapitalgapet» er godkjent, med forbehold om tellingene fra --plan. For mangler.dokument gjenbrukes copyen siden har for dokumenttall som ikke er i datasettet, så kortet og siden sier det samme. Vis meg id-en i nb.json.
+
+Varekostnad som styrke: forklaringen følger samme regel som Største styrke på siden (atOrBeyondBest og NEVER_STRENGTH i src/analysis/oversikt-cards.ts:109). NEVER_STRENGTH endres ikke i 4.1. Legg spørsmålet om en varekostnad på 0 % hos et konsulentselskap er en styrke inn som et åpent spørsmål til meg, med hvor mange av de 8 356 selskapene det gjelder, som en total.
+
+Specen kan holdes samlet når punkt 8 er flyttet ut.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* the spec's decisions, committed on the 4.1 branch as `f96a1cb` (not merged yet); retro action 8 moved into issue #89 and the branch `story/89-test-assertions`: the inventory before the rewrite (`5f9f798`), the Vitest rewrites (`3708974`); an e2e run stopped by Claude Code on low memory after 43 passed tests.
+
+**09:55**: the e2e run after the memory stop.
+```
+Fra meg:
+
+Ja, kjør resten av e2e, men commit først det som ligger på disk. Review-sesjonen har sjekket at ingen node- eller chromium-prosess henger igjen, at port 3000 og 3001 er ledige og at 4,0 GB av 15,7 GB er fri.
+
+1. Commit i logiske steg, før neste kjøring:
+   - e2e-omskrivingene med e2e/history.ts og tidsgrensen for toPass i playwright.config.ts;
+   - deretter lint-reglene i eslint.config.mjs med testene i test/lint.test.ts.
+   Hver commit skal være ren for lint og typesjekk. Kjør pnpm lint og pnpm typecheck på hver av dem.
+
+2. Oppdater inventaret fra 5f9f798 i en egen commit. Det har 188 steder, men de endelige tallene på origin/main er 215 steder i 34 filer (72 betingede expect og 143 øyeblikksavlesninger). Si hvilke to utvidelser av regelen som ga de nye, og hvor mange hver av dem fant.
+
+3. E2e: én worker, ingenting annet kjører samtidig.
+   - Ta chromium i biter på 4–5 spec-filer, med filene oppgitt på kommandolinjen. Til sammen skal bitene dekke alle chromium-specene. analysis-states og demo-payload kjøres på nytt, fordi koden er committet siden.
+   - Så --project=db-down, og til slutt --project=synthetic --no-deps.
+   - Før hver bit: sjekk at ingen server fra forrige bit står igjen.
+   - Stoppes en bit av minnet: si fra hvilken, og ikke start på nytt uten å spørre meg.
+
+4. Rapporten skal vise:
+   - Testene som ikke testet det de lovet: for hver av de tre, vernet du fjernet og utskriften fra testen som feilet.
+   - For test/db/peers.test.ts: hvilket subjekt testen bruker nå, og at det er valgt med en fast regel, ikke med en betingelse på data.
+   - Utvalget av omskrevne tester der vernet ble fjernet og testen feilet.
+   - De seks eslint-disable-kommentarene, med fil, linje og grunn.
+
+5. Full verifisering i rekkefølgen under «Testing» i AGENTS.md. Stopp deretter for review.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* the e2e rewrites with `e2e/history.ts` (`37d1188`), the lint rules with their tests (`dc60ef7`), the inventory at the final 215 sites in 34 files (`bf79ea9`), the session file (`1c06afe`); the three tests that had not tested what they promised, each shown passing before and failing after against the same removed guard; six rewritten tests shown failing with their guard removed; the full verification order on `bf79ea9`, chromium in three runs (209), db-down 7, synthetic 31.
+
+**10:47**: before the push.
+```
+Fra meg:
+
+Review-sesjonen har sjekket branchen: commitene 5f9f798…1c06afe, at ingenting ligger ukommittert, de seks eslint-disable-kommentarene med linjene og grunnene du oppga, og port 3100/3101 i playwright.config.ts. Du hadde rett om portene. Det var feil i min forrige prompt.
+
+Én ting mangler før push. git diff --stat origin/main..HEAD viser at PR-en ikke endrer AGENTS.md eller noe planleggingsdokument, bare sesjonsfilen.
+
+1. Lag én dokumentasjonscommit:
+   - AGENTS.md, «Testing»:
+     - e2e leser en verdi bare med en assertion som prøver på nytt (toHaveText, expect.poll, toPass), aldri med en øyeblikksavlesning;
+     - ingen expect inne i en betingelse, verken i Vitest eller Playwright;
+     - et unntak krever en eslint-disable med grunn, og bare for en grunnlinje lest før handlingen eller en gren på den håndskrevne fasiten.
+     Nevn testen i test/lint.test.ts som håndhever regelen.
+   - AGENTS.md: setningen som lister hva ESLint forbyr, får de nye reglene, med `no-restricted-syntax` i e2e/ og test/.
+   - epic-3-retro-2026-11-22.md:186: marker punkt 8 som løst i #89, med commitene for omskrivingene og lint-reglene.
+   - Sjekk om noe i PRD-en, den tekniske notaten eller epics.md beskriver teststrategien på en måte som nå er feil. Hvis ikke, skriv «Planning documents: AGENTS.md and the Epic 3 retro; PRD, technical note and epics.md not affected» i PR-teksten.
+
+2. Push, og åpne PR-en med Closes #89. PR-teksten skal ha:
+   - commitene;
+   - de to utvidelsene av regelen med tallene (116 + 10 + 17 = 143, og 72 betingede expect, til sammen 215 i 34 filer);
+   - de tre testene som ikke testet det de lovet, med den gamle og den nye versjonen mot samme fjernede vern;
+   - utvalget på seks med vernet fjernet;
+   - de seks eslint-disable-kommentarene;
+   - de tre advarslene på 3708974 og hvorfor de ble der;
+   - verifiseringen med tall;
+   - lenken til sesjonsfilen.
+
+3. Kjør sesjonslogg på branchen, slik at loggen blir med i PR-en.
+
+Story 4.1 venter til denne er merget. Rebase da story/4.1-explanations-batch på main, før du går videre med specen.
+```
+*Changed:* AGENTS.md "Testing" and its list of ESLint bans, and retro action 8 marked done (`80b0523`); the session log (`9b32c75`); the branch pushed and PR #90 opened; the session file linking the PR (`26e82f2`).
+
+**11:35**: the review session's review of PR #90.
+```
+Fra meg:
+
+Review-sesjonen har postet et review på PR #90: https://github.com/IBE160-2026/G97-meinich/pull/90#pullrequestreview-6087515087. Les det med gh api repos/IBE160-2026/G97-meinich/pulls/90/reviews og /comments, og sjekk funnene selv før du retter.
+
+Rett dette i egne commits, og vis for hvert punkt at testen feiler når rettelsen fjernes:
+1. eslint.config.mjs:124:
+   - Lint skal fange en uavventet avlesning lagret i en variabel, .then rett på en avlesning, og avlesninger i en liste til Promise.all utenfor toPass.
+   - Legg til tre tilfeller i test/lint.test.ts «rejects a snapshot read in e2e».
+   - Sjekk at de tre Promise.all-ene i e2e/oversikt.spec.ts (310, 328, 345), som står inne i toPass, fortsatt er lov.
+2. AGENTS.md:104 og eslint.config.mjs:129: en løkke eller it.each med expect får en assertion på lengden først. Endre «filter first and assert the filtered list» til at lengden sjekkes før hvert element. Lint kan ikke se om lista er tom, så dette er en regel i AGENTS.md, ikke i lint. Si om noen løkke i test/ eller e2e/ i dag kan gå over en tom liste, med fil og linje.
+3. test/db/peer-assembly-time.test.ts: legg en oppføring i deferred-work.md med Story 5.7 som eier. Den feilet én gang på CI med 1 084 ms uten kodeendring, og ble grønn da den ble kjørt på nytt.
+4. Sesjonsfilen:
+   - Skriv hva som kom fra review-sesjonen: anbefalingen om egen PR (jeg bestemte), utkastet til prompten som er sitert, kravet om å oppdatere inventaret, funnet som ga 80b0523, omkjøringen av CI-jobben, og dette reviewet.
+   - Legg til review-rettelsene og eventuelle avviste funn, med hvem som fant dem.
+   - Legg til en Review Triage-seksjon.
+
+Etterpå: pnpm lint, pnpm typecheck og pnpm test --maxWorkers=2. E2e trengs bare hvis en fil i e2e/ endres; i så fall bare de berørte specene, med én worker. Push, og vis CI-status. Ikke merge.
+```
+*Changed:* lint catches a read kept unawaited and awaited later, `.then` on a read and reads for `Promise.all` (`d30a7b0`); the rule that a loop with an `expect` asserts its list's length first (`e097ae6`); the deferred entry for `peer-assembly-time` owned by Story 5.7 (`32a01dd`); the session file crediting the review session, with the review fixes and the triage log (`f65d9ca`). A subagent of the BMAD session found 27 loops that could run over an empty list, and the session asked whether to fix them here.
+
+**11:57**: fix the 27 loops in this PR.
+```
+Fra meg:
+
+Rett de 27 løkkene i denne PR-en. AGENTS.md sier nå (e097ae6) at en løkke med expect sjekker lengden på lista først. Står de 27 urettet, bryter koden en regel som PR-en selv har skrevet inn.
+
+1. For hver av de 27:
+   - Bruk det eksakte antallet (toHaveLength(n)) der det er kjent fra en fast fixture, seeden eller den håndskrevne fasiten.
+   - Bruk .not.toHaveLength(0) bare der antallet varierer, og skriv grunnen.
+   - Der en grense sjekkes (search.spec.ts:304 og test/db/search.test.ts:65, rows.length < 8), skal en tom liste feile: sjekk både en nedre og en øvre grense, eller det eksakte antallet for søket.
+   - run-grants.test.ts:77/88/99/109: lista skal ikke være ikke-tom bare fordi en søskentest kjørte. Gjør hver test uavhengig av rekkefølgen.
+2. test/engine/reference-cases.test.ts:660, med tilfellet på 326 der notRead: []: si om tilfellet skal ha en ikke-tom notRead eller om sjekken skal deles i to, én for tilfellene med leste linjer og én som sier at lista er tom der det er meningen. Velg det som ikke endrer fasiten. Hvis fasiten må endres, stopp og spør meg.
+3. Én eller to commits for omskrivingene. Vis for et utvalg på minst fem, og alltid :660, at testen feiler når lista tømmes.
+4. Oppdater sesjonsfilen: lista over de 27 med hva hver ble, og Review Triage.
+5. pnpm lint, pnpm typecheck, pnpm test --maxWorkers=2, så pnpm test:db (run-grants og search ligger der). E2e bare for e2e/search.spec.ts, med én worker.
+
+Push, og vis CI-status. Ikke merge.
+```
+*Changed:* every loop asserts its list's length, exactly where the count is fixed, the literal search tests expect `[]`, `run-grants` reads its relations in each test, and the two reference cases with no unread line have a test of their own, the expected table unchanged (`a9aa5db`); the session file lists the 27 (`13b5a29`).
+
+**12:41**: the review session's finding on `a9aa5db`.
+```
+Fra meg:
+
+Review-sesjonen har lest a9aa5db og fant ett punkt i test/engine/reference-cases.test.ts:647: `expect(stated.length > 0).toBe(actual.source === 'document')` henter fasiten fra motorens egen output. Rapporterer motoren `api` for et dokumenttall og leser da ingen linjer, består testen likevel. Den riktige kilden er kjent fra kallet: linje 660 gjelder alltid dokumenttall, og linje 672 gjelder alltid API-tall.
+
+1. Gi checkDocument en parameter `source: 'document' | 'api'`, sendt fra hvert kall.
+   - Sjekk `expect(actual.source).toBe(source)`.
+   - Endre sjekken på linje 647 til `.toBe(source === 'document')`.
+   - Det endrer ingen fasit.
+2. Vis at testen feiler når motoren melder feil kilde for ett dokumenttall, for eksempel ved å la computeDocumentKeyFigures sette source 'api' for én nøkkel. Vis også at den gamle versjonen besto i samme tilfelle.
+3. Egen commit. Legg funnet til i Review Triage i sesjonsfilen, kreditert review-sesjonen.
+4. pnpm lint, pnpm typecheck, pnpm test --maxWorkers=2. Push, og vis CI-status. Ikke merge.
+```
+*Changed:* `checkDocument` takes the figure's source from each call and asserts `actual.source` against it, shown failing with the engine giving one document figure the source `api` (`b479ba8`); the triage row (`476e398`).
+
+### Prompts to the review session
+
+- `gi prompt for Epic 4` (2026-11-26 19:18): the review session read Epic 4's stories in `epics.md`, the Epic 3 retro's open actions and `deferred-work.md`, found that action 11 names the wrong story and FR and that action 9 points at an AC Story 4.4 does not have, recommended building Story 4.1's run in test mode before the figure and phrase tests exist, and drafted the 19:33 prompt.
+- The BMAD session's checkpoint 1 for Story 4.1 (2026-11-27 08:15): the review session counted the 8 356 AS in 62.100 with a filing, checked that the prices match `PRICE_PER_MTOK` in `scripts/classify/plan.ts`, that the entry at `deferred-work.md:205` exists, and that `NEVER_STRENGTH` decides the Oversikt's strongest figure, found the deferred entry on sample classifications that Story 4.4 must also heed, recommended a PR of its own for action 8, and drafted the 08:19 prompt.
+- The BMAD session's report on the e2e memory stop (2026-11-27 09:53): the review session checked that no Node or Chromium process was left and that 4.0 GB of 15.7 GB were free, and drafted the 09:55 prompt.
+- The BMAD session's report that the PR was ready for review (2026-11-27 10:39): the review session checked the six commits, the six `eslint-disable` comments and the ports, found that the PR changed neither AGENTS.md nor the retro, and drafted the 10:47 prompt.
+- The BMAD session's report on PR #90 (2026-11-27 11:12): the review session found CI red in `test/db/peer-assembly-time.test.ts` at 1 084 ms, with the PR changing neither that test nor `src/`, and that the BMAD session's log is numbered 950 like one of the review session's own local logs.
+- `kjør den for meg` (2026-11-27 11:14): the review session reran the failed job, and it passed.
+- `ja du sier i fra?` (2026-11-27 11:23): the review session said it would, and did when the job ended.
+- `lag review-utkast` (2026-11-27 11:28): the review session read the diff, probed the lint rule with `eslint --stdin` and found four forms it let through, and drafted the review with six line comments.
+- `post review` (2026-11-27 11:34): the review session posted it on `26e82f2`.
+- The BMAD session's report on the review fixes (2026-11-27 11:54): the review session read the four commits and recommended fixing the 27 loops in this PR, since AGENTS.md now required it, and drafted the 11:57 prompt.
+- The BMAD session's verification after the 27 loops (2026-11-27 12:27): the review session read `a9aa5db`, found that one new assertion took its expected value from the engine's output, and drafted the 12:41 prompt.
+- The BMAD session's report that CI was green on `476e398` (2026-11-27 13:03): the review session read `b479ba8`, checked that the session file credits the review session, and said the PR could be merged.
+- `merget - fikser du treet og resten` (2026-11-27 13:04): the review session reset `main`, deleted the branch, added the Merge section to the session file (`12281f3`), and wrote this section.
+
+### Result
+
+Every test asserts unconditionally: no `expect` inside a condition in Vitest or Playwright, e2e reads a page value only through a retried assertion, and a loop with an `expect` asserts its list's length first. Lint enforces the first two (`test/lint.test.ts` "test assertions (Epic 3 retro action 8)"), and AGENTS.md "Testing" states all three. 215 sites in 34 files and 27 loops were rewritten. Three tests that had passed without testing were fixed, and so was a fourth assertion found in review. PR #90 was merged on 2026-11-27 as `afe9a8e` and closed #89. Story 4.1's spec waits on its branch for a rebase.
+
+### Checks before merging
+
+- CI green on `476e398`. The first run on `26e82f2` failed in `peer-assembly-time` and passed when the job was rerun.
+- The review session's review with six line comments: https://github.com/IBE160-2026/G97-meinich/pull/90#pullrequestreview-6087515087, and its finding on `a9aa5db`, sent in the 12:41 prompt.
+
 ---
 
 ## Going forward

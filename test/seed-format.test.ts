@@ -111,6 +111,7 @@ describe('the seed tables', () => {
       'document_column',
       'fingerprint',
       'classification',
+      'explanation',
     ]);
     expect(LOADER_TABLES).toEqual(['dataset', 'covered_industry']);
   });
@@ -163,6 +164,7 @@ describe('the export', () => {
       'seed/demo/document_column.csv',
       'seed/demo/fingerprint.csv',
       'seed/demo/classification.csv',
+      'seed/demo/explanation.csv',
       'seed/demo/manifest.json',
       'seed/allow-list.json',
     ]);
@@ -189,6 +191,7 @@ describe('the manifest and files', () => {
       'document_column.csv',
       'fingerprint.csv',
       'classification.csv',
+      'explanation.csv',
     ]);
   });
 

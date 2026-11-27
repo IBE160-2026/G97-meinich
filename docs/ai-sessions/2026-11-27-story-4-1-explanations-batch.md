@@ -3,7 +3,7 @@
 **Date:** 2026-11-27
 **Tool:** Claude Code (claude-opus-5-5), `bmad-build`, with one implementation subagent
 **Story / issue:** #88, Story 4.1 (FR-52; AD-7, AD-9, AD-13, AD-19)
-**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181 and 185
+**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181, 185 and 193
 
 ## Goal
 
@@ -11,7 +11,7 @@ Build step 2's explanation run, `pnpm explain`: test mode, `--plan`, a stored ro
 
 ## Prompts that mattered
 
-The first three are Meinich's; the fourth is under "Prompt 4" below. The review session's reading of the spec at `b609ce0` is behind the second one.
+The first three are Meinich's; the fourth and fifth are under "Prompt 4" and "Prompt 5" below. The review session's reading of the spec at `b609ce0` is behind the second one.
 
 1. After PR #90 was merged:
 
@@ -249,6 +249,102 @@ These are put to Meinich. They are phrase errors, not figure errors: every numbe
 
 **What the samples do not cover:** the capital-gap wording is tried on one stored text only, the one company in the sample with capital gaps. The deferred entry for Story 4.3 now says so, and asks for a sample with several capital-gap companies before the full run.
 
+
+### Prompt 5: bokmål, repeated slot words, and a third sample
+
+Meinich's answer to the report on run 185:
+
+> Svar på rapporten fra kjøring 185 (run.step2 id 185, 20 forklart; tellingene er lest fra register.explanation i den lokale databasen). Rett dette i 4.1:
+>
+> 1. Forklaringen av feltene på bokmål. slot_fields skal bruke sidens egne ord:
+>    - «beste fjerdedel», aldri «kvartil»;
+>    - «median»;
+>    - «bedre enn», slik keyFigures.placement skriver det.
+>    16 av 20 lagrede maler skriver nå «kvartil», og ingen skriver «fjerdedel». Prompten skal si at teksten skrives på bokmål selv om JSON-nøklene er på engelsk.
+>
+> 2. Dobbeltord som avvisningsgrunn i parseTemplate. Avvis en mal der ordene rett før en slot gjentar starten på slotens tekst, eller ordene rett etter gjentar slutten. Det skal sammenlignes uten å skille store og små bokstaver.
+>    - Sjekk mot «bedre enn {{x.plassering}}» (12 av 20 maler nå) og «{{x.retning}} medianen».
+>    - Gi grunnen et eget navn i TemplateRefusal.
+>    - Legg til en matriserad med test som feiler når regelen fjernes.
+>
+> 3. antall med sidens frase. Teksten i sloten skal være analysis.peerCount eller analysis.peerCountOne, som i company-header.tsx:53, så modellen ikke bøyer substantivet selv. Tusenskillet blir fortsatt hos 4.2, slik din oppføring sier.
+>
+> 4. Ny kjøring med de samme 20. Kjør --plan først. Er taket ≤ $0,01, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp.
+>
+> 5. Rapporten. Den skal ha med:
+>    - 181, 185 og den nye kjøringen side om side;
+>    - hvor mange maler som skriver «kvartil», «fjerdedel», «bedre enn bedre enn» og engelsk;
+>    - hvor mange som ble avvist for dobbeltord;
+>    - om teksten med kapitalgap fortsatt holder reglene.
+>
+> 6. Til 4.3 i triage-loggen. Disse skal ikke rettes her:
+>    - «Driftsmargenen»;
+>    - setningen uten verb;
+>    - at mangler.dokument blir omskrevet før sloten brukes.
+>    Det er arbeid for 4.3 sine frasetester.
+>
+> Ikke push før jeg sier fra.
+
+**Checked first:** in `register.explanation` (`sample`, explained), 16 of 20 templates had «kvartil», 0 had «fjerdedel», and 12 had «bedre enn {{…plassering}}", as the prompt said.
+
+**The fix:**
+- **`16a30ec`:** `slot_fields` is in bokmål, in the page's words («beste fjerdedel», never «kvartil»; «median»; «bedre enn»), with no digit. The `antall` slot's text is `analysis.peerCount` / `analysis.peerCountOne`.
+  - Test: `test/explain/payload.test.ts` "writes antall as the page's own phrase".
+  - Not covered: the `peerCountOne` case. The committed seed holds no subject with exactly one peer.
+- **`9f97ee5`:** `parseTemplate` refuses `repeated_slot_words` when the words right before a slot repeat the start of its text, or the words right after repeat its end, compared without case. The prompt says bokmål although the keys are English, and names the rule.
+  - Matrix row and tests: `test/explain/run.test.ts` "refuses … as repeated_slot_words" (six cases) and "keeps words beside a slot that do not repeat its own". All six fail with the rule switched off.
+  - The spec's Review Triage Log sends rows 5–7 (the misspelling, the verbless clause, the paraphrased `mangler.dokument`) to Story 4.3, with a deferred entry.
+
+**Run 193** (`--plan` ceiling $0.0080, at most $0.01; the same 20, md5 of the orgnrs unchanged):
+
+| | Run 181 | Run 185 | Run 193 |
+|---|---|---|---|
+| Explained | 13 | 20 | **9** |
+| Failed | 7 (`digit_outside_slot` 7) | 0 | **11** (`stop_max_tokens` 6, `repeated_slot_words` 5) |
+| Tokens in | 15 720 | 32 210 | 40 510 |
+| Tokens out | 4 496 | 4 160 | 10 515 |
+| Cost | $0.0019 | $0.0027 | $0.0047 |
+| `--plan` ceiling | $0.0065 | $0.0077 | $0.0080 |
+
+**The words, in run 193's 9 stored templates and its 5 printed refused texts.** The 6 `stop_max_tokens` answers have no text to read.
+
+| | Run 185 (20 stored) | Run 193 (9 stored) | Run 193 (5 refused) |
+|---|---|---|---|
+| «kvartil» | 16 | 0 | 0 |
+| «fjerdedel» | 0 | 8 | 5 |
+| «bedre enn bedre enn» (a template's «bedre enn {{…plassering}}») | 12 | 0 | 3 |
+| English | 1 | 0 | 1 (a meta-comment: "Let me correct: the text must not repeat slot text beside it. Writing properly: …") |
+
+**Refused for repeated slot words: 5.**
+- Three are «bedre enn {{driftsmargin.plassering}}».
+- One is «{{antall}} sammenlignbare selskapene», the new page phrase doubled.
+- **One is a false refusal:** «… ligger {{driftsmargin.retning}}. Medianen blant de {{antall}} selskapene …». The word after the slot is the start of the next sentence. The rule as written compares across a full stop.
+
+The five refused texts, as the run printed them:
+
+1. "{{driftsmargin.egen}} er under medianen i gruppen, og driftsmarginen ligger langt under beste fjerdedel, som er grensen på {{driftsmargin.beste}}. Ved å nå den grensen ville driftsresultatet øke med {{driftsmargin.gap}} per år, målt mot beste fjerdedel blant {{antall}} selskaper i {{aar}}. Selskapet er bedre enn {{driftsmargin.plassering}} av de sammenlignbare selskapene på driftsmargin, og medianen er {{driftsmargin.median}}. {{mangler.dokument}}"
+2. "{{driftsmargin.egen}} er driftsmarginen i {{aar}}, og den ligger {{driftsmargin.retning}}. Medianen blant de {{antall}} selskapene er {{driftsmargin.median}}, mens grensen for beste fjerdedel er {{driftsmargin.beste}}. Selskapet gjør det {{driftsmargin.plassering}} av de sammenlignbare selskapene, og driftsresultatet ville økt med {{driftsmargin.gap}} per år om driftsmarginen nådde grensen for beste fjerdedel."
+3. "Driftsmargin ligger over medianen for de {{antall}} sammenlignbare selskapene i {{aar}}, med en egen verdi på {{driftsmargin.egen}} mot en beste fjerdedel-grense på {{driftsmargin.beste}}, og selskapet er {{driftsmargin.plassering}} selskapene. Ved å nå grensen for beste fjerdedel ville driftsresultatet ha økt med {{driftsmargin.gap}} per år, og dette er et gap vi ikke har engangsbeløp for. Et styrkepunkt er totalkapitalrentabiliteten, som er {{totalkapitalrentabilitet.retning}} med {{totalkapitalrentabilitet.egen}}, og den er {{totalkapitalrentabilitet.plassering}} selskapene. {{mangler.dokument}}"
+4. "Driftsmargin ligger under grensen for beste fjerdedel: {{driftsmargin.egen}} mot {{driftsmargin.beste}}, og selskapet er {{driftsmargin.retning}}. Et løft til grensen ville gi {{driftsmargin.gap}} mer i driftsresultat per år, og selskapet gjør det bedre enn {{driftsmargin.plassering}} av de {{antall}} i {{aar}}. Totalkapitalrentabiliteten på {{totalkapitalrentabilitet.egen}} er en styrke, {{totalkapitalrentabilitet.retning}}, og den ligger over grensen for beste fjerdedel på {{totalkapitalrentabilitet.beste}}. Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen."
+5. "{{driftsmargin.egen}} er under medianen i driftsmargin, og selskapets egen verdi er {{driftsmargin.retning}} ... ⏎⏎Let me correct: the text must not repeat slot text beside it. Writing properly:⏎⏎Driftsmargin for {{aar}} er {{driftsmargin.egen}}, mens medianen blant {{antall}} selskaper er {{driftsmargin.median}}, og selskapet ligger {{driftsmargin.retning}}. Grensen for beste fjerdedel er {{driftsmargin.beste}}, og selskapet gjør det bedre enn {{driftsmargin.plassering}} av de sammenlignbare selskapene. Hvis driftsmarginen nådde grensen for beste fjerdedel, ville driftsresultatet øke med {{driftsmargin.gap}} per år. {{mangler.dokument}}" (⏎ marks a line break in the model's text.)
+
+**The capital-gap text is stored in run 193, and it still holds the four rules:**
+
+> "Driftsmarginen ligger under medianen, med −53,9 % mot en median på 3,2 % blant 545 sammenlignbare. Grensen for beste fjerdedel er 13,4 %, og å nå den ville gi 8 864 839 kr mer driftsresultat per år, så selskapet er bedre enn 13 %. Omløpshastigheten på driftseiendelene er 0,40 mot 2,33 i medianen, og selskapet er bedre enn 7 %; kapitalgapet til beste fjerdedel er 30 443 711 kr i engangsbeløp og er det største kapitalgapet blant kapitalgapene i 2025. Leverandørgjeldsdagene er 21 dager mot 27 dager i medianen, og et gap på 990 382 kr til beste fjerdedel som engangsbeløp gjør dette til nest største kapitalgapet."
+
+- No recommendation.
+- The capital gaps are one-off and never added to or ranked against the profit gap.
+- Each rank word is by its own gap.
+- Nothing about other years or trends; «i 2025» is the filing year.
+- **A phrase fault, not a rule fault:** «… per år, så selskapet er bedre enn 13 %» makes the placement follow from the gap. For Story 4.3.
+
+**New in run 193, put to Meinich:**
+- **`stop_max_tokens` in 6 of 20.** Output rose from 4 160 to 10 515 tokens. With the longer legend and rules, adaptive thinking uses up `MAX_TOKENS` (1 000) before the text is done. Classify uses 2 000. At 2 000 the ceiling would be about $0.013, above the $0.01 Meinich set.
+- **The false refusal across a full stop.** Proposed: a word after `.`, `!` or `?` is not compared, with a test case for «{{x.retning}}. Medianen …» kept.
+- **Smaller faults in the stored texts, for 4.3:**
+  - three texts begin with a figure or «bedre enn» in lower case;
+  - one claims more than the payload says: «Ingen av nøkkeltallene ligger under grensen for beste fjerdedel»;
+  - the one-peer text reads `mangler.dokument` as "no figures for the company", where the API figures are there.
 
 ## Links
 

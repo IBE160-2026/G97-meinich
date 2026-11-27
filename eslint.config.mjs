@@ -120,8 +120,17 @@ const snapshotReadMessage =
 const snapshotReads = [
   // The value is used: an awaited read anywhere but as a statement of its
   // own (kept, compared, passed on, iterated over, put into a selector), or
-  // a read returned unawaited, from a function or as an arrow's body.
-  ...[':not(ExpressionStatement) > AwaitExpression > ', 'ReturnStatement > ', 'ArrowFunctionExpression > '].map((parent) => ({
+  // a read returned unawaited, from a function or as an arrow's body. Review
+  // of PR #90: also a read kept unawaited and awaited later, `.then` on a
+  // read, and reads listed for Promise.all.
+  ...[
+    ':not(ExpressionStatement) > AwaitExpression > ',
+    'ReturnStatement > ',
+    'ArrowFunctionExpression > ',
+    'VariableDeclarator > ',
+    "MemberExpression[property.name='then'] > ",
+    'ArrayExpression > ',
+  ].map((parent) => ({
     selector: `${parent}${READ}`,
     message: snapshotReadMessage,
   })),

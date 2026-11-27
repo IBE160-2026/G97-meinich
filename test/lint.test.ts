@@ -231,6 +231,13 @@ describe('test assertions (Epic 3 retro action 8)', () => {
     ['an attribute in a selector', "page.locator(`[id=\"${await page.locator('b').getAttribute('aria-controls')}\"]`);"],
     ['iterated', "for (const li of await page.locator('li').all()) await expect(li).toBeVisible();"],
     ['returned', "export const read = () => page.locator('h1').textContent();"],
+    // Review of PR #90: a read kept unawaited and awaited later, .then on a read, and reads listed for Promise.all.
+    ['kept unawaited and awaited later', "const text = page.locator('h1').textContent();\nexpect(await text).toBe('x');"],
+    ['followed by .then', "await page.locator('h1').textContent().then((text) => text ?? '');"],
+    [
+      'listed for Promise.all',
+      "const [a, b] = await Promise.all([page.locator('a').textContent(), page.locator('b').textContent()]);\nexport { a, b };",
+    ],
   ])('rejects a snapshot read in e2e: %s', async (_, body) => {
     const code = `${header}import type { Page } from '@playwright/test';\ndeclare const page: Page;\n${body}\n`;
     expect(await inlineRuleIds(code, 'e2e/fixture.spec.ts')).toContain('no-restricted-syntax');

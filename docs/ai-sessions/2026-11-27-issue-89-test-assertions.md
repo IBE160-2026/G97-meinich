@@ -31,7 +31,20 @@ Both use `no-restricted-syntax` in `eslint.config.mjs`. No dependency is added: 
 
 ## Inventory before the rewrite
 
-On `origin/main` at `13b510c`, the rules report 188 sites in 34 files: 72 conditional `expect`s (16 files) and 116 snapshot reads (18 e2e files). The estimate of about 100 sites in 26 files at the checkpoint counted only direct reads and reads into a variable. The rules also catch reads that are returned from helpers and reads iterated with `for … of await`.
+This section was committed before the rewrite started, in `5f9f798`. Its first count was 188 sites: 72 conditional `expect`s and 116 reads. The read rule then listed the parents it flags one by one: a variable, an assignment, an `expect` argument, a `return`, an arrow's body and `for … of await`.
+
+While rewriting, the read rule was widened twice, after two misses showed up in the code. Each widening was counted on `origin/main` against the list it extended:
+
+| Widening | Example | New sites |
+|---|---|---|
+| 1. A read inside a template literal, which is how a selector is built | `` `[id="${await b.getAttribute('aria-controls')}"]` `` | **10**: demo-waterfall 1, failed-subject 1, key-figures 5, search 1, synthetic-documents 2 |
+| 2. Every awaited read whose value is used: `:not(ExpressionStatement) > AwaitExpression > read`, which replaces the list of parents. The new cases are a read passed to a function, a member access and a comparison. | `pooledCount(await vare.innerText())`, `(await count.innerText()).split(…)`, `(await x.count()) > 0` | **17**: analysis-states 1, demo-waterfall 1, failed-subject 2, peers 1, provenance 3, search 2, synthetic-documents 6, verdi 1 |
+
+The second widening drops nothing the first found (0 sites). On `origin/main` at `13b510c`, the final rules report **215 sites in 34 files**:
+- **72 conditional `expect`s** in 16 Vitest and e2e files, unchanged;
+- **143 snapshot reads** in 18 e2e files: 116 + 10 + 17.
+
+The checkpoint's estimate of about 100 sites in 26 files counted only direct reads and reads into a variable. The count is `git show origin/main:<file>`, linted through `eslint.config.mjs` with only `no-restricted-syntax`.
 
 ### Conditional `expect`: categories and what each becomes
 
@@ -59,7 +72,18 @@ On `origin/main` at `13b510c`, the rules report 188 sites in 34 files: 72 condit
 | S6 | **`count()` and `all()`** for a limit or a loop. | `toHaveCount(n)` before the loop, or `expect.poll(() => locator.count())` for a bound. |
 | S7 | **Values computed in the browser** (wire identity, the beeswarm's dots, the funnel's stages): `evaluate` or `evaluateAll` returning data that is then compared. | `expect.poll(() => …evaluateAll(…)).toEqual(…)`, or a `toPass` block where several `expect`s read the same value. |
 
+| S8 | **A baseline**: a page value read before an action, to compare with after it. | It is read inside a `toPass` block that asserts what the value must hold, so it is taken only once it holds that. This covers the Verdi cards before a reload or an arrow key, the beeswarm's lists, and a scroll region's width. Where nothing can be asserted on the baseline, it stays a plain read with a reasoned `eslint-disable` (below). |
+
 **A limit of the rule:** it sees method names, not types. A read wrapped in a helper defined outside `e2e/` would pass unseen, and none exists today.
+
+### Every `eslint-disable`, with its reason
+
+| File | What it reads | Reason |
+|---|---|---|
+| `e2e/history.ts` `historyLength` | `window.history.length` | A baseline taken before the action, not an assertion. The comparison after the action polls (`expectHistoryLength`). |
+| `e2e/failed-subject.spec.ts` `apiCells` | the three API rows' cells | A baseline of the page's own cells, read once the page is rendered. The second state is compared with it through `expect.poll`. |
+| `e2e/peer-change-timing.spec.ts` `timed` | the status region's text | A baseline taken before the action, so the poll can tell the new announcement from the old. |
+| `test/engine/reference-cases.test.ts`, three sites in `check` and `checkDocument` | | The branch is on the hand-written reference case (`expected`), never on the engine's output (C9). |
 
 ## What came back, and what was done with it
 

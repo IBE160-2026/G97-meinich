@@ -105,6 +105,27 @@ describe('the run record', () => {
 });
 
 describe('the store', () => {
+  it('the store starts and ends a run record', async () => {
+    await rolledBack(async (tx) => {
+      // As derive would: the grant is rolled back with the transaction (test/db/grants.test.ts does the same).
+      await tx`grant derive to current_user with inherit false, set true`;
+      await tx`set local role derive`;
+      const store = postgresStore(tx, compute);
+      const id = await store.startRun('claude-haiku-5-5', DIGEST, new Date('2026-11-27T12:00:00Z'));
+      const counts = { plan: true, empty: { subject_no_revenue: 2 }, wording: { direction: { 'over medianen': 1 } } };
+      const failures = [{ orgnr: AS, reason: 'digit_outside_slot' }];
+      await store.endRun(id, new Date('2026-11-27T12:01:00Z'), { counts: counts as never, failures, error: null });
+      const [record] = await tx<{ mode: string; model_id: string; ended_at: Date | null; counts: unknown; failures: unknown; error: string | null }[]>`
+        select mode, model_id, ended_at, counts, failures, error from run.step2 where id = ${id}`;
+      expect(record?.mode).toBe('explain');
+      expect(record?.model_id).toBe('claude-haiku-5-5');
+      expect(record?.ended_at).toEqual(new Date('2026-11-27T12:01:00Z'));
+      expect(record?.counts).toEqual(counts);
+      expect(record?.failures).toEqual(failures);
+      expect(record?.error).toBeNull();
+    });
+  });
+
   it('writes a pending row, then overwrites it with the explained one', async () => {
     await rolledBack(async (tx) => {
       await company(tx, AS);

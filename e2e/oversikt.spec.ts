@@ -30,6 +30,10 @@ import {
   expectProfitInputsStated,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
+import { narrow } from '../test/narrow.ts';
+
+/** A box as `Locator.boundingBox` gives it once the element is laid out. */
+type Box = NonNullable<Awaited<ReturnType<Locator['boundingBox']>>>;
 
 /**
  * Each filing's exact driftsmargin as the engine computes it, cut to its
@@ -104,16 +108,20 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     await expect(body).toContainText(amountFor(expected));
   });
 
-  for (const query of ['', withSettings]) {
-    test(`the hero amount is the table’s driftsmargin cell for the same URL (${query === '' ? 'default' : query})`, async ({ page }) => {
+  for (const [query, label, band, ekskl] of [
+    ['', 'default', 0, []],
+    [withSettings, withSettings, 1, [firstPeer]],
+  ] as const) {
+    test(`the hero amount is the table’s driftsmargin cell for the same URL (${label})`, async ({ page }) => {
+      // Both against the engine's amount for the URL's group, so they are each other's.
+      const amount = amountFor(expectedBenchmark(A.orgnr ?? '', band, ekskl));
+      expect(amount).toMatch(/\d kr$/);
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(`/analyse/${A.orgnr}/oversikt${query}`);
       await expect(notice(page)).toHaveText('');
-      const fromHero = await heroAmount(page).textContent();
+      await expect(heroAmount(page)).toHaveText(amount);
       await page.goto(`/analyse/${A.orgnr}/nokkeltall${query}`);
-      const fromTable = await tableGap(page).textContent();
-      expect(fromHero).toMatch(/\d kr$/);
-      expect(fromHero).toBe(fromTable);
+      await expect(tableGap(page)).toHaveText(amount);
     });
   }
 
@@ -131,25 +139,27 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
       await page.goto(`/analyse/${A.orgnr}/oversikt`);
       await expect(heroAmount(page)).toBeVisible();
       await noSidewaysScroll(page);
-      const heading = await page.getByRole('heading', { level: 2, name: nb['tabs.oversikt'] }).boundingBox();
-      const card = await hero(page).boundingBox();
-      const amount = await heroAmount(page).boundingBox();
-      if (heading === null || card === null || amount === null) throw new Error('hero not rendered');
-      // Directly under the panel heading, full width: one column.
-      expect(card.y).toBeGreaterThan(heading.y);
-      expect(card.width).toBeGreaterThan(width - 40);
-      expect(card.x + card.width).toBeLessThanOrEqual(width);
-      expect(amount.x + amount.width).toBeLessThanOrEqual(card.x + card.width);
-      const fit = await heroAmount(page).evaluate((el) => ({
-        scroll: el.scrollWidth,
-        client: el.clientWidth,
-        height: el.getBoundingClientRect().height,
-        line: parseFloat(getComputedStyle(el).lineHeight),
-        size: parseFloat(getComputedStyle(el).fontSize),
-      }));
-      expect(fit.scroll).toBeLessThanOrEqual(fit.client);
-      expect(fit.height).toBeLessThan(fit.line * 1.5);
-      expect(fit.size).toBeLessThanOrEqual(40);
+      await expect(async () => {
+        const heading = await page.getByRole('heading', { level: 2, name: nb['tabs.oversikt'] }).boundingBox();
+        const card = await hero(page).boundingBox();
+        const amount = await heroAmount(page).boundingBox();
+        if (heading === null || card === null || amount === null) throw new Error('hero not rendered');
+        // Directly under the panel heading, full width: one column.
+        expect(card.y).toBeGreaterThan(heading.y);
+        expect(card.width).toBeGreaterThan(width - 40);
+        expect(card.x + card.width).toBeLessThanOrEqual(width);
+        expect(amount.x + amount.width).toBeLessThanOrEqual(card.x + card.width);
+        const fit = await heroAmount(page).evaluate((el) => ({
+          scroll: el.scrollWidth,
+          client: el.clientWidth,
+          height: el.getBoundingClientRect().height,
+          line: parseFloat(getComputedStyle(el).lineHeight),
+          size: parseFloat(getComputedStyle(el).fontSize),
+        }));
+        expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+        expect(fit.height).toBeLessThan(fit.line * 1.5);
+        expect(fit.size).toBeLessThanOrEqual(40);
+      }).toPass();
     });
   }
 
@@ -158,13 +168,15 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
     await expect(rendered(page).getByTestId('hero-amount')).toBeVisible();
     await noSidewaysScroll(page);
-    const fit = await heroAmount(page).evaluate((el) => ({
-      scroll: el.scrollWidth,
-      client: el.clientWidth,
-      size: parseFloat(getComputedStyle(el).fontSize),
-    }));
-    expect(fit.scroll).toBeLessThanOrEqual(fit.client);
-    expect(fit.size).toBeLessThan(52);
+    await expect(async () => {
+      const fit = await heroAmount(page).evaluate((el) => ({
+        scroll: el.scrollWidth,
+        client: el.clientWidth,
+        size: parseFloat(getComputedStyle(el).fontSize),
+      }));
+      expect(fit.scroll).toBeLessThanOrEqual(fit.client);
+      expect(fit.size).toBeLessThan(52);
+    }).toPass();
   });
 
   test('at 1280 px the amount is set at 52 px in a five-of-twelve column', async ({ page }) => {
@@ -174,16 +186,18 @@ test.describe('the Oversikt hero (Story 1.9)', () => {
     await expect(heroAmount(page)).toHaveCSS('font-size', '52px');
     // The card is the size container the amount scales against.
     await expect(rendered(page).getByTestId('hero')).toHaveCSS('container-type', 'inline-size');
-    const card = await rendered(page).getByTestId('hero').boundingBox();
-    if (card === null) throw new Error('hero not rendered');
-    expect(card.width).toBeLessThan(1280 / 2);
+    await expect(async () => {
+      const card = await rendered(page).getByTestId('hero').boundingBox();
+      if (card === null) throw new Error('hero not rendered');
+      expect(card.width).toBeLessThan(1280 / 2);
+    }).toPass();
   });
 
   test('a non-calendar year: the own value and the Peers tab’s sentence, not "(0 av 10)", no amount', async ({ page }) => {
-    const c = expectedBenchmark(nonCalendar.orgnr ?? '', 0).driftsmargin.comparison;
+    // In the committed seed it has its own value and no peers: below the floor.
+    const c = narrow(expectedBenchmark(nonCalendar.orgnr ?? '', 0).driftsmargin.comparison, 'below_floor');
     await page.goto(`/analyse/${nonCalendar.orgnr}/oversikt`);
-    if (c.kind === 'subject_absent') await expect(page.getByTestId('hero-own')).toContainText('Kan ikke beregnes');
-    else await expect(page.getByTestId('hero-own')).toHaveText(pct(c.subject));
+    await expect(page.getByTestId('hero-own')).toHaveText(pct(c.subject));
     await expect(hero(page)).toContainText(nb['peers.nonCalendar']);
     await expect(hero(page)).not.toContainText('0 av 10');
     // Story 3.4: the beeswarm card says the same, with no plot.
@@ -282,52 +296,57 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
   test('the grid at three widths', async ({ page }) => {
     outsideDemoData();
     const ids = ['hero', 'beeswarm', 'card-capital', 'card-strength', 'card-missing'];
-    const boxes = async () =>
-      Promise.all(
-        ids.map(async (id) => {
-          const box = await card(page, id).boundingBox();
-          if (box === null) throw new Error(`${id} is not rendered`);
-          return box;
-        }),
-      );
+    const cards = () => ids.map((id) => card(page, id));
+    /** Every card's box, in `ids` order; throws while one is not rendered. */
+    const present = (boxes: readonly (Box | null)[]): Box[] =>
+      boxes.map((box, i) => {
+        if (box === null) throw new Error(`${ids[i]} is not rendered`);
+        return box;
+      });
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${S.orgnr}/oversikt`);
     await expect(card(page, 'card-missing')).toBeVisible();
-    const [hero, plot, capital, strength, missing] = await boxes();
-    if (hero === undefined || plot === undefined || capital === undefined || strength === undefined || missing === undefined) {
-      throw new Error('a card is missing');
-    }
-    // 12 columns: the hero (5) beside the plot (7), then three cards of 4 in one row.
-    expect(Math.abs(plot.y - hero.y)).toBeLessThan(1);
-    expect(plot.width / hero.width).toBeGreaterThan(1.3);
-    expect(plot.width / hero.width).toBeLessThan(1.5);
-    for (const small of [strength, missing]) expect(Math.abs(small.y - capital.y)).toBeLessThan(1);
-    expect(capital.y).toBeGreaterThan(hero.y + hero.height - 1);
-    expect(Math.abs(strength.width - capital.width)).toBeLessThan(1);
+    await expect(async () => {
+      const [hero, plot, capital, strength, missing] = present(await Promise.all(cards().map((c) => c.boundingBox())));
+      if (hero === undefined || plot === undefined || capital === undefined || strength === undefined || missing === undefined) {
+        throw new Error('a card is missing');
+      }
+      // 12 columns: the hero (5) beside the plot (7), then three cards of 4 in one row.
+      expect(Math.abs(plot.y - hero.y)).toBeLessThan(1);
+      expect(plot.width / hero.width).toBeGreaterThan(1.3);
+      expect(plot.width / hero.width).toBeLessThan(1.5);
+      for (const small of [strength, missing]) expect(Math.abs(small.y - capital.y)).toBeLessThan(1);
+      expect(capital.y).toBeGreaterThan(hero.y + hero.height - 1);
+      expect(Math.abs(strength.width - capital.width)).toBeLessThan(1);
+    }).toPass();
     await noSidewaysScroll(page);
     // 800 px: still 12 columns, the phone plot in the 7-column card, three narrow cards side by side.
     await page.setViewportSize({ width: 800, height: 900 });
     await page.goto(`/analyse/${S.orgnr}/oversikt`);
     await expect(card(page, 'card-missing')).toBeVisible();
-    const narrow = await boxes();
-    const [, narrowPlot, ...smalls] = narrow;
-    expect(narrowPlot?.y).toBeCloseTo(narrow[0]?.y ?? 0, 0);
-    for (const box of smalls) {
-      expect(Math.abs(box.y - (smalls[0]?.y ?? 0))).toBeLessThan(1);
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(800);
-    }
-    for (let i = 1; i < smalls.length; i += 1) expect(smalls[i]?.x ?? 0).toBeGreaterThanOrEqual((smalls[i - 1]?.x ?? 0) + (smalls[i - 1]?.width ?? 0));
+    await expect(async () => {
+      const boxes = present(await Promise.all(cards().map((c) => c.boundingBox())));
+      const [, narrowPlot, ...smalls] = boxes;
+      expect(narrowPlot?.y).toBeCloseTo(boxes[0]?.y ?? 0, 0);
+      for (const box of smalls) {
+        expect(Math.abs(box.y - (smalls[0]?.y ?? 0))).toBeLessThan(1);
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(800);
+      }
+      for (let i = 1; i < smalls.length; i += 1) expect(smalls[i]?.x ?? 0).toBeGreaterThanOrEqual((smalls[i - 1]?.x ?? 0) + (smalls[i - 1]?.width ?? 0));
+    }).toPass();
     await expect(beeswarm(page).locator('[data-layout="phone"]').getByRole('img')).toBeVisible();
     await noSidewaysScroll(page);
     for (const width of [375, 320]) {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(`/analyse/${S.orgnr}/oversikt`);
       await expect(card(page, 'card-missing')).toBeVisible();
-      const stacked = await boxes();
-      // One column, in the order hero, plot and list, the three cards; every card inside the screen.
-      for (let i = 1; i < stacked.length; i += 1) expect(stacked[i]?.y ?? 0).toBeGreaterThan((stacked[i - 1]?.y ?? 0) + 1);
-      for (const box of stacked) expect(box.x + box.width).toBeLessThanOrEqual(width);
+      await expect(async () => {
+        const stacked = present(await Promise.all(cards().map((c) => c.boundingBox())));
+        // One column, in the order hero, plot and list, the three cards; every card inside the screen.
+        for (let i = 1; i < stacked.length; i += 1) expect(stacked[i]?.y ?? 0).toBeGreaterThan((stacked[i - 1]?.y ?? 0) + 1);
+        for (const box of stacked) expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }).toPass();
       await noSidewaysScroll(page);
       await beeswarm(page).getByRole('button', { name: nb['chart.showNumbers'] }).click();
       await noSidewaysScroll(page);
@@ -355,7 +374,7 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await expect(image).toHaveAttribute('focusable', 'false');
     await expect(image).not.toHaveAttribute('tabindex');
     // Every child hidden: the image's one child is an aria-hidden group.
-    expect(await image.evaluate((svg) => [...svg.children].map((child) => child.getAttribute('aria-hidden')))).toEqual(['true']);
+    await expect.poll(() => image.evaluate((svg) => [...svg.children].map((child) => child.getAttribute('aria-hidden')))).toEqual(['true']);
     // The legend names each marker with its value.
     const c = expectedBenchmark(S.orgnr ?? '', 0).driftsmargin.comparison;
     if (c.kind !== 'compared' || c.best === null) throw new Error('the subject’s driftsmargin is not compared');
@@ -376,46 +395,54 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await expect(region).toBeHidden();
     // Forced colours: the company, the peers, the median and beste fjerdedel each drawn their own way.
     await page.emulateMedia({ forcedColors: 'active' });
-    const looks = await beeswarm(page)
-      .locator('[data-layout="desktop"] .bs-mark')
-      .evaluateAll((marks) =>
-        marks.map((mark) => {
-          const style = getComputedStyle(mark);
-          return { mark: mark.getAttribute('data-mark') ?? '', look: `${style.fill}|${style.stroke}|${style.strokeDasharray}` };
-        }),
-      );
-    const byMark = new Map<string, Set<string>>();
-    for (const { mark, look } of looks) byMark.set(mark, (byMark.get(mark) ?? new Set<string>()).add(look));
-    expect([...byMark.keys()].sort()).toEqual(['best', 'company', 'median', 'peer']);
-    for (const [mark, set] of byMark) expect(set.size, mark).toBe(1);
-    expect(new Set([...byMark.values()].map((set) => [...set][0])).size).toBe(4);
+    await expect(async () => {
+      const looks = await beeswarm(page)
+        .locator('[data-layout="desktop"] .bs-mark')
+        .evaluateAll((marks) =>
+          marks.map((mark) => {
+            const style = getComputedStyle(mark);
+            return { mark: mark.getAttribute('data-mark') ?? '', look: `${style.fill}|${style.stroke}|${style.strokeDasharray}` };
+          }),
+        );
+      const byMark = new Map<string, Set<string>>();
+      for (const { mark, look } of looks) byMark.set(mark, (byMark.get(mark) ?? new Set<string>()).add(look));
+      expect([...byMark.keys()].sort()).toEqual(['best', 'company', 'median', 'peer']);
+      for (const [mark, set] of byMark) expect(set.size, mark).toBe(1);
+      expect(new Set([...byMark.values()].map((set) => [...set][0])).size).toBe(4);
+    }).toPass();
   });
 
   test('Driftsmargin reads the same in the list, the table and Peers', async ({ page }) => {
     outsideDemoData();
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${S.orgnr}/oversikt`);
-    const rows = async (locator: Locator) =>
-      locator.evaluateAll((trs) =>
-        trs.map((tr) => ({
-          name: tr.querySelector('th')?.textContent ?? '',
-          // The margin is each table's first data cell.
-          margin: tr.querySelector('td')?.textContent ?? '',
-        })),
-      );
-    const nearest = await rows(beeswarm(page).locator('[data-testid="beeswarm-nearest"] tbody tr[data-selected="false"]'));
+    // Each row's name and the margin in its first data cell (run in the browser).
+    const nameAndMargin = (trs: Element[]) =>
+      trs.map((tr) => ({ name: tr.querySelector('th')?.textContent ?? '', margin: tr.querySelector('td')?.textContent ?? '' }));
+    const group = expectedGroup(S.orgnr ?? '', 0).length;
+    // Each list is read inside a retried block that asserts it is complete, then compared with the next.
+    let nearest: { name: string; margin: string }[] = [];
+    await expect(async () => {
+      nearest = await beeswarm(page).locator('[data-testid="beeswarm-nearest"] tbody tr[data-selected="false"]').evaluateAll(nameAndMargin);
+      expect(nearest).toHaveLength(5);
+    }).toPass();
     await beeswarm(page).getByRole('button', { name: nb['chart.showNumbers'] }).click();
-    const numbers = await rows(beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr:not([data-selected])'));
-    expect(nearest).toHaveLength(5);
+    let numbers: { name: string; margin: string }[] = [];
+    await expect(async () => {
+      numbers = await beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr:not([data-selected])').evaluateAll(nameAndMargin);
+      expect(numbers).toHaveLength(group);
+    }).toPass();
     // "Se alle {n}" goes to Peers, keeping the settings.
     await beeswarm(page).getByTestId('beeswarm-see-all').click();
     await expect(page).toHaveURL(new RegExp(`/analyse/${S.orgnr}/peers$`));
     const peerRows = rendered(page).getByRole('region', { name: nb['peers.regionLabel'] }).locator('tbody tr');
     // The Peers list lists the group, as "Vis tallene" does (no peer is excluded here).
-    await expect(peerRows).toHaveCount(numbers.length);
-    const peers = await peerRows.evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent ?? '')));
-    const fromPeers = new Map(peers.map((cells) => [cells[0] ?? '', cells[2] ?? '']));
-    for (const row of [...nearest, ...numbers]) expect(row.margin, row.name).toBe(fromPeers.get(row.name));
+    await expect(peerRows).toHaveCount(group);
+    await expect(async () => {
+      const peers = await peerRows.evaluateAll((trs) => trs.map((tr) => [...tr.querySelectorAll('td')].map((td) => td.textContent ?? '')));
+      const fromPeers = new Map(peers.map((cells) => [cells[0] ?? '', cells[2] ?? '']));
+      for (const row of [...nearest, ...numbers]) expect(row.margin, row.name).toBe(fromPeers.get(row.name));
+    }).toPass();
   });
 
   test('tooltip on hover', async ({ page }) => {
@@ -424,31 +451,29 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
     await page.goto(`/analyse/${S.orgnr}/oversikt`);
     const desktop = beeswarm(page).locator('[data-layout="desktop"]');
     await expect(desktop.getByRole('img')).toBeVisible();
-    // A dot on the axis, away from the edge columns: the middle of the swarm's dots by x.
-    const dots = await desktop.locator('g[data-mark="peer"] circle').evaluateAll((circles) =>
-      circles.map((circle) => {
-        const box = circle.getBoundingClientRect();
-        return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-      }),
-    );
-    const dot = [...dots].sort((a, b) => a.x - b.x)[Math.floor(dots.length / 2)];
-    if (dot === undefined) throw new Error('no peer dots');
-    await page.mouse.move(dot.x, dot.y);
+    // A dot on the axis, away from the edge columns: the middle of the swarm's dots, which are drawn in
+    // packing order, by driftsmargin and so by x (src/analysis/beeswarm.ts).
+    const circles = desktop.locator('g[data-mark="peer"] circle');
+    const plotted = expectedGroup(S.orgnr ?? '', 0).length;
+    await expect(circles).toHaveCount(plotted);
+    const dot = circles.nth(Math.floor(plotted / 2));
+    await dot.hover();
     const tooltip = page.getByTestId('beeswarm-tooltip');
     await expect(tooltip).toHaveCount(1);
     await expect(tooltip).toBeVisible();
-    // The tooltip names the dot it belongs to: the picked ring sits on that dot.
-    const picked = await desktop.locator('circle[data-mark="picked"]').boundingBox();
-    if (picked === null) throw new Error('no picked dot');
-    expect(Math.hypot(picked.x + picked.width / 2 - dot.x, picked.y + picked.height / 2 - dot.y)).toBeLessThan(12);
-    // Its name is a peer's, and its value that peer's Driftsmargin in "Vis tallene".
-    const [margin, name] = await tooltip.locator('span').allTextContents();
-    const row = beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr').filter({ has: page.locator('th', { hasText: name ?? '' }) });
-    await expect(row.first().locator('td').first()).toHaveText(margin ?? '');
+    await expect(async () => {
+      // The tooltip names the dot it belongs to: the picked ring sits on that dot.
+      const picked = await desktop.locator('circle[data-mark="picked"]').boundingBox();
+      const at = await dot.boundingBox();
+      if (picked === null || at === null) throw new Error('no picked dot');
+      expect(Math.hypot(picked.x + picked.width / 2 - (at.x + at.width / 2), picked.y + picked.height / 2 - (at.y + at.height / 2))).toBeLessThan(12);
+      // Its name is a peer's, and its value that peer's Driftsmargin in "Vis tallene".
+      const [margin, name] = await tooltip.locator('span').allTextContents();
+      const row = beeswarm(page).locator('[data-testid="beeswarm-table"] tbody tr').filter({ has: page.locator('th', { hasText: name ?? '' }) });
+      expect(await row.first().locator('td').first().textContent()).toBe(margin);
+    }).toPass();
     // Out of the plot: no tooltip.
-    const heading = await beeswarm(page).getByRole('heading', { level: 3 }).boundingBox();
-    if (heading === null) throw new Error('no heading');
-    await page.mouse.move(heading.x + 5, heading.y + heading.height / 2);
+    await beeswarm(page).getByRole('heading', { level: 3 }).hover({ position: { x: 5, y: 5 } });
     await expect(tooltip).toHaveCount(0);
   });
 
@@ -463,32 +488,25 @@ test.describe('the rest of Oversikt (Story 3.4)', () => {
       const svg = phone.getByRole('img');
       await expect(svg).toBeVisible();
       await svg.scrollIntoViewIfNeeded();
-      const dots = await phone.locator('g[data-mark="peer"] circle').evaluateAll((circles) =>
-        circles.map((circle) => {
-          const box = circle.getBoundingClientRect();
-          return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-        }),
-      );
-      const first = dots[0];
-      const last = dots[dots.length - 1];
-      if (first === undefined || last === undefined) throw new Error('no peer dots');
+      const circles = phone.locator('g[data-mark="peer"] circle');
+      await expect(circles).toHaveCount(expectedGroup(S.orgnr ?? '', 0).length);
       // A tap on a dot opens its tooltip above the plot, with a leader line to the dot.
-      await page.touchscreen.tap(first.x, first.y);
+      await circles.first().tap();
       const tooltip = page.getByTestId('beeswarm-tooltip');
       await expect(tooltip).toHaveCount(1);
       await expect(tooltip).toBeVisible();
-      const tip = await tooltip.boundingBox();
-      const plot = await svg.boundingBox();
-      if (tip === null || plot === null) throw new Error('no tooltip or plot');
-      expect(tip.y + tip.height).toBeLessThanOrEqual(plot.y);
+      await expect(async () => {
+        const tip = await tooltip.boundingBox();
+        const plot = await svg.boundingBox();
+        if (tip === null || plot === null) throw new Error('no tooltip or plot');
+        expect(tip.y + tip.height).toBeLessThanOrEqual(plot.y);
+      }).toPass();
       await expect(page.getByTestId('beeswarm-leader')).toBeVisible();
       // Another dot: still one tooltip.
-      await page.touchscreen.tap(last.x, last.y);
+      await circles.last().tap();
       await expect(tooltip).toHaveCount(1);
       // A tap elsewhere closes it.
-      const heading = await beeswarm(page).getByRole('heading', { level: 3 }).boundingBox();
-      if (heading === null) throw new Error('no heading');
-      await page.touchscreen.tap(heading.x + 5, heading.y + heading.height / 2);
+      await beeswarm(page).getByRole('heading', { level: 3 }).tap({ position: { x: 5, y: 5 } });
       await expect(tooltip).toHaveCount(0);
     });
   });

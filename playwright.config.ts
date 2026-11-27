@@ -35,6 +35,11 @@ export default defineConfig({
   use: {
     trace: 'retain-on-failure',
   },
+  // A layout or page-state check reads inside expect(…).toPass(), which
+  // retries it until the page settles (Epic 3 retro action 8, issue #89).
+  // Without a timeout it would retry until the test's own; this gives it the
+  // web-first assertions' 5 s.
+  expect: { toPass: { timeout: 5_000 } },
   projects: [
     {
       name: 'chromium',

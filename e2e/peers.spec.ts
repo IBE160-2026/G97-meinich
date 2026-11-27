@@ -54,11 +54,13 @@ test.describe('the peer group (Story 1.7)', () => {
 
   test('the header shows "{n} sammenlignbare" after the revenue', async ({ page }) => {
     await page.goto(`/analyse/${A.orgnr}/oversikt`);
-    // allTextContents does not wait: read the header once the page is shown.
     await companyShown(page, A.navn ?? '');
     const items = page.getByTestId('company-meta').locator('span:not([aria-hidden])');
-    const texts = await items.allTextContents();
-    expect(texts[texts.indexOf(revenue(A.orgnr ?? '')) + 1]).toBe(headerCount(pool0.length));
+    // Retried: the count is the item right after the revenue.
+    await expect(async () => {
+      const texts = await items.allTextContents();
+      expect(texts[texts.indexOf(revenue(A.orgnr ?? '')) + 1]).toBe(headerCount(pool0.length));
+    }).toPass();
   });
 
   test('the Peers tab lists the group by revenue, with the count, in a labelled scroll region', async ({ page }) => {
@@ -67,7 +69,7 @@ test.describe('the peer group (Story 1.7)', () => {
     await expect(page.getByTestId('peer-count')).toHaveText(peersCount(pool0.length));
     const region = page.getByRole('region', { name: nb['peers.regionLabel'] });
     await expect(region).toHaveAttribute('tabindex', '0');
-    expect(await region.evaluate((el) => getComputedStyle(el).overflowX)).toBe('auto');
+    await expect(region).toHaveCSS('overflow-x', 'auto');
     await expect(peerTable(page).locator('thead th')).toHaveText([
       nb['peers.col.selskap'],
       nb['peers.col.omsetning'],
@@ -262,12 +264,9 @@ async function expectNoModelMarks(page: Page, orgnr: string): Promise<void> {
   await companyShown(page, company(orgnr).navn ?? '');
   const main = rendered(page);
   await expect(main.getByTestId('ai-mark')).toHaveCount(0);
-  const body = (await main.textContent()) ?? '';
-  expect(body).not.toContain(GLYPH);
-  expect(body).not.toContain(nb['peers.col.basis']);
-  expect(body).not.toContain(nb['peers.col.flag']);
-  expect(body).not.toContain(nb['peers.flag']);
-  expect(body).not.toContain(nb['peers.ai']);
+  for (const text of [GLYPH, nb['peers.col.basis'], nb['peers.col.flag'], nb['peers.flag'], nb['peers.ai']]) {
+    await expect(main).not.toContainText(text);
+  }
 }
 
 test.describe('the Peers tab shows why (Story 2.7)', () => {
@@ -285,8 +284,7 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
     await expect(page.getByTestId('funnel-not-applied')).toHaveText(nb['peers.funnel.notApplied']);
     await expect(page.getByTestId('funnel-flagged')).toHaveCount(0);
     // Three columns side by side at desktop width.
-    const tops = await stages.evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top)));
-    expect(new Set(tops).size).toBe(1);
+    await expect.poll(async () => new Set(await stages.evaluateAll((items) => items.map((item) => Math.round(item.getBoundingClientRect().top)))).size).toBe(1);
     await expectNoModelMarks(page, A.orgnr ?? '');
   });
 
@@ -356,15 +354,17 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       await expect(page.getByTestId('funnel-stage').last()).toBeVisible();
       await noSidewaysScroll(page);
       // The funnel stacks: each stage below the one before, full width.
-      const stages = await page.getByTestId('funnel-stage').evaluateAll((items) =>
-        items.map((item) => {
-          const box = item.getBoundingClientRect();
-          return { top: box.top, width: box.width };
-        }),
-      );
-      expect(stages).toHaveLength(3);
-      for (let i = 1; i < stages.length; i += 1) expect(stages[i]?.top ?? 0).toBeGreaterThan(stages[i - 1]?.top ?? 0);
-      for (const stage of stages) expect(stage.width).toBeGreaterThan(width - 40);
+      await expect(async () => {
+        const stages = await page.getByTestId('funnel-stage').evaluateAll((items) =>
+          items.map((item) => {
+            const box = item.getBoundingClientRect();
+            return { top: box.top, width: box.width };
+          }),
+        );
+        expect(stages).toHaveLength(3);
+        for (let i = 1; i < stages.length; i += 1) expect(stages[i]?.top ?? 0).toBeGreaterThan(stages[i - 1]?.top ?? 0);
+        for (const stage of stages) expect(stage.width).toBeGreaterThan(width - 40);
+      }).toPass();
       // Cards, not the table.
       await expect(page.getByRole('region', { name: nb['peers.regionLabel'] })).toBeHidden();
       const visibleCards = page.getByTestId('peer-cards').locator('[data-testid="peer-card"]:visible');
@@ -378,14 +378,17 @@ test.describe('the Peers tab shows why (Story 2.7)', () => {
       await expect(visibleCards).toHaveCount(rows.length);
       await expect(page.locator(':focus')).toHaveText(rows[PHONE_CARDS]?.navn ?? '');
       // Every target at least 24 × 24 px.
-      const small = await page.evaluate(
-        () =>
-          [...document.querySelectorAll<HTMLElement>('main a, main button, main [tabindex="0"]')]
-            .filter((el) => el.offsetParent !== null)
-            .map((el) => el.getBoundingClientRect())
-            .filter((box) => box.width < 24 || box.height < 24).length,
-      );
-      expect(small).toBe(0);
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              [...document.querySelectorAll<HTMLElement>('main a, main button, main [tabindex="0"]')]
+                .filter((el) => el.offsetParent !== null)
+                .map((el) => el.getBoundingClientRect())
+                .filter((box) => box.width < 24 || box.height < 24).length,
+          ),
+        )
+        .toBe(0);
       await expectNoModelMarks(page, A.orgnr ?? '');
       await noSidewaysScroll(page);
     });

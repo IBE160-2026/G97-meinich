@@ -28,20 +28,22 @@ test.afterAll(async () => {
   await removeSynthetic();
 });
 
-/** Every cell of the three API rows of the desktop key-figure table, by row and cell. */
-async function apiCells(page: Page): Promise<Record<string, string>> {
+/** Opens Nøkkeltall at 1280 px, once the streamed page is in. */
+async function openKeyFigures(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/nokkeltall`);
   await expect(rendered(page)).toBeVisible();
+}
+
+/** Every cell of the three API rows of the desktop key-figure table, by row and cell. */
+function apiCells(page: Page): Promise<Record<string, string>> {
   const region = page.getByRole('region', { name: nb['keyFigures.regionLabel'] });
-  const out: Record<string, string> = {};
-  for (const figure of ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel']) {
-    const cells = region.locator(`tr[data-figure="${figure}"] td[data-cell]`);
-    for (const cell of await cells.all()) {
-      out[`${figure}.${await cell.getAttribute('data-cell')}`] = (await cell.innerText()).trim();
-    }
-  }
-  return out;
+  const cells = ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel'].map((figure) => `tr[data-figure="${figure}"] td[data-cell]`);
+  return region.locator(cells.join(', ')).evaluateAll((tds) =>
+    Object.fromEntries(
+      tds.map((td) => [`${td.closest('tr')?.getAttribute('data-figure')}.${td.getAttribute('data-cell')}`, (td as HTMLElement).innerText.trim()]),
+    ),
+  );
 }
 
 test('a failed subject keeps its tabs and peers, with the subline and no uncovered state', async ({ page }) => {
@@ -53,16 +55,17 @@ test('a failed subject keeps its tabs and peers, with the subline and no uncover
   await expect(page.getByText(nb['analysis.uncovered.kicker'])).toHaveCount(0);
   // A peer group of its own: the count is in the header, and the Peers tab lists them.
   const count = page.getByTestId('header-peer-count');
-  await expect(count).toHaveText(/^\d+ sammenlignbare$/);
-  expect(Number((await count.innerText()).split(' ')[0])).toBeGreaterThan(0);
+  // At least one: a count that does not start with 0.
+  await expect(count).toHaveText(/^[1-9]\d* sammenlignbare$/);
   await page.goto(`${base}/peers`);
   await expect(subline(page)).toHaveText(FAILED);
   await expect(page.getByText(nb['peers.funnel.heading'])).toBeVisible();
 });
 
 test('the API figures and the driftsmargin kroner are compared as for a company outside the dataset', async ({ page }) => {
-  const failed = await apiCells(page);
+  await openKeyFigures(page);
   await expect(subline(page)).toHaveText(FAILED);
+  const failed = await apiCells(page);
   // The driftsmargin gap in kroner: −5,0 % is below beste fjerdedel.
   expect(failed['driftsmargin.gap']).toMatch(/\d kr/);
   expect(failed['driftsmargin.median']).toMatch(/ %$/);
@@ -70,9 +73,9 @@ test('the API figures and the driftsmargin kroner are compared as for a company 
   // header has no subline: the API rows do not move.
   await setSyntheticListed(false);
   try {
-    const outside = await apiCells(page);
+    await openKeyFigures(page);
     await expect(subline(page)).toHaveCount(0);
-    expect(outside).toEqual(failed);
+    await expect.poll(() => apiCells(page)).toEqual(failed);
   } finally {
     await setSyntheticListed(true);
   }
@@ -96,39 +99,52 @@ test('the drill-down: "Avvik ved avstemming" with the failed check, and no capit
   await expect(body).not.toContainText(nb['provenance.quality.reconciled']);
 });
 
-for (const width of [1280, 375, 320]) {
+type ShownTable = { readonly inRegion: boolean; readonly regionOwn: boolean; readonly right: number };
+
+// A visible table either sits in a scroll container of its own, or, below
+// md, is the phone layout's table, which fits the screen by design.
+const inOwnRegion = (table: ShownTable, fane: string) => expect(table.inRegion && table.regionOwn, fane).toBe(true);
+const inOwnRegionOrFits = (width: number) => (table: ShownTable, fane: string) =>
+  expect((table.inRegion && table.regionOwn) || table.right <= width, fane).toBe(true);
+/** The fewest visible tables each tab has: Nøkkeltall its key-figure table. */
+const MIN_TABLES = { oversikt: 0, peers: 0, nokkeltall: 1 } as const;
+
+for (const [width, expectTable] of [
+  [1280, inOwnRegion],
+  [375, inOwnRegionOrFits(375)],
+  [320, inOwnRegionOrFits(320)],
+] as const) {
   test(`at ${width} px the subline wraps, the body does not scroll sideways, and each table has its own scroll container`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 800 });
-    for (const fane of ['oversikt', 'peers', 'nokkeltall']) {
+    for (const fane of ['oversikt', 'peers', 'nokkeltall'] as const) {
       await page.goto(`${base}/${fane}`);
       await expect(rendered(page)).toBeVisible();
       await expect(subline(page)).toHaveText(FAILED);
-      const box = await subline(page).boundingBox();
-      if (box === null) throw new Error('subline not rendered');
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      await expect(async () => {
+        const box = await subline(page).boundingBox();
+        if (box === null) throw new Error('subline not rendered');
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }).toPass();
       await noSidewaysScroll(page);
-      // A visible table either sits in a scroll container of its own, or is
-      // the phone layout's table, which fits the screen by design.
-      const tables = await page.locator('main table').evaluateAll((elements) =>
-        elements
-          .filter((el) => (el as HTMLElement).offsetParent !== null)
-          .map((el) => {
-            const region = el.closest('.scroll-region');
-            return {
-              inRegion: region !== null && getComputedStyle(region).overflowX === 'auto',
-              regionOwn: region !== null && region.querySelectorAll('table').length === 1,
-              right: el.getBoundingClientRect().right,
-            };
-          }),
-      );
-      if (fane === 'nokkeltall') expect(tables.length, fane).toBeGreaterThanOrEqual(1);
-      for (const table of tables) {
-        if (width >= 768) expect(table.inRegion && table.regionOwn, fane).toBe(true);
-        else expect((table.inRegion && table.regionOwn) || table.right <= width, fane).toBe(true);
-      }
+      await expect(async () => {
+        const tables = await page.locator('main table').evaluateAll((elements) =>
+          elements
+            .filter((el) => (el as HTMLElement).offsetParent !== null)
+            .map((el) => {
+              const region = el.closest('.scroll-region');
+              return {
+                inRegion: region !== null && getComputedStyle(region).overflowX === 'auto',
+                regionOwn: region !== null && region.querySelectorAll('table').length === 1,
+                right: el.getBoundingClientRect().right,
+              };
+            }),
+        );
+        expect(tables.length, fane).toBeGreaterThanOrEqual(MIN_TABLES[fane]);
+        for (const table of tables) expectTable(table, fane);
+      }).toPass();
     }
   });
 }
@@ -138,11 +154,14 @@ for (const width of [1280, 375, 320]) {
 // their own reason, as on every basis.
 test('document rows say the filing could not be read', async ({ page }) => {
   const DOCUMENT_ROWS = ['ebitda', 'vare', 'lonn', 'andre', 'total', 'kfd', 'lgd', 'oml', 'kontant', 'vekst'];
-  for (const width of [1280, 375, 320]) {
+  for (const [width, layout] of [
+    [1280, 'desktop'],
+    [375, 'phone'],
+    [320, 'phone'],
+  ] as const) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${base}/nokkeltall`);
     await expect(rendered(page)).toBeVisible();
-    const layout = width >= 768 ? 'desktop' : 'phone';
     const table = page.locator(`table[data-layout="${layout}"]`);
     for (const figure of DOCUMENT_ROWS) {
       const own =
@@ -150,9 +169,6 @@ test('document rows say the filing could not be read', async ({ page }) => {
           ? table.locator(`tr[data-figure="${figure}"] td[data-cell="own"]`)
           : table.locator(`tr:has(button[aria-controls="kf-p-exp-${figure}"]) td[data-cell="own"]`);
       await expect(own, `${width} ${figure}`).toHaveText(FAILED);
-      if (layout === 'desktop') {
-        await expect(table.locator(`tr[data-figure="${figure}"] td[data-cell="merged"]`), figure).not.toContainText(/\d/);
-      }
     }
     for (const figure of ['omsArsverk', 'lonnArsverk']) {
       const own =
@@ -161,11 +177,16 @@ test('document rows say the filing could not be read', async ({ page }) => {
           : table.locator(`tr:has(button[aria-controls="kf-p-exp-${figure}"]) td[data-cell="own"]`);
       await expect(own, `${width} ${figure}`).toContainText(nb['analysis.figures.notReadInV1']);
     }
-    // The API rows keep their comparison.
-    if (layout === 'desktop') {
-      await expect(table.locator('tr[data-figure="driftsmargin"] td[data-cell="median"]')).toHaveText(/\d\s%$/);
-    }
     // Not outside the demo data: no such State block.
     await expect(page.getByText(nb['keyFigures.notInDataset.state'])).toHaveCount(0);
   }
+  // The desktop table only: each document row's merged cell holds no figure, and the API rows keep their comparison.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}/nokkeltall`);
+  await expect(rendered(page)).toBeVisible();
+  const desktop = page.locator('table[data-layout="desktop"]');
+  for (const figure of DOCUMENT_ROWS) {
+    await expect(desktop.locator(`tr[data-figure="${figure}"] td[data-cell="merged"]`), figure).not.toContainText(/\d/);
+  }
+  await expect(desktop.locator('tr[data-figure="driftsmargin"] td[data-cell="median"]')).toHaveText(/\d\s%$/);
 });

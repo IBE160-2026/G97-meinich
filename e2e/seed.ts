@@ -277,14 +277,17 @@ export const tabs = (page: Page) => page.getByRole('navigation', { name: nb['tab
 export const notice = (page: Page) => page.getByTestId('settings-notice');
 export const headerSearch = (page: Page) => page.getByRole('banner').getByRole('combobox');
 
+/** The body never scrolls sideways, measured once the layout has settled (retried, Epic 3 retro action 8). */
 export async function noSidewaysScroll(page: Page): Promise<void> {
-  const scroll = await page.evaluate(() => ({
-    doc: document.documentElement.scrollWidth,
-    body: document.body.scrollWidth,
-    inner: window.innerWidth,
-  }));
-  expect(scroll.doc).toBeLessThanOrEqual(scroll.inner);
-  expect(scroll.body).toBeLessThanOrEqual(scroll.inner);
+  await expect(async () => {
+    const scroll = await page.evaluate(() => ({
+      doc: document.documentElement.scrollWidth,
+      body: document.body.scrollWidth,
+      inner: window.innerWidth,
+    }));
+    expect(scroll.doc).toBeLessThanOrEqual(scroll.inner);
+    expect(scroll.body).toBeLessThanOrEqual(scroll.inner);
+  }).toPass();
 }
 
 // The engine's benchmark on the seed, as the server computes it from the

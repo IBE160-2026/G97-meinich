@@ -43,7 +43,7 @@ CREATE TABLE register.explanation (
 COMMENT ON TABLE register.explanation IS
   'The model''s explanation of a covered AS''s default analysis (Story 4.1, FR-52). Written by batch step 2 (pnpm explain, as derive); read by the request path only where the digest matches (AD-13).';
 COMMENT ON COLUMN register.explanation.template IS
-  'Text with {{slot id}} references and no digit outside them (scripts/explain/template.ts).';
+  'Text with {{slot id}} references and no digit outside them (parseTemplate in scripts/explain/request.ts).';
 COMMENT ON COLUMN register.explanation.slot_ids IS
   'The distinct slot ids the template uses, in the order they first appear.';
 COMMENT ON COLUMN register.explanation.analysis_digest IS

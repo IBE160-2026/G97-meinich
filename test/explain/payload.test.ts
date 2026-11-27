@@ -193,9 +193,16 @@ describe('the meaning of the slot fields', () => {
     expect(meaning('beste')).toMatch(/kostnadsandel, er lavere bedre, og grensen kan ligge under selskapets egen verdi/);
     expect(meaning('gap')).toMatch(/aldri mot medianen/);
     expect(meaning('retning')).toMatch(/skriv aldri «medianen» rett etter sloten/);
-    expect(meaning('plassering')).toMatch(/skriv aldri «bedre enn» rett foran sloten/);
+    expect(meaning('plassering')).toMatch(/Skriv alltid «bedre enn» rett foran sloten, i samme setning/);
     // «kvartil» only where the legend forbids it.
     expect(payload.slot_fields.filter((entry) => /kvartil/i.test(entry.meaning.replace('aldri «kvartil»', '')))).toEqual([]);
+  });
+
+  it('writes the placement slot as only the percent, so the template supplies «bedre enn»', () => {
+    const analysis = explained(A.orgnr);
+    const placements = analysis.slots.filter((entry) => entry.id.endsWith('.plassering'));
+    expect(placements).not.toHaveLength(0);
+    for (const entry of placements) expect(entry.text, entry.id).toMatch(new RegExp(`^[0-9]+${NBSP}%$`));
   });
 
   it("writes antall as the page's own phrase for one comparable: analysis.peerCountOne", () => {

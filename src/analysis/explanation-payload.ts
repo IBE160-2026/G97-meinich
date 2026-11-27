@@ -44,7 +44,7 @@ import {
 import { Decimal } from '../engine/decimal.ts';
 import { digest } from '../engine/digest.ts';
 import type { DocumentBasis } from '../engine/document-inputs.ts';
-import { formatKronerExact, wholePercent } from '../engine/format.ts';
+import { formatKronerExact, formatWholePercent, wholePercent } from '../engine/format.ts';
 import { assemblePeerGroup, V1_FUNNEL, type CandidateFiling, type EmptyReason, type FunnelSubject, type SizeBand } from '../engine/peers.ts';
 import type { Comparison } from '../engine/types.ts';
 import { toWire, type WireDecimal } from '../engine/wire.ts';
@@ -88,7 +88,7 @@ export type SlotFieldMeaning = { readonly field: string; readonly meaning: strin
 /**
  * The meaning of every slot field, sent once with each payload, in bokmål
  * and in the page's own words: «beste fjerdedel» (never «kvartil»),
- * «median», «bedre enn» as `keyFigures.placement` writes it (Meinich,
+ * «median», «bedre enn» before the placement as `keyFigures.placement` writes it (Meinich,
  * 2026-11-27, after sample runs 181 and 185: the model read `beste` as one
  * company, `gap` as to the median, wrote «medianen» after the direction slot
  * and «bedre enn» before the placement slot, and wrote «kvartil» in 16 of
@@ -106,7 +106,7 @@ export const SLOT_FIELD_MEANINGS: readonly SlotFieldMeaning[] = [
   {
     field: 'plassering',
     meaning:
-      'Hvor stor del av de sammenlignbare selskapene selskapet gjør det bedre enn. Teksten begynner allerede med «bedre enn»: skriv aldri «bedre enn» rett foran sloten.',
+      'Hvor stor del av de sammenlignbare selskapene selskapet gjør det bedre enn, som en prosent. Skriv alltid «bedre enn» rett foran sloten, i samme setning: «bedre enn {{…plassering}}».',
   },
   {
     field: 'gap',
@@ -210,7 +210,9 @@ function figureSlots(table: SlotTable, key: string, row: KeyFigureRow, compariso
     table.add(`${key}.egen`, row.own.text, comparison.subject),
     table.add(`${key}.median`, shown.median, comparison.median),
     table.add(`${key}.beste`, shown.best.text, comparison.best.quartile),
-    table.add(`${key}.plassering`, shown.placement.text, comparison.best.percentile),
+    // Only the percent: the template writes «bedre enn» before it, so the reader sees
+    // keyFigures.placement's «bedre enn 66 %» (Meinich, 2026-11-27, after run 195).
+    table.add(`${key}.plassering`, formatWholePercent(comparison.best.percentile.toString()), comparison.best.percentile),
     table.add(`${key}.retning`, directionText(comparison), null),
   ];
 }

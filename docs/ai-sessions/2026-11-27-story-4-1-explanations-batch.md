@@ -620,6 +620,12 @@ The subagent replaced two first attempts that did not fail:
      - `synthetic --no-deps`: 31 passed.
 7. `pnpm restore:documents`: 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, as after Story 5.4.
 
+**Spec status (corrected by the review session):**
+- **What happened:** the review session's prompt 8 asked for the spec to be set to `done`, and `272e3e3` did so.
+- **Why it was wrong:** AGENTS.md "Specs, reviews and merging" keeps a spec at `in-review` while its story is at `review` in `sprint-status.yaml`, and sets it to `done` only at merge.
+- **The correction:** the review session caught the mistake in its own prompt. The spec went back to `in-review` in its own commit, as Story 5.4 did (`835a8d4` → `2d1aba7`).
+- **Commit count:** the branch holds 47 commits after `8df1e63` (`git rev-list --count`). The BMAD session's report to Meinich said 50; no file did.
+
 ## Links
 
 - **Spec:** `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`. See its Spec Change Log, Sample run plan and Review Triage Log (rows 1–18 from the sample runs, R1–R26 from the review).

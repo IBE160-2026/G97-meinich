@@ -624,7 +624,8 @@ const DOC_CASES: readonly DocCase[] = [
   ),
 ];
 
-function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, expected: DocExpected): void {
+/** `source` is the caller's: a document key figure or an API one, never read from `actual`. */
+function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, expected: DocExpected, source: 'document' | 'api'): void {
   if ('absent' in expected) {
     // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: expected.absent });
@@ -639,12 +640,13 @@ function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, 
   const [numerator, denominator] = expected.fraction;
   const hand = new Decimal(numerator.toString()).div(new Decimal(denominator.toString()));
   expect(actual.value.eq(hand), `${actual.value.toString()} ≠ ${hand.toString()}`).toBe(true);
+  expect(actual.source, `${orgnr} ${filingYear}`).toBe(source);
   // Every input read as stated is the figure printed on the page.
   const stated = actual.inputs.flatMap((input) =>
     input.column === 'api' || input.field === 'aarsverk' || input.derived ? [] : [{ column: input.column, field: input.field }],
   );
   // A document figure reads at least one line as stated (how many depends on the figure); an API figure none.
-  expect(stated.length > 0, `${orgnr} ${filingYear}: stated document inputs of a ${actual.source} figure`).toBe(actual.source === 'document');
+  expect(stated.length > 0, `${orgnr} ${filingYear}: stated document inputs of a ${source} figure`).toBe(source === 'document');
   for (const input of stated) {
     expect(seedFigure(orgnr, filingYear, input.column, input.field), `${input.column} ${input.field}`).toBe(
       transcribed(orgnr, filingYear, input.column, input.field),
@@ -657,7 +659,7 @@ describe('reference cases for the document key figures', () => {
     const figures = computeDocumentKeyFigures(seedDocumentBasis(c.orgnr, c.filingYear));
     for (const figure of DOCUMENT_KEY_FIGURE_KEYS) {
       it(`${c.orgnr} ${c.filingYear}: ${LABELS[figure]}`, () => {
-        checkDocument(c.orgnr, c.filingYear, figures[figure], c.expected[figure]);
+        checkDocument(c.orgnr, c.filingYear, figures[figure], c.expected[figure], 'document');
       });
     }
     const api = c.api;
@@ -669,7 +671,7 @@ describe('reference cases for the document key figures', () => {
       const expected = api[key];
       if (expected === undefined) continue;
       it(`${c.orgnr} ${c.filingYear}: ${LABELS[key]}`, () => {
-        checkDocument(c.orgnr, c.filingYear, own[key], expected);
+        checkDocument(c.orgnr, c.filingYear, own[key], expected, 'api');
       });
     }
   }

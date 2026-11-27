@@ -280,6 +280,11 @@
   evidence: Story 4.1 checkpoint, Meinich's answer on the deferred entry about `SUBJECT_SQL` and `CANDIDATES_SQL` (2026-11-27). No effect in the seed: the export writes no explanation row before the full run.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
-  owner: Story 4.3 (the phrase test), where the full run happens (Meinich, 2026-11-27). Note: epics.md Story 5.5's last AC is the one that writes the stored explanations into the committed seed after the 30-text review, so the lift may belong there instead; to be settled when 4.3 is planned.
+  owner: Story 4.3 (the phrase test), where the full run stores real explanations (Meinich, 2026-11-27).
   summary: `pnpm seed:export` writes `register.explanation` with `WHERE false` (Story 4.1), so `seed/demo/explanation.csv` holds only its header. When the full run is guarded by the figure test (4.2) and the phrase test (4.3), the condition is removed and the export writes every non-sample row (`not sample`). `test/db/seed.test.ts` "the committed seed holds no explanation" must then change to assert that the seed holds no sample row and that every row passes the figure and phrase tests.
   evidence: Story 4.1 decision 1 (run order ii+, Meinich 2026-11-27): the sample rows are never exported, and nothing is in the seed before 4.2 and 4.3 guard it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27).
+  summary: Is a cost-of-goods share of 0 % at a consultancy a strength? Under the rule of Største styrke (`atOrBeyondBest`, `NEVER_STRENGTH` in `src/analysis/oversikt-cards.ts`), `vare` is a strength whenever the subject is at or beyond the best quartile, and 0 % always is. Story 4.1 keeps `NEVER_STRENGTH` unchanged, so the explanation says what the page says. Decide whether `vare` at 0 % is named as a strength on the page and in the card, or added to `NEVER_STRENGTH`, with a test that fails with the guard removed.
+  evidence: Story 4.1 checkpoint, local database as `reader`, 2026-11-27, totals only: `vare` is a strength for 62 of the 8 356 62.100 AS with a filing, 45 of them at exactly 0 %. Only the 331 with document figures in the manifest can have it, and 329 of those have a peer group.

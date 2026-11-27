@@ -2,7 +2,7 @@
 title: 'Story 4.1: Explanations generated in batch'
 type: 'feature'
 created: '2026-11-26'
-status: 'draft'
+status: 'ready-for-dev'
 baseline_commit: '8df1e6335592143d9e8ec474669ac70bf95da3fc'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -78,6 +78,12 @@ context:
 | Grants | new table | reader S; derive SIU; loader SIT | `test/db/grants.test.ts` "the explanation table" |
 | Seed | committed seed | `explanation.csv` header only | `test/db/seed.test.ts` "the committed seed holds no explanation" |
 | Request path | `src/` | no SDK, model host or `scripts/explain` | `test/classify/key-boundary.test.ts` (regex `scripts\/(classify\|explain)`); `test/db/peers.test.ts` "makes no outbound request" |
+| Digest (AD-13) | the same analysis twice; then one peer changed, one slot's exact value changed, one slot's text changed | the same digest twice; a new digest for each of the three changes | `test/explain/payload.test.ts` "the same analysis gives the same digest", "a changed peer changes the digest", "a changed slot value changes the digest", "a changed slot text changes the digest" |
+| Stored columns | a stub run stores one row | `model_id` = `claude-haiku-5-5`; `prompt_hash` = the hash of the prompt and settings sent in that request; `dataset` = `register.dataset`'s value | `test/explain/run.test.ts` "stores the model, the hash of the prompt sent and the dataset" |
+| Run record | every `pnpm explain`: `--plan`, a stub run, a run that ends in exit 1 | one `run.step2` row with mode `explain` and its counts, also on exit 1 | `test/explain/run.test.ts` "--plan writes one run record", "a run writes one run record", "a refused run still writes its run record"; `test/db/explanation.test.ts` "run.step2 accepts mode explain" |
+| Same choice as the page | demo A, demo B, the API-only subject | the payload's first strength is `strengthCard`'s; its capital-gap order is `largestCapitalGap`'s order. The expected value comes from those two functions, not from the payload module | `test/db/explanation.test.ts` "the payload names the page's strength and capital-gap order" |
+| Key | a real run without `ANTHROPIC_API_KEY` | refused, exit 1, nothing sent; the key never in the log or `run.step2` | `test/explain/run.test.ts` "a real run without a key is refused and sends nothing", "the key is never printed or recorded" |
+| Wording counts (decision on slot words) | `--plan` | prints the count per wording for direction (over/under/lik medianen) and rank (største/nest største/tredje største kapitalgapet) | `test/explain/run.test.ts` "--plan prints the count per wording" |
 
 Sources for the matrix:
 - **Demo A:** the built app on 2026-11-27 (build newer than the last change to `src/` on main), `/analyse/922425620` Oversikt: "(13,3 % − 3,4 %) × 21 473 080 kr ≈ 2 125 096 kr per år", Største kapitalgap "Arbeidskapital", Største styrke "Varekostnadsandel". The rest of both lists (kfd, lgd; oml, andre) is from the checkpoint session and not checked again. The test holds the hand-written values, not values read from the code it tests.
@@ -121,7 +127,8 @@ Sources for the matrix:
 - **2026-11-27, Meinich:** the model is `claude-haiku-5-5`, and it is assessed again after the sample run (see Decisions).
 - **2026-11-27, Meinich:** labelled-set companies are explained and exported at the full run, as long as the payload test shows that no fingerprint or classification is included, and their output is totals only (see Decisions).
 - **2026-11-27, Meinich:** the slot words for direction and rank, `mangler.dokument` = `keyFigures.notInDataset.state`, and strengths by the rule of Største styrke with `NEVER_STRENGTH` unchanged (see Decisions).
-- **2026-11-27, Meinich:** two deferred entries are written in this PR. Story 4.4's card reads only `not sample`, and the export's `WHERE false` is lifted with the full run in Story 4.3 (or 5.5, to be settled when 4.3 is planned).
+- **2026-11-27, Meinich:** three deferred entries are written in this PR. Story 4.4's card reads only `not sample`; the export's `WHERE false` is lifted in Story 4.3, where real explanations are stored (one owner, Meinich after the review session's reading of `b609ce0`); and the open question on cost of goods as a strength goes to Story 4.4.
+- **2026-11-27, Meinich (review session's reading of `b609ce0`):** the I/O matrix gets rows for the digest, the stored columns, the run record, the same choice as the page, the key and the wording counts.
 - **2026-11-27, rebase on `main`:** the branch now sits on `8df1e63`. `deferred-work.md` kept main's Story 5.7 entry on `peer-assembly-time` (PR #90's CI). It does not concern 4.1.
 
 ## Sample run plan
@@ -150,10 +157,11 @@ Nothing is sent before Meinich's yes to the ceiling that `--plan` prints.
 
 - **Story 4.4:** the explanation card renders or removes `AiMark`, `Mark` and `peers.ai`, which v1 does not use (from Story 5.2).
 - **Story 4.4:** the card reads only `not sample` from `register.explanation`, with a test that fails when the condition is removed. Written by this PR.
-- **Story 4.3** (or 5.5, settled when 4.3 is planned): lift `seed:export`'s `WHERE false` for `register.explanation` when the full run is guarded, and change "the committed seed holds no explanation" to "no sample row, and every row passes the figure and phrase tests". Written by this PR.
+- **Story 4.3:** lift `seed:export`'s `WHERE false` for `register.explanation` when the full run is guarded, and change "the committed seed holds no explanation" to "no sample row, and every row passes the figure and phrase tests". Written by this PR.
+- **Story 4.4:** whether a cost-of-goods share of 0 % is a strength (the open question below). Written by this PR.
 - **Not 4.1:** the entry naming Story 5.7 (`peer-assembly-time`, PR #90's CI).
 
-## Open question for Meinich (not blocking 4.1)
+## Open question for Meinich (not blocking 4.1; deferred to Story 4.4)
 
 - Is a cost-of-goods share of 0 % at a consultancy a strength? Under the current rule, `vare` is a strength for 62 of the 8 356 62.100 AS with a filing, and 45 of them have 0 % exactly. Only the 331 with document figures in the manifest can have it, and 329 of those have a peer group (local DB as `reader`, 2026-11-27, totals only). `NEVER_STRENGTH` is unchanged in 4.1, so the explanation follows the page.
 

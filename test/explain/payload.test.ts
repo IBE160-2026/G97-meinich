@@ -281,4 +281,16 @@ describe('the digest (AD-13)', () => {
     const slots = base.slots.map((entry, i) => (i === at ? { ...entry, text: 'under medianen' } : entry));
     expect(analysisDigest({ ...base, slots })).not.toBe(analysis.digest);
   });
+
+  it('a changed subject changes the digest', () => {
+    expect(analysisDigest({ ...base, subject: DEMO_COMPANIES[1].orgnr })).not.toBe(analysis.digest);
+  });
+
+  it('a changed filing year changes the digest', () => {
+    expect(analysisDigest({ ...base, filing_year: base.filing_year - 1 })).not.toBe(analysis.digest);
+  });
+
+  it('a changed band changes the digest', () => {
+    expect(analysisDigest({ ...base, band: 1 })).not.toBe(analysis.digest);
+  });
 });

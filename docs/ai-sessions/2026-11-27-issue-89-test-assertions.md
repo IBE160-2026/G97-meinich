@@ -87,7 +87,55 @@ The checkpoint's estimate of about 100 sites in 26 files counted only direct rea
 
 ## What came back, and what was done with it
 
-(Written as the work proceeds.)
+### Three tests that did not test what they said
+
+For each one, the guard was removed in `src/` and both the test as it stood at `13b510c` and the rewritten test were run. The guard was then restored with `git checkout`.
+
+| Test | Guard removed | `13b510c` | Now |
+|---|---|---|---|
+| `test/db/peers.test.ts` "reads no fingerprint as null, and a subject without one keeps the whole pool" | `agree` in `src/engine/peers.ts` treats a subject with no type as disagreeing (`b === null ? null : a === b`) | passes: the block under `if (funnel.fingerprint === null)` never ran, because demo A has a 2025 fingerprint | fails: `expected [ …(215) ] to deeply equal [ …(434) ]` |
+| `test/engine/waterfall.test.ts` "1 000 seeded random cases keep every rule" | `roundHalfAway` in `src/engine/waterfall.ts` rounds an exact half toward zero | passes: the seed draws no exact half, so the tie check never ran | The tie check is removed from this test. "the total half away from zero, once" fails: `expected 0n to be -1n` |
+| `e2e/key-figures.spec.ts` `expectFactor`, below-floor branch | `src/components/analysis/factor-pair.tsx` drops a factor's `belowFloor` sentence | "margin or capital: each factor against the engine" passes: no caller reaches the branch | The branch is removed. `e2e/peer-adjust.spec.ts` "factors below the floor" fails: `Expected substring: "For få sammenlignbare (9 av 10)"`, `Received string: "DriftsmarginPEXIP AS21,6 %↑ … 9 sammenlignbare brukt · 0 utelatt"` |
+
+**The subject of `test/db/peers.test.ts` is now chosen by a fixed rule.** It is demo A, `DEMO_A` in `src/demo-companies.ts`, with its fingerprint set to null by the test itself (`{ ...funnel, fingerprint: null }`). The test runs stage 4 with the fingerprint signal on. It asserts that demo A has a fingerprint, unconditionally, so a seed in which it had none would fail rather than skip.
+
+### A sample of rewritten tests, with the guard removed
+
+| Category | Guard removed | Failing test and output |
+|---|---|---|
+| C4 walker | a strip mark gets one more field (`debug: 0` in `src/analysis/strip-marks.ts`) | `test/analysis/key-figure-rows.test.ts` "row view holds only strings and strip marks": `view.groups.0.rows.0.comparison.strip: expected [ 'bandFrom', 'bandTo', 'best', …(4) ] to deeply equal [ …(3) ]` |
+| C5 filter | kfd's value is tagged `api` (`src/engine/document-key-figures.ts`) | `test/engine/document-key-figures.test.ts` "gives every value source document…": `kfd: expected 'api' to be 'document'` |
+| C7 catch | a missing report throws `Error`, not `SeedRefusal` (`scripts/seed-format.ts`) | `test/seed-format.test.ts` "runs inside prepareSeed…": `expected Error: seed/coverage.json entry 62.100: m… to be an instance of SeedRefusal` |
+| C3 split | the compact field loses its placeholder (`src/components/search-field.tsx`) | `test/search-field.test.ts` "has the label as placeholder, besides the label": `expected '<form role="search" …' to match /<input[^>]*placeholder="Navn eller or…/` |
+| S2 style | `.scroll-region` gets `overflow-x: hidden` (`src/app/globals.css`) | `e2e/key-figures.spec.ts` "the table sits in a labelled, focusable scroll region…": `toHaveCSS` `Expected: "auto"`, `Received: "hidden"` |
+| S5 attribute | the search field's message no longer describes it (`aria-describedby={undefined}`) | `e2e/search.spec.ts` `"81323555" shows "Organisasjonsnummeret må ha 9 siffer"…`: `toHaveAccessibleDescription` `Expected: "Organisasjonsnummeret må ha 9 siffer"`, `Received: ""` |
+
+The three e2e guards were removed together in one production build, and only the named tests were run against it.
+
+### Corrected along the way
+
+- **A dead tie check.** The first rewrite of the waterfall tie check asserted that the seed draws at least one tie. That failed with `expected 0 to be greater than 0`, which is how the check was found to be dead.
+- **`useInnerText` on body text.** The first `not.toContainText` rewrites of `e2e/db-down.spec.ts` and `e2e/rate-limit.spec.ts` read `textContent`, which includes the RSC payload's scripts. The originals read `innerText`, so both rewrites pass `useInnerText: true`.
+- **Narrowing in closures.** In `e2e/synthetic-documents.spec.ts`, TypeScript's narrowing of `oml.gap` does not reach the `toPass` closures (TS2339), so the narrowed øre is held in `omlOre` before them.
+- **The six directives in the intermediate commits.**
+  - Vitest commit `3708974` brought in the three `reference-cases` directives before the rule existed, so lint shows them there as 3 "unused eslint-disable directive" warnings, though with 0 errors.
+  - E2e commit `37d1188` takes all six out, so it lints with no warning.
+  - Lint commit `dc60ef7` puts them back with the rule.
+
+### Verification
+
+Run in the order of AGENTS.md "Testing" on `bf79ea9`:
+
+| Step | Result |
+|---|---|
+| `check:pins`, `check:env`, `lint`, `typecheck` | pass |
+| `pnpm test --maxWorkers=2` | 2 146 passed |
+| `pnpm seed` ×2, `pnpm seed:export` | `git status seed/` clean |
+| `pnpm test:db`, `pnpm test:ingest` | 208 and 392 passed |
+| `pnpm build`, `check:routes` | pass; 7 app entries, no server action |
+| e2e, one worker, chromium in three runs of five spec files (ports 3100 and 3101 checked free before each) | 66, 77 and 66 passed (209) |
+| e2e `db-down`, then `synthetic --no-deps` | 7 and 31 passed |
+| `pnpm restore:documents` | documents 2 785, columns 5 556, fingerprints 2 537, classification rows 10 371 |
 
 ## Links
 

@@ -3,7 +3,7 @@
 **Date:** 2026-11-27
 **Tool:** Claude Code (claude-opus-5-5), `bmad-build`, with one implementation subagent
 **Story / issue:** #88, Story 4.1 (FR-52; AD-7, AD-9, AD-13, AD-19)
-**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181, 185 and 193
+**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181, 185, 193 and 195
 
 ## Goal
 
@@ -11,7 +11,7 @@ Build step 2's explanation run, `pnpm explain`: test mode, `--plan`, a stored ro
 
 ## Prompts that mattered
 
-The first three are Meinich's; the fourth and fifth are under "Prompt 4" and "Prompt 5" below. The review session's reading of the spec at `b609ce0` is behind the second one.
+The first three are Meinich's; the fourth to sixth are under "Prompt 4" to "Prompt 6" below. The review session's reading of the spec at `b609ce0` is behind the second one.
 
 1. After PR #90 was merged:
 
@@ -345,6 +345,95 @@ The five refused texts, as the run printed them:
   - three texts begin with a figure or «bedre enn» in lower case;
   - one claims more than the payload says: «Ingen av nøkkeltallene ligger under grensen for beste fjerdedel»;
   - the one-peer text reads `mangler.dokument` as "no figures for the company", where the API figures are there.
+
+### Prompt 6: MAX_TOKENS, the sentence boundary, and a stop rule
+
+> Svar på rapporten fra kjøring 193 (run.step2 id 193: 9 forklart, 11 feilet, stop_max_tokens 6 og repeated_slot_words 5; lest i den lokale databasen).
+>
+> 1. MAX_TOKENS til 2 000, og behold tenkingen. Kjøring 185 hadde tenking og forklarte 20 av 20, og feilene i 193 er svar som ble kuttet. Oppdater Spec Change Log med begrunnelsen.
+>
+> 2. Dobbeltord sammenlignes ikke over ., ! eller ?, i begge retninger. Testtilfeller:
+>    - «{{x.retning}}. Medianen …» godtas;
+>    - «… medianen. {{x.retning}}» godtas;
+>    - «bedre enn {{x.plassering}}» avvises fortsatt.
+>    Matriseraden skal fortsatt feile når regelen slås av.
+>
+> 3. Test peerCountOne med en håndlaget analyse med én sammenlignbar. Payload-modulen er ren, så det trengs ikke noe selskap i seeden.
+>
+> 4. Ny kjøring med de samme 20. Kjør --plan først. Er taket ≤ $0,015, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp.
+>
+> 5. Når prøvingen stopper:
+>    - Er minst 18 av 20 forklart, og ingen lagret tekst har «kvartil», «bedre enn bedre enn», engelsk eller gap mot medianen, stopper prøvingen i 4.1. Det som gjenstår, går til 4.3.
+>    - Er resultatet dårligere, stopp og rapporter før du endrer noe mer.
+>
+> 6. Rapporten skal ha med:
+>    - 181, 185, 193 og den nye kjøringen side om side;
+>    - feil per grunn;
+>    - antall maler med «kvartil», «fjerdedel», «bedre enn bedre enn» og engelsk;
+>    - om teksten med kapitalgap fortsatt holder reglene.
+>
+> 7. Til triage-loggen, med utsatt oppføring:
+>    - Til 4.3:
+>      - frasen som lar plasseringen følge av gapet;
+>      - «Ingen av nøkkeltallene ligger under grensen …», som sier mer enn payloaden;
+>      - at mangler.dokument leses som at selskapet ikke har tall i det hele tatt;
+>      - modellens egen kommentar på engelsk i en tekst («Let me correct: …»).
+>    - Til 4.4: stor forbokstav når en setning begynner med en slot. Den løses der kortet fyller inn malen (lowerFirst finnes i format.ts), ikke i prompten.
+>
+> Ikke push før jeg sier fra.
+
+**Done:**
+- **`126a941`:** `MAX_TOKENS` is 2 000, and thinking stays. The Spec Change Log gives the reason.
+- **`ba60bf7`:** repeated slot words are compared only within the slot's sentence, in both directions. Prompt 6's three cases are tests.
+  - Prompt 6's «… medianen. {{x.retning}}» would be kept even without the boundary, since «medianen» is not the start of the direction text. So a fourth case was added that does cross a full stop backwards: «… bedre enn. {{driftsmargin.plassering}} …».
+  - All three keep-cases that cross a boundary fail with the boundary removed. The six refuse-cases still fail with the rule off.
+- **`0c5606a`:** `peerCountOne` is tested with demo A against only one peer, giving «1 sammenlignbart». The test fails with the one-peer branch removed.
+- **The triage log and deferred entries:** rows 8–14, with four entries for Story 4.3 and one for Story 4.4.
+  - `src/engine/format.ts` has `lowerFirst` but no upper-casing counterpart, so the 4.4 entry says the card adds one.
+
+**Run 195** (`--plan` ceiling $0.0130, at most $0.015; the same 20, md5 of the orgnrs unchanged):
+
+| | Run 181 | Run 185 | Run 193 | Run 195 |
+|---|---|---|---|---|
+| Explained | 13 | 20 | 9 | **9** |
+| `digit_outside_slot` | 7 | 0 | 0 | 0 |
+| `stop_max_tokens` | 0 | 0 | 6 | **0** |
+| `repeated_slot_words` | – | – | 5 | **10** |
+| `unknown_slot` | 0 | 0 | 0 | 1 |
+| Tokens in | 15 720 | 32 210 | 40 510 | 40 510 |
+| Tokens out | 4 496 | 4 160 | 10 515 | 7 627 |
+| Cost | $0.0019 | $0.0027 | $0.0047 | $0.0039 |
+| `--plan` ceiling | $0.0065 | $0.0077 | $0.0080 | $0.0130 |
+
+(`repeated_slot_words` did not exist before run 193.)
+
+**The stop rule (prompt 6, point 5):** at least 18 of 20 explained is not met. Run 195 explained 9. **The trial stops here, and nothing more is changed before Meinich decides.**
+
+**The words, in the stored templates:**
+
+| | Run 185 (20) | Run 193 (9) | Run 195 (9) |
+|---|---|---|---|
+| «kvartil» | 16 | 0 | 0 |
+| «fjerdedel» | 0 | 8 | 8 |
+| «bedre enn bedre enn» | 12 | 0 | 0 |
+| English | 1 | 0 | 0 |
+| a gap to the median | 0 | 0 | 0 |
+
+**Every one of the 10 refusals for repeated words is «bedre enn {{…plassering}}»**, all correct; none is across a sentence end. The model writes «bedre enn» before the placement slot even though the legend and the prompt forbid it: run 185 did it in 12 of 20 without the rule, run 195 in 10 of 20 with it. The one `unknown_slot` is `{{retning}}` with no figure. Two refused texts say «høyere-er-bedre», the item's `better` translated literally. One refused text carries its own correction in Norwegian («Retningen skal ikke gjentas, så riktig tekst er: …»).
+
+**The capital-gap text was refused in run 195** (`repeated_slot_words`, for «bedre enn {{driftsmargin.plassering}}»):
+
+> "Driftsmarginen ligger under medianen på {{driftsmargin.egen}} mot {{driftsmargin.median}} i median, og selskapet er bedre enn {{driftsmargin.plassering}} av {{antall}} i {{aar}}. Gapet til beste fjerdedel er {{driftsmargin.gap}} per år. Det største engangsgapet i kapital er omløpshastigheten på driftseiendeler, som ligger {{oml.retning}} med {{oml.egen}} mot median {{oml.median}}, og er {{oml.plassering}}; gapet til beste fjerdedel er {{oml.gap}}, {{oml.rang}}. Leverandørgjeldsdager er {{lgd.egen}} mot median {{lgd.median}}, {{lgd.retning}}, og gapet til beste fjerdedel er {{lgd.gap}}, {{lgd.rang}}."
+
+Against the four rules it holds:
+- no recommendation;
+- the capital gaps are one-off, never added to or ranked against the profit gap ("Det største engangsgapet i kapital" ranks only among them);
+- each rank word stands by its own gap;
+- nothing about other years.
+
+It was refused only for the doubled «bedre enn».
+
+**Other faults in the stored texts, already triaged:** «Ingen av nøkkeltallene ligger under grensen …» again (row 11, Story 4.3). Texts starting with a slot in lower case or with a figure (row 14, Story 4.4). One text drops «av» after avoiding the double: «bedre enn 97 % de sammenlignbare selskapene».
 
 ## Links
 

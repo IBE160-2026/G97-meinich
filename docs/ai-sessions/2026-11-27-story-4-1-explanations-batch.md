@@ -11,7 +11,7 @@ Build step 2's explanation run, `pnpm explain`: test mode, `--plan`, a stored ro
 
 ## Prompts that mattered
 
-The first three are Meinich's; the fourth to seventh are under "Prompt 4" to "Prompt 7" below. The review session's reading of the spec at `b609ce0` is behind the second one.
+The first three are Meinich's; the fourth to ninth are under "Prompt 4" to "Prompts 8 and 9" below. The review session drafted prompts 2 to 9 (see "Credit").
 
 1. After PR #90 was merged:
 
@@ -536,6 +536,68 @@ Already triaged and seen again:
 - `mangler.dokument` paraphrased and not used (text 3 above; row 7);
 - «Ingen av nøkkeltallene ligger under grensen …» (row 11);
 - a sentence starting with a figure (row 14, Story 4.4).
+
+### Prompts 8 and 9: the review's decisions, and the corrections before push
+
+Prompt 8:
+
+> Svar på punkt 1–4 i rapporten etter kjøring 199 (run.step2 id 199: 17 forklart, placement_without_bedre_enn 3; summen av 181–199 er 170 030 / 32 797 tokens, $0,0168; lest i den lokale databasen).
+>
+> 1. R13: utsett til 4.3. Oppføringen skal si at 4.3 bestemmer nøkkelen og skriveregelen for register.explanation før hele kjøringen:
+>    - en feilet eller ventende rad overskriver aldri en forklart rad;
+>    - en prøverad overskriver aldri en rad fra en hel kjøring.
+>    Til da kjøres ingen prøvekjøring etter en hel kjøring.
+>
+> 2. R15: utsett til 4.3. Oppføringen skal si at tilstandene document_missing, refused, failed_reconciliation og not_reconciled får en merknad med sidens egne ord. Den skal også si at en tekst aldri kan si «ingen kapitalgap» når kapitaltallene mangler.
+>
+> 3. R25: Story 5.5 committer forklaringene i seeden. Se epics.md:2698 («writes the stored explanations into the committed demo seed»), mens 4.3 gjør hele kjøringen (epics.md:164).
+>    - Rett AGENTS.md fra «WHERE false until Story 4.3 guards the full run» til 5.5.
+>    - Rett oppføringen for 4.3 som løfter WHERE false.
+>    - Rett alt annet i specen eller dokumentene som sier 4.3 om dette.
+>    - PR-teksten skal ha linjen «Planning documents:» med det som ble endret.
+>
+> 4. docs/ai-log.md: rettelsen er grei fordi oppføringen aldri har vært på main. Nevn den i sesjonsfilen.
+>
+> 5. E2e før push. AGENTS.md sier at hele testsuiten kjøres før første push.
+>    - Sjekk at det ikke henger igjen Node- eller Chromium-prosesser, og si hvor mye minne som er ledig.
+>    - Kjør chromium i deler, slik dere gjorde i #89. Kjør deretter --project=db-down, og til slutt --project=synthetic --no-deps.
+>    - Rapporter antall beståtte tester per kjøring.
+>
+> 6. Sett specen til done og story-en til review i sprint-status.yaml i samme commit. Vis meg deretter commit-listen siden 8df1e63.
+>
+> Ikke push før jeg sier fra.
+
+Prompt 9:
+
+> Én rettelse før push. Den er review-sesjonens feil, ikke din: punkt 6 i forrige prompt ba deg sette specen til done. AGENTS.md sier at specen står på in-review mens story-en står på review i sprint-status.yaml, og settes til done først ved merge. Det samme ble rettet i 5.4 (835a8d4 → 2d1aba7).
+>
+> 1. Sett specen tilbake til in-review i en egen commit. sprint-status.yaml har allerede 4.1 på review. Skriv i sesjonsfilen at feilen kom fra review-sesjonens prompt.
+>
+> 2. Commit-antallet: git rev-list --count 8df1e63..story/4.1-explanations-batch gir 47, ikke 50. Rett tallet der du har skrevet det.
+>
+> 3. PR-teksten:
+>    - Fjern den doble «Planning documents»: behold linjen «Planning documents:» og dropp overskriften rett over.
+>    - Legg til én linje under «Review»: utkastene til promptene og funnene underveis kom fra review-sesjonen, en egen Claude Code-økt. Det gjelder «kvartil» mot sidens «fjerdedel» i kjøring 185, rettingen av ordlyden i 4.1, at dobbeltord og «bedre enn» ble regler i parseTemplate, og R13, R15 og R25. Krediteringen står i sesjonsfilen.
+>
+> 4. Deretter: push branchen, opprett PR-en med Closes #88 fra pr-4-1.md, legg PR-lenken inn i sesjonsfilen i en egen commit, og push igjen. Rapporter PR-nummeret og commit-hashen CI kjører på.
+
+## Credit: what came from the review session
+
+Meinich sent every prompt. **The review session, a separate Claude Code session, drafted prompts 2 to 9 and found what they correct.** Each item below is the review session's unless it says otherwise.
+
+- **Prompt 2:** the missing matrix rows for six guards, and the single owner for `WHERE false`.
+- **Prompt 5:** run 185's «kvartil» (16 of 20 templates) against the page's «fjerdedel» (0); that the wording is fixed in 4.1; and that repeated slot words become a rule in `parseTemplate` (`repeated_slot_words`).
+- **Prompt 6:** `MAX_TOKENS` at 2 000 with thinking kept; and the sentence boundary for repeated words.
+- **Prompt 7:** «bedre enn» as a rule in `parseTemplate` (`placement_without_bedre_enn`), with the placement slot as only the percent.
+- **Prompt 8:** the decisions on R13, R15 and R25. R25 named epics.md's Story 5.5 as the story that commits the seed.
+- **Prompt 9:** the spec status, which its own prompt 8 had got wrong; and the commit count.
+
+**The BMAD session's own findings and corrections:**
+- the backward sentence-boundary test case;
+- reading batch 181's refused texts;
+- `better` on each payload item;
+- the review layers' findings R1–R26, with each verdict;
+- keeping the AI-log edit, and the reason for it.
 
 ## Guards removed
 

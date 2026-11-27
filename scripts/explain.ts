@@ -11,7 +11,8 @@
 //
 // A real run refuses when its ceiling is above --max-usd. Prints totals
 // only, never a company; a sample run also prints three of its texts with
-// the slots filled in, for its report. The full run is Story 4.3's, after
+// the slots filled in, and each refused text with its reason, for its
+// report (a refused text is never stored). The full run is Story 4.3's, after
 // the figure and phrase tests guard it.
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

@@ -83,19 +83,23 @@ function wordsOf(text: string): string[] {
     .filter((word) => word !== '');
 }
 
+// A sentence ends at ".", "!" or "?"; no digit stands outside a slot, so no decimal point does either.
+const SENTENCE_END = /[.!?]/u;
+
 const sameWords = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((word, at) => word === b[at]);
 
 /**
  * Whether the words right before a slot reference repeat the start of the
  * slot's text, or the words right after it repeat its end, compared without
- * case: "bedre enn {{x.plassering}}" reads «bedre enn bedre enn 13 %», and
- * "{{x.retning}} medianen" «under medianen medianen» (sample run 185, Meinich
- * 2026-11-27).
+ * case and never across ".", "!" or "?": "bedre enn {{x.plassering}}"
+ * reads «bedre enn bedre enn 13 %», and "{{x.retning}} medianen" «under
+ * medianen medianen» (sample runs 185 and 193, Meinich 2026-11-27).
  */
 function repeatsSlotWords(before: string, slotText: string, after: string): boolean {
   const slot = wordsOf(slotText);
-  const preceding = wordsOf(before);
-  const following = wordsOf(after);
+  // Within the slot's own sentence only: "{{x.retning}}. Medianen …" repeats nothing (sample run 193).
+  const preceding = wordsOf(before.split(SENTENCE_END).at(-1) ?? '');
+  const following = wordsOf(after.split(SENTENCE_END)[0] ?? '');
   for (let k = 1; k <= slot.length; k += 1) {
     if (preceding.length >= k && sameWords(preceding.slice(-k), slot.slice(0, k))) return true;
     if (following.length >= k && sameWords(following.slice(0, k), slot.slice(-k))) return true;

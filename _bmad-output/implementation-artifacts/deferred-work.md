@@ -308,3 +308,18 @@
     - the `mangler.dokument` sentence paraphrased in the model's own words before the slot itself is used, so the reader gets it twice.
     Each needs a phrase test that fails on the case, and a decision whether it refuses the template or flags it.
   evidence: Sample run 185 (run.step2 id 185, local database, 2026-11-27): the misspelling in one stored text, the verbless clause in one, the paraphrase in one (`register.explanation`, `sample`). The texts are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test) (Meinich, 2026-11-27; spec Review Triage Log rows 10–13).
+  summary: Four more wording faults from sample run 193, for 4.3's phrase tests:
+    - a phrase that makes the placement follow from the gap («… ville gi {{gap}} mer driftsresultat per år, så selskapet er {{plassering}}»);
+    - a claim beyond the payload («Ingen av nøkkeltallene ligger under grensen for beste fjerdedel»: the payload names only the gaps it lists);
+    - `mangler.dokument` read as the company having no figures at all («uten tall for selskapet kan vi ikke si noe …»), while the API figures are there;
+    - the model's own comment in English inside a text («Let me correct: the text must not repeat slot text beside it. Writing properly: …»). In run 193 that text was refused, but for its repeated words, not for the comment.
+    Each needs a phrase test that fails on the case.
+  evidence: Sample run 193 (run.step2 id 193, local database, 2026-11-27): one text each; the first three among the 9 stored, the comment in a refused text the run printed. The texts are in the session file. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27; spec Review Triage Log row 14).
+  summary: A sentence that begins with a slot starts in lower case when the slot's text does («bedre enn 68 % i driftsmargin …», «under medianen er driftsmarginen …»). It is solved where the card fills the template, not in the prompt: a slot at the start of the text or after `.`, `!` or `?` gets its first letter upper-cased. `src/engine/format.ts` has `lowerFirst` (used by `src/analysis/verdi-view.ts`) but no upper-casing counterpart, so 4.4 adds one beside it, with a test that fails on «bedre enn» at a sentence start.
+  evidence: Sample runs 185 and 193 (local database, 2026-11-27): in run 193, three of the 9 stored texts begin with a slot, one of them in lower case. Totals only.

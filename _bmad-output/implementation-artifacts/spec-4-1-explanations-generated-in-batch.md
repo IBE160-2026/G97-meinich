@@ -69,7 +69,7 @@ context:
 | Forbidden fields | any subject | no orgnr, name, fingerprint or classification | `test/explain/payload.test.ts` "holds no identity, fingerprint or classification" |
 | Digit outside slot | `"Marginen er 3,4 %"` | not stored; `digit_outside_slot` | `test/explain/run.test.ts` "a digit outside a slot is not stored" |
 | Unknown slot | `{{driftsmargin.foo}}` | not stored; `unknown_slot` | `test/explain/run.test.ts` "an unknown slot is not stored" |
-| Repeated slot words (added by Meinich, 2026-11-27, after run 185) | `bedre enn {{x.plassering}}`, `{{x.retning}} medianen`, in any case | not stored; `repeated_slot_words` | `test/explain/run.test.ts` "refuses … as repeated_slot_words" (six cases); "keeps words beside a slot that do not repeat its own" |
+| Repeated slot words (added by Meinich, 2026-11-27, after run 185) | `bedre enn {{x.plassering}}`, `{{x.retning}} medianen`, in any case; never across `.`, `!` or `?` (Meinich, after run 193) | not stored; `repeated_slot_words`; `{{x.retning}}. Medianen …` and `… medianen. {{x.retning}}` kept | `test/explain/run.test.ts` "refuses … as repeated_slot_words" (six cases); "keeps … : …" (four cases across a sentence end); "keeps words beside a slot that do not repeat its own" |
 | Empty group | `analysisCount = 0` | no call; counted under its `EmptyReason` | `test/explain/run.test.ts` "an empty group makes no call and is counted by reason" |
 | Over cap | `--max-usd` below ceiling | nothing sent, exit 1 | `test/explain/run.test.ts` "refuses above --max-usd" |
 | Sample draw | `--sample 20` | no labelled-set orgnr; rows `sample` | `test/explain/run.test.ts` "a sample is drawn outside the labelled set" |
@@ -95,7 +95,7 @@ Sources for the matrix:
 
 ## Review Triage Log
 
-Wording found in sample run 185's stored texts, triaged by Meinich (2026-11-27). Counts are from `register.explanation` (`sample`), totals only.
+Wording found in sample runs 185 and 193, triaged by Meinich (2026-11-27). Counts are from `register.explanation` (`sample`), totals only.
 
 | # | Finding | Decision |
 |---|---|---|
@@ -106,6 +106,13 @@ Wording found in sample run 185's stored texts, triaged by Meinich (2026-11-27).
 | 5 | «Driftsmargenen»: a figure's name misspelled | Story 4.3, its phrase tests (deferred-work.md) |
 | 6 | a clause without a verb («… ligger på {{beste}}, og {{plassering}}») | Story 4.3 (deferred-work.md) |
 | 7 | `mangler.dokument` paraphrased before the slot is used | Story 4.3 (deferred-work.md) |
+| 8 | run 193: `repeated_slot_words` across a full stop («{{x.retning}}. Medianen …») | fixed in 4.1: the rule stays within the slot's sentence |
+| 9 | run 193: `stop_max_tokens` in 6 of 20 | fixed in 4.1: `MAX_TOKENS` 2 000, thinking kept |
+| 10 | run 193: a phrase that makes the placement follow from the gap («… per år, så selskapet er bedre enn 13 %») | Story 4.3 (deferred-work.md) |
+| 11 | run 193: a claim beyond the payload («Ingen av nøkkeltallene ligger under grensen for beste fjerdedel») | Story 4.3 (deferred-work.md) |
+| 12 | run 193: `mangler.dokument` read as the company having no figures at all | Story 4.3 (deferred-work.md) |
+| 13 | run 193: the model's own comment in English inside a text («Let me correct: …»); refused there for repeated words, not for the comment | Story 4.3 (deferred-work.md) |
+| 14 | run 193: a sentence that begins with a slot starts in lower case («bedre enn 68 % …», «2,2 % driftsmargin …») | Story 4.4, where the card fills the template (deferred-work.md) |
 
 ## Code Map
 

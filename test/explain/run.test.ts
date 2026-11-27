@@ -340,6 +340,17 @@ describe('the request and the template', () => {
     expect(parseTemplate(text, demoA.slots)).toEqual({ kind: 'refused', reason: 'repeated_slot_words' });
   });
 
+  // Sample run 193: a refusal across a full stop. The rule stays within the slot's sentence, both ways.
+  it.each([
+    ['Marginen ligger {{driftsmargin.retning}}. Medianen er {{driftsmargin.median}}.', 'a word after the full stop'],
+    ['Det er målt mot medianen. {{driftsmargin.retning}} ligger marginen.', 'medianen before the full stop'],
+    // Would repeat plassering's start «bedre enn» if the rule read across the full stop.
+    ['Den skal gjøre det bedre enn. {{driftsmargin.plassering}} er plasseringen.', 'the start of plassering before the full stop'],
+    ['Er den {{driftsmargin.retning}}? Medianen er {{driftsmargin.median}}!', 'after a question mark'],
+  ])('keeps %j: %s', (text) => {
+    expect(parseTemplate(text, demoA.slots)).toMatchObject({ kind: 'template', template: text });
+  });
+
   it('keeps words beside a slot that do not repeat its own', () => {
     const text = 'Marginen ligger {{driftsmargin.retning}}, og selskapet er {{driftsmargin.plassering}} av {{antall}}.';
     expect(parseTemplate(text, demoA.slots)).toEqual({

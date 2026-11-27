@@ -213,6 +213,13 @@ Meinich decided to fix all 27 in this PR (2026-11-27), so that the code keeps th
 
 No finding was rejected.
 
+## Merge
+
+- **CI:** the first run on `26e82f2` failed in `test/db/peer-assembly-time.test.ts` at 1 084 ms. The review session reran the failed job, and it passed. Every later commit was green, and the last was `476e398`.
+- **Review:** the review session posted it on `26e82f2`, with six line comments: https://github.com/IBE160-2026/G97-meinich/pull/90#pullrequestreview-6087515087. Findings 1–5 above come from it. Finding 6 came from the review session's reading of `a9aa5db` after the review, and was sent in Meinich's prompt.
+- **Checked by the review session before merge:** that `b479ba8` takes the source from each call and asserts `actual.source` against it, that this file credits the review session, and that the PR is mergeable with CI green on `476e398`.
+- **Merged:** PR #90 by Meinich, 2026-11-27 13:04 UTC, as `afe9a8e`. Issue #89 is closed. Epic 3 retro action 8 is done (`epic-3-retro-2026-11-22.md`, row 8).
+
 ## Links
 
 - Issue #89. Epic 3 retro row 8 and finding P6 in `_bmad-output/implementation-artifacts/epic-3-retro-2026-11-22.md`.

@@ -22,7 +22,10 @@ Rebase Story 4.1 på main etter PR #90, få specen godkjent og bygge `pnpm expla
   - bokmål og dobbeltord: `16a30ec`, `9f97ee5`;
   - rapport for 193: `6720b0d`;
   - `MAX_TOKENS`, setningsgrense og test av `peerCountOne`: `126a941`, `ba60bf7`, `0c5606a`;
-  - rapport for 195: `2082793`.
+  - rapport for 195: `2082793`;
+  - plassering som bare prosent, og regelen `placement_without_bedre_enn`: `223be1b`, `8bd3324`;
+  - rapport for 199: `bcc1eb2`;
+  - review-rettinger: `9241e95` til `8a60830`, og triage i `b35824b`, `59912ba`.
 - **Prøvekjøring 181:** 13 forklart, 7 avvist, alle for årstall eller antall skrevet med sifre. $0,0019.
 - **Ordlyden ble rettet:** payloaden sier én gang hva hvert felt betyr, uten sifre, og hvert nøkkeltall har `better`. Prompten fikk regler for `{{aar}}`/`{{antall}}`, beste, gap og retning. En prøvekjøring skriver nå ut de avviste tekstene.
 - **Prøvekjøring 185**, med de samme 20 og et tak på $0,0077:
@@ -37,12 +40,19 @@ Rebase Story 4.1 på main etter PR #90, få specen godkjent og bygge `pnpm expla
   - 9 forklart, 11 avvist (`repeated_slot_words` 10, alle «bedre enn {{…plassering}}»; `unknown_slot` 1), $0,0039;
   - ingen avbrudd på `max_tokens`;
   - kravet på 18 av 20 er ikke nådd, så prøvingen er stoppet til Meinich bestemmer.
+- **Prøvekjøring 199**, den siste i 4.1:
+  - 17 forklart, 3 avvist (`placement_without_bedre_enn`), $0,0036;
+  - ingen «kvartil», ingen dobbeltord, ingen engelsk og ingen gap mot medianen;
+  - teksten med kapitalgap holder reglene.
+- **Review** med tre lag, triagert som R1–R26: R1–R12 er rettet, R14, R16 og R17 er utsatt til 4.3, og R13, R15 og R25 er lagt fram for Meinich.
+- **Verifisering:** trinn 1–5 og 7 er grønne. E2e (trinn 6) ble stoppet av Claude Code på grunn av lite minne og er ikke kjørt ferdig.
 - **Tester etter rettingen:** lint, typecheck, unit (2 190), pins og env er grønne. I `test:db` ble seed-testen rettet. `derive.test.ts` feiler bare mens 5.4-dumpen er lagt tilbake, slik rekkefølgen i AGENTS.md forventer.
 - **Rapporten** står i `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. PR-utkastet ligger i scratchpad.
 
 ### Åpne punkter
-- **Til beslutning hos Meinich etter 195:** modellen skriver «bedre enn» foran plasseringssloten i 10 av 20, selv om forklaringen og prompten forbyr det. Se alternativene i sesjonsfilen og sluttrapporten.
-- **Utsatt til Story 4.3 og 4.4:** rad 8–14 i spec Review Triage Log, med oppføringer i `_bmad-output/implementation-artifacts/deferred-work.md`.
-- **Kapitalgap-formuleringen er prøvd på bare én lagret tekst.** Utsatt til Story 4.3 i `_bmad-output/implementation-artifacts/deferred-work.md`.
-- **Feilstavet nøkkeltall, setning uten verb og omskrevet `mangler.dokument`.** Utsatt til Story 4.3 i `deferred-work.md` (spec Review Triage Log rad 5–7).
-- **`antall`-sloten og antallet i sideheaderen bruker ikke tusenskille fra `format.ts`.** Utsatt til Story 4.2 i `deferred-work.md`.
+- **Til beslutning hos Meinich:**
+  - R13: `register.explanation` har `orgnr` alene som nøkkel, så en prøvekjøring eller en feilet ny kjøring kan overskrive en god rad fra hele kjøringen;
+  - R15: dokumenttilstandene utenom `not_in_dataset` får ingen merknad;
+  - R25: om 4.3 eller 5.5 committer forklaringene i seeden.
+- **E2e må kjøres ferdig** før merge, lokalt eller i CI.
+- **Utsatt til Story 4.2, 4.3 og 4.4:** spec Review Triage Log rad 1–18 og R14, R16, R17, med oppføringer i `_bmad-output/implementation-artifacts/deferred-work.md`.

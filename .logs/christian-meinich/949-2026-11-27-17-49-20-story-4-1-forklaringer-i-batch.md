@@ -45,14 +45,13 @@ Rebase Story 4.1 på main etter PR #90, få specen godkjent og bygge `pnpm expla
   - ingen «kvartil», ingen dobbeltord, ingen engelsk og ingen gap mot medianen;
   - teksten med kapitalgap holder reglene.
 - **Review** med tre lag, triagert som R1–R26: R1–R12 er rettet, R14, R16 og R17 er utsatt til 4.3, og R13, R15 og R25 er lagt fram for Meinich.
-- **Verifisering:** trinn 1–5 og 7 er grønne. E2e (trinn 6) ble stoppet av Claude Code på grunn av lite minne og er ikke kjørt ferdig.
+- **Verifisering:** alle trinn er grønne. E2e ble kjørt i forgrunnen, chromium i tre deler: 66, 77 og 66 besto, `db-down` 7 og `synthetic` 31.
+- **Meinichs beslutninger:**
+  - R13 og R15 er utsatt til 4.3;
+  - R25: Story 5.5 committer forklaringene i seeden (`3da5973`);
+  - specen er satt til `done`.
 - **Tester etter rettingen:** lint, typecheck, unit (2 190), pins og env er grønne. I `test:db` ble seed-testen rettet. `derive.test.ts` feiler bare mens 5.4-dumpen er lagt tilbake, slik rekkefølgen i AGENTS.md forventer.
 - **Rapporten** står i `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. PR-utkastet ligger i scratchpad.
 
 ### Åpne punkter
-- **Til beslutning hos Meinich:**
-  - R13: `register.explanation` har `orgnr` alene som nøkkel, så en prøvekjøring eller en feilet ny kjøring kan overskrive en god rad fra hele kjøringen;
-  - R15: dokumenttilstandene utenom `not_in_dataset` får ingen merknad;
-  - R25: om 4.3 eller 5.5 committer forklaringene i seeden.
-- **E2e må kjøres ferdig** før merge, lokalt eller i CI.
-- **Utsatt til Story 4.2, 4.3 og 4.4:** spec Review Triage Log rad 1–18 og R14, R16, R17, med oppføringer i `_bmad-output/implementation-artifacts/deferred-work.md`.
+- **Utsatt til Story 4.2, 4.3, 4.4 og 5.5:** spec Review Triage Log rad 1–18 og R13–R17, med oppføringer i `_bmad-output/implementation-artifacts/deferred-work.md`.

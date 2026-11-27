@@ -3,7 +3,7 @@
 **Date:** 2026-11-27
 **Tool:** Claude Code (claude-opus-5-5), `bmad-build`, with one implementation subagent
 **Story / issue:** #88, Story 4.1 (FR-52; AD-7, AD-9, AD-13, AD-19)
-**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow)
+**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181 and 185
 
 ## Goal
 
@@ -11,7 +11,7 @@ Build step 2's explanation run, `pnpm explain`: test mode, `--plan`, a stored ro
 
 ## Prompts that mattered
 
-All three are Meinich's. The review session's reading of the spec at `b609ce0` is behind the second one.
+The first three are Meinich's; the fourth is under "Prompt 4" below. The review session's reading of the spec at `b609ce0` is behind the second one.
 
 1. After PR #90 was merged:
 
@@ -120,7 +120,133 @@ All three are Meinich's. The review session's reading of the spec at `b609ce0` i
   - **The kroner gap is to the best quartile, but the model says it is to the median:** "resultatgap … i forhold til medianen", "Den årlige resultatforskjellen til medianen", in examples 2 and 3 and four other texts. The page says "ved full tilnærming til beste fjerdedel".
   - **The direction slot doubles "medianen":** its text already says «over medianen», and six texts add another "medianen" after it ("under medianen medianen på 3,8 %").
   - **Cause:** the payload gives each slot's text but not what it means. The slot ids `beste` and `gap` say nothing about the best quartile. These are phrase errors, not figure errors: every number is the engine's. They are Story 4.3's to test, but the prompt and payload need fixing before any full run. That is put to Meinich, not decided here.
-- **Not diagnosed:** what the seven refused answers wrote as digits. The run keeps neither their text nor the batch's results. Reading the paid batch's results again would show it at no model cost, but it needs the key, so it waits for Meinich.
+- **Not diagnosed at first:** what the seven refused answers wrote as digits. The run keeps neither their text nor the batch's results. It was read afterwards (see "The seven refused texts" below).
+
+### Prompt 4: the refused texts, the wording fix, and a second sample
+
+Meinich's answer to the report:
+
+> Svar på de to spørsmålene i rapporten din fra prøvekjøringen (run.step2 id 181):
+>
+> Les resultatene fra batchen på nytt. Det gjelder batchen fra kjøring 181. Les nøkkelen fra .env, og skriv den aldri ut. Det skal ikke gjøres noe modellkall.
+> Skriv de sju avviste tekstene ordrett i sesjonsfilen, uten orgnr. Marker hvert siffer utenfor en slot.
+> Skill ut svaret til selskapet med kapitalgap, og vurder det mot de fire reglene.
+> Rett ordlyden i 4.1, før PR-en.
+> Payloaden skal si hva hvert felt betyr, i en forklaring som står én gang og ikke per slot. Forklaringen skal ikke ha sifre.
+> beste er grensen for beste fjerdedel i gruppen, ikke ett selskap.
+> gap er kroner per år ved full tilnærming til beste fjerdedel, ikke til medianen.
+> Teksten i retning har allerede ordet «medianen», så det skal ikke gjentas etter sloten.
+> For en kostnadsandel er lavere bedre, så beste fjerdedel kan ligge under selskapets egen verdi.
+> Rett også prompten mot sifrene du fant i punkt 1.
+> Legg til en test som viser at forklaringen er med i payloaden. Payload-testen skal fortsatt finne verken orgnr, navn eller registertekst.
+> Ny prøvekjøring med de samme 20. Rekkefølgen i sampleOrder er fast, så resultatene kan sammenlignes med kjøring 181.
+> Si hvordan kjøringen sender alle 20 på nytt når prompt-hashen er endret.
+> Kjør --plan først. Er taket ≤ $0,01, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp.
+> La en prøvekjøring skrive ut hver avviste tekst sammen med grunnen, slik den skriver ut eksemplene. Teksten skal aldri lagres, og orgnr skal aldri vises. Da forklarer neste prøvekjøring seg selv.
+> Rapporten. Den skal ha med:
+> kjøring 181 og den nye kjøringen side om side: forklart, feilet med grunn, tokens og kostnad;
+> om hver av de tre feilene i ordlyden er borte i de lagrede tekstene;
+> om teksten med kapitalgap nå er lagret og holder reglene. Hvis ja, rett den utsatte oppføringen for 4.3 til å si det. Hvis nei, vis den avviste teksten.
+> Utsatt oppføring. antall-sloten og company-header.tsx:53 bruker String(...) uten tusenskille («1036»), utenom format.ts. Sett 4.4 som eier, med en begrunnelse, eller en annen story du kan begrunne bedre.
+>
+> Ikke push før jeg sier fra.
+
+### The seven refused texts of run 181
+
+- **How they were read:** from batch 181's results, through the SDK's results endpoint, which is no model call and costs nothing. The key was read from `.env` and never printed; the batch id was read from the run's own output.
+- **Numbering:** each text is numbered by its company's place among the 20 sample rows in byte order. No orgnr.
+- **Marking:** every digit outside a slot reference is in ⟦…⟧.
+- **Every response ended on `end_turn`.** Every refusal is the year or the peer count written as digits: the model copied the `year` or `peer_count` slot's text instead of writing `{{aar}}` or `{{antall}}`.
+
+1. #1: "Sammenligningen med ⟦227⟧ sammenlignbare selskaper for ⟦2025⟧ viser ingen gap i lønnsomhet per år og ingen engangsgap i kapital. Selskapet har sterke sider innen driftsmargin, der egen verdi er {{driftsmargin.egen}} mot medianen {{driftsmargin.median}}, og innen totalkapitalrentabilitet, der egen verdi er {{totalkapitalrentabilitet.egen}} mot medianen {{totalkapitalrentabilitet.median}}. Driftsmargin ligger {{driftsmargin.retning}} og plasserer seg {{driftsmargin.plassering}}, mens totalkapitalrentabiliteten ligger {{totalkapitalrentabilitet.retning}} og plasserer seg {{totalkapitalrentabilitet.plassering}}. {{mangler.dokument}}"
+2. #3, **the company with capital gaps**: "Sammenlignet med ⟦545⟧ sammenlignbare selskaper ligger driftsmarginen til {{driftsmargin.egen}} i ⟦2025⟧, som er {{driftsmargin.retning}} (median {{driftsmargin.median}}, beste {{driftsmargin.beste}}, plassering {{driftsmargin.plassering}}). Dette gir et årlig resultatgap på {{driftsmargin.gap}}. Kapitalbindingen er også et gap: omløpshastigheten på driftseiendeler er {{oml.egen}} mot median {{oml.median}}, og gapet er engangsbeløpet {{oml.gap}}, {{oml.rang}}. Leverandørgjeldsdagene er {{lgd.egen}} mot median {{lgd.median}}, med et engangsgap på {{lgd.gap}}, {{lgd.rang}}."
+3. #7: "Selskapets driftsmargin for ⟦2025⟧ er {{driftsmargin.egen}}, mot en median på {{driftsmargin.median}} blant {{antall}} sammenlignbare selskaper, og den ligger {{driftsmargin.retning}}. Den beste i gruppen har {{driftsmargin.beste}}, og selskapet er {{driftsmargin.plassering}}. Gapet tilsvarer {{driftsmargin.gap}} per år. Det er ingen kapitalforskjeller eller styrker å trekke frem i denne sammenligningen."
+4. #8: "Sammenlignet med ⟦971⟧ selskaper i Peerless-utvalget for {{aar}} ligger driftsmargin for dette selskapet på {{driftsmargin.egen}}, mot en median på {{driftsmargin.median}} og en beste verdi på {{driftsmargin.beste}}. Det gir en plassering {{driftsmargin.plassering}}, og driftsmarginen er {{driftsmargin.retning}}, med et årlig resultatgap på {{driftsmargin.gap}}. Det er ikke identifisert noen kapitalgap eller styrker i sammenligningen. {{mangler.dokument}}"
+5. #11: "Sammenlignet med ⟦868⟧ selskaper i utvalget ligger driftsmargin for året {{aar}} på {{driftsmargin.egen}}, mot en median på {{driftsmargin.median}}, og selskapet er {{driftsmargin.retning}} med en plassering {{driftsmargin.plassering}}. Det gir et årlig resultatgap på {{driftsmargin.gap}}, mens beste selskap i utvalget har en driftsmargin på {{driftsmargin.beste}}. Det er ingen kapitalgap å melde, og heller ingen styrker i datagrunnlaget. {{mangler.dokument}}"
+6. #12: "Sammenlignet med ⟦969⟧ selskaper i Peerless for ⟦2025⟧ ligger driftsmargin for dette selskapet på {{driftsmargin.egen}}, mot en median på {{driftsmargin.median}}, og er dermed {{driftsmargin.retning}}. Selskapet er {{driftsmargin.plassering}} i gruppen, og det beste selskapet har {{driftsmargin.beste}}. Gapet til medianen utgjør {{driftsmargin.gap}} per år. Det er ikke registrert noen kapitalgap eller styrker for selskapet. {{mangler.dokument}}"
+7. #19: "Driftsmargin for selskapet i ⟦2025⟧ er {{driftsmargin.egen}}, mot en median på {{driftsmargin.median}} blant {{antall}} sammenlignbare selskaper, og det er {{driftsmargin.retning}}; selskapet er {{driftsmargin.plassering}} i gruppen, og beste selskap har {{driftsmargin.beste}}. Gapet tilsvarer {{driftsmargin.gap}} per år. Det er ingen kapitalgap eller styrker å melde for {{aar}}. Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen."
+
+**The capital-gap answer (#3) against the four rules:**
+- **No recommendation:** holds.
+- **Profit and capital gaps never added or ranked against each other:** holds. "Kapitalbindingen er også et gap" sets them side by side, and calls the capital gap a one-off amount.
+- **A rank word only by its own capital gap:** holds. `{{oml.rang}}` stands by `{{oml.gap}}`, and `{{lgd.rang}}` by `{{lgd.gap}}`.
+- **Nothing about other years or trends:** holds.
+
+It was refused for the year and the count as digits only. Like the others it calls `beste` "beste", and like the stored texts of run 181 it would have read the best quartile as a company.
+
+### The fix
+
+- **`0f0a279`: the payload.**
+  - It carries `slot_fields`: what each field means, stated once per payload and holding no digit.
+  - `beste` is the best-quartile boundary, never one company. Where lower is better, it can lie below the company's own value.
+  - `gap` is to that boundary, never to the median, per year for a profit gap and one-off for a capital gap.
+  - `retning`'s text already contains «medianen».
+  - `aar` and `antall` are always written as their slot.
+  - Each figure item also carries `better` (`higher` or `lower`), so the model can tell a cost share from a margin. The working-capital total has none. That field is the BMAD session's addition: the legend's sentence on cost shares needs to know which items they are.
+  - **Tests** (`test/explain/payload.test.ts`):
+    - "every field is explained once, with no digit", for demo A, demo B and the API-only subject;
+    - "says beste is the best-quartile boundary, gap is to it, and retning holds «medianen»";
+    - "names each figure's better direction, and none for the working-capital total".
+  - **Register text:** the identity test now also asserts that neither `aktivitet` nor `vedtektsfestet_formaal` is in the payload, whole or as its first words. It did not before.
+- **`2cb42f3`: the prompt.** It says to write `{{aar}}` and `{{antall}}`, never a slot's text, and states the `beste`, `gap` and `retning` rules.
+- **`2cb42f3`: refused texts.** A sample run prints each refused text with its reason, on one line, with no orgnr. The text is never stored or recorded. Test: `test/explain/run.test.ts` "a sample run prints each refused text with its reason, stores no text and shows no orgnr".
+- **Guards:** a digit added to a meaning fails the three legend tests. With the print switched off, the refused-text test fails.
+
+### The second sample: run 185
+
+- **How all 20 are sent again:** `decideWork` (`scripts/explain/plan.ts`) counts a subject as unchanged only when it has an `explained` row with the same analysis digest, model and prompt hash. The fix changes `SYSTEM_PROMPT`, and through it `promptHash()`, so none of run 181's 13 explained rows counts as unchanged. The 7 failed rows never do. `--plan` showed "would send 20; unchanged 0".
+- **The same 20 companies:** `sampleOrder` orders by a fixed digest. The md5 of the 20 sample orgnrs in `register.explanation` was the same after run 185 as after run 181.
+- **`--plan`:** the ceiling was $0.0077, at most $0.01, so the run followed without a new stop.
+
+| | Run 181 | Run 185 |
+|---|---|---|
+| Explained | 13 | **20** |
+| Failed | 7 (`digit_outside_slot` 7) | 0 |
+| Tokens in | 15 720 | 32 210 |
+| Tokens out | 4 496 | 4 160 |
+| Cost | $0.0019 | $0.0027 |
+| `--plan` ceiling | $0.0065 | $0.0077 |
+
+Input roughly doubled: the legend and the longer prompt go with every request. The central estimate for run 185 was 41 700 in and 5 000 out.
+
+**The three wording errors, in the 20 stored texts of run 185** (each text read in full, not only searched):
+- **`beste` as one company:** gone in all 20. The texts say "grensen for beste kvartil" or "beste kvartilgrense".
+- **The gap as to the median:** gone in all 20. Every gap is to the best-quartile boundary.
+- **«medianen» after the direction slot:** gone in all 20.
+
+**The capital-gap text is now stored, and it holds all four rules:**
+
+> "Driftsmarginen for 2025 ligger på −53,9 %, og det er under medianen, med bedre enn 13 % av 545 sammenlignbare selskaper. Å nå den beste kvartilens grense på 13,4 % ville gi et resultat som er 8 864 839 kr høyere per år. Størst kapitalgap finner vi i omløpshastigheten for driftseiendeler, som er 0,40 mot en beste kvartilgrense på 4,85, og en frigjøring på 30 443 711 kr engangsbeløp, det største kapitalgapet. Leverandørgjeldsdagene er 21 dager, under medianen, og et kapitalgap på 990 382 kr engangsbeløp, nest største kapitalgapet."
+
+- No recommendation.
+- The profit gap is per year, and the capital gaps are one-off amounts, never added to it. "Størst kapitalgap" ranks only among the capital gaps.
+- Each rank word stands by its own capital gap.
+- Nothing about other years or trends.
+
+**The three examples run 185 printed:**
+1. "Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen. Analysen omfatter 1 sammenlignbare selskap for 2025, og det finnes derfor ingen gap- eller styrkepunkter å beskrive."
+2. "Driftsmargin for selskapet i 2025 er −9,2 %, mot medianen 4,7 % blant 868 sammenlignbare selskaper, og selskapet ligger under medianen. Grensen for beste kvartil er 22,2 %, og selskapet gjør det bedre enn bedre enn 27 % av de sammenlignbare selskapene. Avstanden til grensen for beste kvartil tilsvarer 1 424 623 kr per år i driftsresultat. Selskapets dokumenterte regnskapstall er ikke med i datasettet: Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen."
+3. "Driftsmargin for selskapet i 2025 er −69,0 %, mot en median på 3,8 % blant 744 sammenlignbare selskaper, og ligger under medianen. Selskapet er bedre enn bedre enn 11 % av de sammenlignbare selskapene. Grensen for den beste kvartilen er 17,4 %, og avstanden til den er 5 720 165 kr per år i driftsresultat. Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen."
+
+**The four rules in all 20 stored texts:**
+- **No recommendation:** holds in all.
+- **Profit and capital gaps never added or ranked against each other:** holds. Only the capital-gap text names capital gaps.
+- **A rank word only by its own capital gap:** holds in the one text that has rank words.
+- **Nothing about other years or trends:** holds.
+
+**New wording errors in run 185, which no template check catches:**
+- **"bedre enn bedre enn" (12 of 20):** the `plassering` slot's text already begins with «bedre enn», as `retning`'s already ends in «medianen». The legend says its text is "complete as written", which is not enough.
+- **Text partly in English (1 of 20):** "Driftsmargins gap to the best quartile is 226 332 kr per year, since the company's own value of 17,7 % is over medianen …". The legend is in English, and the model followed it once.
+- **Smaller errors:**
+  - "1 sammenlignbare selskap" (the count is 1);
+  - "Driftsmargenen" (misspelled, twice in one text);
+  - one sentence whose clause has no verb ("Kvartilgrensen for de beste ligger på 24,0 %, og bedre enn 42 %");
+  - one text that paraphrases `mangler.dokument` and then uses it.
+
+These are put to Meinich. They are phrase errors, not figure errors: every number is the engine's.
+
+**What the samples do not cover:** the capital-gap wording is tried on one stored text only, the one company in the sample with capital gaps. The deferred entry for Story 4.3 now says so, and asks for a sample with several capital-gap companies before the full run.
+
 
 ## Links
 

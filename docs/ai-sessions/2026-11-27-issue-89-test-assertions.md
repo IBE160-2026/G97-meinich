@@ -159,32 +159,53 @@ The review session is a separate Claude Code session. Meinich reads what it draf
 | R2 | "Filter first and assert the filtered list" leaves the filtered list possibly empty; a loop or `it.each` over an empty list tests nothing (review session) | `e097ae6`: AGENTS.md "Testing" and the lint message now say filter first, assert the length, then each item. A loop with an `expect` asserts its list's length unless the list is a literal or a constant in the test. | None possible: lint cannot see whether a list is empty, so this is a rule for review. The audit below lists the loops that can run empty today. |
 | R3 | `test/db/peer-assembly-time.test.ts` holds 1 s with little margin on CI (review session) | `32a01dd`: a `deferred-work.md` entry owned by Story 5.7, beside the `copyIn` entry | Not a code change. |
 
-### Loops that can run over an empty list today
+### Loops that could run over an empty list, and what each became
 
-An audit of the 298 loops with an `expect` over a non-literal list in `test/` and `e2e/` was done by a subagent of this session and checked here on two lines. It found:
-- 201 over a literal or a constant;
-- 70 over data, with a length guard before or a check after that fails when the list is empty;
-- 27 with nothing pinning their length.
+A subagent of this session audited the 298 loops with an `expect` over a non-literal list in `test/` and `e2e/`, and this session checked its findings:
+- 201 loops run over a literal or a constant;
+- 70 run over data, with a length guard before them or a check after them that fails when the list is empty;
+- 27 had nothing pinning their length.
 
-The 27, as of `32a01dd`:
+Meinich decided to fix all 27 in this PR (2026-11-27), so that the code keeps the rule `e097ae6` writes into AGENTS.md. All of them are fixed in `a9aa5db`.
 
-- **Certainly empty for one case:** `test/engine/reference-cases.test.ts:660` loops over `c.notRead`, and the case at line 326 has `notRead: []`. Its test "…the lines printed but not read" asserts nothing for that case.
-- **Can be empty:**
-  - e2e: `e2e/search.spec.ts:304` (it checks only `rows.length < 8`) and `e2e/synthetic-documents.spec.ts:689`.
-  - Vitest analysis tests: `test/analysis/waterfall-view.test.ts:182` and `:413`, `test/analysis/key-figure-table.test.ts:1060`, `test/analysis/oversikt-view.test.ts:166` and `:167`, `test/analysis/peer-list.test.ts:144`, `test/analysis/peer-rows.test.ts:125`.
-  - Vitest engine tests: `test/engine/reference-cases.test.ts:643`, `test/engine/waterfall.test.ts:319` and `:404`, `test/engine/peers.test.ts:854`, `test/engine/provenance.test.ts:71`.
-  - Database tests: `test/db/search.test.ts:65`, `test/db/peers.test.ts:252`, `test/db/run-grants.test.ts:77`, `:88`, `:99` and `:109` (only sibling tests make the list non-empty), `test/db/seed.test.ts:512`, `test/db/set-role-passwords.test.ts:78` and `:164`.
-  - Other tests: `test/classify/key-boundary.test.ts:31`.
-- **Fixed-shape records with no size asserted:** `test/engine/document-absence.test.ts:280` and `test/rate-limit.test.ts:142`. These are probably never empty.
+| Loop (line at `32a01dd`) | Now |
+|---|---|
+| `e2e/search.spec.ts:304`, `test/db/search.test.ts:65` | `toEqual([])`: no stored name holds `%`, `_` or `\`, which the new test "holds no name with %, _ or a backslash…" asserts. A literal match therefore finds none, while an unescaped wildcard returns 8. The old `rows.length < 8` passed for an empty list, and the loop never ran. |
+| `test/engine/reference-cases.test.ts:660` | `notRead` is tested per case only for the cases that have any, with `notRead.length > 0` asserted. A new test states the cases whose `notRead` is empty by design: `911561972 2024` (line 326) and `992036079 2023` (line 567). The audit found only the first. The expected table is unchanged. |
+| `test/engine/reference-cases.test.ts:643` | The stated inputs are filtered first, then the check is exact: some for a document figure, none for an API figure, `stated.length > 0` against `actual.source === 'document'`. `checkDocument` also checks the API key figures, whose inputs are all API. |
+| `e2e/synthetic-documents.spec.ts:689`, `test/analysis/waterfall-view.test.ts:182`, `test/engine/waterfall.test.ts:319`, `:404` | `toHaveLength(4)`: the four bars |
+| `test/analysis/waterfall-view.test.ts:413` | `.not.toHaveLength(0)`: the number of leaves follows the view's shape |
+| `test/analysis/key-figure-table.test.ts:1060` | `.not.toHaveLength(0)`: the chart's marks follow its drawing |
+| `test/analysis/oversikt-view.test.ts:166`, `:167` | `toHaveLength(11)` for the table's peers, and `toHaveLength(10)` for the plotted peers with a margin, which are the fixture's |
+| `test/analysis/peer-list.test.ts:144` | `toHaveLength(5)` |
+| `test/analysis/peer-rows.test.ts:125` | `toHaveLength(3)` |
+| `test/classify/key-boundary.test.ts:31` | The walk must reach `src/server/db.ts` |
+| `test/db/peers.test.ts:252` | The pool is `toHaveLength(434)`, demo A's band-0 group in the seed, and the candidates are at least as many |
+| `test/db/run-grants.test.ts:77`, `:88`, `:99`, `:109` | Each test reads `runRelations()`, which asserts that the list contains at least `run.step1` and `run.step2`. No test depends on a sibling, and a later migration's relation is still covered. |
+| `test/db/seed.test.ts:512` | The exported files with an `orgnr` column `toEqual` the six seed files that have one |
+| `test/db/set-role-passwords.test.ts:78`, `:164` | One password per role (4), and the other three |
+| `test/engine/peers.test.ts:854` | `.not.toHaveLength(0)`: a candidate with no fingerprint is always kept, and the group's size follows the side's type |
+| `test/engine/provenance.test.ts:71` | `.not.toHaveLength(0)`: each field derives from its own number of operands |
+| `test/engine/document-absence.test.ts:280` | The three API figures, by name |
+| `test/rate-limit.test.ts:142` | The two stores, `analysis` and `search` |
 
-None of the 27 is changed in this PR. AGENTS.md now states the rule, and whether to fix them here or in a follow-up is Meinich's decision.
+**Each list emptied, and the test fails.** Every change was restored with `git checkout` in `src/`, or from a copy for a test file.
+
+| # | List emptied | Failing output |
+|---|---|---|
+| L1 | the case at line 376 gets `notRead: []` (`:660`) | "reads every printed line of 911561972 2024 and 992036079 2023…": `expected [ '911561972 2024', …(2) ] to deeply equal [ '911561972 2024', '992036079 2023' ]` |
+| L2 | `displayWaterfall` returns `barKroner: []` | "1 000 seeded random cases…": `run 0: expected 0n to be -8n`. The sum identity before the length check fails first. |
+| L3 | `peerRows` returns no row | "carries no match basis and no flag…": `expected [] to have a length of 3 but got +0` |
+| L4 | `sources()` in key-boundary finds no file | "nothing in the request path names…": `expected [] to include 'src\server\db.ts'` |
+| L5 | `relations()` in run-grants returns `[]` | all six run-grants tests fail, each on its own, the four loops among them |
+| L6 | the LIKE escape of `%` is removed in `src/server/search.ts` | "matches % literally…" and "matches %% literally…": `expected [ { navn: '=SPORT AS', …(3) }, …(7) ] to deeply equal []` |
 
 ## Review Triage Log
 
 | # | Source | Finding | Verdict | Action |
 |---|---|---|---|---|
 | 1 | Review of PR #90, `eslint.config.mjs:124` | An unawaited read stored and awaited later, `.then` on a read, and `Promise.all` lists pass lint | Confirmed here with `eslint --stdin` | Fixed, `d30a7b0` |
-| 2 | Review of PR #90, `eslint.config.mjs:129` and `AGENTS.md:104` | A loop or a filtered list can be empty | Confirmed: 27 loops can run empty, one certainly does for one case | Rule in AGENTS.md, `e097ae6`; the 27 listed above, not changed |
+| 2 | Review of PR #90, `eslint.config.mjs:129` and `AGENTS.md:104` | A loop or a filtered list can be empty | Confirmed: 27 loops could run empty, and the not-read check did for two cases | Rule in AGENTS.md, `e097ae6`; all 27 fixed in `a9aa5db` (Meinich decided to fix them here), each list emptied and shown failing |
 | 3 | Review of PR #90, review body | `peer-assembly-time` flaked once on CI at 1 084 ms | Confirmed in the run's log (attempt 1 failed, attempt 2 green, no code change) | Deferred to Story 5.7, `32a01dd` |
 | 4 | Review of PR #90, `test/db/peers.test.ts:260`, `test/engine/waterfall.test.ts:396` | The rewrites are correct | Agreed | None |
 | 5 | Review of PR #90, `docs/ai-sessions/2026-11-27-issue-89-test-assertions.md:10` | The session file does not say what came from the review session | Confirmed | This section and the one above |

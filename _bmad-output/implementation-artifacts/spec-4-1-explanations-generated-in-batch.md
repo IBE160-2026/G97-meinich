@@ -96,7 +96,7 @@ Sources for the matrix:
 
 ## Review Triage Log
 
-Wording found in sample runs 185 and 193, triaged by Meinich (2026-11-27). Counts are from `register.explanation` (`sample`), totals only.
+Wording found in sample runs 185, 193, 195 and 199, triaged by Meinich (2026-11-27). Counts are from `register.explanation` (`sample`), totals only.
 
 | # | Finding | Decision |
 |---|---|---|
@@ -113,6 +113,10 @@ Wording found in sample runs 185 and 193, triaged by Meinich (2026-11-27). Count
 | 11 | run 193: a claim beyond the payload («Ingen av nøkkeltallene ligger under grensen for beste fjerdedel») | Story 4.3 (deferred-work.md) |
 | 12 | run 193: `mangler.dokument` read as the company having no figures at all | Story 4.3 (deferred-work.md) |
 | 13 | run 193: the model's own comment in English inside a text («Let me correct: …»); refused there for repeated words, not for the comment | Story 4.3 (deferred-work.md) |
+| 15 | run 195: `{{retning}}` with no figure before it (`unknown_slot`) | Story 4.3 (deferred-work.md) |
+| 16 | run 195: «høyere-er-bedre», the item's `better` translated literally | Story 4.3 (deferred-work.md) |
+| 17 | run 199, 4.1's last: 3 of 20 refused (`placement_without_bedre_enn`); `decideWork` counts only explained rows as unchanged, so the full run needs a plan for sending refused rows again | Story 4.3 (deferred-work.md) |
+| 18 | run 199: a meta sentence («Dette er en beskrivelse …, ikke en vurdering av hva selskapet bør gjøre»), a self-correction left in a text («Rettere: …», refused), the own value written twice in one sentence | Story 4.3 (deferred-work.md) |
 | 14 | run 193: a sentence that begins with a slot starts in lower case («bedre enn 68 % …», «2,2 % driftsmargin …») | Story 4.4, where the card fills the template (deferred-work.md) |
 
 ## Code Map
@@ -162,6 +166,7 @@ Wording found in sample runs 185 and 193, triaged by Meinich (2026-11-27). Count
 - **2026-11-27, sample run 195** (the same 20, ceiling $0.0130, at most Meinich's $0.015): 9 explained, 11 refused (`repeated_slot_words` 10, all «bedre enn {{…plassering}}»; `unknown_slot` 1). No `stop_max_tokens`. In the 9 stored texts there is no «kvartil», no «bedre enn bedre enn», no English and no gap to the median. Below Meinich's 18 of 20, so the trial stopped for his decision (session file).
 - **2026-11-27, Meinich (after sample run 195):** the placement slot's text is only the percent (`formatWholePercent`, as before), and the template writes «bedre enn» before it, so the reader still sees `keyFigures.placement`'s «bedre enn 66 %». The model wrote «bedre enn» before the placement slot in 12 of 20 texts without a rule (run 185) and in 10 of 20 with the rule forbidding it (run 195). Asking for it is what the model does anyway. A new refusal, `placement_without_bedre_enn`, requires every `{{x.plassering}}` to stand right after «bedre enn» in its own sentence, compared without case. `slot_fields` and the prompt say so. This supersedes the 'plassering' half of the repeated-words rule of run 193; `repeated_slot_words` stays for the other slots.
 - **2026-11-27, Meinich:** the next sample run is 4.1's last. After it there are no more prompt changes or runs in 4.1, whatever the result, and what remains goes to Story 4.3 with a deferred entry.
+- **2026-11-27, sample run 199, 4.1's last** (the same 20, ceiling $0.0130): 17 explained, 3 refused (`placement_without_bedre_enn` 3). The 17 stored texts hold no «kvartil», «bedre enn bedre enn», English or gap to the median, and the capital-gap text is stored and holds the rules. Meinich's threshold of 18 of 20 is not met. As decided, 4.1 makes no more prompt changes or runs, and what remains goes to Story 4.3 (Review Triage Log rows 15–18).
 - **2026-11-27, rebase on `main`:** the branch now sits on `8df1e63`. `deferred-work.md` kept main's Story 5.7 entry on `peer-assembly-time` (PR #90's CI). It does not concern 4.1.
 
 ## Sample run plan

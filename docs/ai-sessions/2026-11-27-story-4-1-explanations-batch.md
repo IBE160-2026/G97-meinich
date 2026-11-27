@@ -3,7 +3,7 @@
 **Date:** 2026-11-27
 **Tool:** Claude Code (claude-opus-5-5), `bmad-build`, with one implementation subagent
 **Story / issue:** #88, Story 4.1 (FR-52; AD-7, AD-9, AD-13, AD-19)
-**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181, 185, 193 and 195
+**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181, 185, 193, 195 and 199
 
 ## Goal
 
@@ -11,7 +11,7 @@ Build step 2's explanation run, `pnpm explain`: test mode, `--plan`, a stored ro
 
 ## Prompts that mattered
 
-The first three are Meinich's; the fourth to sixth are under "Prompt 4" to "Prompt 6" below. The review session's reading of the spec at `b609ce0` is behind the second one.
+The first three are Meinich's; the fourth to seventh are under "Prompt 4" to "Prompt 7" below. The review session's reading of the spec at `b609ce0` is behind the second one.
 
 1. After PR #90 was merged:
 
@@ -385,7 +385,7 @@ The five refused texts, as the run printed them:
 **Done:**
 - **`126a941`:** `MAX_TOKENS` is 2 000, and thinking stays. The Spec Change Log gives the reason.
 - **`ba60bf7`:** repeated slot words are compared only within the slot's sentence, in both directions. Prompt 6's three cases are tests.
-  - Prompt 6's «… medianen. {{x.retning}}» would be kept even without the boundary, since «medianen» is not the start of the direction text. So a fourth case was added that does cross a full stop backwards: «… bedre enn. {{driftsmargin.plassering}} …».
+  - **Corrected by the BMAD session:** prompt 6's «… medianen. {{x.retning}}» would be kept even without the boundary, since «medianen» is not the start of the direction text. So the BMAD session added a case that does cross a full stop backwards, «… bedre enn. {{driftsmargin.plassering}} …». Meinich confirmed this in prompt 7. After run 195 that case became a refusal under `placement_without_bedre_enn`, so the backward case now uses the rank slot: «Slik er det. {{arbeidskapital.rang}} …».
   - All three keep-cases that cross a boundary fail with the boundary removed. The six refuse-cases still fail with the rule off.
 - **`0c5606a`:** `peerCountOne` is tested with demo A against only one peer, giving «1 sammenlignbart». The test fails with the one-peer branch removed.
 - **The triage log and deferred entries:** rows 8–14, with four entries for Story 4.3 and one for Story 4.4.
@@ -434,6 +434,108 @@ Against the four rules it holds:
 It was refused only for the doubled «bedre enn».
 
 **Other faults in the stored texts, already triaged:** «Ingen av nøkkeltallene ligger under grensen …» again (row 11, Story 4.3). Texts starting with a slot in lower case or with a figure (row 14, Story 4.4). One text drops «av» after avoiding the double: «bedre enn 97 % de sammenlignbare selskapene».
+
+### Prompt 7: the placement slot, and 4.1's last run
+
+> Alternativ 1, med en regel i koden i tillegg (run.step2 id 195: 9 forklart, repeated_slot_words 10, unknown_slot 1; lest i den lokale databasen).
+>
+> 1. Plasseringssloten blir bare prosenten («66 %»), laget med format.ts som før. Leseren ser fortsatt «bedre enn 66 %», ordrett som keyFigures.placement.
+>    - Ny avvisningsgrunn i parseTemplate: hver {{x.plassering}} må stå rett etter «bedre enn» i samme setning, uten å skille store og små bokstaver. Ellers avvises malen. Gi grunnen et eget navn i TemplateRefusal.
+>    - Testtilfeller:
+>      - «bedre enn {{x.plassering}}» godtas;
+>      - «blant de {{x.plassering}} beste» avvises;
+>      - «bedre enn. {{x.plassering}}» avvises.
+>    - Ny matriserad med test som feiler når regelen slås av.
+>    - Oppdater slot_fields og prompten så de sier at modellen skriver «bedre enn» foran plasseringen.
+>    - Skriv beslutningen og begrunnelsen i Spec Change Log: modellen skrev «bedre enn» i 12 av 20 tekster uten regelen og 10 av 20 med den, og det leseren ser, er uendret.
+>
+> 2. Kreditering i sesjonsfilen: testtilfellet du la til for punktum bakover, «… bedre enn. {{driftsmargin.plassering}} …», er din rettelse. Mitt tilfelle, «… medianen. {{x.retning}}», ville blitt godtatt uansett.
+>
+> 3. Siste kjøring i 4.1, på de samme 20. Kjør --plan først. Er taket ≤ $0,015, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp. Etter denne kjøringen gjør du ingen flere prompt-endringer eller kjøringer i 4.1, uansett resultat. Det som gjenstår, går til 4.3 med utsatt oppføring.
+>
+> 4. Til triage-loggen for 4.3:
+>    - {{retning}} uten nøkkeltall foran (unknown_slot);
+>    - «høyere-er-bedre», en direkte oversettelse av better;
+>    - andelen avviste maler i den siste kjøringen. 4.3 trenger en plan for hvordan avviste rader sendes på nytt i hele kjøringen, siden decideWork bare regner forklarte rader som uendret.
+>
+> 5. Rapporten skal ha med:
+>    - alle fem kjøringene side om side;
+>    - feil per grunn;
+>    - ordtellingene som før;
+>    - om teksten med kapitalgap er lagret og holder reglene.
+>    Etter det går du videre til review-steget og sesjonsfilen.
+>
+> Ikke push før jeg sier fra.
+
+**Done:**
+- **`223be1b`:** the placement slot's text is only the percent (`formatWholePercent`, as the table uses inside `keyFigures.placement`), and `slot_fields` says to write «bedre enn» before it. Test: `test/explain/payload.test.ts` "writes the placement slot as only the percent, so the template supplies «bedre enn»".
+- **`8bd3324`:** `placement_without_bedre_enn` in `parseTemplate`, with the prompt rule and the stored test response corrected to «bedre enn {{vare.plassering}}».
+  - Tests: six cases in `test/explain/run.test.ts` ("a placement slot right after «bedre enn» in its sentence: …"). Four of them fail with the rule off.
+  - The repeated-words tests that used the placement slot now use `egen` («{{driftsmargin.egen}} %») and `retning` in upper case.
+  - Matrix row and Spec Change Log entry.
+- **Checks:** lint, typecheck, unit tests (2 210) and `test/db/explanation.test.ts` (12) are green.
+- **`--plan`:** the ceiling was $0.0130, at most $0.015.
+
+**Run 199, 4.1's last** (the same 20, md5 of the orgnrs unchanged):
+
+| | Run 181 | Run 185 | Run 193 | Run 195 | Run 199 |
+|---|---|---|---|---|---|
+| Explained | 13 | 20 | 9 | 9 | **17** |
+| `digit_outside_slot` | 7 | 0 | 0 | 0 | 0 |
+| `stop_max_tokens` | 0 | 0 | 6 | 0 | 0 |
+| `repeated_slot_words` | – | – | 5 | 10 | 0 |
+| `unknown_slot` | 0 | 0 | 0 | 1 | 0 |
+| `placement_without_bedre_enn` | – | – | – | – | 3 |
+| Tokens in | 15 720 | 32 210 | 40 510 | 40 510 | 41 080 |
+| Tokens out | 4 496 | 4 160 | 10 515 | 7 627 | 5 999 |
+| Cost | $0.0019 | $0.0027 | $0.0047 | $0.0039 | $0.0036 |
+| `--plan` ceiling | $0.0065 | $0.0077 | $0.0080 | $0.0130 | $0.0130 |
+
+(– : the refusal did not exist yet.) Five sample runs together cost $0.0168.
+
+**The words, in the stored templates:**
+
+| | 185 (20) | 193 (9) | 195 (9) | 199 (17) |
+|---|---|---|---|---|
+| «kvartil» | 16 | 0 | 0 | 0 |
+| «fjerdedel» | 0 | 8 | 8 | 15 |
+| «bedre enn bedre enn» | 12 | 0 | 0 | 0 |
+| English | 1 | 0 | 0 | 0 |
+| a gap to the median | 0 | 0 | 0 | 0 |
+
+**Meinich's threshold:** 18 of 20 explained, with no stored «kvartil», «bedre enn bedre enn», English or gap to the median. The words hold; 17 of 20 does not. As prompt 7 decided, this was 4.1's last run.
+
+**The three refused texts of run 199** (`placement_without_bedre_enn`, each correct):
+1. "{{driftsmargin.egen}} er selskapets driftsmargin i {{aar}}, {{driftsmargin.retning}}, og {{driftsmargin.plassering}} ... ⏎⏎Rettere: Selskapets driftsmargin i {{aar}} er {{driftsmargin.egen}}, som er {{driftsmargin.retning}}, og det gjør det bedre enn {{driftsmargin.plassering}} av de {{antall}} selskapene i analysen. Driftsmarginen ville øke med {{driftsmargin.gap}} per år om den nådde grensen for beste fjerdedel på {{driftsmargin.beste}}. Det er ingen styrker å fremheve i denne analysen, og {{mangler.dokument}}"
+2. "Driftsmargin for {{aar}} er {{driftsmargin.egen}}, som er {{driftsmargin.retning}} og {{driftsmargin.plassering}} er ikke et tall vi skal skrive; i stedet: blant {{antall}} selskaper er selskapet bedre enn {{driftsmargin.plassering}}, hvilket betyr at driftsmarginen er {{driftsmargin.retning}}."
+3. "Ingen gap ble funnet for {{aar}} blant {{antall}} selskaper. Driftsmargin er {{driftsmargin.egen}}, {{driftsmargin.retning}}, og det er {{driftsmargin.retning}} noe som gir en plassering på {{driftsmargin.plassering}}, altså bedre enn {{driftsmargin.plassering}} av de sammenlignbare selskapene. Grensen for beste fjerdedel ligger på {{driftsmargin.beste}}.⏎⏎{{mangler.dokument}}"
+
+**The capital-gap text is stored in run 199, and it holds the four rules:**
+
+> "2025-tallene for driftsmargin ligger under medianen, med en egen verdi på −53,9 % mot en median på 3,2 % blant 545 sammenlignbare. Driftsmargin er bedre enn 13 % av selskapene, og et løft til beste fjerdedel, som er 13,4 %, ville gi 8 864 839 kr mer driftsresultat per år. Omløpshastigheten for driftseiendeler ligger under medianen, med 0,40 mot beste fjerdedel på 4,85, og det gir 30 443 711 kr i kapital som frigjøres én gang; dette er det største kapitalgapet. Leverandørgjeldsdager ligger under medianen, med 21 dager mot beste fjerdedel på 52 dager, og det gir 990 382 kr i engangskapital, nest største kapitalgapet."
+
+- No recommendation.
+- The profit gap is per year, and the capital gaps are one-off, never added to or ranked against it.
+- Each rank word stands by its own capital gap.
+- Nothing about other years or trends; «2025-tallene» is the filing year.
+
+**The three examples run 199 printed** are texts 14, 11 and 4 of the stored 17, in the session's numbering:
+1. "Driftsmarginen til selskapet ligger på −879,1 % i 2025, og det er under medianen. Grensen for beste fjerdedel blant 494 sammenlignbare er 34,1 %, og selskapet gjør det bedre enn 10 % av gruppen. Et gap til denne grensen tilsvarer 428 454 kr i driftsresultat per år. Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen."
+2. "Ingen gap er beregnet for 2025, så det er ingen gap å nevne mot beste fjerdedel. Driftsmargin ligger over medianen og er høyere enn grensen for beste fjerdedel, med egen verdi 31,3 % mot 0,1 % for medianen og 23,2 % for beste fjerdedel; selskapet gjør det bedre enn 79 % av de 866 sammenlignbare selskapene. Regnskapstallene for dette selskapet er ikke lastet inn i demoversjonen."
+3. "13,6 % driftsmargin i 2025 ligger over medianen, og selskapet er bedre enn 66 % av 1080 sammenlignbare selskaper. For å nå grensen for beste fjerdedel, som er 21,8 %, ville driftsresultatet øke med 140 934 kr per år. Dokumenttall for selskapet er ikke med i datasettet."
+
+**Left for Story 4.3** (Review Triage Log rows 15–18, with a deferred entry):
+- the refused share, 3 of 20, and a plan for sending refused rows again in the full run;
+- `{{retning}}` with no figure;
+- «høyere-er-bedre»;
+- a meta sentence about what the company «bør gjøre»;
+- the self-correction «Rettere: …»;
+- the own value written twice in one sentence.
+
+Already triaged and seen again:
+- `mangler.dokument` paraphrased and not used (text 3 above; row 7);
+- «Ingen av nøkkeltallene ligger under grensen …» (row 11);
+- a sentence starting with a figure (row 14, Story 4.4).
 
 ## Links
 

@@ -323,3 +323,15 @@
   owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27; spec Review Triage Log row 14).
   summary: A sentence that begins with a slot starts in lower case when the slot's text does («bedre enn 68 % i driftsmargin …», «under medianen er driftsmarginen …»). It is solved where the card fills the template, not in the prompt: a slot at the start of the text or after `.`, `!` or `?` gets its first letter upper-cased. `src/engine/format.ts` has `lowerFirst` (used by `src/analysis/verdi-view.ts`) but no upper-casing counterpart, so 4.4 adds one beside it, with a test that fails on «bedre enn» at a sentence start.
   evidence: Sample runs 185 and 193 (local database, 2026-11-27): in run 193, three of the 9 stored texts begin with a slot, one of them in lower case. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test), before the full run (Meinich, 2026-11-27; spec Review Triage Log rows 15–18).
+  summary: What Story 4.1's last sample run left, for 4.3:
+    - **Refused rows in the full run.** Run 199 refused 3 of 20 (15 %), all `placement_without_bedre_enn`. `decideWork` (`scripts/explain/plan.ts`) counts only an `explained` row under the same digest, model and prompt as unchanged, so a full run sends every failed row again, at the cost of a request each time and with no bound on how often. 4.3 plans how refused rows are sent again in the full run: how many attempts, whether a refusal reason is retried, and how the remainder is reported.
+    - **Phrase faults** for the phrase tests:
+      - `{{retning}}` with no figure before it (`unknown_slot`, run 195);
+      - «høyere-er-bedre», the item's `better` translated literally (two texts, run 195);
+      - a meta sentence about the text itself («Dette er en beskrivelse …, ikke en vurdering av hva selskapet bør gjøre», run 199, stored);
+      - a self-correction left in a text («Rettere: …», run 199, refused for its placement);
+      - the own value written twice in one sentence (run 199, stored).
+  evidence: Sample runs 195 (run.step2 id 195) and 199 (id 199), local database, 2026-11-27. The texts are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. Totals only.

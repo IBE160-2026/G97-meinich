@@ -4,7 +4,7 @@ import { Decimal } from '../../src/engine/decimal.ts';
 import { BUSINESS_TYPES, type BusinessType } from '../../src/engine/fingerprint.ts';
 import type { BatchResult, ModelClient } from './model-client.ts';
 import { type CostPlan, PRICE_DATE, PRICE_PER_MTOK, type StoredRow, type WorkItem, costPlan, decideWork, drawSample } from './plan.ts';
-import { MODEL_ID, type Target, parseAnswer, promptHash } from './request.ts';
+import { MODEL_ID, type RequestInput, type Target, parseAnswer, promptHash } from './request.ts';
 
 export type ClassificationRow = {
   readonly orgnr: string;
@@ -103,7 +103,7 @@ export async function planLines(store: Store, options: Options): Promise<string[
 
 export type Deps = {
   readonly store: Store;
-  readonly model: ModelClient;
+  readonly model: ModelClient<RequestInput>;
   readonly now: () => Date;
   readonly sleep: (ms: number) => Promise<void>;
   readonly log: (line: string) => void;
@@ -145,6 +145,9 @@ async function collect(
   const apply = (result: BatchResult) => {
     seen.add(result.orgnr);
     if (result.outcome.kind === 'failed') {
+      // A response that stopped early was billed: its tokens count (deferred entry of PR #54).
+      counts.input_tokens += result.outcome.usage?.inputTokens ?? 0;
+      counts.output_tokens += result.outcome.usage?.outputTokens ?? 0;
       fail(result.orgnr, result.outcome.reason);
       return;
     }

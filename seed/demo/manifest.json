@@ -341,12 +341,13 @@
     "company.csv": "ac04c9845afa73ee89c775245899e0cd70de399607cc41033023b0fde01c9d6f",
     "document.csv": "1bc657bd62920f1eebb20a24c1c71a917cc065b1f3dc9d3642d348e36d2683df",
     "document_column.csv": "717fdd0d1f4d6c76c3b7e3c4a38f7c9d9f82d4aac7db5f23e3ca9a3b8f1f4465",
+    "explanation.csv": "f38beb1fcf9983426210f66353048a313dbf06a272a2fbe23097b9cea147db27",
     "filing.csv": "d10640e7476f75c41e776c0b1c90e8c1563bdf1c65a721df92ee0b5ccfd08285",
     "fingerprint.csv": "9cec71742825cc8a7037235ec73e6b9daf11c07115523667b3861d1bbf0b4b3c",
     "key_figures.csv": "ab01a647bd4a50170009c8f21e459cbd245b8ef41e8c724cdff17651e4456b19"
   },
   "format_version": 1,
-  "migration_id": "20261108130000_classification",
+  "migration_id": "20261126120000_explanation",
   "read_at": {
     "max": "2026-11-07 17:08:16.121103+00",
     "min": "2026-10-11 10:09:07.22884+00"

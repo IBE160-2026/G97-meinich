@@ -41,6 +41,7 @@ describe('seed/allow-list.json', () => {
       'company.csv',
       'document.csv',
       'document_column.csv',
+      'explanation.csv',
       'filing.csv',
       'fingerprint.csv',
       'key_figures.csv',

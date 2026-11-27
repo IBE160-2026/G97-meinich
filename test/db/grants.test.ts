@@ -578,8 +578,30 @@ describe('the classification table', () => {
   });
 });
 
+// Story 4.1: the explanations batch step 2 writes and the request path reads (Story 4.4).
+describe('the explanation table', () => {
+  it('grants exactly derive SELECT, INSERT, UPDATE, loader SELECT, INSERT, TRUNCATE and reader SELECT', async () => {
+    const rows = await sql<{ grantee: string; privilege: string }[]>`
+      select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
+             a.privilege_type as privilege
+      from pg_catalog.pg_class c, aclexplode(c.relacl) a
+      where c.oid = 'register.explanation'::regclass and a.grantee <> c.relowner
+      order by 1, 2
+    `;
+    expect(rows).toEqual([
+      { grantee: 'derive', privilege: 'INSERT' },
+      { grantee: 'derive', privilege: 'SELECT' },
+      { grantee: 'derive', privilege: 'UPDATE' },
+      { grantee: 'loader', privilege: 'INSERT' },
+      { grantee: 'loader', privilege: 'SELECT' },
+      { grantee: 'loader', privilege: 'TRUNCATE' },
+      { grantee: 'reader', privilege: 'SELECT' },
+    ]);
+  });
+});
+
 describe("derive's privileges on every register relation", () => {
-  it('are SELECT on what step 2 reads, SELECT, INSERT and TRUNCATE on the fingerprint, SELECT, INSERT and UPDATE on the classification, and nothing else', async () => {
+  it('are SELECT on what step 2 reads, SELECT, INSERT and TRUNCATE on the fingerprint, SELECT, INSERT and UPDATE on the classification and the explanation, and nothing else', async () => {
     const tables = await sql<{ name: string }[]>`
       select format('%I.%I', n.nspname, c.relname) as name
       from pg_catalog.pg_class c
@@ -587,12 +609,14 @@ describe("derive's privileges on every register relation", () => {
       where n.nspname = 'register' and c.relkind in ('r', 'p', 'v', 'm', 'f')
       order by 1
     `;
-    expect(tables.map((t) => t.name)).toEqual(expect.arrayContaining([...DERIVE_READS, 'register.fingerprint']));
+    expect(tables.map((t) => t.name)).toEqual(
+      expect.arrayContaining([...DERIVE_READS, 'register.fingerprint', 'register.classification', 'register.explanation']),
+    );
     for (const { name } of tables) {
       const expected =
         name === 'register.fingerprint'
           ? ['SELECT', 'INSERT', 'TRUNCATE']
-          : name === 'register.classification'
+          : name === 'register.classification' || name === 'register.explanation'
             ? ['SELECT', 'INSERT', 'UPDATE']
             : DERIVE_READS.includes(name)
               ? ['SELECT']

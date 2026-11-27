@@ -204,6 +204,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`
   summary: `pnpm classify` does not count the tokens of a response it stores as `failed` before reading it: a message that stops on `max_tokens` or `refusal`, or has no text block, is billed, but `toBatchResult` (`scripts/classify/model-client.ts`) returns the failed outcome without its `usage`, so `run.step2`'s `input_tokens` and `output_tokens` are too low whenever such a response occurs. An answer that is read and then refused by `parseAnswer` is counted.
   evidence: Review of PR #54 by the review session, https://github.com/IBE160-2026/G97-meinich/pull/54#discussion_r4567327638. No effect on run 18 (0 failed). Proposed: carry `usage` in the failed outcome, add it to the counts, with a test in `test/classify/run.test.ts`. Deferred by Meinich, 2026-11-13.
+  resolved: Story 4.1 (`story/4.1-explanations-batch`). The failed outcome of `toBatchResult` carries the response's `usage` (null when no message came back), and both `pnpm classify` and `pnpm explain` add it to `input_tokens` and `output_tokens` (`test/classify/run.test.ts` "counts a failed response's tokens", `test/explain/run.test.ts` "counts a failed response's tokens").
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-6-classification-stage-5.md`
   summary: The request path reads sample classifications: `SUBJECT_SQL` and `CANDIDATES_SQL` in `src/server/analysis.ts` join `register.classification` without `not cl.sample`, so after a new sample run the local analysis page would use sample answers at stage 5, while `decideWork` never lets a sample answer stand in a full run.
@@ -273,3 +274,86 @@
   owner: Story 5.7 (Runs from a fresh clone), with the `copyIn` entry above, which also shows up only now and then (review of PR #90, Meinich 2026-11-27).
   summary: `test/db/peer-assembly-time.test.ts` holds NFR1's 1 s (`LIMIT_MS = 1000`) with little margin on a slow CI machine. Decide whether it measures the median of several runs, separates a warm-up, or allows a CI-specific margin while the local run keeps 1 s, with a test that still fails when assembly is genuinely slow.
   evidence: PR #90's first CI run (https://github.com/IBE160-2026/G97-meinich/actions/runs/45985324385, attempt 1, on `26e82f2`) failed "demo TRETOEN AS, band 1, with exclusions: under 1000 ms" at 1 084 ms, while band 0 took 352 ms and band 2 270 ms in the same run; the last green run on main gave 413–506 ms. The PR changes neither the test nor `src/`, and attempt 2 of the same job was green.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27).
+  summary: `register.explanation` has a `sample` column, like `register.classification`, and a sample run (Story 4.1's 20 companies) leaves sample rows in the local database. The card's read must select only `not sample`, with a test that fails when the condition is removed, so the local page never shows a sample text. The same gap in the classification reads is the entry above about `SUBJECT_SQL` and `CANDIDATES_SQL`.
+  evidence: Story 4.1 checkpoint, Meinich's answer on the deferred entry about `SUBJECT_SQL` and `CANDIDATES_SQL` (2026-11-27). No effect in the seed: the export writes no explanation row before the full run.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 5.5, which writes the stored explanations into the committed demo seed (epics.md Story 5.5, "it writes the stored explanations into the committed demo seed"); the full run is Story 4.3's (epics.md AD-7) (Meinich, 2026-11-27, after the review's R25).
+  summary: `pnpm seed:export` writes `register.explanation` with `WHERE false` (Story 4.1), so `seed/demo/explanation.csv` holds only its header. When Story 4.3's full run is guarded by the figure test (4.2) and the phrase test (4.3), and Story 5.5's 30-text review has passed, 5.5 removes the condition and the export writes every non-sample row (`not sample`). `test/db/seed.test.ts` "the committed seed holds no explanation" must then change to assert that the seed holds no sample row and that every row passes the figure and phrase tests.
+  evidence: Story 4.1 decision 1 (run order ii+, Meinich 2026-11-27): the sample rows are never exported, and nothing is in the seed before 4.2 and 4.3 guard it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27).
+  summary: Is a cost-of-goods share of 0 % at a consultancy a strength? Under the rule of Største styrke (`atOrBeyondBest`, `NEVER_STRENGTH` in `src/analysis/oversikt-cards.ts`), `vare` is a strength whenever the subject is at or beyond the best quartile, and 0 % always is. Story 4.1 keeps `NEVER_STRENGTH` unchanged, so the explanation says what the page says. Decide whether `vare` at 0 % is named as a strength on the page and in the card, or added to `NEVER_STRENGTH`, with a test that fails with the guard removed.
+  evidence: Story 4.1 checkpoint, local database as `reader`, 2026-11-27, totals only: `vare` is a strength for 62 of the 8 356 62.100 AS with a filing, 45 of them at exactly 0 %. Only the 331 with document figures in the manifest can have it, and 329 of those have a peer group.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test), before the full run (Meinich, 2026-11-27).
+  summary: The capital-gap wording is tried on one stored text only. Story 4.1's sample of 20 holds one company with capital gaps (two, so the rank words «det største» and «nest største kapitalgapet» were sent once each). In run 181 its answer was refused (`digit_outside_slot`: the year and the count as digits). In run 185, after the wording fix, it is stored and holds the four rules: no recommendation; the profit gap per year and the capital gaps one-off, never added or ranked against each other; each rank word by its own capital gap; nothing about other years or trends. One text is not a measurement. Before the full run, a sample that holds several companies with capital gaps (the working-capital total and its parts included) must show the same, with the phrase test checking each rule.
+  evidence: `pnpm explain --sample 20 --max-usd 0.05`, run.step2 ids 181 (13 explained, 7 refused) and 185 (20 explained, 0 refused), local database, 2026-11-27. In run 185 one stored template has `.rang` slots, `oml.rang` and `lgd.rang`, each beside its own `.gap` (`register.explanation`, `sample`; the text is in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`). Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.2 (the figure test), proposed by the BMAD session, 2026-11-27 (Meinich asked for 4.4 or a story with a better reason). Why 4.2 rather than 4.4: 4.2's parser must read "every string `src/engine/format.ts` writes" and compare each number with what the page displays (its third AC, Epic 3 retro action 11). A count written outside `format.ts` is a number format the parser would otherwise have to accept as an exception. 4.4 renders the card but writes no number of its own.
+  summary: Two counts are written with `String(...)`, outside `src/engine/format.ts`, so they have no thousands separator ("1036", where `format.ts` would write "1 036" with U+00A0): the `antall` slot's text (`explanationAnalysis` in `src/analysis/explanation-payload.ts`) and the page header's peer count (`src/components/analysis/company-header.tsx:53`, `analysis.peerCount`). Both go through one count formatter in `format.ts`, with a test that fails on "1036". The `aar` slot keeps `String(...)`: a year takes no separator. This also brings the `antall` slot under Story 4.1's own boundary that every slot text comes from `format.ts` or `nb.json`.
+  evidence: Sample run 181 (2026-11-27): a stored text reads "blant 1036 sammenlignbare selskaper", which is the `antall` slot's text. The header shows the same unformatted count on any page with a group of a thousand or more.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test) (Meinich, 2026-11-27; spec Review Triage Log rows 5–7).
+  summary: Three wording errors that no template check in 4.1 catches, for 4.3's phrase tests:
+    - a figure's name misspelled («Driftsmargenen» for Driftsmargin);
+    - a clause without a verb («Kvartilgrensen for de beste ligger på {{beste}}, og {{plassering}}.»);
+    - the `mangler.dokument` sentence paraphrased in the model's own words before the slot itself is used, so the reader gets it twice.
+    Each needs a phrase test that fails on the case, and a decision whether it refuses the template or flags it.
+  evidence: Sample run 185 (run.step2 id 185, local database, 2026-11-27): the misspelling in one stored text, the verbless clause in one, the paraphrase in one (`register.explanation`, `sample`). The texts are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test) (Meinich, 2026-11-27; spec Review Triage Log rows 10–13).
+  summary: Four more wording faults from sample run 193, for 4.3's phrase tests:
+    - a phrase that makes the placement follow from the gap («… ville gi {{gap}} mer driftsresultat per år, så selskapet er {{plassering}}»);
+    - a claim beyond the payload («Ingen av nøkkeltallene ligger under grensen for beste fjerdedel»: the payload names only the gaps it lists);
+    - `mangler.dokument` read as the company having no figures at all («uten tall for selskapet kan vi ikke si noe …»), while the API figures are there;
+    - the model's own comment in English inside a text («Let me correct: the text must not repeat slot text beside it. Writing properly: …»). In run 193 that text was refused, but for its repeated words, not for the comment.
+    Each needs a phrase test that fails on the case.
+  evidence: Sample run 193 (run.step2 id 193, local database, 2026-11-27): one text each; the first three among the 9 stored, the comment in a refused text the run printed. The texts are in the session file. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27; spec Review Triage Log row 14).
+  summary: A sentence that begins with a slot starts in lower case when the slot's text does («bedre enn 68 % i driftsmargin …», «under medianen er driftsmarginen …»). It is solved where the card fills the template, not in the prompt: a slot at the start of the text or after `.`, `!` or `?` gets its first letter upper-cased. `src/engine/format.ts` has `lowerFirst` (used by `src/analysis/verdi-view.ts`) but no upper-casing counterpart, so 4.4 adds one beside it, with a test that fails on «bedre enn» at a sentence start.
+  evidence: Sample runs 185 and 193 (local database, 2026-11-27): in run 193, three of the 9 stored texts begin with a slot, one of them in lower case. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test), before the full run (Meinich, 2026-11-27; spec Review Triage Log rows 15–18).
+  summary: What Story 4.1's last sample run left, for 4.3:
+    - **Refused rows in the full run.** Run 199 refused 3 of 20 (15 %), all `placement_without_bedre_enn`. `decideWork` (`scripts/explain/plan.ts`) counts only an `explained` row under the same digest, model and prompt as unchanged, so a full run sends every failed row again, at the cost of a request each time and with no bound on how often. 4.3 plans how refused rows are sent again in the full run: how many attempts, whether a refusal reason is retried, and how the remainder is reported.
+    - **Phrase faults** for the phrase tests:
+      - `{{retning}}` with no figure before it (`unknown_slot`, run 195);
+      - «høyere-er-bedre», the item's `better` translated literally (two texts, run 195);
+      - a meta sentence about the text itself («Dette er en beskrivelse …, ikke en vurdering av hva selskapet bør gjøre», run 199, stored);
+      - a self-correction left in a text («Rettere: …», run 199, refused for its placement);
+      - the own value written twice in one sentence (run 199, stored).
+  evidence: Sample runs 195 (run.step2 id 195) and 199 (id 199), local database, 2026-11-27. The texts are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3, before the full run (review of Story 4.1, Review Triage Log R14, R16, R17).
+  summary: Three gaps in `pnpm explain` that matter only for the full run:
+    - **R14:** a template that leaves out what it must name (the profit gap, the largest capital gap, the first strength, the `mangler.dokument` note) is stored. Nothing checks `slotIds` against the payload.
+    - **R16:** a pending row whose batch's results have expired, or whose batch id is unknown, makes `model.results` throw, and every later run aborts before it sends.
+    - **R17:** pending rows are written in chunks of 1 000 outside a transaction. A failure after the first chunk leaves paid requests with no pending row, so their results are never collected.
+    Each needs a test that fails with its guard removed.
+  evidence: Review of Story 4.1's diff (Blind Hunter R14; Edge Case Hunter R16, R17), checked against `scripts/explain/run.ts`, `scripts/explain.ts` and `scripts/explain/request.ts` on 2026-11-27. Sample runs of 20 make one chunk and no stale batch, so none of the three has occurred.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3, before the full run (Meinich, 2026-11-27; Review Triage Log R13).
+  summary: `register.explanation` is keyed on `orgnr` alone, and `pnpm explain` upserts on it. A sample run overwrites a full-run row and its `sample` flag. A pending write replaces a good row before its batch returns. A failed rerun replaces a stored text with none. Before the full run, 4.3 decides the table's key and the write rule, so that:
+    - a `failed` or `pending` row never overwrites an `explained` one;
+    - a sample row never overwrites a row from a full run.
+    Each rule needs a test that fails with its guard removed. **Until then, no sample run is made after a full run.**
+  evidence: Review of Story 4.1's diff (Edge Case Hunter, Blind Hunter): `postgresStore.write` in `scripts/explain.ts` upserts every column `on conflict (orgnr)`. No full-run row exists yet, and 4.1 makes no more runs.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3, before the full run (Meinich, 2026-11-27; Review Triage Log R15).
+  summary: Only `not_in_dataset` gives the payload a note (`mangler.dokument`). A subject whose document basis is `document_missing`, `refused`, `failed_reconciliation` or `not_reconciled` has no document slot and no note, so the model sees no capital gap and no reason. Each of the four states gets a note in the page's own words, the words the key-figure rows show for that basis. A text must never say «ingen kapitalgap» (or the like) when the capital figures are missing. That needs a phrase test that fails on such a text for each of the four states.
+  evidence: Review of Story 4.1's diff (Blind Hunter): the `notes` line in `explanationAnalysis`, `src/analysis/explanation-payload.ts`, checks `basis === 'not_in_dataset'` only.

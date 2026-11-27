@@ -136,8 +136,10 @@ async function copyOut(sql: Sql, table: SeedTable, where = ''): Promise<Buffer> 
 
 // One seed table's file: register.fingerprint only the rows the licence gate
 // lets through (Story 2.5) and never a labelled-set company's (Story 5.4),
-// register.classification never a sample run's (Story 2.6), every other
-// table whole.
+// register.classification never a sample run's (Story 2.6),
+// register.explanation no row at all until Story 5.5 commits the stored
+// explanations, after Story 4.3 guards the full run with the figure and
+// phrase tests (Story 4.1), every other table whole.
 export async function copyTable(
   sql: Sql,
   table: SeedTable,
@@ -146,6 +148,7 @@ export async function copyTable(
   labelled: readonly string[],
 ): Promise<Buffer> {
   if (table.name === 'classification') return copyOut(sql, table, 'WHERE NOT sample');
+  if (table.name === 'explanation') return copyOut(sql, table, 'WHERE false');
   return copyOut(sql, table, table.name === 'fingerprint' ? fingerprintWhere(gate, allowList, labelled) : '');
 }
 

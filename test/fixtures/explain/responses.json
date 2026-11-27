@@ -1,0 +1,98 @@
+[
+  {
+    "custom_id": "100000001",
+    "result": {
+      "type": "succeeded",
+      "message": {
+        "stop_reason": "end_turn",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "x"
+          },
+          {
+            "type": "text",
+            "text": "Driftsmarginen i {{aar}} var {{driftsmargin.egen}}, {{driftsmargin.retning}} på {{driftsmargin.median}}; til beste fjerdedel er gapet {{driftsmargin.gap}} per år. Arbeidskapitalen er {{arbeidskapital.rang}}, {{arbeidskapital.gap}} som engangsbeløp. Varekostnadsandelen på {{vare.egen}} er en styrke, bedre enn {{vare.plassering}}."
+          }
+        ],
+        "usage": {
+          "input_tokens": 1800,
+          "output_tokens": 120
+        }
+      }
+    }
+  },
+  {
+    "custom_id": "100000002",
+    "result": {
+      "type": "succeeded",
+      "message": {
+        "stop_reason": "end_turn",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "x"
+          },
+          {
+            "type": "text",
+            "text": "Marginen er 3,4 %, {{driftsmargin.retning}}."
+          }
+        ],
+        "usage": {
+          "input_tokens": 1800,
+          "output_tokens": 120
+        }
+      }
+    }
+  },
+  {
+    "custom_id": "100000003",
+    "result": {
+      "type": "succeeded",
+      "message": {
+        "stop_reason": "end_turn",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "x"
+          },
+          {
+            "type": "text",
+            "text": "Marginen er {{driftsmargin.foo}}."
+          }
+        ],
+        "usage": {
+          "input_tokens": 1800,
+          "output_tokens": 120
+        }
+      }
+    }
+  },
+  {
+    "custom_id": "100000004",
+    "result": {
+      "type": "succeeded",
+      "message": {
+        "stop_reason": "max_tokens",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "x"
+          },
+          {
+            "type": "text",
+            "text": "Driftsmarginen er {{driftsmargin.egen}} og"
+          }
+        ],
+        "usage": {
+          "input_tokens": 1800,
+          "output_tokens": 1000
+        }
+      }
+    }
+  }
+]

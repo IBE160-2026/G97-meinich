@@ -82,8 +82,8 @@ development_status:
   3-8-vannfallet-kan-regnes-ut-for-hand: done  # issue #83
   epic-3-retrospective: done
 
-  epic-4: backlog
-  4-1-explanations-generated-in-batch: backlog
+  epic-4: in-progress
+  4-1-explanations-generated-in-batch: review
   4-2-the-figure-test-fr-53: backlog
   4-3-the-phrase-test-fr-54: backlog
   4-4-the-explanation-card: backlog

@@ -144,7 +144,7 @@ pnpm analysis:spread   # writes analysis/output/fingerprint-spread-62100.{json,m
 
 ### Seed
 
-The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`, `document.csv` and `document_column.csv`, which hold the read documents of the allow-listed companies — demo A and B, their peers whose documents are read, and the OCR reference set — and `fingerprint.csv`, step 2's fingerprints of those documents, none for a company in the labelled set) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. Who writes what under `seed/`: `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json`; `pnpm ingest:document-set` writes `seed/document-run.json`; `pnpm ingest:document-set --allow-list` writes the allow-list's entries for demo A, B and C and every company in A's and B's groups at bands 0, 1 and 2, each with its reason, which the export then writes back with the OCR reference entries; `seed/coverage.json` declares the covered industries and is the only hand-edited file. The allow-list names the orgnrs whose document figures the seed may hold, and a reviewer approves it in the pull request.
+The demo seed is the register data from a step-1 run, committed in `seed/demo/`: one CSV file per table (`company.csv`, `filing.csv`, `key_figures.csv`, `document.csv` and `document_column.csv`, which hold the read documents of the allow-listed companies — demo A and B, their peers whose documents are read, and the OCR reference set — `fingerprint.csv`, step 2's fingerprints of those documents, none for a company in the labelled set, and `explanation.csv`, step 2's explanations, which holds only its header until Story 4.3) and `manifest.json`, which records the seed-format version, the latest migration, the dataset, the industry codes fetched, the orgnrs with document figures, the read-date range and each file's SHA-256. Who writes what under `seed/`: `pnpm seed:export` writes `seed/demo/` and `seed/allow-list.json`; `pnpm ingest:document-set` writes `seed/document-run.json`; `pnpm ingest:document-set --allow-list` writes the allow-list's entries for demo A, B and C and every company in A's and B's groups at bands 0, 1 and 2, each with its reason, which the export then writes back with the OCR reference entries; `seed/coverage.json` declares the covered industries and is the only hand-edited file. The allow-list names the orgnrs whose document figures the seed may hold, and a reviewer approves it in the pull request.
 
 ```sh
 pnpm db:start && pnpm db:roles   # the database and LOADER_DATABASE_URL in .env
@@ -199,6 +199,13 @@ pnpm classify --sample 300 --max-usd 0.20     # a real run: needs ANTHROPIC_API_
 ```
 
 `--all` takes every AS in a covered industry in place of `--sample`. A real run refuses when its ceiling is above `--max-usd`.
+
+**Explanations (Story 4.1).** Step 2's `pnpm explain` writes the explanation of each covered AS's default analysis through the Batch API. The app needs no key, and the seed holds no explanation yet:
+
+```sh
+pnpm explain --plan --sample 20               # what it would send and cost: no key, writes only its run record
+pnpm explain --sample 20 --max-usd 0.05       # a real run: needs ANTHROPIC_API_KEY in .env
+```
 
 **Recovering an empty local database without a new step-1 run.** If the seed matches the latest migration, `pnpm seed` restores the data. If a new migration is already in the tree and the seed has not been re-exported, load the old seed with the old loader on the old schema, then migrate and export:
 

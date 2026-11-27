@@ -161,7 +161,7 @@ PRD ids are kept (FR numbers are stable; out-of-order ids are as in the PRD). St
 - AD-4: `register` not exposed via Supabase REST; Next.js reads server-side via SELECT-only `reader`; no open JSON endpoints except `/api/sok`; server-rendered pages embed only the figures of the shown analysis (incl. every peer value behind each figure) and the orgnr of each peer in the group, excluded included, which the exclude action writes into the URL (never a pool peer stage 4 or 5 removed; Story 2.8; in v1 stages 4 and 5 remove no one, so `group` = `pool`, Story 5.2); service role never used in a request.
 - AD-5: One module `src/url/analysis-state.ts` exports `parse`/`serialize`; all URL reading/building goes through it; canonical grammar (see UX-DR79; `/analyse/{orgnr}` is the result for an uncovered company and for one with no filing in the loaded data, and any `{fane}` redirects to it); invalid values fall back to defaults with a notice, nothing dropped silently.
 - AD-6: Server computes peer group, distributions, full-convergence amounts and exact s_med; exclude/restore/widen/reset are `router.push` soft navigations rendered on the server, previous figures dimmed while pending, last good state kept on failure; share and EV scaled in-browser by the same engine function and written via `window.history.replaceState` through one hook; `src/engine/wire.ts` codec with branded `WireDecimal` (decimal strings, never `number`); test asserts identical server/browser output in Node and a real browser engine.
-- AD-7: Model called only from batch step 2 with pinned model id; rows store model id + prompt hash; every `62.100` company has a stored default-group explanation; FR-53 at generation and seed load; FR-54 phrase list (e.g. `src/explanation/recommending-phrases.ts`) at generation (regenerate) and load (withhold+report); explanation shown only beside its default group with matching digest; test asserts no network request to register or model host during an analysis.
+- AD-7: Model called only from batch step 2 with pinned model id; rows store model id + prompt hash; every `62.100` company has a stored default-group explanation (the run built in Story 4.1, the full run in Story 4.3, after FR-53 and FR-54 guard it); FR-53 at generation and seed load; FR-54 phrase list (e.g. `src/explanation/recommending-phrases.ts`) at generation (regenerate) and load (withhold+report); explanation shown only beside its default group with matching digest; test asserts no network request to register or model host during an analysis.
 - AD-8: Filed amounts `bigint` øre; derived values in decimal.js 10.6.0 pinned exactly via one configured `Decimal.clone` exported from `src/engine`; postgres.js `int8`/`numeric` strings parsed to `bigint`/`Decimal`, never `Number()`; rounding only in the one formatter, per key-figures.md incl. whole-percent percentile and largest-remainder waterfall.
 - AD-9: One dataset per database; `pnpm seed`/`seed:full` truncate and replace; document rows, fingerprints and explanations carry a provenance dataset tag; CI allow-list test reads every committed seed file regardless of tag against `seed/allow-list.json` (A, B, C + A's/B's peers at all band steps + the OCR reference filings), and the committed OCR reference set; peer-group-subset test; idempotence test; committing fingerprints outside the allow-list waits for the licence gate.
 - AD-10: In-memory per-IP counters on `globalThis` in one process; applied at the Next.js proxy for every AD-12 surface incl. RSC payloads and soft navigations; separate budgets for search and analysis in one config module; refusal renders the refusal state; no IP written anywhere; README runs `pnpm start`, not `next dev`.
@@ -2366,8 +2366,9 @@ So that the text can only talk about figures Peerless computed, and no model is 
 
 **Given** a step-2 run over the loaded dataset
 **When** it finishes
-**Then** every 62.100 company has a stored explanation for its default peer group, built against the dataset it ships in, or a failure written to step 2's run record
+**Then** each company it covers has a stored explanation for its default peer group, built against the dataset it ships in, a failure written to step 2's run record, or, for an empty peer group, a count under its `EmptyReason` in step 2's run record
 **And** for a company outside the demo set the payload holds only the API figures present there (test: a non-allow-listed company's payload contains no document figure)
+**And** in this story the run is built with test mode and `--plan`, and makes one approved sample of 20 companies drawn outside the labelled set, marked `sample` and never exported; the full run over every 62.100 company is Story 4.3's, after the figure and phrase tests (Meinich, 2026-11-27; spec Change Log)
 
 **Given** the request path
 **When** any analysis is served
@@ -2396,6 +2397,7 @@ So that "the model never calculates" is enforced, not hoped for.
 **When** it reads text
 **Then** it recognises Norwegian formats exactly as `src/engine/format.ts` writes them — U+00A0 as thousands separator and before "kr" and "%", a decimal comma, U+2212 as minus — so "−501 428 kr" is read as the number −501 428 (test)
 **And** it also recognises the variants a model might write — hyphen-minus for minus, a regular or narrow space as thousands separator, "kr" before or after, "%" — so "-501 428 kr" or "1 170 000 kr" with regular spaces cannot slip through as text (tests for each variant, each caught when the figure is absent from the engine output)
+**And** it reads every string `src/engine/format.ts` writes, including its two-decimal exceptions (`formatPercentFine`, `formatTurnover`), so an explanation's number is compared with what the page displays (Epic 3 retro action 11; test)
 
 **Given** the test
 **When** CI runs
@@ -2444,6 +2446,10 @@ So that Peerless never tells a company what it should do.
 **When** it matches
 **Then** it matches case-insensitively and on word boundaries, so "bør" matches "Selskapet bør" but not a word containing it (tests)
 
+**Given** the figure test (Story 4.2) and the phrase test in place
+**When** `pnpm explain` runs over every 62.100 company (moved here from Story 4.1, Meinich 2026-11-27)
+**Then** every 62.100 company has a stored explanation for its default peer group, a failure written to step 2's run record, or a count under its `EmptyReason` there
+
 **Given** the PR
 **When** it is opened
 **Then** it states what could go wrong with this change — recommending phrasing the list misses, and false matches that withhold valid text (AGENTS.md Working style) — and the reasoning is recorded in `docs/ai-log.md`
@@ -2480,6 +2486,14 @@ So that I understand what the numbers mean without reading every row.
 **Given** the card at 375 px and 320 px
 **When** it renders
 **Then** it is full width, "Les mer" is at least 24 × 24 px, and the body does not scroll horizontally
+
+**Given** the card's read of `register.explanation`
+**When** a sample run has left rows marked `sample`
+**Then** the card reads only rows with `not sample` (test that fails with the condition removed; Story 4.1)
+
+**Given** the PR
+**When** it is verified
+**Then** it reports every tab's payload growth after gzip against `main`, and a growth above 30 kB on any tab is put to Meinich before the story goes on (Epic 3 retro action 9)
 
 ## Epic 5: Prove it and make it runnable — measurement, demo seed and About page
 

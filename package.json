@@ -33,6 +33,7 @@
     "analysis:seed-documents": "node scripts/compare-seed-documents.ts",
     "derive": "node scripts/derive.ts",
     "classify": "node scripts/classify.ts",
+    "explain": "node scripts/explain.ts",
     "analysis:spread": "node scripts/fingerprint-spread.ts",
     "analysis:layers": "node scripts/layer-measurement.ts",
     "restore:documents": "node scripts/restore-documents.ts"

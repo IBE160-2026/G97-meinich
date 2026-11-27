@@ -514,7 +514,15 @@ describe('the export and document figures', () => {
       .map((file) => ({ file, csv: parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8')) }))
       .filter(({ csv: [header = []] }) => header.includes('orgnr'));
     // Every seed file with an orgnr column; key_figures is keyed by its filing.
-    expect(withOrgnr.map(({ file }) => file).sort()).toEqual(['classification.csv', 'company.csv', 'document.csv', 'document_column.csv', 'filing.csv', 'fingerprint.csv']);
+    expect(withOrgnr.map(({ file }) => file).sort()).toEqual([
+      'classification.csv',
+      'company.csv',
+      'document.csv',
+      'document_column.csv',
+      'explanation.csv',
+      'filing.csv',
+      'fingerprint.csv',
+    ]);
     for (const { file, csv: [header = [], ...rows] } of withOrgnr) {
       const at = header.indexOf('orgnr');
       expect(
@@ -598,6 +606,7 @@ describe('the export order', () => {
       ['document_column.csv', headerOnly('document_column.csv')],
       ['fingerprint.csv', headerOnly('fingerprint.csv')],
       ['classification.csv', headerOnly('classification.csv')],
+      ['explanation.csv', headerOnly('explanation.csv')],
     ]);
     const out = path.join(scratch, 'order');
     await rolledBack(loader, async (tx) => {
@@ -729,6 +738,38 @@ describe('the licence gate', () => {
       const text = (await copyTable(tx, company, { open: false }, [LISTED], [])).toString('utf8');
       expect(text).toContain(`\n${UNLISTED},`);
     });
+  });
+});
+
+// Story 4.1: no explanation reaches the committed seed before Story 5.5
+// commits them, after Story 4.3 guards the full run with the figure and
+// phrase tests. The export writes
+// `WHERE false`: a stored row, sample or not, stays out, and the committed
+// file is its header alone.
+describe('the explanation export', () => {
+  const explanationTable = SEED_TABLES.find((table) => table.name === 'explanation');
+
+  it('the committed seed holds no explanation', async () => {
+    if (explanationTable === undefined) throw new Error('explanation is not a seed table');
+    const [committedHeader, ...committedRows] = parseCsv(readFileSync(path.join(root, SEED_DIR, 'explanation.csv'), 'utf8'));
+    expect(committedHeader).toContain('analysis_digest');
+    expect(committedRows).toEqual([]);
+    let exported: string[][] = [];
+    await rolledBack(admin, async (tx) => {
+      for (const sample of [false, true]) {
+        await tx`insert into register.company (orgnr, read_at) values (${sample ? '000000025' : '000000033'}, now())`;
+        await tx`
+          insert into register.explanation (orgnr, status, template, slot_ids, filing_year, analysis_digest, prompt_hash,
+                 model_id, dataset, sample, generated_at)
+          values (${sample ? '000000025' : '000000033'}, 'explained', 'Marginen er {{driftsmargin.egen}}.', ${['driftsmargin.egen']},
+                  2025, ${'0'.repeat(64)}, ${'0'.repeat(64)}, 'claude-haiku-5-5', 'demo', ${sample}, now())`;
+      }
+      // Its own two rows: a local database also holds the sample rows of a `pnpm explain --sample` run.
+      expect(await tx`select 1 from register.explanation where orgnr in ('000000025', '000000033')`).toHaveLength(2);
+      const [, ...rows] = parseCsv((await copyTable(tx, explanationTable, { open: true }, [], [])).toString('utf8'));
+      exported = rows;
+    });
+    expect(exported).toEqual([]);
   });
 });
 

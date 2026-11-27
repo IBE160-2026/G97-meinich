@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseArgs, readLabelled } from '../../scripts/classify.ts';
 import { type BatchRequest, type BatchResult, type ModelClient, NoModelKey, createModelClient, toBatchResult } from '../../scripts/classify/model-client.ts';
 import { type ClassificationRow, type Counts, type Failure, type Options, Refusal, type Store, planLines, runClassify } from '../../scripts/classify/run.ts';
-import { MODEL_ID, type Target, promptHash, requestInput, textDigest } from '../../scripts/classify/request.ts';
+import { MODEL_ID, type Target, promptHash, requestInput, requestParams, textDigest } from '../../scripts/classify/request.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 
 const AT = new Date('2026-11-08T12:00:00Z');
@@ -121,6 +121,18 @@ describe('a run', () => {
     expect(rows.get(A)).toMatchObject({ status: 'classified', business_type: null });
     expect(run.counts?.uklart).toBe(1);
     expect(Object.values(run.counts?.classified ?? {})).toEqual([0, 0, 0, 0]);
+  });
+
+  // Deferred entry of PR #54 (Story 4.1): a response that stopped on
+  // max_tokens was billed, so its usage is counted though it is failed.
+  it("counts a failed response's tokens", async () => {
+    const { store, rows, run } = fakeStore([target(A)]);
+    const { model } = stubModel(() => ({ kind: 'failed', reason: 'stop_max_tokens', usage: { inputTokens: 30, outputTokens: 2000 } }));
+    expect(await runClassify(deps(store, model), ALL, CAP)).toBe(1);
+    expect(rows.get(A)?.status).toBe('failed');
+    expect(run.failures).toEqual([{ orgnr: A, reason: 'stop_max_tokens' }]);
+    expect(run.counts?.input_tokens).toBe(30);
+    expect(run.counts?.output_tokens).toBe(2000);
   });
 
   it('a request with no result is failed', async () => {
@@ -266,10 +278,11 @@ describe('the batch result', () => {
     ({ custom_id: A, result: { type: 'succeeded', message: { stop_reason, content, usage: { input_tokens: 1, output_tokens: 2 } } } }) as never;
 
   it('refusal, truncation and errored are failed', () => {
-    expect(toBatchResult(message('refusal')).outcome).toEqual({ kind: 'failed', reason: 'stop_refusal' });
-    expect(toBatchResult(message('max_tokens')).outcome).toEqual({ kind: 'failed', reason: 'stop_max_tokens' });
+    const usage = { inputTokens: 1, outputTokens: 2 };
+    expect(toBatchResult(message('refusal')).outcome).toEqual({ kind: 'failed', reason: 'stop_refusal', usage });
+    expect(toBatchResult(message('max_tokens')).outcome).toEqual({ kind: 'failed', reason: 'stop_max_tokens', usage });
     for (const type of ['errored', 'expired', 'canceled']) {
-      expect(toBatchResult({ custom_id: A, result: { type } } as never).outcome).toEqual({ kind: 'failed', reason: `batch_${type}` });
+      expect(toBatchResult({ custom_id: A, result: { type } } as never).outcome).toEqual({ kind: 'failed', reason: `batch_${type}`, usage: null });
     }
   });
 
@@ -279,7 +292,11 @@ describe('the batch result', () => {
   });
 
   it('a message with no text is failed', () => {
-    expect(toBatchResult(message('end_turn', [])).outcome).toEqual({ kind: 'failed', reason: 'no_text_block' });
+    expect(toBatchResult(message('end_turn', [])).outcome).toEqual({
+      kind: 'failed',
+      reason: 'no_text_block',
+      usage: { inputTokens: 1, outputTokens: 2 },
+    });
   });
 });
 
@@ -290,7 +307,7 @@ describe('the arguments and the key', () => {
     vi.stubEnv('ANTHROPIC_API_KEY', '');
     const empty = mkdtempSync(path.join(tmpdir(), 'classify-'));
     try {
-      expect(() => createModelClient(empty)).toThrow(NoModelKey);
+      expect(() => createModelClient(empty, requestParams)).toThrow(NoModelKey);
     } finally {
       rmSync(empty, { recursive: true });
     }

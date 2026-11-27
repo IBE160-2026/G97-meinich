@@ -3,7 +3,7 @@
 // payload (src/analysis/explanation-payload.ts), and the check that a
 // template uses only the payload's slots and writes no digit of its own.
 // Pure, so a test can read exactly what a request holds.
-import type { ExplanationPayload, Slot } from '../../src/analysis/explanation-payload.ts';
+import { SLOT_FIELD_MEANINGS, type ExplanationPayload, type Slot, type SlotFieldMeaning } from '../../src/analysis/explanation-payload.ts';
 import { digest } from '../../src/engine/digest.ts';
 import type { RequestParams } from '../classify/model-client.ts';
 
@@ -47,9 +47,13 @@ export const REQUEST_SETTINGS = {
   output_config: { effort: 'low' },
 } as const;
 
-/** Digest of everything but the company: another value makes a stored row stale. */
-export function promptHash(): string {
-  return digest({ system: SYSTEM_PROMPT, settings: REQUEST_SETTINGS } as never);
+/**
+ * Digest of everything but the company: the system prompt, the settings and
+ * the slot-field legend every payload carries (`SLOT_FIELD_MEANINGS`), so a
+ * change to any of them makes a stored row stale.
+ */
+export function promptHash(meanings: readonly SlotFieldMeaning[] = SLOT_FIELD_MEANINGS): string {
+  return digest({ system: SYSTEM_PROMPT, settings: REQUEST_SETTINGS, slot_fields: meanings } as never);
 }
 
 /** The body of one request in a batch: the payload as JSON, and nothing else about the company. */

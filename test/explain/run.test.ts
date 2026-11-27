@@ -22,7 +22,7 @@ import {
   runExplain,
   storedResponses,
 } from '../../scripts/explain/run.ts';
-import { defaultAnalysis, type ExplanationAnalysis, type ExplanationPayload } from '../../src/analysis/explanation-payload.ts';
+import { SLOT_FIELD_MEANINGS, defaultAnalysis, type ExplanationAnalysis, type ExplanationPayload } from '../../src/analysis/explanation-payload.ts';
 import { DEMO_COMPANIES } from '../../src/demo-companies.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
 import { digest } from '../../src/engine/digest.ts';
@@ -124,7 +124,8 @@ describe('a run', () => {
     expect(modelId).toBe('claude-haiku-5-5');
     const row = rows.get(GOOD);
     expect(row?.model_id).toBe('claude-haiku-5-5');
-    expect(row?.prompt_hash).toBe(digest({ system, settings } as never));
+    const { slot_fields } = JSON.parse(String(messages[0]?.content)) as { slot_fields: unknown };
+    expect(row?.prompt_hash).toBe(digest({ system, settings, slot_fields } as never));
     expect(row?.dataset).toBe('full');
     expect(row?.analysis_digest).toBe(demoA.digest);
     expect(row?.filing_year).toBe(2025);
@@ -315,7 +316,13 @@ describe('the request and the template', () => {
     expect(params.max_tokens).toBe(MAX_TOKENS);
     expect(params.system).toBe(SYSTEM_PROMPT);
     expect(params.messages).toEqual([{ role: 'user', content: JSON.stringify(demoA.payload) }]);
-    expect(promptHash()).toBe(digest({ system: SYSTEM_PROMPT, settings: REQUEST_SETTINGS } as never));
+    expect(promptHash()).toBe(digest({ system: SYSTEM_PROMPT, settings: REQUEST_SETTINGS, slot_fields: SLOT_FIELD_MEANINGS } as never));
+  });
+
+  it('a changed slot-field meaning changes the prompt hash', () => {
+    expect(SLOT_FIELD_MEANINGS).not.toHaveLength(0);
+    const changed = SLOT_FIELD_MEANINGS.map((entry, i) => (i === 0 ? { ...entry, meaning: `${entry.meaning} Endret.` } : entry));
+    expect(promptHash(changed)).not.toBe(promptHash());
   });
 
   it.each([

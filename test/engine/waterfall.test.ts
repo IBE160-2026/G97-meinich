@@ -316,6 +316,7 @@ describe('the exact identities', () => {
     const result = marginWaterfall(SUBJECT, TEN, YEAR, 'NOK');
     if (result.kind !== 'decomposition') throw new Error('the fixture has a waterfall');
     const own = result.subject;
+    expect(result.steps).toHaveLength(4);
     for (const step of result.steps) {
       const pooled = pooledOnRevenue(step.pooledShare, own.revenue).ore;
       // Aₓ × R − cₓ × R, where cₓ × R is the subject's own line.
@@ -401,6 +402,7 @@ describe('display rounding', () => {
       expect(absolute <= half, `run ${run}`).toBe(true);
       // Every bar is its floor or its floor + 1, and the remainder 0 ≤ R ≤ 4.
       let remainder = 0n;
+      expect(d.barKroner, `run ${run}`).toHaveLength(4);
       d.barKroner.forEach((shownBar, i) => {
         const bar = bars[i] as Fraction;
         const exact = bar.numerator; // øre over bar.denominator

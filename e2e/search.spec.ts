@@ -299,9 +299,9 @@ test.describe('the API', () => {
     test(`"${query}" does not return every company`, async ({ request }) => {
       const response = await request.get(`/api/sok?q=${encodeURIComponent(query)}`);
       expect(response.status()).toBe(200);
-      const rows = (await response.json()) as { navn: string }[];
-      expect(rows.length).toBeLessThan(8);
-      for (const row of rows) expect(row.navn).toContain(query);
+      // No stored name contains "%" or "_" (the seed, as test/db/search.test.ts says), so a literal match finds
+      // none, and an unescaped wildcard would return the first 8: exactly [] tells them apart.
+      expect(await response.json()).toEqual([]);
     });
   }
 

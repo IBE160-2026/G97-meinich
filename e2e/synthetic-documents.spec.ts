@@ -686,6 +686,7 @@ test('the waterfall against the engine', async ({ page }) => {
   await expect(body.getByTestId('waterfall-sentence')).toHaveText(nb['waterfall.neverAdded']);
   await expect(body.locator('[data-wf-value="start"]')).toHaveText(formatKroner(kr(display.startKroner)));
   await expect(body.locator('[data-wf-value="end"]')).toHaveText(formatKroner(kr(display.endKroner)));
+  expect(steps).toHaveLength(4);
   for (const step of steps) {
     // The page names a bar by its cost share's key, never by an engine field name.
     const id = BAR_FIGURE[step.bar] ?? 'residual';

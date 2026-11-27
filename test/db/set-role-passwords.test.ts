@@ -75,6 +75,8 @@ async function expectAllLogins(dir: string): Promise<void> {
 }
 
 function expectNoPasswordPrinted(result: SpawnSyncReturns<string>, passwords: readonly string[]): void {
+  // One password per role.
+  expect(passwords).toHaveLength(Object.keys(VARIABLES).length);
   for (const password of passwords) {
     expect(result.stdout).not.toContain(password);
     expect(result.stderr).not.toContain(password);
@@ -161,6 +163,8 @@ describe('db:roles in a repository where .env is gitignored', () => {
     expect(result.status).toBe(0);
     const [reader, ...others] = passwordsIn(currentRepo());
     expect(reader).toBe(kept);
+    // The other three roles' passwords, each generated.
+    expect(others).toHaveLength(Object.keys(VARIABLES).length - 1);
     for (const password of others) expect(password).toMatch(/^[0-9a-f]{64}$/);
     expectNoPasswordPrinted(result, [kept, ...others]);
     await expectAllLogins(currentRepo());

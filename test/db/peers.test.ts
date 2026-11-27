@@ -249,6 +249,9 @@ describe('stage 4 against stored fingerprints', () => {
 
   it('reads no fingerprint as null, and a subject without one keeps the whole pool', async () => {
     const { funnel, candidates, group } = await groupForDemoA(0);
+    // Demo A's band-0 group in the committed seed: 434 (the e2e oracle's and the analysis page's count).
+    expect(group.pool).toHaveLength(434);
+    expect(candidates.length).toBeGreaterThanOrEqual(group.pool.length);
     for (const candidate of candidates) {
       expect(candidate.fingerprint === null || typeof candidate.fingerprint === 'object').toBe(true);
     }

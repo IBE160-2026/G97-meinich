@@ -139,6 +139,7 @@ describe('the keys', () => {
     limit(request, 'analysis', T0);
     limit(request, 'search', T0);
     const { salt, stores } = limiterState();
+    expect(Object.keys(stores).sort()).toEqual(['analysis', 'search']);
     for (const store of Object.values(stores)) {
       expect([...store.keys()]).toEqual([hashAddress(ADDRESS, salt)]);
       expect(JSON.stringify([...store])).not.toContain(ADDRESS);

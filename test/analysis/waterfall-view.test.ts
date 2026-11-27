@@ -179,6 +179,7 @@ describe('the shown waterfall', () => {
     const kr = (k: bigint) => (k * 100n).toString();
     expect(v.start.value).toBe(formatKroner(kr(engine.display.startKroner)));
     expect(v.end.value).toBe(formatKroner(kr(engine.display.endKroner)));
+    expect(engine.steps).toHaveLength(4);
     engine.steps.forEach((step, i) => expect(v.steps[i]?.value).toBe(formatSignedKroner(kr(step.kroner))));
     expect(engine.display.startKroner + engine.steps.reduce((a, s) => a + s.kroner, 0n)).toBe(engine.display.endKroner);
     // Geometry, from the displayed kroner: the levels after the start and each bar, on one scale from the lowest
@@ -410,6 +411,8 @@ describe('the payload boundary (AD-4)', () => {
       marks.geometries += parts.geometries.length;
       marks.zeros += parts.zeros.length;
       const found = parts.leaves;
+      // Every case's view has text; how many leaves depends on its shape (a decomposition or an absence).
+      expect(found).not.toHaveLength(0);
       for (const { path, value } of found) {
         expect(typeof value === 'string' || value === null, `${path}: ${typeof value}`).toBe(true);
       }

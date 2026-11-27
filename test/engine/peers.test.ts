@@ -851,6 +851,8 @@ describe('the match basis (Story 2.7)', () => {
       const group = assemblePeerGroup(subjectFiling, candidates, 0, AS_BUILT);
       expect(group.flagged).toEqual([]);
       expect(group.counts.stage5.flagged).toBe(0);
+      // A candidate with no fingerprint is always kept, so no group is empty; its size depends on the side's type.
+      expect(group.group, JSON.stringify(side)).not.toHaveLength(0);
       for (const peer of group.group) {
         expect(['accounts_only', 'industry_and_size_only']).toContain(matchBasis(subjectFiling, peer, AS_BUILT));
       }

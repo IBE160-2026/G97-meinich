@@ -72,9 +72,20 @@ describe('schema run', () => {
   });
 });
 
+/**
+ * Every relation in schema `run`, read by each test itself so that none
+ * depends on another having run: at least run.step1 and run.step2, and any
+ * relation a later migration adds, which every test below then covers.
+ */
+async function runRelations(): Promise<string[]> {
+  const names = await relations();
+  expect(names).toEqual(expect.arrayContaining(['run.step1', 'run.step2']));
+  return names;
+}
+
 describe('every relation in run', () => {
   it('lets its one writer SELECT, INSERT and UPDATE, and nothing more', async () => {
-    for (const name of await relations()) {
+    for (const name of await runRelations()) {
       const writer = writerOf(name);
       for (const privilege of ALL_TABLE_PRIVILEGES) {
         expect(await has(writer, name, privilege), `${writer} ${privilege} on ${name}`).toBe(
@@ -85,7 +96,7 @@ describe('every relation in run', () => {
   });
 
   it('gives the other batch role and loader no write', async () => {
-    for (const name of await relations()) {
+    for (const name of await runRelations()) {
       const other = writerOf(name) === 'ingest' ? 'derive' : 'ingest';
       for (const role of [other, 'loader']) {
         for (const privilege of WRITES) {
@@ -96,7 +107,7 @@ describe('every relation in run', () => {
   });
 
   it('gives reader and the API roles no privilege at all', async () => {
-    for (const name of await relations()) {
+    for (const name of await runRelations()) {
       for (const role of ['reader', ...API_ROLES]) {
         for (const privilege of ALL_TABLE_PRIVILEGES) {
           expect(await has(role, name, privilege), `${role} ${privilege} on ${name}`).toBe(false);
@@ -106,7 +117,7 @@ describe('every relation in run', () => {
   });
 
   it('grants exactly its writer SELECT, INSERT and UPDATE in the ACL, besides the owner', async () => {
-    for (const name of await relations()) {
+    for (const name of await runRelations()) {
       const rows = await sql<{ grantee: string; privilege: string }[]>`
         select case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end as grantee,
                a.privilege_type as privilege

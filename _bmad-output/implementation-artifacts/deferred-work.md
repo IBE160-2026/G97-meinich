@@ -299,3 +299,12 @@
   owner: Story 4.2 (the figure test), proposed by the BMAD session, 2026-11-27 (Meinich asked for 4.4 or a story with a better reason). Why 4.2 rather than 4.4: 4.2's parser must read "every string `src/engine/format.ts` writes" and compare each number with what the page displays (its third AC, Epic 3 retro action 11). A count written outside `format.ts` is a number format the parser would otherwise have to accept as an exception. 4.4 renders the card but writes no number of its own.
   summary: Two counts are written with `String(...)`, outside `src/engine/format.ts`, so they have no thousands separator ("1036", where `format.ts` would write "1 036" with U+00A0): the `antall` slot's text (`explanationAnalysis` in `src/analysis/explanation-payload.ts`) and the page header's peer count (`src/components/analysis/company-header.tsx:53`, `analysis.peerCount`). Both go through one count formatter in `format.ts`, with a test that fails on "1036". The `aar` slot keeps `String(...)`: a year takes no separator. This also brings the `antall` slot under Story 4.1's own boundary that every slot text comes from `format.ts` or `nb.json`.
   evidence: Sample run 181 (2026-11-27): a stored text reads "blant 1036 sammenlignbare selskaper", which is the `antall` slot's text. The header shows the same unformatted count on any page with a group of a thousand or more.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3 (the phrase test) (Meinich, 2026-11-27; spec Review Triage Log rows 5–7).
+  summary: Three wording errors that no template check in 4.1 catches, for 4.3's phrase tests:
+    - a figure's name misspelled («Driftsmargenen» for Driftsmargin);
+    - a clause without a verb («Kvartilgrensen for de beste ligger på {{beste}}, og {{plassering}}.»);
+    - the `mangler.dokument` sentence paraphrased in the model's own words before the slot itself is used, so the reader gets it twice.
+    Each needs a phrase test that fails on the case, and a decision whether it refuses the template or flags it.
+  evidence: Sample run 185 (run.step2 id 185, local database, 2026-11-27): the misspelling in one stored text, the verbless clause in one, the paraphrase in one (`register.explanation`, `sample`). The texts are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. Totals only.

@@ -328,6 +328,27 @@ describe('the request and the template', () => {
     expect(parseTemplate(text, demoA.slots)).toEqual({ kind: 'refused', reason });
   });
 
+  // Sample run 185: «bedre enn bedre enn» in 12 of 20 templates (Meinich, 2026-11-27).
+  it.each([
+    ['Selskapet er bedre enn {{driftsmargin.plassering}}.', 'the start of plassering before it'],
+    ['Selskapet er BEDRE Enn {{driftsmargin.plassering}}.', 'the same in another case'],
+    ['Marginen ligger {{driftsmargin.retning}} medianen.', 'the end of retning after it'],
+    ['Marginen ligger {{driftsmargin.retning}} Medianen, og mer.', 'the same in another case, before a comma'],
+    ['Det er {{antall}} sammenlignbare selskaper.', "the end of antall's page phrase after it"],
+    ['Gapet er {{driftsmargin.gap}} kr per år.', 'kr after an amount'],
+  ])('refuses %j as repeated_slot_words: %s', (text) => {
+    expect(parseTemplate(text, demoA.slots)).toEqual({ kind: 'refused', reason: 'repeated_slot_words' });
+  });
+
+  it('keeps words beside a slot that do not repeat its own', () => {
+    const text = 'Marginen ligger {{driftsmargin.retning}}, og selskapet er {{driftsmargin.plassering}} av {{antall}}.';
+    expect(parseTemplate(text, demoA.slots)).toEqual({
+      kind: 'template',
+      template: text,
+      slotIds: ['driftsmargin.retning', 'driftsmargin.plassering', 'antall'],
+    });
+  });
+
   it('keeps a template that uses only slots, each id once in order of first use', () => {
     expect(parseTemplate(' {{aar}}: {{driftsmargin.egen}} og {{aar}}. ', demoA.slots)).toEqual({
       kind: 'template',

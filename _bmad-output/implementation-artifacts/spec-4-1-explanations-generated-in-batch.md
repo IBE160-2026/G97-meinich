@@ -69,6 +69,7 @@ context:
 | Forbidden fields | any subject | no orgnr, name, fingerprint or classification | `test/explain/payload.test.ts` "holds no identity, fingerprint or classification" |
 | Digit outside slot | `"Marginen er 3,4 %"` | not stored; `digit_outside_slot` | `test/explain/run.test.ts` "a digit outside a slot is not stored" |
 | Unknown slot | `{{driftsmargin.foo}}` | not stored; `unknown_slot` | `test/explain/run.test.ts` "an unknown slot is not stored" |
+| Repeated slot words (added by Meinich, 2026-11-27, after run 185) | `bedre enn {{x.plassering}}`, `{{x.retning}} medianen`, in any case | not stored; `repeated_slot_words` | `test/explain/run.test.ts` "refuses … as repeated_slot_words" (six cases); "keeps words beside a slot that do not repeat its own" |
 | Empty group | `analysisCount = 0` | no call; counted under its `EmptyReason` | `test/explain/run.test.ts` "an empty group makes no call and is counted by reason" |
 | Over cap | `--max-usd` below ceiling | nothing sent, exit 1 | `test/explain/run.test.ts` "refuses above --max-usd" |
 | Sample draw | `--sample 20` | no labelled-set orgnr; rows `sample` | `test/explain/run.test.ts` "a sample is drawn outside the labelled set" |
@@ -91,6 +92,20 @@ Sources for the matrix:
 - **Tests that exist on main:** `test_gone_unit_is_deleted_everywhere`, "makes no outbound request" and the key-boundary test (its regex is now `scripts\/classify` and becomes `scripts\/(classify|explain)`). Every other named test is new in 4.1.
 
 </frozen-after-approval>
+
+## Review Triage Log
+
+Wording found in sample run 185's stored texts, triaged by Meinich (2026-11-27). Counts are from `register.explanation` (`sample`), totals only.
+
+| # | Finding | Decision |
+|---|---|---|
+| 1 | `slot_fields` in English: «kvartil» in 16 of 20 templates, «fjerdedel» in none | fixed in 4.1: bokmål, the page's words |
+| 2 | «bedre enn bedre enn» in 12 of 20 | fixed in 4.1: `repeated_slot_words`, and the legend and prompt name it |
+| 3 | one text partly in English | fixed in 4.1: the prompt says bokmål although the keys are English |
+| 4 | «1 sammenlignbare selskap»: the model inflects the count's noun | fixed in 4.1: `antall` is the page's phrase |
+| 5 | «Driftsmargenen»: a figure's name misspelled | Story 4.3, its phrase tests (deferred-work.md) |
+| 6 | a clause without a verb («… ligger på {{beste}}, og {{plassering}}») | Story 4.3 (deferred-work.md) |
+| 7 | `mangler.dokument` paraphrased before the slot is used | Story 4.3 (deferred-work.md) |
 
 ## Code Map
 
@@ -133,6 +148,7 @@ Sources for the matrix:
 - **2026-11-27, Meinich (after sample run 181):** the payload states once what each slot field means (`slot_fields`, no digit): `beste` is the best-quartile boundary, never one company; `gap` is to that boundary, never to the median; `retning`'s text already holds «medianen»; `aar` and `antall` are written as slots. Each figure item carries `better` (higher or lower), so a cost share's boundary below its own value reads right. That field is the BMAD session's addition, for the cost-share sentence. The payload boundary above ("only slot ids, slot texts … and fixed structural keys") now also admits these two fixed parts. The prompt says never to copy a slot's text, after all seven refusals of run 181 turned out to be the year or the count written as digits.
 - **2026-11-27, Meinich:** a sample run prints each refused text with its reason (never stored or recorded, never with an orgnr), so a sample explains itself (`test/explain/run.test.ts` "a sample run prints each refused text with its reason, stores no text and shows no orgnr").
 - **2026-11-27, sample run 185** (the same 20, ceiling $0.0077, at most Meinich's $0.01): 20 explained, 0 refused. The three wording errors of run 181 are gone, and the capital-gap text is stored and holds the rules. New wording errors ("bedre enn bedre enn" in 12 texts; one text partly in English) are put to Meinich (session file).
+- **2026-11-27, Meinich (after sample run 185):** `slot_fields` is in bokmål and in the page's own words: «beste fjerdedel», never «kvartil»; «median»; «bedre enn» as `keyFigures.placement` writes it. The prompt says to write bokmål although the JSON's keys are English. `parseTemplate` refuses words beside a slot that repeat the slot's own, compared without case (`repeated_slot_words`, a new matrix row). The `antall` slot's text is the page's phrase (`analysis.peerCount` / `analysis.peerCountOne`, as in `company-header.tsx`), so the model never inflects the noun. The thousands separator stays with Story 4.2.
 - **2026-11-27, rebase on `main`:** the branch now sits on `8df1e63`. `deferred-work.md` kept main's Story 5.7 entry on `peer-assembly-time` (PR #90's CI). It does not concern 4.1.
 
 ## Sample run plan

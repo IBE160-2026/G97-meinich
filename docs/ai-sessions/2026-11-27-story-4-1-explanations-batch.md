@@ -3,7 +3,7 @@
 **Date:** 2026-11-27
 **Tool:** Claude Code (claude-opus-5-5), `bmad-build`, with one implementation subagent
 **Story / issue:** #88, Story 4.1 (FR-52; AD-7, AD-9, AD-13, AD-19)
-**Result:** branch `story/4.1-explanations-batch`, not pushed yet (PR to follow); sample runs 181, 185, 193, 195 and 199
+**Result:** PR #91, https://github.com/IBE160-2026/G97-meinich/pull/91 (branch `story/4.1-explanations-batch`); sample runs 181, 185, 193, 195 and 199
 
 ## Goal
 
@@ -707,4 +707,4 @@ The subagent replaced two first attempts that did not fail:
     - upper-casing a sentence that starts with a slot.
 - **Resolved:** the entry on a failed response's usage (PR #54's review).
 - **AI log:** `docs/ai-log.md`, the Story 4.1 entry.
-- **PR:** to follow, once Meinich says to push.
+- **PR:** #91, https://github.com/IBE160-2026/G97-meinich/pull/91

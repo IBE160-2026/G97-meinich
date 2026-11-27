@@ -5079,6 +5079,289 @@ Every test asserts unconditionally: no `expect` inside a condition in Vitest or 
 - CI green on `476e398`. The first run on `26e82f2` failed in `peer-assembly-time` and passed when the job was rerun.
 - The review session's review with six line comments: https://github.com/IBE160-2026/G97-meinich/pull/90#pullrequestreview-6087515087, and its finding on `a9aa5db`, sent in the 12:41 prompt.
 
+## Story 4.1: explanations generated in batch (#88, PR #91)
+
+Every `Fra meg:` prompt below was drafted by the review session and pasted by the human, who made the decisions in it. The BMAD session started a new transcript with `/clear` before the first prompt. Its earlier prompts for Story 4.1 (the opening at 2026-11-26 19:33 and the checkpoint answers at 2026-11-27 08:19) are in the previous section.
+
+### Prompts to the BMAD session
+
+**2026-11-27 13:17**: rebase the 4.1 branch on PR #90.
+```
+Fra meg:
+
+PR #90 er merget som afe9a8e (gh pr view 90), og #89 er lukket. Retroens handlingspunkt 8 er dermed ferdig på main.
+
+1. Rebase story/4.1-explanations-batch på origin/main. Branchen har én commit, f96a1cb, med specen og kjørerekkefølgen i epics.md.
+   - Løs eventuelle konflikter i epics.md og retroen uten å miste noe fra main.
+   - Specen skal vise til #89/PR #90 for punkt 8, ikke beskrive det som arbeid i 4.1.
+2. Sjekk specen mot det som nå står på main:
+   - AGENTS.md «Testing» har reglene for assertions (ingen expect i en betingelse, e2e leser bare med en assertion som prøver på nytt, en løkke sjekker lengden først). Alle nye tester i 4.1 skal følge dem, og pnpm lint håndhever de to første.
+   - deferred-work.md har oppføringen for peer-assembly-time (Story 5.7). Den gjelder ikke 4.1.
+3. Vis meg specen til godkjenning, før du endrer kode:
+   - I/O-matrisen, med testen som feiler for hver rad.
+   - Spec Change Log med beslutningene fra 2026-11-27.
+   - Planen for prøvekjøringen: --plan-utskriften (ingen nøkkel, ingen kall), taket og --max-usd 0.05.
+   - De utsatte oppføringene som nevner 4.3 og 4.4.
+   - Det åpne spørsmålet om varekostnad som styrke, med totalen.
+   Ingen modellkall før jeg sier ja til taket.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* the branch rebased on `origin/main` and the spec brought up to date with it (`323c249`, `b609ce0`), waiting for approval with no code, no model call and no push.
+
+**14:00**: the spec approved, with matrix rows and an owner.
+```
+Fra meg:
+
+Specen godkjennes når disse to punktene er rettet. Review-sesjonen har lest specen på b609ce0.
+
+1. I/O-matrisen mangler rader for vern som specen selv beskriver. Legg dem til, hver med testen som feiler:
+   - Digest (AD-13), spec linje 48: en endret peer, et endret tall i en slot eller en endret ordlyd for en slot gir en ny digest, og den samme analysen gir den samme digesten.
+   - Lagrede kolonner: model_id er claude-haiku-5-5, prompt_hash er hashen av prompten som ble sendt, og dataset er lest fra register.dataset.
+   - Kjørepost: hver kjøring av pnpm explain, også --plan og prøvekjøringen, skriver én post i run.step2 med modusen explain og tellingene. Det gjelder også når kjøringen ender med exit 1.
+   - Samme valg som siden: for demo A, demo B og selskapet med bare API-tall er den første styrken i payloaden den samme som strengthCard sin (src/analysis/oversikt-cards.ts), og rekkefølgen på kapitalgapene er den samme som largestCapitalGap sin. Fasiten hentes fra de to funksjonene, ikke fra payload-modulen.
+   - Nøkkelen: en ekte kjøring uten ANTHROPIC_API_KEY nektes med exit 1 og sender ingenting. Nøkkelen skrives ikke ut, verken i loggen eller i run.step2.
+   - Punkt 10: --plan skriver ut tellingen per formulering for retning og rang.
+2. Oppføringen om WHERE false får én eier, Story 4.3, fordi det er der ekte forklaringer lagres. Rett deferred-work.md og Spec Change Log punkt 7.
+
+Varekostnad som styrke stopper ikke 4.1. Legg spørsmålet inn som en utsatt oppføring for Story 4.4, med totalene du har (62 av 8 356, hvorav 45 med nøyaktig 0 %, telt 2026-11-27 som reader).
+
+Når dette er gjort: sett specen til ready-for-dev og begynn på koden. Commit i logiske steg. Stopp før modellkallet og vis meg --plan-utskriften for --sample 20 og prisen lest på nytt fra prissiden. Ingen kall før jeg sier ja. Ikke push før jeg sier fra.
+```
+*Changed:* the matrix rows for the digest, the stored columns, the run record, the same choice as the page, the refusal without a key and the wording counts (`0dde614`); the build up to the stop before the model call: the model client generic over request params (`5993045`), the payload, slot table and digest (`d06c90a`), `register.explanation` and the seed re-export (`4224031`), `pnpm explain` with test mode and `--plan` (`f0fc9a0`), the docs (`7ac5672`) and an AC corrected to the matrix's run record (`1361539`); then `--plan --sample 20` with a ceiling of $0.0065.
+
+**16:42**: yes to the first sample run, with the price date.
+```
+Fra meg: Ja til taket på $0,0065 (--plan --sample 20, kjørepost id 165 og 178 i run.step2, lest i den lokale databasen). Gjør dette i rekkefølge:
+
+Prisdatoen. Sett PRICE_DATE i scripts/classify/plan.ts til 2026-11-27 i en egen commit, siden prisen ble lest på nytt i dag og ikke er endret. Kjør --plan --sample 20 på nytt og sjekk at bare datoen er endret.
+Kjøringen. Kjør pnpm explain --sample 20 --max-usd 0.05.
+Rapporten. Den skal ha med:
+Utfall: antall forklart og feilet, med feilgrunn (stop_max_tokens, unknown_slot, digit_outside_slot osv.).
+Tokens og kostnad: faktiske tokens inn og ut mot anslaget, og faktisk kostnad.
+Kjøreposten: id-en i run.step2.
+Eksempeltekstene: de som kjøringen skriver ut, ferdig utfylt. Ta med teksten for det ene selskapet som har kapitalgap, også hvis den ikke er blant eksemplene. Sjekk hver tekst mot reglene:
+ingen anbefaling;
+resultatgap og kapitalgap er aldri lagt sammen eller rangert mot hverandre;
+rangord bare ved sitt eget kapitalgap;
+ingenting om andre år eller trender.
+Hva prøvekjøringen ikke dekker: si i rapporten, i sesjonsfilen og i PR-en at kapitalgap-teksten bare er prøvd på én tekst, og legg det som et punkt for 4.3.
+Ingen orgnr. Ikke i rapporten, sesjonsfilen eller PR-en.
+PR-teksten. Nevn at endringen i ingest/tests/test_run_record.py flytter reader_commit, så pnpm analysis:seed-documents melder referansedokumentene som lest av en eldre versjon til neste --reread.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* `PRICE_DATE` set to 2026-11-27 (`6cbdcc9`); sample run 181: 13 of 20 explained, 7 refused for `digit_outside_slot`, $0.0019; three wording errors in every stored text (`beste` as one company, the gap to the median, «medianen medianen») (`9df12c3`).
+
+**16:52**: read the refused texts, fix the wording in 4.1, sample again.
+```
+Fra meg: Svar på de to spørsmålene i rapporten din fra prøvekjøringen (run.step2 id 181):
+
+Les resultatene fra batchen på nytt. Det gjelder batchen fra kjøring 181. Les nøkkelen fra .env, og skriv den aldri ut. Det skal ikke gjøres noe modellkall.
+Skriv de sju avviste tekstene ordrett i sesjonsfilen, uten orgnr. Marker hvert siffer utenfor en slot.
+Skill ut svaret til selskapet med kapitalgap, og vurder det mot de fire reglene.
+Rett ordlyden i 4.1, før PR-en.
+Payloaden skal si hva hvert felt betyr, i en forklaring som står én gang og ikke per slot. Forklaringen skal ikke ha sifre.
+beste er grensen for beste fjerdedel i gruppen, ikke ett selskap.
+gap er kroner per år ved full tilnærming til beste fjerdedel, ikke til medianen.
+Teksten i retning har allerede ordet «medianen», så det skal ikke gjentas etter sloten.
+For en kostnadsandel er lavere bedre, så beste fjerdedel kan ligge under selskapets egen verdi.
+Rett også prompten mot sifrene du fant i punkt 1.
+Legg til en test som viser at forklaringen er med i payloaden. Payload-testen skal fortsatt finne verken orgnr, navn eller registertekst.
+Ny prøvekjøring med de samme 20. Rekkefølgen i sampleOrder er fast, så resultatene kan sammenlignes med kjøring 181.
+Si hvordan kjøringen sender alle 20 på nytt når prompt-hashen er endret.
+Kjør --plan først. Er taket ≤ $0,01, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp.
+La en prøvekjøring skrive ut hver avviste tekst sammen med grunnen, slik den skriver ut eksemplene. Teksten skal aldri lagres, og orgnr skal aldri vises. Da forklarer neste prøvekjøring seg selv.
+Rapporten. Den skal ha med:
+kjøring 181 og den nye kjøringen side om side: forklart, feilet med grunn, tokens og kostnad;
+om hver av de tre feilene i ordlyden er borte i de lagrede tekstene;
+om teksten med kapitalgap nå er lagret og holder reglene. Hvis ja, rett den utsatte oppføringen for 4.3 til å si det. Hvis nei, vis den avviste teksten.
+Utsatt oppføring. antall-sloten og company-header.tsx:53 bruker String(...) uten tusenskille («1036»), utenom format.ts. Sett 4.4 som eier, med en begrunnelse, eller en annen story du kan begrunne bedre.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* the seven refused texts read from batch 181 with no model call (the year and the count written as digits); the payload's field legend (`0f0a279`), the prompt's rules and the printed refused texts (`2cb42f3`, `7535588`); sample run 185: 20 of 20, $0.0027, the three errors gone (`7f47723`); a test counting only its own rows (`06a7739`).
+
+**17:45**: the legend in bokmål, repeated words as a rule, the count as the page's phrase.
+```
+Fra meg: Svar på rapporten fra kjøring 185 (run.step2 id 185, 20 forklart; tellingene er lest fra register.explanation i den lokale databasen). Rett dette i 4.1:
+
+1. Forklaringen av feltene på bokmål. slot_fields skal bruke sidens egne ord:
+   - «beste fjerdedel», aldri «kvartil»;
+   - «median»;
+   - «bedre enn», slik keyFigures.placement skriver det.
+   16 av 20 lagrede maler skriver nå «kvartil», og ingen skriver «fjerdedel». Prompten skal si at teksten skrives på bokmål selv om JSON-nøklene er på engelsk.
+
+2. Dobbeltord som avvisningsgrunn i parseTemplate. Avvis en mal der ordene rett før en slot gjentar starten på slotens tekst, eller ordene rett etter gjentar slutten. Det skal sammenlignes uten å skille store og små bokstaver.
+   - Sjekk mot «bedre enn {{x.plassering}}» (12 av 20 maler nå) og «{{x.retning}} medianen».
+   - Gi grunnen et eget navn i TemplateRefusal.
+   - Legg til en matriserad med test som feiler når regelen fjernes.
+
+3. antall med sidens frase. Teksten i sloten skal være analysis.peerCount eller analysis.peerCountOne, som i company-header.tsx:53, så modellen ikke bøyer substantivet selv. Tusenskillet blir fortsatt hos 4.2, slik din oppføring sier.
+
+4. Ny kjøring med de samme 20. Kjør --plan først. Er taket ≤ $0,01, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp.
+
+5. Rapporten. Den skal ha med:
+   - 181, 185 og den nye kjøringen side om side;
+   - hvor mange maler som skriver «kvartil», «fjerdedel», «bedre enn bedre enn» og engelsk;
+   - hvor mange som ble avvist for dobbeltord;
+   - om teksten med kapitalgap fortsatt holder reglene.
+
+6. Til 4.3 i triage-loggen. Disse skal ikke rettes her:
+   - «Driftsmargenen»;
+   - setningen uten verb;
+   - at mangler.dokument blir omskrevet før sloten brukes.
+   Det er arbeid for 4.3 sine frasetester.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* the legend in the page's words and `antall` as `analysis.peerCount` (`16a30ec`), `repeated_slot_words` in `parseTemplate` (`9f97ee5`); sample run 193: 9 of 20, 6 cut at `max_tokens` and 5 refused for repeated words (`6720b0d`).
+
+**17:56**: `MAX_TOKENS` 2 000, the sentence boundary, a stop rule.
+```
+Fra meg: Svar på rapporten fra kjøring 193 (run.step2 id 193: 9 forklart, 11 feilet, stop_max_tokens 6 og repeated_slot_words 5; lest i den lokale databasen).
+
+1. MAX_TOKENS til 2 000, og behold tenkingen. Kjøring 185 hadde tenking og forklarte 20 av 20, og feilene i 193 er svar som ble kuttet. Oppdater Spec Change Log med begrunnelsen.
+
+2. Dobbeltord sammenlignes ikke over ., ! eller ?, i begge retninger. Testtilfeller:
+   - «{{x.retning}}. Medianen …» godtas;
+   - «… medianen. {{x.retning}}» godtas;
+   - «bedre enn {{x.plassering}}» avvises fortsatt.
+   Matriseraden skal fortsatt feile når regelen slås av.
+
+3. Test peerCountOne med en håndlaget analyse med én sammenlignbar. Payload-modulen er ren, så det trengs ikke noe selskap i seeden.
+
+4. Ny kjøring med de samme 20. Kjør --plan først. Er taket ≤ $0,015, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp.
+
+5. Når prøvingen stopper:
+   - Er minst 18 av 20 forklart, og ingen lagret tekst har «kvartil», «bedre enn bedre enn», engelsk eller gap mot medianen, stopper prøvingen i 4.1. Det som gjenstår, går til 4.3.
+   - Er resultatet dårligere, stopp og rapporter før du endrer noe mer.
+
+6. Rapporten skal ha med:
+   - 181, 185, 193 og den nye kjøringen side om side;
+   - feil per grunn;
+   - antall maler med «kvartil», «fjerdedel», «bedre enn bedre enn» og engelsk;
+   - om teksten med kapitalgap fortsatt holder reglene.
+
+7. Til triage-loggen, med utsatt oppføring:
+   - Til 4.3:
+     - frasen som lar plasseringen følge av gapet;
+     - «Ingen av nøkkeltallene ligger under grensen …», som sier mer enn payloaden;
+     - at mangler.dokument leses som at selskapet ikke har tall i det hele tatt;
+     - modellens egen kommentar på engelsk i en tekst («Let me correct: …»).
+   - Til 4.4: stor forbokstav når en setning begynner med en slot. Den løses der kortet fyller inn malen (lowerFirst finnes i format.ts), ikke i prompten.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* `MAX_TOKENS` 2 000 with thinking kept (`126a941`), repeated words compared within a sentence (`ba60bf7`), `peerCountOne` tested with a hand-made group (`0c5606a`); sample run 195: 9 of 20, 10 refused for «bedre enn» before the placement slot (`2082793`).
+
+**18:33**: the placement slot as only the percent, with «bedre enn» required in code.
+```
+Fra meg: Alternativ 1, med en regel i koden i tillegg (run.step2 id 195: 9 forklart, repeated_slot_words 10, unknown_slot 1; lest i den lokale databasen).
+
+1. Plasseringssloten blir bare prosenten («66 %»), laget med format.ts som før. Leseren ser fortsatt «bedre enn 66 %», ordrett som keyFigures.placement.
+   - Ny avvisningsgrunn i parseTemplate: hver {{x.plassering}} må stå rett etter «bedre enn» i samme setning, uten å skille store og små bokstaver. Ellers avvises malen. Gi grunnen et eget navn i TemplateRefusal.
+   - Testtilfeller:
+     - «bedre enn {{x.plassering}}» godtas;
+     - «blant de {{x.plassering}} beste» avvises;
+     - «bedre enn. {{x.plassering}}» avvises.
+   - Ny matriserad med test som feiler når regelen slås av.
+   - Oppdater slot_fields og prompten så de sier at modellen skriver «bedre enn» foran plasseringen.
+   - Skriv beslutningen og begrunnelsen i Spec Change Log: modellen skrev «bedre enn» i 12 av 20 tekster uten regelen og 10 av 20 med den, og det leseren ser, er uendret.
+
+2. Kreditering i sesjonsfilen: testtilfellet du la til for punktum bakover, «… bedre enn. {{driftsmargin.plassering}} …», er din rettelse. Mitt tilfelle, «… medianen. {{x.retning}}», ville blitt godtatt uansett.
+
+3. Siste kjøring i 4.1, på de samme 20. Kjør --plan først. Er taket ≤ $0,015, har du ja til pnpm explain --sample 20 --max-usd 0.05 uten ny stopp. Er det høyere, stopp. Etter denne kjøringen gjør du ingen flere prompt-endringer eller kjøringer i 4.1, uansett resultat. Det som gjenstår, går til 4.3 med utsatt oppføring.
+
+4. Til triage-loggen for 4.3:
+   - {{retning}} uten nøkkeltall foran (unknown_slot);
+   - «høyere-er-bedre», en direkte oversettelse av better;
+   - andelen avviste maler i den siste kjøringen. 4.3 trenger en plan for hvordan avviste rader sendes på nytt i hele kjøringen, siden decideWork bare regner forklarte rader som uendret.
+
+5. Rapporten skal ha med:
+   - alle fem kjøringene side om side;
+   - feil per grunn;
+   - ordtellingene som før;
+   - om teksten med kapitalgap er lagret og holder reglene.
+   Etter det går du videre til review-steget og sesjonsfilen.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* the placement slot's text the percent only (`223be1b`), `placement_without_bedre_enn` (`8bd3324`); sample run 199, 4.1's last by decision: 17 of 20, $0.0036, the five runs $0.0168 together (`bcc1eb2`); three review layers on the diff, R1–R26, the fixes in `9241e95`…`8a60830`, the triage (`b35824b`), the session file (`59912ba`).
+
+**19:07**: R13 and R15 to 4.3, Story 5.5 commits the seed, e2e before push.
+```
+Fra meg: Svar på punkt 1–4 i rapporten etter kjøring 199 (run.step2 id 199: 17 forklart, placement_without_bedre_enn 3; summen av 181–199 er 170 030 / 32 797 tokens, $0,0168; lest i den lokale databasen).
+
+1. R13: utsett til 4.3. Oppføringen skal si at 4.3 bestemmer nøkkelen og skriveregelen for register.explanation før hele kjøringen:
+   - en feilet eller ventende rad overskriver aldri en forklart rad;
+   - en prøverad overskriver aldri en rad fra en hel kjøring.
+   Til da kjøres ingen prøvekjøring etter en hel kjøring.
+
+2. R15: utsett til 4.3. Oppføringen skal si at tilstandene document_missing, refused, failed_reconciliation og not_reconciled får en merknad med sidens egne ord. Den skal også si at en tekst aldri kan si «ingen kapitalgap» når kapitaltallene mangler.
+
+3. R25: Story 5.5 committer forklaringene i seeden. Se epics.md:2698 («writes the stored explanations into the committed demo seed»), mens 4.3 gjør hele kjøringen (epics.md:164).
+   - Rett AGENTS.md fra «WHERE false until Story 4.3 guards the full run» til 5.5.
+   - Rett oppføringen for 4.3 som løfter WHERE false.
+   - Rett alt annet i specen eller dokumentene som sier 4.3 om dette.
+   - PR-teksten skal ha linjen «Planning documents:» med det som ble endret.
+
+4. docs/ai-log.md: rettelsen er grei fordi oppføringen aldri har vært på main. Nevn den i sesjonsfilen.
+
+5. E2e før push. AGENTS.md sier at hele testsuiten kjøres før første push.
+   - Sjekk at det ikke henger igjen Node- eller Chromium-prosesser, og si hvor mye minne som er ledig.
+   - Kjør chromium i deler, slik dere gjorde i #89. Kjør deretter --project=db-down, og til slutt --project=synthetic --no-deps.
+   - Rapporter antall beståtte tester per kjøring.
+
+6. Sett specen til done og story-en til review i sprint-status.yaml i samme commit. Vis meg deretter commit-listen siden 8df1e63.
+
+Ikke push før jeg sier fra.
+```
+*Changed:* Story 5.5 named as the story that commits explanations to the seed, in AGENTS.md, the deferred entry, comments and the spec (`3da5973`); e2e with one worker (chromium 66, 77 and 66, `db-down` 7, `synthetic` 31); the spec set to `done` (`272e3e3`).
+
+**19:27**: the spec back to `in-review`, then push.
+```
+Fra meg: Én rettelse før push. Den er review-sesjonens feil, ikke din: punkt 6 i forrige prompt ba deg sette specen til done. AGENTS.md sier at specen står på in-review mens story-en står på review i sprint-status.yaml, og settes til done først ved merge. Det samme ble rettet i 5.4 (835a8d4 → 2d1aba7).
+
+1. Sett specen tilbake til in-review i en egen commit. sprint-status.yaml har allerede 4.1 på review. Skriv i sesjonsfilen at feilen kom fra review-sesjonens prompt.
+
+2. Commit-antallet: git rev-list --count 8df1e63..story/4.1-explanations-batch gir 47, ikke 50. Rett tallet der du har skrevet det.
+
+3. PR-teksten:
+   - Fjern den doble «Planning documents»: behold linjen «Planning documents:» og dropp overskriften rett over.
+   - Legg til én linje under «Review»: utkastene til promptene og funnene underveis kom fra review-sesjonen, en egen Claude Code-økt. Det gjelder «kvartil» mot sidens «fjerdedel» i kjøring 185, rettingen av ordlyden i 4.1, at dobbeltord og «bedre enn» ble regler i parseTemplate, og R13, R15 og R25. Krediteringen står i sesjonsfilen.
+
+4. Deretter: push branchen, opprett PR-en med Closes #88 fra pr-4-1.md, legg PR-lenken inn i sesjonsfilen i en egen commit, og push igjen. Rapporter PR-nummeret og commit-hashen CI kjører på.
+```
+*Changed:* the spec back to `in-review` (`d0e5463`), the review session's credit in the session file (`2935f35`), the session log (`895cdff`); the branch pushed and PR #91 opened; the session file linking the PR (`e589766`).
+
+### Prompts to the review session
+
+- The end of `merget - fikser du treet og resten` (2026-11-27 13:04, previous section): after the housekeeping, the review session drafted the 13:17 prompt.
+- The BMAD session's checkpoint after the rebase (2026-11-27 13:58): the review session read the spec on `b609ce0`, found no matrix rows for the digest, the stored columns, the run record, the same choice as the page and the refusal without a key, recommended Story 4.3 as the owner of lifting `WHERE false` (corrected to Story 5.5 at 19:06), and drafted the 14:00 prompt.
+- The BMAD session's interim report on the price (2026-11-27 14:06): the review session said no answer was needed.
+- The BMAD session's stop before the model call (2026-11-27 16:37): the review session recomputed the ceiling from the Batch prices, read plan records 165 and 178 in `run.step2`, checked the restored document counts and the sample draw in `scripts/explain/plan.ts`, found the stale price date and that only one of the 20 had a capital gap, and drafted the 16:42 prompt.
+- The BMAD session's report on run 181 (2026-11-27 16:50): the review session read the run record and the examples in the session file, found that `antall` is written with `String(...)`, as the page's header is, and drafted the 16:52 prompt.
+- The BMAD session's report on run 185 (2026-11-27 17:38): the review session counted the stored templates, found «kvartil» in 16 of 20 and «fjerdedel» in none against the page's «beste fjerdedel», proposed repeated slot words as a refusal in `parseTemplate` and the count as the page's phrase, and drafted the prompt.
+- `kan jeg få i format til å kopiere` (2026-11-27 17:44): the review session gave the prompt as one copyable block, pasted at 17:45.
+- The BMAD session's report on run 193 (2026-11-27 17:55): the review session read the run record, recommended `MAX_TOKENS` 2 000 with thinking kept, a stop rule of 18 of 20, and upper-casing a sentence-initial slot in Story 4.4, and drafted the 17:56 prompt.
+- The BMAD session's report on run 195 (2026-11-27 18:31): the review session recommended the placement slot as only the percent with «bedre enn» required in code, the next run as 4.1's last, and drafted the 18:33 prompt. Its own test case for a full stop before a slot would have passed anyway; the BMAD session's case was the one that crossed it.
+- The BMAD session's report on run 199 and the review (2026-11-27 19:06): the review session summed the five runs in `run.step2`, found that `epics.md:2698` gives Story 5.5 the seed export while AGENTS.md said 4.3, and drafted the 19:07 prompt. Its point 6 asked for the spec to be set to `done`, which was wrong.
+- The BMAD session's report before push (2026-11-27 19:25): the review session caught that error in its own prompt, counted 47 commits (not 50), read the PR draft, and drafted the 19:27 prompt.
+- The BMAD session's report on PR #91 (2026-11-27 19:30): the review session checked the spec status, found that the CI run on `895cdff` was cancelled, not passed, and waited for the run on `e589766`, which passed.
+- `lag review-utkast` (2026-11-27 19:46): the review session read the diff and the stored capital-gap text, and drafted the review with six line comments: the rank words, the count's noun, refused texts in a full run, batch provenance, and two acknowledgements.
+- `post review` (2026-11-27 19:49): the review session posted it on `e589766`.
+- `merget` (2026-11-27 19:50): the review session reset `main`, deleted the branch, set the spec and the story to `done`, put the review's P1–P4 in the spec's triage log and `deferred-work.md` for Story 4.3, added the Merge section to the session file (`c10f7a7`), and wrote this section.
+
+### Result
+
+`pnpm explain` builds each covered AS's default analysis through the request path's own reads, sends a closed slot table to `claude-haiku-5-5` on the Batch API, and stores only templates that `parseTemplate` accepts: no digit outside a slot, no unknown slot, «bedre enn» before every placement, no word repeating a slot's own. Five sample runs on the same 20 companies, each after Meinich's yes to its ceiling, cost $0.0168 and ended at 17 of 20 explained, below the threshold of 18; what remains goes to Story 4.3. No explanation reaches the seed until Story 5.5. PR #91 was merged on 2026-11-27 as `c145245` and closed #88.
+
+### Checks before merging
+
+- CI green on `e589766`. The run on `895cdff` was cancelled by the next push.
+- The review session's review with six line comments, no change asked for before merge: https://github.com/IBE160-2026/G97-meinich/pull/91#pullrequestreview-6092786567
+
 ---
 
 ## Going forward

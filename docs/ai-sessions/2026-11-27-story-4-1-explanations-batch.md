@@ -245,6 +245,8 @@ Input roughly doubled: the legend and the longer prompt go with every request. T
 
 These are put to Meinich. They are phrase errors, not figure errors: every number is the engine's.
 
+**Review fix after the sample runs (`06a7739`):** `test:db` failed on "the committed seed holds no explanation", because it counted the whole `register.explanation` table and the local sample rows were in it. It now counts the two rows it inserts. `test/db/derive.test.ts` also fails while the 5.4 dump is restored. That is the order AGENTS.md "Testing" expects (step 4 before step 7), and it is not 4.1's.
+
 **What the samples do not cover:** the capital-gap wording is tried on one stored text only, the one company in the sample with capital gaps. The deferred entry for Story 4.3 now says so, and asks for a sample with several capital-gap companies before the full run.
 
 

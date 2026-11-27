@@ -61,11 +61,14 @@ test('byte-identical Verdi texts in Node and Chromium for the same wire values',
   const code = await bundle();
   await page.setContent('<!doctype html><html lang="nb"><head><meta charset="utf-8"></head><body></body></html>');
   await page.addScriptTag({ content: code });
-  const browser = await page.evaluate(
-    ({ wires, multiples }) =>
-      (globalThis as unknown as { WireIdentity: { texts: (w: unknown, m: unknown) => string } }).WireIdentity.texts(wires, multiples),
-    { wires: WIRES, multiples: MULTIPLES },
-  );
-  expect(browser).toBe(node);
-  expect(await page.evaluate(() => navigator.userAgent)).toMatch(/Chrome/);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        ({ wires, multiples }) =>
+          (globalThis as unknown as { WireIdentity: { texts: (w: unknown, m: unknown) => string } }).WireIdentity.texts(wires, multiples),
+        { wires: WIRES, multiples: MULTIPLES },
+      ),
+    )
+    .toBe(node);
+  await expect.poll(() => page.evaluate(() => navigator.userAgent)).toMatch(/Chrome/);
 });

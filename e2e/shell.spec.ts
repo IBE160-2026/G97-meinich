@@ -1,5 +1,16 @@
+import type { Locator } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
+import { noSidewaysScroll } from './seed.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
+
+/** The lines `locator` wraps to, polled until the layout settles. */
+const expectLineCount = (locator: Locator) =>
+  expect.poll(() =>
+    locator.evaluate((el) => {
+      const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
+      return Math.round(el.getBoundingClientRect().height / lineHeight);
+    }),
+  );
 
 for (const width of [375, 320]) {
   test.describe(`shell at ${width} px`, () => {
@@ -20,29 +31,19 @@ for (const width of [375, 320]) {
       );
       await expect(page.getByRole('contentinfo')).toContainText(nb['footer.source']);
 
-      const scroll = await page.evaluate(() => ({
-        scrollWidth: document.documentElement.scrollWidth,
-        bodyScrollWidth: document.body.scrollWidth,
-        innerWidth: window.innerWidth,
-      }));
-      expect(scroll.scrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
-      expect(scroll.bodyScrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
+      await noSidewaysScroll(page);
 
       // The link wraps to exactly two lines and stays inside the viewport.
       // Measure with the webfont in place, not the fallback.
       await page.evaluate(() => document.fonts.ready);
       const how = page.getByTestId('header-how');
-      const lines = await how.evaluate((el) => {
-        const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
-        return Math.round(el.getBoundingClientRect().height / lineHeight);
-      });
-      expect(lines).toBe(2);
-      const box = await how.boundingBox();
-      expect(box).not.toBeNull();
-      if (box) {
+      await expectLineCount(how).toBe(2);
+      await expect(async () => {
+        const box = await how.boundingBox();
+        if (box === null) throw new Error('header link not rendered');
         expect(box.x).toBeGreaterThanOrEqual(0);
         expect(box.x + box.width).toBeLessThanOrEqual(width);
-      }
+      }).toPass();
     });
   });
 }
@@ -51,9 +52,5 @@ test('the header link stays on one line on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/');
   await page.evaluate(() => document.fonts.ready);
-  const lines = await page.getByTestId('header-how').evaluate((el) => {
-    const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
-    return Math.round(el.getBoundingClientRect().height / lineHeight);
-  });
-  expect(lines).toBe(1);
+  await expectLineCount(page.getByTestId('header-how')).toBe(1);
 });

@@ -67,8 +67,11 @@ describe('each rule reproduces its value', () => {
     expect(resolved?.derived).toBe(true);
     expect(derived?.ore).toBe(resolved?.ore);
     expect(derived === null ? null : derivedValue(derived)).toBe(resolved?.ore);
-    // Every operand is stated: a derived value never feeds another derivation.
-    for (const operand of derived?.derivation?.operands ?? []) expect(STATED[operand.field as keyof ApiInputs]).toBe(operand.ore);
+    // Every operand is stated: a derived value never feeds another derivation. Each field derives from its own
+    // number of operands, but never from none.
+    const operands = derived?.derivation?.operands ?? [];
+    expect(operands, field).not.toHaveLength(0);
+    for (const operand of operands) expect(STATED[operand.field as keyof ApiInputs]).toBe(operand.ore);
   });
 
   it.each(FIELDS)('the API input %s with an operand missing too is underivable, as in resolveApiInputs', (field) => {

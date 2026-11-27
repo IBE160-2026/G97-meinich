@@ -1057,7 +1057,10 @@ describe('the margin waterfall (Story 3.3)', () => {
     expect(open).toContain('focusable="false"');
     expect(open).toMatch(/aria-label="Fra [^"]+ \(peer-gruppen samlet\) til [^"]+, fire poster, sum [+−][^"]+ kr"/);
     // Every mark inside is aria-hidden; nothing in it is focusable.
-    for (const element of (svg?.[1] ?? '').match(/<(path|line)[^>]*>/g) ?? []) expect(element).toContain('aria-hidden="true"');
+    const marks = (svg?.[1] ?? '').match(/<(path|line)[^>]*>/g) ?? [];
+    // The bars, connectors and axis: how many follows the drawing, but a chart without marks fails.
+    expect(marks).not.toHaveLength(0);
+    for (const element of marks) expect(element).toContain('aria-hidden="true"');
     expect(svg?.[0]).not.toMatch(/tabindex/i);
     for (const [fold, id] of [
       [desktop, 'kf-d-wf-numbers'],

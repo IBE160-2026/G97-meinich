@@ -28,7 +28,10 @@ describe('the model key', () => {
   });
 
   it('nothing in the request path names a model host or batch step 2', () => {
-    for (const file of sources('src')) {
+    const files = sources('src');
+    // The walk reaches the request path: its one database client is among the files read.
+    expect(files).toContain(path.join('src', 'server', 'db.ts'));
+    for (const file of files) {
       const text = read(file);
       expect(text, file).not.toMatch(/api\.anthropic\.com|scripts\/classify/);
     }

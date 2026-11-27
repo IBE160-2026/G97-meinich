@@ -197,6 +197,71 @@ describe('restricted imports (AD-8, AD-19)', () => {
   });
 });
 
+// Epic 3 retro action 8 (issue #89): no expect inside a condition, and e2e
+// reads a page value only through a retried assertion.
+describe('test assertions (Epic 3 retro action 8)', () => {
+  const header = "import { expect, test } from '@playwright/test';\n";
+
+  it.each([
+    ['an if', "if (Math.random() > 1) expect(1).toBe(1);"],
+    ['an else', "if (Math.random() > 1) expect(1).toBe(1);\nelse expect(2).toBe(2);"],
+    ['a ternary', "const x = Math.random() > 1 ? expect(1).toBe(1) : null;\nexport { x };"],
+    ['a logical expression', "Math.random() > 1 && expect(1).toBe(1);"],
+    ['a switch', "switch (Math.random()) {\n  case 1:\n    expect(1).toBe(1);\n}"],
+    ['a catch', "try {\n  JSON.parse('x');\n} catch (error) {\n  expect(error).toBeDefined();\n}"],
+    ['an if, on expect.soft', "if (Math.random() > 1) expect.soft(1).toBe(1);"],
+  ])('rejects an expect inside %s, in Vitest and in Playwright', async (_, body) => {
+    expect(await inlineRuleIds(`${header}${body}\n`, 'test/fixture.test.ts')).toContain('no-restricted-syntax');
+    expect(await inlineRuleIds(`${header}${body}\n`, 'e2e/fixture.spec.ts')).toContain('no-restricted-syntax');
+  });
+
+  it('allows an expect outside a condition, and a throw inside one', async () => {
+    const code = `${header}const v = { kind: 'a' as string };\nif (v.kind !== 'a') throw new Error('kind');\nexpect(v.kind).toBe('a');\n`;
+    expect(await inlineRuleIds(code, 'test/fixture.test.ts')).toEqual([]);
+    expect(await inlineRuleIds(code, 'e2e/fixture.spec.ts')).toEqual([]);
+  });
+
+  it.each([
+    ['kept in a variable', "const text = await page.locator('h1').textContent();\nexport { text };"],
+    ['passed to expect', "expect(await page.locator('h1').innerText()).toBe('x');"],
+    ['passed to a function', "expect(Number(await page.locator('h1').innerText())).toBe(1);"],
+    ['a box', "const box = await page.locator('h1').boundingBox();\nexport { box };"],
+    ['an evaluate', "const n = await page.evaluate(() => window.history.length);\nexport { n };"],
+    ['a count', "expect(await page.locator('li').count()).toBe(1);"],
+    ['an attribute in a selector', "page.locator(`[id=\"${await page.locator('b').getAttribute('aria-controls')}\"]`);"],
+    ['iterated', "for (const li of await page.locator('li').all()) await expect(li).toBeVisible();"],
+    ['returned', "export const read = () => page.locator('h1').textContent();"],
+    // Review of PR #90: a read kept unawaited and awaited later, .then on a read, and reads listed for Promise.all.
+    ['kept unawaited and awaited later', "const text = page.locator('h1').textContent();\nexpect(await text).toBe('x');"],
+    ['followed by .then', "await page.locator('h1').textContent().then((text) => text ?? '');"],
+    [
+      'listed for Promise.all',
+      "const [a, b] = await Promise.all([page.locator('a').textContent(), page.locator('b').textContent()]);\nexport { a, b };",
+    ],
+  ])('rejects a snapshot read in e2e: %s', async (_, body) => {
+    const code = `${header}import type { Page } from '@playwright/test';\ndeclare const page: Page;\n${body}\n`;
+    expect(await inlineRuleIds(code, 'e2e/fixture.spec.ts')).toContain('no-restricted-syntax');
+  });
+
+  it('allows a read inside expect.poll or toPass, a DOM call inside evaluate, and an awaited call whose value is unused', async () => {
+    const code = [
+      header,
+      "import type { Page } from '@playwright/test';",
+      'declare const page: Page;',
+      "await expect.poll(() => page.locator('h1').textContent()).toBe('x');",
+      'await expect(async () => {',
+      "  const box = await page.locator('h1').boundingBox();",
+      '  expect(box).not.toBeNull();',
+      '}).toPass();',
+      "await expect.poll(() => page.locator('li').evaluateAll((items) => items.map((item) => item.getAttribute('id')))).toEqual([]);",
+      'await page.evaluate(() => document.fonts.ready);',
+      "await expect(page.locator('h1')).toHaveText('x');",
+      '',
+    ].join('\n');
+    expect(await inlineRuleIds(code, 'e2e/fixture.spec.ts')).toEqual([]);
+  });
+});
+
 describe('clean fixture', () => {
   it('passes every rule', async () => {
     expect(await ruleIds('clean-engine.ts', 'src/engine/fixture.ts')).toEqual([]);

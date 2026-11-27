@@ -117,10 +117,13 @@ describe('each formula on a synthetic company', () => {
   });
 
   it('gives every value source document and names its inputs', () => {
-    for (const key of DOCUMENT_KEY_FIGURE_KEYS) {
+    const values = DOCUMENT_KEY_FIGURE_KEYS.flatMap((key) => {
       const result = f[key];
-      if (result.kind === 'value') expect(result.source, key).toBe('document');
-    }
+      return result.kind === 'value' ? [{ key, result }] : [];
+    });
+    // Every figure but 7 and 8, which are not read in v1.
+    expect(values.map(({ key }) => key)).toEqual(['ebitda', 'vare', 'lonn', 'andre', 'total', 'kfd', 'lgd', 'oml', 'vekst', 'kontant']);
+    for (const { key, result } of values) expect(result.source, key).toBe('document');
     expect(f.vekst).toMatchObject({
       inputs: [
         { field: 'sumDriftsinntekter', column: 'current', derived: false },

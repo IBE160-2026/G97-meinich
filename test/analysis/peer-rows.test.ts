@@ -122,6 +122,7 @@ describe('peerRows', () => {
       [peer('900000001'), peer('900000002', { fingerprint: FORHANDLER }), peer('900000003', { classification: null })],
       'NOK',
     );
+    expect(rows).toHaveLength(3);
     for (const row of rows) {
       expect(Object.keys(row)).not.toContain('grunnlag');
       expect(Object.keys(row)).not.toContain('grunnlagKi');

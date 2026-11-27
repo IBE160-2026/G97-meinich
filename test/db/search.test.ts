@@ -58,11 +58,18 @@ describe('name search', () => {
   });
 
   it.each(['%', '_', '%%', '%_%', '\\'])('matches %s literally, not as a wildcard', async (query) => {
-    const rows = await byName(query);
-    expect(rows.length).toBeLessThan(8);
-    // pg_trgm extracts no trigram from punctuation, so only a name that
-    // contains the characters themselves could match.
-    for (const row of rows) expect(row.navn).toContain(query);
+    // pg_trgm extracts no trigram from punctuation, so only a name that contains
+    // the characters themselves could match, and no stored name does (checked
+    // below). A literal match finds none; an unescaped wildcard would return 8.
+    expect(await byName(query)).toEqual([]);
+  });
+
+  it('holds no name with %, _ or a backslash, so the literal-match test above expects none', async () => {
+    const [row] = await readerSql()<{ n: number }[]>`
+      select count(*)::int as n from register.company
+      where strpos(navn, '%') > 0 or strpos(navn, '_') > 0 or strpos(navn, ${'\\'}) > 0
+    `;
+    expect(row?.n).toBe(0);
   });
 
   it.each(['dm%t', 'd_mit'])('does not let %s match ADMMIT AS through a wildcard', async (query) => {

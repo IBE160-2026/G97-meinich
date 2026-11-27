@@ -47,7 +47,7 @@ async function expectRefusalPage(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(nb['rateLimit.title']);
   await expect(page).toHaveTitle(nb['rateLimit.pageTitle']);
   // No figure, no orgnr, no part of an analysis, no search.
-  expect(await page.locator('body').innerText()).not.toMatch(/\d/);
+  await expect(page.locator('body')).not.toContainText(/\d/, { useInnerText: true });
   await expect(page.getByRole('combobox')).toHaveCount(0);
   await expect(page.getByRole('table')).toHaveCount(0);
 }
@@ -145,13 +145,15 @@ for (const width of [375, 320]) {
       await exhaustAnalysis(request);
       expect((await page.goto(OVERSIKT))?.status()).toBe(429);
       await expectRefusalPage(page);
-      const scroll = await page.evaluate(() => ({
-        doc: document.documentElement.scrollWidth,
-        body: document.body.scrollWidth,
-        inner: window.innerWidth,
-      }));
-      expect(scroll.doc).toBeLessThanOrEqual(scroll.inner);
-      expect(scroll.body).toBeLessThanOrEqual(scroll.inner);
+      await expect(async () => {
+        const scroll = await page.evaluate(() => ({
+          doc: document.documentElement.scrollWidth,
+          body: document.body.scrollWidth,
+          inner: window.innerWidth,
+        }));
+        expect(scroll.doc).toBeLessThanOrEqual(scroll.inner);
+        expect(scroll.body).toBeLessThanOrEqual(scroll.inner);
+      }).toPass();
     });
   });
 }

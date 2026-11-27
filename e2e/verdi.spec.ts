@@ -28,6 +28,7 @@ import { formatKronerExact, formatMultiple, formatWholePercentNumber, wholeKrone
 import { apiInputsFromRow } from '../src/engine/inputs.ts';
 import { computeApiKeyFigures, resolveApiInputs } from '../src/engine/key-figures.ts';
 import { expectNoPeerFields, expectWireSet } from './payload.ts';
+import { expectHistoryLength, historyLength } from './history.ts';
 import {
   OUTSIDE,
   companyShown,
@@ -107,9 +108,9 @@ async function countReplaceState(page: Page): Promise<void> {
   });
 }
 
-async function replaced(page: Page): Promise<string[]> {
-  return page.evaluate(() => (window as unknown as { __replaced: string[] }).__replaced);
-}
+/** The URLs replaceState was called with, polled until they are what the test expects. */
+const expectReplaced = (page: Page, message?: string) =>
+  expect.poll(() => page.evaluate(() => (window as unknown as { __replaced: string[] }).__replaced), message);
 
 /** Records every non-empty text the multiple field's status region takes, from now on: one per announcement. */
 async function recordAnnouncements(page: Page): Promise<void> {
@@ -123,9 +124,9 @@ async function recordAnnouncements(page: Page): Promise<void> {
   });
 }
 
-async function announced(page: Page): Promise<string[]> {
-  return page.evaluate(() => (window as unknown as { __announced: string[] }).__announced);
-}
+/** The status region's announcements, polled until they are what the test expects. */
+const expectAnnounced = (page: Page, message?: string) =>
+  expect.poll(() => page.evaluate(() => (window as unknown as { __announced: string[] }).__announced), message);
 
 const control = (page: Page) => page.getByRole('radiogroup', { name: nb['verdi.control.label'] });
 const step = (page: Page, share: number | 'median') => control(page).locator(`[data-share-step="${share}"]`);
@@ -191,21 +192,17 @@ test.describe('Verdi (Story 3.5)', () => {
     });
     const status = page.getByTestId('verdi-status');
     await expect(status).toHaveText('');
-    const before = await page.evaluate(() => ({ length: window.history.length, replaced: (window as unknown as { __replaced: string[] }).__replaced.length }));
+    const before = await historyLength(page);
+    await expectReplaced(page).toEqual([]);
     await step(page, 25).click();
     await expect(page).toHaveURL(new RegExp(`/analyse/${orgnr}/verdi\\?andel=25$`));
     await expect(step(page, 25)).toBeFocused();
     await expect(step(page, 25)).toHaveAttribute('aria-checked', 'true');
     await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: oracle.at(25), full: oracle.full }));
     await expect(status).toHaveText(fill('verdi.announce.profit', { a: oracle.at(25), full: oracle.full }));
-    const after = await page.evaluate(() => ({
-      length: window.history.length,
-      replaced: (window as unknown as { __replaced: string[] }).__replaced,
-    }));
     // One replaceState, with andel in the URL; no history entry added.
-    expect(before.replaced).toBe(0);
-    expect(after.replaced).toEqual([`/analyse/${orgnr}/verdi?andel=25`]);
-    expect(after.length).toBe(before.length);
+    await expectReplaced(page).toEqual([`/analyse/${orgnr}/verdi?andel=25`]);
+    await expectHistoryLength(page).toBe(before);
     // The arrow keys move to the next step and choose it, focus with it. The
     // fixture's state: the subject's median step lies between 25 and 50, so
     // it is the next step after 25.
@@ -215,7 +212,7 @@ test.describe('Verdi (Story 3.5)', () => {
     await expect(page).toHaveURL(new RegExp(`/analyse/${orgnr}/verdi\\?andel=median$`));
     await expect(status).toHaveText(fill('verdi.announce.profit', { a: oracle.at('median'), full: oracle.full }));
     // No entry was added by the second change either.
-    expect(await page.evaluate(() => window.history.length)).toBe(before.length);
+    await expectHistoryLength(page).toBe(before);
   });
 
   test('the arrow keys wrap and choose; Tab leaves the group and Shift+Tab returns to the checked step', async ({ page }) => {
@@ -224,7 +221,7 @@ test.describe('Verdi (Story 3.5)', () => {
     await companyShown(page, navn);
     // The fixture's state: the subject's six steps, the median step between 25 and 50, all enabled.
     await expect(control(page).getByRole('radio')).toHaveCount(6);
-    expect(await control(page).getByRole('radio').evaluateAll((radios) => radios.map((r) => r.getAttribute('data-share-step')))).toEqual([
+    await expect.poll(() => control(page).getByRole('radio').evaluateAll((radios) => radios.map((r) => r.getAttribute('data-share-step')))).toEqual([
       '0',
       '25',
       'median',
@@ -265,8 +262,12 @@ test.describe('Verdi (Story 3.5)', () => {
     // replaceState writes the URL before React renders the cards again (PR #78, CI): read them
     // only once the median step is checked, and check they are the median step's.
     await expect(step(page, 'median')).toHaveAttribute('aria-checked', 'true');
-    const before = await rendered(page).getByTestId('verdi-cards').innerText();
-    expect(before).toContain(fill('verdi.profit.share', { andel: fill('verdi.share.percent', { n: oracle.percent }) }));
+    // Read once they hold the median step's share, retried until they do.
+    let before = '';
+    await expect(async () => {
+      before = await rendered(page).getByTestId('verdi-cards').innerText();
+      expect(before).toContain(fill('verdi.profit.share', { andel: fill('verdi.share.percent', { n: oracle.percent }) }));
+    }).toPass();
     await page.reload();
     await companyShown(page, navn);
     await expect(step(page, 'median')).toHaveAttribute('aria-checked', 'true');
@@ -279,8 +280,7 @@ test.describe('Verdi (Story 3.5)', () => {
     const { oracle, orgnr, navn } = SUBJECT;
     await page.goto(`/analyse/${orgnr}/oversikt`);
     await companyShown(page, navn);
-    const hero = await page.getByTestId('hero-amount').innerText();
-    expect(hero).toBe(oracle.full);
+    await expect(page.getByTestId('hero-amount')).toHaveText(oracle.full);
     await tabs(page).getByRole('link', { name: nb['tabs.verdi'] }).click();
     await expect(page.getByRole('heading', { level: 2, name: nb['tabs.verdi'] })).toBeFocused();
     await page.goto(`/analyse/${orgnr}/verdi?multippel=6.5`);
@@ -297,10 +297,10 @@ test.describe('Verdi (Story 3.5)', () => {
     await expect(page).toHaveURL(new RegExp(`/analyse/${orgnr}/oversikt\\?andel=median&multippel=6\\.5$`));
     await expect(notice(page)).toHaveText('');
     // Oversikt stays at full convergence whatever the share.
-    await expect(page.getByTestId('hero-amount')).toHaveText(hero);
+    await expect(page.getByTestId('hero-amount')).toHaveText(oracle.full);
     await tabs(page).getByRole('link', { name: nb['tabs.nokkeltall'] }).click();
     await expect(page).toHaveURL(new RegExp(`/analyse/${orgnr}/nokkeltall\\?andel=median&multippel=6\\.5$`));
-    await expect(rendered(page).locator('tr[data-figure="driftsmargin"] td[data-cell="gap"]')).toContainText(hero);
+    await expect(rendered(page).locator('tr[data-figure="driftsmargin"] td[data-cell="gap"]')).toContainText(oracle.full);
   });
 
   test('Endre i Verdi everywhere the top note is', async ({ page }) => {
@@ -366,10 +366,10 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await companyShown(page, navn);
     await countReplaceState(page);
     await recordAnnouncements(page);
-    const lengthBefore = await page.evaluate(() => window.history.length);
+    const lengthBefore = await historyLength(page);
     await evField(page).fill('6,5');
     // Not per keystroke: nothing is written or announced before Enter.
-    expect(await replaced(page)).toEqual([]);
+    await expectReplaced(page).toEqual([]);
     await evField(page).press('Enter');
     await expect.poll(() => new URL(page.url()).search).toBe('?multippel=6.5');
     // Wait for the change to render before any one-shot read (PR #78).
@@ -383,20 +383,20 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     // Blur: an unchanged value writes and announces nothing more.
     await page.keyboard.press('Tab');
     await expect(evField(page)).not.toBeFocused();
-    expect(await replaced(page)).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
-    expect(await announced(page)).toEqual([fill('verdi.ev.announce', { v: expected.v })]);
-    expect(await page.evaluate(() => window.history.length)).toBe(lengthBefore);
+    await expectReplaced(page).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
+    await expectAnnounced(page).toEqual([fill('verdi.ev.announce', { v: expected.v })]);
+    await expectHistoryLength(page).toBe(lengthBefore);
     // The share's region says nothing; the cards are unchanged.
     await expect(page.getByTestId('verdi-status')).toHaveText('');
     await expect(profitValue(page)).toHaveText(fill('verdi.profit.value', { a: oracle.at(50), full: oracle.full }));
-    // Each accepted form; " 6.5 " and "6.50" are the multiple already in the URL and write nothing;
-    // "06" is shown as "6".
-    for (const [typed, shown, written, announces] of [
-      [' 6.5 ', '6,5', '6.5', false],
-      ['6.50', '6,5', '6.5', false],
-      ['06', '6', '6', true],
-      ['50', '50', '50', true],
-      ['0,1', '0,1', '0.1', true],
+    // Each accepted form; " 6.5 " and "6.50" are the multiple already in the URL and write nothing,
+    // so the status keeps the last announcement, of 6.5; "06" is shown as "6".
+    for (const [typed, shown, written] of [
+      [' 6.5 ', '6,5', '6.5'],
+      ['6.50', '6,5', '6.5'],
+      ['06', '6', '6'],
+      ['50', '50', '50'],
+      ['0,1', '0,1', '0.1'],
     ] as const) {
       await evField(page).fill(typed);
       await evField(page).press('Enter');
@@ -405,27 +405,23 @@ test.describe('EV/EBIT (Story 3.6)', () => {
       await expect(ev(page, 'value'), typed).toHaveText(evOracle(oracle, 50, written).v);
       // A changing entry is announced 50 ms after it renders; the next entry within that time would
       // cancel it, so wait for the announcement before the next one (PR #78).
-      if (announces) {
-        await expect(page.getByTestId('multiple-status'), typed).toHaveText(fill('verdi.ev.announce', { v: evOracle(oracle, 50, written).v }));
-      }
+      await expect(page.getByTestId('multiple-status'), typed).toHaveText(fill('verdi.ev.announce', { v: evOracle(oracle, 50, written).v }));
     }
-    expect(await replaced(page)).toEqual([
+    await expectReplaced(page).toEqual([
       `/analyse/${orgnr}/verdi?multippel=6.5`,
       `/analyse/${orgnr}/verdi?multippel=6`,
       `/analyse/${orgnr}/verdi?multippel=50`,
       `/analyse/${orgnr}/verdi?multippel=0.1`,
     ]);
     // One announcement per changing entry, none for " 6.5 " and "6.50" (the multiple already there).
-    await expect
-      .poll(() => announced(page))
-      .toEqual(['6.5', '6', '50', '0.1'].map((m) => fill('verdi.ev.announce', { v: evOracle(oracle, 50, m).v })));
+    await expectAnnounced(page).toEqual(['6.5', '6', '50', '0.1'].map((m) => fill('verdi.ev.announce', { v: evOracle(oracle, 50, m).v })));
     // Clearing removes it and says the empty sentence.
     await evField(page).fill('');
     await evField(page).press('Enter');
     await expect.poll(() => new URL(page.url()).search).toBe('');
     await expect(ev(page, 'empty')).toHaveText(nb['verdi.ev.empty']);
     await expect(page.getByTestId('multiple-status')).toHaveText(nb['verdi.ev.empty']);
-    expect((await replaced(page)).length).toBe(5);
+    await expectReplaced(page).toHaveLength(5);
   });
 
   test('EV: invalid input', async ({ page }) => {
@@ -441,7 +437,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
       const error = page.getByTestId('multiple-status').locator('p');
       await expect(error, typed).toHaveText(nb['verdi.ev.error']);
       await expect(evField(page), typed).toHaveAttribute('aria-invalid', 'true');
-      await expect(evField(page), typed).toHaveAttribute('aria-describedby', (await error.getAttribute('id')) ?? 'none');
+      await expect(evField(page), typed).toHaveAccessibleDescription(nb['verdi.ev.error']);
       await expect(evField(page), typed).toHaveValue(typed);
       await expect(evField(page), typed).toBeFocused();
       await expect(ev(page, 'value'), typed).toHaveCount(0);
@@ -469,7 +465,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await expect(evField(page)).toHaveValue('6,5');
     // One announcement: the share's, 3.5's approved sentence; the field's region says nothing.
     await expect(page.getByTestId('verdi-status')).toHaveText(fill('verdi.announce.profit', { a: oracle.at(25), full: oracle.full }));
-    expect(await announced(page)).toEqual([]);
+    await expectAnnounced(page).toEqual([]);
     // The median step: (M − r) × revenue × m.
     await step(page, 'median').click();
     await expect.poll(() => new URL(page.url()).search).toBe('?andel=median&multippel=6.5');
@@ -495,19 +491,22 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     // And for the announcement, which comes 50 ms later; the section is then read without its status
     // region, which a reload leaves empty (PR #78).
     await expect(page.getByTestId('multiple-status')).toHaveText(fill('verdi.ev.announce', { v: expected.v }));
-    const shown = () =>
-      evSection(page).evaluate((section) => {
-        const copy = section.cloneNode(true) as HTMLElement;
-        copy.querySelector('[data-testid="multiple-status"]')?.remove();
-        return copy.textContent;
-      });
-    const before = await shown();
-    expect(before).toContain(productLine(expected));
-    expect(before).not.toContain(fill('verdi.ev.announce', { v: expected.v }));
+    // The section's text without its status region (run in the browser).
+    const withoutStatus = (section: HTMLElement) => {
+      const copy = section.cloneNode(true) as HTMLElement;
+      copy.querySelector('[data-testid="multiple-status"]')?.remove();
+      return copy.textContent;
+    };
+    let before: string | null = null;
+    await expect(async () => {
+      before = await evSection(page).evaluate(withoutStatus);
+      expect(before).toContain(productLine(expected));
+      expect(before).not.toContain(fill('verdi.ev.announce', { v: expected.v }));
+    }).toPass();
     await page.reload();
     await companyShown(page, navn);
     await expect(evField(page)).toHaveValue('6,5');
-    await expect.poll(shown).toBe(before);
+    await expect.poll(() => evSection(page).evaluate(withoutStatus)).toBe(before);
     await expect(page.getByTestId('multiple-status')).toHaveText('');
     await expect(notice(page)).toHaveText('');
     expect(errors).toEqual([]);
@@ -549,8 +548,8 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await evField(page).press('Enter');
     await expect(error).toHaveText(nb['verdi.ev.error']);
     await expect(evField(page)).toHaveAttribute('aria-invalid', 'true');
-    expect(await replaced(page)).toEqual([]);
-    expect(await announced(page)).toEqual([nb['verdi.ev.error']]);
+    await expectReplaced(page).toEqual([]);
+    await expectAnnounced(page).toEqual([nb['verdi.ev.error']]);
     // Invalid → valid: the error and its ties go, the value shows, the URL is written, one announcement.
     const expected = evOracle(oracle, 50, '6.5');
     await evField(page).fill('6,5');
@@ -561,8 +560,8 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await expect(evField(page)).not.toHaveAttribute('aria-invalid', /.*/);
     await expect(evField(page)).not.toHaveAttribute('aria-describedby', /.*/);
     await expect(page.getByTestId('multiple-status')).toHaveText(fill('verdi.ev.announce', { v: expected.v }));
-    expect(await replaced(page)).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
-    expect(await announced(page)).toEqual([nb['verdi.ev.error'], fill('verdi.ev.announce', { v: expected.v })]);
+    await expectReplaced(page).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
+    await expectAnnounced(page).toEqual([nb['verdi.ev.error'], fill('verdi.ev.announce', { v: expected.v })]);
     // Invalid (removing the multiple) → cleared: the error goes, the empty sentence is announced once.
     await evField(page).fill('xyz');
     await evField(page).press('Enter');
@@ -573,9 +572,7 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await expect(error).toHaveCount(0);
     await expect(page.getByTestId('multiple-status')).toHaveText(nb['verdi.ev.empty']);
     await expect(evField(page)).not.toHaveAttribute('aria-invalid', /.*/);
-    await expect
-      .poll(() => announced(page))
-      .toEqual([nb['verdi.ev.error'], fill('verdi.ev.announce', { v: expected.v }), nb['verdi.ev.error'], nb['verdi.ev.empty']]);
+    await expectAnnounced(page).toEqual([nb['verdi.ev.error'], fill('verdi.ev.announce', { v: expected.v }), nb['verdi.ev.error'], nb['verdi.ev.empty']]);
   });
 
   test('EV: two different invalid entries announce twice, the same one twice announces once', async ({ page }) => {
@@ -585,16 +582,16 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     await recordAnnouncements(page);
     await evField(page).fill('abc');
     await evField(page).press('Enter');
-    await expect.poll(() => announced(page)).toEqual([nb['verdi.ev.error']]);
+    await expectAnnounced(page).toEqual([nb['verdi.ev.error']]);
     await evField(page).fill('6,55');
     await evField(page).press('Enter');
-    await expect.poll(() => announced(page)).toEqual([nb['verdi.ev.error'], nb['verdi.ev.error']]);
+    await expectAnnounced(page).toEqual([nb['verdi.ev.error'], nb['verdi.ev.error']]);
     // The same invalid text again, by Enter and by blur: nothing changes, so there is nothing to wait for;
     // the wait covers the field's 50 ms announcement delay.
     await evField(page).press('Enter');
     await page.keyboard.press('Tab');
     await page.waitForTimeout(300);
-    expect(await announced(page)).toEqual([nb['verdi.ev.error'], nb['verdi.ev.error']]);
+    await expectAnnounced(page).toEqual([nb['verdi.ev.error'], nb['verdi.ev.error']]);
   });
 
   test('EV: Enter and an immediate blur are one entry', async ({ page }) => {
@@ -611,8 +608,8 @@ test.describe('EV/EBIT (Story 3.6)', () => {
     });
     const expected = evOracle(oracle, 50, '6.5');
     await expect(ev(page, 'value')).toHaveText(expected.v);
-    await expect.poll(() => announced(page)).toEqual([fill('verdi.ev.announce', { v: expected.v })]);
-    expect(await replaced(page)).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
+    await expectAnnounced(page).toEqual([fill('verdi.ev.announce', { v: expected.v })]);
+    await expectReplaced(page).toEqual([`/analyse/${orgnr}/verdi?multippel=6.5`]);
   });
 
   test('EV: a multiple of 1 writes the "=" line', async ({ page }) => {
@@ -669,34 +666,38 @@ for (const width of [375, 320]) {
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     await noSidewaysScroll(page);
-    const boxes = await control(page).getByRole('radio').evaluateAll((elements) =>
-      elements.map((element) => {
-        const box = element.getBoundingClientRect();
-        return { x: box.x, y: box.y, width: box.width, height: box.height };
-      }),
-    );
-    expect(boxes).toHaveLength(6);
-    expect(new Set(boxes.map((box) => Math.round(box.y))).size).toBe(2);
-    for (const box of boxes) {
-      expect(box.width).toBeGreaterThanOrEqual(24);
-      expect(box.height).toBeGreaterThanOrEqual(24);
-    }
-    const cards = await rendered(page)
-      .getByTestId('verdi-cards')
-      .locator(':scope > section')
-      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().y));
-    expect(cards).toHaveLength(3);
-    expect(cards[1] ?? 0).toBeGreaterThan(cards[0] ?? 0);
-    expect(cards[2] ?? 0).toBeGreaterThan(cards[1] ?? 0);
+    await expect(async () => {
+      const boxes = await control(page).getByRole('radio').evaluateAll((elements) =>
+        elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width, height: box.height };
+        }),
+      );
+      expect(boxes).toHaveLength(6);
+      expect(new Set(boxes.map((box) => Math.round(box.y))).size).toBe(2);
+      for (const box of boxes) {
+        expect(box.width).toBeGreaterThanOrEqual(24);
+        expect(box.height).toBeGreaterThanOrEqual(24);
+      }
+      const cards = await rendered(page)
+        .getByTestId('verdi-cards')
+        .locator(':scope > section')
+        .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().y));
+      expect(cards).toHaveLength(3);
+      expect(cards[1] ?? 0).toBeGreaterThan(cards[0] ?? 0);
+      expect(cards[2] ?? 0).toBeGreaterThan(cards[1] ?? 0);
+    }).toPass();
     // Every tab is on the page, wrapping rather than scrolling.
     await expect(tabs(page).getByRole('link')).toHaveCount(4);
     await noSidewaysScroll(page);
     // Story 3.6: the multiple field is 90 px and a target of at least 24 × 24; its value, product line and
     // error fit without sideways scroll.
     const field = evField(page);
-    const fieldBox = await field.boundingBox();
-    expect(fieldBox?.width).toBe(90);
-    expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(24);
+    await expect(async () => {
+      const fieldBox = await field.boundingBox();
+      expect(fieldBox?.width).toBe(90);
+      expect(fieldBox?.height ?? 0).toBeGreaterThanOrEqual(24);
+    }).toPass();
     await field.fill('6,5');
     await field.press('Enter');
     await expect(ev(page, 'value')).toHaveText(evOracle(SUBJECT.oracle, 50, '6.5').v);

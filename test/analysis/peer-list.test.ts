@@ -141,6 +141,7 @@ describe('PeerList', () => {
       expect(spokenKi(markup)).toBe(0);
     }
     expect(glyphs(html)).toBe(0);
+    expect(bodyRows(html)).toHaveLength(5);
     for (const cells of bodyRows(html).map(cellsOf)) expect(cells).toHaveLength(5);
   });
 

@@ -62,9 +62,7 @@ test('EV disabled below the floor', async ({ page }) => {
   // Never the native disabled attribute (Playwright's toBeDisabled also counts aria-disabled).
   await expect(field).not.toHaveAttribute('disabled', /.*/);
   await expect(field).toHaveValue('6,5');
-  const describedBy = await field.getAttribute('aria-describedby');
-  expect(describedBy).not.toBeNull();
-  await expect(page.locator(`[id="${describedBy ?? ''}"]`)).toHaveText(reason);
+  await expect(field).toHaveAccessibleDescription(reason);
   await field.focus();
   await expect(field).toBeFocused();
   // Typing changes nothing, and Enter writes nothing: the multiple stays in the URL, and no value shows.

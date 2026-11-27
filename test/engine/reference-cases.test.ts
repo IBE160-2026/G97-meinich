@@ -227,6 +227,7 @@ const CASES: readonly Case[] = [
 
 function check(actual: FigureResult, expected: Expected): void {
   if ('undefined' in expected) {
+    // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: { reason: 'undefined', cause: expected.undefined } });
     return;
   }
@@ -623,12 +624,15 @@ const DOC_CASES: readonly DocCase[] = [
   ),
 ];
 
-function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, expected: DocExpected): void {
+/** `source` is the caller's: a document key figure or an API one, never read from `actual`. */
+function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, expected: DocExpected, source: 'document' | 'api'): void {
   if ('absent' in expected) {
+    // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: expected.absent });
     return;
   }
   if ('undefined' in expected) {
+    // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: { reason: 'undefined', cause: expected.undefined } });
     return;
   }
@@ -636,9 +640,14 @@ function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, 
   const [numerator, denominator] = expected.fraction;
   const hand = new Decimal(numerator.toString()).div(new Decimal(denominator.toString()));
   expect(actual.value.eq(hand), `${actual.value.toString()} ≠ ${hand.toString()}`).toBe(true);
+  expect(actual.source, `${orgnr} ${filingYear}`).toBe(source);
   // Every input read as stated is the figure printed on the page.
-  for (const input of actual.inputs) {
-    if (input.column === 'api' || input.field === 'aarsverk' || input.derived) continue;
+  const stated = actual.inputs.flatMap((input) =>
+    input.column === 'api' || input.field === 'aarsverk' || input.derived ? [] : [{ column: input.column, field: input.field }],
+  );
+  // A document figure reads at least one line as stated (how many depends on the figure); an API figure none.
+  expect(stated.length > 0, `${orgnr} ${filingYear}: stated document inputs of a ${source} figure`).toBe(source === 'document');
+  for (const input of stated) {
     expect(seedFigure(orgnr, filingYear, input.column, input.field), `${input.column} ${input.field}`).toBe(
       transcribed(orgnr, filingYear, input.column, input.field),
     );
@@ -650,15 +659,9 @@ describe('reference cases for the document key figures', () => {
     const figures = computeDocumentKeyFigures(seedDocumentBasis(c.orgnr, c.filingYear));
     for (const figure of DOCUMENT_KEY_FIGURE_KEYS) {
       it(`${c.orgnr} ${c.filingYear}: ${LABELS[figure]}`, () => {
-        checkDocument(c.orgnr, c.filingYear, figures[figure], c.expected[figure]);
+        checkDocument(c.orgnr, c.filingYear, figures[figure], c.expected[figure], 'document');
       });
     }
-    it(`${c.orgnr} ${c.filingYear}: the lines printed but not read`, () => {
-      for (const [column, field] of c.notRead) {
-        expect(seedFigure(c.orgnr, c.filingYear, column, field), `${column} ${field} in the seed`).toBeNull();
-        expect(transcribed(c.orgnr, c.filingYear, column, field), `${column} ${field} on the page`).not.toBeNull();
-      }
-    });
     const api = c.api;
     if (api === undefined) continue;
     const brregId = seedDocumentBrregId(c.orgnr, c.filingYear);
@@ -668,10 +671,32 @@ describe('reference cases for the document key figures', () => {
       const expected = api[key];
       if (expected === undefined) continue;
       it(`${c.orgnr} ${c.filingYear}: ${LABELS[key]}`, () => {
-        checkDocument(c.orgnr, c.filingYear, own[key], expected);
+        checkDocument(c.orgnr, c.filingYear, own[key], expected, 'api');
       });
     }
   }
+
+  // The lines printed on the page but not read, for each case that has any. A
+  // loop over an empty list would test nothing, so the cases with none are
+  // stated in the next test instead.
+  for (const c of DOC_CASES.filter((entry) => entry.notRead.length > 0)) {
+    it(`${c.orgnr} ${c.filingYear}: the lines printed but not read`, () => {
+      expect(c.notRead.length).toBeGreaterThan(0);
+      for (const [column, field] of c.notRead) {
+        expect(seedFigure(c.orgnr, c.filingYear, column, field), `${column} ${field} in the seed`).toBeNull();
+        expect(transcribed(c.orgnr, c.filingYear, column, field), `${column} ${field} on the page`).not.toBeNull();
+      }
+    });
+  }
+
+  it('reads every printed line of 911561972 2024 and 992036079 2023, and of no other case', () => {
+    // DASSAULT SYSTEMES NORWAY AS 2024 and NTT DATA BUSINESS SOLUTIONS AS 2023: every line they print is read,
+    // so their notRead is empty by design (the cases above).
+    expect(DOC_CASES.filter((c) => c.notRead.length === 0).map((c) => `${c.orgnr} ${c.filingYear}`)).toEqual([
+      '911561972 2024',
+      '992036079 2023',
+    ]);
+  });
 
   it('records a case for every allow-listed reference company outside the labelled set', () => {
     expect(new Set(DOC_CASES.map((c) => c.orgnr))).toEqual(

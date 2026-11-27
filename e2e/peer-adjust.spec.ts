@@ -15,6 +15,8 @@ import { BUDGETS } from '../src/rate-limit/budgets.ts';
 import { expect, test } from './fixtures.ts';
 import { formatPercent, formatTurnover } from '../src/engine/format.ts';
 import { A, OUTSIDE, expectedBenchmark, expectedGroup, expectedTurnover, floorSubject, noSidewaysScroll, notice, tabs } from './seed.ts';
+import { expectHistoryLength, historyLength } from './history.ts';
+import { narrow } from '../test/narrow.ts';
 import { medianStep } from '../src/engine/closable.ts';
 
 const DB_DOWN_PORT = '3101'; // playwright.config.ts: the server whose database is unreachable
@@ -34,7 +36,6 @@ const action = (page: Page, orgnr: string) => page.locator(`[data-peer-action="$
 const desktopRows = (page: Page) => page.getByRole('region', { name: nb['peers.regionLabel'] }).locator('tbody tr');
 const peerCount = (page: Page) => page.getByTestId('peer-count');
 const headerCount = (page: Page) => page.getByTestId('header-peer-count');
-const historyLength = (page: Page) => page.evaluate(() => window.history.length);
 /** The path and query the browser shows, without the origin. */
 const shown = (page: Page) => {
   const url = new URL(page.url());
@@ -78,7 +79,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     );
     await expect(peerCount(page)).toHaveText(count(group0.length - 1));
     await expect(headerCount(page)).toHaveText(fill('analysis.peerCount', { n: String(group0.length - 1) }));
-    expect(await historyLength(page)).toBe(before + 1);
+    await expectHistoryLength(page).toBe(before + 1);
 
     // Restore by keyboard, from the focused button.
     await page.keyboard.press('Enter');
@@ -87,7 +88,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     await expect(action(page, peer)).toHaveAccessibleName(fill('peers.action.excludeName', { navn }));
     await expect(action(page, peer)).toBeFocused();
     await expect(page.getByTestId('funnel-excluded')).toHaveCount(0);
-    expect(await historyLength(page)).toBe(before + 2);
+    await expectHistoryLength(page).toBe(before + 2);
   });
 
   test('back returns the previous peer group', async ({ page }) => {
@@ -274,14 +275,12 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       [margin, formatPercent],
       [turnover, formatTurnover],
     ] as const;
-    for (const [i, [c, format]] of expected.entries()) {
+    for (const [i, [comparison, format]] of expected.entries()) {
       const factor = factors.nth(i);
-      // Nine peers or fewer: no factor can be compared.
-      expect(c.kind, `factor ${i}`).not.toBe('compared');
-      if (c.kind === 'below_floor') {
-        await expect(factor).toContainText(format(c.subject.toString()));
-        await expect(factor).toContainText(fill('keyFigures.belowFloor', { n: String(c.count), min: '10' }));
-      }
+      // Nine peers: both factors keep the subject's value and are below the floor (the seed's floor subject).
+      const c = narrow(comparison, 'below_floor', `factor ${i}`);
+      await expect(factor).toContainText(format(c.subject.toString()));
+      await expect(factor).toContainText(fill('keyFigures.belowFloor', { n: String(c.count), min: '10' }));
       await expect(factor).not.toContainText(nb['keyFigures.col.median']);
       await expect(factor.getByTestId('distribution-strip')).toHaveCount(0);
     }
@@ -331,11 +330,10 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     // The previous figures stay, dimmed, with no transition.
     await expect(desktopRows(page)).toHaveCount(group0.length);
     await expect(page.locator('[data-excluded="true"]')).toHaveCount(0);
-    const style = await panel.locator(':scope > div').last().evaluate((el) => {
-      const computed = getComputedStyle(el);
-      return { opacity: computed.opacity, transition: computed.transitionDuration, animation: computed.animationName };
-    });
-    expect(style).toEqual({ opacity: '0.5', transition: '0s', animation: 'none' });
+    const dimmed = panel.locator(':scope > div').last();
+    await expect(dimmed).toHaveCSS('opacity', '0.5');
+    await expect(dimmed).toHaveCSS('transition-duration', '0s');
+    await expect(dimmed).toHaveCSS('animation-name', 'none');
 
     release();
     await expect.poll(() => shown(page)).toBe(`${PEERS}?ekskl=${peer}`);
@@ -441,7 +439,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
     // Long enough for a Back the boundary would have sent.
     await page.waitForTimeout(1000);
     expect(shown(page)).toBe(tab);
-    expect(await historyLength(page)).toBe(entries);
+    await expectHistoryLength(page).toBe(entries);
     await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
     await expect(page.getByTestId('peer-change-alert')).toHaveCount(0);
   });
@@ -535,10 +533,9 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       await expect(notice(page)).toHaveText('');
       await expect(capText(page)).toHaveText(nb['peers.exclusionCap']);
       await expect(capText(page)).toHaveText('Du kan ekskludere opptil 20 selskaper. Ta med et selskap igjen for å ekskludere et annet.');
-      const buttons = excludeButtons(page);
-      const n = await buttons.count();
-      expect(n).toBeGreaterThan(0);
-      await expect(page.locator('[data-peer-action]:visible[aria-disabled="true"]')).toHaveCount(n);
+      // Every visible "Ekskluder" is aria-disabled, and there is one.
+      await expect(excludeButtons(page).first()).toBeVisible();
+      await expect(page.locator(`[data-peer-action]:visible[aria-label^="${nb['peers.action.exclude']} "]:not([aria-disabled="true"])`)).toHaveCount(0);
       // "Ta med igjen" is never disabled.
       await expect(page.locator(`[data-peer-action]:visible[aria-label^="${nb['peers.action.restore']} "][aria-disabled]`)).toHaveCount(0);
       const target = action(page, group0[20]?.orgnr ?? '');
@@ -558,7 +555,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       await page.waitForTimeout(250);
       expect(requests).toEqual([]);
       expect(shown(page)).toBe(url);
-      expect(await historyLength(page)).toBe(before);
+      await expectHistoryLength(page).toBe(before);
       await expect(notice(page)).toHaveText('');
       await expect(status(page)).toHaveText('');
       await expect(target).toBeFocused();
@@ -572,7 +569,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       const peer = group0[19]?.orgnr ?? '';
       await action(page, peer).click();
       await expect.poll(() => shown(page)).toBe(capPath(20));
-      expect(await historyLength(page)).toBe(before + 1);
+      await expectHistoryLength(page).toBe(before + 1);
       await expect(capText(page)).toHaveText(nb['peers.exclusionCap']);
       await expect(action(page, group0[20]?.orgnr ?? '')).toHaveAttribute('aria-disabled', 'true');
       await expect(notice(page)).toHaveText('');
@@ -610,7 +607,7 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       expect(requests.map((url) => new URL(url).searchParams.get('ekskl'))).toEqual([ekskl(20).join(',')]);
       expect(ekskOf(page)).not.toContain(group0[20]?.orgnr);
       expect(shown(page)).toBe(capPath(20));
-      expect(await historyLength(page)).toBe(before + 1);
+      await expectHistoryLength(page).toBe(before + 1);
       await expect(notice(page)).toHaveText('');
     });
   });
@@ -625,26 +622,31 @@ test.describe('adjusting the peer group (Story 2.8)', () => {
       await expect(page.getByTestId('widened-block')).toBeVisible();
       await expect(page.locator('[data-testid="peer-card"][data-excluded="true"]:visible')).toHaveCount(1);
       await noSidewaysScroll(page);
-      const steps = await page.locator('[role="radio"]').evaluateAll((items) =>
-        items.map((item) => {
-          const box = item.getBoundingClientRect();
-          return { top: Math.round(box.top), left: box.left, right: box.right, height: box.height };
-        }),
-      );
-      expect(steps).toHaveLength(3);
-      expect(new Set(steps.map((step) => step.top)).size).toBe(1);
-      expect(steps[0]?.left ?? 0).toBeLessThan(steps[1]?.left ?? 0);
-      expect(steps[2]?.right ?? width).toBeLessThanOrEqual(width - 16 + 1);
-      for (const step of steps) expect(step.height).toBeGreaterThanOrEqual(44);
+      await expect(async () => {
+        const steps = await page.locator('[role="radio"]').evaluateAll((items) =>
+          items.map((item) => {
+            const box = item.getBoundingClientRect();
+            return { top: Math.round(box.top), left: box.left, right: box.right, height: box.height };
+          }),
+        );
+        expect(steps).toHaveLength(3);
+        expect(new Set(steps.map((step) => step.top)).size).toBe(1);
+        expect(steps[0]?.left ?? 0).toBeLessThan(steps[1]?.left ?? 0);
+        expect(steps[2]?.right ?? width).toBeLessThanOrEqual(width - 16 + 1);
+        for (const step of steps) expect(step.height).toBeGreaterThanOrEqual(44);
+      }).toPass();
       // Every target at least 24 × 24 px.
-      const small = await page.evaluate(
-        () =>
-          [...document.querySelectorAll<HTMLElement>('main a, main button, main [tabindex="0"]')]
-            .filter((el) => el.offsetParent !== null)
-            .map((el) => el.getBoundingClientRect())
-            .filter((box) => box.width < 24 || box.height < 24).length,
-      );
-      expect(small).toBe(0);
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              [...document.querySelectorAll<HTMLElement>('main a, main button, main [tabindex="0"]')]
+                .filter((el) => el.offsetParent !== null)
+                .map((el) => el.getBoundingClientRect())
+                .filter((box) => box.width < 24 || box.height < 24).length,
+          ),
+        )
+        .toBe(0);
 
       // Too small, below the floor.
       const subject = floorSubject();

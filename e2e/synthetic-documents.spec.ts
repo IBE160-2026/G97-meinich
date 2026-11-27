@@ -55,6 +55,7 @@ import {
 } from '../src/engine/format.ts';
 import { BAR_FIGURE, marginWaterfall } from '../src/engine/waterfall.ts';
 import { MAX_EKSKL } from '../src/url/analysis-state.ts';
+import { narrow } from '../test/narrow.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 
 const { subject, peers, filingYear } = SYNTHETIC_DOCUMENTS;
@@ -112,36 +113,43 @@ const region = (page: Page) => page.getByRole('region', { name: nb['keyFigures.r
 const desktopRow = (page: Page, figure: string) => region(page).locator(`tr[data-figure="${figure}"]`);
 const cell = (page: Page, figure: string, name: string) => desktopRow(page, figure).locator(`td[data-cell="${name}"]`);
 
-/** The group's size, from the header: the synthetic peers and the seed's companies in the band. */
-async function groupSize(page: Page): Promise<number> {
-  const count = page.getByTestId('header-peer-count');
-  await expect(count).toHaveText(/^\d+ sammenlignbare$/);
-  return Number((await count.innerText()).split(' ')[0]);
+/** The header shows the oracle's group: the synthetic peers and the seed's companies in the band. */
+async function expectGroupSize(page: Page): Promise<void> {
+  await expect(page.getByTestId('header-peer-count')).toHaveText(`${syntheticGroup.length} sammenlignbare`);
 }
+
+// The document figures with a direction have a beste fjerdedel and a Plassering; 5, 14 and kontantandel have none.
+const WITH_BEST = ['ebitda', 'vare', 'lonn', 'andre', 'kfd', 'lgd', 'oml'] as const;
+const WITHOUT_BEST = ['total', 'kontant', 'vekst'] as const;
 
 test('every document row is compared against the engine', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/nokkeltall`);
   await expect(rendered(page)).toBeVisible();
   // The seed's companies in the band have no document figures: left out of every document row.
-  const leftOut = (await groupSize(page)) - peers.length;
+  await expectGroupSize(page);
+  const leftOut = syntheticGroup.length - peers.length;
   expect(leftOut).toBeGreaterThanOrEqual(0);
   await expect(page.getByText(nb['keyFigures.notInDataset.state'])).toHaveCount(0);
+  expect([...WITH_BEST, ...WITHOUT_BEST].sort()).toEqual(ROWS.map(([key]) => key).sort());
+  const formatOf = Object.fromEntries(ROWS) as Record<(typeof ROWS)[number][0], (value: string) => string>;
   for (const [key, format] of ROWS) {
-    const figure = expected[key];
-    const c = figure.comparison;
-    if (c.kind !== 'compared') throw new Error(`the fixture's ${key} is not compared`);
+    const c = narrow(expected[key].comparison, 'compared', key);
     expect(c.count, key).toBe(peers.length);
     await expect(cell(page, key, 'own'), key).toHaveText(format(c.subject.toString()));
     await expect(cell(page, key, 'median'), key).toHaveText(format(c.median.toString()));
     await expect(desktopRow(page, key).locator('th'), key).toContainText(`${c.count} sammenlignbare brukt · ${leftOut} utelatt`);
-    if (c.best !== null) {
-      await expect(cell(page, key, 'best'), key).toHaveText(format(c.best.quartile.toString()));
-      await expect(cell(page, key, 'placement'), key).toHaveText(`bedre enn ${formatWholePercent(c.best.percentile.toString())}`);
-    } else {
-      await expect(cell(page, key, 'best'), key).not.toContainText(/\d/);
-      await expect(cell(page, key, 'placement'), key).not.toContainText(/bedre enn/);
-    }
+  }
+  for (const key of WITH_BEST) {
+    const best = narrow(expected[key].comparison, 'compared', key).best;
+    if (best === null) throw new Error(`the fixture's ${key} has no beste fjerdedel`);
+    await expect(cell(page, key, 'best'), key).toHaveText(formatOf[key](best.quartile.toString()));
+    await expect(cell(page, key, 'placement'), key).toHaveText(`bedre enn ${formatWholePercent(best.percentile.toString())}`);
+  }
+  for (const key of WITHOUT_BEST) {
+    expect(narrow(expected[key].comparison, 'compared', key).best, key).toBeNull();
+    await expect(cell(page, key, 'best'), key).not.toContainText(/\d/);
+    await expect(cell(page, key, 'placement'), key).not.toContainText(/bedre enn/);
   }
   // The kroner: a capital amount for 9, 10 and 11, each rounded once from the engine's exact øre.
   for (const key of ['kfd', 'lgd', 'oml'] as const) {
@@ -346,7 +354,7 @@ test('the capital card shows the engine’s largest amount', async ({ page }) =>
   await expect(capital.locator('[data-card="line"]')).toHaveText([nb['oversikt.capital.notPerYear']]);
   // One amount: never a second figure's, never a sum with 11.
   await expect(capital).toContainText(/\d\skr/);
-  expect((await capital.innerText()).match(/\d\skr/g)).toHaveLength(1);
+  await expect.poll(async () => (await capital.innerText()).match(/\d\skr/g)).toHaveLength(1);
 });
 
 test('no document øre reaches Oversikt', async ({ request }) => {
@@ -466,7 +474,7 @@ test('Verdi: the three cards against the engine, the median step disabled with i
   await page.goto(`${base}/verdi`);
   await expect(rendered(page).getByTestId('verdi')).toBeVisible();
   // And the page's group is the oracle's, the ten synthetic peers among it.
-  expect(await groupSize(page)).toBe(syntheticGroup.length);
+  await expectGroupSize(page);
   expect(syntheticGroup.filter((member) => syntheticByOrgnr.has(member.orgnr))).toHaveLength(peers.length);
   const card = (id: string) => rendered(page).getByTestId(id);
   const check = async (factor: Decimal, share: string) => {
@@ -481,9 +489,8 @@ test('Verdi: the three cards against the engine, the median step disabled with i
       await expect(card(id).locator('[data-card="share"]')).toHaveText(nb['verdi.capital.share'].replace('{andel}', formatWholePercent(share)));
     }
     // No displayed total adds two cards: the page shows no sum of any two or three of them.
-    const text = await rendered(page).getByTestId('verdi-cards').innerText();
     for (const sum of [o.profitFull.plus(o.total), o.profitFull.plus(o.oml), o.total.plus(o.oml), o.profitFull.plus(o.total).plus(o.oml)]) {
-      expect(text).not.toContain(kroner(sum.mul(factor)));
+      await expect(rendered(page).getByTestId('verdi-cards')).not.toContainText(kroner(sum.mul(factor)), { useInnerText: true });
     }
   };
   await check(new Decimal('0.5'), '50');
@@ -492,14 +499,19 @@ test('Verdi: the three cards against the engine, the median step disabled with i
   await expect(median).toHaveText(nb['verdi.step.medianNone']);
   await expect(median).toHaveAttribute('aria-disabled', 'true');
   const reason = nb['verdi.median.above'].replace('{selskap}', subject.navn);
-  await expect(page.locator(`#${await median.getAttribute('aria-describedby')}`)).toHaveText(reason);
+  await expect(median).toHaveAccessibleDescription(reason);
   await page.locator('[data-share-step="100"]').click();
   // replaceState writes the URL before React renders the cards again (PR #78, CI): read them only once
   // the step is checked and the profit card is at 100 %.
   await expect(page.locator('[data-share-step="100"]')).toHaveAttribute('aria-checked', 'true');
   await expect(card('verdi-profit').locator('[data-card="share"]')).toHaveText(nb['verdi.profit.share'].replace('{andel}', formatWholePercent('100')));
   // The arrow keys reach the disabled step: focus on it, nothing chosen, the URL and the cards unchanged.
-  const cardsBefore = await rendered(page).getByTestId('verdi-cards').innerText();
+  // Read once they are the 100 % step's, retried until they are.
+  let cardsBefore = '';
+  await expect(async () => {
+    cardsBefore = await rendered(page).getByTestId('verdi-cards').innerText();
+    expect(cardsBefore).toContain(nb['verdi.profit.share'].replace('{andel}', formatWholePercent('100')));
+  }).toPass();
   await page.keyboard.press('ArrowRight');
   await expect(median).toBeFocused();
   await expect(median).toHaveAttribute('aria-checked', 'false');
@@ -543,28 +555,37 @@ test('Verdi: the capital drill-downs’ share lines are their own cards’, and 
     return { sign, text: plain(`${formatKronerExact(full.toString())} × ${percent} % ${sign} ${formatKronerExact(amount.toString())}`) };
   };
   const total = kfd.gap.ore.plus(lgd.gap.ore);
+  // Narrowed here: the retried blocks below are closures, where the narrowing above does not reach.
+  const omlOre = oml.gap.ore;
   // The fixture's state: each line's sign by the displayed-operand rule, written out.
   expect([line(oml.gap.ore, 50).sign, line(total, 50).sign, line(oml.gap.ore, 75).sign, line(total, 75).sign]).toEqual(['=', '≈', '≈', '≈']);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/verdi`);
-  const chips = async (id: string) => (await rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`).allInnerTexts()).map(plain);
+  const chipsOf = (id: string) => rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`);
   for (const id of ['verdi-prov-oml', 'verdi-prov-working-capital']) {
     await rendered(page).locator(`[data-provenance-trigger="${id}"]`).click();
     await expect(rendered(page).locator(`[data-provenance-body="${id}"]`)).toBeVisible();
   }
-  expect(await chips('verdi-prov-oml')).toContain(line(oml.gap.ore, 50).text);
-  expect(await chips('verdi-prov-oml')).not.toContain(line(total, 50).text);
-  expect(await chips('verdi-prov-working-capital')).toContain(line(total, 50).text);
-  expect(await chips('verdi-prov-working-capital')).not.toContain(line(oml.gap.ore, 50).text);
+  await expect(async () => {
+    const omlLines = (await chipsOf('verdi-prov-oml').allInnerTexts()).map(plain);
+    const workingCapital = (await chipsOf('verdi-prov-working-capital').allInnerTexts()).map(plain);
+    expect(omlLines).toContain(line(omlOre, 50).text);
+    expect(omlLines).not.toContain(line(total, 50).text);
+    expect(workingCapital).toContain(line(total, 50).text);
+    expect(workingCapital).not.toContain(line(omlOre, 50).text);
+  }).toPass();
   await rendered(page).locator('[data-share-step="75"]').click();
   // Wait for the share to render before reading the drill-downs (PR #78).
   await expect(rendered(page).locator('[data-share-step="75"]')).toHaveAttribute('aria-checked', 'true');
   for (const id of ['verdi-prov-oml', 'verdi-prov-working-capital']) {
     await expect(rendered(page).locator(`[data-provenance-body="${id}"] [data-provenance-chip]`, { hasText: ' × 75' })).toHaveCount(1);
   }
-  expect(await chips('verdi-prov-oml')).toContain(line(oml.gap.ore, 75).text);
-  expect(await chips('verdi-prov-working-capital')).toContain(line(total, 75).text);
-  expect(await chips('verdi-prov-oml')).not.toContain(line(oml.gap.ore, 50).text);
+  await expect(async () => {
+    const omlLines = (await chipsOf('verdi-prov-oml').allInnerTexts()).map(plain);
+    expect(omlLines).toContain(line(omlOre, 75).text);
+    expect((await chipsOf('verdi-prov-working-capital').allInnerTexts()).map(plain)).toContain(line(total, 75).text);
+    expect(omlLines).not.toContain(line(omlOre, 50).text);
+  }).toPass();
 });
 
 test('Verdi carries exactly the wire set and no document øre', async ({ request }) => {
@@ -594,12 +615,14 @@ for (const width of [375, 320]) {
       const gap = phone.locator(`tr:has(button[aria-controls="kf-p-exp-${key}"]) td[data-cell="gap"]`);
       await expect(gap, key).toContainText(nb['keyFigures.oneOff']);
       // The amount and its subline stay inside the screen, each on one line.
-      for (const part of await gap.locator('span').all()) {
-        const box = await part.boundingBox();
-        if (box === null) throw new Error(`${key}: no box`);
-        expect(box.x + box.width, key).toBeLessThanOrEqual(width);
-        expect(box.height, key).toBeLessThan(30);
-      }
+      await expect(async () => {
+        const boxes = await gap.locator('span').evaluateAll((spans) => spans.map((span) => span.getBoundingClientRect().toJSON() as DOMRect));
+        expect(boxes.length, key).toBeGreaterThan(0);
+        for (const box of boxes) {
+          expect(box.x + box.width, key).toBeLessThanOrEqual(width);
+          expect(box.height, key).toBeLessThan(30);
+        }
+      }).toPass();
       await phone.locator(`button[aria-controls="kf-p-exp-${key}"]`).click();
       await expect(page.locator(`[id="kf-p-exp-${key}"]`), key).toBeVisible();
       await noSidewaysScroll(page);
@@ -612,8 +635,12 @@ const waterfallButton = (page: Page, layout: 'desktop' | 'phone') =>
   (layout === 'desktop' ? region(page) : page.locator('table[data-layout="phone"]')).getByRole('button', {
     name: nb['keyFigures.foldout.waterfall'],
   });
-const waterfallBody = async (page: Page, layout: 'desktop' | 'phone') =>
-  page.locator(`[id="${await waterfallButton(page, layout).getAttribute('aria-controls')}"]`);
+/** The fold-out's body, `kf-d-fold-waterfall` or `kf-p-fold-waterfall`, once its button names it. */
+const waterfallBody = async (page: Page, layout: 'desktop' | 'phone') => {
+  const id = `kf-${layout === 'desktop' ? 'd' : 'p'}-fold-waterfall`;
+  await expect(waterfallButton(page, layout)).toHaveAttribute('aria-controls', id);
+  return page.locator(`[id="${id}"]`);
+};
 /** Whole kroner as the formatter takes them: øre as a whole-number string. */
 const kr = (kroner: bigint) => (kroner * 100n).toString();
 
@@ -659,6 +686,7 @@ test('the waterfall against the engine', async ({ page }) => {
   await expect(body.getByTestId('waterfall-sentence')).toHaveText(nb['waterfall.neverAdded']);
   await expect(body.locator('[data-wf-value="start"]')).toHaveText(formatKroner(kr(display.startKroner)));
   await expect(body.locator('[data-wf-value="end"]')).toHaveText(formatKroner(kr(display.endKroner)));
+  expect(steps).toHaveLength(4);
   for (const step of steps) {
     // The page names a bar by its cost share's key, never by an engine field name.
     const id = BAR_FIGURE[step.bar] ?? 'residual';
@@ -696,25 +724,27 @@ test('forced colours keep the bars apart', async ({ page }) => {
   await waterfallButton(page, 'desktop').click();
   const bars = (await waterfallBody(page, 'desktop')).locator('path.wf-bar');
   await expect(bars).toHaveCount(6);
-  const styles = await bars.evaluateAll((paths) =>
-    paths.map((path) => {
-      const style = getComputedStyle(path);
-      return {
-        kind: path.getAttribute('data-kind') ?? '',
-        stroke: style.stroke,
-        look: `${style.fill}|${style.stroke}|${style.strokeDasharray}`,
-      };
-    }),
-  );
-  // Every bar has an outline in the system's colours (globals.css, `.wf-bar`): not the author's fill alone.
-  for (const { kind, stroke } of styles) expect(stroke, kind).not.toBe('none');
-  // Each kind drawn one way, and no two kinds alike.
-  const byKind = new Map<string, Set<string>>();
-  for (const { kind, look } of styles) byKind.set(kind, (byKind.get(kind) ?? new Set<string>()).add(look));
-  for (const [kind, looks] of byKind) expect(looks.size, kind).toBe(1);
-  const looks = [...byKind.values()].map((set) => [...set][0]);
-  expect(new Set(looks).size).toBe(byKind.size);
-  expect(byKind.size).toBeGreaterThanOrEqual(4);
+  await expect(async () => {
+    const styles = await bars.evaluateAll((paths) =>
+      paths.map((path) => {
+        const style = getComputedStyle(path);
+        return {
+          kind: path.getAttribute('data-kind') ?? '',
+          stroke: style.stroke,
+          look: `${style.fill}|${style.stroke}|${style.strokeDasharray}`,
+        };
+      }),
+    );
+    // Every bar has an outline in the system's colours (globals.css, `.wf-bar`): not the author's fill alone.
+    for (const { kind, stroke } of styles) expect(stroke, kind).not.toBe('none');
+    // Each kind drawn one way, and no two kinds alike.
+    const byKind = new Map<string, Set<string>>();
+    for (const { kind, look } of styles) byKind.set(kind, (byKind.get(kind) ?? new Set<string>()).add(look));
+    for (const [kind, looks] of byKind) expect(looks.size, kind).toBe(1);
+    const looks = [...byKind.values()].map((set) => [...set][0]);
+    expect(new Set(looks).size).toBe(byKind.size);
+    expect(byKind.size).toBeGreaterThanOrEqual(4);
+  }).toPass();
 });
 
 test('excluding one peer leaves no waterfall', async ({ page }) => {
@@ -725,10 +755,13 @@ test('excluding one peer leaves no waterfall', async ({ page }) => {
   await page.goto(`${base}/peers`);
   await expect(rendered(page)).toBeVisible();
   const synthetic = new Set(syntheticDocumentCompanies().map((company) => company.orgnr));
-  const members = await page
-    .locator('[data-peer-action]')
-    .evaluateAll((actions) => actions.map((action) => action.getAttribute('data-peer-action') ?? ''));
-  const outside = [...new Set(members)].filter((orgnr) => !synthetic.has(orgnr));
+  // The page's group is the oracle's (each member's action, in both layouts).
+  await expect
+    .poll(async () =>
+      [...new Set(await page.locator('[data-peer-action]').evaluateAll((actions) => actions.map((action) => action.getAttribute('data-peer-action') ?? '')))].sort(),
+    )
+    .toEqual(syntheticGroup.map((member) => member.orgnr).sort());
+  const outside = syntheticGroup.map((member) => member.orgnr).filter((orgnr) => !synthetic.has(orgnr));
   // The fixture's band holds seed companies outside the demo data, and all of
   // them plus the one peer fit under the exclusion cap, so neither step below
   // is a case the URL would refuse.
@@ -760,23 +793,25 @@ for (const width of [375, 320]) {
     const rows = body.locator('[data-wf-row]');
     await expect(rows).toHaveCount(6);
     // The tag, then the sentence, then the rows.
-    const tag = await body.getByTestId('waterfall-tag').boundingBox();
-    const sentence = await body.getByTestId('waterfall-sentence').boundingBox();
-    const first = await rows.first().boundingBox();
-    if (tag === null || sentence === null || first === null) throw new Error('the waterfall is not rendered');
-    expect(sentence.y).toBeGreaterThan(tag.y);
-    expect(first.y).toBeGreaterThan(sentence.y);
-    // A 10 px bar per row, each on a track of the same width: one kroner scale.
-    const tracks = await rows
-      .locator('.wf-bar')
-      .evaluateAll((bars) =>
-        bars.map((bar) => ({ height: bar.getBoundingClientRect().height, track: bar.parentElement?.getBoundingClientRect().width ?? 0 })),
-      );
-    expect(tracks).toHaveLength(6);
-    for (const { height, track } of tracks) {
-      expect(height).toBe(10);
-      expect(track).toBe(tracks[0]?.track);
-    }
+    await expect(async () => {
+      const tag = await body.getByTestId('waterfall-tag').boundingBox();
+      const sentence = await body.getByTestId('waterfall-sentence').boundingBox();
+      const first = await rows.first().boundingBox();
+      if (tag === null || sentence === null || first === null) throw new Error('the waterfall is not rendered');
+      expect(sentence.y).toBeGreaterThan(tag.y);
+      expect(first.y).toBeGreaterThan(sentence.y);
+      // A 10 px bar per row, each on a track of the same width: one kroner scale.
+      const tracks = await rows
+        .locator('.wf-bar')
+        .evaluateAll((bars) =>
+          bars.map((bar) => ({ height: bar.getBoundingClientRect().height, track: bar.parentElement?.getBoundingClientRect().width ?? 0 })),
+        );
+      expect(tracks).toHaveLength(6);
+      for (const { height, track } of tracks) {
+        expect(height).toBe(10);
+        expect(track).toBe(tracks[0]?.track);
+      }
+    }).toPass();
     await noSidewaysScroll(page);
     await body.getByRole('button', { name: nb['chart.showNumbers'] }).click();
     await expect(body.getByRole('table', { name: nb['waterfall.table.caption'] })).toBeVisible();
@@ -829,15 +864,18 @@ test('each bar recomputes from its drill-down', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}/nokkeltall`);
   await expect(rendered(page)).toBeVisible();
-  const outside = (await groupSize(page)) - peers.length;
+  await expectGroupSize(page);
+  const outside = syntheticGroup.length - peers.length;
   expect(outside).toBeGreaterThan(0);
   const body = await openNumbers(page, 'desktop');
   for (const key of COLUMNS) {
     const drill = await openColumn(body, 'd', key);
-    const chips = (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plainText);
-    for (const expectedLine of W.lines[key]) expect(chips, key).toContain(expectedLine);
-    // No exact share and no sum over P in what it shows.
-    expect(plainText(await drill.innerText()), key).not.toMatch(/\d,\d{3,} %/);
+    await expect(async () => {
+      const chips = (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plainText);
+      for (const expectedLine of W.lines[key]) expect(chips, key).toContain(expectedLine);
+      // No exact share and no sum over P in what it shows.
+      expect(plainText(await drill.innerText()), key).not.toMatch(/\d,\d{3,} %/);
+    }).toPass();
   }
   // The sentences about P: how samlet is pooled, who is outside, and samlet's one read date.
   const vare = wfDrill(body, 'd', 'vare');
@@ -882,8 +920,9 @@ test('the sum row', async ({ page }) => {
   const drill = await openColumn(body, 'd', 'sum');
   // Against samlet, not beste fjerdedel: not the Driftsmargin row's gap.
   await expect(drill).toContainText(nb['waterfall.prov.sumNotGap']);
-  const chips = (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plainText);
-  expect(chips).toContain('15 241 935 kr + (−14 516 129 kr) + (−30 000 000 kr) + 15 000 000 kr = −14 274 194 kr');
+  await expect
+    .poll(async () => (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plainText))
+    .toContain('15 241 935 kr + (−14 516 129 kr) + (−30 000 000 kr) + 15 000 000 kr = −14 274 194 kr');
   // The Driftsmargin row's own gap is another amount.
   await expect(cell(page, 'driftsmargin', 'gap')).not.toContainText(formatSignedKroner(kr(W.sumKr)));
 });
@@ -930,9 +969,12 @@ test('waterfall drill-downs: focus, several open, phone', async ({ page }) => {
       // end of the scroll, so they read without scrolling (review on PR #84).
       const steps = drill.locator('[data-wf-prov-steps]');
       const region = drill.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " scroll-region ")][1]');
-      const size = await region.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
-      // The state the check is about: the table is wider than its region at this width.
-      expect(size.scrollWidth, `${width} ${key}`).toBeGreaterThan(size.clientWidth);
+      // The state the check is about: the table is wider than its region at this width; read once it is.
+      let size = { scrollWidth: 0, clientWidth: 0 };
+      await expect(async () => {
+        size = await region.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+        expect(size.scrollWidth, `${width} ${key}`).toBeGreaterThan(size.clientWidth);
+      }).toPass();
       for (const [edge, target] of [
         ['left', 0],
         ['right', size.scrollWidth - size.clientWidth],
@@ -942,13 +984,15 @@ test('waterfall drill-downs: focus, several open, phone', async ({ page }) => {
           el.scrollLeft = left;
         }, target);
         await expect.poll(() => region.evaluate((el) => Math.round(el.scrollLeft)), { message: label }).toBe(target);
-        const r = await region.boundingBox();
-        const box = await steps.boundingBox();
-        if (r === null || box === null) throw new Error(`${label}: no region or no steps`);
-        // Scrolled fully right the steps sit exactly on the region's left edge, which Chromium
-        // places in layout units of 1/64 px: one unit is the only tolerance.
-        expect.soft(box.x, label).toBeGreaterThanOrEqual(r.x - LAYOUT_UNIT_PX);
-        expect.soft(box.x + box.width, label).toBeLessThanOrEqual(r.x + r.width + LAYOUT_UNIT_PX);
+        await expect(async () => {
+          const r = await region.boundingBox();
+          const box = await steps.boundingBox();
+          if (r === null || box === null) throw new Error(`${label}: no region or no steps`);
+          // Scrolled fully right the steps sit exactly on the region's left edge, which Chromium
+          // places in layout units of 1/64 px: one unit is the only tolerance.
+          expect(box.x, label).toBeGreaterThanOrEqual(r.x - LAYOUT_UNIT_PX);
+          expect(box.x + box.width, label).toBeLessThanOrEqual(r.x + r.width + LAYOUT_UNIT_PX);
+        }).toPass();
       }
     }
     await noSidewaysScroll(page);

@@ -163,7 +163,11 @@ describe('one margin string per peer', () => {
       expect(r.margin, r.name).toBe(fromList.driftsmargin);
     }
     // And the revenue: the table's is the Peers list's; the tooltip's is "Omsetning {v}".
-    for (const r of view.table.rows.filter((x) => !x.selected)) expect(r.revenue).toBe(list.get(r.name)?.omsetning);
+    // The fixture's eleven peers are all in the table; the ten with a margin are plotted, each with its tooltip.
+    const tablePeers = view.table.rows.filter((x) => !x.selected);
+    expect(tablePeers).toHaveLength(11);
+    for (const r of tablePeers) expect(r.revenue).toBe(list.get(r.name)?.omsetning);
+    expect(view.entries).toHaveLength(10);
     for (const e of view.entries) expect(e.revenue).toBe(`Omsetning ${list.get(e.name)?.omsetning ?? ''}`);
   });
 });

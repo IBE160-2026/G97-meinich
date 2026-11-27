@@ -35,6 +35,7 @@ import {
   expectProfitInputsStated,
 } from './seed.ts';
 import { expectNoPeerFields } from './payload.ts';
+import { narrow } from '../test/narrow.ts';
 
 test.describe('the key-figure table (Story 1.8)', () => {
   const NBSP = ' ';
@@ -51,8 +52,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await expect(region(page).locator('caption')).toHaveText(nb['keyFigures.caption']);
     await expect(page.getByText(nb['keyFigures.topNote'])).toBeVisible();
     for (const figure of ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel'] as const) {
-      const c = expected[figure].comparison;
-      if (c.kind !== 'compared') throw new Error(`the subject's ${figure} is not compared`);
+      const c = narrow(expected[figure].comparison, 'compared', figure);
       await expect(cell(page, figure, 'own')).toHaveText(pct(c.subject));
       await expect(cell(page, figure, 'median')).toHaveText(pct(c.median));
       await expect(desktopRow(page, figure).locator('th')).toContainText(
@@ -62,13 +62,15 @@ test.describe('the key-figure table (Story 1.8)', () => {
       const hi = formatPercentNumber(c.upperQuartile.toString());
       const range = lo.startsWith(MINUS) || hi.startsWith(MINUS) ? `${lo} til ${hi}` : `${lo}–${hi}`;
       await expect(cell(page, figure, 'distribution')).toContainText(`${range}${NBSP}%`);
-      if (c.best !== null) {
-        await expect(cell(page, figure, 'best')).toHaveText(pct(c.best.quartile));
-        await expect(cell(page, figure, 'placement')).toHaveText(
-          `bedre enn ${formatWholePercent(c.best.percentile.toString())}`,
-        );
-      }
     }
+    // Beste fjerdedel and Plassering for the two figures with a direction; egenkapitalandel has none.
+    for (const figure of ['driftsmargin', 'totalkapitalrentabilitet'] as const) {
+      const best = narrow(expected[figure].comparison, 'compared', figure).best;
+      if (best === null) throw new Error(`the subject's ${figure} has no beste fjerdedel`);
+      await expect(cell(page, figure, 'best')).toHaveText(pct(best.quartile));
+      await expect(cell(page, figure, 'placement')).toHaveText(`bedre enn ${formatWholePercent(best.percentile.toString())}`);
+    }
+    expect(narrow(expected.egenkapitalandel.comparison, 'compared', 'egenkapitalandel').best).toBeNull();
     // The fixture's state: the subject's driftsmargin is below beste fjerdedel, a profit amount, followed by
     // its "Hvordan er dette regnet?" (Story 3.7).
     const gap = expected.driftsmargin.gap;
@@ -85,16 +87,16 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
     const r = region(page);
     await expect(r).toHaveAttribute('tabindex', '0');
-    expect(await r.evaluate((el) => getComputedStyle(el).overflowX)).toBe('auto');
-    expect(await r.evaluate((el) => getComputedStyle(el).backgroundAttachment)).toContain('local');
+    await expect(r).toHaveCSS('overflow-x', 'auto');
+    await expect(r).toHaveCSS('background-attachment', /local/);
     await r.focus();
-    expect(await r.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('solid');
+    await expect(r).toHaveCSS('outline-style', 'solid');
     // The strips are decorative: hidden from assistive technology, never focusable.
     // One per compared row; since Story 3.2 the margin fold-out's two factors draw their own.
     await expect(r.locator('tr[data-figure]').getByTestId('distribution-strip')).toHaveCount(3);
     const strips = r.getByTestId('distribution-strip');
     await expect(strips).toHaveCount(5);
-    for (const strip of await strips.all()) await expect(strip).toHaveAttribute('aria-hidden', 'true');
+    await expect(r.locator('[data-testid="distribution-strip"]:not([aria-hidden="true"])')).toHaveCount(0);
     await expect(r.locator('[data-testid="distribution-strip"] :is([tabindex], a, button)')).toHaveCount(0);
   });
 
@@ -182,8 +184,8 @@ test.describe('the key-figure table (Story 1.8)', () => {
       await noSidewaysScroll(page);
       const button = phone.getByRole('button', { name: nb['fig.driftsmargin'] });
       await expect(button).toHaveAttribute('aria-expanded', 'false');
-      const controls = await button.getAttribute('aria-controls');
-      const expansion = page.locator(`[id="${controls}"]`);
+      await expect(button).toHaveAttribute('aria-controls', 'kf-p-exp-driftsmargin');
+      const expansion = page.locator('[id="kf-p-exp-driftsmargin"]');
       await expect(expansion).toBeHidden();
       await button.click();
       await expect(button).toHaveAttribute('aria-expanded', 'true');
@@ -192,9 +194,11 @@ test.describe('the key-figure table (Story 1.8)', () => {
       await noSidewaysScroll(page);
       await button.click();
       await expect(expansion).toBeHidden();
-      const box = await phone.boundingBox();
-      if (box === null) throw new Error('phone table not rendered');
-      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      await expect(async () => {
+        const box = await phone.boundingBox();
+        if (box === null) throw new Error('phone table not rendered');
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }).toPass();
     });
   }
 
@@ -235,19 +239,18 @@ test.describe('the key-figure table (Story 1.8)', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
     await expect(region(page).locator('tr[data-figure]')).toHaveCount(ORDER.length);
-    expect(await region(page).locator('tr[data-figure]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-figure')))).toEqual(
-      ORDER,
-    );
+    await expect.poll(() => region(page).locator('tr[data-figure]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-figure')))).toEqual(ORDER);
     // One State block, and every withheld cell points to it.
     const state = page.getByText(nb['keyFigures.notInDataset.state']);
     await expect(state).toHaveCount(1);
     await expect(state).toBeVisible();
-    const stateId = await state.getAttribute('id');
-    expect(stateId).not.toBeNull();
+    // NOT_IN_DATASET_ID in src/components/analysis/key-figure-table.tsx.
+    const stateId = 'kf-not-in-dataset';
+    await expect(state).toHaveAttribute('id', stateId);
     for (const figure of OUTSIDE_ROWS) {
       const own = cell(page, figure, 'own');
       await expect(own, figure).toContainText(nb['analysis.figures.notInDataset']);
-      await expect(own, figure).toHaveAttribute('aria-describedby', stateId ?? '');
+      await expect(own, figure).toHaveAttribute('aria-describedby', stateId);
       await expect(cell(page, figure, 'merged'), figure).not.toContainText(/\d/);
     }
     // The API rows are compared as for every company.
@@ -260,7 +263,8 @@ test.describe('the key-figure table (Story 1.8)', () => {
     // closed by Esc (focus back on the button) and by a click outside.
     const button = cell(page, 'kfd', 'own').getByRole('button', { name: nb['keyFigures.moreAbout'] });
     await expect(button).toHaveText(/ⓘ/);
-    const text = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+    await expect(button).toHaveAttribute('aria-controls', 'kf-d-pop-kfd');
+    const text = page.locator('[id="kf-d-pop-kfd"]');
     await expect(button).toHaveAttribute('aria-expanded', 'false');
     await expect(text).toBeHidden();
     await button.click();
@@ -302,7 +306,7 @@ test.describe('the key-figure table (Story 1.8)', () => {
       await expect(phone.locator('th[scope="rowgroup"]')).toHaveText(nb['keyFigures.costShare.group']);
       await noSidewaysScroll(page);
       const buttons = phone.locator('button[aria-controls^="kf-p-exp-"]');
-      expect(await buttons.evaluateAll((all) => all.map((b) => b.getAttribute('aria-controls')))).toEqual(
+      await expect.poll(() => buttons.evaluateAll((all) => all.map((b) => b.getAttribute('aria-controls')))).toEqual(
         ORDER.map((figure) => `kf-p-exp-${figure}`),
       );
       for (const figure of ORDER) {
@@ -320,9 +324,11 @@ test.describe('the key-figure table (Story 1.8)', () => {
       await info.click();
       await expect(page.locator('[id="kf-p-pop-kfd"]')).toBeVisible();
       await noSidewaysScroll(page);
-      const box = await phone.boundingBox();
-      if (box === null) throw new Error('phone table not rendered');
-      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      await expect(async () => {
+        const box = await phone.boundingBox();
+        if (box === null) throw new Error('phone table not rendered');
+        expect(box.x + box.width).toBeLessThanOrEqual(width);
+      }).toPass();
     });
   }
 });
@@ -336,19 +342,19 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
   const phone = (page: Page) => page.locator('table[data-layout="phone"]');
   const companyName = A.navn ?? '';
 
-  /** What a factor shows for the engine's comparison. */
-  async function expectFactor(factor: Locator, label: string, c: Comparison, format: (value: string) => string): Promise<void> {
+  /** What a compared factor shows for the engine's comparison. */
+  async function expectFactor(
+    factor: Locator,
+    label: string,
+    c: Extract<Comparison, { readonly kind: 'compared' }>,
+    format: (value: string) => string,
+  ): Promise<void> {
     await expect(factor).toContainText(label);
     await expect(factor).toContainText(companyName);
-    if (c.kind === 'subject_absent') throw new Error(`${label}: the subject has its own value`);
     await expect(factor).toContainText(format(c.subject.toString()));
     await expect(factor).toContainText(`${c.count} sammenlignbare brukt · ${c.leftOut} utelatt`);
-    if (c.kind === 'compared') {
-      await expect(factor).toContainText(`${nb['keyFigures.col.median']}${format(c.median.toString())}`);
-      await expect(factor.getByTestId('distribution-strip')).toHaveCount(1);
-    } else {
-      await expect(factor).toContainText(`For få sammenlignbare (${c.count} av 10)`);
-    }
+    await expect(factor).toContainText(`${nb['keyFigures.col.median']}${format(c.median.toString())}`);
+    await expect(factor.getByTestId('distribution-strip')).toHaveCount(1);
     // No beste fjerdedel, Plassering or kroner in a factor.
     await expect(factor).not.toContainText(/bedre enn|kronebeløp|\d kr/);
   }
@@ -367,7 +373,8 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     await expect(fold.getByRole('heading', { level: 3 })).toHaveAccessibleName(nb['keyFigures.foldout.margin']);
     const button = fold.getByRole('button', { name: nb['keyFigures.foldout.margin'] });
     await expect(button).toHaveAttribute('aria-expanded', 'false');
-    const body = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+    await expect(button).toHaveAttribute('aria-controls', 'kf-d-fold-margin');
+    const body = page.locator('[id="kf-d-fold-margin"]');
     await expect(body).toBeHidden();
     await button.click();
     await expect(button).toHaveAttribute('aria-expanded', 'true');
@@ -388,7 +395,8 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     const pay = region(page).locator('tr[data-foldout="pay"]');
     const payButton = pay.getByRole('button', { name: nb['keyFigures.foldout.pay'] });
     await payButton.click();
-    const payBody = page.locator(`[id="${await payButton.getAttribute('aria-controls')}"]`);
+    await expect(payButton).toHaveAttribute('aria-controls', 'kf-d-fold-pay');
+    const payBody = page.locator('[id="kf-d-fold-pay"]');
     const payFactors = payBody.locator('[data-factor]');
     await expect(payFactors).toHaveCount(2);
     for (const [i, label] of [nb['fig.lonnArsverk'], nb['fig.omsArsverk']].entries()) {
@@ -403,16 +411,17 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
 
   // Story 3.3: the subject is outside the demo data, so "Hva forklarer marginavviket?" reads "Ikke i demodataene".
   test('the waterfall is not in the demo data', async ({ page }) => {
-    for (const [width, scope] of [
-      [1280, region],
-      [375, phone],
+    for (const [width, scope, layout] of [
+      [1280, region, 'd'],
+      [375, phone, 'p'],
     ] as const) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
       const button = scope(page).getByRole('button', { name: nb['keyFigures.foldout.waterfall'] });
       await expect(button).toHaveAttribute('aria-expanded', 'false');
       await button.click();
-      const body = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+      await expect(button).toHaveAttribute('aria-controls', `kf-${layout}-fold-waterfall`);
+      const body = page.locator(`[id="kf-${layout}-fold-waterfall"]`);
       await expect(body).toBeVisible();
       await expect(body.getByTestId('waterfall-absent')).toHaveText(nb['analysis.figures.notInDataset']);
       await expect(body.locator('svg')).toHaveCount(0);
@@ -423,16 +432,44 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
     }
   });
 
-  for (const width of [1280, 375, 320]) {
+  /** Side by side from md: the second factor on the first's row, to its right. */
+  async function sideBySide(page: Page, body: Locator): Promise<void> {
+    await expect(async () => {
+      const first = await body.locator('[data-factor]').nth(0).boundingBox();
+      const second = await body.locator('[data-factor]').nth(1).boundingBox();
+      if (first === null || second === null) throw new Error('factors not rendered');
+      expect(second.y).toBe(first.y);
+      expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
+    }).toPass();
+  }
+
+  /** Stacked below md, at full width: the fold-out spans the phone table and stays on the screen. */
+  const stacked = (width: number) => async (page: Page, body: Locator): Promise<void> => {
+    await expect(async () => {
+      const first = await body.locator('[data-factor]').nth(0).boundingBox();
+      const second = await body.locator('[data-factor]').nth(1).boundingBox();
+      const table = await phone(page).boundingBox();
+      const box = await body.boundingBox();
+      if (first === null || second === null || table === null || box === null) throw new Error('fold-out not rendered');
+      expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
+      expect(box.width).toBeGreaterThan(table.width * 0.9);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+    }).toPass();
+  };
+
+  for (const [width, scope, layout, expectLayout] of [
+    [1280, region, 'd', sideBySide],
+    [375, phone, 'p', stacked(375)],
+    [320, phone, 'p', stacked(320)],
+  ] as const) {
     test(`fold-outs: keyboard and phone (${width} px)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(`/analyse/${A.orgnr}/nokkeltall`);
-      const desktop = width >= 768;
-      const scope = desktop ? region(page) : phone(page);
       for (const which of ['margin', 'pay'] as const) {
-        const button = scope.getByRole('button', { name: nb[`keyFigures.foldout.${which}`] });
+        const button = scope(page).getByRole('button', { name: nb[`keyFigures.foldout.${which}`] });
         await expect(button).toBeVisible();
-        const body = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+        await expect(button).toHaveAttribute('aria-controls', `kf-${layout}-fold-${which}`);
+        const body = page.locator(`[id="kf-${layout}-fold-${which}"]`);
         // Closed by default; Enter and Space each open and close it, from the keyboard.
         await expect(button).toHaveAttribute('aria-expanded', 'false');
         await expect(body).toBeHidden();
@@ -441,21 +478,7 @@ test.describe('the decomposition fold-outs (Story 3.2)', () => {
         await expect(button).toHaveAttribute('aria-expanded', 'true');
         await expect(body).toBeVisible();
         // Side by side from md, stacked below it.
-        const first = await body.locator('[data-factor]').nth(0).boundingBox();
-        const second = await body.locator('[data-factor]').nth(1).boundingBox();
-        if (first === null || second === null) throw new Error('factors not rendered');
-        if (desktop) {
-          expect(second.y).toBe(first.y);
-          expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
-        } else {
-          expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
-          // Full width: the fold-out spans the phone table, and stays on the screen.
-          const table = await phone(page).boundingBox();
-          const box = await body.boundingBox();
-          if (table === null || box === null) throw new Error('phone table not rendered');
-          expect(box.width).toBeGreaterThan(table.width * 0.9);
-          expect(box.x + box.width).toBeLessThanOrEqual(width);
-        }
+        await expectLayout(page, body);
         await noSidewaysScroll(page);
         // Each key both ways: Enter closes, Space opens and closes.
         await page.keyboard.press('Enter');

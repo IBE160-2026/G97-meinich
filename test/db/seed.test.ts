@@ -509,10 +509,14 @@ describe('the export and document figures', () => {
     ]);
     expect(manifest?.document_figure_orgnrs).not.toContain(withdrawn);
     expect(readFileSync(path.join(out, ALLOW_LIST_FILE), 'utf8')).toBe(stableJson(withReferenceOrgnrs(committedList, drawn)));
-    for (const file of readdirSync(path.join(out, SEED_DIR)).filter((name) => name.endsWith('.csv'))) {
-      const [header = [], ...rows] = parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8'));
+    const withOrgnr = readdirSync(path.join(out, SEED_DIR))
+      .filter((name) => name.endsWith('.csv'))
+      .map((file) => ({ file, csv: parseCsv(readFileSync(path.join(out, SEED_DIR, file), 'utf8')) }))
+      .filter(({ csv: [header = []] }) => header.includes('orgnr'));
+    // Every seed file with an orgnr column; key_figures is keyed by its filing.
+    expect(withOrgnr.map(({ file }) => file).sort()).toEqual(['classification.csv', 'company.csv', 'document.csv', 'document_column.csv', 'filing.csv', 'fingerprint.csv']);
+    for (const { file, csv: [header = [], ...rows] } of withOrgnr) {
       const at = header.indexOf('orgnr');
-      if (at === -1) continue;
       expect(
         rows.filter((row) => row[at] === withdrawn),
         file,

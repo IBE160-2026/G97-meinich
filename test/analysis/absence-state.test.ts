@@ -9,6 +9,7 @@ import {
   absenceWords,
   documentSubline,
   type AbsenceState,
+  type Message,
 } from '../../src/analysis/absence-state.ts';
 import { absenceDetail, absenceText } from '../../src/analysis/figure-text.ts';
 import type { DocumentBasis } from '../../src/engine/document-inputs.ts';
@@ -96,11 +97,15 @@ describe('absenceText', () => {
   });
 
   it('gives every reason words that fill every placeholder', () => {
+    const details: { readonly reason: string; readonly detail: Message }[] = [];
     for (const [absence] of Object.values(EVERY_REASON)) {
       const words = absenceWords(absence, CONTEXT);
       expect(() => t(words.text.id, { ...words.text.vars, grunn: 'x' }), absence.reason).not.toThrow();
-      if (words.detail !== null) expect(() => t(words.detail!.id, words.detail!.vars), absence.reason).not.toThrow();
+      details.push(...(words.detail === null ? [] : [{ reason: absence.reason, detail: words.detail }]));
     }
+    // The two reasons with a detail line, each filling its placeholders.
+    expect(details.map((d) => d.reason)).toEqual(['undefined', 'not_read_in_v1']);
+    for (const { reason, detail } of details) expect(() => t(detail.id, detail.vars), reason).not.toThrow();
   });
 });
 

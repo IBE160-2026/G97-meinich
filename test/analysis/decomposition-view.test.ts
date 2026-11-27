@@ -182,25 +182,40 @@ describe('the pay decomposition', () => {
   });
 });
 
-/** Every leaf of `value` with its path, outside the strip marks. */
-function leaves(value: unknown, path: string, out: { path: string; value: unknown }[]): void {
+type Walk = {
+  /** Every leaf with its path, outside the strip marks. */
+  readonly leaves: { path: string; value: unknown }[];
+  readonly strips: { path: string; strip: Record<string, unknown> }[];
+  /** Every object and array on the way, for the plain-object check. */
+  readonly objects: { path: string; value: object }[];
+};
+
+/** Collects the parts of `value`; `expectMarks` asserts over each list, so no expect sits in a branch. */
+function walk(value: unknown, path: string, out: Walk = { leaves: [], strips: [], objects: [] }): Walk {
   if (path.endsWith('.strip')) {
-    const strip = value as Record<string, unknown>;
+    out.strips.push({ path, strip: value as Record<string, unknown> });
+  } else if (value !== null && typeof value === 'object') {
+    out.objects.push({ path, value });
+    for (const [key, child] of Object.entries(value)) walk(child, `${path}.${key}`, out);
+  } else {
+    out.leaves.push({ path, value });
+  }
+  return out;
+}
+
+function expectMarks(parts: Walk): void {
+  for (const { path, strip } of parts.strips) {
     expect(Object.keys(strip).sort(), path).toEqual(['bandFrom', 'bandTo', 'best', 'median', 'mirrored', 'own']);
     for (const key of ['bandFrom', 'bandTo', 'median']) expect(typeof strip[key], `${path}.${key}`).toBe('number');
     expect(strip.best === null || typeof strip.best === 'number', `${path}.best`).toBe(true);
     expect(typeof strip.mirrored, `${path}.mirrored`).toBe('boolean');
     expect(Object.keys(strip.own as object).sort(), `${path}.own`).toEqual(['at', 'clipped']);
-    return;
   }
-  if (value !== null && typeof value === 'object') {
-    // Plain arrays and objects only: a Decimal, a Fraction or any class instance is not.
+  // Plain arrays and objects only: a Decimal, a Fraction or any class instance is not.
+  for (const { path, value } of parts.objects) {
     const proto = Object.getPrototypeOf(value);
     expect(proto === Object.prototype || proto === Array.prototype, `${path} is a plain object`).toBe(true);
-    for (const [key, child] of Object.entries(value)) leaves(child, `${path}.${key}`, out);
-    return;
   }
-  out.push({ path, value });
 }
 
 describe('the payload boundary', () => {
@@ -211,9 +226,12 @@ describe('the payload boundary', () => {
       view(PEERS, { ...SUBJECT, sumEiendeler: 0n }),
       view(PEERS, SUBJECT, NOT_IN_DATASET),
     ];
+    let strips = 0;
     for (const decompositions of cases) {
-      const found: { path: string; value: unknown }[] = [];
-      leaves(decompositions, 'view', found);
+      const parts = walk(decompositions, 'view');
+      expectMarks(parts);
+      strips += parts.strips.length;
+      const found = parts.leaves;
       expect(found.length).toBeGreaterThan(10);
       for (const { path, value } of found) {
         // No number outside the strip, no bigint, no Decimal.
@@ -225,5 +243,7 @@ describe('the payload boundary', () => {
         expect(text).not.toMatch(new RegExp(`(?<!\\d)${ore}(?!\\d)`));
       }
     }
+    // The strip checks ran: the compared cases draw strips.
+    expect(strips).toBeGreaterThan(0);
   });
 });

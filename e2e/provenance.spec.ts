@@ -72,7 +72,17 @@ async function open(page: Page, id: string): Promise<Locator> {
   return drill;
 }
 
-const chips = async (drill: Locator) => (await drill.locator('[data-provenance-chip]').allInnerTexts()).map(plain);
+/** A drill-down's chips, read only inside a retried block, never as a snapshot. */
+const chipsOf = (drill: Locator) => drill.locator('[data-provenance-chip]');
+
+/** A target of at least 24 × 24 px, measured once laid out. */
+async function expectTarget(target: Locator, label = ''): Promise<void> {
+  await expect(async () => {
+    const box = await target.boundingBox();
+    expect(box?.width ?? 0, label).toBeGreaterThanOrEqual(24);
+    expect(box?.height ?? 0, label).toBeGreaterThanOrEqual(24);
+  }).toPass();
+}
 
 test.describe('the drill-down (Story 3.7)', () => {
   test('values equal the engine: the driftsmargin cell, at the default URL', async ({ page }) => {
@@ -85,29 +95,33 @@ test.describe('the drill-down (Story 3.7)', () => {
     await expect(drill.getByRole('heading', { name: nb['provenance.trigger'] })).toBeFocused();
     // The four steps.
     for (const step of ['formula', 'figure', 'filed', 'source'] as const) await expect(drill).toContainText(nb[`provenance.step.${step}`]);
-    const lines = await chips(drill);
-    expect(lines[0]).toBe('(T − r) × sumDriftsinntekter');
     // The fixture's state, by the displayed-operand rule: (T − r) × revenue from the displayed T, r
     // and revenue is not the displayed amount, so the line reads "≈"; a negative r is in parentheses.
     const T = formatPercent(o.best.quartile.toString());
     const r = formatPercent(o.c.subject.toString());
     const shown = shownPercent(o.best.quartile.toString()).minus(shownPercent(o.c.subject.toString())).mul(wholeKroner(o.revenueOre.toString()));
     expect(lineIsApproximate(shown, wholeKroner(o.gapOre.toString()))).toBe(true);
-    expect(lines[1]).toBe(plain(`(${T} − ${operand(r)}) × ${formatKroner(o.revenueOre.toString())} ≈ ${o.amount} ${nb['keyFigures.perYear']}`));
-    expect(lines).toContain(`T = ${plain(formatPercent(o.best.quartile.toString()))}`);
-    expect(lines).toContain(`M = ${plain(formatPercent(o.c.median.toString()))}`);
-    expect(lines.some((line) => line.startsWith('r = driftsresultat / sumDriftsinntekter') && line.endsWith(plain(formatPercent(o.c.subject.toString()))))).toBe(true);
+    await expect(async () => {
+      const lines = (await chipsOf(drill).allInnerTexts()).map(plain);
+      expect(lines[0]).toBe('(T − r) × sumDriftsinntekter');
+      expect(lines[1]).toBe(plain(`(${T} − ${operand(r)}) × ${formatKroner(o.revenueOre.toString())} ≈ ${o.amount} ${nb['keyFigures.perYear']}`));
+      expect(lines).toContain(`T = ${plain(formatPercent(o.best.quartile.toString()))}`);
+      expect(lines).toContain(`M = ${plain(formatPercent(o.c.median.toString()))}`);
+      expect(lines.some((line) => line.startsWith('r = driftsresultat / sumDriftsinntekter') && line.endsWith(plain(formatPercent(o.c.subject.toString()))))).toBe(true);
+    }).toPass();
     await expect(drill).toContainText(
       fill('provenance.best', { T: formatPercent(o.best.quartile.toString()), kvartil: nb['provenance.quartile.upper'], n: String(o.c.count) }),
     );
     // The filed values, their data date, the source and the data-quality line: the subject is outside the demo data.
-    const text = plain(await drill.innerText());
-    expect(text).toContain(plain(`driftsresultat ${formatKroner(o.driftsresultat ?? '')}`));
-    expect(text).toContain(plain(`sumDriftsinntekter ${formatKroner(o.sumDriftsinntekter ?? '')}`));
     // "Registerets nøkkeltall: " and the header's data date (the same filing year and read date).
     expect(nb['provenance.date.api'].endsWith(nb['analysis.dataDate'])).toBe(true);
-    expect(text).toContain(plain(nb['provenance.date.api'].replace(nb['analysis.dataDate'], dataDate(orgnr))));
-    expect(text).toContain(plain(nb['provenance.source.api']));
+    await expect(async () => {
+      const text = plain(await drill.innerText());
+      expect(text).toContain(plain(`driftsresultat ${formatKroner(o.driftsresultat ?? '')}`));
+      expect(text).toContain(plain(`sumDriftsinntekter ${formatKroner(o.sumDriftsinntekter ?? '')}`));
+      expect(text).toContain(plain(nb['provenance.date.api'].replace(nb['analysis.dataDate'], dataDate(orgnr))));
+      expect(text).toContain(plain(nb['provenance.source.api']));
+    }).toPass();
     await expect(drill.locator('[data-provenance-quality]')).toHaveText(nb['provenance.quality.notInDataset']);
   });
 
@@ -117,20 +131,24 @@ test.describe('the drill-down (Story 3.7)', () => {
     await page.goto(`/analyse/${orgnr}/verdi?andel=median&multippel=6.5`);
     await companyShown(page, navn);
     const profit = await open(page, 'verdi-prov-profit');
-    const lines = await chips(profit);
     // The median step's profit is (M − r) × sumDriftsinntekter, and its amount the card's.
-    expect(lines).toContain('(M − r) × sumDriftsinntekter');
-    expect(lines.some((line) => line.endsWith(`${plain(o.atMedian)} ${nb['keyFigures.perYear']}`))).toBe(true);
+    // No share line on the profit at the median step: its formula replaces it.
+    // (A share line is "{full} kr × {andel} % = {a}".)
+    await expect(async () => {
+      const lines = (await chipsOf(profit).allInnerTexts()).map(plain);
+      expect(lines).toContain('(M − r) × sumDriftsinntekter');
+      expect(lines.some((line) => line.endsWith(`${plain(o.atMedian)} ${nb['keyFigures.perYear']}`))).toBe(true);
+      expect(lines.filter((line) => / kr × [\d ]+ %/.test(line))).toEqual([]);
+    }).toPass();
     await expect(rendered(page).getByTestId('verdi-profit').locator('[data-card="amount"]')).toHaveText(
       fill('verdi.profit.value', { a: o.atMedian, full: o.amount }),
     );
-    // No share line on the profit at the median step: its formula replaces it.
-    // (A share line is "{full} kr × {andel} % = {a}".)
-    expect(lines.filter((line) => / kr × [\d ]+ %/.test(line))).toEqual([]);
     // EV: the same steps, with the product line the card shows.
     const ev = await open(page, 'verdi-prov-ev');
-    const product = plain(await rendered(page).getByTestId('verdi-ev').locator('[data-ev="product"]').innerText());
-    expect(await chips(ev)).toContain(product);
+    await expect(async () => {
+      const product = plain(await rendered(page).getByTestId('verdi-ev').locator('[data-ev="product"]').innerText());
+      expect((await chipsOf(ev).allInnerTexts()).map(plain)).toContain(product);
+    }).toPass();
   });
 
   // Review: the share line the browser writes into Verdi's drill-down, at 50 % and after a share change.
@@ -156,14 +174,16 @@ test.describe('the drill-down (Story 3.7)', () => {
     await page.goto(`/analyse/${orgnr}/verdi`);
     await companyShown(page, navn);
     const drill = await open(page, 'verdi-prov-profit');
-    expect(await chips(drill)).toContain(at50.text(sign(at50)));
+    await expect.poll(async () => (await chipsOf(drill).allInnerTexts()).map(plain)).toContain(at50.text(sign(at50)));
     await rendered(page).locator('[data-share-step="25"]').click();
     // Wait for the share to render before reading the drill-down (PR #78).
     await expect(rendered(page).locator('[data-share-step="25"]')).toHaveAttribute('aria-checked', 'true');
     await expect(drill.locator('[data-provenance-chip]', { hasText: ' × 25' })).toHaveCount(1);
-    const lines = await chips(drill);
-    expect(lines).toContain(at25.text(sign(at25)));
-    expect(lines).not.toContain(at50.text(sign(at50)));
+    await expect(async () => {
+      const lines = (await chipsOf(drill).allInnerTexts()).map(plain);
+      expect(lines).toContain(at25.text(sign(at25)));
+      expect(lines).not.toContain(at50.text(sign(at50)));
+    }).toPass();
   });
 
   test('outside the demo data: no reconciliation claim', async ({ page }) => {
@@ -196,17 +216,20 @@ test.describe('the drill-down (Story 3.7)', () => {
     const list = drill.locator('[data-provenance-distribution] ol');
     await expect(list).toBeVisible();
     await expect(drill).toContainText(fill('provenance.distribution.caption', { n: String(o.c.count) }));
-    const texts = await list.locator('li').allInnerTexts();
-    expect(texts).toHaveLength(o.c.count);
-    // Values only: a percent each, never a name or an orgnr.
-    // A value of 1 000 % or more has a thousands space, as format.ts writes it.
-    for (const value of texts) expect(plain(value)).toMatch(/^−?\d{1,3}(?: \d{3})*,\d %$/);
-    const values = texts.map((value) =>
-      new Decimal(plain(value).replace(' %', '').replaceAll(' ', '').replace(',', '.').replace('−', '-')).div(100),
-    );
-    for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
-    // PERCENTILE.INC at 0,75 on the shown values, written as the page writes T.
-    expect(formatPercent(percentileInc(values, '0.75').toString())).toBe(formatPercent(o.best.quartile.toString()));
+    await expect(list.locator('li')).toHaveCount(o.c.count);
+    await expect(async () => {
+      const texts = await list.locator('li').allInnerTexts();
+      expect(texts).toHaveLength(o.c.count);
+      // Values only: a percent each, never a name or an orgnr.
+      // A value of 1 000 % or more has a thousands space, as format.ts writes it.
+      for (const value of texts) expect(plain(value)).toMatch(/^−?\d{1,3}(?: \d{3})*,\d %$/);
+      const values = texts.map((value) =>
+        new Decimal(plain(value).replace(' %', '').replaceAll(' ', '').replace(',', '.').replace('−', '-')).div(100),
+      );
+      for (let i = 1; i < values.length; i += 1) expect((values[i] as Decimal).gte(values[i - 1] as Decimal)).toBe(true);
+      // PERCENTILE.INC at 0,75 on the shown values, written as the page writes T.
+      expect(formatPercent(percentileInc(values, '0.75').toString())).toBe(formatPercent(o.best.quartile.toString()));
+    }).toPass();
     // The fixture's state: h = (n − 1) × 0,75 has the fraction f = 0,25 for the subject's n, so T lies
     // between two values and both are marked.
     expect(new Decimal(o.c.count - 1).mul('0.75').mod(1).toString()).toBe('0.25');
@@ -272,8 +295,11 @@ test.describe('the drill-down (Story 3.7)', () => {
     }, longest);
     await expect(chip.locator('code', { hasText: longest })).toBeVisible();
     await noSidewaysScroll(page);
-    const box = await chip.boundingBox();
-    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(320);
+    await expect(async () => {
+      const box = await chip.boundingBox();
+      if (box === null) throw new Error('chip not rendered');
+      expect(box.x + box.width).toBeLessThanOrEqual(320);
+    }).toPass();
   });
 
   for (const width of [375, 320]) {
@@ -290,11 +316,7 @@ test.describe('the drill-down (Story 3.7)', () => {
       await expect(table.locator('[data-provenance-distribution] ol')).toBeVisible();
       await noSidewaysScroll(page);
       targets.push(trigger(rendered(page), 'kf-p-prov-driftsmargin'), table.getByRole('button', { name: nb['provenance.close'] }));
-      for (const target of targets.splice(0)) {
-        const box = await target.boundingBox();
-        expect(box?.width ?? 0).toBeGreaterThanOrEqual(24);
-        expect(box?.height ?? 0).toBeGreaterThanOrEqual(24);
-      }
+      for (const target of targets.splice(0)) await expectTarget(target);
       // Oversikt's hero, and Verdi's profit card and EV.
       const surfaces: readonly (readonly [string, readonly string[]])[] = [
         [`/analyse/${orgnr}/oversikt`, ['hero-prov']],
@@ -310,9 +332,7 @@ test.describe('the drill-down (Story 3.7)', () => {
           // Several open at once: each stays open while the next opens.
           for (const shown of ids.slice(0, ids.indexOf(id))) await expect(body(rendered(page), shown)).toBeVisible();
           for (const target of [trigger(rendered(page), id), drill.getByRole('button', { name: nb['provenance.close'] }), drill.getByRole('button', { name: nb['provenance.showDistribution'] })]) {
-            const box = await target.boundingBox();
-            expect(box?.width ?? 0, id).toBeGreaterThanOrEqual(24);
-            expect(box?.height ?? 0, id).toBeGreaterThanOrEqual(24);
+            await expectTarget(target, id);
           }
         }
         await noSidewaysScroll(page);

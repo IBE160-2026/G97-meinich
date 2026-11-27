@@ -249,13 +249,20 @@ describe('stage 4 against stored fingerprints', () => {
 
   it('reads no fingerprint as null, and a subject without one keeps the whole pool', async () => {
     const { funnel, candidates, group } = await groupForDemoA(0);
+    // Demo A's band-0 group in the committed seed: 434 (the e2e oracle's and the analysis page's count).
+    expect(group.pool).toHaveLength(434);
+    expect(candidates.length).toBeGreaterThanOrEqual(group.pool.length);
     for (const candidate of candidates) {
       expect(candidate.fingerprint === null || typeof candidate.fingerprint === 'object').toBe(true);
     }
-    if (funnel.fingerprint === null) {
-      expect(group.group).toEqual(group.pool);
-      expect(group.counts.stage4.businessModel).toBe(group.counts.stage3.legalForm);
-    }
+    // Demo A has a 2025 fingerprint in the seed, so the subject without one is
+    // demo A with it taken away, through stage 4 with the fingerprint signal on
+    // (in v1 it is off, and group = pool for every subject).
+    expect(funnel.fingerprint).not.toBeNull();
+    expect(group.group).toEqual(group.pool);
+    const without = assemblePeerGroup({ ...funnel, fingerprint: null }, candidates, 0, { textSignal: false, fingerprintSignal: true });
+    expect(without.group).toEqual(without.pool);
+    expect(without.counts.stage4.businessModel).toBe(without.counts.stage3.legalForm);
   });
 
   // Review pass 1 (triage 4): the subject read's join, through SUBJECT_SQL

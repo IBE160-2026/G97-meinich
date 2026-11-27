@@ -77,12 +77,21 @@ test.describe('typing', () => {
     const listbox = page.getByRole('listbox');
     await expect(listbox).toBeVisible();
     await expect(combobox(page)).toHaveAttribute('aria-expanded', 'true');
-    await expect(combobox(page)).toHaveAttribute('aria-controls', (await listbox.getAttribute('id')) ?? '');
+    // The field controls the listbox: the same generated id on both, read together.
+    await expect(async () => {
+      const id = await listbox.getAttribute('id');
+      expect(id).toBeTruthy();
+      expect(await combobox(page).getAttribute('aria-controls')).toBe(id);
+    }).toPass();
     const options = listbox.getByRole('option');
     await expect(options.first()).toContainText('ADMMIT AS');
     await expect(options.first()).toContainText('813 235 552 · 62.100 Dataprogrammeringstjenester · Vindafjord');
-    expect(await options.count()).toBeLessThanOrEqual(8);
-    await expect(status(page)).toHaveText(`${await options.count()} treff`);
+    // At most eight, and the status names how many are shown.
+    await expect(async () => {
+      const shown = await options.count();
+      expect(shown).toBeLessThanOrEqual(8);
+      expect(await status(page).textContent()).toBe(`${shown} treff`);
+    }).toPass();
     // One request for the whole word, and nothing navigated.
     expect(searches).toHaveLength(1);
     await expect(page).toHaveURL('/');
@@ -96,7 +105,11 @@ test.describe('typing', () => {
     await expect(combobox(page)).not.toHaveAttribute('aria-activedescendant', /.+/);
 
     await combobox(page).press('ArrowDown');
-    await expect(combobox(page)).toHaveAttribute('aria-activedescendant', (await first.getAttribute('id')) ?? '');
+    await expect(async () => {
+      const id = await first.getAttribute('id');
+      expect(id).toBeTruthy();
+      expect(await combobox(page).getAttribute('aria-activedescendant')).toBe(id);
+    }).toPass();
     await expect(first).toHaveAttribute('aria-selected', 'true');
 
     await combobox(page).press('Escape');
@@ -208,11 +221,9 @@ test.describe('submit', () => {
       await submit(page).click();
       const field = combobox(page);
       await expect(field).toHaveAttribute('aria-invalid', 'true');
-      const describedBy = await field.getAttribute('aria-describedby');
-      expect(describedBy).toBeTruthy();
-      await expect(page.locator(`[id="${describedBy}"]`)).toHaveText(message);
+      await expect(field).toHaveAccessibleDescription(message);
       await expect(status(page)).toContainText(message);
-      expect(await field.evaluate((el) => getComputedStyle(el).borderTopWidth)).toBe('2px');
+      await expect(field).toHaveCSS('border-top-width', '2px');
       expect(searches).toHaveLength(0);
     });
   }
@@ -288,9 +299,9 @@ test.describe('the API', () => {
     test(`"${query}" does not return every company`, async ({ request }) => {
       const response = await request.get(`/api/sok?q=${encodeURIComponent(query)}`);
       expect(response.status()).toBe(200);
-      const rows = (await response.json()) as { navn: string }[];
-      expect(rows.length).toBeLessThan(8);
-      for (const row of rows) expect(row.navn).toContain(query);
+      // No stored name contains "%" or "_" (the seed, as test/db/search.test.ts says), so a literal match finds
+      // none, and an unescaped wildcard would return the first 8: exactly [] tells them apart.
+      expect(await response.json()).toEqual([]);
     });
   }
 
@@ -307,40 +318,48 @@ for (const width of [375, 320]) {
       page,
     }) => {
       await page.goto('/');
-      const field = await combobox(page).boundingBox();
-      const button = await submit(page).boundingBox();
-      if (field === null || button === null) throw new Error('field or button not rendered');
-      expect(button.y).toBeGreaterThanOrEqual(field.y + field.height);
-      expect(Math.abs(button.width - field.width)).toBeLessThanOrEqual(1);
-      expect(field.height).toBe(56);
-      expect(button.height).toBe(52);
+      await expect(async () => {
+        const field = await combobox(page).boundingBox();
+        const button = await submit(page).boundingBox();
+        if (field === null || button === null) throw new Error('field or button not rendered');
+        expect(button.y).toBeGreaterThanOrEqual(field.y + field.height);
+        expect(Math.abs(button.width - field.width)).toBeLessThanOrEqual(1);
+        expect(field.height).toBe(56);
+        expect(button.height).toBe(52);
+      }).toPass();
 
       const steps = page.locator('main ol > li');
-      const boxes = await steps.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().toJSON()));
-      for (let i = 1; i < boxes.length; i += 1) expect(boxes[i].y).toBeGreaterThan(boxes[i - 1].y + boxes[i - 1].height - 1);
+      await expect(async () => {
+        const boxes = await steps.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().toJSON()));
+        for (let i = 1; i < boxes.length; i += 1) expect(boxes[i].y).toBeGreaterThan(boxes[i - 1].y + boxes[i - 1].height - 1);
+      }).toPass();
 
       // With the results list and the no-match state open as well.
       await combobox(page).fill('data');
       await expect(page.getByRole('option').first()).toBeVisible();
 
       const targets = page.locator('main a, main button, main input, footer a, [role="option"]');
-      for (const box of await targets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()))) {
-        expect(box.width).toBeGreaterThanOrEqual(24);
-        expect(box.height).toBeGreaterThanOrEqual(24);
-      }
+      await expect(async () => {
+        for (const box of await targets.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()))) {
+          expect(box.width).toBeGreaterThanOrEqual(24);
+          expect(box.height).toBeGreaterThanOrEqual(24);
+        }
+      }).toPass();
 
-      const scroll = await page.evaluate(() => ({
-        scrollWidth: document.documentElement.scrollWidth,
-        bodyScrollWidth: document.body.scrollWidth,
-        innerWidth: window.innerWidth,
-      }));
-      expect(scroll.scrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
-      expect(scroll.bodyScrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
+      await expect(async () => {
+        const scroll = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          bodyScrollWidth: document.body.scrollWidth,
+          innerWidth: window.innerWidth,
+        }));
+        expect(scroll.scrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
+        expect(scroll.bodyScrollWidth).toBeLessThanOrEqual(scroll.innerWidth);
+      }).toPass();
 
       await combobox(page).fill('zzqxjvw');
       await submit(page).click();
       await expect(page.getByRole('link', { name: DEMO_B.navn })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
   });
 }
@@ -348,11 +367,14 @@ for (const width of [375, 320]) {
 test('on desktop the field and button sit side by side and the steps in three columns', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/');
-  const field = await combobox(page).boundingBox();
-  const button = await submit(page).boundingBox();
-  if (field === null || button === null) throw new Error('field or button not rendered');
-  expect(field.height).toBe(60);
-  expect(Math.abs(button.y - field.y)).toBeLessThanOrEqual(1);
-  const ys = await page.locator('main ol > li').evaluateAll((items) => items.map((i) => i.getBoundingClientRect().y));
-  expect(new Set(ys).size).toBe(1);
+  await expect(async () => {
+    const field = await combobox(page).boundingBox();
+    const button = await submit(page).boundingBox();
+    if (field === null || button === null) throw new Error('field or button not rendered');
+    expect(field.height).toBe(60);
+    expect(Math.abs(button.y - field.y)).toBeLessThanOrEqual(1);
+  }).toPass();
+  await expect
+    .poll(async () => new Set(await page.locator('main ol > li').evaluateAll((items) => items.map((i) => i.getBoundingClientRect().y))).size)
+    .toBe(1);
 });

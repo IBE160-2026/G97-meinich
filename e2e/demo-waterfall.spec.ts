@@ -30,7 +30,8 @@ const waterfallButton = (page: Page, layout: 'd' | 'p') =>
 async function openNumbers(page: Page, layout: 'd' | 'p'): Promise<Locator> {
   const button = waterfallButton(page, layout);
   await button.click();
-  const body = page.locator(`[id="${await button.getAttribute('aria-controls')}"]`);
+  await expect(button).toHaveAttribute('aria-controls', `kf-${layout}-fold-waterfall`);
+  const body = page.locator(`[id="kf-${layout}-fold-waterfall"]`);
   await expect(body).toBeVisible();
   // A decomposition, not an absence.
   await expect(body.getByTestId('waterfall-absent')).toHaveCount(0);
@@ -59,7 +60,7 @@ async function expectWaterfall(page: Page, subject: { readonly orgnr: string; re
   const body = await openNumbers(page, layout);
   // Every row of "Vis tallene" is a column with its own drill-down.
   const rows = body.locator('tr[data-wf-table-row]');
-  expect(await rows.evaluateAll((trs) => trs.map((tr) => tr.getAttribute('data-wf-table-row'))), label).toEqual([...COLUMNS]);
+  await expect.poll(() => rows.evaluateAll((trs) => trs.map((tr) => tr.getAttribute('data-wf-table-row'))), label).toEqual([...COLUMNS]);
   for (const key of COLUMNS) {
     const trigger = body.locator(`tr[data-wf-table-row="${key}"] [data-provenance-trigger="kf-${layout}-wf-prov-${key}"]`);
     await expect(trigger, `${label} ${key}`).toBeVisible();
@@ -70,7 +71,7 @@ async function expectWaterfall(page: Page, subject: { readonly orgnr: string; re
   }
   // P has at least 10 members: the minimum for a decomposition (MIN_PEERS).
   const vare = body.locator(`[data-provenance-body="kf-${layout}-wf-prov-vare"]`);
-  expect(pooledCount(await vare.innerText()), label).toBeGreaterThanOrEqual(10);
+  await expect.poll(async () => pooledCount(await vare.innerText()), label).toBeGreaterThanOrEqual(10);
   // Samlet's read dates: the filing year and the range of P's dates, never one peer's.
   await expect(vare.locator('[data-provenance-pooled] p', { hasText: 'Peer-gruppen samlet: Regnskapsår' }), label).toHaveCount(1);
   await noSidewaysScroll(page);

@@ -91,13 +91,14 @@ afterEach(() => {
 });
 
 function refusal(fn: () => unknown): string {
+  let caught: unknown = null;
   try {
     fn();
   } catch (error) {
-    expect(error).toBeInstanceOf(SeedRefusal);
-    return (error as Error).message;
+    caught = error;
   }
-  throw new Error('expected a SeedRefusal');
+  expect(caught).toBeInstanceOf(SeedRefusal);
+  return (caught as Error).message;
 }
 
 describe('the seed tables', () => {
@@ -323,16 +324,10 @@ describe('measured: true', () => {
   });
 
   it('runs inside prepareSeed, after the manifest checks', () => {
-    for (const [fixture, ok] of [
-      ['measured-no-report.json', false],
-      ['measured-missing-file.json', false],
-      ['measured-bad-checksum.json', false],
-      ['measured-ok.json', true],
-    ] as const) {
-      const run = () => prepareSeed(withFixtureReports(fixture));
-      if (ok) expect(run().coverage[0]?.report).toBe('analysis/output/x.md');
-      else expect(refusal(run)).toMatch(/^seed\/coverage\.json entry 62\.100: /);
+    for (const fixture of ['measured-no-report.json', 'measured-missing-file.json', 'measured-bad-checksum.json']) {
+      expect(refusal(() => prepareSeed(withFixtureReports(fixture))), fixture).toMatch(/^seed\/coverage\.json entry 62\.100: /);
     }
+    expect(prepareSeed(withFixtureReports('measured-ok.json')).coverage[0]?.report).toBe('analysis/output/x.md');
   });
 });
 

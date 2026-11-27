@@ -295,8 +295,7 @@ for (const [input, message] of [
     const field = page.locator('main').getByRole('combobox', { name: nb['search.label'] });
     await expect(field).toHaveValue(input);
     await expect(field).toHaveAttribute('aria-invalid', 'true');
-    const describedBy = await field.getAttribute('aria-describedby');
-    await expect(page.locator(`[id="${describedBy}"]`)).toHaveText(message);
+    await expect(field).toHaveAccessibleDescription(message);
     // The hero search takes the header search's place, as on the front page.
     await expect(headerSearch(page)).toHaveCount(0);
   });
@@ -415,12 +414,15 @@ test('nothing is written to browser storage or cookies in any state', async ({ p
     await page.goto(url);
     await expect(rendered(page)).toBeVisible();
   }
-  const storage = await page.evaluate(async () => ({
-    local: window.localStorage.length,
-    session: window.sessionStorage.length,
-    databases: (await indexedDB.databases()).length,
-  }));
-  expect(storage).toEqual({ local: 0, session: 0, databases: 0 });
+  await expect
+    .poll(() =>
+      page.evaluate(async () => ({
+        local: window.localStorage.length,
+        session: window.sessionStorage.length,
+        databases: (await indexedDB.databases()).length,
+      })),
+    )
+    .toEqual({ local: 0, session: 0, databases: 0 });
   expect(await context.cookies()).toEqual([]);
 });
 
@@ -429,26 +431,32 @@ for (const width of [375, 320]) {
     test.use({ viewport: { width, height: 800 } });
 
     test('no state scrolls sideways; the header search is a full-width second row at least 200 px wide', async ({ page }) => {
+      // Every page but an invalid orgnr's has the header search (its hero search takes the place).
       for (const url of [
         `/analyse/${A.orgnr}/oversikt`,
         `/analyse/${A.orgnr}/peers?band=x`,
         `/analyse/${C.orgnr}`,
         `/analyse/${NO_FILING.orgnr}`,
         `/analyse/${ABSENT}`,
-        '/analyse/12345678',
-        '/analyse/123456789',
         '/slik-fungerer-peerless',
       ]) {
         await page.goto(url);
         await expect(rendered(page)).toBeVisible();
         await noSidewaysScroll(page);
-        if ((await headerSearch(page).count()) > 0) {
+        await expect(headerSearch(page), url).toHaveCount(1);
+        await expect(async () => {
           const field = await headerSearch(page).boundingBox();
           const brand = await page.getByRole('banner').getByRole('link', { name: nb['shell.brand'], exact: true }).boundingBox();
           if (field === null || brand === null) throw new Error(`${url}: header not rendered`);
           expect(field.width, url).toBeGreaterThanOrEqual(200);
           expect(field.y, url).toBeGreaterThan(brand.y + brand.height - 1);
-        }
+        }).toPass();
+      }
+      for (const url of ['/analyse/12345678', '/analyse/123456789']) {
+        await page.goto(url);
+        await expect(rendered(page)).toBeVisible();
+        await noSidewaysScroll(page);
+        await expect(headerSearch(page), url).toHaveCount(0);
       }
     });
 
@@ -457,12 +465,14 @@ for (const width of [375, 320]) {
       const button = page.getByRole('banner').locator('button[type="submit"]');
       await expect(button).toHaveAccessibleName(nb['search.submit']);
       await expect(button.locator('svg')).toBeVisible();
-      const box = await button.boundingBox();
-      const field = await headerSearch(page).boundingBox();
-      if (box === null || field === null) throw new Error('header search not rendered');
-      expect(box.width).toBeGreaterThanOrEqual(44);
-      expect(box.height).toBeGreaterThanOrEqual(44);
-      expect(field.width).toBeGreaterThanOrEqual(200);
+      await expect(async () => {
+        const box = await button.boundingBox();
+        const field = await headerSearch(page).boundingBox();
+        if (box === null || field === null) throw new Error('header search not rendered');
+        expect(box.width).toBeGreaterThanOrEqual(44);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(field.width).toBeGreaterThanOrEqual(200);
+      }).toPass();
     });
 
     test('the tabs wrap rather than scroll', async ({ page }) => {
@@ -472,12 +482,15 @@ for (const width of [375, 320]) {
       const nav = tabs(page);
       // Story 3.5: all four, each a target of at least 24 × 24 px.
       await expect(nav.getByRole('link')).toHaveCount(4);
-      for (const box of await nav.getByRole('link').evaluateAll((links) => links.map((link) => ({ width: link.getBoundingClientRect().width, height: link.getBoundingClientRect().height })))) {
-        expect(box.width).toBeGreaterThanOrEqual(24);
-        expect(box.height).toBeGreaterThanOrEqual(24);
-      }
-      const sizes = await nav.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
-      expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);
+      await expect(async () => {
+        const boxes = await nav.getByRole('link').evaluateAll((links) => links.map((link) => ({ width: link.getBoundingClientRect().width, height: link.getBoundingClientRect().height })));
+        for (const box of boxes) {
+          expect(box.width).toBeGreaterThanOrEqual(24);
+          expect(box.height).toBeGreaterThanOrEqual(24);
+        }
+        const sizes = await nav.evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+        expect(sizes.scroll).toBeLessThanOrEqual(sizes.client);
+      }).toPass();
       await noSidewaysScroll(page);
     });
   });
@@ -486,9 +499,11 @@ for (const width of [375, 320]) {
 test('on desktop the header search sits inline between the wordmark and the link', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto(`/analyse/${A.orgnr}/oversikt`);
-  const field = await headerSearch(page).boundingBox();
-  const how = await page.getByTestId('header-how').boundingBox();
-  if (field === null || how === null) throw new Error('header not rendered');
-  expect(Math.abs(field.y + field.height / 2 - (how.y + how.height / 2))).toBeLessThanOrEqual(12);
-  expect(field.x + field.width).toBeLessThan(how.x);
+  await expect(async () => {
+    const field = await headerSearch(page).boundingBox();
+    const how = await page.getByTestId('header-how').boundingBox();
+    if (field === null || how === null) throw new Error('header not rendered');
+    expect(Math.abs(field.y + field.height / 2 - (how.y + how.height / 2))).toBeLessThanOrEqual(12);
+    expect(field.x + field.width).toBeLessThan(how.x);
+  }).toPass();
 });

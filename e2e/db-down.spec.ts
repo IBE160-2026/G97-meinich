@@ -10,6 +10,7 @@
 // in `pnpm check:routes` is requested here. Runs against the second server
 // in playwright.config.ts, whose READER_DATABASE_URL points at a closed port.
 import { expect, test } from './fixtures.ts';
+import { expectHistoryLength, historyLength } from './history.ts';
 import nb from '../src/messages/nb.json' with { type: 'json' };
 import { DEMO_COMPANIES } from '../src/demo-companies.ts';
 
@@ -52,8 +53,8 @@ for (const path of ['/', `/analyse/${ORGNR}`, `/analyse/${ORGNR}/peers`, `/analy
     await expect(page.locator('main h1, main h2, main dl')).toHaveCount(0);
     await expect(page.getByRole('banner').getByRole('link', { name: nb['shell.brand'], exact: true })).toBeVisible();
     await expect(page.getByRole('contentinfo')).toContainText(nb['footer.source']);
-    const shownText = await page.locator('body').innerText();
-    for (const detail of RENDERED_DETAILS) expect(shownText, String(detail)).not.toMatch(detail);
+    // The rendered text, as innerText reads it: the RSC payload's scripts are not shown.
+    for (const detail of RENDERED_DETAILS) await expect(page.locator('body'), String(detail)).not.toContainText(detail, { useInnerText: true });
   });
 }
 
@@ -76,11 +77,11 @@ test('a direct load with an error does not navigate away', async ({ page }) => {
   const path = `/analyse/${ORGNR}/peers?band=1`;
   await page.goto(path);
   await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
-  const entries = await page.evaluate(() => window.history.length);
+  const entries = await historyLength(page);
   // Long enough for a Back the boundary would have sent.
   await page.waitForTimeout(1000);
   const url = new URL(page.url());
   expect(`${url.pathname}${url.search}`).toBe(path);
-  expect(await page.evaluate(() => window.history.length)).toBe(entries);
+  await expectHistoryLength(page).toBe(entries);
   await expect(page.locator('main [role="alert"]')).toHaveText(nb['search.failed']);
 });

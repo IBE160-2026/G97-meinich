@@ -36,11 +36,6 @@ describe.each(['hero', 'compact'] as const)('SearchField, %s variant', (variant)
     expect(html).toMatch(/<input[^>]*maxLength="100"/);
   });
 
-  it(variant === 'compact' ? 'has the label as placeholder, besides the label' : 'has no placeholder', () => {
-    if (variant === 'compact') expect(html).toMatch(new RegExp(`<input[^>]*placeholder="${nb['search.label']}"`));
-    else expect(html).not.toMatch(/placeholder=/);
-  });
-
   it('can start with a value and a validation message in the error state', () => {
     const invalid = render(variant, { initialValue: '12345678', initialError: 'search.orgnrLength' });
     expect(invalid).toMatch(/<input[^>]*aria-invalid="true"/);
@@ -60,11 +55,30 @@ describe.each(['hero', 'compact'] as const)('SearchField, %s variant', (variant)
     const button = /<button type="submit"[^>]*>(.*)<\/button>/.exec(html)?.[1] ?? '';
     // The button's name is its text; the compact variant's magnifier is aria-hidden.
     expect(button.replace(/<svg.*<\/svg>/, '').replace(/<[^>]+>/g, '')).toBe(nb['search.submit']);
-    if (variant === 'compact') expect(button).toMatch(/<svg aria-hidden="true"/);
   });
 
   it(`is marked as the ${variant} variant`, () => {
     expect(html).toContain(`data-variant="${variant}"`);
+  });
+});
+
+// What differs between the variants, one test per variant (no branch on it).
+describe('SearchField, compact variant only', () => {
+  const html = render('compact');
+
+  it('has the label as placeholder, besides the label', () => {
+    expect(html).toMatch(new RegExp(`<input[^>]*placeholder="${nb['search.label']}"`));
+  });
+
+  it('has an aria-hidden magnifier in the submit button', () => {
+    const button = /<button type="submit"[^>]*>(.*)<\/button>/.exec(html)?.[1] ?? '';
+    expect(button).toMatch(/<svg aria-hidden="true"/);
+  });
+});
+
+describe('SearchField, hero variant only', () => {
+  it('has no placeholder', () => {
+    expect(render('hero')).not.toMatch(/placeholder=/);
   });
 });
 

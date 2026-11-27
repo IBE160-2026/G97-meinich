@@ -277,6 +277,7 @@ describe('a failed peer', () => {
     }
     // The three API figures count it.
     const benchmark = benchmarkApiFigures(api(10_500_000n), peers.map((peer) => peer.api), 'NOK');
+    expect(Object.keys(benchmark).sort()).toEqual(['driftsmargin', 'egenkapitalandel', 'totalkapitalrentabilitet']);
     for (const figure of Object.values(benchmark)) {
       expect(figure.comparison.count).toBe(11);
       expect(figure.comparison.leftOut).toBe(0);

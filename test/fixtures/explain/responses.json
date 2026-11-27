@@ -13,7 +13,7 @@
           },
           {
             "type": "text",
-            "text": "Driftsmarginen i {{aar}} var {{driftsmargin.egen}}, {{driftsmargin.retning}} på {{driftsmargin.median}}; til beste fjerdedel er gapet {{driftsmargin.gap}} per år. Arbeidskapitalen er {{arbeidskapital.rang}}, {{arbeidskapital.gap}} som engangsbeløp. Varekostnadsandelen på {{vare.egen}} er en styrke, {{vare.plassering}}."
+            "text": "Driftsmarginen i {{aar}} var {{driftsmargin.egen}}, {{driftsmargin.retning}} på {{driftsmargin.median}}; til beste fjerdedel er gapet {{driftsmargin.gap}} per år. Arbeidskapitalen er {{arbeidskapital.rang}}, {{arbeidskapital.gap}} som engangsbeløp. Varekostnadsandelen på {{vare.egen}} er en styrke, bedre enn {{vare.plassering}}."
           }
         ],
         "usage": {

@@ -330,8 +330,8 @@ describe('the request and the template', () => {
 
   // Sample run 185: «bedre enn bedre enn» in 12 of 20 templates (Meinich, 2026-11-27).
   it.each([
-    ['Selskapet er bedre enn {{driftsmargin.plassering}}.', 'the start of plassering before it'],
-    ['Selskapet er BEDRE Enn {{driftsmargin.plassering}}.', 'the same in another case'],
+    ['Marginen er {{driftsmargin.egen}} % i år.', "the end of egen's text, «%», after it"],
+    ['Marginen ligger {{driftsmargin.retning}} MEDIANEN.', 'the end of retning after it, in another case'],
     ['Marginen ligger {{driftsmargin.retning}} medianen.', 'the end of retning after it'],
     ['Marginen ligger {{driftsmargin.retning}} Medianen, og mer.', 'the same in another case, before a comma'],
     ['Det er {{antall}} sammenlignbare selskaper.', "the end of antall's page phrase after it"],
@@ -344,15 +344,29 @@ describe('the request and the template', () => {
   it.each([
     ['Marginen ligger {{driftsmargin.retning}}. Medianen er {{driftsmargin.median}}.', 'a word after the full stop'],
     ['Det er målt mot medianen. {{driftsmargin.retning}} ligger marginen.', 'medianen before the full stop'],
-    // Would repeat plassering's start «bedre enn» if the rule read across the full stop.
-    ['Den skal gjøre det bedre enn. {{driftsmargin.plassering}} er plasseringen.', 'the start of plassering before the full stop'],
+    // Would repeat the rank's start «det» if the rule read across the full stop (the BMAD session's case).
+    ['Slik er det. {{arbeidskapital.rang}} er arbeidskapitalen.', 'the start of rang before the full stop'],
     ['Er den {{driftsmargin.retning}}? Medianen er {{driftsmargin.median}}!', 'after a question mark'],
   ])('keeps %j: %s', (text) => {
     expect(parseTemplate(text, demoA.slots)).toMatchObject({ kind: 'template', template: text });
   });
 
+  // Run 195: «bedre enn» before the placement in 10 of 20 although forbidden; the slot is now
+  // only the percent, and the template must write «bedre enn» right before it (Meinich, 2026-11-27).
+  it.each([
+    ['Selskapet er bedre enn {{driftsmargin.plassering}} av gruppen.', 'template'],
+    ['Selskapet er BEDRE Enn {{driftsmargin.plassering}}.', 'template'],
+    ['Selskapet er blant de {{driftsmargin.plassering}} beste.', 'placement_without_bedre_enn'],
+    ['Selskapet gjør det bedre enn. {{driftsmargin.plassering}} er plasseringen.', 'placement_without_bedre_enn'],
+    ['{{driftsmargin.plassering}} er plasseringen.', 'placement_without_bedre_enn'],
+    ['Bedre enn {{driftsmargin.plassering}}, men ikke {{vare.plassering}}.', 'placement_without_bedre_enn'],
+  ])('a placement slot right after «bedre enn» in its sentence: %j gives %s', (text, kind) => {
+    const parsed = parseTemplate(text, demoA.slots);
+    expect(parsed.kind === 'template' ? 'template' : parsed.reason).toBe(kind);
+  });
+
   it('keeps words beside a slot that do not repeat its own', () => {
-    const text = 'Marginen ligger {{driftsmargin.retning}}, og selskapet er {{driftsmargin.plassering}} av {{antall}}.';
+    const text = 'Marginen ligger {{driftsmargin.retning}}, og selskapet er bedre enn {{driftsmargin.plassering}} av {{antall}}.';
     expect(parseTemplate(text, demoA.slots)).toEqual({
       kind: 'template',
       template: text,

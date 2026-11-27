@@ -209,6 +209,7 @@ Meinich decided to fix all 27 in this PR (2026-11-27), so that the code keeps th
 | 3 | Review of PR #90, review body | `peer-assembly-time` flaked once on CI at 1 084 ms | Confirmed in the run's log (attempt 1 failed, attempt 2 green, no code change) | Deferred to Story 5.7, `32a01dd` |
 | 4 | Review of PR #90, `test/db/peers.test.ts:260`, `test/engine/waterfall.test.ts:396` | The rewrites are correct | Agreed | None |
 | 5 | Review of PR #90, `docs/ai-sessions/2026-11-27-issue-89-test-assertions.md:10` | The session file does not say what came from the review session | Confirmed | This section and the one above |
+| 6 | Review session, on `a9aa5db`, `test/engine/reference-cases.test.ts:647` | `expect(stated.length > 0).toBe(actual.source === 'document')` takes its expected value from the engine's own output: an engine that reports `api` for a document figure and reads no line passes | Confirmed: with `computeDocumentKeyFigures` giving kfd source `api` and no inputs, the test at `a9aa5db` passed all 12 kfd cases | Fixed in its own commit: `checkDocument` takes `source` from each call (document at the document figures' call, API at the API figures'), asserts `actual.source` against it, and checks the stated inputs against it. With the same change in the engine, it fails: `911561972 2024: expected 'api' to be 'document'` (4 failed, the kfd cases with a value). No expected value changes. |
 
 No finding was rejected.
 

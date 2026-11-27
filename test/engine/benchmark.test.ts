@@ -19,6 +19,7 @@ import { documentBasis } from '../../src/engine/document-inputs.ts';
 import { formatKronerExact, formatPercentagePoints } from '../../src/engine/format.ts';
 import { compareFigure } from '../../src/engine/statistics.ts';
 import type { ApiInputs, Comparison, FigureResult } from '../../src/engine/types.ts';
+import { narrow } from '../narrow.ts';
 
 const NBSP = ' ';
 
@@ -76,9 +77,7 @@ describe('benchmarkApiFigures: the driftsmargin gap in kroner', () => {
     expect(result.driftsmargin.direction).toBe('higher_is_better');
     // 0,091 × 1 671 428 600 − 35 100 000 = 117 000 002,6 øre.
     expect(amount(result.driftsmargin.gap)).toBe(`1${NBSP}170${NBSP}000${NBSP}kr`);
-    if (result.driftsmargin.gap.kind === 'amount') {
-      expect(result.driftsmargin.gap.ore.toDecimalPlaces(6).toString()).toBe('117000002.6');
-    }
+    expect(narrow(result.driftsmargin.gap, 'amount').ore.toDecimalPlaces(6).toString()).toBe('117000002.6');
   });
 
   it('the same margin on a revenue rounded to 16,7 mill. kr gives 1 169 000 kr, which is not what is shown', () => {

@@ -108,9 +108,9 @@ describe('guardCurrentAssets', () => {
     expect(guarded.kundefordringer).toEqual(absent);
     expect(guarded.bankinnskudd).toEqual({ kind: 'value', ore: 211535600n });
     // Every other figure is unchanged, and so is the input.
-    for (const field of Object.keys(reconciled) as DocumentField[]) {
-      if (field !== 'kundefordringer') expect(guarded[field], field).toEqual(reconciled[field]);
-    }
+    const others = (Object.keys(reconciled) as DocumentField[]).filter((field) => field !== 'kundefordringer');
+    expect(others.length).toBe(Object.keys(reconciled).length - 1);
+    for (const field of others) expect(guarded[field], field).toEqual(reconciled[field]);
     expect(reconciled.kundefordringer).toEqual({ kind: 'value', ore: 842189300n });
     // Both lines, each checked on its own.
     const both = guardCurrentAssets(reconciled, 'current', 200000000n);

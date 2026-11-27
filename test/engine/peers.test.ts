@@ -810,6 +810,7 @@ describe('the match basis (Story 2.7)', () => {
 
   it('match basis: exhaustive over the four', () => {
     const reached = new Set<MatchBasis>();
+    const flaggedBases: MatchBasis[] = [];
     let peers = 0;
     for (const side of sides) {
       const subjectFiling = { ...subject, ...side };
@@ -831,11 +832,14 @@ describe('the match basis (Story 2.7)', () => {
             ? 'description_only'
             : 'industry_and_size_only';
         expect(basis, `${JSON.stringify(side)} / ${peer.orgnr}`).toBe(expected);
-        if (flagged.has(peer.orgnr)) expect(basis).toBe('description_and_accounts');
+        flaggedBases.push(...(flagged.has(peer.orgnr) ? [basis] : []));
       }
     }
     expect(peers).toBeGreaterThan(0);
     expect([...reached].sort()).toEqual([...MATCH_BASES].sort());
+    // A flagged peer has both signals.
+    expect(flaggedBases.length).toBeGreaterThan(0);
+    expect(new Set(flaggedBases)).toEqual(new Set(['description_and_accounts']));
   });
 
   // Story 5.2 may switch the text signal off: every classification null.

@@ -17,6 +17,7 @@ import {
 } from '../../src/engine/document-inputs.ts';
 import { DOCUMENT_FIGURE_DIRECTIONS } from '../../src/engine/document-key-figures.ts';
 import type { ApiInputs } from '../../src/engine/types.ts';
+import { narrow } from '../narrow.ts';
 
 const REVENUE = 1_000_000_000n; // 10 000 000 kr
 const BANK = 100_000_000n; // 1 000 000 kr
@@ -159,13 +160,10 @@ describe('figures with no kroner, no direction, or no rank', () => {
 
   it('no direction: median and midtre halvdel only', () => {
     for (const key of ['total', 'kontant'] as const) {
-      const comparison = b[key].comparison;
-      expect(comparison.kind, key).toBe('compared');
-      if (comparison.kind === 'compared') {
-        expect(comparison.best, key).toBeNull();
-        expect(comparison.median, key).toBeDefined();
-        expect(comparison.lowerQuartile.lte(comparison.upperQuartile), key).toBe(true);
-      }
+      const comparison = narrow(b[key].comparison, 'compared', key);
+      expect(comparison.best, key).toBeNull();
+      expect(comparison.median, key).toBeDefined();
+      expect(comparison.lowerQuartile.lte(comparison.upperQuartile), key).toBe(true);
     }
     // 8 and 14 have no direction (8 is not read in v1, and growth needs a prior column, which these companies lack).
     expect(DOCUMENT_FIGURE_DIRECTIONS.lonnArsverk).toBe('none');

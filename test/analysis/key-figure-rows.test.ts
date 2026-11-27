@@ -20,37 +20,53 @@ const API: ApiInputs = {
 };
 const API_PEERS: ApiInputs[] = Array.from({ length: 10 }, (_, i) => ({ ...API, driftsresultat: BigInt((i + 1) * 10_000_000) }));
 
-/** Every leaf of `value` with its path, outside the strip marks. */
-function leaves(value: unknown, path: string, out: { path: string; value: unknown }[]): void {
+type Walk = {
+  /** Every leaf with its path, outside the strip marks and the waterfall's geometry. */
+  readonly leaves: { path: string; value: unknown }[];
+  readonly strips: { path: string; strip: Record<string, unknown> }[];
+  readonly geometries: { path: string; geometry: Record<string, unknown> }[];
+  readonly zeros: { path: string; value: unknown }[];
+  /** Every object and array on the way, for the plain-object check. */
+  readonly objects: { path: string; value: object }[];
+};
+
+/** Collects the parts of `value`; `expectMarks` asserts over each list, so no expect sits in a branch. */
+function walk(value: unknown, path: string, out: Walk = { leaves: [], strips: [], geometries: [], zeros: [], objects: [] }): Walk {
   if (path.endsWith('.strip')) {
-    // Geometry: positions in [0, 1] and two flags, nothing else.
-    const strip = value as Record<string, unknown>;
+    out.strips.push({ path, strip: value as Record<string, unknown> });
+  } else if (path.endsWith('.geometry')) {
+    out.geometries.push({ path, geometry: value as Record<string, unknown> });
+  } else if (path.endsWith('.waterfall.zero')) {
+    out.zeros.push({ path, value });
+  } else if (value !== null && typeof value === 'object') {
+    out.objects.push({ path, value });
+    for (const [key, child] of Object.entries(value)) walk(child, `${path}.${key}`, out);
+  } else {
+    out.leaves.push({ path, value });
+  }
+  return out;
+}
+
+function expectMarks(parts: Walk): void {
+  // Geometry: positions in [0, 1] and two flags, nothing else.
+  for (const { path, strip } of parts.strips) {
     expect(Object.keys(strip).sort(), path).toEqual(['bandFrom', 'bandTo', 'best', 'median', 'mirrored', 'own'].sort());
     for (const key of ['bandFrom', 'bandTo', 'median']) expect(typeof strip[key], `${path}.${key}`).toBe('number');
     expect(strip.best === null || typeof strip.best === 'number', `${path}.best`).toBe(true);
     expect(typeof strip.mirrored, `${path}.mirrored`).toBe('boolean');
     expect(Object.keys(strip.own as object).sort(), `${path}.own`).toEqual(['at', 'clipped']);
-    return;
   }
   // The margin waterfall's geometry (Story 3.3): positions on its kroner scale, nothing else.
-  if (path.endsWith('.geometry')) {
-    const geometry = value as Record<string, unknown>;
+  for (const { path, geometry } of parts.geometries) {
     expect(Object.keys(geometry).sort(), path).toEqual(['end', 'from', 'to']);
     for (const key of ['end', 'from', 'to']) expect(typeof geometry[key], `${path}.${key}`).toBe('number');
-    return;
   }
-  if (path.endsWith('.waterfall.zero')) {
-    expect(typeof value, path).toBe('number');
-    return;
-  }
-  if (value !== null && typeof value === 'object') {
-    // Plain arrays and objects only: a Decimal (or any class instance) is not.
+  for (const { path, value } of parts.zeros) expect(typeof value, path).toBe('number');
+  // Plain arrays and objects only: a Decimal (or any class instance) is not.
+  for (const { path, value } of parts.objects) {
     const proto = Object.getPrototypeOf(value);
     expect(proto === Object.prototype || proto === Array.prototype, `${path} is a plain object`).toBe(true);
-    for (const [key, child] of Object.entries(value)) leaves(child, `${path}.${key}`, out);
-    return;
   }
-  out.push({ path, value });
 }
 
 describe('the key-figure view', () => {
@@ -62,6 +78,7 @@ describe('the key-figure view', () => {
       [NOT_IN_DATASET, TEN_PEERS],
       [FAILED, TEN_PEERS],
     ] as const;
+    const marks = { strips: 0, geometries: 0, zeros: 0 };
     for (const [subject, peers] of cases) {
       const view = keyFigureTableView({
         api: benchmarkApiFigures(API, API_PEERS, 'NOK'),
@@ -71,8 +88,12 @@ describe('the key-figure view', () => {
         filingYear: 2025,
         smaaForetak: false,
       });
-      const found: { path: string; value: unknown }[] = [];
-      leaves(view, 'view', found);
+      const parts = walk(view, 'view');
+      expectMarks(parts);
+      marks.strips += parts.strips.length;
+      marks.geometries += parts.geometries.length;
+      marks.zeros += parts.zeros.length;
+      const found = parts.leaves;
       expect(found.length).toBeGreaterThan(100);
       for (const { path, value } of found) {
         expect(['string', 'boolean'].includes(typeof value) || value === null, `${path}: ${typeof value}`).toBe(true);
@@ -84,5 +105,9 @@ describe('the key-figure view', () => {
         expect(strings).not.toMatch(new RegExp(`(?<!\\d)${ore}(?!\\d)`));
       }
     }
+    // Each mark's checks ran: the compared cases draw strips, and a waterfall its geometry and zero.
+    expect(marks.strips).toBeGreaterThan(0);
+    expect(marks.geometries).toBeGreaterThan(0);
+    expect(marks.zeros).toBeGreaterThan(0);
   });
 });

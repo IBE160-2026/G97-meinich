@@ -23,6 +23,7 @@ import { ANDELER, parse } from '../../src/url/analysis-state.ts';
 import { t } from '../../src/messages/index.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
 import { FAILED, NOT_IN_DATASET, readBasis, type Lines } from './document-fixture.ts';
+import { narrow } from '../narrow.ts';
 
 const NBSP = ' ';
 const YEAR = 2025;
@@ -99,9 +100,8 @@ describe('the waterfall’s states', () => {
     ];
     for (const [name, basis] of cases) {
       const v = view(basis);
-      expect(v.kind, name).toBe('absent');
       // The same words as its Varekostnadsandel row.
-      if (v.kind === 'absent') expect(v.text, name).toBe(vareRowText(basis));
+      expect(narrow(v, 'absent', name).text, name).toBe(vareRowText(basis));
     }
     expect(view(missing)).toEqual({ kind: 'absent', text: `Kan ikke beregnes: ${nb['analysis.figures.reason.componentMissing']}` });
     expect(view(FAILED)).toEqual({ kind: 'absent', text: 'Regnskapet for 2025 kunne ikke leses sikkert' });
@@ -115,7 +115,7 @@ describe('the waterfall’s states', () => {
     });
     const v = view(short);
     expect(v).toEqual({ kind: 'absent', text: t('waterfall.shortOfTotal', { aar: '2025' }) });
-    if (v.kind === 'absent') expect(v.text).not.toContain(nb['analysis.figures.reason.componentMissing']);
+    expect(narrow(v, 'absent').text).not.toContain(nb['analysis.figures.reason.componentMissing']);
   });
 
   it('peers not in the demo data: N1', () => {
@@ -151,7 +151,7 @@ describe('the waterfall’s states', () => {
   it('too few for reasons other than cost lines', () => {
     const v = view(SUBJECT, [...PEERS.slice(0, 3), ...Array.from({ length: 7 }, () => FAILED)]);
     expect(v).toEqual({ kind: 'absent', text: t('waterfall.tooFew', { n: '3', aar: '2025' }) });
-    if (v.kind === 'absent') expect(v.text).toContain('et avstemt årsregnskap for 2025');
+    expect(narrow(v, 'absent').text).toContain('et avstemt årsregnskap for 2025');
   });
 
   it('not in kroner: no waterfall', () => {
@@ -360,36 +360,56 @@ describe('never scaled by the closable share', () => {
   });
 });
 
-/** Every leaf of `value` with its path; geometry is checked as numbers in [0, 1]. */
-function leaves(value: unknown, path: string, out: { path: string; value: unknown }[]): void {
+type Walk = {
+  /** Every leaf with its path, outside the geometry. */
+  readonly leaves: { path: string; value: unknown }[];
+  readonly geometries: { path: string; geometry: Record<string, unknown> }[];
+  readonly zeros: { path: string; value: unknown }[];
+  /** Every object and array on the way, for the plain-object check. */
+  readonly objects: { path: string; value: object }[];
+};
+
+/** Collects the parts of `value`; `expectMarks` asserts over each list, so no expect sits in a branch. */
+function walk(value: unknown, path: string, out: Walk = { leaves: [], geometries: [], zeros: [], objects: [] }): Walk {
   if (path.endsWith('.geometry')) {
-    const geometry = value as Record<string, unknown>;
+    out.geometries.push({ path, geometry: value as Record<string, unknown> });
+  } else if (path === 'view.zero') {
+    out.zeros.push({ path, value });
+  } else if (value !== null && typeof value === 'object') {
+    out.objects.push({ path, value });
+    for (const [key, child] of Object.entries(value)) walk(child, `${path}.${key}`, out);
+  } else {
+    out.leaves.push({ path, value });
+  }
+  return out;
+}
+
+/** Geometry is numbers in [0, 1], and every object on the way is plain. */
+function expectMarks(parts: Walk): void {
+  for (const { path, geometry } of parts.geometries) {
     expect(Object.keys(geometry).sort(), path).toEqual(['end', 'from', 'to']);
     for (const key of ['end', 'from', 'to']) {
       const n = geometry[key];
       expect(typeof n === 'number' && n >= 0 && n <= 1, `${path}.${key}`).toBe(true);
     }
-    return;
   }
-  if (path === 'view.zero') {
-    expect(typeof value === 'number' && value >= 0 && value <= 1, path).toBe(true);
-    return;
-  }
-  if (value !== null && typeof value === 'object') {
+  for (const { path, value } of parts.zeros) expect(typeof value === 'number' && value >= 0 && value <= 1, path).toBe(true);
+  for (const { path, value } of parts.objects) {
     const proto = Object.getPrototypeOf(value);
     expect(proto === Object.prototype || proto === Array.prototype, `${path} is a plain object`).toBe(true);
-    for (const [key, child] of Object.entries(value)) leaves(child, `${path}.${key}`, out);
-    return;
   }
-  out.push({ path, value });
 }
 
 describe('the payload boundary (AD-4)', () => {
   it('waterfall view holds only strings and geometry', () => {
     const cases: readonly WaterfallView[] = [view(), view(FAILED), view(SUBJECT, PEERS.slice(0, 9)), view(SUBJECT, PEERS, 'USD')];
+    const marks = { geometries: 0, zeros: 0 };
     for (const v of cases) {
-      const found: { path: string; value: unknown }[] = [];
-      leaves(v, 'view', found);
+      const parts = walk(v, 'view');
+      expectMarks(parts);
+      marks.geometries += parts.geometries.length;
+      marks.zeros += parts.zeros.length;
+      const found = parts.leaves;
       for (const { path, value } of found) {
         expect(typeof value === 'string' || value === null, `${path}: ${typeof value}`).toBe(true);
       }
@@ -399,6 +419,9 @@ describe('the payload boundary (AD-4)', () => {
         expect(strings).not.toMatch(new RegExp(`(?<!\\d)${ore}(?!\\d)`));
       }
     }
+    // The geometry checks ran: the first case is a decomposition.
+    expect(marks.geometries).toBeGreaterThan(0);
+    expect(marks.zeros).toBeGreaterThan(0);
     const engine: MarginWaterfall = marginWaterfall(SUBJECT, PEERS, YEAR, 'NOK');
     if (engine.kind !== 'decomposition') throw new Error('a decomposition');
     // The exact total in øre is a Fraction on the server; the view only writes it in kroner.

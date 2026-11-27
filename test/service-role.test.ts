@@ -30,9 +30,10 @@ describe('the service-role key', () => {
   it('finds the request-path files it checks', () => {
     expect(files).toContain('src/server/db.ts');
     expect(files.some((file) => file.startsWith('src/app/'))).toBe(true);
-    for (const proxy of PROXY) {
-      if (existsSync(path.join(root, proxy))) expect(files).toContain(proxy);
-    }
+    // The proxy is src/proxy.ts (Next.js 16); no middleware.ts.
+    const present = PROXY.filter((proxy) => existsSync(path.join(root, proxy)));
+    expect(present).toEqual(['src/proxy.ts']);
+    for (const proxy of present) expect(files).toContain(proxy);
   });
 
   it('is named nowhere on the request path', () => {

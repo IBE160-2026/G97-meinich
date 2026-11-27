@@ -22,6 +22,7 @@ import type { Comparison } from '../../src/engine/types.ts';
 import { t } from '../../src/messages/index.ts';
 import { parseMultippel } from '../../src/url/analysis-state.ts';
 import nb from '../../src/messages/nb.json' with { type: 'json' };
+import { narrow } from '../narrow.ts';
 
 const d = (value: string | number) => new Decimal(value);
 /** A kroner amount as format.ts writes it: no-break spaces in the digits and before "kr". */
@@ -59,9 +60,8 @@ const profitText = (a: Decimal, full: Decimal) => t('verdi.profit.value', { a: k
 describe('the median step', () => {
   it('the median step exists only where r < M < T', () => {
     const step = medianStep(compared(d('-0.05'), d('-0.03'), d('0.05')));
-    expect(step.kind).toBe('exists');
     // s_med = (M − r) / (T − r) = 0.02 / 0.10, exactly.
-    if (step.kind === 'exists') expect(step.share.eq(d('0.2'))).toBe(true);
+    expect(narrow(step, 'exists').share.eq(d('0.2'))).toBe(true);
     // Every other order of r, M and T has none.
     expect(medianStep(compared(d('0'), d('-0.03'), d('0.05'))).kind).toBe('none');
     expect(medianStep(compared(d('-0.03'), d('-0.03'), d('0.05'))).kind).toBe('none');

@@ -23,8 +23,9 @@
 //     `NEVER_STRENGTH` in `oversikt-cards.ts`), every figure that meets it,
 //     ranked on the whole percent of its Plassering, ties to the lower
 //     figure number, so the first is the card's.
-// - The payload holds slot ids, their texts, figure names from nb.json and
-//   fixed structural keys. Never an orgnr, a company name, register text, a
+// - The payload holds slot ids, their texts, figure names from nb.json, each
+//   figure's better direction, the slot fields' meanings stated once
+//   (`SLOT_FIELD_MEANINGS`, no digit) and fixed structural keys. Never an orgnr, a company name, register text, a
 //   peer's identity, a fingerprint, a classification or anything from
 //   stages 4 and 5 (test/explain/payload.test.ts).
 // - A subject outside the dataset (`not_in_dataset`) has no document figure
@@ -74,11 +75,50 @@ export type Slot = { readonly id: string; readonly text: string; readonly value:
 /** A slot as the model sees it: its id and its text. */
 export type PayloadSlot = { readonly id: string; readonly text: string };
 
-/** One named gap or strength: its name from nb.json and its slots. */
-export type PayloadItem = { readonly name: string; readonly slots: readonly PayloadSlot[] };
+/**
+ * One named gap or strength: its name from nb.json and its slots, and, for
+ * a key figure, which way is better (the row's direction). The
+ * working-capital total is no figure and has no `better`.
+ */
+export type PayloadItem = { readonly name: string; readonly better?: 'higher' | 'lower'; readonly slots: readonly PayloadSlot[] };
 
-/** What the model is sent. Only slot ids, slot texts, names from nb.json and these keys. */
+/** What a slot field means: stated once in the payload, never per slot. */
+export type SlotFieldMeaning = { readonly field: string; readonly meaning: string };
+
+/**
+ * The meaning of every slot field, sent once with each payload (Meinich,
+ * 2026-11-27, after sample run 181: the model read `beste` as one company,
+ * `gap` as to the median, and wrote «medianen» after the direction slot).
+ * It holds no digit (test/explain/payload.test.ts), so it can never be the
+ * source of a figure in a template.
+ */
+export const SLOT_FIELD_MEANINGS: readonly SlotFieldMeaning[] = [
+  { field: 'egen', meaning: "The company's own value of the figure." },
+  { field: 'median', meaning: 'The median of the comparable companies.' },
+  {
+    field: 'beste',
+    meaning:
+      'The boundary of the best quartile of the comparable companies: the value a company must reach to be among the best quarter. It is a boundary, never one company and never the best value in the group. Where the item\'s "better" is "lower", as for a cost share, lower is better, so the boundary can lie below the company\'s own value. Where it is "higher", it can lie above.',
+  },
+  { field: 'plassering', meaning: 'The share of the comparable companies the company does better than. Its text is complete as written.' },
+  {
+    field: 'gap',
+    meaning:
+      'In "profit_gaps_per_year": the kroner per year the operating result would rise by if the figure reached the boundary of the best quartile. In "capital_gaps_one_off": the one-off kroner of capital released if it reached that boundary, not per year. Both are measured to the best quartile, never to the median.',
+  },
+  {
+    field: 'retning',
+    meaning: 'Whether the own value lies above, below or at the median. Its text already contains the word «medianen»: never write «medianen» again right after it.',
+  },
+  { field: 'rang', meaning: "The capital gap's place among the one-off capital gaps. Use it only beside its own capital gap." },
+  { field: YEAR_SLOT, meaning: 'The filing year. Always write it as this slot, never as its text.' },
+  { field: COUNT_SLOT, meaning: 'The number of comparable companies in the analysis. Always write it as this slot, never as its text.' },
+  { field: MISSING_DOCUMENT_SLOT, meaning: "A sentence saying the company's document figures are not in the dataset." },
+];
+
+/** What the model is sent. Only slot ids, slot texts, names from nb.json, `SLOT_FIELD_MEANINGS` and these keys. */
 export type ExplanationPayload = {
+  readonly slot_fields: readonly SlotFieldMeaning[];
   readonly year: PayloadSlot;
   readonly peer_count: PayloadSlot;
   readonly profit_gaps_per_year: readonly PayloadItem[];
@@ -162,6 +202,13 @@ function figureSlots(table: SlotTable, key: string, row: KeyFigureRow, compariso
     table.add(`${key}.plassering`, shown.placement.text, comparison.best.percentile),
     table.add(`${key}.retning`, directionText(comparison), null),
   ];
+}
+
+/** Which way is better, for the payload: a figure without a direction is never named. */
+function betterOf(key: FigureKey, api: ApiBenchmark, document: DocumentBenchmark): 'higher' | 'lower' {
+  const { direction } = rowBenchmark(key, api, document);
+  if (direction === 'none') throw new Error(`${key} has no direction and is named`);
+  return direction === 'higher_is_better' ? 'higher' : 'lower';
 }
 
 type CapitalAmount = { readonly figure: CapitalChoice; readonly ore: Decimal };
@@ -249,6 +296,7 @@ export function explanationAnalysis<P extends Peer>(
     const row = rowOf(rows, 'driftsmargin');
     profit.push({
       name: row.label,
+      better: betterOf('driftsmargin', api, document),
       slots: [
         ...figureSlots(table, 'driftsmargin', row, margin.comparison),
         table.add('driftsmargin.gap', formatKronerExact(margin.gap.ore.toString()), margin.gap.ore),
@@ -265,7 +313,11 @@ export function explanationAnalysis<P extends Peer>(
     const figure = document[amount.figure];
     if (figure.comparison.kind !== 'compared') throw new Error(`${amount.figure} has an amount and no comparison`);
     const row = rowOf(rows, amount.figure);
-    return { name: row.label, slots: [...figureSlots(table, amount.figure, row, figure.comparison), gap, rang] };
+    return {
+      name: row.label,
+      better: betterOf(amount.figure, api, document),
+      slots: [...figureSlots(table, amount.figure, row, figure.comparison), gap, rang],
+    };
   });
 
   // A strength is named once: a figure already named as a gap is never a strength (a gap is worse than T).
@@ -273,7 +325,7 @@ export function explanationAnalysis<P extends Peer>(
     const { comparison } = rowBenchmark(key, api, document);
     if (comparison.kind !== 'compared') throw new Error(`${key} is a strength without a comparison`);
     const row = rowOf(rows, key);
-    return { name: row.label, slots: figureSlots(table, key, row, comparison) };
+    return { name: row.label, better: betterOf(key, api, document), slots: figureSlots(table, key, row, comparison) };
   });
 
   const notes: PayloadSlot[] =
@@ -283,6 +335,7 @@ export function explanationAnalysis<P extends Peer>(
   const peers = shown.peers.map((peer) => peer.orgnr).sort(compareBytes);
   return {
     payload: {
+      slot_fields: SLOT_FIELD_MEANINGS,
       year,
       peer_count: peerCount,
       profit_gaps_per_year: profit,

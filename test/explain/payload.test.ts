@@ -13,6 +13,10 @@ import {
   type DefaultCandidate,
   type ExplanationAnalysis,
   type PayloadItem,
+  MISSING_DOCUMENT_SLOT,
+  SLOT_FIELDS,
+  COUNT_SLOT,
+  YEAR_SLOT,
 } from '../../src/analysis/explanation-payload.ts';
 import { DEMO_COMPANIES } from '../../src/demo-companies.ts';
 import { Decimal } from '../../src/engine/decimal.ts';
@@ -20,7 +24,7 @@ import { DOCUMENT_KEY_FIGURE_KEYS } from '../../src/engine/document-absence.ts';
 import type { Fingerprint } from '../../src/engine/fingerprint.ts';
 import { fromWire, toWire } from '../../src/engine/wire.ts';
 import { narrow } from '../narrow.ts';
-import { apiOnlySubject, companyName, seedInput, type SeedInput } from './seed-analysis.ts';
+import { apiOnlySubject, companyName, companyTexts, seedInput, type SeedInput } from './seed-analysis.ts';
 
 const [A, B] = DEMO_COMPANIES;
 const NBSP = ' ';
@@ -99,7 +103,22 @@ describe('the payload', () => {
   });
 
   describe('holds no identity, fingerprint or classification', () => {
-    const STRUCTURAL = new Set(['year', 'peer_count', 'profit_gaps_per_year', 'capital_gaps_one_off', 'strengths', 'notes', 'name', 'slots', 'id', 'text']);
+    const STRUCTURAL = new Set([
+      'slot_fields',
+      'field',
+      'meaning',
+      'year',
+      'peer_count',
+      'profit_gaps_per_year',
+      'capital_gaps_one_off',
+      'strengths',
+      'notes',
+      'name',
+      'better',
+      'slots',
+      'id',
+      'text',
+    ]);
     const FINGERPRINT: Fingerprint = {
       costOfGoods: { lo: 'high', hi: 'high' },
       personnelCost: { lo: 'low', hi: 'low' },
@@ -130,6 +149,13 @@ describe('the payload', () => {
       const name = companyName(orgnr);
       expect(name).not.toBeNull();
       expect(json).not.toContain(name);
+      // No register text: neither aktivitet nor vedtektsfestet_formaal, whole or as its first words.
+      const texts = Object.values(companyTexts(orgnr)).filter((value): value is string => value !== null);
+      expect(texts).not.toHaveLength(0);
+      for (const text of texts) {
+        expect(json).not.toContain(text);
+        expect(json).not.toContain(text.split(' ').slice(0, 4).join(' '));
+      }
       // A fingerprint and a classification on every company change nothing the model sees.
       const signalled = analysisOf({
         funnel: { ...input.funnel, fingerprint: FINGERPRINT, classification: 'produkt' },
@@ -139,6 +165,48 @@ describe('the payload', () => {
       expect(narrow(signalled, 'analysis').analysis).toEqual(analysis);
       expect(json).not.toMatch(/produkt|konsulent|forhandler|fingerprint|classification/i);
     });
+  });
+});
+
+describe('the meaning of the slot fields', () => {
+  // Meinich, 2026-11-27, after sample run 181: what each field means is in
+  // the payload, once, and holds no digit.
+  const FIELDS = [...SLOT_FIELDS, YEAR_SLOT, COUNT_SLOT, MISSING_DOCUMENT_SLOT];
+
+  it.each([
+    ['demo A', A.orgnr],
+    ['demo B', B.orgnr],
+    ['the API-only subject', API_ONLY],
+  ])('%s: every field is explained once, with no digit', (_label, orgnr) => {
+    const { payload } = explained(orgnr);
+    expect(payload.slot_fields.map((entry) => entry.field).sort()).toEqual([...FIELDS].sort());
+    expect(payload.slot_fields.filter((entry) => /\p{Nd}/u.test(entry.meaning))).toEqual([]);
+    // Once for the payload, never per slot or per item.
+    expect(JSON.stringify(payload).split('"slot_fields"')).toHaveLength(2);
+  });
+
+  it('says beste is the best-quartile boundary, gap is to it, and retning holds «medianen»', () => {
+    const meaning = (field: string) => explained(A.orgnr).payload.slot_fields.find((entry) => entry.field === field)?.meaning;
+    expect(meaning('beste')).toMatch(/boundary of the best quartile/);
+    expect(meaning('beste')).toMatch(/never one company/);
+    expect(meaning('beste')).toMatch(/cost share, lower is better, so the boundary can lie below the company's own value/);
+    expect(meaning('gap')).toMatch(/never to the median/);
+    expect(meaning('retning')).toMatch(/already contains the word «medianen»/);
+  });
+
+  it("names each figure's better direction, and none for the working-capital total", () => {
+    const { payload } = explained(A.orgnr);
+    expect(payload.profit_gaps_per_year.map((item) => [item.name, item.better])).toEqual([['Driftsmargin', 'higher']]);
+    expect(payload.capital_gaps_one_off.map((item) => [item.name, item.better])).toEqual([
+      ['Arbeidskapital (kundefordringsdager og leverandørgjeldsdager)', undefined],
+      ['Kundefordringsdager', 'lower'],
+      ['Leverandørgjeldsdager', 'higher'],
+    ]);
+    expect(payload.strengths.map((item) => [item.name, item.better])).toEqual([
+      ['Varekostnadsandel', 'lower'],
+      ['Omløpshastighet driftseiendeler', 'higher'],
+      ['Andel andre driftskostnader', 'lower'],
+    ]);
   });
 });
 

@@ -224,3 +224,9 @@ export function apiOnlySubject(hasPeers: (orgnr: string) => boolean): string {
 export function companyName(orgnr: string): string | null {
   return orNull(data().companies.get(orgnr)?.navn);
 }
+
+/** A company's register texts as the seed stores them (`aktivitet`, `vedtektsfestet_formaal`), each null when absent. */
+export function companyTexts(orgnr: string): { readonly aktivitet: string | null; readonly vedtektsfestet_formaal: string | null } {
+  const row = data().companies.get(orgnr);
+  return { aktivitet: orNull(row?.aktivitet), vedtektsfestet_formaal: orNull(row?.vedtektsfestet_formaal) };
+}

@@ -3,7 +3,7 @@
 **Date:** 2026-11-27
 **Tool:** Claude Code (claude-opus-5-5), in the Story 4.1 `bmad-build` session
 **Story / issue:** #89, Epic 3 retro action 8 (moved out of Story 4.1, #88)
-**Result:** branch `story/89-test-assertions` (not pushed)
+**Result:** PR #90, https://github.com/IBE160-2026/G97-meinich/pull/90 (branch `story/89-test-assertions`)
 
 ## Goal
 

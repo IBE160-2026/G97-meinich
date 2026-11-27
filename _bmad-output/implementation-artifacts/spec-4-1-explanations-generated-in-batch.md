@@ -115,7 +115,7 @@ Sources for the matrix:
   - the PRD memlog.
 
 **Acceptance Criteria:**
-- Given `pnpm explain --plan` without a key, then it prints the subject counts by `EmptyReason`, the token estimate, the ceiling and the per-wording counts, and writes nothing.
+- Given `pnpm explain --plan` without a key, then it prints the subject counts by `EmptyReason`, the token estimate, the ceiling and the per-wording counts, and writes no explanation row: only its one `run.step2` record (mode `explain`, `plan: true`).
 - Given the sample run, then the report gives its tokens, the counts of kept and refused templates with reasons, and three filled-in templates. No labelled-set orgnr is in the sample.
 - Given the full verification in AGENTS.md "Testing", then every step passes, and `git status seed/` shows only the re-export.
 
@@ -129,13 +129,14 @@ Sources for the matrix:
 - **2026-11-27, Meinich:** the slot words for direction and rank, `mangler.dokument` = `keyFigures.notInDataset.state`, and strengths by the rule of Største styrke with `NEVER_STRENGTH` unchanged (see Decisions).
 - **2026-11-27, Meinich:** three deferred entries are written in this PR. Story 4.4's card reads only `not sample`; the export's `WHERE false` is lifted in Story 4.3, where real explanations are stored (one owner, Meinich after the review session's reading of `b609ce0`); and the open question on cost of goods as a strength goes to Story 4.4.
 - **2026-11-27, Meinich (review session's reading of `b609ce0`):** the I/O matrix gets rows for the digest, the stored columns, the run record, the same choice as the page, the key and the wording counts.
+- **2026-11-27, Meinich (matrix row "Run record"):** `--plan` writes one `run.step2` record, so the acceptance criterion's "writes nothing" now reads "writes no explanation row". The matrix row is the later decision and wins over the criterion's wording.
 - **2026-11-27, rebase on `main`:** the branch now sits on `8df1e63`. `deferred-work.md` kept main's Story 5.7 entry on `peer-assembly-time` (PR #90's CI). It does not concern 4.1.
 
 ## Sample run plan
 
 Nothing is sent before Meinich's yes to the ceiling that `--plan` prints.
 
-1. **`pnpm explain --plan`** needs no key, makes no model call and writes nothing (`ANTHROPIC_API_KEY` unset in the shell). It prints:
+1. **`pnpm explain --plan`** needs no key and makes no model call: it never builds the model client, so the key in `.env` is not read. It writes no explanation row, only its `run.step2` record. It prints:
    - the 62.100 AS subjects, how many have a peer group, and how many are empty, per `EmptyReason`;
    - the token estimate, central and high, with the input from the payloads and the system prompt (as `scripts/classify/plan.ts` estimates it);
    - the ceiling: high input plus `MAX_TOKENS` × requests for output, at `PRICE_PER_MTOK` with its `PRICE_DATE`;

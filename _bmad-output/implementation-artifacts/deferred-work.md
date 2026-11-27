@@ -277,7 +277,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
   owner: Story 4.4 (the explanation card) (Meinich, 2026-11-27).
   summary: `register.explanation` has a `sample` column, like `register.classification`, and a sample run (Story 4.1's 20 companies) leaves sample rows in the local database. The card's read must select only `not sample`, with a test that fails when the condition is removed, so the local page never shows a sample text. The same gap in the classification reads is the entry above about `SUBJECT_SQL` and `CANDIDATES_SQL`.
-  evidence: Story 4.1 checkpoint, Meinich's answer on the deferred-work entry below 205 (2026-11-27). No effect in the seed: the export writes no explanation row before the full run.
+  evidence: Story 4.1 checkpoint, Meinich's answer on the deferred entry about `SUBJECT_SQL` and `CANDIDATES_SQL` (2026-11-27). No effect in the seed: the export writes no explanation row before the full run.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
   owner: Story 4.3 (the phrase test), where the full run happens (Meinich, 2026-11-27). Note: epics.md Story 5.5's last AC is the one that writes the stored explanations into the committed seed after the 30-text review, so the lift may belong there instead; to be settled when 4.3 is planned.

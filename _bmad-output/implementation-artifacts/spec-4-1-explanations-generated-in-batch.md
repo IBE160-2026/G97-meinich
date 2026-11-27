@@ -3,7 +3,7 @@ title: 'Story 4.1: Explanations generated in batch'
 type: 'feature'
 created: '2026-11-26'
 status: 'draft'
-baseline_commit: '13b510c12d9d8859ea131f3b07a4a67cff889a86'
+baseline_commit: '8df1e6335592143d9e8ec474669ac70bf95da3fc'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -20,7 +20,8 @@ context:
 **Approach:**
 - Add a pure module in `src/analysis` that turns a subject's default analysis into a closed slot table and a payload, and computes the digest of its wire encoding.
 - Add `pnpm explain`, a step-2 Batch API script. It reads through the request path's own functions and sends the payload. It refuses a template that uses an unknown slot or has a digit outside a slot, and stores what passes with its provenance in a new `register.explanation` table.
-- Take in deferred-work entry 205. Epic 3 retro action 8 is moved to its own PR, merged before this one, because it rewrites about 100 sites in 26 test files that are reviewed on their own (Meinich, 2026-11-27).
+- Take in the deferred-work entry on a failed response's usage (Story 2.6, review of PR #54, `discussion_r4567327638`; called "entry 205" below).
+- Epic 3 retro action 8 is not part of 4.1. It was done in issue #89, PR #90, merged as `afe9a8e` (Meinich, 2026-11-27). 4.1's tests follow the rules it wrote into AGENTS.md "Testing".
 
 ## Decisions (Meinich, 2026-11-27)
 
@@ -49,6 +50,7 @@ context:
 - **Key:** reached only through `scripts/classify/model-client.ts`. `test/classify/key-boundary.test.ts` keeps its one-file lists.
 - **Story 4.4** reads only rows with `not sample`. This is written here, and a deferred entry names 4.4.
 - **Guards:** every guard in the I/O matrix fails its test when removed, and the report shows the removal and the failing output.
+- **Test assertions** (AGENTS.md "Testing", from #89/PR #90): every new test asserts unconditionally. No `expect` inside an `if`, `?:`, `switch`, `&&`/`||` or `catch`; narrow with `narrow` from `test/narrow.ts` or split the case. A loop or `it.each` with an `expect` asserts the length of what it runs over first, unless the list is a literal in the test. `pnpm lint` enforces the first rule and the e2e read rule; the length rule is the review's to check. 4.1 adds no e2e test.
 
 **Never:**
 - generation, the SDK or `scripts/explain` reachable from `src/`;
@@ -62,7 +64,7 @@ context:
 
 | Scenario | Input / State | Expected | Guard test (fails if guard removed) |
 |---|---|---|---|
-| Demo A payload | 922425620, band 0 | profit gap 2 125 096 kr/yr; capital gaps working capital, kfd, lgd; strengths vare, oml, andre | `test/explain/payload.test.ts` "demo A's payload" |
+| Demo A payload | 922425620 (TRETOEN AS, `src/demo-companies.ts`), band 0 | profit gap 2 125 096 kr/yr; capital gaps working capital, kfd, lgd; strengths vare, oml, andre (source: below the table) | `test/explain/payload.test.ts` "demo A's payload" |
 | API-only subject | not in `document_figure_orgnrs` | no document slot; `mangler.dokument` | `test/explain/payload.test.ts` "a non-allow-listed company's payload contains no document figure" |
 | Forbidden fields | any subject | no orgnr, name, fingerprint or classification | `test/explain/payload.test.ts` "holds no identity, fingerprint or classification" |
 | Digit outside slot | `"Marginen er 3,4 %"` | not stored; `digit_outside_slot` | `test/explain/run.test.ts` "a digit outside a slot is not stored" |
@@ -70,12 +72,17 @@ context:
 | Empty group | `analysisCount = 0` | no call; counted under its `EmptyReason` | `test/explain/run.test.ts` "an empty group makes no call and is counted by reason" |
 | Over cap | `--max-usd` below ceiling | nothing sent, exit 1 | `test/explain/run.test.ts` "refuses above --max-usd" |
 | Sample draw | `--sample 20` | no labelled-set orgnr; rows `sample` | `test/explain/run.test.ts` "a sample is drawn outside the labelled set" |
-| Test mode | stored responses, no key | runs and stores | `test/explain/run.test.ts` (stub model) |
-| Failed response | `max_tokens` stop | usage counted | `test/classify/run.test.ts` "counts a failed response's tokens" |
+| Test mode | stored responses, no key | runs and stores | `test/explain/run.test.ts` "runs from stored responses without a key" |
+| Failed response (entry 205) | `max_tokens` stop | usage counted, in classify and explain | `test/classify/run.test.ts` "counts a failed response's tokens"; `test/explain/run.test.ts` "counts a failed response's tokens" |
 | Deletion | company withdrawn | explanation goes | `ingest/tests/test_run_record.py::test_gone_unit_is_deleted_everywhere`; `test/db/explanation.test.ts` "a deleted company takes its explanation with it" |
 | Grants | new table | reader S; derive SIU; loader SIT | `test/db/grants.test.ts` "the explanation table" |
 | Seed | committed seed | `explanation.csv` header only | `test/db/seed.test.ts` "the committed seed holds no explanation" |
 | Request path | `src/` | no SDK, model host or `scripts/explain` | `test/classify/key-boundary.test.ts` (regex `scripts\/(classify\|explain)`); `test/db/peers.test.ts` "makes no outbound request" |
+
+Sources for the matrix:
+- **Demo A:** the built app on 2026-11-27 (build newer than the last change to `src/` on main), `/analyse/922425620` Oversikt: "(13,3 % − 3,4 %) × 21 473 080 kr ≈ 2 125 096 kr per år", Største kapitalgap "Arbeidskapital", Største styrke "Varekostnadsandel". The rest of both lists (kfd, lgd; oml, andre) is from the checkpoint session and not checked again. The test holds the hand-written values, not values read from the code it tests.
+- **Deletion:** `test_gone_unit_is_deleted_everywhere` loops over every `register` table with an `orgnr` column and asserts each holds a row of the target before the run. The new table therefore makes it fail until the test inserts an explanation row as `derive` would. That is the guard.
+- **Tests that exist on main:** `test_gone_unit_is_deleted_everywhere`, "makes no outbound request" and the key-boundary test (its regex is now `scripts\/classify` and becomes `scripts\/(classify|explain)`). Every other named test is new in 4.1.
 
 </frozen-after-approval>
 
@@ -90,7 +97,7 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `scripts/classify/model-client.ts`, `test/classify/run.test.ts`: generic params, and usage on a failed response (entry 205).
+- [ ] `scripts/classify/model-client.ts`, `test/classify/run.test.ts`: generic params, and usage on a failed response (entry 205, marked `resolved:` in `deferred-work.md`).
 - [ ] `src/analysis/explanation-payload.ts`, `src/messages/nb.json`, `test/explain/payload.test.ts`: the slot table, payload, wire encoding and digest.
 - [ ] `supabase/migrations/20261126120000_explanation.sql`: the table, cascade, checks, grants, and `explain` in `run.step2`'s mode check.
 - [ ] `scripts/explain.ts`, `scripts/explain/{request,plan,run}.ts`, `scripts/explain-compute.ts`, `test/explain/*`, `test/fixtures/explain/`: the script with test mode, `--plan`, `--sample` and `--max-usd`.
@@ -110,7 +117,41 @@ context:
 
 - **2026-11-27, Meinich:** epics.md Story 4.1's third AC said a step-2 run stores every company's explanation. 4.1 now builds the run and makes a 20-company sample, and the full run moves to Story 4.3, so no unguarded text is stored. AD-7's coverage line in epics.md says so too.
 - **2026-11-27, Meinich:** the AC "every 62.100 company has a stored explanation … or a failure written to step 2's run record" now also counts a company with an empty peer group under its `EmptyReason` in `run.step2.counts`. That count meets the AC.
-- **2026-11-27, Meinich:** Epic 3 retro action 8 was moved out of this spec into its own PR, merged first (see Intent).
+- **2026-11-27, Meinich:** Epic 3 retro action 8 was moved out of this spec into its own PR: issue #89, PR #90, merged as `afe9a8e`. The retro's action table on main records it as done in #89. 4.1 only follows the rules it added to AGENTS.md "Testing".
+- **2026-11-27, Meinich:** the model is `claude-haiku-5-5`, and it is assessed again after the sample run (see Decisions).
+- **2026-11-27, Meinich:** labelled-set companies are explained and exported at the full run, as long as the payload test shows that no fingerprint or classification is included, and their output is totals only (see Decisions).
+- **2026-11-27, Meinich:** the slot words for direction and rank, `mangler.dokument` = `keyFigures.notInDataset.state`, and strengths by the rule of Største styrke with `NEVER_STRENGTH` unchanged (see Decisions).
+- **2026-11-27, Meinich:** two deferred entries are written in this PR. Story 4.4's card reads only `not sample`, and the export's `WHERE false` is lifted with the full run in Story 4.3 (or 5.5, to be settled when 4.3 is planned).
+- **2026-11-27, rebase on `main`:** the branch now sits on `8df1e63`. `deferred-work.md` kept main's Story 5.7 entry on `peer-assembly-time` (PR #90's CI). It does not concern 4.1.
+
+## Sample run plan
+
+Nothing is sent before Meinich's yes to the ceiling that `--plan` prints.
+
+1. **`pnpm explain --plan`** needs no key, makes no model call and writes nothing (`ANTHROPIC_API_KEY` unset in the shell). It prints:
+   - the 62.100 AS subjects, how many have a peer group, and how many are empty, per `EmptyReason`;
+   - the token estimate, central and high, with the input from the payloads and the system prompt (as `scripts/classify/plan.ts` estimates it);
+   - the ceiling: high input plus `MAX_TOKENS` × requests for output, at `PRICE_PER_MTOK` with its `PRICE_DATE`;
+   - the per-wording counts: direction («over/under/lik medianen») and rank («det største» / «nest største» / «tredje største kapitalgapet»).
+2. **`pnpm explain --plan --sample 20`** prints the same for the 20 companies drawn outside `analysis/labelled-set/document-run.json`, with counts only and no orgnr.
+3. **Price check:** before the run, `PRICE_PER_MTOK` (now $0.05 input and $0.25 output per million batch tokens for `claude-haiku-5-5`, read 2026-11-08) is checked again against the pricing page, and `PRICE_DATE` is updated if it has changed.
+4. **Meinich's yes** to the ceiling for the sample.
+5. **`pnpm explain --sample 20 --max-usd 0.05`** refuses with exit 1 and sends nothing if the ceiling is above $0.05. Rows are stored with `sample = true` and the run record goes to `run.step2`.
+   - Order of magnitude, to be replaced by `--plan`'s figure: 20 requests of at most 4 000 input tokens and an output cap of 1 000 come to about $0.004 + $0.005 = $0.009. $0.05 gives roughly five times that in margin.
+   - The output cap is set in `scripts/explain/request.ts` (classify uses 2 000).
+6. **The report** (in the PR and the session file):
+   - input and output tokens and their dollar amount;
+   - the kept and refused templates, each refusal by reason (`digit_outside_slot`, `unknown_slot`, `max_tokens`, …);
+   - three templates with their slots filled in;
+   - the model assessment.
+   No orgnr of the labelled set appears anywhere, and the sample's orgnrs are not printed.
+
+## Deferred work naming Stories 4.3 and 4.4 (not taken into 4.1)
+
+- **Story 4.4:** the explanation card renders or removes `AiMark`, `Mark` and `peers.ai`, which v1 does not use (from Story 5.2).
+- **Story 4.4:** the card reads only `not sample` from `register.explanation`, with a test that fails when the condition is removed. Written by this PR.
+- **Story 4.3** (or 5.5, settled when 4.3 is planned): lift `seed:export`'s `WHERE false` for `register.explanation` when the full run is guarded, and change "the committed seed holds no explanation" to "no sample row, and every row passes the figure and phrase tests". Written by this PR.
+- **Not 4.1:** the entry naming Story 5.7 (`peer-assembly-time`, PR #90's CI).
 
 ## Open question for Meinich (not blocking 4.1)
 

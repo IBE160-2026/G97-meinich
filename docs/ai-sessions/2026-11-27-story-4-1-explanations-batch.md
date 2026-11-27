@@ -688,6 +688,13 @@ The subagent replaced two first attempts that did not fail:
 - **The correction:** the review session caught the mistake in its own prompt. The spec went back to `in-review` in its own commit, as Story 5.4 did (`835a8d4` → `2d1aba7`).
 - **Commit count:** the branch holds 47 commits after `8df1e63` (`git rev-list --count`). The BMAD session's report to Meinich said 50; no file did.
 
+## Merge
+
+- **CI:** green on `e589766`. The run on `895cdff` was cancelled when the next push started a new one, so it did not pass.
+- **Review:** the review session posted it on `e589766`, with six line comments: https://github.com/IBE160-2026/G97-meinich/pull/91#pullrequestreview-6092786567. Four are findings (P1–P4: the rank words, the count's noun, refused texts in the full run, batch provenance), and two acknowledge `\p{Nd}` in `parseTemplate` and the ceiling check before the key is read. Meinich merged with no change; P1–P4 are in the spec's Review Triage Log and in `deferred-work.md` for Story 4.3, added by the review session after the merge.
+- **Checked by the review session before merge:** the five sample runs and two plan records in `run.step2` against the PR's table (170 030 tokens in, 32 797 out, $0.0168), the restored document counts, the payload's contents and ordering, the migration's grants and checks, `WHERE false` until Story 5.5 against `epics.md:2698`, and that the PR text holds no orgnr.
+- **Merged:** PR #91 by Meinich, 2026-11-27 19:50 UTC, as `c145245`. Issue #88 is closed. The spec is `done`, and Story 4.1 is `done` in `sprint-status.yaml`.
+
 ## Links
 
 - **Spec:** `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`. See its Spec Change Log, Sample run plan and Review Triage Log (rows 1–18 from the sample runs, R1–R26 from the review).

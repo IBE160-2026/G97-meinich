@@ -2,7 +2,7 @@
 title: 'Story 4.1: Explanations generated in batch'
 type: 'feature'
 created: '2026-11-26'
-status: 'in-review'
+status: 'done'
 baseline_commit: '8df1e6335592143d9e8ec474669ac70bf95da3fc'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -151,6 +151,18 @@ Three layers: Blind Hunter (BH), Edge Case Hunter (EC) and Verification Gap (VG)
 | R24 | BH | `coveredAsOrgnrs` does not exclude dissolved companies | false | reject: the analysis page does not exclude them either (`loadSubject`, `analysisView`), and the explanation follows the page |
 | R25 | BH | `epic-4-context.md` has Story 5.5 committing explanations to the seed, while the 4.3 entry lifts `WHERE false` | medium | patch (Meinich): Story 5.5 commits them (epics.md Story 5.5), 4.3 makes the full run (AD-7); AGENTS.md, the entry, code comments and this spec now say 5.5 |
 | R26 | BH | `epic-4-context.md`'s Requirements say every company has a stored explanation | false | reject: that is the epic's requirement; 4.1's narrower AC is in the Spec Change Log |
+
+
+### Review of PR #91 (review session, 2026-11-27)
+
+Posted on `e589766` by Meinich: https://github.com/IBE160-2026/G97-meinich/pull/91#pullrequestreview-6092786567. Each finding is the review session's. Meinich merged with no change, so the four below go to Story 4.3 (`deferred-work.md`); two further comments acknowledged `\p{Nd}` in `parseTemplate` and the ceiling check before the key is read.
+
+| # | Finding | Route |
+|---|---|---|
+| P1 | `explanation.rank.1` is «det største kapitalgapet», `rank.2` and `rank.3` have no «det»; run 199's stored capital-gap text reads «dette er det største kapitalgapet» and «…, nest største kapitalgapet» | Story 4.3 (deferred-work.md) |
+| P2 | `antall`'s text is «{n} sammenlignbare» / «1 sammenlignbart»: the noun after it is still the model's («blant 1 sammenlignbart selskaper») | Story 4.3 (deferred-work.md) |
+| P3 | a full run (`--all`) prints refused texts as counts only, so nobody can read why a template was refused | Story 4.3 (deferred-work.md) |
+| P4 | a finished row keeps no `batch_id`, and `run.step2` has none either, so a batch is found again only from the log | Story 4.3, with R13 (deferred-work.md) |
 
 ## Code Map
 

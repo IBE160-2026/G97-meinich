@@ -185,13 +185,24 @@ describe('the meaning of the slot fields', () => {
     expect(JSON.stringify(payload).split('"slot_fields"')).toHaveLength(2);
   });
 
-  it('says beste is the best-quartile boundary, gap is to it, and retning holds «medianen»', () => {
-    const meaning = (field: string) => explained(A.orgnr).payload.slot_fields.find((entry) => entry.field === field)?.meaning;
-    expect(meaning('beste')).toMatch(/boundary of the best quartile/);
-    expect(meaning('beste')).toMatch(/never one company/);
-    expect(meaning('beste')).toMatch(/cost share, lower is better, so the boundary can lie below the company's own value/);
-    expect(meaning('gap')).toMatch(/never to the median/);
-    expect(meaning('retning')).toMatch(/already contains the word «medianen»/);
+  it("says, in the page's own words, beste is the boundary of beste fjerdedel, gap is to it, and the slot words are not repeated", () => {
+    const { payload } = explained(A.orgnr);
+    const meaning = (field: string) => payload.slot_fields.find((entry) => entry.field === field)?.meaning;
+    expect(meaning('beste')).toMatch(/Grensen for beste fjerdedel/);
+    expect(meaning('beste')).toMatch(/aldri ett selskap/);
+    expect(meaning('beste')).toMatch(/kostnadsandel, er lavere bedre, og grensen kan ligge under selskapets egen verdi/);
+    expect(meaning('gap')).toMatch(/aldri mot medianen/);
+    expect(meaning('retning')).toMatch(/skriv aldri «medianen» rett etter sloten/);
+    expect(meaning('plassering')).toMatch(/skriv aldri «bedre enn» rett foran sloten/);
+    // «kvartil» only where the legend forbids it.
+    expect(payload.slot_fields.filter((entry) => /kvartil/i.test(entry.meaning.replace('aldri «kvartil»', '')))).toEqual([]);
+  });
+
+  it("writes antall as the page's own phrase", () => {
+    const analysis = explained(A.orgnr);
+    const shown = narrow(analysisOf(seedInput(A.orgnr)), 'analysis').shown;
+    expect(shown.analysisCount).toBeGreaterThan(1);
+    expect(slot(analysis, 'antall')?.text).toBe(`${String(shown.analysisCount)} sammenlignbare`);
   });
 
   it("names each figure's better direction, and none for the working-capital total", () => {

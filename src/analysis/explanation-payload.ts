@@ -86,34 +86,45 @@ export type PayloadItem = { readonly name: string; readonly better?: 'higher' | 
 export type SlotFieldMeaning = { readonly field: string; readonly meaning: string };
 
 /**
- * The meaning of every slot field, sent once with each payload (Meinich,
- * 2026-11-27, after sample run 181: the model read `beste` as one company,
- * `gap` as to the median, and wrote «medianen» after the direction slot).
- * It holds no digit (test/explain/payload.test.ts), so it can never be the
- * source of a figure in a template.
+ * The meaning of every slot field, sent once with each payload, in bokmål
+ * and in the page's own words: «beste fjerdedel» (never «kvartil»),
+ * «median», «bedre enn» as `keyFigures.placement` writes it (Meinich,
+ * 2026-11-27, after sample runs 181 and 185: the model read `beste` as one
+ * company, `gap` as to the median, wrote «medianen» after the direction slot
+ * and «bedre enn» before the placement slot, and wrote «kvartil» in 16 of
+ * 20 templates). It holds no digit (test/explain/payload.test.ts), so it
+ * can never be the source of a figure in a template.
  */
 export const SLOT_FIELD_MEANINGS: readonly SlotFieldMeaning[] = [
-  { field: 'egen', meaning: "The company's own value of the figure." },
-  { field: 'median', meaning: 'The median of the comparable companies.' },
+  { field: 'egen', meaning: 'Selskapets egen verdi for nøkkeltallet.' },
+  { field: 'median', meaning: 'Medianen blant de sammenlignbare selskapene.' },
   {
     field: 'beste',
     meaning:
-      'The boundary of the best quartile of the comparable companies: the value a company must reach to be among the best quarter. It is a boundary, never one company and never the best value in the group. Where the item\'s "better" is "lower", as for a cost share, lower is better, so the boundary can lie below the company\'s own value. Where it is "higher", it can lie above.',
+      'Grensen for beste fjerdedel blant de sammenlignbare selskapene: verdien et selskap må nå for å høre til den beste fjerdedelen. Det er en grense, aldri ett selskap og aldri den beste verdien i gruppen. Skriv «beste fjerdedel», aldri «kvartil». Der «better» er «lower», som for en kostnadsandel, er lavere bedre, og grensen kan ligge under selskapets egen verdi. Der «better» er «higher», kan den ligge over.',
   },
-  { field: 'plassering', meaning: 'The share of the comparable companies the company does better than. Its text is complete as written.' },
+  {
+    field: 'plassering',
+    meaning:
+      'Hvor stor del av de sammenlignbare selskapene selskapet gjør det bedre enn. Teksten begynner allerede med «bedre enn»: skriv aldri «bedre enn» rett foran sloten.',
+  },
   {
     field: 'gap',
     meaning:
-      'In "profit_gaps_per_year": the kroner per year the operating result would rise by if the figure reached the boundary of the best quartile. In "capital_gaps_one_off": the one-off kroner of capital released if it reached that boundary, not per year. Both are measured to the best quartile, never to the median.',
+      'I «profit_gaps_per_year»: kronene per år driftsresultatet ville øke med om nøkkeltallet nådde grensen for beste fjerdedel. I «capital_gaps_one_off»: kapitalen i kroner som frigjøres én gang om nøkkeltallet nådde den grensen, ikke per år. Begge er regnet mot beste fjerdedel, aldri mot medianen.',
   },
   {
     field: 'retning',
-    meaning: 'Whether the own value lies above, below or at the median. Its text already contains the word «medianen»: never write «medianen» again right after it.',
+    meaning: 'Om egen verdi ligger over, under eller lik medianen. Teksten slutter allerede med «medianen»: skriv aldri «medianen» rett etter sloten.',
   },
-  { field: 'rang', meaning: "The capital gap's place among the one-off capital gaps. Use it only beside its own capital gap." },
-  { field: YEAR_SLOT, meaning: 'The filing year. Always write it as this slot, never as its text.' },
-  { field: COUNT_SLOT, meaning: 'The number of comparable companies in the analysis. Always write it as this slot, never as its text.' },
-  { field: MISSING_DOCUMENT_SLOT, meaning: "A sentence saying the company's document figures are not in the dataset." },
+  { field: 'rang', meaning: 'Kapitalgapets plass blant engangsgapene i kapital. Bruk den bare ved sitt eget kapitalgap.' },
+  { field: YEAR_SLOT, meaning: 'Regnskapsåret. Skriv det alltid som denne sloten, aldri som teksten.' },
+  {
+    field: COUNT_SLOT,
+    meaning:
+      'Antall sammenlignbare selskaper i analysen, med ordet «sammenlignbare» eller «sammenlignbart» slik siden skriver det. Skriv det alltid som denne sloten, aldri som teksten, og bøy ikke ordet selv.',
+  },
+  { field: MISSING_DOCUMENT_SLOT, meaning: 'En setning om at selskapets dokumenttall ikke er i datasettet.' },
 ];
 
 /** What the model is sent. Only slot ids, slot texts, names from nb.json, `SLOT_FIELD_MEANINGS` and these keys. */
@@ -288,7 +299,10 @@ export function explanationAnalysis<P extends Peer>(
   const table = new SlotTable();
 
   const year = table.add(YEAR_SLOT, String(shown.filingYear), new Decimal(shown.filingYear));
-  const peerCount = table.add(COUNT_SLOT, String(shown.analysisCount), new Decimal(shown.analysisCount));
+  // The page's own phrase (company-header.tsx), so the model never inflects the noun itself.
+  // The thousands separator is Story 4.2's (deferred-work.md): the count is still String(...).
+  const countText = shown.analysisCount === 1 ? t('analysis.peerCountOne') : t('analysis.peerCount', { n: String(shown.analysisCount) });
+  const peerCount = table.add(COUNT_SLOT, countText, new Decimal(shown.analysisCount));
 
   const profit: PayloadItem[] = [];
   const margin = api.driftsmargin;

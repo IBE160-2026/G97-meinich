@@ -227,6 +227,7 @@ const CASES: readonly Case[] = [
 
 function check(actual: FigureResult, expected: Expected): void {
   if ('undefined' in expected) {
+    // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: { reason: 'undefined', cause: expected.undefined } });
     return;
   }
@@ -625,10 +626,12 @@ const DOC_CASES: readonly DocCase[] = [
 
 function checkDocument(orgnr: string, filingYear: number, actual: FigureResult, expected: DocExpected): void {
   if ('absent' in expected) {
+    // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: expected.absent });
     return;
   }
   if ('undefined' in expected) {
+    // eslint-disable-next-line no-restricted-syntax -- the branch is on the hand-written reference case (`expected`), never on the engine's output
     expect(actual).toEqual({ kind: 'absent', absence: { reason: 'undefined', cause: expected.undefined } });
     return;
   }

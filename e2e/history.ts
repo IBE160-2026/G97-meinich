@@ -10,6 +10,7 @@ import { expect } from './fixtures.ts';
  * changes only when the test navigates.
  */
 export function historyLength(page: Page): Promise<number> {
+  // eslint-disable-next-line no-restricted-syntax -- a baseline taken before the action, not an assertion; the comparison after it polls (expectHistoryLength)
   return page.evaluate(() => window.history.length);
 }
 

@@ -94,6 +94,46 @@ const displayRestrictions = [
   { property: 'toLocaleString', message: 'Format numbers with src/engine/format.ts (AD-6).' },
 ];
 
+// Epic 3 retro action 8 (issue #89): a test asserts unconditionally, and an
+// e2e test reads a page value only through an auto-waiting assertion. A
+// snapshot read (textContent, boundingBox, evaluate …) taken before the
+// streamed page settles passed or failed by timing in Stories 3.4–3.6, and
+// an expect inside a condition passes without testing when the condition
+// is false (Epic 3 retro P6). Reads inside expect.poll's callback or an
+// expect(…).toPass() block are retried, so they stay allowed; awaiting a
+// read for its side effect (page.evaluate(() => document.fonts.ready))
+// uses no value and stays allowed too.
+const SNAPSHOT_READS =
+  '/^(textContent|innerText|innerHTML|inputValue|allTextContents|allInnerTexts|getAttribute|count|all|boundingBox|evaluate|evaluateAll|isVisible|isHidden|isChecked|isEnabled|isDisabled|isEditable)$/';
+// Not a read of the page: inside a retried callback, inside the browser-side
+// function of an evaluate call (DOM getAttribute there is the DOM's), or
+// Promise.all.
+const NOT_A_SNAPSHOT = [
+  "CallExpression[callee.object.name='expect'][callee.property.name='poll'] *",
+  "CallExpression[callee.property.name='toPass'] *",
+  'CallExpression[callee.property.name=/^(evaluate|evaluateAll)$/] > :function *',
+  "[callee.object.name='Promise']",
+].join(', ');
+const READ = `CallExpression[callee.property.name=${SNAPSHOT_READS}]:not(${NOT_A_SNAPSHOT})`;
+const snapshotReadMessage =
+  'Read a page value through an auto-waiting assertion (toHaveText, toHaveCSS, toHaveAttribute, toHaveCount), expect.poll or an expect(…).toPass() block, never a snapshot (Epic 3 retro action 8).';
+const snapshotReads = [
+  // The value is used: an awaited read anywhere but as a statement of its
+  // own (kept, compared, passed on, iterated over, put into a selector), or
+  // a read returned unawaited, from a function or as an arrow's body.
+  ...[':not(ExpressionStatement) > AwaitExpression > ', 'ReturnStatement > ', 'ArrowFunctionExpression > '].map((parent) => ({
+    selector: `${parent}${READ}`,
+    message: snapshotReadMessage,
+  })),
+];
+const CONDITION = ':matches(IfStatement, ConditionalExpression, SwitchStatement, LogicalExpression, CatchClause)';
+const conditionalExpectMessage =
+  'No expect inside a condition: a branch that is not taken tests nothing. Assert the case, narrow with a throwing helper (test/narrow.ts), split the cases, or filter first and assert the filtered list (Epic 3 retro action 8).';
+const conditionalExpects = [
+  { selector: `${CONDITION} CallExpression[callee.name='expect']`, message: conditionalExpectMessage },
+  { selector: `${CONDITION} CallExpression[callee.object.name='expect']`, message: conditionalExpectMessage },
+];
+
 export default defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -135,6 +175,14 @@ export default defineConfig([
     rules: {
       'local/client-restricted-imports': ['error', clientImportRestriction],
     },
+  },
+  {
+    files: ['test/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-syntax': ['error', ...conditionalExpects] },
+  },
+  {
+    files: ['e2e/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-syntax': ['error', ...conditionalExpects, ...snapshotReads] },
   },
   globalIgnores([
     // Gitignored local work: dumps, logs and old worktrees.

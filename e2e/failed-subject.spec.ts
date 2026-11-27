@@ -39,6 +39,7 @@ async function openKeyFigures(page: Page): Promise<void> {
 function apiCells(page: Page): Promise<Record<string, string>> {
   const region = page.getByRole('region', { name: nb['keyFigures.regionLabel'] });
   const cells = ['driftsmargin', 'totalkapitalrentabilitet', 'egenkapitalandel'].map((figure) => `tr[data-figure="${figure}"] td[data-cell]`);
+  // eslint-disable-next-line no-restricted-syntax -- a baseline of the page's own cells, read once the page is rendered; the second state is compared with it through expect.poll
   return region.locator(cells.join(', ')).evaluateAll((tds) =>
     Object.fromEntries(
       tds.map((td) => [`${td.closest('tr')?.getAttribute('data-figure')}.${td.getAttribute('data-cell')}`, (td as HTMLElement).innerText.trim()]),

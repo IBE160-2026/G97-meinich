@@ -28,6 +28,7 @@ function median(values: readonly number[]): number {
  */
 async function timed(page: Page, act: () => Promise<void>): Promise<number> {
   const status = page.getByTestId('peer-change-status');
+  // eslint-disable-next-line no-restricted-syntax -- a baseline taken before the action, so the poll below can tell the new announcement from the old
   const previous = await status.textContent();
   const started = Date.now();
   await act();

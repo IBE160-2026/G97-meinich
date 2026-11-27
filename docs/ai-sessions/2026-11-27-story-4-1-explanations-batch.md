@@ -604,13 +604,20 @@ The subagent replaced two first attempts that did not fail:
 - **Raised by the subagent:** `docs/ai-log.md`'s rule says an entry is never edited afterwards, and `8a60830` edits the 4.1 entry.
 - **The BMAD session kept the edit:** that entry was written in this branch (`7ac5672`) and has never been on `main`, so it is corrected before it is published. Meinich agreed in prompt 8. The R25 correction (5.5, not 4.3) edits the same entry for the same reason.
 
-**Full verification after the review fixes** (AGENTS.md "Testing"):
+**Full verification after the review fixes** (AGENTS.md "Testing"). The commits after it (R25's corrections) change only comments, docs and planning text:
 1. pins, env, lint, typecheck: pass.
 2. Unit tests: 2 221 pass.
 3. `pnpm seed` twice, then `pnpm seed:export`: `git status seed/` is clean. The reload also removed the 20 local sample rows; their reports are above.
 4. `test:db`: 224 pass. `test:ingest`: 392 pass.
 5. `pnpm build` and `check:routes`: pass.
-6. **E2e did not complete.** Claude Code stopped the run during the chromium project because the machine was critically low on memory, and it was not restarted unasked. Neither `src/app` nor `src/components` changed, and the request path's only change is `nb.json`'s six keys. E2e still has to pass, locally or in CI, before merge.
+6. **E2e, first attempt:** Claude Code stopped the background run during the chromium project because the machine was critically low on memory. It was not restarted unasked.
+   **E2e, after prompt 8:**
+   - **Before:** no Node or Chromium process was left, ports 3100 and 3101 were free, and 2.7 GB of 16 GB was free, most of it used by WSL (about 1.7 GB) and the Claude processes.
+   - **Run:** in the foreground, so it could not be stopped while idle, with one worker. Chromium ran in three runs of five spec files, as in #89, with the ports checked free before each.
+   - **Result:**
+     - chromium: 66, 77 and 66 passed (209);
+     - `db-down`: 7 passed;
+     - `synthetic --no-deps`: 31 passed.
 7. `pnpm restore:documents`: 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, as after Story 5.4.
 
 ## Links

@@ -2,7 +2,7 @@
 title: 'Story 4.1: Explanations generated in batch'
 type: 'feature'
 created: '2026-11-26'
-status: 'in-review'
+status: 'done'
 baseline_commit: '8df1e6335592143d9e8ec474669ac70bf95da3fc'
 route: 'dispatch'
 review_loop_iteration: 0

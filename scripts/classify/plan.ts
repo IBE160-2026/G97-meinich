@@ -8,7 +8,7 @@ import { MAX_TOKENS, SYSTEM_PROMPT, type RequestInput, type Target, hasText, req
 
 /** Batch API, per million tokens. Read from the pricing page on PRICE_DATE. */
 export const PRICE_PER_MTOK = { input: new Decimal('0.05'), output: new Decimal('0.25') };
-export const PRICE_DATE = '2026-11-08';
+export const PRICE_DATE = '2026-11-27';
 
 const CENTRAL = { charsPerToken: '3.0', overhead: 300, output: 115 };
 const HIGH = { charsPerToken: '2.2', overhead: 500, output: 1015 };

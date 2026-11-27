@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseArgs } from '../../scripts/explain.ts';
-import { type ModelClient, NoModelKey, createModelClient } from '../../scripts/classify/model-client.ts';
+import { type ModelClient, NoModelKey, createModelClient, toBatchResult } from '../../scripts/classify/model-client.ts';
 import { MODEL_ID, MAX_TOKENS, REQUEST_SETTINGS, SYSTEM_PROMPT, parseTemplate, promptHash, requestParams } from '../../scripts/explain/request.ts';
 import {
   type Computed,
@@ -77,6 +77,45 @@ const ALL: Options = { selection: { kind: 'all' }, labelled: () => new Set() };
 
 function deps(store: Store, model: () => ModelClient<ExplanationPayload>, log: (line: string) => void = () => {}) {
   return { store, model, now: () => AT, sleep: () => Promise.resolve(), log };
+}
+
+/** A stored row as a run would have written it for demo A's analysis. */
+function storedRow(orgnr: string, status: ExplanationRow['status'], overrides: Partial<ExplanationRow> = {}): ExplanationRow {
+  return {
+    orgnr,
+    status,
+    template: status === 'explained' ? 'Driftsmarginen er {{driftsmargin.egen}}.' : null,
+    slot_ids: status === 'explained' ? ['driftsmargin.egen'] : null,
+    filing_year: 2025,
+    analysis_digest: demoA.digest,
+    prompt_hash: promptHash(),
+    model_id: MODEL_ID,
+    dataset: 'demo',
+    sample: false,
+    batch_id: status === 'pending' ? 'left-batch' : null,
+    generated_at: AT,
+    ...overrides,
+  };
+}
+
+/**
+ * The stored-responses client, also answering a batch an earlier run left
+ * pending (`left-batch`) from the stored responses of `orgnrs`.
+ */
+function resuming(orgnrs: readonly string[]) {
+  const model = storedResponses(RESPONSES);
+  const left = RESPONSES.filter((entry) => orgnrs.includes((entry as { custom_id: string }).custom_id));
+  return {
+    ...model,
+    async *results(batchId: string) {
+      if (batchId !== 'left-batch') {
+        yield* model.results(batchId);
+        return;
+      }
+      await Promise.resolve();
+      for (const entry of left) yield toBatchResult(entry as Parameters<typeof toBatchResult>[0]);
+    },
+  };
 }
 
 const noModel = () => {
@@ -220,6 +259,33 @@ describe('a run', () => {
     expect(sent).toHaveLength(2);
     expect(sent.filter((orgnr) => labelled.has(orgnr))).toEqual([]);
     expect([...rows.values()].map((row) => row.sample)).toEqual([true, true]);
+  });
+
+  it('an explained row under the same digest, model and prompt is not sent again', async () => {
+    const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
+    rows.set(GOOD, storedRow(GOOD, 'explained'));
+    expect(await runExplain(deps(store, noModel), ALL, CAP)).toBe(0);
+    expect(runs[0]?.counts).toMatchObject({ sent: 0, unchanged: 1 });
+    expect(rows.get(GOOD)?.template).toBe('Driftsmarginen er {{driftsmargin.egen}}.');
+  });
+
+  it("a sample's explained row is sent again by a full run", async () => {
+    const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
+    rows.set(GOOD, storedRow(GOOD, 'explained', { sample: true }));
+    const model = storedResponses(RESPONSES);
+    await runExplain(deps(store, () => model), ALL, CAP);
+    expect(model.submitted.flat().map((request) => request.orgnr)).toEqual([GOOD]);
+    expect(runs[0]?.counts).toMatchObject({ sent: 1, unchanged: 0 });
+    expect(rows.get(GOOD)?.sample).toBe(false);
+  });
+
+  it('a pending row is not sent again', async () => {
+    const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
+    rows.set(GOOD, storedRow(GOOD, 'pending'));
+    const model = resuming([]);
+    await runExplain(deps(store, () => model), ALL, CAP);
+    expect(model.submitted).toEqual([]);
+    expect(runs[0]?.counts).toMatchObject({ sent: 0, pending: 1 });
   });
 
   it('writes a sent row pending before it waits for the batch', async () => {

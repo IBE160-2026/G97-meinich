@@ -386,5 +386,11 @@
   "provenance.source.api": "Kilde: Brønnøysundregistrene, nøkkeltallene i Regnskapsregisteret. Inneholder data under Norsk lisens for offentlige data (NLOD) tilgjengeliggjort av Brønnøysundregistrene. Bearbeidet av Peerless.",
   "provenance.source.document": "Kilde: Brønnøysundregistrene, årsregnskapet som er sendt inn til Regnskapsregisteret. Lest maskinelt (OCR) og bearbeidet av Peerless.",
   "provenance.share": "{full} × {andel} = {a}",
-  "provenance.shareApprox": "{full} × {andel} ≈ {a}"
+  "provenance.shareApprox": "{full} × {andel} ≈ {a}",
+  "explanation.direction.above": "over medianen",
+  "explanation.direction.below": "under medianen",
+  "explanation.direction.equal": "lik medianen",
+  "explanation.rank.1": "det største kapitalgapet",
+  "explanation.rank.2": "nest største kapitalgapet",
+  "explanation.rank.3": "tredje største kapitalgapet"
 }

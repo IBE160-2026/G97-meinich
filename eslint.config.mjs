@@ -137,7 +137,7 @@ const snapshotReads = [
 ];
 const CONDITION = ':matches(IfStatement, ConditionalExpression, SwitchStatement, LogicalExpression, CatchClause)';
 const conditionalExpectMessage =
-  'No expect inside a condition: a branch that is not taken tests nothing. Assert the case, narrow with a throwing helper (test/narrow.ts), split the cases, or filter first and assert the filtered list (Epic 3 retro action 8).';
+  'No expect inside a condition: a branch that is not taken tests nothing. Assert the case, narrow with a throwing helper (test/narrow.ts), split the cases, or filter first, assert the length of the filtered list, then each item (Epic 3 retro action 8).';
 const conditionalExpects = [
   { selector: `${CONDITION} CallExpression[callee.name='expect']`, message: conditionalExpectMessage },
   { selector: `${CONDITION} CallExpression[callee.object.name='expect']`, message: conditionalExpectMessage },

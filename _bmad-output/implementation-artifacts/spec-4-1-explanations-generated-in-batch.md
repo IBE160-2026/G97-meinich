@@ -103,13 +103,13 @@ Sources for the matrix:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `scripts/classify/model-client.ts`, `test/classify/run.test.ts`: generic params, and usage on a failed response (entry 205, marked `resolved:` in `deferred-work.md`).
-- [ ] `src/analysis/explanation-payload.ts`, `src/messages/nb.json`, `test/explain/payload.test.ts`: the slot table, payload, wire encoding and digest.
-- [ ] `supabase/migrations/20261126120000_explanation.sql`: the table, cascade, checks, grants, and `explain` in `run.step2`'s mode check.
-- [ ] `scripts/explain.ts`, `scripts/explain/{request,plan,run}.ts`, `scripts/explain-compute.ts`, `test/explain/*`, `test/fixtures/explain/`: the script with test mode, `--plan`, `--sample` and `--max-usd`.
-- [ ] Seed wiring and re-export, with the grants and deletion tests.
+- [x] `scripts/classify/model-client.ts`, `test/classify/run.test.ts`: generic params, and usage on a failed response (entry 205, marked `resolved:` in `deferred-work.md`).
+- [x] `src/analysis/explanation-payload.ts`, `src/messages/nb.json`, `test/explain/payload.test.ts`: the slot table, payload, wire encoding and digest.
+- [x] `supabase/migrations/20261126120000_explanation.sql`: the table, cascade, checks, grants, and `explain` in `run.step2`'s mode check.
+- [x] `scripts/explain.ts`, `scripts/explain/{request,plan,run}.ts`, `scripts/explain-compute.ts`, `test/explain/*`, `test/fixtures/explain/`: the script with test mode, `--plan`, `--sample` and `--max-usd`.
+- [x] Seed wiring and re-export, with the grants and deletion tests.
 - [ ] The sample run, after Meinich's yes, and its report.
-- [ ] Docs:
+- [x] Docs:
   - `docs/ai-log.md` and `AGENTS.md`;
   - the epic 3 retro rows for actions 9 and 11, and epics.md's ACs for them (4.2: the parser reads `format.ts`'s strings, including the two-decimal exceptions; 4.4: growth per tab after gzip, and a growth above 30 kB is put to Meinich);
   - the PRD memlog.

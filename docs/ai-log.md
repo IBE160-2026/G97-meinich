@@ -16,12 +16,12 @@ Routine work that went as expected is not logged.
 
 | Tag | Entries |
 |---|---|
-| auth | 41 |
+| auth | 42 |
 | money | 37 |
 | parsing | 19 |
-| llm-boundary | 8 |
+| llm-boundary | 9 |
 | scope | 18 |
-| docs | 34 |
+| docs | 35 |
 
 ## Entry template
 
@@ -1179,3 +1179,20 @@ After the zod refresh: `check:pins`, lint, typecheck, `pnpm test --maxWorkers=2`
 **Problem:** What could go wrong: on a fresh clone, demo A's and B's document aggregates (P of the waterfall, the capital figures' comparisons) leave out the 216 labelled-set peers, whose rows stay in the local dump (decision 2). They are smaller than in a database with the dump restored: TRETOEN at band 0 has P = 203 against 274 with the dump. Every figure is the engine's over what is loaded, and P stays far above 10, so the page is right for the seed it shows, but a number read on a developer's database with the dump differs from the fresh clone's. Also from the review: the export now checks `document.csv` against the allow-list as well as `document_column.csv` (`test/seed-format.test.ts` "refuses a document row without columns for an orgnr not on the allow-list"), refuses an empty labelled set (`test/seed-format.test.ts` "reads the orgnrs of [{orgnr, years}] and refuses another shape"), and the committed seed is checked for labelled-set document rows (`test/allow-list.test.ts` "holds no document row of a labelled-set company outside the reference draw").
 **Caught by:** The BMAD session's review of the implementation.
 **Outcome:** Review-fix commits on `story/5.4-demo-seed` after `1c2d984`.
+
+### 2026-11-27 — Story 4.1: explanations generated in batch, and what could go wrong with the model's input and output
+**Tags:** llm-boundary, auth, docs
+**Tool:** Claude Code (Opus 5.5): an implementation subagent dispatched by the BMAD session
+**Asked:** Implement Story 4.1's spec: the explanation payload and digest, `pnpm explain` with test mode, `--plan`, `--sample` and `--max-usd`, `register.explanation` with its grants and cascade, the seed wiring, and the deferred entry on a failed response's usage. No model call: the sample run waits for Meinich's yes.
+**Got:** `src/analysis/explanation-payload.ts` (the slot table, the payload, `analysisDigest`, `defaultAnalysis`); `scripts/explain.ts`, `scripts/explain/{request,plan,run}.ts`, `scripts/explain-compute.ts`; migration `20261126120000_explanation.sql`; `explanation.csv` header only in the seed; the model client generic over request params, its failed outcome carrying `usage`.
+**Problem:** What could go wrong:
+1. **The model computes or chooses a figure.** It never sees a number it could use unslotted: every figure, direction word and rank word is a slot whose text the page itself writes, and a template with a digit outside a slot (any Unicode digit), an unknown slot id or a stray brace is not stored (`test/explain/run.test.ts` "a digit outside a slot is not stored", "an unknown slot is not stored", "refuses %j as %s"). Which gaps and strengths are named, and in what order, is the engine's: the first strength is Største styrke's and the capital gaps keep `largestCapitalGap`'s order (`test/db/explanation.test.ts` "the payload names the page's strength and capital-gap order"). What 4.1 does not stop: a number written as a word ("tre"), a wrong word next to a right slot ("over" for "under"), or a sentence that adds a profit gap to a capital gap in words. The prompt forbids each; the figure test (Story 4.2) and the phrase test (4.3) are what will refuse them, which is why the full run waits for both.
+2. **The payload leaks what selection must not use, or who the company is.** The payload holds slot ids, their texts, figure names from `nb.json` and fixed keys only; no orgnr, name, register text, peer, fingerprint or classification, and a fingerprint and classification set on every company change nothing the model is sent (`test/explain/payload.test.ts` "holds no identity, fingerprint or classification"). Labelled-set companies are never in a sample (`test/explain/run.test.ts` "a sample is drawn outside the labelled set"), and nothing pnpm explain prints names a company.
+3. **A company outside the demo data gets document figures.** Its payload has no document slot and carries the page's own "not in the demo data" sentence (`test/explain/payload.test.ts` "a non-allow-listed company's payload contains no document figure").
+4. **A stored text is shown for an analysis it was not written for.** The row stores the digest of the wire-encoded default analysis (subject, year, band, sorted peers, every slot's id, text and exact value), so a changed peer, value or text changes it (`test/explain/payload.test.ts` "a changed peer changes the digest", "a changed slot value changes the digest", "a changed slot text changes the digest"); Story 4.4 shows a text only where the digests match.
+5. **Money spent without consent, or the key leaking.** A run refuses above `--max-usd` before the model is reached, and the model factory is called only after that check (`test/explain/run.test.ts` "refuses above --max-usd"); without a key a real run is refused with nothing sent (`test/explain/run.test.ts` "a real run without a key is refused and sends nothing"), and the key reaches no log line or run record (`test/explain/run.test.ts` "the key is never printed or recorded"). The key is still named only in `scripts/classify/model-client.ts`, and `src/` names neither batch script (`test/classify/key-boundary.test.ts`). `.env` holds a real key, so `pnpm explain` without `--plan` would spend money: no such run was made.
+6. **Data access.** `register.explanation` is readable by `reader`, written by `derive` (SELECT, INSERT, UPDATE) and loaded by `loader` (SELECT, INSERT, TRUNCATE) (`test/db/grants.test.ts` "the explanation table", and derive's ACL loop); a withdrawn company takes its explanation with it (`test/db/explanation.test.ts` "a deleted company takes its explanation with it", `ingest/tests/test_run_record.py::test_gone_unit_is_deleted_everywhere`). The seed writes no explanation until Story 4.3 (`test/db/seed.test.ts` "the committed seed holds no explanation").
+7. **A billed response not counted.** The failed outcome now carries its usage, counted by both steps (`test/classify/run.test.ts` and `test/explain/run.test.ts` "counts a failed response's tokens").
+**Caught by:** The guard removal for every row of the spec's I/O matrix, each undone afterwards (the implementation report). Two first attempts showed weak guards and were replaced: removing the strength sort did not fail the database test (demo A's first strength is first in figure order too), so the guard reverses the tie order instead; and replacing the run-record wrapper broke the call rather than the record, so the guard swaps the store's run-record methods.
+**Outcome:** Commits on `story/4.1-explanations-batch` from `5993045`. The sample run is not made.
+

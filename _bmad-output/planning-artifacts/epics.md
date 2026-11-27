@@ -2397,6 +2397,7 @@ So that "the model never calculates" is enforced, not hoped for.
 **When** it reads text
 **Then** it recognises Norwegian formats exactly as `src/engine/format.ts` writes them — U+00A0 as thousands separator and before "kr" and "%", a decimal comma, U+2212 as minus — so "−501 428 kr" is read as the number −501 428 (test)
 **And** it also recognises the variants a model might write — hyphen-minus for minus, a regular or narrow space as thousands separator, "kr" before or after, "%" — so "-501 428 kr" or "1 170 000 kr" with regular spaces cannot slip through as text (tests for each variant, each caught when the figure is absent from the engine output)
+**And** it reads every string `src/engine/format.ts` writes, including its two-decimal exceptions (`formatPercentFine`, `formatTurnover`), so an explanation's number is compared with what the page displays (Epic 3 retro action 11; test)
 
 **Given** the test
 **When** CI runs
@@ -2485,6 +2486,14 @@ So that I understand what the numbers mean without reading every row.
 **Given** the card at 375 px and 320 px
 **When** it renders
 **Then** it is full width, "Les mer" is at least 24 × 24 px, and the body does not scroll horizontally
+
+**Given** the card's read of `register.explanation`
+**When** a sample run has left rows marked `sample`
+**Then** the card reads only rows with `not sample` (test that fails with the condition removed; Story 4.1)
+
+**Given** the PR
+**When** it is verified
+**Then** it reports every tab's payload growth after gzip against `main`, and a growth above 30 kB on any tab is put to Meinich before the story goes on (Epic 3 retro action 9)
 
 ## Epic 5: Prove it and make it runnable — measurement, demo seed and About page
 

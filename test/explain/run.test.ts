@@ -138,6 +138,33 @@ describe('a run', () => {
     expect(runs[0]?.counts?.failure_reasons).toEqual({ digit_outside_slot: 1 });
   });
 
+  it('a sample run prints each refused text with its reason, stores no text and shows no orgnr', async () => {
+    const stored = RESPONSES.find((entry) => (entry as { custom_id?: unknown }).custom_id === DIGIT) as
+      | { result: { message: { content: { type: string; text: string }[] } } }
+      | undefined;
+    const text = stored?.result.message.content.find((part) => part.type === 'text')?.text;
+    expect(text).toMatch(/\d/);
+    const sample: Options = { selection: { kind: 'sample', size: 1 }, labelled: () => new Set() };
+    const run = async (options: Options) => {
+      const { store, rows, runs } = fakeStore({ [DIGIT]: explaining() });
+      const lines: string[] = [];
+      expect(await runExplain(deps(store, () => storedResponses(RESPONSES), (line) => lines.push(line)), options, CAP)).toBe(1);
+      return { lines, row: rows.get(DIGIT), run: runs[0] };
+    };
+
+    const drawn = await run(sample);
+    expect(drawn.lines.filter((line) => line.startsWith('explain: refused'))).toEqual([
+      `explain: refused (digit_outside_slot): ${JSON.stringify(text)}`,
+    ]);
+    expect(drawn.lines.filter((line) => line.includes(DIGIT))).toEqual([]);
+    expect(drawn.row).toMatchObject({ status: 'failed', template: null, slot_ids: null });
+    expect(JSON.stringify(drawn.run)).not.toContain(JSON.stringify(text).slice(1, -1));
+
+    // A full run prints no refused text: only a sample explains itself.
+    const full = await run(ALL);
+    expect(full.lines.filter((line) => line.startsWith('explain: refused'))).toEqual([]);
+  });
+
   it('an unknown slot is not stored', async () => {
     const { store, rows, runs } = fakeStore({ [UNKNOWN]: explaining() });
     expect(await runExplain(deps(store, () => storedResponses(RESPONSES)), ALL, CAP)).toBe(1);

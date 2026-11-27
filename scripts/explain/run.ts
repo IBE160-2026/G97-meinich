@@ -228,6 +228,8 @@ type Pending = {
 };
 
 type Collected = { readonly orgnr: string; readonly filled: string };
+/** A refused template's text and reason: printed by a sample run, never stored, never with its orgnr. */
+type Refused = { readonly reason: string; readonly text: string };
 
 async function collect(
   deps: Deps,
@@ -235,7 +237,7 @@ async function collect(
   batchId: string,
   items: ReadonlyMap<string, Pending>,
   dataset: 'demo' | 'full',
-  run: { readonly counts: Counts; readonly failures: Failure[]; readonly examples: Collected[] },
+  run: { readonly counts: Counts; readonly failures: Failure[]; readonly examples: Collected[]; readonly refused: Refused[] },
 ): Promise<void> {
   const { counts, failures } = run;
   while (!(await model.ended(batchId))) await deps.sleep(POLL_MS);
@@ -281,6 +283,7 @@ async function collect(
     const template = parseTemplate(result.outcome.text, item.analysis.slots);
     if (template.kind === 'refused') {
       fail(result.orgnr, item, template.reason);
+      run.refused.push({ reason: template.reason, text: result.outcome.text });
       return;
     }
     counts.explained += 1;
@@ -322,6 +325,7 @@ export async function runExplain(deps: Deps, options: Options, maxUsd: Decimal):
   const counts = emptyCounts(false);
   const failures: Failure[] = [];
   const examples: Collected[] = [];
+  const refused: Refused[] = [];
   return recorded(store, deps.now, counts, failures, async () => {
     const dataset = await store.dataset();
     if (dataset === null) throw new Refusal('no dataset is loaded; run `pnpm seed` first');
@@ -335,7 +339,7 @@ export async function runExplain(deps: Deps, options: Options, maxUsd: Decimal):
       return 0;
     }
     const model = deps.model();
-    for (const [batchId, items] of pending) await collect(deps, model, batchId, items, dataset, { counts, failures, examples });
+    for (const [batchId, items] of pending) await collect(deps, model, batchId, items, dataset, { counts, failures, examples, refused });
     const sample = options.selection.kind === 'sample';
     if (work.send.length > 0) {
       const batchId = await model.submit(work.send.map(({ orgnr, analysis }) => ({ orgnr, input: analysis.payload })));
@@ -365,12 +369,14 @@ export async function runExplain(deps: Deps, options: Options, maxUsd: Decimal):
           { analysis, digest: analysis.digest, filingYear: analysis.filingYear, ...PROMPT, sample } satisfies Pending,
         ]),
       );
-      await collect(deps, model, batchId, items, dataset, { counts, failures, examples });
+      await collect(deps, model, batchId, items, dataset, { counts, failures, examples, refused });
     }
     log(`explain: sent ${counts.sent}; explained ${counts.explained}; failed ${counts.failed} (${tally(counts.failure_reasons)}); unchanged ${counts.unchanged}`);
     log(`explain: ${counts.input_tokens} tokens in, ${counts.output_tokens} tokens out, thinking included`);
     // A sample's report shows a few texts as a reader would see them; never its orgnrs.
     if (sample) for (const example of examples.slice(0, SAMPLE_EXAMPLES)) log(`explain: example: ${example.filled}`);
+    // And every refused text with its reason, so a sample explains itself; on one line, as the model wrote it.
+    if (sample) for (const entry of refused) log(`explain: refused (${entry.reason}): ${JSON.stringify(entry.text)}`);
     return counts.failed > 0 ? 1 : 0;
   });
 }

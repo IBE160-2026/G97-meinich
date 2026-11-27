@@ -600,6 +600,19 @@ The subagent replaced two first attempts that did not fail:
 - **R24** (BH): false. The page does not exclude dissolved companies either.
 - **R26** (BH): false. That requirement is the epic's, not 4.1's.
 
+**The review fixes:** made by the implementation subagent in `9241e95`, `2b2ee2b`, `5ecf4cb`, `d340431`, `3d1c3dd`, `7bae11c`, `2475b58` and `8a60830`, each test checked by removing its guard once.
+- **Raised by the subagent:** `docs/ai-log.md`'s rule says an entry is never edited afterwards, and `8a60830` edits the 4.1 entry.
+- **The BMAD session kept the edit:** that entry was written in this branch (`7ac5672`) and has never been on `main`, so it is corrected before it is published. Meinich can ask for a follow-up entry instead.
+
+**Full verification after the review fixes** (AGENTS.md "Testing"):
+1. pins, env, lint, typecheck: pass.
+2. Unit tests: 2 221 pass.
+3. `pnpm seed` twice, then `pnpm seed:export`: `git status seed/` is clean. The reload also removed the 20 local sample rows; their reports are above.
+4. `test:db`: 224 pass. `test:ingest`: 392 pass.
+5. `pnpm build` and `check:routes`: pass.
+6. **E2e did not complete.** Claude Code stopped the run during the chromium project because the machine was critically low on memory, and it was not restarted unasked. Neither `src/app` nor `src/components` changed, and the request path's only change is `nb.json`'s six keys. E2e still has to pass, locally or in CI, before merge.
+7. `pnpm restore:documents`: 2 785 documents, 5 556 columns, 2 537 fingerprints and 10 371 classification rows, as after Story 5.4.
+
 ## Links
 
 - **Spec:** `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`. See its Spec Change Log, Sample run plan and Review Triage Log (rows 1–18 from the sample runs, R1–R26 from the review).

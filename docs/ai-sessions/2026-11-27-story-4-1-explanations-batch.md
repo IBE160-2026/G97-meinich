@@ -589,10 +589,10 @@ The subagent replaced two first attempts that did not fail:
 - **R16** (EC): an expired pending batch blocks later runs.
 - **R17** (EC): pending rows are written outside a transaction.
 
-**Put to Meinich:**
-- **R13** (EC, BH): `orgnr` alone keys `register.explanation`, so a sample run, a pending write or a failed rerun can overwrite a good full-run row.
-- **R15** (BH): no note for the document states other than `not_in_dataset`.
-- **R25** (BH): whether 4.3 or 5.5 commits explanations to the seed.
+**Put to Meinich, and decided by him (prompt 8):**
+- **R13** (EC, BH), deferred to 4.3: `orgnr` alone keys `register.explanation`, so a sample run, a pending write or a failed rerun can overwrite a good full-run row. 4.3 decides the key and write rule, and until then no sample run follows a full run.
+- **R15** (BH), deferred to 4.3: no note for the document states other than `not_in_dataset`. Each gets one in the page's words, and a text never says «ingen kapitalgap» when capital figures are missing.
+- **R25** (BH), patched: Story 5.5 commits the explanations to the seed, and 4.3 makes the full run. AGENTS.md, the deferred entry, the comments in `scripts/seed-format.ts`, `scripts/seed-export.ts` and `test/db/seed.test.ts`, the AI log and the spec now say so.
 
 **Rejected:**
 - **R18–R22** (EC, BH): low, and unlikely in everyday use. Each fix would add a guard.
@@ -602,7 +602,7 @@ The subagent replaced two first attempts that did not fail:
 
 **The review fixes:** made by the implementation subagent in `9241e95`, `2b2ee2b`, `5ecf4cb`, `d340431`, `3d1c3dd`, `7bae11c`, `2475b58` and `8a60830`, each test checked by removing its guard once.
 - **Raised by the subagent:** `docs/ai-log.md`'s rule says an entry is never edited afterwards, and `8a60830` edits the 4.1 entry.
-- **The BMAD session kept the edit:** that entry was written in this branch (`7ac5672`) and has never been on `main`, so it is corrected before it is published. Meinich can ask for a follow-up entry instead.
+- **The BMAD session kept the edit:** that entry was written in this branch (`7ac5672`) and has never been on `main`, so it is corrected before it is published. Meinich agreed in prompt 8. The R25 correction (5.5, not 4.3) edits the same entry for the same reason.
 
 **Full verification after the review fixes** (AGENTS.md "Testing"):
 1. pins, env, lint, typecheck: pass.
@@ -619,12 +619,13 @@ The subagent replaced two first attempts that did not fail:
 - **Deferred:** `_bmad-output/implementation-artifacts/deferred-work.md`. The entries this story adds:
   - **Story 4.2:** the `antall` slot and the header's peer count, written without `format.ts`.
   - **Story 4.3:**
-    - lift `WHERE false` with the full run;
     - the capital-gap wording, tried on one text;
     - run 185's phrase faults (triage rows 5–7);
     - run 193's (rows 10–13);
     - run 195's and 199's (rows 15–18), with a plan for refused rows;
     - the review's R14, R16 and R17.
+    - R13, the table's key and write rule; R15, a note for each document state.
+  - **Story 5.5:** lift `WHERE false` and commit the stored explanations into the seed, after 4.3's full run.
   - **Story 4.4:**
     - the card reads only `not sample`;
     - cost of goods at 0 % as a strength;

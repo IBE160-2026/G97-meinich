@@ -78,8 +78,9 @@ export const SEED_TABLES: readonly SeedTable[] = [
   },
   // Story 2.6: batch step 2's classifications, never a sample run's.
   { name: 'classification', primaryKey: [{ name: 'orgnr', text: true }] },
-  // Story 4.1: batch step 2's explanations. Header only until Story 4.3
-  // guards the full run (seed-export.ts writes `WHERE false`).
+  // Story 4.1: batch step 2's explanations. Header only until Story 5.5
+  // commits them, after Story 4.3's guarded full run (seed-export.ts
+  // writes `WHERE false`).
   { name: 'explanation', primaryKey: [{ name: 'orgnr', text: true }] },
 ];
 

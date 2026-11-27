@@ -281,8 +281,8 @@
   evidence: Story 4.1 checkpoint, Meinich's answer on the deferred entry about `SUBJECT_SQL` and `CANDIDATES_SQL` (2026-11-27). No effect in the seed: the export writes no explanation row before the full run.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
-  owner: Story 4.3 (the phrase test), where the full run stores real explanations (Meinich, 2026-11-27).
-  summary: `pnpm seed:export` writes `register.explanation` with `WHERE false` (Story 4.1), so `seed/demo/explanation.csv` holds only its header. When the full run is guarded by the figure test (4.2) and the phrase test (4.3), the condition is removed and the export writes every non-sample row (`not sample`). `test/db/seed.test.ts` "the committed seed holds no explanation" must then change to assert that the seed holds no sample row and that every row passes the figure and phrase tests.
+  owner: Story 5.5, which writes the stored explanations into the committed demo seed (epics.md Story 5.5, "it writes the stored explanations into the committed demo seed"); the full run is Story 4.3's (epics.md AD-7) (Meinich, 2026-11-27, after the review's R25).
+  summary: `pnpm seed:export` writes `register.explanation` with `WHERE false` (Story 4.1), so `seed/demo/explanation.csv` holds only its header. When Story 4.3's full run is guarded by the figure test (4.2) and the phrase test (4.3), and Story 5.5's 30-text review has passed, 5.5 removes the condition and the export writes every non-sample row (`not sample`). `test/db/seed.test.ts` "the committed seed holds no explanation" must then change to assert that the seed holds no sample row and that every row passes the figure and phrase tests.
   evidence: Story 4.1 decision 1 (run order ii+, Meinich 2026-11-27): the sample rows are never exported, and nothing is in the seed before 4.2 and 4.3 guard it.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
@@ -344,3 +344,16 @@
     - **R17:** pending rows are written in chunks of 1 000 outside a transaction. A failure after the first chunk leaves paid requests with no pending row, so their results are never collected.
     Each needs a test that fails with its guard removed.
   evidence: Review of Story 4.1's diff (Blind Hunter R14; Edge Case Hunter R16, R17), checked against `scripts/explain/run.ts`, `scripts/explain.ts` and `scripts/explain/request.ts` on 2026-11-27. Sample runs of 20 make one chunk and no stale batch, so none of the three has occurred.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3, before the full run (Meinich, 2026-11-27; Review Triage Log R13).
+  summary: `register.explanation` is keyed on `orgnr` alone, and `pnpm explain` upserts on it. A sample run overwrites a full-run row and its `sample` flag. A pending write replaces a good row before its batch returns. A failed rerun replaces a stored text with none. Before the full run, 4.3 decides the table's key and the write rule, so that:
+    - a `failed` or `pending` row never overwrites an `explained` one;
+    - a sample row never overwrites a row from a full run.
+    Each rule needs a test that fails with its guard removed. **Until then, no sample run is made after a full run.**
+  evidence: Review of Story 4.1's diff (Edge Case Hunter, Blind Hunter): `postgresStore.write` in `scripts/explain.ts` upserts every column `on conflict (orgnr)`. No full-run row exists yet, and 4.1 makes no more runs.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3, before the full run (Meinich, 2026-11-27; Review Triage Log R15).
+  summary: Only `not_in_dataset` gives the payload a note (`mangler.dokument`). A subject whose document basis is `document_missing`, `refused`, `failed_reconciliation` or `not_reconciled` has no document slot and no note, so the model sees no capital gap and no reason. Each of the four states gets a note in the page's own words, the words the key-figure rows show for that basis. A text must never say «ingen kapitalgap» (or the like) when the capital figures are missing. That needs a phrase test that fails on such a text for each of the four states.
+  evidence: Review of Story 4.1's diff (Blind Hunter): the `notes` line in `explanationAnalysis`, `src/analysis/explanation-payload.ts`, checks `basis === 'not_in_dataset'` only.

@@ -741,8 +741,9 @@ describe('the licence gate', () => {
   });
 });
 
-// Story 4.1: no explanation reaches the committed seed before Story 4.3
-// guards the full run with the figure and phrase tests. The export writes
+// Story 4.1: no explanation reaches the committed seed before Story 5.5
+// commits them, after Story 4.3 guards the full run with the figure and
+// phrase tests. The export writes
 // `WHERE false`: a stored row, sample or not, stays out, and the committed
 // file is its header alone.
 describe('the explanation export', () => {

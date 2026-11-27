@@ -198,6 +198,18 @@ describe('the meaning of the slot fields', () => {
     expect(payload.slot_fields.filter((entry) => /kvartil/i.test(entry.meaning.replace('aldri «kvartil»', '')))).toEqual([]);
   });
 
+  it("writes antall as the page's own phrase for one comparable: analysis.peerCountOne", () => {
+    // A hand-made group of one: demo A against only the first peer of its default group, in byte order.
+    const input = seedInput(A.orgnr);
+    const shown = narrow(analysisOf(input), 'analysis').shown;
+    const first = shown.peers.map((peer) => peer.orgnr).sort()[0];
+    const one = input.candidates.filter((candidate) => candidate.orgnr === first);
+    expect(one).toHaveLength(1);
+    const analysis = narrow(analysisOf({ ...input, candidates: one }), 'analysis').analysis;
+    expect(slot(analysis, 'antall')?.text).toBe('1 sammenlignbart');
+    expect(analysis.payload.peer_count.text).toBe('1 sammenlignbart');
+  });
+
   it("writes antall as the page's own phrase", () => {
     const analysis = explained(A.orgnr);
     const shown = narrow(analysisOf(seedInput(A.orgnr)), 'analysis').shown;

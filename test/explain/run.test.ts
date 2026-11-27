@@ -261,6 +261,22 @@ describe('a run', () => {
     expect([...rows.values()].map((row) => row.sample)).toEqual([true, true]);
   });
 
+  it('the sample keeps drawing until it holds size subjects with a peer group', async () => {
+    const subjects: Record<string, Computed> = {};
+    for (let i = 10; i < 20; i += 1) subjects[`1000000${i}`] = i < 16 ? { kind: 'empty', reason: 'subject_no_revenue' } : { kind: 'no_peer_group' };
+    subjects['100000030'] = explaining();
+    subjects['100000031'] = explaining();
+    const { store, runs } = fakeStore(subjects);
+    const model = storedResponses([]);
+    await runExplain(deps(store, () => model), { selection: { kind: 'sample', size: 2 }, labelled: () => new Set() }, CAP);
+    expect(model.submitted.flat().map((request) => request.orgnr).sort()).toEqual(['100000030', '100000031']);
+    const counts = runs[0]?.counts;
+    expect(counts?.with_peer_group).toBe(2);
+    // Every subject drawn is counted, and the draw met empty groups or companies without a filing before it had two.
+    expect(counts?.subjects).toBe(2 + (counts?.empty.subject_no_revenue ?? 0) + (counts?.no_peer_group ?? 0));
+    expect(counts?.subjects).toBeGreaterThan(2);
+  });
+
   it('an explained row under the same digest, model and prompt is not sent again', async () => {
     const { store, rows, runs } = fakeStore({ [GOOD]: explaining() });
     rows.set(GOOD, storedRow(GOOD, 'explained'));

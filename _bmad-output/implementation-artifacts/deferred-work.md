@@ -335,3 +335,12 @@
       - a self-correction left in a text («Rettere: …», run 199, refused for its placement);
       - the own value written twice in one sentence (run 199, stored).
   evidence: Sample runs 195 (run.step2 id 195) and 199 (id 199), local database, 2026-11-27. The texts are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`. Totals only.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`
+  owner: Story 4.3, before the full run (review of Story 4.1, Review Triage Log R14, R16, R17).
+  summary: Three gaps in `pnpm explain` that matter only for the full run:
+    - **R14:** a template that leaves out what it must name (the profit gap, the largest capital gap, the first strength, the `mangler.dokument` note) is stored. Nothing checks `slotIds` against the payload.
+    - **R16:** a pending row whose batch's results have expired, or whose batch id is unknown, makes `model.results` throw, and every later run aborts before it sends.
+    - **R17:** pending rows are written in chunks of 1 000 outside a transaction. A failure after the first chunk leaves paid requests with no pending row, so their results are never collected.
+    Each needs a test that fails with its guard removed.
+  evidence: Review of Story 4.1's diff (Blind Hunter R14; Edge Case Hunter R16, R17), checked against `scripts/explain/run.ts`, `scripts/explain.ts` and `scripts/explain/request.ts` on 2026-11-27. Sample runs of 20 make one chunk and no stale batch, so none of the three has occurred.

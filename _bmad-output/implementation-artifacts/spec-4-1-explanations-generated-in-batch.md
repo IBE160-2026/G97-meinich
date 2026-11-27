@@ -113,11 +113,44 @@ Wording found in sample runs 185, 193, 195 and 199, triaged by Meinich (2026-11-
 | 11 | run 193: a claim beyond the payload («Ingen av nøkkeltallene ligger under grensen for beste fjerdedel») | Story 4.3 (deferred-work.md) |
 | 12 | run 193: `mangler.dokument` read as the company having no figures at all | Story 4.3 (deferred-work.md) |
 | 13 | run 193: the model's own comment in English inside a text («Let me correct: …»); refused there for repeated words, not for the comment | Story 4.3 (deferred-work.md) |
+| 14 | run 193: a sentence that begins with a slot starts in lower case («bedre enn 68 % …», «2,2 % driftsmargin …») | Story 4.4, where the card fills the template (deferred-work.md) |
 | 15 | run 195: `{{retning}}` with no figure before it (`unknown_slot`) | Story 4.3 (deferred-work.md) |
 | 16 | run 195: «høyere-er-bedre», the item's `better` translated literally | Story 4.3 (deferred-work.md) |
 | 17 | run 199, 4.1's last: 3 of 20 refused (`placement_without_bedre_enn`); `decideWork` counts only explained rows as unchanged, so the full run needs a plan for sending refused rows again | Story 4.3 (deferred-work.md) |
 | 18 | run 199: a meta sentence («Dette er en beskrivelse …, ikke en vurdering av hva selskapet bør gjøre»), a self-correction left in a text («Rettere: …», refused), the own value written twice in one sentence | Story 4.3 (deferred-work.md) |
-| 14 | run 193: a sentence that begins with a slot starts in lower case («bedre enn 68 % …», «2,2 % driftsmargin …») | Story 4.4, where the card fills the template (deferred-work.md) |
+
+### Review of the diff from `8df1e63` (2026-11-27)
+
+Three layers: Blind Hunter (BH), Edge Case Hunter (EC) and Verification Gap (VG). Each finding was checked against the code before its verdict.
+
+| # | Layer | Finding | Verdict | Route |
+|---|---|---|---|---|
+| R1 | VG | `decideWork`'s skip rules never run against a stored row (every test store starts empty) | medium | patch: three tests |
+| R2 | VG, BH | the resume path (`pendingBatches`, `analysis_changed`, `no_result_in_batch`) is untested | medium | patch: three tests |
+| R3 | VG | the sample draw's stop at `size` subjects with a peer group is not observed | low | patch: a test with empty and no-filing subjects |
+| R4 | VG | the digest's subject, filing year and band are not pinned by a test | medium | patch: three digest tests |
+| R5 | VG | `postgresStore.startRun`/`endRun` SQL never runs in a test | medium | patch: a rolled-back database test |
+| R6 | BH | `SLOT_FIELD_MEANINGS` is sent to the model but is in neither `promptHash()` nor the digest, so a legend-only change leaves rows "unchanged" | medium | patch: the hash covers it, with a test |
+| R7 | BH | AGENTS.md's `pnpm explain` paragraph lists only three refusals, says every run writes a record (false before the arguments and connections), and "either" for three scripts | low | patch: AGENTS.md |
+| R8 | BH | `docs/ai-log.md`'s 4.1 Outcome says no sample run was made, and cites an implementation report that is not in the repository | medium | patch: ai-log; the guard table goes into the session file |
+| R9 | BH | spec stale: the sample-run task cites only run 181, the triage rows were out of order, the sample-run plan still says an output cap of 1 000 | low | patch: spec (outside the frozen block) |
+| R10 | BH | the session file has no review section, no PR link, and its Links miss the 4.2 entry and four 4.3/4.4 entries | low | patch: session file (the PR link once the PR exists) |
+| R11 | BH | `sprint-status.yaml` keeps `epic-4: backlog` while 4.1 is in review | low | patch |
+| R12 | BH | the Epic 3 retro row for action 9 says "4.1 measured 0 growth"; what was measured is `nb.json`'s client bundle, +64 bytes gzipped, with no page changed | low | patch: the row says what was measured |
+| R13 | EC, BH | `register.explanation`'s key is `orgnr` alone: a sample run overwrites a full-run row (and its `sample` flag), a pending write replaces a good row before the batch returns, and a failed rerun destroys a stored text | medium | **put to Meinich**: no full-run row exists yet and 4.1 makes no more runs; proposed deferred to 4.3, which designs the full run |
+| R14 | BH | a template that leaves out the profit gap, the largest capital gap, the first strength or `mangler.dokument` is stored | medium | defer: Story 4.3 (coverage beside the phrase test) |
+| R15 | BH | only `not_in_dataset` gets a note; `document_missing`, `refused`, `failed_reconciliation` and `not_reconciled` give no capital slot and no note, so the model may say «ingen kapitalgap» as a finding | medium | **put to Meinich**: proposed deferred to 4.3, with the page's own state words |
+| R16 | EC | a pending row whose batch's results have expired (29 days) or are unknown makes `model.results` throw, and every later run aborts before sending | medium | defer: Story 4.3 (the full run) |
+| R17 | EC | pending rows are written in chunks of 1 000 outside a transaction: a failure after the first chunk leaves paid requests with no pending row | medium | defer: Story 4.3 (only a full run has more than one chunk) |
+| R18 | EC | a batch returning one `custom_id` twice doubles counts and fails the upsert | low | reject: the Batch API keeps `custom_id` unique per batch, and the failure is loud |
+| R19 | EC | fewer subjects with a peer group than `--sample` sends fewer, with no signal | low | reject: `--plan` and the run print "with a peer group n" |
+| R20 | EC | `endRun` throwing inside the catch masks the original error | low | reject: rare database failure; the run still exits 1 |
+| R21 | EC | `sql.end()` rejecting in `finally` may leave the reader pool open | low | reject: rare; the process exits on the next tick |
+| R22 | BH | a `failed` row carries no reason or run id | low | reject: `run.step2.failures` holds each orgnr with its reason, and `generated_at` dates the run |
+| R23 | BH | a stored text with «bør» (run 199) has only `WHERE false` keeping it out of the seed | false | reject: the 4.3 entry requires every row to pass the figure and phrase tests before the export writes any |
+| R24 | BH | `coveredAsOrgnrs` does not exclude dissolved companies | false | reject: the analysis page does not exclude them either (`loadSubject`, `analysisView`), and the explanation follows the page |
+| R25 | BH | `epic-4-context.md` has Story 5.5 committing explanations to the seed, while the 4.3 entry lifts `WHERE false` | maybe-false | put to Meinich: the two can be read together (4.3 lifts the condition, 5.5 commits after its 30-text review), or 4.3's re-export commits them first |
+| R26 | BH | `epic-4-context.md`'s Requirements say every company has a stored explanation | false | reject: that is the epic's requirement; 4.1's narrower AC is in the Spec Change Log |
 
 ## Code Map
 
@@ -135,7 +168,7 @@ Wording found in sample runs 185, 193, 195 and 199, triaged by Meinich (2026-11-
 - [x] `supabase/migrations/20261126120000_explanation.sql`: the table, cascade, checks, grants, and `explain` in `run.step2`'s mode check.
 - [x] `scripts/explain.ts`, `scripts/explain/{request,plan,run}.ts`, `scripts/explain-compute.ts`, `test/explain/*`, `test/fixtures/explain/`: the script with test mode, `--plan`, `--sample` and `--max-usd`.
 - [x] Seed wiring and re-export, with the grants and deletion tests.
-- [x] The sample run, after Meinich's yes, and its report (run.step2 id 181; the report is in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`).
+- [x] The sample runs, after Meinich's yes to each ceiling, and their reports (run.step2 ids 181, 185, 193, 195 and 199; the reports are in the session file `docs/ai-sessions/2026-11-27-story-4-1-explanations-batch.md`).
 - [x] Docs:
   - `docs/ai-log.md` and `AGENTS.md`;
   - the epic 3 retro rows for actions 9 and 11, and epics.md's ACs for them (4.2: the parser reads `format.ts`'s strings, including the two-decimal exceptions; 4.4: growth per tab after gzip, and a growth above 30 kB is put to Meinich);
@@ -182,8 +215,8 @@ Nothing is sent before Meinich's yes to the ceiling that `--plan` prints.
 3. **Price check:** before the run, `PRICE_PER_MTOK` (now $0.05 input and $0.25 output per million batch tokens for `claude-haiku-5-5`, read 2026-11-08) is checked again against the pricing page, and `PRICE_DATE` is updated if it has changed.
 4. **Meinich's yes** to the ceiling for the sample.
 5. **`pnpm explain --sample 20 --max-usd 0.05`** refuses with exit 1 and sends nothing if the ceiling is above $0.05. Rows are stored with `sample = true` and the run record goes to `run.step2`.
-   - Order of magnitude, to be replaced by `--plan`'s figure: 20 requests of at most 4 000 input tokens and an output cap of 1 000 come to about $0.004 + $0.005 = $0.009. $0.05 gives roughly five times that in margin.
-   - The output cap is set in `scripts/explain/request.ts` (classify uses 2 000).
+   - Order of magnitude before the first run: 20 requests of at most 4 000 input tokens and an output cap of 1 000 came to about $0.009. The cap is now 2 000 (Spec Change Log, after run 193), and `--plan`'s ceiling for the last run was $0.0130.
+   - The output cap is `MAX_TOKENS` in `scripts/explain/request.ts`.
 6. **The report** (in the PR and the session file):
    - input and output tokens and their dollar amount;
    - the kept and refused templates, each refusal by reason (`digit_outside_slot`, `unknown_slot`, `max_tokens`, …);

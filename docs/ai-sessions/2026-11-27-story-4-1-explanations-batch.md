@@ -537,8 +537,85 @@ Already triaged and seen again:
 - «Ingen av nøkkeltallene ligger under grensen …» (row 11);
 - a sentence starting with a figure (row 14, Story 4.4).
 
+## Guards removed
+
+The implementation subagent removed the guard for each I/O-matrix row and showed the named test failing. Afterwards it restored the code with `git checkout` or by restoring the database object. The rows added later in the session (refused texts, the legend, `repeated_slot_words`, the sentence boundary, `peerCountOne`, `placement_without_bedre_enn`) were checked the same way by the BMAD session; each section above names its test.
+
+| Row | Guard removed | Failing output |
+|---|---|---|
+| Demo A payload | strength sort (tie order reversed) | "demo A's payload": strengths array not equal |
+| API-only subject | `mangler.dokument` note | "expected [] to deeply equal [ { id: 'mangler.dokument' … } ]" |
+| Forbidden fields | `subject` added to the payload | three cases fail; the key Set is not equal |
+| Digit outside slot | `DIGIT` check | "expected +0 to be 1" (exit code) |
+| Unknown slot | `known.has` check | "Error: no slot driftsmargin.foo" |
+| Empty group | per-reason count | `toMatchObject` on the counts fails |
+| Over cap | ceiling check | "promise resolved "+0" instead of rejecting" |
+| Sample draw | labelled-set filter | "expected [ '<test orgnr>' ] to deeply equal []" |
+| Test mode | stored client yields nothing | "expected 1 to be +0" |
+| Failed response (classify) | usage counting | "expected +0 to be 30" |
+| Failed response (explain) | usage counting | "expected +0 to be 1800" |
+| Deletion (ingest) | the test's explanation insert | "AssertionError: register.explanation / assert 0 > 0" |
+| Deletion (database) | FK without cascade | "violates foreign key constraint explanation_orgnr_fkey" |
+| Grants | `REVOKE UPDATE` from derive | ACL arrays not equal |
+| Seed | `WHERE false` | "expected [ [ '<test orgnr>', … ] … ] to deeply equal []" |
+| Request path | a `src/` file naming `scripts/explain/run.ts` | the key-boundary regex matches |
+| Digest: peer / value / text | each input left out of the digest | "not to be 'e11308…'" / "'5cc6df…'" / "'e66f99…'" |
+| Stored columns | settings out of the prompt hash; dataset hard-coded | "expected '3e26d4…' to be 'c01915…'"; "expected 'demo' to be 'full'" |
+| Run record: `--plan`, run | the store's run-record methods made no-ops | "expected [] to have a length of 1 but got +0" |
+| Run record: refused run | `endRun` in the catch | "expected undefined to be 'Error: no dataset is loaded…'" |
+| Run record: database | mode check without `explain` | "violates check constraint step2_mode_check" |
+| Same choice | capital sort by figure order only; strength tie order reversed | demo B and demo A arrays not equal |
+| Key | `NoModelKey` check; a log line printing the key | not an instance of NoModelKey; the output contains the marker |
+| Wording counts | direction line removed from `--plan` | the plan lines do not include "  direction words: …" |
+
+The subagent replaced two first attempts that did not fail:
+- **The strength sort:** removing it did not fail the test, because demo A's first strength is also first in figure order. The guard reverses the tie order instead.
+- **The run-record wrapper:** replacing it broke the call rather than the record. The guard makes the store's run-record methods no-ops instead.
+
+## Review
+
+- **Diff:** from `8df1e63` to `dd5f72f`, 331 kB, reviewed by three layers: Blind Hunter, Edge Case Hunter and Verification Gap. The BMAD session checked each finding against the code before its verdict.
+- **Triage:** the spec's Review Triage Log, rows R1–R26, records the verdict and route of every finding.
+- **Credit:** every finding is the review layer's (BH, EC or VG). The verdicts are the BMAD session's.
+
+**Fixed (patch):**
+- **R1–R5** (VG; R2 also BH): tests for `decideWork` over stored rows, the resume path, the sample draw with empty and no-filing subjects, the digest's subject, year and band, and the store's run-record SQL.
+- **R6** (BH): `promptHash()` now covers `SLOT_FIELD_MEANINGS`, so a legend change makes the stored rows stale.
+- **R7, R8** (BH): AGENTS.md and `docs/ai-log.md` brought up to date.
+- **R9–R12** (BH): the spec's stale lines, this file's links and review section, `epic-4` in `sprint-status.yaml`, and the Epic 3 retro row for action 9.
+
+**Deferred to Story 4.3** (`deferred-work.md`):
+- **R14** (BH): coverage of what a template must name.
+- **R16** (EC): an expired pending batch blocks later runs.
+- **R17** (EC): pending rows are written outside a transaction.
+
+**Put to Meinich:**
+- **R13** (EC, BH): `orgnr` alone keys `register.explanation`, so a sample run, a pending write or a failed rerun can overwrite a good full-run row.
+- **R15** (BH): no note for the document states other than `not_in_dataset`.
+- **R25** (BH): whether 4.3 or 5.5 commits explanations to the seed.
+
+**Rejected:**
+- **R18–R22** (EC, BH): low, and unlikely in everyday use. Each fix would add a guard.
+- **R23** (BH): false. The 4.3 entry already requires every row to pass the phrase test before any export.
+- **R24** (BH): false. The page does not exclude dissolved companies either.
+- **R26** (BH): false. That requirement is the epic's, not 4.1's.
+
 ## Links
 
-- Spec: `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md` (Spec Change Log, Sample run plan).
-- Deferred: `_bmad-output/implementation-artifacts/deferred-work.md`. The new entries are for 4.4 (`not sample`; cost of goods as a strength) and 4.3 (`WHERE false`; the untried capital-gap wording).
-- AI log: `docs/ai-log.md`, Story 4.1 entry.
+- **Spec:** `_bmad-output/implementation-artifacts/spec-4-1-explanations-generated-in-batch.md`. See its Spec Change Log, Sample run plan and Review Triage Log (rows 1–18 from the sample runs, R1–R26 from the review).
+- **Deferred:** `_bmad-output/implementation-artifacts/deferred-work.md`. The entries this story adds:
+  - **Story 4.2:** the `antall` slot and the header's peer count, written without `format.ts`.
+  - **Story 4.3:**
+    - lift `WHERE false` with the full run;
+    - the capital-gap wording, tried on one text;
+    - run 185's phrase faults (triage rows 5–7);
+    - run 193's (rows 10–13);
+    - run 195's and 199's (rows 15–18), with a plan for refused rows;
+    - the review's R14, R16 and R17.
+  - **Story 4.4:**
+    - the card reads only `not sample`;
+    - cost of goods at 0 % as a strength;
+    - upper-casing a sentence that starts with a slot.
+- **Resolved:** the entry on a failed response's usage (PR #54's review).
+- **AI log:** `docs/ai-log.md`, the Story 4.1 entry.
+- **PR:** to follow, once Meinich says to push.
